@@ -1,7 +1,8 @@
 import NextAuth, { DefaultSession } from 'next-auth';
+import Credentials from 'next-auth/providers/credentials';
 
 import { ERRORS, ROUTES } from '@/constants';
-import Credentials from 'next-auth/providers/credentials';
+
 import { AuthorizeUser } from './interfaces/auth';
 
 const { INVALID_CREDENTIALS } = ERRORS;
@@ -12,10 +13,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Credentials({
       authorize: async (credentials) => {
         const { email, password } = credentials;
-        console.log('credentials', credentials);
         let user: DefaultSession['user'] | null = null;
-
-        console.log('credentials');
 
         try {
           const response: AuthorizeUser = await fetch(`${process.env.THOTH_AUTH_API_URL}`, {

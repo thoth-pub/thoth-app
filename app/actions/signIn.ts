@@ -9,6 +9,6 @@ export const signInAction = async (credentials: { email: string; password: strin
   await signIn('credentials', {
     email,
     password,
-    redirectTo: ROUTES.ADMIN,
+    redirectTo: ROUTES.DASHBOARD,
   });
 };
