@@ -5,7 +5,15 @@ const StylesCacheProvider = ({
 }: Readonly<{
   children: React.ReactNode;
 }>) => {
-  return <AppRouterCacheProvider>{children}</AppRouterCacheProvider>;
+  return (
+    <AppRouterCacheProvider
+      options={{
+        enableCssLayer: true,
+      }}
+    >
+      {children}
+    </AppRouterCacheProvider>
+  );
 };
 
 export default StylesCacheProvider;

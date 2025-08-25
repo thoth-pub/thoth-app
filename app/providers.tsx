@@ -1,3 +1,5 @@
+'use client';
+
 import { StylesCacheProvider, ThemeProvider } from '@/providers';
 
 const Providers = ({ children }: Readonly<{ children: React.ReactNode }>) => {

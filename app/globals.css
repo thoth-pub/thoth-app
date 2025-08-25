@@ -1,6 +1,6 @@
-@import 'tailwindcss';
+@layer reset,theme, base, mui, layout, modules, components, utilities;
 
-@layer reset, theme, base, layout, modules, utilities;
+@import 'tailwindcss';
 
 @layer reset {
   *,
