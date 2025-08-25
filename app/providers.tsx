@@ -1,12 +1,14 @@
 'use client';
 
-import { StylesCacheProvider, ThemeProvider } from '@/providers';
+import { ApolloClientProvider, StylesCacheProvider, ThemeProvider } from '@/providers';
 
 const Providers = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   return (
-    <StylesCacheProvider>
-      <ThemeProvider>{children}</ThemeProvider>
-    </StylesCacheProvider>
+    <ApolloClientProvider>
+      <StylesCacheProvider>
+        <ThemeProvider>{children}</ThemeProvider>
+      </StylesCacheProvider>
+    </ApolloClientProvider>
   );
 };
 
