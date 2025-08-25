@@ -1,3 +1,8 @@
+export type LinkedPublisher = {
+  publisherId: string;
+  isAdmin: boolean;
+};
+
 export type AuthorizeUser = {
   accountId: string;
   createdAt: string;
@@ -6,6 +11,7 @@ export type AuthorizeUser = {
   resourceAccess: {
     isSuperuser: boolean;
     isBot: boolean;
+    linkedPublishers: LinkedPublisher[];
   };
   surname: string;
   token: string;

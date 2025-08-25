@@ -4652,10 +4652,12 @@ export enum WorkType {
   Textbook = 'TEXTBOOK'
 }
 
-export type GetBooksCountQueryVariables = Exact<{ [key: string]: never; }>;
+export type GetBooksQueryVariables = Exact<{
+  publishers: Array<Scalars['Uuid']['input']> | Scalars['Uuid']['input'];
+}>;
 
 
-export type GetBooksCountQuery = { __typename?: 'QueryRoot', bookCount: number };
+export type GetBooksQuery = { __typename?: 'QueryRoot', books: Array<{ __typename?: 'Work', doi?: any | null, workId: any, title: string, workType: WorkType, updatedAt: any, contributions: Array<{ __typename?: 'Contribution', fullName: string }>, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } } }> };
 
 
-export const GetBooksCountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBooksCount"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"bookCount"}}]}}]} as unknown as DocumentNode<GetBooksCountQuery, GetBooksCountQueryVariables>;
+export const GetBooksDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBooks"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"books"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}}]}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}}]}}]} as unknown as DocumentNode<GetBooksQuery, GetBooksQueryVariables>;

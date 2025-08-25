@@ -1,9 +1,9 @@
-import NextAuth, { DefaultSession } from 'next-auth';
+import NextAuth, { type User } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 
 import { ERRORS, ROUTES } from '@/constants';
 
-import { AuthorizeUser } from './interfaces/auth';
+import type { AuthorizeUser, LinkedPublisher } from './interfaces/auth';
 
 const { INVALID_CREDENTIALS } = ERRORS;
 const { LOGIN } = ROUTES;
@@ -13,7 +13,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     Credentials({
       authorize: async (credentials) => {
         const { email, password } = credentials;
-        let user: DefaultSession['user'] | null = null;
+        let user: User | null = null;
 
         try {
           const response: AuthorizeUser = await fetch(`${process.env.THOTH_AUTH_API_URL}`, {
@@ -33,6 +33,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             name: response.name,
             email: response.email,
             image: null,
+            linkedPublishers: response.resourceAccess.linkedPublishers,
           };
 
           return user;
@@ -42,6 +43,26 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       },
     }),
   ],
+  session: {
+    strategy: 'jwt',
+  },
+  callbacks: {
+    async jwt({ token, user }) {
+      if (user) {
+        token.id = user.id;
+        token.linkedPublishers = user.linkedPublishers;
+      }
+
+      return token;
+    },
+    async session({ session, token }) {
+      if (token) {
+        session.user.id = token.id as string;
+        session.user.linkedPublishers = token.linkedPublishers as LinkedPublisher[];
+      }
+      return session;
+    },
+  },
   pages: {
     signIn: LOGIN,
   },
