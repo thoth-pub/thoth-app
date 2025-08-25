@@ -1,10 +1,10 @@
 'use client';
 
+import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { FORM_FIELDS } from '@/constants';
-import { useTransition } from 'react';
 import { signInAction } from '@/app/actions/signIn';
+import { FORM_FIELDS } from '@/constants';
 
 const { EMAIL, PASSWORD } = FORM_FIELDS;
 
