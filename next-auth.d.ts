@@ -7,6 +7,7 @@ interface AuthUser {
   email?: string | null;
   image?: string | null;
   linkedPublishers: LinkedPublisher[];
+  isSuperAdmin: boolean;
 }
 
 declare module 'next-auth' {
