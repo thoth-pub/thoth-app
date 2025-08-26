@@ -15,9 +15,13 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  */
 type Documents = {
     "\n  query GetBooks($publishers: [Uuid!]!) {\n    books(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": typeof types.GetBooksDocument,
+    "\n  query GetChapters($publishers: [Uuid!]!) {\n    chapters(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": typeof types.GetChaptersDocument,
+    "\n  query GetWorks($publishers: [Uuid!]!) {\n    works(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": typeof types.GetWorksDocument,
 };
 const documents: Documents = {
     "\n  query GetBooks($publishers: [Uuid!]!) {\n    books(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": types.GetBooksDocument,
+    "\n  query GetChapters($publishers: [Uuid!]!) {\n    chapters(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": types.GetChaptersDocument,
+    "\n  query GetWorks($publishers: [Uuid!]!) {\n    works(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": types.GetWorksDocument,
 };
 
 /**
@@ -38,6 +42,14 @@ export function graphql(source: string): unknown;
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query GetBooks($publishers: [Uuid!]!) {\n    books(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetBooks($publishers: [Uuid!]!) {\n    books(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GetChapters($publishers: [Uuid!]!) {\n    chapters(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetChapters($publishers: [Uuid!]!) {\n    chapters(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GetWorks($publishers: [Uuid!]!) {\n    works(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetWorks($publishers: [Uuid!]!) {\n    works(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};
