@@ -1,12 +1,10 @@
 import { GET_BOOKS, GET_CHAPTERS, GET_WORKS } from '@/app/queries';
 import type { WorkEntity } from '@/interfaces';
-import { query } from '@/utils';
+import { BaseService } from '@/interfaces/services';
 
 import { WorksDtoMapper } from './mappers';
 
-export class WorksService {
-  constructor(private readonly queryClient: typeof query) {}
-
+export class WorksService extends BaseService {
   async getWorks(publishersIds: string[]): Promise<WorkEntity[]> {
     const { data } = await this.queryClient({
       query: GET_WORKS,

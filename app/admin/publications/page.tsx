@@ -1,3 +1,36 @@
+import { redirect } from 'next/navigation';
+
+import { PublicationsService } from '@/app/services';
+import { auth } from '@/auth';
+import { ROUTES } from '@/constants';
+import { convertLinkedPublishers, query } from '@/utils';
+
+const publicationsService = new PublicationsService(query);
+
 export default async function PublicationsPage() {
-  return <div>Thoth Publications Page</div>;
+  const session = await auth();
+
+  if (!session || !session.user) {
+    redirect(ROUTES.LOGIN);
+  }
+
+  const linkedPublishers = session.user.linkedPublishers ? convertLinkedPublishers(session.user.linkedPublishers) : [];
+
+  const publications = await publicationsService.getPublications(linkedPublishers);
+
+  return (
+    <ul>
+      {publications.map(({ id, title, type, updatedAt, isbn, doi, publisherName }) => (
+        <li key={id} className="flex flex-col gap-2">
+          <span>{id}</span>
+          <span>{title}</span>
+          <span>{doi}</span>
+          <span>{publisherName}</span>
+          <span>{type}</span>
+          <span>{isbn}</span>
+          <span>{updatedAt}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }

@@ -1,16 +1,27 @@
-import type { ToEntity } from '@/interfaces';
-import type { WorkDto, WorkEntity } from '@/interfaces/works';
+import type { ToEntity, WorkDto, WorkEntity } from '@/interfaces';
 
 export class WorksDtoMapper implements ToEntity<WorkEntity, WorkDto> {
   toEntity(dto: WorkDto): WorkEntity {
+    const {
+      workId,
+      title,
+      workType,
+      updatedAt,
+      contributions = [],
+      doi,
+      imprint: {
+        publisher: { publisherName = '' },
+      },
+    } = dto;
+
     return {
-      id: dto.workId,
-      title: dto.title,
-      type: dto.workType,
-      updatedAt: dto.updatedAt,
-      contributorsNames: dto?.contributions.map((contribution) => contribution.fullName) ?? [],
-      doi: dto.doi,
-      publisherName: dto?.imprint?.publisher?.publisherName,
+      id: workId,
+      title,
+      type: workType,
+      updatedAt,
+      contributorsNames: contributions.map((contribution) => contribution.fullName),
+      doi,
+      publisherName,
     };
   }
 }
