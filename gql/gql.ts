@@ -20,6 +20,7 @@ type Documents = {
     "\n  query GetImprints($publishers: [Uuid!]!) {\n    imprints(publishers: $publishers) {\n      imprintId\n      imprintName\n      imprintUrl\n      updatedAt\n      publisher {\n        publisherName\n      }\n    }\n  }\n": typeof types.GetImprintsDocument,
     "\n  query GetPublications($publishers: [Uuid!]!) {\n    publications(publishers: $publishers) {\n      isbn\n      publicationId\n      publicationType\n      updatedAt\n      work {\n        doi\n        title\n        imprint {\n          publisher {\n            publisherName\n          }\n        }\n      }\n    }\n  }\n": typeof types.GetPublicationsDocument,
     "\n  query GetPublishers($publishers: [Uuid!]!) {\n    publishers(publishers: $publishers) {\n      publisherId\n      publisherName\n      publisherShortname\n      publisherUrl\n      updatedAt\n    }\n  }\n": typeof types.GetPublishersDocument,
+    "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n    }\n  }\n": typeof types.GetSeriesDocument,
     "\n  query GetWorks($publishers: [Uuid!]!) {\n    works(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": typeof types.GetWorksDocument,
 };
 const documents: Documents = {
@@ -29,6 +30,7 @@ const documents: Documents = {
     "\n  query GetImprints($publishers: [Uuid!]!) {\n    imprints(publishers: $publishers) {\n      imprintId\n      imprintName\n      imprintUrl\n      updatedAt\n      publisher {\n        publisherName\n      }\n    }\n  }\n": types.GetImprintsDocument,
     "\n  query GetPublications($publishers: [Uuid!]!) {\n    publications(publishers: $publishers) {\n      isbn\n      publicationId\n      publicationType\n      updatedAt\n      work {\n        doi\n        title\n        imprint {\n          publisher {\n            publisherName\n          }\n        }\n      }\n    }\n  }\n": types.GetPublicationsDocument,
     "\n  query GetPublishers($publishers: [Uuid!]!) {\n    publishers(publishers: $publishers) {\n      publisherId\n      publisherName\n      publisherShortname\n      publisherUrl\n      updatedAt\n    }\n  }\n": types.GetPublishersDocument,
+    "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n    }\n  }\n": types.GetSeriesDocument,
     "\n  query GetWorks($publishers: [Uuid!]!) {\n    works(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": types.GetWorksDocument,
 };
 
@@ -70,6 +72,10 @@ export function graphql(source: "\n  query GetPublications($publishers: [Uuid!]!
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query GetPublishers($publishers: [Uuid!]!) {\n    publishers(publishers: $publishers) {\n      publisherId\n      publisherName\n      publisherShortname\n      publisherUrl\n      updatedAt\n    }\n  }\n"): (typeof documents)["\n  query GetPublishers($publishers: [Uuid!]!) {\n    publishers(publishers: $publishers) {\n      publisherId\n      publisherName\n      publisherShortname\n      publisherUrl\n      updatedAt\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n    }\n  }\n"): (typeof documents)["\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

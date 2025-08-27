@@ -5,4 +5,5 @@ export * from './mappers';
 export * from './publications';
 export * from './publishers';
 export * from './queryClient';
+export * from './series';
 export * from './works';

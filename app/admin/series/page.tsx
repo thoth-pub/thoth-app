@@ -1,3 +1,36 @@
+import { redirect } from 'next/navigation';
+
+import { SeriesService } from '@/app/services';
+import { auth } from '@/auth';
+import { ROUTES } from '@/constants';
+import { convertLinkedPublishers, query } from '@/utils';
+
+const seriesService = new SeriesService(query);
+
 export default async function SeriesPage() {
-  return <div>Thoth Series Page</div>;
+  const session = await auth();
+
+  if (!session || !session.user) {
+    redirect(ROUTES.LOGIN);
+  }
+
+  const linkedPublishers = session.user.linkedPublishers ? convertLinkedPublishers(session.user.linkedPublishers) : [];
+  const isAdmin = session.user.isSuperAdmin;
+
+  const series = await seriesService.getSeries(isAdmin ? [] : linkedPublishers);
+
+  return (
+    <ul className="flex flex-col gap-2">
+      {series.map(({ id, name, type, issnPrint, issnDigital, updatedAt }) => (
+        <li key={id} className="flex gap-2">
+          <span>{id}</span>
+          <span>{name}</span>
+          <span>{type}</span>
+          <span>{issnPrint}</span>
+          <span>{issnDigital}</span>
+          <span>{updatedAt}</span>
+        </li>
+      ))}
+    </ul>
+  );
 }
