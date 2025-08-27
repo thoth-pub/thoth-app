@@ -1,9 +1,9 @@
-import { query } from '@/utils';
+import type { QueryClient } from './queryClient';
 
 export abstract class BaseService {
-  protected readonly queryClient: typeof query;
+  protected readonly queryClient: QueryClient;
 
-  constructor(queryClient: typeof query) {
+  constructor(queryClient: QueryClient) {
     this.queryClient = queryClient;
   }
 }

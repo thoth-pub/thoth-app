@@ -1,4 +1,5 @@
 export * from './auth';
+export * from './contributors';
 export * from './imprints';
 export * from './mappers';
 export * from './publications';
