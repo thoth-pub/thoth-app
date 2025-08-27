@@ -1,4 +1,4 @@
-@layer reset,theme, base, mui, layout, modules, components, utilities;
+@layer reset, theme, base, mui, components, utilities;
 
 @import 'tailwindcss';
 
@@ -81,10 +81,11 @@
   --color-success: var(--green);
 
   /* Tier 3 */
+  --color-link: var(--purple);
+
+  --header-height: 5.625rem;
+  --footer-height: 4rem;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }

@@ -3,7 +3,14 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Economica, Open_Sans } from 'next/font/google';
 
+import { Footer, Header } from '@/components';
+import { config } from '@/config';
+
 import Providers from './providers';
+
+const {
+  meta: { title, description },
+} = config;
 
 const openSans = Open_Sans({
   variable: '--font-open-sans',
@@ -20,8 +27,8 @@ const economica = Economica({
 });
 
 export const metadata: Metadata = {
-  title: 'Thoth Metadata Management Platform',
-  description: ' Metadata Management Platform',
+  title,
+  description,
 };
 
 export default function RootLayout({
@@ -31,9 +38,13 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className={`${economica.variable} ${openSans.variable} antialiased`}>
-        <Providers>{children}</Providers>
-      </body>
+      <Providers>
+        <body className={`${economica.variable} ${openSans.variable} flex h-dvh min-h-dvh flex-col antialiased`}>
+          <Header />
+          {children}
+          <Footer />
+        </body>
+      </Providers>
     </html>
   );
 }
