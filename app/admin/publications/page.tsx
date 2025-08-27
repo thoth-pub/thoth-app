@@ -19,9 +19,9 @@ export default async function PublicationsPage() {
   const publications = await publicationsService.getPublications(linkedPublishers);
 
   return (
-    <ul>
+    <ul className="flex flex-col gap-2">
       {publications.map(({ id, title, type, updatedAt, isbn, doi, publisherName }) => (
-        <li key={id} className="flex flex-col gap-2">
+        <li key={id} className="flex gap-2">
           <span>{id}</span>
           <span>{title}</span>
           <span>{doi}</span>

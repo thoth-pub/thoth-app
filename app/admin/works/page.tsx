@@ -19,9 +19,9 @@ export default async function WorksPage() {
   const works = await worksService.getWorks(linkedPublishers);
 
   return (
-    <ul>
+    <ul className="flex flex-col gap-2">
       {works.map(({ id, title, type, updatedAt, contributorsNames, doi, publisherName }) => (
-        <li key={id} className="flex flex-col gap-2">
+        <li key={id} className="flex gap-2">
           <span>{id}</span>
           <span>{title}</span>
           <span>{type}</span>

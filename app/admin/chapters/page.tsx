@@ -19,9 +19,9 @@ export default async function ChaptersPage() {
   const chapters = await worksService.getChapters(linkedPublishers);
 
   return (
-    <ul>
+    <ul className="flex flex-col gap-2">
       {chapters.map(({ id, title, type, updatedAt, contributorsNames, doi, publisherName }) => (
-        <li key={id} className="flex flex-col gap-2">
+        <li key={id} className="flex gap-2">
           <span>{id}</span>
           <span>{title}</span>
           <span>{type}</span>
