@@ -1,1 +1,1 @@
-export * from './contributorsMapper';
+export * from './contributorMapper';

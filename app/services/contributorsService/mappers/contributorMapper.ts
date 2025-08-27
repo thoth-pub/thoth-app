@@ -1,6 +1,6 @@
 import type { ContributorDto, ContributorEntity, ToEntity } from '@/interfaces';
 
-export class ContributorsDtoMapper implements ToEntity<ContributorEntity, ContributorDto> {
+export class ContributorDtoMapper implements ToEntity<ContributorEntity, ContributorDto> {
   toEntity(dto: ContributorDto): ContributorEntity {
     const { contributorId, fullName, orcid, updatedAt } = dto;
 

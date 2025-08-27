@@ -2,7 +2,7 @@ import { GET_BOOKS, GET_CHAPTERS, GET_WORKS } from '@/app/queries';
 import type { WorkEntity } from '@/interfaces';
 import { BaseService } from '@/interfaces/services';
 
-import { WorksDtoMapper } from './mappers';
+import { WorkDtoMapper } from './mappers';
 
 export class WorksService extends BaseService {
   async getWorks(publishersIds: string[]): Promise<WorkEntity[]> {
@@ -11,7 +11,7 @@ export class WorksService extends BaseService {
       variables: { publishers: publishersIds },
     });
 
-    const dtoMapper = new WorksDtoMapper();
+    const dtoMapper = new WorkDtoMapper();
     const res = data?.works.map(dtoMapper.toEntity);
 
     return res ?? [];
@@ -23,7 +23,7 @@ export class WorksService extends BaseService {
       variables: { publishers: publishersIds },
     });
 
-    const dtoMapper = new WorksDtoMapper();
+    const dtoMapper = new WorkDtoMapper();
     const res = data?.books.map(dtoMapper.toEntity);
 
     return res ?? [];
@@ -35,7 +35,7 @@ export class WorksService extends BaseService {
       variables: { publishers: publishersIds },
     });
 
-    const dtoMapper = new WorksDtoMapper();
+    const dtoMapper = new WorkDtoMapper();
     const res = data?.chapters.map(dtoMapper.toEntity);
 
     return res ?? [];

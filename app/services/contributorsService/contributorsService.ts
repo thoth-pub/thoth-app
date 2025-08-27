@@ -2,7 +2,7 @@ import { GET_CONTRIBUTORS } from '@/app/queries';
 import type { ContributorEntity } from '@/interfaces';
 import { BaseService } from '@/interfaces/services';
 
-import { ContributorsDtoMapper } from './mappers';
+import { ContributorDtoMapper } from './mappers';
 
 export class ContributorsService extends BaseService {
   async getContributors(): Promise<ContributorEntity[]> {
@@ -10,7 +10,7 @@ export class ContributorsService extends BaseService {
       query: GET_CONTRIBUTORS,
     });
 
-    const dtoMapper = new ContributorsDtoMapper();
+    const dtoMapper = new ContributorDtoMapper();
     const res = data?.contributors.map(dtoMapper.toEntity);
 
     return res ?? [];

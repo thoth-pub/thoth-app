@@ -2,7 +2,7 @@ import { GET_IMPRINTS } from '@/app/queries';
 import type { ImprintEntity } from '@/interfaces';
 import { BaseService } from '@/interfaces/services';
 
-import { ImprintsDtoMapper } from './mappers';
+import { ImprintDtoMapper } from './mappers';
 
 export class ImprintsService extends BaseService {
   async getImprints(publishersIds: string[]): Promise<ImprintEntity[]> {
@@ -11,7 +11,7 @@ export class ImprintsService extends BaseService {
       variables: { publishers: publishersIds },
     });
 
-    const dtoMapper = new ImprintsDtoMapper();
+    const dtoMapper = new ImprintDtoMapper();
     const res = data?.imprints.map(dtoMapper.toEntity);
 
     return res ?? [];

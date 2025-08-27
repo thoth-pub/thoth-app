@@ -1,1 +1,1 @@
-export * from './institutionsMapper';
+export * from './institutionMapper';

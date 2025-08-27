@@ -2,7 +2,7 @@ import { GET_INSTITUTIONS } from '@/app/queries';
 import type { InstitutionEntity } from '@/interfaces';
 import { BaseService } from '@/interfaces/services';
 
-import { InstitutionsDtoMapper } from './mappers';
+import { InstitutionDtoMapper } from './mappers';
 
 export class InstitutionsService extends BaseService {
   async getInstitutions(): Promise<InstitutionEntity[]> {
@@ -10,7 +10,7 @@ export class InstitutionsService extends BaseService {
       query: GET_INSTITUTIONS,
     });
 
-    const dtoMapper = new InstitutionsDtoMapper();
+    const dtoMapper = new InstitutionDtoMapper();
     const res = data?.institutions.map(dtoMapper.toEntity);
 
     return res ?? [];

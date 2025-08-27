@@ -1,1 +1,1 @@
-export * from './imprintsMapper';
+export * from './imprintMapper';
