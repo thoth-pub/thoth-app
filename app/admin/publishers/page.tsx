@@ -20,9 +20,9 @@ export default async function PublishersPage() {
   const publications = await publishersService.getPublishers(isAdmin ? [] : linkedPublishers);
 
   return (
-    <ul>
+    <ul className="flex flex-col gap-2">
       {publications.map(({ id, name, shortName, url, updatedAt }) => (
-        <li key={id}>
+        <li key={id} className="flex gap-2">
           <span>{id}</span>
           <span>{name}</span>
           <span>{shortName}</span>
