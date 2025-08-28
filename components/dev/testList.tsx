@@ -1,24 +1,11 @@
 'use client';
 
-import { useDataWithPagination } from '@/app/hooks';
-import { GET_INSTITUTIONS } from '@/app/queries';
-import { InstitutionDtoMapper } from '@/app/services/institutionsService/mappers';
+import { useInstitutions } from '@/app/hooks/data/useInstitutionts';
 import { Button } from '@/components';
-import { GetInstitutionsQuery } from '@/gql/graphql';
-import { InstitutionDto, InstitutionEntity } from '@/interfaces';
-
-const dtoMapper = new InstitutionDtoMapper();
 
 const TestList = ({ maxDataCount }: { maxDataCount: number }) => {
-  const { data, isFetchNextDisabled, isFetchPrevDisabled, fetchNextPage, fetchPreviousPage } = useDataWithPagination<
-    GetInstitutionsQuery,
-    InstitutionDto,
-    InstitutionEntity
-  >({
-    query: GET_INSTITUTIONS,
-    maxDataCount,
-    dtoMapper,
-  });
+  const { data, isFetchNextDisabled, isFetchPrevDisabled, fetchNextPage, fetchPreviousPage } =
+    useInstitutions(maxDataCount);
 
   return (
     <div>

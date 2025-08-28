@@ -6,11 +6,10 @@ import { useCallback, useState } from 'react';
 
 import { config } from '@/config';
 import { Exact, InputMaybe, Scalars } from '@/gql/graphql';
-import { BaseMapper } from '@/interfaces';
 
 const ITEMS_PER_PAGE = config.data.itemsPerRequestLimit;
 
-type UseDataWithPaginationProps<QueryResult, DataDto, DataEntity> = {
+type UseDataWithPaginationProps<QueryResult> = {
   query: TypedDocumentNode<
     QueryResult,
     Exact<{
@@ -19,26 +18,17 @@ type UseDataWithPaginationProps<QueryResult, DataDto, DataEntity> = {
     }>
   >;
   maxDataCount: number;
-  dtoMapper: BaseMapper<DataEntity, DataDto>;
 };
 
-export const useDataWithPagination = <QueryResult, DataDto, DataEntity>({
-  query,
-  maxDataCount,
-  dtoMapper,
-}: UseDataWithPaginationProps<QueryResult, DataDto, DataEntity>) => {
+const useDataWithPagination = <QueryResult>({ query, maxDataCount }: UseDataWithPaginationProps<QueryResult>) => {
   const [offset, setOffset] = useState(0);
 
-  const { data } = useSuspenseQuery(query, {
+  const { data } = useSuspenseQuery<QueryResult>(query, {
     variables: {
       offset,
       limit: ITEMS_PER_PAGE,
     },
   });
-
-  const mappedData = Array.isArray(data)
-    ? data.map(dtoMapper.toEntity)
-    : [dtoMapper.toEntity(data as unknown as DataDto)];
 
   const isFetchPrevDisabled = offset - ITEMS_PER_PAGE < 0;
   const isFetchNextDisabled = offset + ITEMS_PER_PAGE >= maxDataCount;
@@ -54,10 +44,12 @@ export const useDataWithPagination = <QueryResult, DataDto, DataEntity>({
   }, [isFetchPrevDisabled]);
 
   return {
-    data: mappedData,
+    data,
     isFetchPrevDisabled,
     isFetchNextDisabled,
     fetchNextPage,
     fetchPreviousPage,
   };
 };
+
+export default useDataWithPagination;
