@@ -1,6 +1,6 @@
-import type { PublicationDto, PublicationEntity, ToEntity } from '@/interfaces';
+import type { BaseMapper, PublicationDto, PublicationEntity } from '@/interfaces';
 
-export class PublicationDtoMapper implements ToEntity<PublicationEntity, PublicationDto> {
+export class PublicationDtoMapper implements BaseMapper<PublicationEntity, PublicationDto> {
   toEntity(dto: PublicationDto): PublicationEntity {
     const {
       publicationId,

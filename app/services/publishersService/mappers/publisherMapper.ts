@@ -1,6 +1,6 @@
-import type { PublisherDto, PublisherEntity, ToEntity } from '@/interfaces';
+import type { BaseMapper, PublisherDto, PublisherEntity } from '@/interfaces';
 
-export class PublisherDtoMapper implements ToEntity<PublisherEntity, PublisherDto> {
+export class PublisherDtoMapper implements BaseMapper<PublisherEntity, PublisherDto> {
   toEntity(dto: PublisherDto): PublisherEntity {
     const { publisherId, publisherName, publisherShortname, publisherUrl, updatedAt } = dto;
 

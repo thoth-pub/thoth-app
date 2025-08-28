@@ -1,6 +1,6 @@
-import type { SeriesDto, SeriesEntity, ToEntity } from '@/interfaces';
+import type { BaseMapper, SeriesDto, SeriesEntity } from '@/interfaces';
 
-export class SeriesDtoMapper implements ToEntity<SeriesEntity, SeriesDto> {
+export class SeriesDtoMapper implements BaseMapper<SeriesEntity, SeriesDto> {
   toEntity(dto: SeriesDto): SeriesEntity {
     const { seriesId, seriesName, seriesType, issnPrint, issnDigital, updatedAt } = dto;
 

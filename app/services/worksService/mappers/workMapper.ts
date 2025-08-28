@@ -1,6 +1,6 @@
-import type { ToEntity, WorkDto, WorkEntity } from '@/interfaces';
+import type { BaseMapper, WorkDto, WorkEntity } from '@/interfaces';
 
-export class WorkDtoMapper implements ToEntity<WorkEntity, WorkDto> {
+export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   toEntity(dto: WorkDto): WorkEntity {
     const {
       workId,

@@ -6,4 +6,9 @@ export const config = {
   thothLink: 'https://thoth.pub/',
   cc4Link: 'https://creativecommons.org/licenses/by/4.0/',
   publicDomainLink: 'https://creativecommons.org/public-domain/cc0/',
+  data: {
+    itemsPerRequestLimit: 20,
+    doiPrefix: 'https://doi.org/',
+    rorPrefix: 'https://ror.org/',
+  },
 };

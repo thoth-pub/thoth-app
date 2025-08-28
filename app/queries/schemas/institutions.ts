@@ -1,8 +1,8 @@
 import { graphql } from '@/gql';
 
 export const GET_INSTITUTIONS = graphql(`
-  query GetInstitutions {
-    institutions {
+  query GetInstitutions($offset: Int!, $limit: Int) {
+    institutions(offset: $offset, limit: $limit) {
       institutionId
       institutionName
       institutionDoi
@@ -10,5 +10,11 @@ export const GET_INSTITUTIONS = graphql(`
       countryCode
       updatedAt
     }
+  }
+`);
+
+export const GET_INSTITUTIONS_COUNT = graphql(`
+  query GetInstitutionsCount {
+    institutionCount
   }
 `);

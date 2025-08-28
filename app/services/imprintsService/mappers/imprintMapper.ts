@@ -1,6 +1,6 @@
-import type { ImprintDto, ImprintEntity, ToEntity } from '@/interfaces';
+import type { BaseMapper, ImprintDto, ImprintEntity } from '@/interfaces';
 
-export class ImprintDtoMapper implements ToEntity<ImprintEntity, ImprintDto> {
+export class ImprintDtoMapper implements BaseMapper<ImprintEntity, ImprintDto> {
   toEntity(dto: ImprintDto): ImprintEntity {
     const {
       imprintId,

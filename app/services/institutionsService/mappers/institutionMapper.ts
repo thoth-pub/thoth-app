@@ -1,6 +1,6 @@
-import type { InstitutionDto, InstitutionEntity, ToEntity } from '@/interfaces';
+import type { BaseMapper, InstitutionDto, InstitutionEntity } from '@/interfaces';
 
-export class InstitutionDtoMapper implements ToEntity<InstitutionEntity, InstitutionDto> {
+export class InstitutionDtoMapper implements BaseMapper<InstitutionEntity, InstitutionDto> {
   toEntity(dto: InstitutionDto): InstitutionEntity {
     const { institutionId, institutionName, institutionDoi, ror, countryCode, updatedAt } = dto;
 
