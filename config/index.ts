@@ -11,4 +11,5 @@ export const config = {
     doiPrefix: 'https://doi.org/',
     rorPrefix: 'https://ror.org/',
   },
+  fieldsDebounceDelay: 1000,
 };

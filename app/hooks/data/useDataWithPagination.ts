@@ -17,16 +17,22 @@ type UseDataWithPaginationProps<QueryResult> = {
       limit?: InputMaybe<Scalars['Int']['input']>;
     }>
   >;
+  filter: string;
   maxDataCount: number;
 };
 
-const useDataWithPagination = <QueryResult>({ query, maxDataCount }: UseDataWithPaginationProps<QueryResult>) => {
+const useDataWithPagination = <QueryResult>({
+  query,
+  maxDataCount,
+  filter,
+}: UseDataWithPaginationProps<QueryResult>) => {
   const [offset, setOffset] = useState(0);
 
   const { data } = useSuspenseQuery<QueryResult>(query, {
     variables: {
       offset,
       limit: ITEMS_PER_PAGE,
+      filter,
     },
   });
 

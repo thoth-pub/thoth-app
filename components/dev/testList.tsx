@@ -1,11 +1,13 @@
 'use client';
 
-import { useInstitutions } from '@/app/hooks/data/useInstitutionts';
+import { TextField } from '@mui/material';
+
+import useInstitutions from '@/app/hooks/data/useInstitutions';
 import { Button } from '@/components';
 
-const TestList = ({ maxDataCount }: { maxDataCount: number }) => {
-  const { data, isFetchNextDisabled, isFetchPrevDisabled, fetchNextPage, fetchPreviousPage } =
-    useInstitutions(maxDataCount);
+const TestList = () => {
+  const { data, isFetchNextDisabled, isFetchPrevDisabled, fetchNextPage, fetchPreviousPage, filter, updateFilter } =
+    useInstitutions();
 
   return (
     <div>
@@ -13,6 +15,7 @@ const TestList = ({ maxDataCount }: { maxDataCount: number }) => {
         <Button variant="contained" onClick={fetchPreviousPage} disabled={isFetchPrevDisabled}>
           Load previous
         </Button>
+        <TextField label="Filter" type="text" value={filter} onChange={(e) => updateFilter(e.target.value)} />
         <Button variant="contained" onClick={fetchNextPage} disabled={isFetchNextDisabled}>
           Load more
         </Button>
