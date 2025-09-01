@@ -49,12 +49,18 @@ const useDataWithPagination = <QueryResult>({
     setOffset((prev) => prev - ITEMS_PER_PAGE);
   }, [isFetchPrevDisabled]);
 
+  const resetOffset = useCallback(() => {
+    setOffset(0);
+  }, []);
+
   return {
     data,
+    offset,
     isFetchPrevDisabled,
     isFetchNextDisabled,
     fetchNextPage,
     fetchPreviousPage,
+    resetOffset,
   };
 };
 

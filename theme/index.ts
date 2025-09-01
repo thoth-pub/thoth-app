@@ -3,6 +3,15 @@ import { createTheme } from '@mui/material';
 export const theme = createTheme({
   typography: {
     fontFamily: 'var(--font-open-sans), sans-serif',
+    h1: {
+      fontFamily: 'var(--font-economica), sans-serif',
+      fontWeight: 700,
+      fontSize: '2rem',
+      lineHeight: '1.26',
+      letterSpacing: '0.025rem',
+      verticalAlign: 'middle',
+      textTransform: 'uppercase',
+    },
     body1: {
       fontWeight: 400,
       fontSize: '1rem',

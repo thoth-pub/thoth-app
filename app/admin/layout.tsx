@@ -16,16 +16,18 @@ const AdminLayout = async ({
   }
 
   return (
-    <main className="flex flex-1">
-      <ul className="flex h-full flex-col gap-2 border-r-2 border-r-[var(--color-border)] p-4">
-        {PAGES.map(({ name, href }) => (
-          <li key={href}>
-            <Link href={href}>{name}</Link>
-          </li>
-        ))}
-      </ul>
-      {children}
-    </main>
+    <>
+      <aside>
+        <ul className="flex h-full flex-col gap-2 border-r-2 border-r-[var(--color-border)] p-4">
+          {PAGES.map(({ name, href }) => (
+            <li key={href}>
+              <Link href={href}>{name}</Link>
+            </li>
+          ))}
+        </ul>
+      </aside>
+      <section className="flex flex-col gap-7 p-7">{children}</section>
+    </>
   );
 };
 

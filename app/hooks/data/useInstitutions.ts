@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from '@apollo/client/react';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 
 import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '@/app/queries';
 import { InstitutionDtoMapper } from '@/app/services/institutionsService/mappers';
@@ -19,12 +19,18 @@ const useInstitutions = () => {
     },
   });
 
-  const { data, isFetchNextDisabled, isFetchPrevDisabled, fetchNextPage, fetchPreviousPage } =
+  const { data, offset, isFetchNextDisabled, isFetchPrevDisabled, fetchNextPage, fetchPreviousPage, resetOffset } =
     useDataWithPagination<GetInstitutionsQuery>({
       query: GET_INSTITUTIONS,
       maxDataCount: institutionsCount.institutionCount,
       filter: debouncedFilter,
     });
+
+  useEffect(() => {
+    if (offset === 0) return;
+
+    resetOffset();
+  }, [debouncedFilter]);
 
   const mappedData = useMemo(() => {
     if (!data) return [];

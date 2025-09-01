@@ -1,7 +1,9 @@
+import AddIcon from '@mui/icons-material/Add';
 import { redirect } from 'next/navigation';
 
 import { WorksService } from '@/app/services';
 import { auth } from '@/auth';
+import { PageHeader } from '@/components';
 import { ROUTES } from '@/constants';
 import { convertLinkedPublishers, query } from '@/utils';
 
@@ -19,18 +21,21 @@ export default async function WorksPage() {
   const works = await worksService.getWorks(linkedPublishers);
 
   return (
-    <ul className="flex flex-col gap-2">
-      {works.map(({ id, title, type, updatedAt, contributorsNames, doi, publisherName }) => (
-        <li key={id} className="flex gap-2">
-          <span>{id}</span>
-          <span>{title}</span>
-          <span>{type}</span>
-          <span>{contributorsNames.join(', ')}</span>
-          <span>{doi}</span>
-          <span>{publisherName}</span>
-          <span>{updatedAt}</span>
-        </li>
-      ))}
-    </ul>
+    <>
+      <PageHeader title="Name of work" link={ROUTES.NEW_WORK} buttonText="New" startIcon={<AddIcon />} />
+      <ul className="flex flex-col gap-2">
+        {works.map(({ id, title, type, updatedAt, contributorsNames, doi, publisherName }) => (
+          <li key={id} className="flex gap-2">
+            <span>{id}</span>
+            <span>{title}</span>
+            <span>{type}</span>
+            <span>{contributorsNames.join(', ')}</span>
+            <span>{doi}</span>
+            <span>{publisherName}</span>
+            <span>{updatedAt}</span>
+          </li>
+        ))}
+      </ul>
+    </>
   );
 }

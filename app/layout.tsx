@@ -44,7 +44,7 @@ export default async function RootLayout({
       <Providers>
         <body className={`${economica.variable} ${openSans.variable} flex h-dvh min-h-dvh flex-col antialiased`}>
           <Header>{session && <SignOutButton />}</Header>
-          {children}
+          <main className="flex flex-1">{children}</main>
           <Footer />
         </body>
       </Providers>
