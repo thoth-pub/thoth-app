@@ -34,5 +34,22 @@ export const theme = createTheme({
         },
       },
     },
+    MuiButton: {
+      styleOverrides: {
+        root: {
+          padding: '0.625rem 1.25rem ',
+          textTransform: 'none',
+          fontWeight: 700,
+          fontStyle: 'bold',
+          fontSize: '1rem',
+          lineHeight: '1.66',
+          borderRadius: 'var(--border-button-radius)',
+        },
+        contained: {
+          backgroundColor: 'var(--color-button-contained-background)',
+          color: 'var(--color-button-contained-text)',
+        },
+      },
+    },
   },
 });

@@ -3,7 +3,8 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { Economica, Open_Sans } from 'next/font/google';
 
-import { Footer, Header } from '@/components';
+import { auth } from '@/auth';
+import { Footer, Header, SignOutButton } from '@/components';
 import { config } from '@/config';
 
 import Providers from './providers';
@@ -31,16 +32,18 @@ export const metadata: Metadata = {
   description,
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await auth();
+
   return (
     <html lang="en">
       <Providers>
         <body className={`${economica.variable} ${openSans.variable} flex h-dvh min-h-dvh flex-col antialiased`}>
-          <Header />
+          <Header>{session && <SignOutButton />}</Header>
           {children}
           <Footer />
         </body>

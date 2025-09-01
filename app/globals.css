@@ -81,10 +81,14 @@
   --color-success: var(--green);
 
   /* Tier 3 */
-  --color-link: var(--purple);
-
   --header-height: 5.625rem;
   --footer-height: 4rem;
+
+  --color-link: var(--purple);
+
+  --color-button-contained-background: var(--purple);
+  --color-button-contained-text: var(--yellow);
+  --border-button-radius: 0.25rem;
 }
 
 @theme inline {
