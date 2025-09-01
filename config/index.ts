@@ -12,4 +12,9 @@ export const config = {
     rorPrefix: 'https://ror.org/',
   },
   fieldsDebounceDelay: 1000,
+  validations: {
+    doiPrefix: 'https://doi.org/',
+    rorPrefix: 'https://ror.org/',
+    orcidPrefix: 'https://orcid.org/',
+  },
 };
