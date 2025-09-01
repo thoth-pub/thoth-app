@@ -57,9 +57,7 @@
   --purple-light: #f4e5f9;
   --purple-light-alt: #f2cdff;
   --white: #fff;
-  --white-opacity-30: rgba(255, 255, 255, 0.3);
-  --white-opacity-80: rgba(255, 255, 255, 0.8);
-  --white-opacity-60: rgba(255, 255, 255, 0.6);
+  --white-opacity-50: rgba(255, 255, 255, 0.5);
   --black: #0e1828;
   --gray: #bdbfc2;
   --gray-alt: #e9e9e9;
@@ -71,12 +69,16 @@
 
   --side-padding: 1.25rem;
 
+  --default-content-padding: 1.875rem;
+
   /* Tier 2 */
   --color-background: var(--yellow);
+  --color-background-alt: var(--white-opacity-50);
   --color-typography: var(--black);
   --color-typography-alt: var(--blue);
   --color-typography-secondary: var(--white);
   --color-border: var(--green);
+  --color-border-alt: var(--purple);
   --color-purple: var(--purple);
   --color-success: var(--green);
 
