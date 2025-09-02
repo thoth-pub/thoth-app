@@ -1,14 +1,21 @@
 'use client';
 
 import { FORM_FIELDS } from '@/constants';
+import type { ImprintEntity } from '@/interfaces';
 
 import CreateWorkFormField from './components/CreateWorkFormField';
 import { useCreateWorkForm } from './hooks';
 
 const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 
-const CreateWorkForm = () => {
-  const { control, workTypes, submit } = useCreateWorkForm();
+type CreateWorkFormProps = {
+  imprints: ImprintEntity[];
+};
+
+const CreateWorkForm = ({ imprints }: CreateWorkFormProps) => {
+  const { control, workTypesOptions, imprintOptions, isImprintVisible, submit } = useCreateWorkForm({
+    imprints,
+  });
 
   return (
     <form
@@ -22,24 +29,23 @@ const CreateWorkForm = () => {
         control={control}
         type={TITLE.type}
       />
-      <CreateWorkFormField
-        label={IMPRINT.label}
-        name={IMPRINT.name}
-        placeholder={IMPRINT.placeholder}
-        control={control}
-        select
-        disabled={workTypes.length === 0}
-        options={workTypes}
-        defaultValue={workTypes[0].value}
-      />
+      {isImprintVisible && (
+        <CreateWorkFormField
+          label={IMPRINT.label}
+          name={IMPRINT.name}
+          placeholder={IMPRINT.placeholder}
+          control={control}
+          select
+          options={imprintOptions}
+        />
+      )}
       <CreateWorkFormField
         label={WORK_TYPE.label}
         name={WORK_TYPE.name}
         placeholder={WORK_TYPE.placeholder}
         control={control}
         select
-        options={workTypes}
-        defaultValue={workTypes[0].value}
+        options={workTypesOptions}
       />
       <CreateWorkFormField
         label={LICENSE.label}
@@ -48,7 +54,6 @@ const CreateWorkForm = () => {
         control={control}
         type={LICENSE.type}
       />
-      <button type="submit">Submit</button>
     </form>
   );
 };

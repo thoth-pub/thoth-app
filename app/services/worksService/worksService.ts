@@ -1,11 +1,11 @@
 import { GET_BOOKS, GET_CHAPTERS, GET_WORKS } from '@/app/queries';
-import type { WorkEntity } from '@/interfaces';
+import type { PublisherId, WorkEntity } from '@/interfaces';
 import { BaseService } from '@/interfaces/services';
 
 import { WorkDtoMapper } from './mappers';
 
 export class WorksService extends BaseService {
-  async getWorks(publishersIds: string[]): Promise<WorkEntity[]> {
+  async getWorks(publishersIds: PublisherId[]): Promise<WorkEntity[]> {
     const { data } = await this.queryClient({
       query: GET_WORKS,
       variables: { publishers: publishersIds },
@@ -17,7 +17,7 @@ export class WorksService extends BaseService {
     return res ?? [];
   }
 
-  async getBooks(publishersIds: string[]): Promise<WorkEntity[]> {
+  async getBooks(publishersIds: PublisherId[]): Promise<WorkEntity[]> {
     const { data } = await this.queryClient({
       query: GET_BOOKS,
       variables: { publishers: publishersIds },
@@ -29,7 +29,7 @@ export class WorksService extends BaseService {
     return res ?? [];
   }
 
-  async getChapters(publishersIds: string[]): Promise<WorkEntity[]> {
+  async getChapters(publishersIds: PublisherId[]): Promise<WorkEntity[]> {
     const { data } = await this.queryClient({
       query: GET_CHAPTERS,
       variables: { publishers: publishersIds },

@@ -1,11 +1,11 @@
 import { GET_SERIES } from '@/app/queries';
-import type { SeriesEntity } from '@/interfaces';
+import type { PublisherId, SeriesEntity } from '@/interfaces';
 import { BaseService } from '@/interfaces/services';
 
 import { SeriesDtoMapper } from './mappers';
 
 export class SeriesService extends BaseService {
-  async getSeries(publishersIds: string[]): Promise<SeriesEntity[]> {
+  async getSeries(publishersIds: PublisherId[]): Promise<SeriesEntity[]> {
     const { data } = await this.queryClient({
       query: GET_SERIES,
       variables: { publishers: publishersIds },

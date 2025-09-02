@@ -1,11 +1,11 @@
 import { GET_PUBLICATIONS } from '@/app/queries';
-import type { PublicationEntity } from '@/interfaces';
+import type { PublicationEntity, PublisherId } from '@/interfaces';
 import { BaseService } from '@/interfaces/services';
 
 import { PublicationDtoMapper } from './mappers';
 
 export class PublicationsService extends BaseService {
-  async getPublications(publishersIds: string[]): Promise<PublicationEntity[]> {
+  async getPublications(publishersIds: PublisherId[]): Promise<PublicationEntity[]> {
     const { data } = await this.queryClient({
       query: GET_PUBLICATIONS,
       variables: { publishers: publishersIds },

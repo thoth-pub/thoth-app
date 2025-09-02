@@ -8,6 +8,7 @@ export const config = {
   publicDomainLink: 'https://creativecommons.org/public-domain/cc0/',
   data: {
     itemsPerRequestLimit: 20,
+    maxItemsPerRequestLimit: 100,
     doiPrefix: 'https://doi.org/',
     rorPrefix: 'https://ror.org/',
   },

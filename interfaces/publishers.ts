@@ -5,8 +5,10 @@ export type PublisherDto = Pick<
   'publisherId' | 'publisherName' | 'publisherShortname' | 'publisherUrl' | 'updatedAt'
 >;
 
+export type PublisherId = string;
+
 export type PublisherEntity = {
-  id: string;
+  id: PublisherId;
   name: string;
   shortName: string;
   url: string;

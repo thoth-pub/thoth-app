@@ -4,7 +4,7 @@ import { SeriesService } from '@/app/services';
 import { auth } from '@/auth';
 import { ROUTES } from '@/constants';
 import { query } from '@/graphqlClient';
-import { convertLinkedPublishers } from '@/utils';
+import { convertLinkedPublishers, isAdmin } from '@/utils';
 
 const seriesService = new SeriesService(query);
 
@@ -16,9 +16,9 @@ export default async function SeriesPage() {
   }
 
   const linkedPublishers = session.user.linkedPublishers ? convertLinkedPublishers(session.user.linkedPublishers) : [];
-  const isAdmin = session.user.isSuperAdmin;
+  const isUserAdmin = isAdmin(session);
 
-  const series = await seriesService.getSeries(isAdmin ? [] : linkedPublishers);
+  const series = await seriesService.getSeries(isUserAdmin ? [] : linkedPublishers);
 
   return (
     <ul className="flex flex-col gap-2">

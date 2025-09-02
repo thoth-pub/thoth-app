@@ -26,6 +26,7 @@ export const FORM_FIELDS = {
     placeholder: 'Title',
     errorMessage: 'Title is required',
     type: InputType.TEXT,
+    defaultValue: '',
   },
   LICENSE: {
     label: 'License',
@@ -33,18 +34,21 @@ export const FORM_FIELDS = {
     placeholder: 'URL',
     errorMessage: 'URL is required',
     type: InputType.URL,
+    defaultValue: '',
   },
   IMPRINT: {
     label: 'Imprint',
     name: 'imprint',
     placeholder: 'Imprint',
     errorMessage: 'Imprint is required',
+    defaultValue: '',
   },
   WORK_TYPE: {
     label: 'Work Type',
     name: 'workType',
     placeholder: 'Work Type',
     errorMessage: 'Work Type is required',
+    defaultValue: '',
   },
   COPYRIGHT_HOLDER: {
     label: 'Copyright holder',

@@ -4,7 +4,7 @@ import { PublishersService } from '@/app/services';
 import { auth } from '@/auth';
 import { ROUTES } from '@/constants';
 import { query } from '@/graphqlClient';
-import { convertLinkedPublishers } from '@/utils';
+import { convertLinkedPublishers, isAdmin } from '@/utils';
 
 const publishersService = new PublishersService(query);
 
@@ -16,9 +16,9 @@ export default async function PublishersPage() {
   }
 
   const linkedPublishers = session.user.linkedPublishers ? convertLinkedPublishers(session.user.linkedPublishers) : [];
-  const isAdmin = session.user.isSuperAdmin;
+  const isUserAdmin = isAdmin(session);
 
-  const publications = await publishersService.getPublishers(isAdmin ? [] : linkedPublishers);
+  const publications = await publishersService.getPublishers(isUserAdmin ? [] : linkedPublishers);
 
   return (
     <ul className="flex flex-col gap-2">
