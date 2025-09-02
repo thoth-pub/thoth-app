@@ -17,4 +17,7 @@ export const config = {
     rorPrefix: 'https://ror.org/',
     orcidPrefix: 'https://orcid.org/',
   },
+  dataApi: {
+    textSeparator: '_',
+  },
 };

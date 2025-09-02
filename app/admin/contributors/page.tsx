@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import { ContributorsService } from '@/app/services';
 import { auth } from '@/auth';
 import { ROUTES } from '@/constants';
-import { query } from '@/utils';
+import { query } from '@/graphqlClient';
 
 const contributorsService = new ContributorsService(query);
 

@@ -1,3 +1,3 @@
-import { requiredStingValidation } from './core';
+import { getRequiredStringValidation } from './core';
 
-const institutionNameValidation = requiredStingValidation;
+const institutionNameValidation = getRequiredStringValidation();

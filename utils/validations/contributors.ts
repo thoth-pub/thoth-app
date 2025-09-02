@@ -1,8 +1,8 @@
-import { optionalStringValidation, optionalUrlValidation, requiredStingValidation } from './core';
+import { getRequiredStringValidation, optionalStringValidation, optionalUrlValidation } from './core';
 
 const firstNameValidation = optionalStringValidation;
 
-const lastNameValidation = requiredStingValidation;
+const lastNameValidation = getRequiredStringValidation();
 
 const fullNameValidation = optionalStringValidation;
 

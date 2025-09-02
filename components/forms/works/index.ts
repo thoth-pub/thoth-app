@@ -1,1 +1,1 @@
-export { default as CreateWorkForm } from './CreateWorkForm';
+export * from './CreateWorkForm';

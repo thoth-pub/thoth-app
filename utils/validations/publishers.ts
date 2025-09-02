@@ -1,6 +1,6 @@
-import { optionalStringValidation, optionalUrlValidation, requiredStingValidation } from './core';
+import { getRequiredStringValidation, optionalStringValidation, optionalUrlValidation } from './core';
 
-const publisherName = requiredStingValidation;
+const publisherName = getRequiredStringValidation();
 
 const publisherShortName = optionalStringValidation;
 

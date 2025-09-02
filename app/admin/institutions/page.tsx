@@ -5,7 +5,7 @@ import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '@/app/queries';
 import { auth } from '@/auth';
 import { config } from '@/config';
 import { ROUTES } from '@/constants';
-import { PreloadQuery } from '@/utils';
+import { PreloadQuery } from '@/graphqlClient';
 
 import TestList from '../../../components/dev/testList';
 

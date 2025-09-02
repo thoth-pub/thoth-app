@@ -1,5 +1,5 @@
-import { optionalUrlValidation, requiredStingValidation, timestampValidation } from './core';
+import { getRequiredStringValidation, optionalUrlValidation } from './core';
 
-const imprintName = requiredStingValidation;
+const imprintName = getRequiredStringValidation();
 
 const imprintUrl = optionalUrlValidation;

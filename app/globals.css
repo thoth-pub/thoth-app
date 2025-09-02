@@ -57,8 +57,10 @@
   --purple-light: #f4e5f9;
   --purple-light-alt: #f2cdff;
   --white: #fff;
+  --white-opacity-30: rgba(255, 255, 255, 0.3);
   --white-opacity-50: rgba(255, 255, 255, 0.5);
   --black: #0e1828;
+  --black-opacity-50: rgba(14, 24, 40, 0.5);
   --gray: #bdbfc2;
   --gray-alt: #e9e9e9;
   --blue: #394963;
@@ -69,7 +71,12 @@
 
   --side-padding: 1.25rem;
 
-  --default-content-padding: 1.875rem;
+  --default-content-padding: 2rem;
+
+  --default-gap: 2rem;
+
+  --default-letter-spacing: 0.025rem;
+  --default-line-height: 1.5;
 
   /* Tier 2 */
   --color-background: var(--yellow);
@@ -80,7 +87,9 @@
   --color-border: var(--green);
   --color-border-alt: var(--purple);
   --color-purple: var(--purple);
+  --color-primary: var(--purple);
   --color-success: var(--green);
+  --color-error: var(--red);
 
   /* Tier 3 */
   --header-height: 5.625rem;
@@ -91,6 +100,19 @@
   --color-button-contained-background: var(--purple);
   --color-button-contained-text: var(--yellow);
   --border-button-radius: 0.25rem;
+
+  --color-text-field-background: var(--white-opacity-30);
+  --color-text-field-border: var(--purple);
+  --color-text-field-label: var(--black-opacity-50);
+  --color-text-field-text: var(--black);
+  --color-text-field-error: var(--color-error);
+  /* TODO check this colors */
+  --color-text-field-menu-background: var(--yellow);
+  --color-text-field-icon: var(--black);
+  --color-text-field-hover: var(--purple-light);
+  --color-text-field-selected: var(--purple-light-alt);
+
+  --color-form-field-label: var(--purple);
 }
 
 @theme inline {

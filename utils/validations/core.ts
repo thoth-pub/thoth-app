@@ -2,15 +2,19 @@ import isbn3 from 'isbn3';
 import z from 'zod';
 
 import { config } from '@/config';
+import { ERRORS } from '@/constants';
 
 const { doiPrefix, rorPrefix, orcidPrefix } = config.validations;
 
+const { URL } = ERRORS;
+
 /* String Validations */
-export const stringValidation = z.string();
+export const getStringValidation = (errorMessage?: string) => z.string({ message: errorMessage });
 
-export const requiredStingValidation = stringValidation.nonempty();
+export const getRequiredStringValidation = (errorMessage?: string) =>
+  getStringValidation(errorMessage).nonempty({ message: errorMessage });
 
-export const optionalStringValidation = stringValidation.optional();
+export const optionalStringValidation = getStringValidation().optional();
 
 /* Integer Validations */
 export const intValidation = z
@@ -35,15 +39,17 @@ export const createdAtValidation = timestampValidation;
 export const updatedAtValidation = timestampValidation;
 
 /* URL Validations */
-export const urlValidation = z.url();
+export const getUrlValidation = (errorMessage?: string) => z.url({ message: errorMessage });
 
-export const optionalUrlValidation = urlValidation.optional();
+export const optionalUrlValidation = getUrlValidation().optional();
+export const getRequiredUrlValidation = (errorMessage?: string) =>
+  getUrlValidation(errorMessage ?? URL).nonempty({ message: errorMessage ?? URL });
 
 /* External Identifiers Validations */
 export const idValidation = z.uuid();
-export const doiValidation = stringValidation.refine((doi) => doi.startsWith(doiPrefix));
-export const orcidValidation = stringValidation.refine((orcid) => orcid.startsWith(orcidPrefix));
-export const rorValidation = stringValidation.refine((ror) => ror.startsWith(rorPrefix));
+export const doiValidation = getStringValidation().refine((doi) => doi.startsWith(doiPrefix));
+export const orcidValidation = getStringValidation().refine((orcid) => orcid.startsWith(orcidPrefix));
+export const rorValidation = getStringValidation().refine((ror) => ror.startsWith(rorPrefix));
 
 export const issnValidation = optionalStringValidation.refine((issn) => {
   if (!issn) return true;

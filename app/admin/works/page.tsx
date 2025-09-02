@@ -5,7 +5,8 @@ import { WorksService } from '@/app/services';
 import { auth } from '@/auth';
 import { PageHeader } from '@/components';
 import { ROUTES } from '@/constants';
-import { convertLinkedPublishers, query } from '@/utils';
+import { query } from '@/graphqlClient';
+import { convertLinkedPublishers } from '@/utils';
 
 const worksService = new WorksService(query);
 

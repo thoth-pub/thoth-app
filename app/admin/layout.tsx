@@ -26,7 +26,9 @@ const AdminLayout = async ({
           ))}
         </ul>
       </aside>
-      <section className="flex w-full flex-col gap-7 p-[var(--default-content-padding)]">{children}</section>
+      <section className="flex w-full flex-col gap-[var(--default-gap)] p-[var(--default-content-padding)]">
+        {children}
+      </section>
     </>
   );
 };

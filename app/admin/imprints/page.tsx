@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation';
 import { ImprintsService } from '@/app/services';
 import { auth } from '@/auth';
 import { ROUTES } from '@/constants';
-import { convertLinkedPublishers, query } from '@/utils';
+import { query } from '@/graphqlClient';
+import { convertLinkedPublishers } from '@/utils';
 
 const imprintsService = new ImprintsService(query);
 

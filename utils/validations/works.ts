@@ -1,14 +1,23 @@
+import z from 'zod';
+
+import { FORM_FIELDS } from '@/constants';
+
 import {
   dateValidation,
+  getRequiredStringValidation,
+  getRequiredUrlValidation,
   optionalPositiveIntValidation,
   optionalStringValidation,
   optionalUrlValidation,
   requiredIntValidation,
-  requiredStingValidation,
   timestampValidation,
 } from './core';
 
-const titleValidation = requiredStingValidation;
+const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
+
+const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
+const imprintValidation = getRequiredStringValidation(IMPRINT.errorMessage);
+const workTypeValidation = getRequiredStringValidation(WORK_TYPE.errorMessage);
 const subtitleValidation = optionalStringValidation;
 const reference = optionalStringValidation;
 
@@ -29,9 +38,9 @@ const audioCountValidation = optionalPositiveIntValidation;
 
 const videoCountValidation = optionalPositiveIntValidation;
 
-const licenceValidation = optionalUrlValidation;
+const licenseValidation = getRequiredUrlValidation();
 
-const copyrightHolder = optionalStringValidation;
+const copyrightHolderValidation = optionalStringValidation;
 
 const landingPageValidation = optionalUrlValidation;
 
@@ -60,3 +69,10 @@ const lastPageValidation = optionalStringValidation;
 const pageIntervalValidation = optionalStringValidation;
 
 const updatedAtWithRelationsValidation = timestampValidation;
+
+export const createWorkValidationSchema = z.object({
+  [TITLE.name]: titleValidation,
+  [IMPRINT.name]: imprintValidation,
+  [WORK_TYPE.name]: workTypeValidation,
+  [LICENSE.name]: licenseValidation,
+});
