@@ -6,7 +6,7 @@ import { ERRORS } from '@/constants';
 
 const { doiPrefix, rorPrefix, orcidPrefix } = config.validations;
 
-const { URL } = ERRORS;
+const { INVALID_URL } = ERRORS;
 
 /* String Validations */
 export const getStringValidation = (errorMessage?: string) => z.string({ message: errorMessage });
@@ -43,7 +43,7 @@ export const getUrlValidation = (errorMessage?: string) => z.url({ message: erro
 
 export const optionalUrlValidation = getUrlValidation().optional();
 export const getRequiredUrlValidation = (errorMessage?: string) =>
-  getUrlValidation(errorMessage ?? URL).nonempty({ message: errorMessage ?? URL });
+  getUrlValidation(errorMessage ?? INVALID_URL).nonempty({ message: errorMessage ?? INVALID_URL });
 
 /* External Identifiers Validations */
 export const idValidation = z.uuid();

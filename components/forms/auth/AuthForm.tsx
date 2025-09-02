@@ -27,11 +27,11 @@ export const AuthForm = () => {
     <form onSubmit={onSubmit} className="m-auto flex flex-col gap-4">
       <div>
         <label>Email</label>
-        <input type="email" {...register(EMAIL)} />
+        <input type="email" {...register(EMAIL.name)} />
       </div>
       <div>
         <label>Password</label>
-        <input type="password" {...register(PASSWORD)} />
+        <input type="password" {...register(PASSWORD.name)} />
       </div>
       <button type="submit" disabled={isPending}>
         {isPending ? 'Loading...' : 'Login'}
