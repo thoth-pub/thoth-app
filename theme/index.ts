@@ -90,7 +90,7 @@ export const theme = createTheme({
           },
           '& .MuiInputBase-input': {
             height: '2.75rem',
-            padding: '0.625rem',
+            padding: '0 0.625rem',
           },
           '& .MuiIconButton-root': {
             color: 'var(--color-text-field-text)',

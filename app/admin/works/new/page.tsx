@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { ImprintsService } from '@/app/services';
 import { auth } from '@/auth';
-import { CreateWorkForm, PageHeader } from '@/components';
+import { CreateWorkForm } from '@/components';
 import { ROUTES } from '@/constants';
 import { query } from '@/graphqlClient';
 import { convertLinkedPublishers, isAdmin } from '@/utils';
@@ -21,10 +21,5 @@ export default async function NewWorkPage() {
 
   const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : linkedPublishers });
 
-  return (
-    <>
-      <PageHeader title="Name of work" link={ROUTES.WORK_PAGE('1')} buttonText="Create" />
-      <CreateWorkForm imprints={imprints} />
-    </>
-  );
+  return <CreateWorkForm imprints={imprints} />;
 }

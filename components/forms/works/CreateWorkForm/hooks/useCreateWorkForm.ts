@@ -1,9 +1,10 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 
-import { FORM_FIELDS, WorkType } from '@/constants';
+import { FORM_FIELDS, ROUTES, WorkType } from '@/constants';
 import type { CreateWorkForm as CreateWorkFormType, ImprintEntity } from '@/interfaces';
 import {
   convertEntityToSelectFieldOptions,
@@ -23,8 +24,13 @@ const useCreateWorkForm = ({ imprints }: UseCreateWorkFormProps) => {
 
   const isImprintVisible = imprints.length !== 1;
 
-  const { control, handleSubmit } = useForm<CreateWorkFormType>({
+  const {
+    control,
+    handleSubmit,
+    formState: { isValid },
+  } = useForm<CreateWorkFormType>({
     resolver: zodResolver(createWorkValidationSchema),
+    mode: 'onChange',
     defaultValues: {
       [TITLE.name]: TITLE.defaultValue,
       [WORK_TYPE.name]: workTypesOptions.length > 0 ? workTypesOptions[0].value : WORK_TYPE.defaultValue,
@@ -33,12 +39,14 @@ const useCreateWorkForm = ({ imprints }: UseCreateWorkFormProps) => {
     },
     reValidateMode: 'onSubmit',
   });
+  const router = useRouter();
 
   const submit = handleSubmit((data) => {
     console.log(data);
+    router.push(ROUTES.WORK_PAGE('1'));
   });
 
-  return { control, workTypesOptions, imprintOptions, isImprintVisible, submit };
+  return { control, workTypesOptions, imprintOptions, isImprintVisible, isValid, submit };
 };
 
 export default useCreateWorkForm;

@@ -1,4 +1,3 @@
-import AddIcon from '@mui/icons-material/Add';
 import { redirect } from 'next/navigation';
 
 import { WorksService } from '@/app/services';
@@ -7,6 +6,8 @@ import { PageHeader } from '@/components';
 import { ROUTES } from '@/constants';
 import { query } from '@/graphqlClient';
 import { convertLinkedPublishers } from '@/utils';
+
+import { NewWorkLink } from './components';
 
 const worksService = new WorksService(query);
 
@@ -23,7 +24,9 @@ export default async function WorksPage() {
 
   return (
     <>
-      <PageHeader title="Name of work" link={ROUTES.NEW_WORK} buttonText="New" startIcon={<AddIcon />} />
+      <PageHeader title="Name of work">
+        <NewWorkLink />
+      </PageHeader>
       <ul className="flex flex-col gap-2">
         {works.map(({ id, title, type, updatedAt, contributorsNames, doi, publisherName }) => (
           <li key={id} className="flex gap-2">
