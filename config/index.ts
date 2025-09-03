@@ -22,6 +22,6 @@ export const config = {
     textSeparator: '_',
   },
   animation: {
-    duration: 0.8,
+    duration: 1,
   },
 };

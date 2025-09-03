@@ -25,10 +25,8 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
   const work = await worksService.getWork(id);
 
   if (!work) {
-    redirect(ROUTES.WORKS);
+    redirect(ROUTES.NOT_FOUND);
   }
-
-  console.log(Array.isArray(id));
 
   return (
     <div>
