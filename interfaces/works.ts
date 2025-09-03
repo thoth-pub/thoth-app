@@ -2,6 +2,8 @@ import type { WorkFragmentFragment, WorkType } from '@/gql/graphql';
 
 export type WorkDto = WorkFragmentFragment;
 
+export type WorkId = string;
+
 export type WorkEntity = {
   id: string;
   title: string;

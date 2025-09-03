@@ -4,6 +4,8 @@ import { redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { PAGES, ROUTES } from '@/constants';
 
+import Template from './template';
+
 const AdminLayout = async ({
   children,
 }: Readonly<{
@@ -26,9 +28,9 @@ const AdminLayout = async ({
           ))}
         </ul>
       </aside>
-      <section className="flex w-full flex-col gap-[var(--default-gap)] p-[var(--default-content-padding)]">
-        {children}
-      </section>
+      <div className="overflow-clip">
+        <Template>{children}</Template>
+      </div>
     </>
   );
 };

@@ -22,6 +22,7 @@
     "@mui/material-nextjs": "^7.3.0",
     "graphql": "^16.11.0",
     "isbn3": "^1.2.14",
+    "motion": "^12.23.12",
     "next": "15.5.0",
     "next-auth": "^5.0.0-beta.29",
     "react": "19.1.0",

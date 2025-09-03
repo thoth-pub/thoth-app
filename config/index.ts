@@ -21,4 +21,7 @@ export const config = {
   dataApi: {
     textSeparator: '_',
   },
+  animation: {
+    duration: 0.8,
+  },
 };

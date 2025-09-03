@@ -1,8 +1,10 @@
-import { GET_BOOKS, GET_CHAPTERS, GET_WORKS } from '@/app/queries';
-import type { PublisherId, WorkDto, WorkEntity } from '@/interfaces';
+import { GET_BOOKS, GET_CHAPTERS, GET_WORK, GET_WORKS } from '@/app/queries';
+import type { PublisherId, WorkDto, WorkEntity, WorkId } from '@/interfaces';
 import { BaseService } from '@/interfaces/services';
 
 import { WorkDtoMapper } from './mappers';
+
+const dtoMapper = new WorkDtoMapper();
 
 export class WorksService extends BaseService {
   async getWorks(publishersIds: PublisherId[]): Promise<WorkEntity[]> {
@@ -15,8 +17,22 @@ export class WorksService extends BaseService {
       return [];
     }
 
-    const dtoMapper = new WorkDtoMapper();
     const res = data.works.map((work) => dtoMapper.toEntity(work));
+
+    return res;
+  }
+
+  async getWork(workId: WorkId): Promise<WorkEntity | null> {
+    const { data } = await this.queryClient<{ work: WorkDto }>({
+      query: GET_WORK,
+      variables: { workId },
+    });
+
+    if (!data || !data.work) {
+      return null;
+    }
+
+    const res = dtoMapper.toEntity(data.work);
 
     return res;
   }
@@ -31,7 +47,6 @@ export class WorksService extends BaseService {
       return [];
     }
 
-    const dtoMapper = new WorkDtoMapper();
     const res = data.books.map(dtoMapper.toEntity);
 
     return res;
@@ -47,7 +62,6 @@ export class WorksService extends BaseService {
       return [];
     }
 
-    const dtoMapper = new WorkDtoMapper();
     const res = data.chapters.map(dtoMapper.toEntity);
 
     return res;
