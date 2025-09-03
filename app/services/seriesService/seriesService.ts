@@ -11,9 +11,13 @@ export class SeriesService extends BaseService {
       variables: { publishers: publishersIds },
     });
 
-    const dtoMapper = new SeriesDtoMapper();
-    const res = data?.serieses.map(dtoMapper.toEntity);
+    if (!data || !data.serieses) {
+      return [];
+    }
 
-    return res ?? [];
+    const dtoMapper = new SeriesDtoMapper();
+    const res = data.serieses.map(dtoMapper.toEntity);
+
+    return res;
   }
 }

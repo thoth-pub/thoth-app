@@ -25,9 +25,13 @@ export class InstitutionsService extends BaseService {
       },
     });
 
-    const dtoMapper = new InstitutionDtoMapper();
-    const res = data?.institutions.map(dtoMapper.toEntity);
+    if (!data || !data.institutions) {
+      return [];
+    }
 
-    return res ?? [];
+    const dtoMapper = new InstitutionDtoMapper();
+    const res = data.institutions.map(dtoMapper.toEntity);
+
+    return res;
   }
 }

@@ -20,7 +20,11 @@ export class ImprintsService extends BaseService {
       variables: { publishers: publishersIds },
     });
 
-    return data?.imprintCount ?? 0;
+    if (!data || !data.imprintCount) {
+      return 0;
+    }
+
+    return data.imprintCount;
   }
 
   async getImprints({
@@ -33,10 +37,14 @@ export class ImprintsService extends BaseService {
       variables: { offset, limit, publishers: publishersIds },
     });
 
-    const dtoMapper = new ImprintDtoMapper();
-    const res = data?.imprints.map(dtoMapper.toEntity);
+    if (!data || !data.imprints) {
+      return [];
+    }
 
-    return res ?? [];
+    const dtoMapper = new ImprintDtoMapper();
+    const res = data.imprints.map(dtoMapper.toEntity);
+
+    return res;
   }
 
   async getAllImprints({ publishersIds, limit = maxItemsPerRequestLimit }: GetImprintsProps): Promise<ImprintEntity[]> {

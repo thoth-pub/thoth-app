@@ -11,9 +11,13 @@ export class PublicationsService extends BaseService {
       variables: { publishers: publishersIds },
     });
 
-    const dtoMapper = new PublicationDtoMapper();
-    const res = data?.publications.map(dtoMapper.toEntity);
+    if (!data || !data.publications) {
+      return [];
+    }
 
-    return res ?? [];
+    const dtoMapper = new PublicationDtoMapper();
+    const res = data.publications.map(dtoMapper.toEntity);
+
+    return res;
   }
 }

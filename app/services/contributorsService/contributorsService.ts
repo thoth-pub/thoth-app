@@ -10,9 +10,13 @@ export class ContributorsService extends BaseService {
       query: GET_CONTRIBUTORS,
     });
 
-    const dtoMapper = new ContributorDtoMapper();
-    const res = data?.contributors.map(dtoMapper.toEntity);
+    if (!data || !data.contributors) {
+      return [];
+    }
 
-    return res ?? [];
+    const dtoMapper = new ContributorDtoMapper();
+    const res = data.contributors.map(dtoMapper.toEntity);
+
+    return res;
   }
 }
