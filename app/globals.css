@@ -113,6 +113,11 @@
   --color-text-field-selected: var(--purple-light-alt);
 
   --color-form-field-label: var(--purple);
+
+  --color-notification-text: var(--yellow);
+  --color-notification-background-success: var(--color-success);
+  --color-notification-background-error: var(--color-error);
+  --color-notification-border: var(--yellow);
 }
 
 @theme inline {

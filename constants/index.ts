@@ -4,6 +4,7 @@ export * from './formFields';
 export * from './ids';
 export * from './languages';
 export * from './lengths';
+export * from './notifications';
 export * from './pages';
 export * from './publications';
 export * from './routes';

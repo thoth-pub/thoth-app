@@ -5,6 +5,7 @@ export * from './forms';
 export * from './imprints';
 export * from './institutions';
 export * from './mappers';
+export * from './notifications';
 export * from './publications';
 export * from './publishers';
 export * from './queryClient';

@@ -1,3 +1,15 @@
+import { ERRORS } from '@/constants';
+
+const {
+  EMAIL_REQUIRED,
+  PASSWORD_REQUIRED,
+  TITLE_REQUIRED,
+  URL_REQUIRED,
+  IMPRINT_REQUIRED,
+  WORK_TYPE_REQUIRED,
+  COPYRIGHT_HOLDER_REQUIRED,
+} = ERRORS;
+
 export const InputType = {
   EMAIL: 'email',
   PASSWORD: 'password',
@@ -10,21 +22,21 @@ export const FORM_FIELDS = {
     label: 'Email',
     name: 'email',
     placeholder: 'Email',
-    errorMessage: 'Email is required',
+    errorMessage: EMAIL_REQUIRED,
     type: InputType.EMAIL,
   },
   PASSWORD: {
     label: 'Password',
     name: 'password',
     placeholder: 'Password',
-    errorMessage: 'Password is required',
+    errorMessage: PASSWORD_REQUIRED,
     type: InputType.PASSWORD,
   },
   TITLE: {
     label: 'Title',
     name: 'title',
     placeholder: 'Title',
-    errorMessage: 'Title is required',
+    errorMessage: TITLE_REQUIRED,
     type: InputType.TEXT,
     defaultValue: '',
   },
@@ -32,7 +44,7 @@ export const FORM_FIELDS = {
     label: 'License',
     name: 'license',
     placeholder: 'URL',
-    errorMessage: 'URL is required',
+    errorMessage: URL_REQUIRED,
     type: InputType.URL,
     defaultValue: '',
   },
@@ -40,20 +52,21 @@ export const FORM_FIELDS = {
     label: 'Imprint',
     name: 'imprintId',
     placeholder: 'Imprint',
-    errorMessage: 'Imprint is required',
+    errorMessage: IMPRINT_REQUIRED,
     defaultValue: '',
   },
   WORK_TYPE: {
     label: 'Work Type',
     name: 'workType',
     placeholder: 'Work Type',
-    errorMessage: 'Work Type is required',
+    errorMessage: WORK_TYPE_REQUIRED,
     defaultValue: '',
   },
   COPYRIGHT_HOLDER: {
     label: 'Copyright holder',
     name: 'copyrightHolder',
     placeholder: 'Copyright holder',
+    errorMessage: COPYRIGHT_HOLDER_REQUIRED,
     type: InputType.TEXT,
   },
   // FIRST_NAME: 'firstName',

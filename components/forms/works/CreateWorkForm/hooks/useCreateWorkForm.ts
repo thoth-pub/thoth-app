@@ -5,8 +5,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 
+import { useNotification } from '@/app/hooks';
 import { CREATE_WORK } from '@/app/queries';
-import { FORM_FIELDS, ROUTES, WorkStatus, WorkType } from '@/constants';
+import { FORM_FIELDS, NOTIFICATIONS, ROUTES, WorkStatus, WorkType } from '@/constants';
 import type { WorkType as GQLWorkType } from '@/gql/graphql';
 import type { CreateWorkForm as CreateWorkFormType, ImprintEntity } from '@/interfaces';
 import {
@@ -20,9 +21,11 @@ type UseCreateWorkFormProps = {
 };
 
 const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE } = FORM_FIELDS;
+const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
 
 const useCreateWorkForm = ({ imprints }: UseCreateWorkFormProps) => {
   const router = useRouter();
+  const { sendSuccessNotification, sendErrorNotification } = useNotification();
 
   const workTypesOptions = convertFormFieldsToSelectFieldOptions(WorkType.options);
   const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
@@ -44,12 +47,11 @@ const useCreateWorkForm = ({ imprints }: UseCreateWorkFormProps) => {
 
   const [mutate, { loading }] = useMutation(CREATE_WORK, {
     onCompleted: (data) => {
-      console.log('123 success', data);
+      sendSuccessNotification(WORK_CREATION_SUCCESS);
       router.push(ROUTES.WORK_PAGE(data.createWork.workId));
     },
     onError: (error) => {
-      console.log('123 error', error);
-      console.error(error);
+      sendErrorNotification(WORK_CREATION_FAILED);
     },
   });
 

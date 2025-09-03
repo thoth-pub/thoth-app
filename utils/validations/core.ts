@@ -3,15 +3,16 @@ import z from 'zod';
 
 import { config } from '@/config';
 import { ERRORS } from '@/constants';
+import type { ErrorMessage } from '@/interfaces';
 
 const { doiPrefix, rorPrefix, orcidPrefix } = config.validations;
 
 const { INVALID_URL } = ERRORS;
 
 /* String Validations */
-export const getStringValidation = (errorMessage?: string) => z.string({ message: errorMessage });
+export const getStringValidation = (errorMessage?: ErrorMessage) => z.string({ message: errorMessage });
 
-export const getRequiredStringValidation = (errorMessage?: string) =>
+export const getRequiredStringValidation = (errorMessage?: ErrorMessage) =>
   getStringValidation(errorMessage).nonempty({ message: errorMessage });
 
 export const optionalStringValidation = getStringValidation().optional();
@@ -39,10 +40,10 @@ export const createdAtValidation = timestampValidation;
 export const updatedAtValidation = timestampValidation;
 
 /* URL Validations */
-export const getUrlValidation = (errorMessage?: string) => z.url({ message: errorMessage });
+export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });
 
 export const optionalUrlValidation = getUrlValidation().optional();
-export const getRequiredUrlValidation = (errorMessage?: string) =>
+export const getRequiredUrlValidation = (errorMessage?: ErrorMessage) =>
   getUrlValidation(errorMessage ?? INVALID_URL).nonempty({ message: errorMessage ?? INVALID_URL });
 
 /* External Identifiers Validations */

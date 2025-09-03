@@ -1,3 +1,3 @@
-export const ERRORS = {
-  URL: 'Invalid URL',
-} as const;
+import { ERRORS } from '@/constants';
+
+export type ErrorMessage = (typeof ERRORS)[keyof typeof ERRORS];
