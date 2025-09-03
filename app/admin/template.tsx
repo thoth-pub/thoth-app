@@ -2,7 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react';
 import { usePathname } from 'next/navigation';
-import type { ReactNode } from 'react';
+import { ReactNode } from 'react';
 
 import { config } from '@/config';
 
@@ -14,7 +14,7 @@ function Template({ children }: { children: Readonly<ReactNode> }) {
   const pathname = usePathname();
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
+    <AnimatePresence mode="popLayout" initial={false}>
       <motion.section
         key={pathname}
         initial={{ opacity: 0, x: '150dvw' }}
