@@ -14,4 +14,5 @@ export const ROUTES = {
   CONTRIBUTORS: '/admin/contributors',
   SERIES: '/admin/series',
   INSTITUTIONS: '/admin/institutions',
+  NOT_FOUND: '/not-found',
 } as const;

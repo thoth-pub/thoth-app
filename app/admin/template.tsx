@@ -17,9 +17,9 @@ function Template({ children }: { children: Readonly<ReactNode> }) {
     <AnimatePresence mode="wait" initial={false}>
       <motion.section
         key={pathname}
-        initial={{ opacity: 0, x: '300dvw ' }}
+        initial={{ opacity: 0, x: '150dvw' }}
         animate={{ opacity: 1, x: 0 }}
-        exit={{ opacity: 0, x: '300dvw' }}
+        exit={{ opacity: 0, x: '150dvw' }}
         transition={{ duration, type: 'spring' }}
         className="flex w-full flex-col gap-[var(--default-gap)] p-[var(--default-content-padding)]"
       >
