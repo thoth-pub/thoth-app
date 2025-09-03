@@ -36,9 +36,9 @@ export const FORM_FIELDS = {
     type: InputType.URL,
     defaultValue: '',
   },
-  IMPRINT: {
+  IMPRINT_ID: {
     label: 'Imprint',
-    name: 'imprint',
+    name: 'imprintId',
     placeholder: 'Imprint',
     errorMessage: 'Imprint is required',
     defaultValue: '',

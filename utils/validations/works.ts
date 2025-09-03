@@ -13,10 +13,10 @@ import {
   timestampValidation,
 } from './core';
 
-const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
+const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE } = FORM_FIELDS;
 
 const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
-const imprintValidation = getRequiredStringValidation(IMPRINT.errorMessage);
+const imprintValidation = getRequiredStringValidation(IMPRINT_ID.errorMessage);
 const workTypeValidation = getRequiredStringValidation(WORK_TYPE.errorMessage);
 const subtitleValidation = optionalStringValidation;
 const reference = optionalStringValidation;
@@ -72,7 +72,7 @@ const updatedAtWithRelationsValidation = timestampValidation;
 
 export const createWorkValidationSchema = z.object({
   [TITLE.name]: titleValidation,
-  [IMPRINT.name]: imprintValidation,
+  [IMPRINT_ID.name]: imprintValidation,
   [WORK_TYPE.name]: workTypeValidation,
   [LICENSE.name]: licenseValidation,
 });

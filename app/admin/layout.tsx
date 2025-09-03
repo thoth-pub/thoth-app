@@ -26,7 +26,7 @@ const AdminLayout = async ({
           ))}
         </ul>
       </aside>
-      <div className="overflow-clip">{children}</div>
+      <div className="flex-1 overflow-clip">{children}</div>
     </>
   );
 };

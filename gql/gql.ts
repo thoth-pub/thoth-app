@@ -15,6 +15,7 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  */
 type Documents = {
     "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n  }\n": typeof types.WorkFragmentFragmentDoc,
+    "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n": typeof types.CreateWorkDocument,
     "\n  query GetBooks($publishers: [Uuid!]!) {\n    books(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": typeof types.GetBooksDocument,
     "\n  query GetChapters($publishers: [Uuid!]!) {\n    chapters(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": typeof types.GetChaptersDocument,
     "\n  query GetContributors {\n    contributors {\n      orcid\n      fullName\n      updatedAt\n      contributorId\n    }\n  }\n": typeof types.GetContributorsDocument,
@@ -30,6 +31,7 @@ type Documents = {
 };
 const documents: Documents = {
     "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n  }\n": types.WorkFragmentFragmentDoc,
+    "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n": types.CreateWorkDocument,
     "\n  query GetBooks($publishers: [Uuid!]!) {\n    books(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": types.GetBooksDocument,
     "\n  query GetChapters($publishers: [Uuid!]!) {\n    chapters(publishers: $publishers) {\n      doi\n      workId\n      title\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": types.GetChaptersDocument,
     "\n  query GetContributors {\n    contributors {\n      orcid\n      fullName\n      updatedAt\n      contributorId\n    }\n  }\n": types.GetContributorsDocument,
@@ -62,6 +64,10 @@ export function graphql(source: string): unknown;
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n  }\n"): (typeof documents)["\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n"): (typeof documents)["\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

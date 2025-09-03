@@ -7,7 +7,7 @@ import type { ImprintEntity } from '@/interfaces';
 import CreateWorkFormField from './components/CreateWorkFormField';
 import { useCreateWorkForm } from './hooks';
 
-const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
+const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE } = FORM_FIELDS;
 const { CREATE_WORK } = IDs.FORM_FIELDS;
 
 type CreateWorkFormProps = {
@@ -15,14 +15,14 @@ type CreateWorkFormProps = {
 };
 
 const CreateWorkForm = ({ imprints }: CreateWorkFormProps) => {
-  const { control, workTypesOptions, imprintOptions, isImprintVisible, isValid, submit } = useCreateWorkForm({
+  const { control, workTypesOptions, imprintOptions, isImprintVisible, isSubmitDisabled, submit } = useCreateWorkForm({
     imprints,
   });
 
   return (
     <>
       <PageHeader title="New work">
-        <Button variant="contained" disabled={!isValid} type="submit" form={CREATE_WORK}>
+        <Button variant="contained" disabled={isSubmitDisabled} type="submit" form={CREATE_WORK}>
           New
         </Button>
       </PageHeader>
@@ -40,9 +40,9 @@ const CreateWorkForm = ({ imprints }: CreateWorkFormProps) => {
         />
         {isImprintVisible && (
           <CreateWorkFormField
-            label={IMPRINT.label}
-            name={IMPRINT.name}
-            placeholder={IMPRINT.placeholder}
+            label={IMPRINT_ID.label}
+            name={IMPRINT_ID.name}
+            placeholder={IMPRINT_ID.placeholder}
             control={control}
             select
             options={imprintOptions}
