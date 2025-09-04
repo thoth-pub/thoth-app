@@ -1,6 +1,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RemoveIcon from '@mui/icons-material/Remove';
+import { AnimatePresence, motion } from 'motion/react';
 
 import { Button, DateField, IconButton, InputLabel, TextField, Typography } from '@/components';
 import { FORM_FIELDS, IDs, WorkStatus } from '@/constants';
@@ -14,7 +15,7 @@ export const FormHeader = () => {
   const { isPublicationDateVisible, control, workStatusOptions, addPublicationDate, submit } = useFormHeader();
 
   return (
-    <form className="flex flex-wrap items-start justify-between gap-4 rounded-2xl bg-[var(--color-background-alt)] px-8 py-4">
+    <form className="flex flex-wrap items-start justify-between gap-4 overflow-hidden rounded-2xl bg-[var(--color-background-alt)] px-8 py-4">
       <Typography variant="h1" component="h1">
         Work Editor
       </Typography>
@@ -34,14 +35,22 @@ export const FormHeader = () => {
               defaultValue={WorkStatus.enum.Forthcoming}
             />
           </fieldset>
-          {isPublicationDateVisible && (
-            <fieldset className="flex flex-row">
-              <InputLabel className="min-w-[10rem]" htmlFor={WORK_STATUS_ID}>
-                {PUBLICATION_DATE.label}
-              </InputLabel>
-              <DateField className="min-w-[16rem]" control={control} name={PUBLICATION_DATE.name} />
-            </fieldset>
-          )}
+          <AnimatePresence initial={false}>
+            {isPublicationDateVisible && (
+              <motion.fieldset
+                className="flex flex-row"
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.3, ease: 'easeIn' }}
+              >
+                <InputLabel className="min-w-[10rem]" htmlFor={WORK_STATUS_ID}>
+                  {PUBLICATION_DATE.label}
+                </InputLabel>
+                <DateField className="min-w-[16rem]" control={control} name={PUBLICATION_DATE.name} />
+              </motion.fieldset>
+            )}
+          </AnimatePresence>
         </div>
         <Button
           variant="outlined"
