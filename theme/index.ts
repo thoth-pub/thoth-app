@@ -13,6 +13,13 @@ export const theme = createTheme({
       verticalAlign: 'middle',
       textTransform: 'uppercase',
     },
+    h2: {
+      fontFamily: 'var(--font-economica), sans-serif',
+      fontWeight: 700,
+      fontSize: '1.375rem',
+      lineHeight: '1.26',
+      letterSpacing: 'var(--default-letter-spacing)',
+    },
     body1: {
       fontWeight: 400,
       fontSize: '1rem',
@@ -64,7 +71,7 @@ export const theme = createTheme({
         },
         outlined: {
           boxSizing: 'border-box',
-          border: '2px solid var(--color-button-outlined-border)',
+          border: '1px solid var(--color-button-outlined-border)',
           height: '2.77rem',
         },
       },
@@ -81,7 +88,7 @@ export const theme = createTheme({
             height: '2.75rem',
             backgroundColor: 'var(--color-text-field-background)',
             '& fieldset': {
-              border: '2px solid var(--color-text-field-border)',
+              border: '1px solid var(--color-text-field-border)',
             },
           },
           '& .MuiInputBase-root:hover': {
@@ -135,7 +142,7 @@ export const theme = createTheme({
           },
           '& .MuiPickersInputBase-root': {
             '& fieldset': {
-              border: '2px solid var(--color-text-field-border)',
+              border: '1px solid var(--color-text-field-border)',
             },
           },
         },

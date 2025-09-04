@@ -11,11 +11,12 @@ import { useFormHeader } from '../hooks';
 const { WORK_STATUS, PUBLICATION_DATE } = FORM_FIELDS;
 const { WORK_STATUS: WORK_STATUS_ID } = IDs.FORM_FIELDS;
 
+// TODO: refactor this component
 export const FormHeader = () => {
   const { isPublicationDateVisible, control, workStatusOptions, addPublicationDate, submit } = useFormHeader();
 
   return (
-    <form className="flex flex-wrap items-start justify-between gap-4 overflow-hidden rounded-2xl bg-[var(--color-background-alt)] px-8 py-4">
+    <form className="flex flex-wrap items-start justify-between gap-4 overflow-hidden rounded-2xl bg-[var(--color-background-alt)] px-8 py-4 shadow-xl">
       <Typography variant="h1" component="h1">
         Work Editor
       </Typography>
