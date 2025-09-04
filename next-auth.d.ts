@@ -8,6 +8,7 @@ interface AuthUser {
   image?: string | null;
   linkedPublishers: LinkedPublisher[];
   isSuperAdmin: boolean;
+  queryToken: string;
 }
 
 declare module 'next-auth' {

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 
 import { useNotification } from '@/app/hooks';
-import { CREATE_WORK } from '@/app/queries';
+import { CREATE_WORK, httpLink, setAuthorizationHeader } from '@/app/queries';
 import { FORM_FIELDS, NOTIFICATIONS, ROUTES, WorkStatus, WorkType } from '@/constants';
 import type { WorkType as GQLWorkType } from '@/gql/graphql';
 import type { CreateWorkForm as CreateWorkFormType, ImprintEntity } from '@/interfaces';
@@ -18,12 +18,13 @@ import {
 
 type UseCreateWorkFormProps = {
   imprints: ImprintEntity[];
+  queryToken: string;
 };
 
 const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE } = FORM_FIELDS;
 const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
 
-const useCreateWorkForm = ({ imprints }: UseCreateWorkFormProps) => {
+const useCreateWorkForm = ({ imprints, queryToken }: UseCreateWorkFormProps) => {
   const router = useRouter();
   const { sendSuccessNotification, sendErrorNotification } = useNotification();
 
@@ -45,15 +46,17 @@ const useCreateWorkForm = ({ imprints }: UseCreateWorkFormProps) => {
     reValidateMode: 'onSubmit',
   });
 
-  const [mutate, { loading }] = useMutation(CREATE_WORK, {
+  const [mutate, { client, loading }] = useMutation(CREATE_WORK, {
     onCompleted: (data) => {
       sendSuccessNotification(WORK_CREATION_SUCCESS);
       router.push(ROUTES.WORK_PAGE(data.createWork.workId));
     },
-    onError: (error) => {
+    onError: () => {
       sendErrorNotification(WORK_CREATION_FAILED);
     },
   });
+
+  client.setLink(setAuthorizationHeader(queryToken).concat(httpLink));
 
   const isSubmitDisabled = loading || !isValid;
   const isImprintVisible = imprints.length !== 1;

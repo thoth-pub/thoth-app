@@ -20,6 +20,7 @@
     "@mui/icons-material": "^7.3.1",
     "@mui/material": "^7.3.1",
     "@mui/material-nextjs": "^7.3.0",
+    "apollo-link-context": "^1.0.20",
     "graphql": "^16.11.0",
     "isbn3": "^1.2.14",
     "motion": "^12.23.12",

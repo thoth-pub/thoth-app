@@ -21,5 +21,5 @@ export default async function NewWorkPage() {
 
   const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : linkedPublishers });
 
-  return <CreateWorkForm imprints={imprints} />;
+  return <CreateWorkForm imprints={imprints} queryToken={session.user.queryToken} />;
 }

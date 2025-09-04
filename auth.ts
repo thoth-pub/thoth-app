@@ -35,6 +35,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             image: null,
             linkedPublishers: response.resourceAccess.linkedPublishers,
             isSuperAdmin: response.resourceAccess.isSuperuser ?? false,
+            queryToken: response.token,
           };
 
           return user;
@@ -53,6 +54,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         token.id = user.id;
         token.linkedPublishers = user.linkedPublishers;
         token.isSuperAdmin = user.isSuperAdmin;
+        token.queryToken = user.queryToken;
       }
 
       return token;
@@ -62,6 +64,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.id as string;
         session.user.linkedPublishers = token.linkedPublishers as LinkedPublisher[];
         session.user.isSuperAdmin = token.isSuperAdmin as boolean;
+        session.user.queryToken = token.queryToken as string;
       }
       return session;
     },

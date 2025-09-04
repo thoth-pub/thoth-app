@@ -12,11 +12,13 @@ const { CREATE_WORK } = IDs.FORM_FIELDS;
 
 type CreateWorkFormProps = {
   imprints: ImprintEntity[];
+  queryToken: string;
 };
 
-const CreateWorkForm = ({ imprints }: CreateWorkFormProps) => {
+const CreateWorkForm = ({ imprints, queryToken }: CreateWorkFormProps) => {
   const { control, workTypesOptions, imprintOptions, isImprintVisible, isSubmitDisabled, submit } = useCreateWorkForm({
     imprints,
+    queryToken,
   });
 
   return (
