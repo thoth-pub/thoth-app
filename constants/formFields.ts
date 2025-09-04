@@ -82,6 +82,12 @@ export const FORM_FIELDS = {
     name: 'publicationDate',
     placeholder: 'Publication Date',
   },
+  WORK_TITLE: {
+    label: 'Title',
+    name: 'workTitle',
+    placeholder: 'Title',
+    type: InputType.TEXT,
+  },
   // FIRST_NAME: 'firstName',
   // LAST_NAME: 'lastName',
   // FULL_NAME: 'fullName',

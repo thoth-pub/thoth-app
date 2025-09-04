@@ -43,5 +43,3 @@ export const DateField = <T extends FieldValues>(props: DateFieldProps<T>) => {
     />
   );
 };
-
-export default DateField;

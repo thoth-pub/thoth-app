@@ -22,7 +22,7 @@ export const FormHeader = () => {
       </Typography>
       <div className="flex flex-col flex-wrap items-start gap-4 lg:flex-row lg:gap-0">
         <div className="flex flex-col gap-4">
-          <fieldset className="flex flex-row">
+          <div className="flex flex-row">
             <InputLabel className="min-w-[10rem]" htmlFor={WORK_STATUS_ID}>
               {WORK_STATUS.label}
             </InputLabel>
@@ -35,10 +35,10 @@ export const FormHeader = () => {
               select
               defaultValue={WorkStatus.enum.Forthcoming}
             />
-          </fieldset>
+          </div>
           <AnimatePresence initial={false}>
             {isPublicationDateVisible && (
-              <motion.fieldset
+              <motion.div
                 className="flex flex-row"
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 'auto' }}
@@ -49,7 +49,7 @@ export const FormHeader = () => {
                   {PUBLICATION_DATE.label}
                 </InputLabel>
                 <DateField className="min-w-[16rem]" control={control} name={PUBLICATION_DATE.name} />
-              </motion.fieldset>
+              </motion.div>
             )}
           </AnimatePresence>
         </div>
