@@ -2,10 +2,9 @@ import { redirect } from 'next/navigation';
 
 import { WorksService } from '@/app/services/worksService/worksService';
 import { auth } from '@/auth';
+import { EditWorkForm } from '@/components';
 import { ROUTES } from '@/constants';
 import { query } from '@/graphqlClient';
-
-import { WorkForm } from './components';
 
 type WorksPageParams = Promise<{
   id: string[];
@@ -30,5 +29,5 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
     redirect(ROUTES.NOT_FOUND);
   }
 
-  return <WorkForm />;
+  return <EditWorkForm />;
 }
