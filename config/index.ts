@@ -22,7 +22,7 @@ export const config = {
     textSeparator: '_',
   },
   animation: {
-    duration: 1,
+    duration: 0.5,
   },
   dateFormat: 'YYYY-MM-DD',
 };

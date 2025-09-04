@@ -12,9 +12,9 @@ const {
 function Template({ children }: { children: Readonly<ReactNode> }) {
   return (
     <motion.section
-      initial={{ opacity: 0, x: '150dvw' }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration, type: 'spring' }}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration }}
       className="flex w-full flex-col gap-[var(--default-gap)] p-[var(--default-content-padding)]"
     >
       {children}
