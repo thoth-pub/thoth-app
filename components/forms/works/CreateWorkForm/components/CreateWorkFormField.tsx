@@ -1,6 +1,4 @@
-import { InputLabel } from '@mui/material';
-
-import { TextField } from '@/components';
+import { InputLabel, TextField } from '@/components';
 import type { TextFieldComponentProps } from '@/components/forms/core/TextField/TextField';
 import type { CreateWorkForm } from '@/interfaces';
 

@@ -1,4 +1,5 @@
 import { createTheme } from '@mui/material';
+import type {} from '@mui/x-date-pickers/themeAugmentation';
 
 export const theme = createTheme({
   typography: {
@@ -17,14 +18,14 @@ export const theme = createTheme({
       fontSize: '1rem',
       lineHeight: 'var(--default-line-height)',
       letterSpacing: 'var(--default-letter-spacing)',
-      color: 'var(--color-typography-alt)',
+      color: 'var(--color-typography)',
     },
     body2: {
       fontWeight: 400,
       fontSize: '0.875rem',
       lineHeight: '1.125',
       letterSpacing: 'var(--default-letter-spacing)',
-      color: 'var(--color-typography-alt)',
+      color: 'var(--color-typography)',
     },
   },
   palette: {
@@ -60,6 +61,11 @@ export const theme = createTheme({
         contained: {
           backgroundColor: 'var(--color-button-contained-background)',
           color: 'var(--color-button-contained-text)',
+        },
+        outlined: {
+          boxSizing: 'border-box',
+          border: '2px solid var(--color-button-outlined-border)',
+          height: '2.77rem',
         },
       },
     },
@@ -107,6 +113,31 @@ export const theme = createTheme({
           lineHeight: 'var(--default-line-height)',
           letterSpacing: 'var(--default-letter-spacing)',
           color: 'var(--color-form-field-label)',
+        },
+      },
+    },
+    MuiPickersTextField: {
+      styleOverrides: {
+        root: {
+          fontWeight: 400,
+          fontSize: '1rem',
+          lineHeight: '1.5',
+          letterSpacing: '0.025rem',
+          color: 'var(--color-text-field-text)',
+          backgroundColor: 'var(--color-text-field-background)',
+          '& .MuiPickersSectionList-root ': {
+            height: '2.75rem',
+            padding: '0.625rem 0',
+            opacity: 1,
+          },
+          '& .MuiIconButton-root': {
+            color: 'var(--color-icon)',
+          },
+          '& .MuiPickersInputBase-root': {
+            '& fieldset': {
+              border: '2px solid var(--color-text-field-border)',
+            },
+          },
         },
       },
     },

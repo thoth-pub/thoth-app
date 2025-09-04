@@ -2,14 +2,16 @@
 
 import { SessionProvider } from 'next-auth/react';
 
-import { ApolloClientProvider, NotificationProvider, StylesCacheProvider, ThemeProvider } from '@/providers';
+import { ApolloClientProvider, LocalizationProvider, NotificationProvider, StylesCacheProvider, ThemeProvider } from '@/providers';
 
 const Providers = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   return (
     <SessionProvider>
       <ApolloClientProvider>
         <StylesCacheProvider>
-          <ThemeProvider>{children}</ThemeProvider>
+          <ThemeProvider>
+            <LocalizationProvider>{children}</LocalizationProvider>
+          </ThemeProvider>
         </StylesCacheProvider>
       </ApolloClientProvider>
       <NotificationProvider />

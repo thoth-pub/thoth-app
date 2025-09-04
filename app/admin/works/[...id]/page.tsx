@@ -5,6 +5,8 @@ import { auth } from '@/auth';
 import { ROUTES } from '@/constants';
 import { query } from '@/graphqlClient';
 
+import { WorkForm } from './components';
+
 type WorksPageParams = Promise<{
   id: string[];
 }>;
@@ -28,9 +30,5 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
     redirect(ROUTES.NOT_FOUND);
   }
 
-  return (
-    <div>
-      <h1>{Object.values(work).join(', ')}</h1>
-    </div>
-  );
+  return <WorkForm />;
 }

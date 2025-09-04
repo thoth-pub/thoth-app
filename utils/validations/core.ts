@@ -2,7 +2,7 @@ import isbn3 from 'isbn3';
 import z from 'zod';
 
 import { config } from '@/config';
-import { ERRORS } from '@/constants';
+import { ERRORS, WorkStatus } from '@/constants';
 import type { ErrorMessage } from '@/interfaces';
 
 const { doiPrefix, rorPrefix, orcidPrefix } = config.validations;
@@ -34,10 +34,15 @@ export const optionalPositiveIntValidation = positiveIntValidation.optional();
 /* Date Validations */
 export const dateValidation = z.date();
 
+export const optionalDateValidation = dateValidation.optional();
+
 export const timestampValidation = z.iso.datetime();
 
 export const createdAtValidation = timestampValidation;
 export const updatedAtValidation = timestampValidation;
+
+/* Enums Validations */
+export const workStatusValidation = z.enum(WorkStatus.enum);
 
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });

@@ -8,6 +8,7 @@ const {
   IMPRINT_REQUIRED,
   WORK_TYPE_REQUIRED,
   COPYRIGHT_HOLDER_REQUIRED,
+  WORK_STATUS_REQUIRED,
 } = ERRORS;
 
 export const InputType = {
@@ -68,6 +69,18 @@ export const FORM_FIELDS = {
     placeholder: 'Copyright holder',
     errorMessage: COPYRIGHT_HOLDER_REQUIRED,
     type: InputType.TEXT,
+  },
+  WORK_STATUS: {
+    label: 'Work Status',
+    name: 'workStatus',
+    placeholder: 'Work Status',
+    errorMessage: WORK_STATUS_REQUIRED,
+    type: InputType.TEXT,
+  },
+  PUBLICATION_DATE: {
+    label: 'Publication Date',
+    name: 'publicationDate',
+    placeholder: 'Publication Date',
   },
   // FIRST_NAME: 'firstName',
   // LAST_NAME: 'lastName',

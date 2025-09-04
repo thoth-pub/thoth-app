@@ -1,6 +1,6 @@
 'use client';
 
-import { Button, PageHeader } from '@/components';
+import { Button, CircullarProgress, PageHeader } from '@/components';
 import { FORM_FIELDS, IDs } from '@/constants';
 import type { ImprintEntity } from '@/interfaces';
 
@@ -16,16 +16,17 @@ type CreateWorkFormProps = {
 };
 
 const CreateWorkForm = ({ imprints, queryToken }: CreateWorkFormProps) => {
-  const { control, workTypesOptions, imprintOptions, isImprintVisible, isSubmitDisabled, submit } = useCreateWorkForm({
-    imprints,
-    queryToken,
-  });
+  const { control, workTypesOptions, imprintOptions, isImprintVisible, isSubmitDisabled, isLoading, submit } =
+    useCreateWorkForm({
+      imprints,
+      queryToken,
+    });
 
   return (
     <>
       <PageHeader title="New work">
         <Button variant="contained" disabled={isSubmitDisabled} type="submit" form={CREATE_WORK}>
-          New
+          {isLoading ? <CircullarProgress size={22} sx={{ color: 'inherit' }} /> : 'New'}
         </Button>
       </PageHeader>
       <form

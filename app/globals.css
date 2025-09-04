@@ -63,7 +63,6 @@
   --black-opacity-50: rgba(14, 24, 40, 0.5);
   --gray: #bdbfc2;
   --gray-alt: #e9e9e9;
-  --blue: #394963;
   --green: #42b072;
   --red: #ff0000;
 
@@ -82,7 +81,6 @@
   --color-background: var(--yellow);
   --color-background-alt: var(--white-opacity-50);
   --color-typography: var(--black);
-  --color-typography-alt: var(--blue);
   --color-typography-secondary: var(--white);
   --color-border: var(--green);
   --color-border-alt: var(--purple);
@@ -99,6 +97,7 @@
 
   --color-button-contained-background: var(--purple);
   --color-button-contained-text: var(--yellow);
+  --color-button-outlined-border: var(--purple);
   --border-button-radius: 0.25rem;
 
   --color-text-field-background: var(--white-opacity-30);

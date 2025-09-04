@@ -6,24 +6,29 @@ import {
   dateValidation,
   getRequiredStringValidation,
   getRequiredUrlValidation,
+  optionalDateValidation,
   optionalPositiveIntValidation,
   optionalStringValidation,
   optionalUrlValidation,
   requiredIntValidation,
   timestampValidation,
+  workStatusValidation,
 } from './core';
 
-const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE } = FORM_FIELDS;
+const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE, WORK_STATUS, PUBLICATION_DATE } = FORM_FIELDS;
 
 const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
 const imprintValidation = getRequiredStringValidation(IMPRINT_ID.errorMessage);
 const workTypeValidation = getRequiredStringValidation(WORK_TYPE.errorMessage);
+
+const statusValidation = workStatusValidation;
+const publicationDateValidation = optionalDateValidation;
+
 const subtitleValidation = optionalStringValidation;
 const reference = optionalStringValidation;
 
 const editionValidation = requiredIntValidation;
 
-const publicationDateValidation = dateValidation;
 const withdrawnDateValidation = dateValidation;
 
 const placeValidation = optionalStringValidation;
@@ -75,4 +80,9 @@ export const createWorkValidationSchema = z.object({
   [IMPRINT_ID.name]: imprintValidation,
   [WORK_TYPE.name]: workTypeValidation,
   [LICENSE.name]: licenseValidation,
+});
+
+export const editWorkValidationSchema = z.object({
+  [WORK_STATUS.name]: statusValidation,
+  [PUBLICATION_DATE.name]: publicationDateValidation,
 });

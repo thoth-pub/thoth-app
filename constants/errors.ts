@@ -8,4 +8,5 @@ export const ERRORS = {
   IMPRINT_REQUIRED: 'Imprint is required',
   WORK_TYPE_REQUIRED: 'Work Type is required',
   COPYRIGHT_HOLDER_REQUIRED: 'Copyright holder is required',
+  WORK_STATUS_REQUIRED: 'Work Status is required',
 } as const;

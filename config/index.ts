@@ -24,4 +24,5 @@ export const config = {
   animation: {
     duration: 1,
   },
+  dateFormat: 'YYYY-MM-DD',
 };
