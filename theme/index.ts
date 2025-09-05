@@ -148,5 +148,14 @@ export const theme = createTheme({
         },
       },
     },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          color: 'var(--color-icon-button)',
+          height: '2rem',
+          width: '2rem',
+        },
+      },
+    },
   },
 });

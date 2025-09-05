@@ -10,4 +10,5 @@ export * from './publications';
 export * from './publishers';
 export * from './queryClient';
 export * from './series';
+export * from './textEditorTags';
 export * from './works';

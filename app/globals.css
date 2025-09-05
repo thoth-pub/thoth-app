@@ -68,6 +68,8 @@
 
   --max-width: calc(1440px + 2.5rem);
 
+  --max-form-content-width: calc(1400px);
+
   --side-padding: 1.25rem;
 
   --default-content-padding: 2rem;
@@ -76,6 +78,8 @@
 
   --default-letter-spacing: 0.025rem;
   --default-line-height: 1.5;
+
+  --default-radius: 0.3215rem;
 
   /* Tier 2 */
   --color-background: var(--yellow);
@@ -98,7 +102,17 @@
   --color-button-contained-background: var(--purple);
   --color-button-contained-text: var(--yellow);
   --color-button-outlined-border: var(--purple);
-  --border-button-radius: 0.25rem;
+  --border-button-radius: var(--default-radius);
+
+  --color-icon-button: var(--purple);
+  --color-icon-button-medium-background: var(--purple);
+  --color-icon-button-medium-text: var(--yellow);
+
+  --color-markdown-background: var(--white);
+  --color-markdown-text: var(--black);
+  --color-markdown-border: var(--purple);
+  --color-markdown-radius: var(--default-radius);
+  --color-markdown-preview-text: var(--purple);
 
   --color-text-field-background: var(--white-opacity-30);
   --color-text-field-border: var(--purple);

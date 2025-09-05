@@ -8,18 +8,20 @@ export type FormAccordionSectionProps = {
   children?: Readonly<ReactNode>;
   expandIcon?: ReactNode;
   panelId?: string;
+  defaultExpanded?: boolean;
 };
 
 const defaultIcon = <ExpandMoreIcon color="primary" />;
 
 export const FormAccordionSection = (props: FormAccordionSectionProps) => {
-  const { title, children, expandIcon = defaultIcon, panelId = 'panel' } = props;
+  const { title, children, expandIcon = defaultIcon, panelId = 'panel', defaultExpanded = false } = props;
 
   return (
     <Accordion
+      defaultExpanded={defaultExpanded}
       id={panelId}
       key={panelId}
-      className="rounded-2xl bg-[var(--color-background-alt)] p-8 shadow-xl before:hidden"
+      className="max-w-[var(--max-form-content-width)] rounded-2xl bg-[var(--color-background-alt)] p-8 shadow-xl before:hidden"
     >
       <AccordionSummary
         expandIcon={expandIcon}

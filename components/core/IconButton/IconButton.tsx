@@ -1,6 +1,6 @@
-import IconButton, { type ButtonProps } from '@mui/material/Button';
+import IconButton, { type IconButtonProps } from '@mui/material/IconButton';
 
-const IconButtonComponent = ({ children, ...props }: ButtonProps) => {
+const IconButtonComponent = ({ children, ...props }: IconButtonProps) => {
   return <IconButton {...props}>{children}</IconButton>;
 };
 

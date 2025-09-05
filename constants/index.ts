@@ -9,4 +9,5 @@ export * from './pages';
 export * from './publications';
 export * from './routes';
 export * from './series';
+export * from './textEditorTags';
 export * from './work';

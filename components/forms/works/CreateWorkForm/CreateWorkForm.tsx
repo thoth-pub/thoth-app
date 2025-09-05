@@ -25,8 +25,15 @@ const CreateWorkForm = ({ imprints, queryToken }: CreateWorkFormProps) => {
   return (
     <>
       <PageHeader title="New work">
-        <Button variant="contained" disabled={isSubmitDisabled} type="submit" form={CREATE_WORK}>
-          {isLoading ? <CircullarProgress size={22} sx={{ color: 'inherit' }} /> : 'New'}
+        <Button
+          variant="contained"
+          disabled={isSubmitDisabled}
+          type="submit"
+          form={CREATE_WORK}
+          loading={isLoading}
+          loadingIndicator={<CircullarProgress size={22} sx={{ color: 'inherit' }} />}
+        >
+          New
         </Button>
       </PageHeader>
       <form
