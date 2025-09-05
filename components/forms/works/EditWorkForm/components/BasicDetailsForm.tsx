@@ -29,7 +29,6 @@ export const BasicDetailsForm = () => {
   };
 
   const handleUpdate = (value?: string) => {
-    if (!value) return;
     setValue(value);
   };
 

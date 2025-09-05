@@ -39,9 +39,9 @@ export const useMarkdownEditor = ({ disableLineBreaks, onUpdate }: UseMarkdownEd
   };
 
   const handleChange = (value?: string) => {
-    if (!onUpdate || !value) return;
+    if (!onUpdate) return;
 
-    if (!disableLineBreaks) return onUpdate(value);
+    if (!disableLineBreaks || !value) return onUpdate(value);
 
     onUpdate(value.replace(/\n/g, ' '));
   };
