@@ -43,7 +43,7 @@ export const useMarkdownEditor = ({ disableLineBreaks, onUpdate }: UseMarkdownEd
 
     if (!disableLineBreaks || !value) return onUpdate(value);
 
-    onUpdate(value.replace(/\n/g, ' '));
+    onUpdate(value.replace(/\n/g, ''));
   };
 
   return {
