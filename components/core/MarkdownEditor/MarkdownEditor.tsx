@@ -12,17 +12,17 @@ import { TextEditorTag } from '@/constants';
 import { MarkdownEditorToolbar } from './components/MarkdownEditorToolbar';
 import { useMarkdownEditor } from './hooks';
 
-type MarkdownEditorProps = Partial<{
+export type MarkdownEditorProps = Partial<{
   value: string;
   disableLineBreaks: boolean;
-  onUpdate: (value?: string) => void;
+  onChange: (value?: string) => void;
   onSave: () => void;
 }>;
 
 const { BOLD, ITALIC, STRIKETHROUGH, UNDERLINE } = TextEditorTag;
 
-const MarkdownEditor = ({ value, disableLineBreaks = false, onUpdate, onSave }: MarkdownEditorProps) => {
-  const { editorRef, customizeText, update } = useMarkdownEditor({ disableLineBreaks, onUpdate });
+export const MarkdownEditor = ({ value, disableLineBreaks = false, onChange, onSave }: MarkdownEditorProps) => {
+  const { editorRef, customizeText, update } = useMarkdownEditor({ disableLineBreaks, onChange });
 
   return (
     <>
@@ -71,5 +71,3 @@ const MarkdownEditor = ({ value, disableLineBreaks = false, onUpdate, onSave }: 
     </>
   );
 };
-
-export default MarkdownEditor;

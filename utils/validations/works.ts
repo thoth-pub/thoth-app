@@ -15,7 +15,7 @@ import {
   workStatusValidation,
 } from './core';
 
-const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE, WORK_STATUS, PUBLICATION_DATE } = FORM_FIELDS;
+const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE, WORK_STATUS, PUBLICATION_DATE, WORK_TITLE } = FORM_FIELDS;
 
 const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
 const imprintValidation = getRequiredStringValidation(IMPRINT_ID.errorMessage);
@@ -85,4 +85,8 @@ export const createWorkValidationSchema = z.object({
 export const editWorkValidationSchema = z.object({
   [WORK_STATUS.name]: statusValidation,
   [PUBLICATION_DATE.name]: publicationDateValidation,
+});
+
+export const basicWorkDetailsValidationSchema = z.object({
+  [WORK_TITLE.name]: titleValidation,
 });

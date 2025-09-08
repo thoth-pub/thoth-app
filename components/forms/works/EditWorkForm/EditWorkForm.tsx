@@ -1,13 +1,13 @@
 'use client';
 
-import { BasicDetailsForm, DescriptionsDetailsForm, FormHeader } from './components';
+import { FormHeader, WorkBasicDetailsForm, WorkDescriptionsDetailsForm } from './components';
 
 const EditWorkForm = () => {
   return (
     <div className="flex flex-col gap-8">
       <FormHeader />
-      <BasicDetailsForm />
-      <DescriptionsDetailsForm />
+      <WorkBasicDetailsForm />
+      <WorkDescriptionsDetailsForm />
     </div>
   );
 };

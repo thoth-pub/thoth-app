@@ -4,7 +4,7 @@ import { FormAccordionSection } from './FormAccordionSection';
 
 const { DESCRIPTIONS_DETAILS } = IDs.FORM_SECTIONS;
 
-export const DescriptionsDetailsForm = () => {
+export const WorkDescriptionsDetailsForm = () => {
   return (
     <FormAccordionSection title="Descriptions" panelId={DESCRIPTIONS_DETAILS}>
       Descriptions Details

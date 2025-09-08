@@ -4,12 +4,12 @@ import EditIcon from '@mui/icons-material/Edit';
 import MDEditor from '@uiw/react-md-editor';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
-import { useForm } from 'react-hook-form';
 
-import { IconButton, InputLabel, MarkdownEditor } from '@/components';
+import { IconButton, InputLabel, MarkdownField } from '@/components';
 import { FORM_FIELDS, IDs } from '@/constants';
 
 import { FormAccordionSection } from './FormAccordionSection';
+import { useWorkBasicDetailsForm } from './hooks/useWorkBasicDetailsForm';
 
 const {
   FORM_FIELDS: { WORK_TITLE: WORK_TITLE_ID },
@@ -19,27 +19,22 @@ const {
 const { WORK_TITLE } = FORM_FIELDS;
 
 // TODO: refactor this component
-export const BasicDetailsForm = () => {
-  const [value, setValue] = useState<string>();
+export const WorkBasicDetailsForm = () => {
   const [isInEditState, setIsInEditState] = useState(false);
-  const { control } = useForm();
+  const { control, formState, submit } = useWorkBasicDetailsForm();
 
   const switchEditState = () => {
     setIsInEditState(!isInEditState);
   };
 
-  const handleUpdate = (value?: string) => {
-    setValue(value);
-  };
-
   return (
     <FormAccordionSection title="Basic Details" panelId={BASIC_DETAILS}>
-      <div className="flex">
-        <InputLabel className="min-w-[10rem]" htmlFor={WORK_TITLE_ID}>
-          {WORK_TITLE.label}
-        </InputLabel>
-        <div className="flex grow flex-row hover:[&>div>button]:opacity-100">
-          <AnimatePresence initial={false} mode="wait">
+      <AnimatePresence initial={false} mode="wait">
+        <div className="flex">
+          <InputLabel className="min-w-[10rem]" htmlFor={WORK_TITLE_ID}>
+            {WORK_TITLE.label}
+          </InputLabel>
+          <form className="flex grow flex-row hover:[&>div>button]:opacity-100" onSubmit={submit}>
             {!isInEditState && (
               <motion.div
                 key="view-mode"
@@ -58,7 +53,7 @@ export const BasicDetailsForm = () => {
                 </IconButton>
                 <div onDoubleClick={switchEditState}>
                   <MDEditor.Markdown
-                    source={value}
+                    source={formState.workTitle}
                     style={{
                       whiteSpace: 'pre-wrap',
                       width: '100%',
@@ -79,13 +74,14 @@ export const BasicDetailsForm = () => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3, ease: 'easeIn' }}
                 >
-                  <MarkdownEditor value={value} onUpdate={handleUpdate} onSave={switchEditState} disableLineBreaks />
+                  <MarkdownField name={WORK_TITLE.name} control={control} onSave={switchEditState} disableLineBreaks />
                 </motion.div>
               </div>
             )}
-          </AnimatePresence>
+            <button type="submit">Save</button>
+          </form>
         </div>
-      </div>
+      </AnimatePresence>
     </FormAccordionSection>
   );
 };

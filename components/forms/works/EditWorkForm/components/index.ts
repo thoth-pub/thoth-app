@@ -1,3 +1,3 @@
-export * from './BasicDetailsForm';
-export * from './DescriptionsDetailsForm';
+export * from './WorkBasicDetailsForm';
+export * from './WorkDescriptionsDetailsForm';
 export * from './FormHeader';

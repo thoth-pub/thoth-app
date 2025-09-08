@@ -2,16 +2,14 @@
 
 import MenuItem from '@mui/material/MenuItem';
 import TextField, { type TextFieldProps } from '@mui/material/TextField';
-import { type Control, Controller, type FieldValues, Path, PathValue } from 'react-hook-form';
+import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
-import type { FormFieldName, FormFieldOption } from '@/interfaces';
+import type { BaseFieldProps, FormFieldOption } from '@/interfaces';
 
 export type TextFieldComponentProps<T extends FieldValues> = {
-  control: Control<T>;
-  name: FormFieldName;
-  defaultValue?: PathValue<T, Path<T>>;
   options?: FormFieldOption[];
-} & TextFieldProps;
+} & BaseFieldProps<T> &
+  TextFieldProps;
 
 const TextFieldComponent = <T extends FieldValues>({
   control,

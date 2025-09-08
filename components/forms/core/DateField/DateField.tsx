@@ -1,15 +1,11 @@
 import { DatePicker, type DatePickerProps } from '@mui/x-date-pickers/DatePicker';
 import dayjs from 'dayjs';
-import { type Control, Controller, type FieldValues, Path, PathValue } from 'react-hook-form';
+import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
 import { config } from '@/config';
-import { FormFieldName } from '@/interfaces';
+import { BaseFieldProps } from '@/interfaces';
 
-type DateFieldProps<T extends FieldValues> = {
-  control: Control<T>;
-  name: FormFieldName;
-  defaultValue?: PathValue<T, Path<T>>;
-} & DatePickerProps;
+type DateFieldProps<T extends FieldValues> = BaseFieldProps<T> & DatePickerProps;
 
 const { dateFormat } = config;
 
