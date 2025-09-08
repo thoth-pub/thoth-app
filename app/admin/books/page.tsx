@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation';
 
-import { WorksService } from '@/app/services';
 import { auth } from '@/auth';
-import { ROUTES } from '@/constants';
-import { query } from '@/graphqlClient';
-import { convertLinkedPublishers } from '@/utils';
+import { WorkService } from '@/src/entities/work';
+import { ROUTES } from '@/src/shared/constants';
+import { query } from '@/src/shared/graphqlClient';
+import { convertLinkedPublishers } from '@/src/shared/utils';
 
-const worksService = new WorksService(query);
+const worksService = new WorkService(query);
 
 export default async function BooksPage() {
   const session = await auth();

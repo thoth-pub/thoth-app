@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation';
 
-import { ImprintsService } from '@/app/services';
 import { auth } from '@/auth';
-import { CreateWorkForm } from '@/components';
-import { ROUTES } from '@/constants';
-import { query } from '@/graphqlClient';
-import { convertLinkedPublishers, isAdmin } from '@/utils';
+import { ImprintService } from '@/src/entities/imprint';
+import { CreateWorkForm } from '@/src/entities/work';
+import { ROUTES } from '@/src/shared/constants';
+import { query } from '@/src/shared/graphqlClient';
+import { convertLinkedPublishers, isAdmin } from '@/src/shared/utils';
 
-const imprintsService = new ImprintsService(query);
+const imprintsService = new ImprintService(query);
 
 export default async function NewWorkPage() {
   const session = await auth();

@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 
-import { Button, Typography } from '@/components';
+import { Button, Typography } from '@/src/shared/ui';
 
 export default function Error({ error, reset }: { error: Error & { digest?: string }; reset: () => void }) {
   useEffect(() => {

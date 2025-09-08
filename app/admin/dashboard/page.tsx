@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { PAGES } from '@/constants';
+import { PAGES } from '@/src/shared/constants';
 
 export default async function DashboardPage() {
   return (

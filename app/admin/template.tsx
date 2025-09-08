@@ -3,7 +3,7 @@
 import { motion } from 'motion/react';
 import { ReactNode } from 'react';
 
-import { config } from '@/config';
+import { config } from '@/src/shared/config';
 
 const {
   animation: { duration },

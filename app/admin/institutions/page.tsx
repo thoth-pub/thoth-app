@@ -1,13 +1,12 @@
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 
-import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '@/app/queries';
 import { auth } from '@/auth';
-import { config } from '@/config';
-import { ROUTES } from '@/constants';
-import { PreloadQuery } from '@/graphqlClient';
-
-import TestList from '../../../components/dev/testList';
+import TestList from '@/delete/dev/testList';
+import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '@/src/entities/institution';
+import { ROUTES } from '@/src/shared';
+import { config } from '@/src/shared/config';
+import { PreloadQuery } from '@/src/shared/graphqlClient';
 
 export default async function InstitutionsPage() {
   const session = await auth();

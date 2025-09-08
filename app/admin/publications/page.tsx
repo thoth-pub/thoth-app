@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation';
 
-import { PublicationsService } from '@/app/services';
 import { auth } from '@/auth';
-import { ROUTES } from '@/constants';
-import { query } from '@/graphqlClient';
-import { convertLinkedPublishers } from '@/utils';
+import { PublicationService } from '@/src/entities/publication';
+import { ROUTES } from '@/src/shared/constants';
+import { query } from '@/src/shared/graphqlClient';
+import { convertLinkedPublishers } from '@/src/shared/utils';
 
-const publicationsService = new PublicationsService(query);
+const publicationsService = new PublicationService(query);
 
 export default async function PublicationsPage() {
   const session = await auth();

@@ -1,9 +1,8 @@
 import NextAuth, { type User } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 
-import { ERRORS, ROUTES } from '@/constants';
-
-import type { AuthorizeUser, LinkedPublisher } from './interfaces/auth';
+import type { AuthorizeUser, LinkedPublisher } from '@/src/entities/auth';
+import { ERRORS, ROUTES } from '@/src/shared/constants';
 
 const { INVALID_CREDENTIALS } = ERRORS;
 const { LOGIN } = ROUTES;

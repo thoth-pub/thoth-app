@@ -1,7 +1,7 @@
 'use server';
 
 import { signIn } from '@/auth';
-import { ROUTES } from '@/constants';
+import { ROUTES } from '@/src/shared/constants';
 
 export const signInAction = async (credentials: { email: string; password: string }) => {
   const { email, password } = credentials;

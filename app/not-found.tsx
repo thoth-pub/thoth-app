@@ -1,4 +1,4 @@
-import { Typography } from '@/components';
+import { Typography } from '@/src/shared/ui';
 
 export default function NotFound() {
   return (

@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
-import { PAGES, ROUTES } from '@/constants';
+import { PAGES, ROUTES } from '@/src/shared/constants';
 
 const AdminLayout = async ({
   children,

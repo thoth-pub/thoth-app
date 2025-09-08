@@ -1,5 +1,5 @@
 import { auth } from '@/auth';
-import { ROUTES } from '@/constants';
+import { ROUTES } from '@/src/shared/constants';
 
 export default auth((req) => {
   if (req.nextUrl.pathname === ROUTES.ROOT) {

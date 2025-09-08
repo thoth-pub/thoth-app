@@ -1,12 +1,12 @@
 import { redirect } from 'next/navigation';
 
-import { ImprintsService } from '@/app/services';
 import { auth } from '@/auth';
-import { ROUTES } from '@/constants';
-import { query } from '@/graphqlClient';
-import { convertLinkedPublishers, isAdmin } from '@/utils';
+import { ImprintService } from '@/src/entities/imprint';
+import { ROUTES } from '@/src/shared/constants';
+import { query } from '@/src/shared/graphqlClient';
+import { convertLinkedPublishers, isAdmin } from '@/src/shared/utils';
 
-const imprintsService = new ImprintsService(query);
+const imprintsService = new ImprintService(query);
 
 export default async function ImprintsPage() {
   const session = await auth();

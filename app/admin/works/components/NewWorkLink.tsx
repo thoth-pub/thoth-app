@@ -1,8 +1,8 @@
 'use client';
 import AddIcon from '@mui/icons-material/Add';
 
-import { Button, Link } from '@/components';
-import { ROUTES } from '@/constants';
+import { ROUTES } from '@/src/shared/constants';
+import { Button, Link } from '@/src/shared/ui';
 
 const NewWorkLink = () => {
   return (

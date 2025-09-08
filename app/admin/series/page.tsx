@@ -1,10 +1,10 @@
 import { redirect } from 'next/navigation';
 
-import { SeriesService } from '@/app/services';
 import { auth } from '@/auth';
-import { ROUTES } from '@/constants';
-import { query } from '@/graphqlClient';
-import { convertLinkedPublishers, isAdmin } from '@/utils';
+import { SeriesService } from '@/src/entities/series';
+import { ROUTES } from '@/src/shared/constants';
+import { query } from '@/src/shared/graphqlClient';
+import { convertLinkedPublishers, isAdmin } from '@/src/shared/utils';
 
 const seriesService = new SeriesService(query);
 

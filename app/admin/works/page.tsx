@@ -1,15 +1,15 @@
 import { redirect } from 'next/navigation';
 
-import { WorksService } from '@/app/services';
 import { auth } from '@/auth';
-import { Link, PageHeader } from '@/components';
-import { ROUTES } from '@/constants';
-import { query } from '@/graphqlClient';
-import { convertLinkedPublishers } from '@/utils';
+import { WorkService } from '@/src/entities/work';
+import { ROUTES } from '@/src/shared/constants';
+import { query } from '@/src/shared/graphqlClient';
+import { Link, PageHeader } from '@/src/shared/ui';
+import { convertLinkedPublishers } from '@/src/shared/utils';
 
 import { NewWorkLink } from './components';
 
-const worksService = new WorksService(query);
+const worksService = new WorkService(query);
 
 export default async function WorksPage() {
   const session = await auth();

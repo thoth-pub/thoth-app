@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation';
 
-import { ContributorsService } from '@/app/services';
 import { auth } from '@/auth';
-import { ROUTES } from '@/constants';
-import { query } from '@/graphqlClient';
+import { ContributorService } from '@/src/entities/contributor';
+import { ROUTES } from '@/src/shared/constants';
+import { query } from '@/src/shared/graphqlClient';
 
-const contributorsService = new ContributorsService(query);
+const contributorsService = new ContributorService(query);
 
 export default async function ContributorsPage() {
   const session = await auth();

@@ -2,7 +2,7 @@
 
 import { SessionProvider } from 'next-auth/react';
 
-import { ApolloClientProvider, LocalizationProvider, NotificationProvider, StylesCacheProvider, ThemeProvider } from '@/providers';
+import { ApolloClientProvider, LocalizationProvider, NotificationProvider, StylesCacheProvider, ThemeProvider } from '@/src/shared/providers';
 
 const Providers = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   return (

@@ -1,11 +1,12 @@
-import './globals.css';
+import './styles/globals.css';
 
 import type { Metadata } from 'next';
 import { Economica, Open_Sans } from 'next/font/google';
 
 import { auth } from '@/auth';
-import { Footer, Header, SignOutButton } from '@/components';
-import { config } from '@/config';
+import { SignOutButton } from '@/src/features';
+import { config } from '@/src/shared/config';
+import { Footer, Header } from '@/src/shared/ui';
 
 import Providers from './providers';
 
