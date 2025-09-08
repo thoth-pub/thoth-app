@@ -6,4 +6,5 @@ export * from './IconButton';
 export * from './Link';
 export * from './MarkdownEditor';
 export * from './PageHeader';
+export * from './Switch';
 export * from './Typography';

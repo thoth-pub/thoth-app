@@ -157,5 +157,29 @@ export const theme = createTheme({
         },
       },
     },
+    MuiSwitch: {
+      styleOverrides: {
+        root: {
+          border: '2px solid var(--color-switch)',
+          color: 'var(--color-switch)',
+        },
+        sizeSmall: {
+          padding: '0.1875rem',
+          borderRadius: '2.125rem',
+          color: 'var(--color-switch)',
+          scale: '0.6',
+
+          '& .MuiSwitch-switchBase': {
+            padding: '0.125rem',
+          },
+        },
+        track: {
+          backgroundColor: 'transparent',
+        },
+        thumb: {
+          backgroundColor: 'var(--color-switch)',
+        },
+      },
+    },
   },
 });

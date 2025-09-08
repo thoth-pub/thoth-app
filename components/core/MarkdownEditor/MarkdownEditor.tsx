@@ -5,8 +5,9 @@ import './styles.css';
 import CheckIcon from '@mui/icons-material/Check';
 import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 import MDEditor from '@uiw/react-md-editor';
+import type { ReactNode } from 'react';
 
-import { IconButton } from '@/components';
+import { IconButton, Typography } from '@/components';
 import { TextEditorTag } from '@/constants';
 
 import { MarkdownEditorToolbar } from './components/MarkdownEditorToolbar';
@@ -14,14 +15,18 @@ import { useMarkdownEditor } from './hooks';
 
 export type MarkdownEditorProps = Partial<{
   value: string;
+  error: boolean;
+  errorMessage: string;
   disableLineBreaks: boolean;
+  children: Readonly<ReactNode>;
   onChange: (value?: string) => void;
   onSave: () => void;
 }>;
 
 const { BOLD, ITALIC, STRIKETHROUGH, UNDERLINE } = TextEditorTag;
 
-export const MarkdownEditor = ({ value, disableLineBreaks = false, onChange, onSave }: MarkdownEditorProps) => {
+export const MarkdownEditor = (props: MarkdownEditorProps) => {
+  const { value, error, errorMessage, disableLineBreaks = false, children, onChange, onSave } = props;
   const { editorRef, customizeText, update } = useMarkdownEditor({ disableLineBreaks, onChange });
 
   return (
@@ -35,6 +40,7 @@ export const MarkdownEditor = ({ value, disableLineBreaks = false, onChange, onS
           minHeight={50}
           visibleDragbar={false}
           preview="edit"
+          className={error ? 'error' : ''}
           style={{
             width: '100%',
             maxWidth: 'var(--max-content-width)',
@@ -45,6 +51,7 @@ export const MarkdownEditor = ({ value, disableLineBreaks = false, onChange, onS
           ref={editorRef}
         />
         <IconButton
+          disabled={error}
           onClick={onSave}
           sx={{
             backgroundColor: 'var(--color-icon-button-medium-background)',
@@ -62,12 +69,21 @@ export const MarkdownEditor = ({ value, disableLineBreaks = false, onChange, onS
           <InfoOutlineIcon />
         </IconButton>
       </div>
-      <MarkdownEditorToolbar
-        onBoldPressed={() => customizeText(BOLD)}
-        onItalicPressed={() => customizeText(ITALIC)}
-        onStrikethroughPressed={() => customizeText(STRIKETHROUGH)}
-        onUnderlinePressed={() => customizeText(UNDERLINE)}
-      />
+      <div className="mr-18 flex flex-1 justify-between">
+        <MarkdownEditorToolbar
+          className="self-start"
+          onBoldPressed={() => customizeText(BOLD)}
+          onItalicPressed={() => customizeText(ITALIC)}
+          onStrikethroughPressed={() => customizeText(STRIKETHROUGH)}
+          onUnderlinePressed={() => customizeText(UNDERLINE)}
+        />
+        {children}
+      </div>
+      {error && (
+        <Typography variant="body2" color="error">
+          {errorMessage}
+        </Typography>
+      )}
     </>
   );
 };

@@ -113,6 +113,9 @@
   --color-markdown-border: var(--purple);
   --color-markdown-radius: var(--default-radius);
   --color-markdown-preview-text: var(--purple);
+  --color-markdown-error: var(--color-error);
+
+  --color-switch: var(--purple);
 
   --color-text-field-background: var(--white-opacity-30);
   --color-text-field-border: var(--purple);

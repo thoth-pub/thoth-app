@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { FORM_FIELDS } from '@/constants';
@@ -19,6 +19,7 @@ export const useWorkBasicDetailsForm = () => {
     formState: { errors },
   } = useForm<BasicWorkDetailsForm>({
     resolver: zodResolver(basicWorkDetailsValidationSchema),
+    mode: 'onChange',
   });
 
   const title = useWatch({ control, name: WORK_TITLE.name });

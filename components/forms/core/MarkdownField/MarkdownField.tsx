@@ -6,7 +6,7 @@ import { BaseFieldProps } from '@/interfaces';
 type MarkdownFieldProps<T extends FieldValues> = BaseFieldProps<T> & Omit<MarkdownEditorProps, 'value'>;
 
 export const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T>) => {
-  const { control, name, defaultValue, onSave } = props;
+  const { control, name, defaultValue, children, onSave } = props;
 
   return (
     <Controller
@@ -15,8 +15,16 @@ export const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T
       defaultValue={defaultValue}
       render={({ field: { value, onChange }, fieldState: { error } }) => (
         <>
-          <MarkdownEditor value={value} onChange={onChange} onSave={onSave} disableLineBreaks />
-          <p>{`Error: ${error?.message}`}</p>
+          <MarkdownEditor
+            value={value}
+            onChange={onChange}
+            onSave={onSave}
+            error={!!error}
+            errorMessage={error?.message}
+            disableLineBreaks
+          >
+            {children}
+          </MarkdownEditor>
         </>
       )}
     />

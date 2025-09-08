@@ -5,7 +5,7 @@ import MDEditor from '@uiw/react-md-editor';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 
-import { IconButton, InputLabel, MarkdownField } from '@/components';
+import { IconButton, InputLabel, MarkdownField, Switch, Typography } from '@/components';
 import { FORM_FIELDS, IDs } from '@/constants';
 
 import { FormAccordionSection } from './FormAccordionSection';
@@ -74,7 +74,17 @@ export const WorkBasicDetailsForm = () => {
                   exit={{ opacity: 0 }}
                   transition={{ duration: 0.3, ease: 'easeIn' }}
                 >
-                  <MarkdownField name={WORK_TITLE.name} control={control} onSave={switchEditState} disableLineBreaks />
+                  <MarkdownField name={WORK_TITLE.name} control={control} onSave={switchEditState} disableLineBreaks>
+                    <div className="flex items-start gap-1 pt-2">
+                      <Typography variant="body2" color="primary">
+                        JATS
+                      </Typography>
+                      <Switch defaultChecked size="small" className="-mt-0.5" />
+                      <Typography variant="body2" color="primary">
+                        Markdown
+                      </Typography>
+                    </div>
+                  </MarkdownField>
                 </motion.div>
               </div>
             )}
