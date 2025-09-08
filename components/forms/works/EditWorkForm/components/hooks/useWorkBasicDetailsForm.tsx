@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { FORM_FIELDS } from '@/constants';
@@ -11,7 +11,7 @@ import { basicWorkDetailsValidationSchema } from '@/utils';
 const { WORK_TITLE } = FORM_FIELDS;
 
 export const useWorkBasicDetailsForm = () => {
-  const formStateRef = useRef<BasicWorkDetailsForm>({ workTitle: '' });
+  const [formState, setFormState] = useState<BasicWorkDetailsForm>({ workTitle: '' });
 
   const {
     control,
@@ -25,11 +25,11 @@ export const useWorkBasicDetailsForm = () => {
   const title = useWatch({ control, name: WORK_TITLE.name });
 
   const updateFormState = (newData: BasicWorkDetailsForm) => {
-    formStateRef.current = { ...formStateRef.current, ...newData };
+    setFormState({ ...formState, ...newData });
   };
 
   useEffect(() => {
-    if (title && !errors[WORK_TITLE.name]) {
+    if (!errors[WORK_TITLE.name]) {
       updateFormState({ workTitle: title });
     }
   }, [title, errors]);
@@ -38,5 +38,5 @@ export const useWorkBasicDetailsForm = () => {
     console.log(data);
   });
 
-  return { control, formState: formStateRef.current, submit: onSubmit };
+  return { control, formState, submit: onSubmit };
 };
