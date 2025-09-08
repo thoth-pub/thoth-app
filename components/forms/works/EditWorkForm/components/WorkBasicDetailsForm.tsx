@@ -78,7 +78,6 @@ export const WorkBasicDetailsForm = () => {
                 </motion.div>
               </div>
             )}
-            <button type="submit">Save</button>
           </form>
         </div>
       </AnimatePresence>
