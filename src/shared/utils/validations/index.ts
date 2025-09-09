@@ -1,3 +1,4 @@
+import dayjs from 'dayjs';
 import isbn3 from 'isbn3';
 import z from 'zod';
 
@@ -32,9 +33,13 @@ export const positiveIntValidation = intValidation.min(1);
 export const optionalPositiveIntValidation = positiveIntValidation.optional();
 
 /* Date Validations */
-export const dateValidation = z.date();
+export const dateValidation = z.refine((date) => dayjs(`${date}`).isValid());
 
-export const optionalDateValidation = dateValidation.optional();
+export const optionalDateValidation = z.refine((date) => {
+  if (!date) return true;
+
+  return dayjs(`${date}`).isValid();
+});
 
 export const timestampValidation = z.iso.datetime();
 

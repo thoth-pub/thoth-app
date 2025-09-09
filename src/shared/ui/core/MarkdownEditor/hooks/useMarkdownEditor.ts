@@ -19,7 +19,6 @@ export const useMarkdownEditor = ({ disableLineBreaks, onChange }: UseMarkdownEd
       const { textApi, textArea } = editorRef.current.commandOrchestrator;
       const state = getStateFromTextArea(textArea);
 
-      console.log('REF:', editorRef.current);
       // Adjust the selection to encompass the whole word if the caret is inside one
       const newSelectionRange = selectWord({
         text: state.text,

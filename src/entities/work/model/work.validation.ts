@@ -16,12 +16,12 @@ import {
 
 const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE, WORK_STATUS, PUBLICATION_DATE, WORK_TITLE } = FORM_FIELDS;
 
-const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
-const imprintValidation = getRequiredStringValidation(IMPRINT_ID.errorMessage);
-const workTypeValidation = getRequiredStringValidation(WORK_TYPE.errorMessage);
+export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
+export const imprintValidation = getRequiredStringValidation(IMPRINT_ID.errorMessage);
+export const workTypeValidation = getRequiredStringValidation(WORK_TYPE.errorMessage);
 
 const statusValidation = workStatusValidation;
-const publicationDateValidation = optionalDateValidation;
+export const publicationDateValidation = optionalDateValidation;
 
 const subtitleValidation = optionalStringValidation;
 const reference = optionalStringValidation;
@@ -86,6 +86,14 @@ export const editWorkValidationSchema = z.object({
   [PUBLICATION_DATE.name]: publicationDateValidation,
 });
 
-export const basicWorkDetailsValidationSchema = z.object({
+export const titleValidationSchema = z.object({
   [WORK_TITLE.name]: titleValidation,
+});
+
+export const publicationDateValidationSchema = z.object({
+  [PUBLICATION_DATE.name]: publicationDateValidation,
+});
+
+export const workStatusValidationSchema = z.object({
+  [WORK_STATUS.name]: statusValidation,
 });

@@ -3,33 +3,44 @@
 import MDEditor from '@uiw/react-md-editor';
 
 import { FORM_FIELDS, IDs } from '@/src/shared/constants';
-import { FormFieldWithPreview, InputLabel, MarkdownField, Switch, Typography } from '@/src/shared/ui';
+import { FormWithPreview, MarkdownField, Switch, Typography } from '@/src/shared/ui';
 
+import { titleValidationSchema } from '../../../model/work.validation';
 import { FormAccordionSection } from './FormAccordionSection';
-import { useWorkBasicDetailsForm } from './hooks/useWorkBasicDetailsForm';
 
 const {
-  FORM_FIELDS: { WORK_TITLE: WORK_TITLE_ID },
   FORM_SECTIONS: { BASIC_DETAILS },
+  FORM_FIELDS: { WORK_TITLE: WORK_TITLE_ID },
 } = IDs;
 
 const { WORK_TITLE } = FORM_FIELDS;
 
-// TODO: refactor this component
 export const WorkBasicDetailsForm = () => {
-  const { control, formState, submit } = useWorkBasicDetailsForm();
-
   return (
-    <FormAccordionSection title="Basic Details" panelId={BASIC_DETAILS}>
+    <FormAccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
       <div className="flex">
-        <InputLabel className="min-w-[10rem]" htmlFor={WORK_TITLE_ID}>
-          {WORK_TITLE.label}
-        </InputLabel>
-
-        <form className="flex grow flex-row hover:[&>div>button]:opacity-100" onSubmit={submit}>
-          <FormFieldWithPreview
-            formField={
-              <MarkdownField name={WORK_TITLE.name} control={control} disableLineBreaks>
+        <div className="flex grow flex-row hover:[&>div>button]:opacity-100">
+          <FormWithPreview
+            validationSchema={titleValidationSchema}
+            label={WORK_TITLE.label}
+            name={WORK_TITLE.name}
+            id={WORK_TITLE_ID}
+            preview={(value, isValueHighlighted) => (
+              <MDEditor.Markdown
+                source={value}
+                style={{
+                  whiteSpace: 'pre-wrap',
+                  width: '100%',
+                  backgroundColor: 'transparent',
+                  color: isValueHighlighted
+                    ? 'var(--color-markdown-preview-text-alt)'
+                    : 'var(--color-markdown-preview-text)',
+                }}
+              />
+            )}
+          >
+            {({ control }) => (
+              <MarkdownField name={WORK_TITLE.name} control={control} disableLineBreaks id={WORK_TITLE_ID}>
                 <div className="flex items-start gap-1 pt-2">
                   <Typography variant="body2" color="primary">
                     JATS
@@ -40,20 +51,9 @@ export const WorkBasicDetailsForm = () => {
                   </Typography>
                 </div>
               </MarkdownField>
-            }
-            preview={
-              <MDEditor.Markdown
-                source={formState.workTitle}
-                style={{
-                  whiteSpace: 'pre-wrap',
-                  width: '100%',
-                  backgroundColor: 'transparent',
-                  color: 'var(--color-markdown-preview-text)',
-                }}
-              />
-            }
-          />
-        </form>
+            )}
+          </FormWithPreview>
+        </div>
       </div>
     </FormAccordionSection>
   );

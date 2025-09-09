@@ -34,6 +34,13 @@ export const theme = createTheme({
       letterSpacing: 'var(--default-letter-spacing)',
       color: 'var(--color-typography)',
     },
+    button: {
+      fontWeight: 400,
+      fontSize: '1rem',
+      lineHeight: 'var(--default-line-height)',
+      letterSpacing: 'var(--default-letter-spacing)',
+      color: 'var(--color-typography)',
+    },
   },
   palette: {
     primary: {
@@ -41,6 +48,9 @@ export const theme = createTheme({
     },
     error: {
       main: '#ff0000',
+    },
+    success: {
+      main: '#42b072',
     },
   },
   components: {
@@ -73,6 +83,15 @@ export const theme = createTheme({
           boxSizing: 'border-box',
           border: '1px solid var(--color-button-outlined-border)',
           height: '2.77rem',
+        },
+        text: {
+          padding: 0,
+          fontSize: '1rem',
+          lineHeight: '1.5rem',
+          fontWeight: 400,
+        },
+        sizeSmall: {
+          lineHeight: 'var(--default-line-height)',
         },
       },
     },
@@ -114,7 +133,6 @@ export const theme = createTheme({
     MuiInputLabel: {
       styleOverrides: {
         root: {
-          top: '-5px',
           fontWeight: 700,
           fontSize: '1rem',
           lineHeight: 'var(--default-line-height)',

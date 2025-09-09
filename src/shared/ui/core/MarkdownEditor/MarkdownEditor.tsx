@@ -17,13 +17,14 @@ export type MarkdownEditorProps = Partial<{
   errorMessage: string;
   disableLineBreaks: boolean;
   children: Readonly<ReactNode>;
+  id?: string;
   onChange: (value?: string) => void;
 }>;
 
 const { BOLD, ITALIC, STRIKETHROUGH, UNDERLINE } = TextEditorTag;
 
 const MarkdownEditor = (props: MarkdownEditorProps) => {
-  const { value, error, errorMessage, disableLineBreaks = false, children, onChange } = props;
+  const { value, error, errorMessage, disableLineBreaks = false, children, onChange, id } = props;
   const { editorRef, customizeText, update } = useMarkdownEditor({ disableLineBreaks, onChange });
 
   return (
@@ -44,6 +45,7 @@ const MarkdownEditor = (props: MarkdownEditorProps) => {
           color: 'var(--color-markdown-text)',
         }}
         inputMode="text"
+        id={id}
         ref={editorRef}
       />
       <div className="flex flex-1 justify-between">

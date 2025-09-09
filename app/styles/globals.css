@@ -113,6 +113,7 @@
   --color-markdown-border: var(--purple);
   --color-markdown-radius: var(--default-radius);
   --color-markdown-preview-text: var(--purple);
+  --color-markdown-preview-text-alt: var(--color-success);
   --color-markdown-error: var(--color-error);
 
   --color-switch: var(--purple);
@@ -129,6 +130,7 @@
   --color-text-field-selected: var(--purple-light-alt);
 
   --color-form-field-label: var(--purple);
+  --color-form-field-label-alt: var(--color-success);
 
   --color-notification-text: var(--yellow);
   --color-notification-background-success: var(--color-success);

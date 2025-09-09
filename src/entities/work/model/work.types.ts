@@ -2,11 +2,7 @@ import z from 'zod';
 
 import type { WorkFragmentFragment, WorkType } from '@/gql/graphql';
 
-import {
-  basicWorkDetailsValidationSchema,
-  createWorkValidationSchema,
-  editWorkValidationSchema,
-} from '../model/work.validation';
+import { createWorkValidationSchema, editWorkValidationSchema, titleValidationSchema } from '../model/work.validation';
 
 export type WorkDto = WorkFragmentFragment;
 
@@ -26,4 +22,4 @@ export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;
 
 export type EditWorkForm = z.infer<typeof editWorkValidationSchema>;
 
-export type BasicWorkDetailsForm = z.infer<typeof basicWorkDetailsValidationSchema>;
+export type BasicWorkDetailsForm = z.infer<typeof titleValidationSchema>;
