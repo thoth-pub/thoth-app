@@ -13,6 +13,9 @@ const { WORK_STATUS: WORK_STATUS_ID, PUBLICATION_DATE: PUBLICATION_DATE_ID } = I
 
 export const FormHeader = ({ workStatusOptions }: { workStatusOptions: FormFieldOption[] }) => {
   const defaultWorkStatusOption = workStatusOptions.find((option) => option.value.toLowerCase() === 'forthcoming');
+  const defaultValues = defaultWorkStatusOption?.value
+    ? { [WORK_STATUS.name]: defaultWorkStatusOption.value }
+    : undefined;
 
   return (
     <div className="flex flex-col gap-4 overflow-hidden rounded-2xl bg-[var(--color-background-alt)] px-8 py-4 shadow-xl">
@@ -37,6 +40,7 @@ export const FormHeader = ({ workStatusOptions }: { workStatusOptions: FormField
         label={WORK_STATUS.label}
         name={WORK_STATUS.name}
         id={WORK_STATUS_ID}
+        defaultValues={defaultValues}
       >
         {({ control }) => (
           <TextField
@@ -46,7 +50,6 @@ export const FormHeader = ({ workStatusOptions }: { workStatusOptions: FormField
             name={WORK_STATUS.name}
             select
             options={workStatusOptions}
-            defaultValue={defaultWorkStatusOption?.value}
           />
         )}
       </FormWithPreview>

@@ -20,10 +20,11 @@ type FormWithPreviewProps<T extends FieldValues> = {
   preview?: (value: string, isValueHighlighted: boolean) => ReactNode;
   isDisabled?: boolean;
   id?: string;
+  defaultValues?: FieldValues;
 } & Omit<BaseFieldProps<T>, 'control'>;
 
 const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) => {
-  const { name, label, isDisabled = false, id, validationSchema, children, preview } = props;
+  const { name, label, isDisabled = false, id, validationSchema, defaultValues, children, preview } = props;
 
   const {
     control,
@@ -32,6 +33,7 @@ const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) 
   } = useForm({
     resolver: zodResolver(validationSchema),
     mode: 'onChange',
+    defaultValues,
   });
   const [isInEditState, setIsInEditState] = useState(false);
 
