@@ -9,7 +9,7 @@ import {
   convertLinkedPublishers,
   isAdmin,
 } from '@/src/shared';
-import { ROUTES, WorkStatus, WorkType } from '@/src/shared/constants';
+import { ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 import { query } from '@/src/shared/graphqlClient';
 import { EditWorkWidget } from '@/src/widgets';
 
@@ -43,8 +43,8 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
   const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : linkedPublishers });
 
   const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
-  const workStatusOptions = convertFormFieldsToSelectFieldOptions(WorkStatus.options);
-  const workTypeOptions = convertFormFieldsToSelectFieldOptions(WorkType.options);
+  const workStatusOptions = convertFormFieldsToSelectFieldOptions(WorkStatuses.options);
+  const workTypeOptions = convertFormFieldsToSelectFieldOptions(WorkTypes.options);
 
   return (
     <EditWorkWidget

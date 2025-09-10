@@ -2,6 +2,6 @@ import z from 'zod';
 
 import { WorkStatus as GQLWorkStatus, WorkType as GQLWorkType } from '@/gql/graphql';
 
-export const WorkType = z.enum(GQLWorkType);
+export const WorkTypes = z.enum(GQLWorkType);
 
-export const WorkStatus = z.enum(GQLWorkStatus);
+export const WorkStatuses = z.enum(GQLWorkStatus);

@@ -3,7 +3,7 @@ import isbn3 from 'isbn3';
 import z from 'zod';
 
 import { config } from '@/src/shared/config';
-import { ERRORS, WorkStatus } from '@/src/shared/constants';
+import { ERRORS, WorkStatuses } from '@/src/shared/constants';
 import type { ErrorMessage } from '@/src/shared/interfaces';
 
 const { doiPrefix, rorPrefix, orcidPrefix } = config.validations;
@@ -47,7 +47,7 @@ export const createdAtValidation = timestampValidation;
 export const updatedAtValidation = timestampValidation;
 
 /* Enums Validations */
-export const workStatusValidation = z.enum(WorkStatus.enum);
+export const workStatusValidation = z.enum(WorkStatuses.enum);
 
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });

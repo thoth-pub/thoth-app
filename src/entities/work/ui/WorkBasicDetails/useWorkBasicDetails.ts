@@ -2,7 +2,7 @@
 
 import { useMutation } from '@apollo/client/react';
 
-import { httpLink, NOTIFICATIONS, type QueryToken, setAuthorizationHeader } from '@/src/shared';
+import { httpLink, NOTIFICATIONS, type QueryToken, setAuthorizationHeader, WorkTypes } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { UPDATE_WORK } from '../../model/work.schema';
@@ -16,7 +16,8 @@ type UseWorkBasicDetailsProps = {
 };
 
 export const useWorkBasicDetails = ({ work, queryToken }: UseWorkBasicDetailsProps) => {
-  const { id: workId, title, type: workType, imprintId, status: workStatus } = work;
+  const { id: workId, title, type: workType, imprintId, status: workStatus, edition } = work;
+  const defaultEdition = edition ?? 1;
   const minimalRequiredFields = {
     workId,
     fullTitle: title,
@@ -35,11 +36,11 @@ export const useWorkBasicDetails = ({ work, queryToken }: UseWorkBasicDetailsPro
   client.setLink(setAuthorizationHeader(queryToken).concat(httpLink));
 
   const submitWorkType = ({ workType }: WorkTypeForm) => {
-    console.log(workType);
     mutate({
       variables: {
         data: {
           ...minimalRequiredFields,
+          edition: workType !== WorkTypes.enum.BookChapter && !edition ? defaultEdition : edition,
           workType: workType as WorkType,
         },
       },

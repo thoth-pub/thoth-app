@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import type { WorkFragmentFragment } from '@/gql/graphql';
-import { WorkStatus, WorkType } from '@/src/shared/constants/work';
+import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
 import {
   createWorkValidationSchema,
@@ -15,9 +15,9 @@ export type WorkDto = WorkFragmentFragment;
 
 export type WorkId = string;
 
-export type WorkType = z.infer<typeof WorkType>;
+export type WorkType = z.infer<typeof WorkTypes>;
 
-export type WorkStatus = z.infer<typeof WorkStatus>;
+export type WorkStatus = z.infer<typeof WorkStatuses>;
 
 export type WorkEntity = {
   id: string;
@@ -29,6 +29,7 @@ export type WorkEntity = {
   publisherName: string;
   imprintId: string;
   status: WorkStatus;
+  edition?: number | null;
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;

@@ -16,6 +16,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       },
       imprintId,
       workStatus,
+      edition,
     } = dto;
 
     return {
@@ -28,6 +29,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       publisherName,
       imprintId,
       status: workStatus,
+      edition: edition,
     };
   }
 }

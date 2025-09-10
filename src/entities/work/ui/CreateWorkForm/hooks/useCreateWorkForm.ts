@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 
 import type { WorkType as GQLWorkType } from '@/gql/graphql';
 import { FormFieldOption, httpLink, setAuthorizationHeader } from '@/src/shared';
-import { FORM_FIELDS, NOTIFICATIONS, ROUTES, WorkStatus, WorkType } from '@/src/shared/constants';
+import { FORM_FIELDS, NOTIFICATIONS, ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 import { useNotifications } from '@/src/shared/hooks';
 import { convertFormFieldsToSelectFieldOptions } from '@/src/shared/utils';
 
@@ -27,7 +27,7 @@ const useCreateWorkForm = ({ queryToken, imprintOptions }: UseCreateWorkFormProp
   const router = useRouter();
   const { sendSuccessNotification, sendErrorNotification } = useNotifications();
 
-  const workTypesOptions = convertFormFieldsToSelectFieldOptions(WorkType.options);
+  const workTypesOptions = convertFormFieldsToSelectFieldOptions(WorkTypes.options);
   const {
     control,
     handleSubmit,
@@ -67,7 +67,7 @@ const useCreateWorkForm = ({ queryToken, imprintOptions }: UseCreateWorkFormProp
         data: {
           title,
           fullTitle: title,
-          workStatus: WorkStatus.enum.Forthcoming,
+          workStatus: WorkStatuses.enum.Forthcoming,
           workType: workType as GQLWorkType,
           imprintId,
           license,

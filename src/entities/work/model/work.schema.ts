@@ -3,7 +3,22 @@ import { graphql } from '@/gql';
 export const GET_BOOKS = graphql(`
   query GetBooks($publishers: [Uuid!]!) {
     books(publishers: $publishers) {
-      ...WorkFragment
+      doi
+      workId
+      title
+      workType
+      updatedAt
+      contributions {
+        fullName
+      }
+      imprint {
+        publisher {
+          publisherName
+        }
+      }
+      imprintId
+      workStatus
+      edition
     }
   }
 `);
@@ -11,7 +26,22 @@ export const GET_BOOKS = graphql(`
 export const GET_CHAPTERS = graphql(`
   query GetChapters($publishers: [Uuid!]!) {
     chapters(publishers: $publishers) {
-      ...WorkFragment
+      doi
+      workId
+      title
+      workType
+      updatedAt
+      contributions {
+        fullName
+      }
+      imprint {
+        publisher {
+          publisherName
+        }
+      }
+      imprintId
+      workStatus
+      edition
     }
   }
 `);
