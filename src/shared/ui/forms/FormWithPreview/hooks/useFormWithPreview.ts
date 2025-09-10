@@ -3,7 +3,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMemo, useState } from 'react';
 import { type FieldValues, type Path, useForm } from 'react-hook-form';
-import { ZodType } from 'zod';
+import { type ZodType } from 'zod';
 
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
 import { convertDateToFormattedDate, isDayJsInstance } from '@/src/shared/utils';
@@ -12,15 +12,17 @@ export type UseFormWithPreviewProps<T extends FieldValues> = {
   validationSchema: ZodType<unknown, FieldValues>;
   defaultValues?: FieldValues;
   options?: FormFieldOption[];
+  onSubmit?: (data: T) => void;
 } & Pick<BaseFieldProps<T>, 'name'>;
 
 export const useFormWithPreview = <T extends FieldValues>(props: UseFormWithPreviewProps<T>) => {
-  const { validationSchema, name, defaultValues, options = [] } = props;
+  const { validationSchema, name, defaultValues, options = [], onSubmit } = props;
 
   const {
     control,
-    getValues,
     formState: { isValid },
+    getValues,
+    handleSubmit,
   } = useForm({
     resolver: zodResolver(validationSchema),
     mode: 'onChange',
@@ -31,6 +33,13 @@ export const useFormWithPreview = <T extends FieldValues>(props: UseFormWithPrev
   const switchEditState = () => {
     setIsInEditState(!isInEditState);
   };
+
+  const submit = handleSubmit((data) => {
+    if (!isValid || !onSubmit) return;
+
+    onSubmit(data as T);
+    switchEditState();
+  });
 
   const formFieldValue = getValues(name as Path<T>) ?? '';
   const isValueFilledAndValid = !!formFieldValue && isValid;
@@ -54,5 +63,6 @@ export const useFormWithPreview = <T extends FieldValues>(props: UseFormWithPrev
     isInEditState,
     fieldValue: formFieldValue,
     switchEditState,
+    submit,
   };
 };

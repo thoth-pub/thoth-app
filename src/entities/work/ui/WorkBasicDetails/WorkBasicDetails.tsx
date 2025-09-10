@@ -37,6 +37,10 @@ type WorkBasicDetailsProps = {
 };
 
 const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: WorkBasicDetailsProps) => {
+  const submitPlaceholder = (data: unknown) => {
+    console.log(data);
+  };
+
   return (
     <AccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
       <FormsWrapper>
@@ -46,6 +50,7 @@ const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: 
           name={WORK_TITLE.name}
           id={WORK_TITLE_ID}
           defaultValue={title}
+          onSubmit={submitPlaceholder}
         />
 
         <TextFormWithPreview
@@ -74,6 +79,7 @@ const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: 
           select
           options={workTypeOptions}
           defaultValue={workType}
+          onSubmit={submitPlaceholder}
         />
 
         <TextFormWithPreview

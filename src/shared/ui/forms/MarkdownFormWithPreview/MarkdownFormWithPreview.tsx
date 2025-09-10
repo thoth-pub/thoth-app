@@ -8,13 +8,13 @@ import Typography from '../../core/Typography/Typography';
 import FormWithPreview, { type FormWithPreviewProps } from '../FormWithPreview/FormWithPreview';
 import MarkdownField from '../MarkdownField/MarkdownField';
 
-type MarkdownFormWithPreviewProps = { defaultValue?: string } & Omit<
-  FormWithPreviewProps<FieldValues>,
+type MarkdownFormWithPreviewProps<T extends FieldValues> = { defaultValue?: string } & Omit<
+  FormWithPreviewProps<T>,
   'preview' | 'children' | 'isDisabled' | 'defaultValues'
 >;
 
-const MarkdownFormWithPreview = (props: MarkdownFormWithPreviewProps) => {
-  const { validationSchema, label, name, id, defaultValue } = props;
+const MarkdownFormWithPreview = <T extends FieldValues>(props: MarkdownFormWithPreviewProps<T>) => {
+  const { validationSchema, label, name, id, defaultValue, onSubmit } = props;
 
   return (
     <FormWithPreview
@@ -23,6 +23,7 @@ const MarkdownFormWithPreview = (props: MarkdownFormWithPreviewProps) => {
       name={name}
       id={id}
       defaultValues={{ [name]: defaultValue }}
+      onSubmit={onSubmit}
       preview={(value, isValueHighlighted) => (
         <MDEditor.Markdown
           source={value}

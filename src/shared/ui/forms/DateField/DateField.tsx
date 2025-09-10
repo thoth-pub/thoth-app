@@ -23,7 +23,6 @@ const DateField = <T extends FieldValues>(props: DateFieldProps<T>) => {
           {...fieldProps}
           {...rest}
           format={dateFormat}
-          maxDate={dayjs()}
           slotProps={{
             day: {
               sx: {

@@ -14,10 +14,11 @@ import { useFormWithPreview, type UseFormWithPreviewProps } from './hooks/useFor
 
 export type FormWithPreviewProps<T extends FieldValues> = {
   label: FormFieldLabel;
-  children: (props: { control: Control<FieldValues> }) => ReactNode;
-  preview?: (value: string, isValueHighlighted: boolean) => ReactNode;
   isDisabled?: boolean;
   id?: string;
+  children: (props: { control: Control<FieldValues>; formId?: string }) => ReactNode;
+  preview?: (value: string, isValueHighlighted: boolean) => ReactNode;
+  onSubmit?: (data: T) => void;
 } & UseFormWithPreviewProps<T>;
 
 const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) => {
@@ -31,13 +32,15 @@ const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) 
     options = [],
     children,
     preview,
+    onSubmit,
   } = props;
 
-  const { control, serializedValue, isValid, isInEditState, fieldValue, switchEditState } = useFormWithPreview({
+  const { control, serializedValue, isValid, isInEditState, fieldValue, switchEditState, submit } = useFormWithPreview({
     validationSchema,
     name,
     defaultValues,
     options,
+    onSubmit,
   });
 
   return (
@@ -65,7 +68,7 @@ const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) 
           </PreviewTab>
         )}
         {isInEditState && (
-          <EditTab isDisabled={isDisabled} onClose={switchEditState}>
+          <EditTab isDisabled={isDisabled} onSubmit={submit} formId={id}>
             {children({ control: control as Control<FieldValues> })}
           </EditTab>
         )}
