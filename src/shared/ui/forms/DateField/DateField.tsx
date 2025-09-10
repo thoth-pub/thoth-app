@@ -18,7 +18,6 @@ const DateField = <T extends FieldValues>(props: DateFieldProps<T>) => {
       control={control}
       render={({ field: { onChange, value, ...fieldProps } }) => (
         <DatePicker
-          disableFuture
           value={value ? dayjs(value) : null}
           onChange={onChange}
           {...fieldProps}

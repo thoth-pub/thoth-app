@@ -13,8 +13,18 @@ import {
   workStatusValidation,
 } from '@/src/shared/utils/validations';
 
-const { TITLE, LICENSE, IMPRINT, WORK_TYPE, WORK_STATUS, PUBLICATION_DATE, WORK_TITLE, EDITION, COPYRIGHT_HOLDER } =
-  FORM_FIELDS;
+const {
+  TITLE,
+  LICENSE,
+  IMPRINT,
+  WORK_TYPE,
+  WORK_STATUS,
+  PUBLICATION_DATE,
+  WORK_TITLE,
+  EDITION,
+  COPYRIGHT_HOLDER,
+  LANDING_PAGE,
+} = FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
 export const imprintValidation = getRequiredStringValidation(IMPRINT.errorMessage);
@@ -112,4 +122,8 @@ export const licenseValidationSchema = z.object({
 
 export const copyrightHolderValidationSchema = z.object({
   [COPYRIGHT_HOLDER.name]: copyrightHolderValidation,
+});
+
+export const landingPageValidationSchema = z.object({
+  [LANDING_PAGE.name]: landingPageValidation,
 });

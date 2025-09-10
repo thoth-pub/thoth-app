@@ -1,23 +1,14 @@
 'use client';
 
-import MDEditor from '@uiw/react-md-editor';
-
 import { FORM_FIELDS, IDs } from '@/src/shared/constants';
 import type { FormFieldOption } from '@/src/shared/interfaces';
-import {
-  AccordionSection,
-  FormsWrapper,
-  FormWithPreview,
-  MarkdownField,
-  Switch,
-  TextField,
-  Typography,
-} from '@/src/shared/ui';
+import { AccordionSection, FormsWrapper, MarkdownFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
 
 import type { WorkType } from '../../model/work.types';
 import {
   copyrightHolderValidationSchema,
   editionValidationSchema,
+  landingPageValidationSchema,
   licenseValidationSchema,
   titleValidationSchema,
   workTypeValidationSchema,
@@ -49,99 +40,64 @@ const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: 
   return (
     <AccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
       <FormsWrapper>
-        <FormWithPreview
+        <MarkdownFormWithPreview
           validationSchema={titleValidationSchema}
           label={WORK_TITLE.label}
           name={WORK_TITLE.name}
           id={WORK_TITLE_ID}
-          defaultValues={{ [WORK_TITLE.name]: title }}
-          preview={(value, isValueHighlighted) => (
-            <MDEditor.Markdown
-              source={value}
-              style={{
-                whiteSpace: 'pre-wrap',
-                width: '100%',
-                backgroundColor: 'transparent',
-                color: isValueHighlighted
-                  ? 'var(--color-markdown-preview-text-alt)'
-                  : 'var(--color-markdown-preview-text)',
-              }}
-            />
-          )}
-        >
-          {({ control }) => (
-            <MarkdownField name={WORK_TITLE.name} control={control} disableLineBreaks id={WORK_TITLE_ID}>
-              <div className="flex items-start gap-1 pt-2">
-                <Typography variant="body2" color="primary">
-                  JATS
-                </Typography>
-                <Switch defaultChecked size="small" className="-mt-0.5" />
-                <Typography variant="body2" color="primary">
-                  Markdown
-                </Typography>
-              </div>
-            </MarkdownField>
-          )}
-        </FormWithPreview>
+          defaultValue={title}
+        />
 
-        <FormWithPreview
+        <TextFormWithPreview
           validationSchema={editionValidationSchema}
           label={EDITION.label}
           name={EDITION.name}
           id={EDITION_ID}
-        >
-          {({ control }) => <TextField control={control} name={EDITION.name} type={EDITION.type} fullWidth min={1} />}
-        </FormWithPreview>
+          type={EDITION.type}
+          min={1}
+        />
 
-        <FormWithPreview
+        <TextFormWithPreview
           validationSchema={editionValidationSchema}
           label={IMPRINT.label}
           name={IMPRINT.name}
           id={IMPRINT_ID}
-        >
-          {({ control }) => (
-            <TextField control={control} name={IMPRINT.name} fullWidth select options={imprintOptions} />
-          )}
-        </FormWithPreview>
+          select
+          options={imprintOptions}
+        />
 
-        <FormWithPreview
+        <TextFormWithPreview
           validationSchema={workTypeValidationSchema}
           label={WORK_TYPE.label}
           name={WORK_TYPE.name}
           id={WORK_TYPE_ID}
-          defaultValues={{ [WORK_TYPE.name]: workType }}
-        >
-          {({ control }) => (
-            <TextField control={control} name={WORK_TYPE.name} fullWidth select options={workTypeOptions} />
-          )}
-        </FormWithPreview>
+          select
+          options={workTypeOptions}
+          defaultValue={workType}
+        />
 
-        <FormWithPreview
+        <TextFormWithPreview
           validationSchema={licenseValidationSchema}
           label={LICENSE.label}
           name={LICENSE.name}
           id={LICENSE_ID}
-        >
-          {({ control }) => <TextField control={control} name={LICENSE.name} type={LICENSE.type} fullWidth />}
-        </FormWithPreview>
+          type={LICENSE.type}
+        />
 
-        <FormWithPreview
+        <TextFormWithPreview
           validationSchema={copyrightHolderValidationSchema}
           label={COPYRIGHT_HOLDER.label}
           name={COPYRIGHT_HOLDER.name}
           id={COPYRIGHT_HOLDER_ID}
-        >
-          {({ control }) => <TextField control={control} name={COPYRIGHT_HOLDER.name} fullWidth />}
-        </FormWithPreview>
+        />
 
-        <FormWithPreview
-          validationSchema={licenseValidationSchema}
+        <TextFormWithPreview
+          validationSchema={landingPageValidationSchema}
           label={LANDING_PAGE.label}
           name={LANDING_PAGE.name}
           id={LANDING_PAGE_ID}
-        >
-          {({ control }) => <TextField control={control} name={LANDING_PAGE.name} type={LANDING_PAGE.type} fullWidth />}
-        </FormWithPreview>
+          type={LANDING_PAGE.type}
+        />
       </FormsWrapper>
     </AccordionSection>
   );

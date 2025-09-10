@@ -4,7 +4,14 @@ import DeleteIcon from '@mui/icons-material/Delete';
 
 import { FORM_FIELDS, IDs } from '@/src/shared/constants';
 import { type FormFieldOption } from '@/src/shared/interfaces';
-import { Button, DateField, FormsWrapper, FormWithPreview, IconButton, TextField, Typography } from '@/src/shared/ui';
+import {
+  Button,
+  DateFormWithPreview,
+  FormsWrapper,
+  IconButton,
+  TextFormWithPreview,
+  Typography,
+} from '@/src/shared/ui';
 
 import { publicationDateValidationSchema, workStatusValidationSchema } from '../../model/work.validation';
 
@@ -32,32 +39,21 @@ const WorkHeader = ({ title, workStatusOptions }: WorkHeaderProps) => {
       </div>
 
       <FormsWrapper>
-        <FormWithPreview
+        <TextFormWithPreview
           validationSchema={workStatusValidationSchema}
           label={WORK_STATUS.label}
           name={WORK_STATUS.name}
           id={WORK_STATUS_ID}
-        >
-          {({ control }) => (
-            <TextField
-              key="field"
-              control={control}
-              name={WORK_STATUS.name}
-              select
-              options={workStatusOptions}
-              fullWidth
-            />
-          )}
-        </FormWithPreview>
+          select
+          options={workStatusOptions}
+        />
 
-        <FormWithPreview
+        <DateFormWithPreview
           validationSchema={publicationDateValidationSchema}
           label={PUBLICATION_DATE.label}
           name={PUBLICATION_DATE.name}
           id={PUBLICATION_DATE_ID}
-        >
-          {({ control }) => <DateField key="field" className="w-full" control={control} name={PUBLICATION_DATE.name} />}
-        </FormWithPreview>
+        />
       </FormsWrapper>
     </div>
   );

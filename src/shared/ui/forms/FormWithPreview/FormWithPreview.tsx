@@ -12,7 +12,7 @@ import EditTab from './components/EditTab';
 import PreviewTab from './components/PreviewTab';
 import { useFormWithPreview, type UseFormWithPreviewProps } from './hooks/useFormWithPreview';
 
-type FormWithPreviewProps<T extends FieldValues> = {
+export type FormWithPreviewProps<T extends FieldValues> = {
   label: FormFieldLabel;
   children: (props: { control: Control<FieldValues> }) => ReactNode;
   preview?: (value: string, isValueHighlighted: boolean) => ReactNode;

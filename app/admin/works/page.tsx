@@ -2,12 +2,11 @@ import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
 import { WorkService } from '@/src/entities/work';
+import { CreateNewWorkLink } from '@/src/features';
 import { ROUTES } from '@/src/shared/constants';
 import { query } from '@/src/shared/graphqlClient';
 import { Link, PageHeader } from '@/src/shared/ui';
 import { convertLinkedPublishers } from '@/src/shared/utils';
-
-import { NewWorkLink } from './components';
 
 const worksService = new WorkService(query);
 
@@ -25,7 +24,7 @@ export default async function WorksPage() {
   return (
     <>
       <PageHeader title="Name of work">
-        <NewWorkLink />
+        <CreateNewWorkLink />
       </PageHeader>
       <ul className="flex flex-col gap-2">
         {works.map(({ id, title, updatedAt, contributorsNames, doi, publisherName }) => (
