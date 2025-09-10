@@ -1,9 +1,11 @@
 import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
-import { EditWorkForm, WorkService } from '@/src/entities/work';
-import { ROUTES } from '@/src/shared/constants';
+import { WorkService } from '@/src/entities/work';
+import { convertFormFieldsToSelectFieldOptions } from '@/src/shared';
+import { ROUTES, WorkStatus } from '@/src/shared/constants';
 import { query } from '@/src/shared/graphqlClient';
+import { EditWorkWidget } from '@/src/widgets';
 
 type WorksPageParams = Promise<{
   id: string[];
@@ -28,5 +30,7 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
     redirect(ROUTES.NOT_FOUND);
   }
 
-  return <EditWorkForm />;
+  const workStatusOptions = convertFormFieldsToSelectFieldOptions(WorkStatus.options);
+
+  return <EditWorkWidget title={work.title} workStatusOptions={workStatusOptions} />;
 }

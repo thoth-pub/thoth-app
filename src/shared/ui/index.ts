@@ -15,5 +15,6 @@ export { default as FormWithPreview } from './forms/FormWithPreview/FormWithPrev
 export { default as InputLabel } from './forms/InputLabel/InputLabel';
 export { default as MarkdownField } from './forms/MarkdownField/MarkdownField';
 export { default as TextField, type TextFieldComponentProps } from './forms/TextField/TextField';
+export { default as AccordionSection } from './layout/AccordionSection/AccordionSection';
 export { default as Footer } from './layout/Footer/Footer';
 export { default as Header } from './layout/Header/Header';

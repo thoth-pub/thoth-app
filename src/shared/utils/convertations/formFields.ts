@@ -1,3 +1,5 @@
+import dayjs from 'dayjs';
+
 import { config } from '@/src/shared/config';
 import type { FormFieldOption } from '@/src/shared/interfaces';
 
@@ -27,4 +29,8 @@ export const convertEntityToSelectFieldOptions = <T extends { id: string }>(
       label: `${item[labelKey]}`,
     };
   });
+};
+
+export const convertDateToFormattedDate = (date: string) => {
+  return dayjs(date).format(config.dateFormat);
 };

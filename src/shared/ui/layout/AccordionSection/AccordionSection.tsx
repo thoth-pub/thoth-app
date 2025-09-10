@@ -13,7 +13,7 @@ export type FormAccordionSectionProps = {
 
 const defaultIcon = <ExpandMoreIcon color="primary" />;
 
-export const FormAccordionSection = (props: FormAccordionSectionProps) => {
+const AccordionSection = (props: FormAccordionSectionProps) => {
   const { title, children, expandIcon = defaultIcon, panelId = 'panel', defaultExpanded = false } = props;
 
   return (
@@ -42,3 +42,5 @@ export const FormAccordionSection = (props: FormAccordionSectionProps) => {
     </Accordion>
   );
 };
+
+export default AccordionSection;

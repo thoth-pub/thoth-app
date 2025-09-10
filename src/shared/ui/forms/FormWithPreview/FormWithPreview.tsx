@@ -1,55 +1,39 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
 import { AnimatePresence } from 'motion/react';
-import { type ReactNode, useState } from 'react';
-import { Control, type FieldValues, type Path, useForm } from 'react-hook-form';
-import { ZodType } from 'zod';
+import { type ReactNode } from 'react';
+import { Control, type FieldValues } from 'react-hook-form';
 
-import type { BaseFieldProps, FormFieldLabel } from '@/src/shared/interfaces';
+import type { FormFieldLabel } from '@/src/shared/interfaces';
 import { InputLabel } from '@/src/shared/ui';
 
 import EditButton from './components/EditButton';
 import EditTab from './components/EditTab';
 import PreviewTab from './components/PreviewTab';
+import { useFormWithPreview, type UseFormWithPreviewProps } from './hooks/useFormWithPreview';
 
 type FormWithPreviewProps<T extends FieldValues> = {
   label: FormFieldLabel;
   children: (props: { control: Control<FieldValues> }) => ReactNode;
-  validationSchema: ZodType<unknown, FieldValues>;
   preview?: (value: string, isValueHighlighted: boolean) => ReactNode;
   isDisabled?: boolean;
   id?: string;
-  defaultValues?: FieldValues;
-} & Omit<BaseFieldProps<T>, 'control'>;
+} & UseFormWithPreviewProps<T>;
 
 const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) => {
   const { name, label, isDisabled = false, id, validationSchema, defaultValues, children, preview } = props;
 
-  const {
-    control,
-    getValues,
-    formState: { isValid },
-  } = useForm({
-    resolver: zodResolver(validationSchema),
-    mode: 'onChange',
+  const { control, serializedValue, isValid, isInEditState, fieldValue, switchEditState } = useFormWithPreview({
+    validationSchema,
+    name,
     defaultValues,
   });
-  const [isInEditState, setIsInEditState] = useState(false);
-
-  const switchEditState = () => {
-    setIsInEditState(!isInEditState);
-  };
-
-  const formFieldValue = getValues(name as Path<T>) ?? '';
-  const isValueFilledAndValid = !!formFieldValue && isValid;
-  const serializedValue = typeof formFieldValue === 'string' ? formFieldValue : JSON.stringify(formFieldValue);
 
   return (
     <div className="grid min-h-[2.75rem] w-full grid-cols-[11.25rem_1fr] items-start">
       <InputLabel
         htmlFor={id}
-        sx={{ color: isValueFilledAndValid ? 'var(--color-form-field-label-alt)' : 'var(--color-form-field-label)' }}
+        sx={{ color: isValid ? 'var(--color-form-field-label-alt)' : 'var(--color-form-field-label)' }}
       >
         {label}
       </InputLabel>
@@ -57,13 +41,13 @@ const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) 
         {!isInEditState && (
           <PreviewTab
             value={serializedValue}
-            preview={preview ? preview(serializedValue, isValueFilledAndValid) : null}
-            isValueHighlighted={isValueFilledAndValid}
+            preview={preview && isValid ? preview(serializedValue, isValid) : null}
+            isValueHighlighted={isValid}
             onEdit={switchEditState}
           >
             <EditButton
-              isEmpty={!formFieldValue}
-              isValueHighlighted={isValueFilledAndValid}
+              isEmpty={!fieldValue}
+              isValueHighlighted={isValid}
               placeholder={`Add ${label}`}
               onEdit={switchEditState}
             />

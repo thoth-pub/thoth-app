@@ -3,10 +3,9 @@
 import MDEditor from '@uiw/react-md-editor';
 
 import { FORM_FIELDS, IDs } from '@/src/shared/constants';
-import { FormWithPreview, MarkdownField, Switch, Typography } from '@/src/shared/ui';
+import { AccordionSection, FormWithPreview, MarkdownField, Switch, Typography } from '@/src/shared/ui';
 
-import { titleValidationSchema } from '../../../model/work.validation';
-import { FormAccordionSection } from './FormAccordionSection';
+import { titleValidationSchema } from '../../model/work.validation';
 
 const {
   FORM_SECTIONS: { BASIC_DETAILS },
@@ -15,9 +14,13 @@ const {
 
 const { WORK_TITLE } = FORM_FIELDS;
 
-export const WorkBasicDetailsForm = () => {
+export type WorkBasicDetailsProps = {
+  title: string;
+};
+
+const WorkBasicDetails = ({ title }: WorkBasicDetailsProps) => {
   return (
-    <FormAccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
+    <AccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
       <div className="flex">
         <div className="flex grow flex-row hover:[&>div>button]:opacity-100">
           <FormWithPreview
@@ -25,6 +28,7 @@ export const WorkBasicDetailsForm = () => {
             label={WORK_TITLE.label}
             name={WORK_TITLE.name}
             id={WORK_TITLE_ID}
+            defaultValues={{ [WORK_TITLE.name]: title }}
             preview={(value, isValueHighlighted) => (
               <MDEditor.Markdown
                 source={value}
@@ -55,6 +59,8 @@ export const WorkBasicDetailsForm = () => {
           </FormWithPreview>
         </div>
       </div>
-    </FormAccordionSection>
+    </AccordionSection>
   );
 };
+
+export default WorkBasicDetails;
