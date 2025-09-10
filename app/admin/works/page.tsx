@@ -28,12 +28,11 @@ export default async function WorksPage() {
         <NewWorkLink />
       </PageHeader>
       <ul className="flex flex-col gap-2">
-        {works.map(({ id, title, type, updatedAt, contributorsNames, doi, publisherName }) => (
+        {works.map(({ id, title, updatedAt, contributorsNames, doi, publisherName }) => (
           <li key={id}>
             <Link href={ROUTES.WORK_PAGE(id)} className="flex gap-2">
               <span>{id}</span>
               <span>{title}</span>
-              <span>{type}</span>
               <span>{contributorsNames.join(', ')}</span>
               <span>{doi}</span>
               <span>{publisherName}</span>

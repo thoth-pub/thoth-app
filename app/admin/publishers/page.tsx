@@ -18,7 +18,10 @@ export default async function PublishersPage() {
   const linkedPublishers = session.user.linkedPublishers ? convertLinkedPublishers(session.user.linkedPublishers) : [];
   const isUserAdmin = isAdmin(session);
 
-  const publications = await publishersService.getPublishers(isUserAdmin ? [] : linkedPublishers);
+  const publications = await publishersService.getPublishers({
+    publishersIds: isUserAdmin ? [] : linkedPublishers,
+    offset: 0,
+  });
 
   return (
     <ul className="flex flex-col gap-2">
