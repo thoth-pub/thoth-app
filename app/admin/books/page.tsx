@@ -21,11 +21,10 @@ export default async function BooksPage() {
 
   return (
     <ul className="flex flex-col gap-2">
-      {books.map(({ id, title, type, updatedAt, contributorsNames, doi, publisherName }) => (
+      {books.map(({ id, title, updatedAt, contributorsNames, doi, publisherName }) => (
         <li key={id} className="flex gap-2">
           <span>{id}</span>
           <span>{title}</span>
-          <span>{type}</span>
           <span>{contributorsNames.join(', ')}</span>
           <span>{doi}</span>
           <span>{publisherName}</span>
