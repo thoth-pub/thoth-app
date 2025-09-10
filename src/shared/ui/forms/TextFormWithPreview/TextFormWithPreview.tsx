@@ -12,11 +12,11 @@ type TextFormWithPreviewProps = Omit<
   Omit<TextFieldComponentProps<FieldValues>, 'control'>;
 
 const TextFormWithPreview = (props: TextFormWithPreviewProps) => {
-  const { validationSchema, label, name, id, ...restProps } = props;
+  const { validationSchema, label, name, id, options, ...restProps } = props;
 
   return (
-    <FormWithPreview validationSchema={validationSchema} label={label} name={name} id={id}>
-      {({ control }) => <TextField control={control} name={name} fullWidth {...restProps} />}
+    <FormWithPreview validationSchema={validationSchema} label={label} name={name} id={id} options={options}>
+      {({ control }) => <TextField control={control} name={name} fullWidth options={options} {...restProps} />}
     </FormWithPreview>
   );
 };

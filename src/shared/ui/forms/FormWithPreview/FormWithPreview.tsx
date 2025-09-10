@@ -21,12 +21,23 @@ export type FormWithPreviewProps<T extends FieldValues> = {
 } & UseFormWithPreviewProps<T>;
 
 const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) => {
-  const { name, label, isDisabled = false, id, validationSchema, defaultValues, children, preview } = props;
+  const {
+    name,
+    label,
+    isDisabled = false,
+    id,
+    validationSchema,
+    defaultValues,
+    options = [],
+    children,
+    preview,
+  } = props;
 
   const { control, serializedValue, isValid, isInEditState, fieldValue, switchEditState } = useFormWithPreview({
     validationSchema,
     name,
     defaultValues,
+    options,
   });
 
   return (
