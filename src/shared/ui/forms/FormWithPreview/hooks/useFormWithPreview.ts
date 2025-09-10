@@ -36,7 +36,6 @@ export const useFormWithPreview = <T extends FieldValues>(props: UseFormWithPrev
   const isValueFilledAndValid = !!formFieldValue && isValid;
 
   const serializedValue = useMemo(() => {
-    console.log(options);
     const selectedOption = options.find((option) => option.value === formFieldValue);
 
     if (selectedOption) return selectedOption.label;
