@@ -13,6 +13,7 @@ import {
   titleValidationSchema,
   workTypeValidationSchema,
 } from '../../model/work.validation';
+import { useWorkBasicDetails } from './useWorkBasicDetails';
 
 const {
   FORM_SECTIONS: { BASIC_DETAILS },
@@ -37,9 +38,7 @@ type WorkBasicDetailsProps = {
 };
 
 const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: WorkBasicDetailsProps) => {
-  const submitPlaceholder = (data: unknown) => {
-    console.log(data);
-  };
+  const { submitPlaceholder } = useWorkBasicDetails();
 
   return (
     <AccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
@@ -60,6 +59,7 @@ const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: 
           id={EDITION_ID}
           type={EDITION.type}
           min={1}
+          onSubmit={submitPlaceholder}
         />
 
         <TextFormWithPreview
@@ -69,6 +69,7 @@ const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: 
           id={IMPRINT_ID}
           select
           options={imprintOptions}
+          onSubmit={submitPlaceholder}
         />
 
         <TextFormWithPreview
@@ -88,6 +89,7 @@ const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: 
           name={LICENSE.name}
           id={LICENSE_ID}
           type={LICENSE.type}
+          onSubmit={submitPlaceholder}
         />
 
         <TextFormWithPreview
@@ -95,6 +97,7 @@ const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: 
           label={COPYRIGHT_HOLDER.label}
           name={COPYRIGHT_HOLDER.name}
           id={COPYRIGHT_HOLDER_ID}
+          onSubmit={submitPlaceholder}
         />
 
         <TextFormWithPreview
@@ -103,6 +106,7 @@ const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: 
           name={LANDING_PAGE.name}
           id={LANDING_PAGE_ID}
           type={LANDING_PAGE.type}
+          onSubmit={submitPlaceholder}
         />
       </FormsWrapper>
     </AccordionSection>

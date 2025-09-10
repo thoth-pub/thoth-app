@@ -12,6 +12,8 @@ type EditWorkWidgetProps = {
 const EditWorkWidget = ({ work, workStatusOptions, imprintOptions, workTypeOptions }: EditWorkWidgetProps) => {
   const { title, type } = work;
 
+  console.log(work);
+
   return (
     <div className="flex flex-col gap-8">
       <WorkHeader title={title} workStatusOptions={workStatusOptions} />
