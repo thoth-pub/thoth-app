@@ -1,26 +1,25 @@
 'use client';
 
-import type { ImprintEntity } from '@/src/entities/imprint';
 import { FORM_FIELDS, IDs } from '@/src/shared/constants';
+import type { FormFieldOption } from '@/src/shared/interfaces';
 import { Button, CircullarProgress, PageHeader } from '@/src/shared/ui';
 
 import CreateWorkFormField from './components/CreateWorkFormField';
 import { useCreateWorkForm } from './hooks';
 
-const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE } = FORM_FIELDS;
+const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 const { CREATE_WORK } = IDs.FORM_FIELDS;
 
 type CreateWorkFormProps = {
-  imprints: ImprintEntity[];
+  imprintOptions: FormFieldOption[];
   queryToken: string;
 };
 
-const CreateWorkForm = ({ imprints, queryToken }: CreateWorkFormProps) => {
-  const { control, workTypesOptions, imprintOptions, isImprintVisible, isSubmitDisabled, isLoading, submit } =
-    useCreateWorkForm({
-      imprints,
-      queryToken,
-    });
+const CreateWorkForm = ({ imprintOptions, queryToken }: CreateWorkFormProps) => {
+  const { control, workTypesOptions, isImprintVisible, isSubmitDisabled, isLoading, submit } = useCreateWorkForm({
+    imprintOptions,
+    queryToken,
+  });
 
   return (
     <>
@@ -50,9 +49,9 @@ const CreateWorkForm = ({ imprints, queryToken }: CreateWorkFormProps) => {
         />
         {isImprintVisible && (
           <CreateWorkFormField
-            label={IMPRINT_ID.label}
-            name={IMPRINT_ID.name}
-            placeholder={IMPRINT_ID.placeholder}
+            label={IMPRINT.label}
+            name={IMPRINT.name}
+            placeholder={IMPRINT.placeholder}
             control={control}
             select
             options={imprintOptions}

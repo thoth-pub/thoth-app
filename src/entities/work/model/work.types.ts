@@ -1,6 +1,6 @@
 import z from 'zod';
 
-import type { WorkFragmentFragment, WorkType } from '@/gql/graphql';
+import type { WorkFragmentFragment, WorkType as GQLWorkType } from '@/gql/graphql';
 
 import { createWorkValidationSchema, editWorkValidationSchema, titleValidationSchema } from '../model/work.validation';
 
@@ -23,3 +23,5 @@ export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;
 export type EditWorkForm = z.infer<typeof editWorkValidationSchema>;
 
 export type BasicWorkDetailsForm = z.infer<typeof titleValidationSchema>;
+
+export type WorkType = z.infer<typeof GQLWorkType>;

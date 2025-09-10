@@ -5,7 +5,7 @@ import { ImprintService } from '@/src/entities/imprint';
 import { CreateWorkForm } from '@/src/entities/work';
 import { ROUTES } from '@/src/shared/constants';
 import { query } from '@/src/shared/graphqlClient';
-import { convertLinkedPublishers, isAdmin } from '@/src/shared/utils';
+import { convertEntityToSelectFieldOptions, convertLinkedPublishers, isAdmin } from '@/src/shared/utils';
 
 const imprintsService = new ImprintService(query);
 
@@ -20,6 +20,7 @@ export default async function NewWorkPage() {
   const isUserAdmin = isAdmin(session);
 
   const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : linkedPublishers });
+  const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
 
-  return <CreateWorkForm imprints={imprints} queryToken={session.user.queryToken} />;
+  return <CreateWorkForm imprintOptions={imprintOptions} queryToken={session.user.queryToken} />;
 }

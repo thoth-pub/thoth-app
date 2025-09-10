@@ -1,9 +1,15 @@
 import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
+import { ImprintService } from '@/src/entities/imprint';
 import { WorkService } from '@/src/entities/work';
-import { convertFormFieldsToSelectFieldOptions } from '@/src/shared';
-import { ROUTES, WorkStatus } from '@/src/shared/constants';
+import {
+  convertEntityToSelectFieldOptions,
+  convertFormFieldsToSelectFieldOptions,
+  convertLinkedPublishers,
+  isAdmin,
+} from '@/src/shared';
+import { ROUTES, WorkStatus, WorkType } from '@/src/shared/constants';
 import { query } from '@/src/shared/graphqlClient';
 import { EditWorkWidget } from '@/src/widgets';
 
@@ -12,6 +18,7 @@ type WorksPageParams = Promise<{
 }>;
 
 const worksService = new WorkService(query);
+const imprintsService = new ImprintService(query);
 
 export default async function WorkPage({ params }: { params: WorksPageParams }) {
   const {
@@ -30,7 +37,21 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
     redirect(ROUTES.NOT_FOUND);
   }
 
-  const workStatusOptions = convertFormFieldsToSelectFieldOptions(WorkStatus.options);
+  const linkedPublishers = session.user.linkedPublishers ? convertLinkedPublishers(session.user.linkedPublishers) : [];
+  const isUserAdmin = isAdmin(session);
 
-  return <EditWorkWidget title={work.title} workStatusOptions={workStatusOptions} />;
+  const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : linkedPublishers });
+
+  const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
+  const workStatusOptions = convertFormFieldsToSelectFieldOptions(WorkStatus.options);
+  const workTypeOptions = convertFormFieldsToSelectFieldOptions(WorkType.options);
+
+  return (
+    <EditWorkWidget
+      work={work}
+      workStatusOptions={workStatusOptions}
+      imprintOptions={imprintOptions}
+      workTypeOptions={workTypeOptions}
+    />
+  );
 }

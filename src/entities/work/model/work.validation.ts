@@ -9,15 +9,15 @@ import {
   optionalPositiveIntValidation,
   optionalStringValidation,
   optionalUrlValidation,
-  requiredIntValidation,
   timestampValidation,
   workStatusValidation,
 } from '@/src/shared/utils/validations';
 
-const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE, WORK_STATUS, PUBLICATION_DATE, WORK_TITLE } = FORM_FIELDS;
+const { TITLE, LICENSE, IMPRINT, WORK_TYPE, WORK_STATUS, PUBLICATION_DATE, WORK_TITLE, EDITION, COPYRIGHT_HOLDER } =
+  FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
-export const imprintValidation = getRequiredStringValidation(IMPRINT_ID.errorMessage);
+export const imprintValidation = getRequiredStringValidation(IMPRINT.errorMessage);
 export const workTypeValidation = getRequiredStringValidation(WORK_TYPE.errorMessage);
 
 const statusValidation = workStatusValidation;
@@ -26,7 +26,7 @@ export const publicationDateValidation = optionalDateValidation;
 const subtitleValidation = optionalStringValidation;
 const reference = optionalStringValidation;
 
-const editionValidation = requiredIntValidation;
+const editionValidation = optionalPositiveIntValidation;
 
 const withdrawnDateValidation = dateValidation;
 
@@ -76,7 +76,7 @@ const updatedAtWithRelationsValidation = timestampValidation;
 
 export const createWorkValidationSchema = z.object({
   [TITLE.name]: titleValidation,
-  [IMPRINT_ID.name]: imprintValidation,
+  [IMPRINT.name]: imprintValidation,
   [WORK_TYPE.name]: workTypeValidation,
   [LICENSE.name]: licenseValidation,
 });
@@ -96,4 +96,20 @@ export const publicationDateValidationSchema = z.object({
 
 export const workStatusValidationSchema = z.object({
   [WORK_STATUS.name]: statusValidation,
+});
+
+export const editionValidationSchema = z.object({
+  [EDITION.name]: editionValidation,
+});
+
+export const workTypeValidationSchema = z.object({
+  [WORK_TYPE.name]: workTypeValidation,
+});
+
+export const licenseValidationSchema = z.object({
+  [LICENSE.name]: licenseValidation,
+});
+
+export const copyrightHolderValidationSchema = z.object({
+  [COPYRIGHT_HOLDER.name]: copyrightHolderValidation,
 });

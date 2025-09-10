@@ -7,6 +7,7 @@ import { Controller, type FieldValues, type Path } from 'react-hook-form';
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
 
 export type TextFieldComponentProps<T extends FieldValues> = {
+  min?: number;
   options?: FormFieldOption[];
 } & BaseFieldProps<T> &
   TextFieldProps;
@@ -16,6 +17,7 @@ const TextFieldComponent = <T extends FieldValues>({
   name,
   defaultValue,
   options,
+  min,
   ...restProps
 }: TextFieldComponentProps<T>) => {
   return (
@@ -24,7 +26,13 @@ const TextFieldComponent = <T extends FieldValues>({
       control={control}
       defaultValue={defaultValue}
       render={({ field, fieldState: { error } }) => (
-        <TextField {...field} error={!!error} helperText={error ? error.message : null} {...restProps}>
+        <TextField
+          {...field}
+          error={!!error}
+          helperText={error ? error.message : null}
+          slotProps={{ htmlInput: { min } }}
+          {...restProps}
+        >
           {options &&
             options.map((option) => (
               <MenuItem key={option.value} value={option.value}>

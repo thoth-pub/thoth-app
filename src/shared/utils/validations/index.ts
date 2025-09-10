@@ -19,7 +19,7 @@ export const getRequiredStringValidation = (errorMessage?: ErrorMessage) =>
 export const optionalStringValidation = getStringValidation().optional();
 
 /* Integer Validations */
-export const intValidation = z
+export const intValidation = z.coerce
   .number()
   .min(-Math.pow(2, 31))
   .max(Math.pow(2, 31) - 1);
@@ -80,3 +80,5 @@ export const isbnValidation = optionalStringValidation.refine((isbn) => {
 });
 
 export const isValidDate = (date: string) => dayjs(date).isValid();
+
+export const isDayJsInstance = (date: unknown) => dayjs.isDayjs(date);

@@ -6,30 +6,28 @@ import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 
 import type { WorkType as GQLWorkType } from '@/gql/graphql';
-import type { ImprintEntity } from '@/src/entities/imprint';
-import { httpLink, setAuthorizationHeader } from '@/src/shared';
+import { FormFieldOption, httpLink, setAuthorizationHeader } from '@/src/shared';
 import { FORM_FIELDS, NOTIFICATIONS, ROUTES, WorkStatus, WorkType } from '@/src/shared/constants';
 import { useNotifications } from '@/src/shared/hooks';
-import { convertEntityToSelectFieldOptions, convertFormFieldsToSelectFieldOptions } from '@/src/shared/utils';
+import { convertFormFieldsToSelectFieldOptions } from '@/src/shared/utils';
 
 import { CREATE_WORK } from '../../../model/work.mutations';
 import type { CreateWorkForm as CreateWorkFormType } from '../../../model/work.types';
 import { createWorkValidationSchema } from '../../../model/work.validation';
 
 type UseCreateWorkFormProps = {
-  imprints: ImprintEntity[];
+  imprintOptions: FormFieldOption[];
   queryToken: string;
 };
 
-const { TITLE, LICENSE, IMPRINT_ID, WORK_TYPE } = FORM_FIELDS;
+const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
 
-const useCreateWorkForm = ({ imprints, queryToken }: UseCreateWorkFormProps) => {
+const useCreateWorkForm = ({ queryToken, imprintOptions }: UseCreateWorkFormProps) => {
   const router = useRouter();
   const { sendSuccessNotification, sendErrorNotification } = useNotifications();
 
   const workTypesOptions = convertFormFieldsToSelectFieldOptions(WorkType.options);
-  const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
   const {
     control,
     handleSubmit,
@@ -40,7 +38,7 @@ const useCreateWorkForm = ({ imprints, queryToken }: UseCreateWorkFormProps) => 
     defaultValues: {
       [TITLE.name]: TITLE.defaultValue,
       [WORK_TYPE.name]: workTypesOptions.length > 0 ? workTypesOptions[0].value : WORK_TYPE.defaultValue,
-      [IMPRINT_ID.name]: imprintOptions.length > 0 ? imprintOptions[0].value : IMPRINT_ID.defaultValue,
+      [IMPRINT.name]: imprintOptions.length > 0 ? imprintOptions[0].value : IMPRINT.defaultValue,
       [LICENSE.name]: LICENSE.defaultValue,
     },
     reValidateMode: 'onSubmit',
@@ -59,7 +57,7 @@ const useCreateWorkForm = ({ imprints, queryToken }: UseCreateWorkFormProps) => 
   client.setLink(setAuthorizationHeader(queryToken).concat(httpLink));
 
   const isSubmitDisabled = loading || !isValid;
-  const isImprintVisible = imprints.length !== 1;
+  const isImprintVisible = imprintOptions.length !== 1;
 
   const submit = handleSubmit((data) => {
     const { title, workType, imprintId, license } = data;
@@ -78,7 +76,7 @@ const useCreateWorkForm = ({ imprints, queryToken }: UseCreateWorkFormProps) => 
     });
   });
 
-  return { control, workTypesOptions, imprintOptions, isImprintVisible, isSubmitDisabled, isLoading: loading, submit };
+  return { control, workTypesOptions, isImprintVisible, isSubmitDisabled, isLoading: loading, submit };
 };
 
 export default useCreateWorkForm;

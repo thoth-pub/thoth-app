@@ -6,7 +6,7 @@ import { type FieldValues, type Path, useForm } from 'react-hook-form';
 import { ZodType } from 'zod';
 
 import type { BaseFieldProps } from '@/src/shared/interfaces';
-import { convertDateToFormattedDate, isValidDate } from '@/src/shared/utils';
+import { convertDateToFormattedDate, isDayJsInstance } from '@/src/shared/utils';
 
 export type UseFormWithPreviewProps<T extends FieldValues> = {
   validationSchema: ZodType<unknown, FieldValues>;
@@ -35,7 +35,7 @@ export const useFormWithPreview = <T extends FieldValues>(props: UseFormWithPrev
   const isValueFilledAndValid = !!formFieldValue && isValid;
 
   const serializedValue = useMemo(() => {
-    if (isValidDate(`${formFieldValue}`)) return convertDateToFormattedDate(formFieldValue);
+    if (isDayJsInstance(formFieldValue)) return convertDateToFormattedDate(formFieldValue);
 
     if (typeof formFieldValue === 'string') return formFieldValue;
 

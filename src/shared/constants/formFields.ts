@@ -16,6 +16,7 @@ export const InputTypes = {
   PASSWORD: 'password',
   TEXT: 'text',
   URL: 'url',
+  NUMBER: 'number',
 } as const;
 
 export const FORM_FIELDS = {
@@ -49,7 +50,14 @@ export const FORM_FIELDS = {
     type: InputTypes.URL,
     defaultValue: '',
   },
-  IMPRINT_ID: {
+  LANDING_PAGE: {
+    label: 'Landing Page URL',
+    name: 'landingPage',
+    placeholder: 'URL',
+    errorMessage: URL_REQUIRED,
+    type: InputTypes.URL,
+  },
+  IMPRINT: {
     label: 'Imprint',
     name: 'imprintId',
     placeholder: 'Imprint',
@@ -88,6 +96,12 @@ export const FORM_FIELDS = {
     placeholder: 'Title',
     type: InputTypes.TEXT,
   },
+  EDITION: {
+    label: 'Edition',
+    name: 'edition',
+    placeholder: 'Edition',
+    type: InputTypes.NUMBER,
+  },
   // FIRST_NAME: 'firstName',
   // LAST_NAME: 'lastName',
   // FULL_NAME: 'fullName',
@@ -96,7 +110,6 @@ export const FORM_FIELDS = {
   // WEBSITE_URL: 'websiteUrl',
   // URL: 'url',
   // DESCRIPTION: 'description',
-  // WORK_STATUS: 'workStatus',
   // SERIES_TYPE: 'seriesType',
   // PUBLICATION_TYPE: 'publicationType',
   // DOI: 'doi',

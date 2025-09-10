@@ -11,6 +11,7 @@ export { default as PageHeader } from './core/PageHeader/PageHeader';
 export { default as Switch } from './core/Switch/Switch';
 export { default as Typography } from './core/Typography/Typography';
 export { default as DateField } from './forms/DateField/DateField';
+export { default as FormsWrapper } from './forms/FormsWrapper/FormsWrapper';
 export { default as FormWithPreview } from './forms/FormWithPreview/FormWithPreview';
 export { default as InputLabel } from './forms/InputLabel/InputLabel';
 export { default as MarkdownField } from './forms/MarkdownField/MarkdownField';
