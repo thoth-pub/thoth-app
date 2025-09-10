@@ -1,7 +1,7 @@
 'use client';
 
 import { FORM_FIELDS, IDs } from '@/src/shared/constants';
-import type { FormFieldOption } from '@/src/shared/interfaces';
+import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
 import { Button, CircullarProgress, PageHeader } from '@/src/shared/ui';
 
 import CreateWorkFormField from './components/CreateWorkFormField';
@@ -12,7 +12,7 @@ const { CREATE_WORK } = IDs.FORM_FIELDS;
 
 type CreateWorkFormProps = {
   imprintOptions: FormFieldOption[];
-  queryToken: string;
+  queryToken: QueryToken;
 };
 
 const CreateWorkForm = ({ imprintOptions, queryToken }: CreateWorkFormProps) => {

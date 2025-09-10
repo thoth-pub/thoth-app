@@ -1,3 +1,5 @@
+'use client';
+
 import { ThemeProvider as MuiThemeProvider } from '@mui/material';
 import type { PropsWithChildren } from 'react';
 

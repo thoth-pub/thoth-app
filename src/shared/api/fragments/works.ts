@@ -15,5 +15,7 @@ export const WORK_FRAGMENT = graphql(`
         publisherName
       }
     }
+    imprintId
+    workStatus
   }
 `);

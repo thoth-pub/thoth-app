@@ -3,7 +3,6 @@ export * from './api/fragments';
 export * from './api/registries';
 export * from './config';
 export * from './constants';
-export * from './graphqlClient';
 export * from './interfaces';
 export * from './theme';
 export * from './utils';

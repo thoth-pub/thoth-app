@@ -1,10 +1,10 @@
 'use client';
 
 import { FORM_FIELDS, IDs } from '@/src/shared/constants';
-import type { FormFieldOption } from '@/src/shared/interfaces';
+import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
 import { AccordionSection, FormsWrapper, MarkdownFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
 
-import type { WorkType } from '../../model/work.types';
+import type { WorkEntity } from '../../model/work.types';
 import {
   copyrightHolderValidationSchema,
   editionValidationSchema,
@@ -31,14 +31,18 @@ const {
 const { WORK_TITLE, EDITION, IMPRINT, WORK_TYPE, LICENSE, COPYRIGHT_HOLDER, LANDING_PAGE } = FORM_FIELDS;
 
 type WorkBasicDetailsProps = {
-  title: string;
-  workType: WorkType;
+  queryToken: QueryToken;
+  work: WorkEntity;
   imprintOptions: FormFieldOption[];
   workTypeOptions: FormFieldOption[];
 };
 
-const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: WorkBasicDetailsProps) => {
-  const { submitPlaceholder } = useWorkBasicDetails();
+const WorkBasicDetails = ({ work, imprintOptions, workTypeOptions, queryToken }: WorkBasicDetailsProps) => {
+  const { type, title } = work;
+  const { submitWorkType } = useWorkBasicDetails({ work, queryToken });
+  const submitPlaceholder = (data: unknown) => {
+    console.log(data);
+  };
 
   return (
     <AccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
@@ -79,8 +83,8 @@ const WorkBasicDetails = ({ title, workType, imprintOptions, workTypeOptions }: 
           id={WORK_TYPE_ID}
           select
           options={workTypeOptions}
-          defaultValue={workType}
-          onSubmit={submitPlaceholder}
+          defaultValue={type}
+          onSubmit={submitWorkType}
         />
 
         <TextFormWithPreview

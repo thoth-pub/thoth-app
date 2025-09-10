@@ -48,6 +48,7 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
 
   return (
     <EditWorkWidget
+      queryToken={session.user.queryToken}
       work={work}
       workStatusOptions={workStatusOptions}
       imprintOptions={imprintOptions}

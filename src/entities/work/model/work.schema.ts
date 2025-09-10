@@ -3,19 +3,7 @@ import { graphql } from '@/gql';
 export const GET_BOOKS = graphql(`
   query GetBooks($publishers: [Uuid!]!) {
     books(publishers: $publishers) {
-      doi
-      workId
-      title
-      workType
-      updatedAt
-      contributions {
-        fullName
-      }
-      imprint {
-        publisher {
-          publisherName
-        }
-      }
+      ...WorkFragment
     }
   }
 `);
@@ -23,19 +11,7 @@ export const GET_BOOKS = graphql(`
 export const GET_CHAPTERS = graphql(`
   query GetChapters($publishers: [Uuid!]!) {
     chapters(publishers: $publishers) {
-      doi
-      workId
-      title
-      workType
-      updatedAt
-      contributions {
-        fullName
-      }
-      imprint {
-        publisher {
-          publisherName
-        }
-      }
+      ...WorkFragment
     }
   }
 `);
@@ -51,6 +27,14 @@ export const GET_WORKS = graphql(`
 export const GET_WORK = graphql(`
   query GetWork($workId: Uuid!) {
     work(workId: $workId) {
+      ...WorkFragment
+    }
+  }
+`);
+
+export const UPDATE_WORK = graphql(`
+  mutation UpdateWork($data: PatchWork!) {
+    updateWork(data: $data) {
       ...WorkFragment
     }
   }

@@ -1,5 +1,6 @@
 'use client';
 
+import type { WorkStatus } from '@/src/entities/work/model/work.types';
 import { FORM_FIELDS, IDs } from '@/src/shared/constants';
 import { type FormFieldOption } from '@/src/shared/interfaces';
 import { DateFormWithPreview, FormsWrapper, TextFormWithPreview } from '@/src/shared/ui';
@@ -7,13 +8,14 @@ import { DateFormWithPreview, FormsWrapper, TextFormWithPreview } from '@/src/sh
 import { publicationDateValidationSchema, workStatusValidationSchema } from '../../../model/work.validation';
 
 export type WorkHeaderFormProps = {
+  status: WorkStatus;
   workStatusOptions: FormFieldOption[];
 };
 
 const { WORK_STATUS, PUBLICATION_DATE } = FORM_FIELDS;
 const { WORK_STATUS: WORK_STATUS_ID, PUBLICATION_DATE: PUBLICATION_DATE_ID } = IDs.FORM_FIELDS;
 
-const WorkHeaderForm = ({ workStatusOptions }: WorkHeaderFormProps) => {
+const WorkHeaderForm = ({ workStatusOptions, status }: WorkHeaderFormProps) => {
   const onSubmit = (data: unknown) => {
     console.log(data);
   };
@@ -27,6 +29,7 @@ const WorkHeaderForm = ({ workStatusOptions }: WorkHeaderFormProps) => {
         id={WORK_STATUS_ID}
         select
         options={workStatusOptions}
+        defaultValue={status}
         onSubmit={onSubmit}
       />
 

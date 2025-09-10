@@ -10,7 +10,7 @@ type WorkHeaderProps = {
   title: string;
 } & WorkHeaderFormProps;
 
-const WorkHeader = ({ title, workStatusOptions }: WorkHeaderProps) => {
+const WorkHeader = ({ title, workStatusOptions, status }: WorkHeaderProps) => {
   return (
     <div className="flex flex-col gap-4 overflow-hidden rounded-2xl bg-[var(--color-background-alt)] px-8 py-4 shadow-xl">
       <div className="flex justify-between">
@@ -25,7 +25,7 @@ const WorkHeader = ({ title, workStatusOptions }: WorkHeaderProps) => {
         </div>
       </div>
 
-      <WorkHeaderForm workStatusOptions={workStatusOptions} />
+      <WorkHeaderForm workStatusOptions={workStatusOptions} status={status} />
     </div>
   );
 };

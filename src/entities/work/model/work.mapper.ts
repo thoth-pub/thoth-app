@@ -14,6 +14,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       imprint: {
         publisher: { publisherName = '' },
       },
+      imprintId,
+      workStatus,
     } = dto;
 
     return {
@@ -24,6 +26,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       contributorsNames: contributions.map((contribution) => contribution.fullName),
       doi,
       publisherName,
+      imprintId,
+      status: workStatus,
     };
   }
 }

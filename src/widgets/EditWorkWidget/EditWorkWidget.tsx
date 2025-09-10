@@ -1,25 +1,25 @@
 import { WorkBasicDetails, WorkDescriptionDetails, WorkHeader } from '@/src/entities/work';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
-import type { FormFieldOption } from '@/src/shared';
+import type { FormFieldOption, QueryToken } from '@/src/shared';
 
 type EditWorkWidgetProps = {
+  queryToken: QueryToken;
   work: WorkEntity;
   workStatusOptions: FormFieldOption[];
   imprintOptions: FormFieldOption[];
   workTypeOptions: FormFieldOption[];
 };
 
-const EditWorkWidget = ({ work, workStatusOptions, imprintOptions, workTypeOptions }: EditWorkWidgetProps) => {
-  const { title, type } = work;
-
-  console.log(work);
+const EditWorkWidget = (props: EditWorkWidgetProps) => {
+  const { work, workStatusOptions, imprintOptions, workTypeOptions, queryToken } = props;
+  const { title, status } = work;
 
   return (
     <div className="flex flex-col gap-8">
-      <WorkHeader title={title} workStatusOptions={workStatusOptions} />
+      <WorkHeader status={status} title={title} workStatusOptions={workStatusOptions} />
       <WorkBasicDetails
-        title={title}
-        workType={type}
+        work={work}
+        queryToken={queryToken}
         imprintOptions={imprintOptions}
         workTypeOptions={workTypeOptions}
       />
