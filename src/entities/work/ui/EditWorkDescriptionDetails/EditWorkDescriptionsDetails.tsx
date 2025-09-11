@@ -3,7 +3,7 @@ import { AccordionSection } from '@/src/shared/ui';
 
 const { DESCRIPTIONS_DETAILS } = IDs.FORM_SECTIONS;
 
-const WorkDescriptionsDetails = () => {
+const EditWorkDescriptionsDetails = () => {
   return (
     <AccordionSection title="Descriptions" panelId={DESCRIPTIONS_DETAILS}>
       Descriptions Details
@@ -11,4 +11,4 @@ const WorkDescriptionsDetails = () => {
   );
 };
 
-export default WorkDescriptionsDetails;
+export default EditWorkDescriptionsDetails;

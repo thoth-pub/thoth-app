@@ -1,4 +1,4 @@
-import { WorkBasicDetails, WorkDescriptionDetails, WorkHeader } from '@/src/entities/work';
+import { EditWorkBasicDetails, EditWorkDescriptionDetails, EditWorkHeader } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import type { FormFieldOption, QueryToken } from '@/src/shared';
 
@@ -16,15 +16,15 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
 
   return (
     <div className="flex flex-col gap-8">
-      <WorkHeader queryToken={queryToken} workId={workId} workStatusOptions={workStatusOptions} />
-      <WorkBasicDetails
+      <EditWorkHeader queryToken={queryToken} workId={workId} workStatusOptions={workStatusOptions} />
+      <EditWorkBasicDetails
         workId={workId}
         queryToken={queryToken}
         imprintOptions={imprintOptions}
         workTypeOptions={workTypeOptions}
         licenseOptions={licenseOptions}
       />
-      <WorkDescriptionDetails />
+      <EditWorkDescriptionDetails />
     </div>
   );
 };

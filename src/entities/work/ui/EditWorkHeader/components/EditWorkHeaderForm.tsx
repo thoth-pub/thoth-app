@@ -8,7 +8,7 @@ import { DateFormWithPreview, FormsWrapper, TextFormWithPreview } from '@/src/sh
 
 import { publicationDateValidationSchema, workStatusValidationSchema } from '../../../model/work.validation';
 
-export type WorkHeaderFormProps = {
+export type EditWorkHeaderFormProps = {
   status: WorkStatus;
   workStatusOptions: FormFieldOption[];
   isPublicationDateDisabled?: boolean;
@@ -19,7 +19,7 @@ export type WorkHeaderFormProps = {
 const { WORK_STATUS, PUBLICATION_DATE } = FORM_FIELDS;
 const { WORK_STATUS: WORK_STATUS_ID, PUBLICATION_DATE: PUBLICATION_DATE_ID } = IDs.FORM_FIELDS;
 
-const WorkHeaderForm = (props: WorkHeaderFormProps) => {
+const EditWorkHeaderForm = (props: EditWorkHeaderFormProps) => {
   const { workStatusOptions, status, isPublicationDateDisabled, minDate, onStatusUpdate } = props;
 
   return (
@@ -48,4 +48,4 @@ const WorkHeaderForm = (props: WorkHeaderFormProps) => {
   );
 };
 
-export default WorkHeaderForm;
+export default EditWorkHeaderForm;

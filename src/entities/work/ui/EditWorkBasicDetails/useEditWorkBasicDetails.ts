@@ -15,12 +15,12 @@ import type {
   WorkTypeForm,
 } from '../../model/work.types';
 
-type UseWorkBasicDetailsProps = {
+type UseEditWorkBasicDetailsProps = {
   workId: WorkId;
   queryToken: QueryToken;
 };
 
-export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsProps) => {
+export const useEditWorkBasicDetails = ({ workId, queryToken }: UseEditWorkBasicDetailsProps) => {
   const { work, updateWork, toDto } = useWork(workId, queryToken);
 
   const changeWorkType = ({ workType }: WorkTypeForm) => {

@@ -17,7 +17,7 @@ import {
   titleValidationSchema,
   workTypeValidationSchema,
 } from '../../model/work.validation';
-import { useWorkBasicDetails } from './useWorkBasicDetails';
+import { useEditWorkBasicDetails } from './useEditWorkBasicDetails';
 
 const {
   FORM_SECTIONS: { BASIC_DETAILS },
@@ -35,7 +35,7 @@ const {
 
 const { WORK_TITLE, EDITION, IMPRINT, WORK_TYPE, LICENSE, COPYRIGHT_HOLDER, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
-type WorkBasicDetailsProps = {
+type EditWorkBasicDetailsProps = {
   workId: WorkId;
   queryToken: QueryToken;
   imprintOptions: FormFieldOption[];
@@ -43,7 +43,7 @@ type WorkBasicDetailsProps = {
   licenseOptions: FormFieldOption[];
 };
 
-const WorkBasicDetails = (props: WorkBasicDetailsProps) => {
+const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
   const { workId, imprintOptions, workTypeOptions, licenseOptions, queryToken } = props;
   const {
     work,
@@ -54,7 +54,7 @@ const WorkBasicDetails = (props: WorkBasicDetailsProps) => {
     changeCopyrightHolder,
     changeLandingPage,
     changeCoverUrl,
-  } = useWorkBasicDetails({
+  } = useEditWorkBasicDetails({
     workId,
     queryToken,
   });
@@ -151,4 +151,4 @@ const WorkBasicDetails = (props: WorkBasicDetailsProps) => {
   );
 };
 
-export default WorkBasicDetails;
+export default EditWorkBasicDetails;

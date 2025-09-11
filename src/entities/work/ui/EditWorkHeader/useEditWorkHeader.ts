@@ -10,12 +10,12 @@ import {
 import useWork from '../../api/hooks/useWork';
 import type { WorkId, WorkStatusForm } from '../../model/work.types';
 
-type UseWorkHeaderProps = {
+type UseEditWorkHeaderProps = {
   workId: WorkId;
   queryToken: QueryToken;
 };
 
-const useWorkHeader = ({ workId, queryToken }: UseWorkHeaderProps) => {
+const useEditWorkHeader = ({ workId, queryToken }: UseEditWorkHeaderProps) => {
   const { work, deleteWork, updateWork, toDto } = useWork(workId, queryToken);
   const isPublicationDateDisabled = !isPublicationDateAvailable(work.status);
   const minDate =
@@ -34,4 +34,4 @@ const useWorkHeader = ({ workId, queryToken }: UseWorkHeaderProps) => {
   return { title: work.title, status: work.status, isPublicationDateDisabled, minDate, deleteWork, changeWorkStatus };
 };
 
-export default useWorkHeader;
+export default useEditWorkHeader;

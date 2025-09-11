@@ -6,16 +6,16 @@ import type { QueryToken } from '@/src/shared';
 import { Button, IconButton, Typography } from '@/src/shared/ui';
 
 import type { WorkId } from '../../model/work.types';
-import WorkHeaderForm, { type WorkHeaderFormProps } from './components/WorkHeaderForm';
-import useWorkHeader from './useWorkHeader';
+import EditWorkHeaderForm, { type EditWorkHeaderFormProps } from './components/EditWorkHeaderForm';
+import useEditWorkHeader from './useEditWorkHeader';
 
-type WorkHeaderProps = {
+type EditWorkHeaderProps = {
   queryToken: QueryToken;
   workId: WorkId;
-} & Omit<WorkHeaderFormProps, 'status'>;
+} & Omit<EditWorkHeaderFormProps, 'status'>;
 
-const WorkHeader = ({ workId, queryToken, workStatusOptions }: WorkHeaderProps) => {
-  const { title, status, isPublicationDateDisabled, minDate, deleteWork, changeWorkStatus } = useWorkHeader({
+const EditWorkHeader = ({ workId, queryToken, workStatusOptions }: EditWorkHeaderProps) => {
+  const { title, status, isPublicationDateDisabled, minDate, deleteWork, changeWorkStatus } = useEditWorkHeader({
     workId,
     queryToken,
   });
@@ -34,7 +34,7 @@ const WorkHeader = ({ workId, queryToken, workStatusOptions }: WorkHeaderProps) 
         </div>
       </div>
 
-      <WorkHeaderForm
+      <EditWorkHeaderForm
         workStatusOptions={workStatusOptions}
         status={status}
         isPublicationDateDisabled={isPublicationDateDisabled}
@@ -45,4 +45,4 @@ const WorkHeader = ({ workId, queryToken, workStatusOptions }: WorkHeaderProps) 
   );
 };
 
-export default WorkHeader;
+export default EditWorkHeader;
