@@ -1,11 +1,9 @@
 'use client';
 
-import { NOTIFICATIONS, type QueryToken, WorkStatuses, WorkTypes } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
-import { isBookChapter } from '@/src/shared/utils';
+import { type QueryToken } from '@/src/shared';
 
 import useWork from '../../api/hooks/useWork';
-import { GET_WORK, UPDATE_WORK } from '../../model/work.schema';
+import { WorkDtoMapper } from '../../model/work.mapper';
 import type {
   CopyrightHolderForm,
   CoverUrlForm,
@@ -18,100 +16,82 @@ import type {
   WorkTypeForm,
 } from '../../model/work.types';
 
-const { WORK_UPDATE_FAILED } = NOTIFICATIONS;
-
 type UseWorkBasicDetailsProps = {
   workId: WorkId;
   queryToken: QueryToken;
 };
 
-export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsProps) => {
-  const { work } = useWork(workId);
-  const defaultValues = {
-    workId,
-    workStatus: work?.status ?? WorkStatuses.enum.Forthcoming,
-    title: work?.title ?? '',
-    fullTitle: work?.fullTitle ?? '',
-    imprintId: work?.imprintId ?? '',
-    workType: work?.type ?? WorkTypes.enum.BookChapter,
-    edition: work?.edition ?? null,
-    license: work?.license ?? null,
-    copyrightHolder: work?.copyrightHolder ?? null,
-    landingPage: work?.landingPage ?? null,
-    coverUrl: work?.coverUrl ?? null,
-  };
+const mapper = new WorkDtoMapper();
 
-  const { sendErrorNotification } = useNotifications();
-  const [mutate, { loading }] = useMutationWithAuth({
-    queryToken,
-    mutation: UPDATE_WORK,
-    options: {
-      onError: () => {
-        sendErrorNotification(WORK_UPDATE_FAILED);
-      },
-      refetchQueries: [{ query: GET_WORK, variables: { workId: workId } }],
-    },
-  });
+export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsProps) => {
+  const { work, updateWork } = useWork(workId, queryToken);
 
   const changeWorkType = ({ workType }: WorkTypeForm) => {
-    const { edition, ...restFields } = defaultValues;
-    const defaultEdition = edition ?? 1;
+    const data = mapper.toDto({ ...work, type: workType as WorkType });
 
-    mutate({
+    updateWork({
       variables: {
-        data: {
-          ...restFields,
-          edition: isBookChapter(workType as WorkType) ? null : defaultEdition,
-          workType: workType as WorkType,
-        },
+        data,
       },
     });
   };
 
   const changeEdition = ({ edition }: EditionForm) => {
-    mutate({
+    const data = mapper.toDto({ ...work, edition });
+
+    updateWork({
       variables: {
-        data: { ...defaultValues, edition },
+        data,
       },
     });
   };
 
   const changeImprint = ({ imprintId }: ImprintForm) => {
-    mutate({
+    const data = mapper.toDto({ ...work, imprintId });
+
+    updateWork({
       variables: {
-        data: { ...defaultValues, imprintId },
+        data,
       },
     });
   };
 
   const changeLicense = ({ license }: LicenseForm) => {
-    mutate({
+    const data = mapper.toDto({ ...work, license });
+
+    updateWork({
       variables: {
-        data: { ...defaultValues, license },
+        data,
       },
     });
   };
 
   const changeCopyrightHolder = ({ copyrightHolder }: CopyrightHolderForm) => {
-    mutate({
+    const data = mapper.toDto({ ...work, copyrightHolder });
+
+    updateWork({
       variables: {
-        data: { ...defaultValues, copyrightHolder },
+        data,
       },
     });
   };
 
   const changeLandingPage = ({ landingPage }: LandingPageForm) => {
-    mutate({
+    const data = mapper.toDto({ ...work, landingPage });
+
+    updateWork({
       variables: {
-        data: { ...defaultValues, landingPage },
+        data,
       },
     });
   };
 
   const changeCoverUrl = ({ coverUrl }: CoverUrlForm) => {
-    mutate({
+    const data = mapper.toDto({ ...work, coverUrl });
+
+    updateWork({
       variables: {
-        data: { ...defaultValues, coverUrl },
+        data,
       },
     });
   };
@@ -124,7 +104,6 @@ export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsP
     changeCopyrightHolder,
     changeLandingPage,
     changeCoverUrl,
-    loading,
     work,
   };
 };
