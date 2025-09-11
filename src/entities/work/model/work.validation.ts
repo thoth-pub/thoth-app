@@ -24,6 +24,7 @@ const {
   EDITION,
   COPYRIGHT_HOLDER,
   LANDING_PAGE,
+  COVER_URL,
 } = FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
@@ -91,11 +92,6 @@ export const createWorkValidationSchema = z.object({
   [LICENSE.name]: licenseValidation,
 });
 
-export const editWorkValidationSchema = z.object({
-  [WORK_STATUS.name]: statusValidation,
-  [PUBLICATION_DATE.name]: publicationDateValidation,
-});
-
 export const titleValidationSchema = z.object({
   [WORK_TITLE.name]: titleValidation,
 });
@@ -116,6 +112,10 @@ export const workTypeValidationSchema = z.object({
   [WORK_TYPE.name]: workTypeValidation,
 });
 
+export const imprintValidationSchema = z.object({
+  [IMPRINT.name]: imprintValidation,
+});
+
 export const licenseValidationSchema = z.object({
   [LICENSE.name]: licenseValidation,
 });
@@ -126,4 +126,8 @@ export const copyrightHolderValidationSchema = z.object({
 
 export const landingPageValidationSchema = z.object({
   [LANDING_PAGE.name]: landingPageValidation,
+});
+
+export const coverUrlValidationSchema = z.object({
+  [COVER_URL.name]: coverUrlValidation,
 });

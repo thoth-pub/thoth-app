@@ -1,54 +1,130 @@
 'use client';
 
-import { useMutation } from '@apollo/client/react';
+import { NOTIFICATIONS, type QueryToken, WorkStatuses, WorkTypes } from '@/src/shared';
+import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { isBookChapter } from '@/src/shared/utils';
 
-import { httpLink, NOTIFICATIONS, type QueryToken, setAuthorizationHeader, WorkTypes } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
-
-import { UPDATE_WORK } from '../../model/work.schema';
-import type { WorkEntity, WorkType, WorkTypeForm } from '../../model/work.types';
+import useWork from '../../api/hooks/useWork';
+import { GET_WORK, UPDATE_WORK } from '../../model/work.schema';
+import type {
+  CopyrightHolderForm,
+  CoverUrlForm,
+  EditionForm,
+  ImprintForm,
+  LandingPageForm,
+  LicenseForm,
+  WorkId,
+  WorkType,
+  WorkTypeForm,
+} from '../../model/work.types';
 
 const { WORK_UPDATE_FAILED } = NOTIFICATIONS;
 
 type UseWorkBasicDetailsProps = {
-  work: WorkEntity;
+  workId: WorkId;
   queryToken: QueryToken;
 };
 
-export const useWorkBasicDetails = ({ work, queryToken }: UseWorkBasicDetailsProps) => {
-  const { id: workId, title, type: workType, imprintId, status: workStatus, edition } = work;
-  const defaultEdition = edition ?? 1;
-  const minimalRequiredFields = {
+export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsProps) => {
+  const { work } = useWork(workId);
+  const defaultValues = {
     workId,
-    fullTitle: title,
-    title,
-    workType,
-    imprintId,
-    workStatus,
+    workStatus: work?.status ?? WorkStatuses.enum.Forthcoming,
+    title: work?.title ?? '',
+    fullTitle: work?.fullTitle ?? '',
+    imprintId: work?.imprintId ?? '',
+    workType: work?.type ?? WorkTypes.enum.BookChapter,
+    edition: work?.edition ?? null,
+    license: work?.license ?? null,
+    copyrightHolder: work?.copyrightHolder ?? null,
+    landingPage: work?.landingPage ?? null,
+    coverUrl: work?.coverUrl ?? null,
   };
+
   const { sendErrorNotification } = useNotifications();
-  const [mutate, { client, loading }] = useMutation(UPDATE_WORK, {
-    onError: () => {
-      sendErrorNotification(WORK_UPDATE_FAILED);
+  const [mutate, { loading }] = useMutationWithAuth({
+    queryToken,
+    mutation: UPDATE_WORK,
+    options: {
+      onError: () => {
+        sendErrorNotification(WORK_UPDATE_FAILED);
+      },
+      refetchQueries: [{ query: GET_WORK, variables: { workId: workId } }],
     },
   });
 
-  client.setLink(setAuthorizationHeader(queryToken).concat(httpLink));
+  const changeWorkType = ({ workType }: WorkTypeForm) => {
+    const { edition, ...restFields } = defaultValues;
+    const defaultEdition = edition ?? 1;
 
-  const submitWorkType = ({ workType }: WorkTypeForm) => {
     mutate({
       variables: {
         data: {
-          ...minimalRequiredFields,
-          edition: workType !== WorkTypes.enum.BookChapter && !edition ? defaultEdition : edition,
+          ...restFields,
+          edition: isBookChapter(workType as WorkType) ? null : defaultEdition,
           workType: workType as WorkType,
         },
       },
     });
   };
 
+  const changeEdition = ({ edition }: EditionForm) => {
+    mutate({
+      variables: {
+        data: { ...defaultValues, edition },
+      },
+    });
+  };
+
+  const changeImprint = ({ imprintId }: ImprintForm) => {
+    mutate({
+      variables: {
+        data: { ...defaultValues, imprintId },
+      },
+    });
+  };
+
+  const changeLicense = ({ license }: LicenseForm) => {
+    mutate({
+      variables: {
+        data: { ...defaultValues, license },
+      },
+    });
+  };
+
+  const changeCopyrightHolder = ({ copyrightHolder }: CopyrightHolderForm) => {
+    mutate({
+      variables: {
+        data: { ...defaultValues, copyrightHolder },
+      },
+    });
+  };
+
+  const changeLandingPage = ({ landingPage }: LandingPageForm) => {
+    mutate({
+      variables: {
+        data: { ...defaultValues, landingPage },
+      },
+    });
+  };
+
+  const changeCoverUrl = ({ coverUrl }: CoverUrlForm) => {
+    mutate({
+      variables: {
+        data: { ...defaultValues, coverUrl },
+      },
+    });
+  };
+
   return {
-    submitWorkType,
+    changeWorkType,
+    changeEdition,
+    changeImprint,
+    changeLicense,
+    changeCopyrightHolder,
+    changeLandingPage,
+    changeCoverUrl,
     loading,
+    work,
   };
 };

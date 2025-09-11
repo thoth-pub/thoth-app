@@ -17,7 +17,7 @@ type EditTabProps = {
 
 const EditTab = ({ isDisabled, children, formId, onSubmit }: EditTabProps) => {
   return (
-    <div className="flex flex-grow flex-col">
+    <div className="ml-[1.25rem] flex flex-grow flex-col">
       <AnimationWrapper className="flex grow flex-col" key="edit-mode">
         <form className="flex gap-1" onSubmit={onSubmit} id={formId}>
           {children}

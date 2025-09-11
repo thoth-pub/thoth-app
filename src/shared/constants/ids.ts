@@ -10,6 +10,7 @@ export const IDs = {
     LICENSE: 'license',
     COPYRIGHT_HOLDER: 'copyright-holder',
     LANDING_PAGE: 'landing-page',
+    COVER_URL: 'cover-url',
   },
   FORM_SECTIONS: {
     BASIC_DETAILS: 'basic-details',

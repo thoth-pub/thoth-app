@@ -102,6 +102,12 @@ export const FORM_FIELDS = {
     placeholder: 'Edition',
     type: InputTypes.NUMBER,
   },
+  COVER_URL: {
+    label: 'Cover URL',
+    name: 'coverUrl',
+    placeholder: 'Cover URL',
+    type: InputTypes.URL,
+  },
   // FIRST_NAME: 'firstName',
   // LAST_NAME: 'lastName',
   // FULL_NAME: 'fullName',

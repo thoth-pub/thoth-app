@@ -7,6 +7,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     const {
       workId,
       title,
+      fullTitle,
       workType,
       updatedAt,
       contributions = [],
@@ -17,6 +18,10 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       imprintId,
       workStatus,
       edition,
+      license,
+      copyrightHolder,
+      landingPage,
+      coverUrl,
     } = dto;
 
     return {
@@ -29,7 +34,12 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       publisherName,
       imprintId,
       status: workStatus,
-      edition: edition,
+      edition,
+      license: license ?? null,
+      copyrightHolder,
+      landingPage,
+      coverUrl,
+      fullTitle,
     };
   }
 }

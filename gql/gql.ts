@@ -28,7 +28,8 @@ type Documents = {
     "\n  query GetWorks($publishers: [Uuid!]!) {\n    works(publishers: $publishers) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetWorksDocument,
     "\n  query GetWork($workId: Uuid!) {\n    work(workId: $workId) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetWorkDocument,
     "\n  mutation UpdateWork($data: PatchWork!) {\n    updateWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": typeof types.UpdateWorkDocument,
-    "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n  }\n": typeof types.WorkFragmentFragmentDoc,
+    "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n": typeof types.DeleteWorkDocument,
+    "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    fullTitle\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n    license\n    copyrightHolder\n    landingPage\n    coverUrl\n  }\n": typeof types.WorkFragmentFragmentDoc,
 };
 const documents: Documents = {
     "\n  query GetContributors {\n    contributors {\n      orcid\n      fullName\n      updatedAt\n      contributorId\n    }\n  }\n": types.GetContributorsDocument,
@@ -45,7 +46,8 @@ const documents: Documents = {
     "\n  query GetWorks($publishers: [Uuid!]!) {\n    works(publishers: $publishers) {\n      ...WorkFragment\n    }\n  }\n": types.GetWorksDocument,
     "\n  query GetWork($workId: Uuid!) {\n    work(workId: $workId) {\n      ...WorkFragment\n    }\n  }\n": types.GetWorkDocument,
     "\n  mutation UpdateWork($data: PatchWork!) {\n    updateWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": types.UpdateWorkDocument,
-    "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n  }\n": types.WorkFragmentFragmentDoc,
+    "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n": types.DeleteWorkDocument,
+    "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    fullTitle\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n    license\n    copyrightHolder\n    landingPage\n    coverUrl\n  }\n": types.WorkFragmentFragmentDoc,
 };
 
 /**
@@ -121,7 +123,11 @@ export function graphql(source: "\n  mutation UpdateWork($data: PatchWork!) {\n 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n  }\n"): (typeof documents)["\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n  }\n"];
+export function graphql(source: "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    fullTitle\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n    license\n    copyrightHolder\n    landingPage\n    coverUrl\n  }\n"): (typeof documents)["\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    fullTitle\n    workType\n    updatedAt\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n    license\n    copyrightHolder\n    landingPage\n    coverUrl\n  }\n"];
 
 export function graphql(source: string) {
   return (documents as any)[source] ?? {};

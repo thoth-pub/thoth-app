@@ -69,3 +69,11 @@ export const UPDATE_WORK = graphql(`
     }
   }
 `);
+
+export const DELETE_WORK = graphql(`
+  mutation DeleteWork($workId: Uuid!) {
+    deleteWork(workId: $workId) {
+      workId
+    }
+  }
+`);

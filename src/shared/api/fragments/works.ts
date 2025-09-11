@@ -5,6 +5,7 @@ export const WORK_FRAGMENT = graphql(`
     doi
     workId
     title
+    fullTitle
     workType
     updatedAt
     contributions {
@@ -18,5 +19,9 @@ export const WORK_FRAGMENT = graphql(`
     imprintId
     workStatus
     edition
+    license
+    copyrightHolder
+    landingPage
+    coverUrl
   }
 `);

@@ -5,7 +5,7 @@ import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
 import { Button, CircullarProgress, PageHeader } from '@/src/shared/ui';
 
 import CreateWorkFormField from './components/CreateWorkFormField';
-import { useCreateWorkForm } from './hooks';
+import useCreateWorkForm from './useCreateWorkForm';
 
 const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 const { CREATE_WORK } = IDs.FORM_FIELDS;

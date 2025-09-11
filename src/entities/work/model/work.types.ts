@@ -4,8 +4,13 @@ import type { WorkFragmentFragment } from '@/gql/graphql';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
 import {
+  copyrightHolderValidationSchema,
+  coverUrlValidationSchema,
   createWorkValidationSchema,
-  editWorkValidationSchema,
+  editionValidationSchema,
+  imprintValidationSchema,
+  landingPageValidationSchema,
+  licenseValidationSchema,
   publicationDateValidationSchema,
   titleValidationSchema,
   workTypeValidationSchema,
@@ -22,6 +27,7 @@ export type WorkStatus = z.infer<typeof WorkStatuses>;
 export type WorkEntity = {
   id: string;
   title: string;
+  fullTitle: string;
   type: WorkType;
   updatedAt: string;
   contributorsNames: string[];
@@ -30,14 +36,28 @@ export type WorkEntity = {
   imprintId: string;
   status: WorkStatus;
   edition?: number | null;
+  license?: string | null;
+  copyrightHolder?: string | null;
+  landingPage?: string | null;
+  coverUrl?: string | null;
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;
 
-export type EditWorkForm = z.infer<typeof editWorkValidationSchema>;
-
 export type TitleForm = z.infer<typeof titleValidationSchema>;
+
+export type PublicationDateForm = z.infer<typeof publicationDateValidationSchema>;
 
 export type WorkTypeForm = z.infer<typeof workTypeValidationSchema>;
 
-export type PublicationDateForm = z.infer<typeof publicationDateValidationSchema>;
+export type EditionForm = z.infer<typeof editionValidationSchema>;
+
+export type ImprintForm = z.infer<typeof imprintValidationSchema>;
+
+export type LicenseForm = z.infer<typeof licenseValidationSchema>;
+
+export type CopyrightHolderForm = z.infer<typeof copyrightHolderValidationSchema>;
+
+export type LandingPageForm = z.infer<typeof landingPageValidationSchema>;
+
+export type CoverUrlForm = z.infer<typeof coverUrlValidationSchema>;

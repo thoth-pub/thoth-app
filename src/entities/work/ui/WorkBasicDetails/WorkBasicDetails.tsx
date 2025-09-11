@@ -3,11 +3,14 @@
 import { FORM_FIELDS, IDs } from '@/src/shared/constants';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
 import { AccordionSection, FormsWrapper, MarkdownFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
+import { isBookChapter } from '@/src/shared/utils';
 
-import type { WorkEntity } from '../../model/work.types';
+import type { WorkId, WorkType } from '../../model/work.types';
 import {
   copyrightHolderValidationSchema,
+  coverUrlValidationSchema,
   editionValidationSchema,
+  imprintValidationSchema,
   landingPageValidationSchema,
   licenseValidationSchema,
   titleValidationSchema,
@@ -25,24 +28,34 @@ const {
     LICENSE: LICENSE_ID,
     COPYRIGHT_HOLDER: COPYRIGHT_HOLDER_ID,
     LANDING_PAGE: LANDING_PAGE_ID,
+    COVER_URL: COVER_URL_ID,
   },
 } = IDs;
 
-const { WORK_TITLE, EDITION, IMPRINT, WORK_TYPE, LICENSE, COPYRIGHT_HOLDER, LANDING_PAGE } = FORM_FIELDS;
+const { WORK_TITLE, EDITION, IMPRINT, WORK_TYPE, LICENSE, COPYRIGHT_HOLDER, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
 type WorkBasicDetailsProps = {
+  workId: WorkId;
   queryToken: QueryToken;
-  work: WorkEntity;
   imprintOptions: FormFieldOption[];
   workTypeOptions: FormFieldOption[];
 };
 
-const WorkBasicDetails = ({ work, imprintOptions, workTypeOptions, queryToken }: WorkBasicDetailsProps) => {
-  const { type, title } = work;
-  const { submitWorkType } = useWorkBasicDetails({ work, queryToken });
-  const submitPlaceholder = (data: unknown) => {
-    console.log(data);
-  };
+const WorkBasicDetails = ({ workId, imprintOptions, workTypeOptions, queryToken }: WorkBasicDetailsProps) => {
+  const {
+    work,
+    changeWorkType,
+    changeEdition,
+    changeImprint,
+    changeLicense,
+    changeCopyrightHolder,
+    changeLandingPage,
+    changeCoverUrl,
+  } = useWorkBasicDetails({
+    workId,
+    queryToken,
+  });
+  const isChapter = isBookChapter(work?.type as WorkType);
 
   return (
     <AccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
@@ -52,28 +65,31 @@ const WorkBasicDetails = ({ work, imprintOptions, workTypeOptions, queryToken }:
           label={WORK_TITLE.label}
           name={WORK_TITLE.name}
           id={WORK_TITLE_ID}
-          defaultValue={title}
-          onSubmit={submitPlaceholder}
+          defaultValue={work?.title}
         />
 
-        <TextFormWithPreview
-          validationSchema={editionValidationSchema}
-          label={EDITION.label}
-          name={EDITION.name}
-          id={EDITION_ID}
-          type={EDITION.type}
-          min={1}
-          onSubmit={submitPlaceholder}
-        />
+        {!isChapter && (
+          <TextFormWithPreview
+            validationSchema={editionValidationSchema}
+            label={EDITION.label}
+            name={EDITION.name}
+            id={EDITION_ID}
+            type={EDITION.type}
+            defaultValue={work?.edition ?? undefined}
+            min={1}
+            onSubmit={changeEdition}
+          />
+        )}
 
         <TextFormWithPreview
-          validationSchema={editionValidationSchema}
+          validationSchema={imprintValidationSchema}
           label={IMPRINT.label}
           name={IMPRINT.name}
           id={IMPRINT_ID}
           select
           options={imprintOptions}
-          onSubmit={submitPlaceholder}
+          defaultValue={work?.imprintId}
+          onSubmit={changeImprint}
         />
 
         <TextFormWithPreview
@@ -83,8 +99,8 @@ const WorkBasicDetails = ({ work, imprintOptions, workTypeOptions, queryToken }:
           id={WORK_TYPE_ID}
           select
           options={workTypeOptions}
-          defaultValue={type}
-          onSubmit={submitWorkType}
+          defaultValue={work?.type}
+          onSubmit={changeWorkType}
         />
 
         <TextFormWithPreview
@@ -93,7 +109,8 @@ const WorkBasicDetails = ({ work, imprintOptions, workTypeOptions, queryToken }:
           name={LICENSE.name}
           id={LICENSE_ID}
           type={LICENSE.type}
-          onSubmit={submitPlaceholder}
+          defaultValue={work?.license ?? undefined}
+          onSubmit={changeLicense}
         />
 
         <TextFormWithPreview
@@ -101,7 +118,8 @@ const WorkBasicDetails = ({ work, imprintOptions, workTypeOptions, queryToken }:
           label={COPYRIGHT_HOLDER.label}
           name={COPYRIGHT_HOLDER.name}
           id={COPYRIGHT_HOLDER_ID}
-          onSubmit={submitPlaceholder}
+          defaultValue={work?.copyrightHolder ?? undefined}
+          onSubmit={changeCopyrightHolder}
         />
 
         <TextFormWithPreview
@@ -110,7 +128,18 @@ const WorkBasicDetails = ({ work, imprintOptions, workTypeOptions, queryToken }:
           name={LANDING_PAGE.name}
           id={LANDING_PAGE_ID}
           type={LANDING_PAGE.type}
-          onSubmit={submitPlaceholder}
+          defaultValue={work?.landingPage ?? undefined}
+          onSubmit={changeLandingPage}
+        />
+
+        <TextFormWithPreview
+          validationSchema={coverUrlValidationSchema}
+          label={COVER_URL.label}
+          name={COVER_URL.name}
+          id={COVER_URL_ID}
+          type={COVER_URL.type}
+          defaultValue={work?.coverUrl ?? undefined}
+          onSubmit={changeCoverUrl}
         />
       </FormsWrapper>
     </AccordionSection>

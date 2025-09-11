@@ -1,8 +1,9 @@
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 
 import { auth } from '@/auth';
 import { ImprintService } from '@/src/entities/imprint';
-import { WorkService } from '@/src/entities/work';
+import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import {
   convertEntityToSelectFieldOptions,
   convertFormFieldsToSelectFieldOptions,
@@ -10,14 +11,13 @@ import {
   isAdmin,
 } from '@/src/shared';
 import { ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
-import { query } from '@/src/shared/graphqlClient';
+import { getClient, PreloadQuery, query } from '@/src/shared/graphqlClient';
 import { EditWorkWidget } from '@/src/widgets';
 
 type WorksPageParams = Promise<{
   id: string[];
 }>;
 
-const worksService = new WorkService(query);
 const imprintsService = new ImprintService(query);
 
 export default async function WorkPage({ params }: { params: WorksPageParams }) {
@@ -31,9 +31,9 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
     redirect(ROUTES.LOGIN);
   }
 
-  const work = await worksService.getWork(id);
+  const { data } = await getClient().query({ query: GET_WORK, variables: { workId: id } });
 
-  if (!work) {
+  if (!data) {
     redirect(ROUTES.NOT_FOUND);
   }
 
@@ -47,12 +47,16 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
   const workTypeOptions = convertFormFieldsToSelectFieldOptions(WorkTypes.options);
 
   return (
-    <EditWorkWidget
-      queryToken={session.user.queryToken}
-      work={work}
-      workStatusOptions={workStatusOptions}
-      imprintOptions={imprintOptions}
-      workTypeOptions={workTypeOptions}
-    />
+    <PreloadQuery query={GET_WORK} variables={{ workId: id }}>
+      <Suspense fallback={<p>loading...</p>}>
+        <EditWorkWidget
+          workId={id}
+          queryToken={session.user.queryToken}
+          workStatusOptions={workStatusOptions}
+          imprintOptions={imprintOptions}
+          workTypeOptions={workTypeOptions}
+        />
+      </Suspense>
+    </PreloadQuery>
   );
 }

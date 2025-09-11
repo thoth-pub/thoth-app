@@ -1,19 +1,19 @@
 'use client';
 
-import { useMutation } from '@apollo/client/react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 
-import type { WorkType as GQLWorkType } from '@/gql/graphql';
-import { FormFieldOption, httpLink, setAuthorizationHeader } from '@/src/shared';
+import type { CreateWorkMutation } from '@/gql/graphql';
+import { FormFieldOption } from '@/src/shared';
 import { FORM_FIELDS, NOTIFICATIONS, ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
-import { useNotifications } from '@/src/shared/hooks';
+import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 import { convertFormFieldsToSelectFieldOptions } from '@/src/shared/utils';
+import { isBookChapter } from '@/src/shared/utils';
 
-import { CREATE_WORK } from '../../../model/work.mutations';
-import type { CreateWorkForm as CreateWorkFormType } from '../../../model/work.types';
-import { createWorkValidationSchema } from '../../../model/work.validation';
+import { CREATE_WORK } from '../../model/work.mutations';
+import type { CreateWorkForm as CreateWorkFormType, WorkType } from '../../model/work.types';
+import { createWorkValidationSchema } from '../../model/work.validation';
 
 type UseCreateWorkFormProps = {
   imprintOptions: FormFieldOption[];
@@ -44,17 +44,19 @@ const useCreateWorkForm = ({ queryToken, imprintOptions }: UseCreateWorkFormProp
     reValidateMode: 'onSubmit',
   });
 
-  const [mutate, { client, loading }] = useMutation(CREATE_WORK, {
-    onCompleted: (data) => {
-      sendSuccessNotification(WORK_CREATION_SUCCESS);
-      router.push(ROUTES.WORK_PAGE(data.createWork.workId));
-    },
-    onError: () => {
-      sendErrorNotification(WORK_CREATION_FAILED);
+  const [mutate, { loading }] = useMutationWithAuth<CreateWorkMutation>({
+    queryToken,
+    mutation: CREATE_WORK,
+    options: {
+      onCompleted: (data) => {
+        sendSuccessNotification(WORK_CREATION_SUCCESS);
+        router.push(ROUTES.WORK_PAGE(data.createWork.workId));
+      },
+      onError: () => {
+        sendErrorNotification(WORK_CREATION_FAILED);
+      },
     },
   });
-
-  client.setLink(setAuthorizationHeader(queryToken).concat(httpLink));
 
   const isSubmitDisabled = loading || !isValid;
   const isImprintVisible = imprintOptions.length !== 1;
@@ -68,9 +70,10 @@ const useCreateWorkForm = ({ queryToken, imprintOptions }: UseCreateWorkFormProp
           title,
           fullTitle: title,
           workStatus: WorkStatuses.enum.Forthcoming,
-          workType: workType as GQLWorkType,
+          workType: workType as WorkType,
           imprintId,
           license,
+          edition: isBookChapter(workType as WorkType) ? null : 1,
         },
       },
     });
