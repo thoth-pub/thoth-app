@@ -6,6 +6,7 @@ export const GET_BOOKS = graphql(`
       doi
       workId
       title
+      fullTitle
       workType
       updatedAt
       contributions {
@@ -29,6 +30,7 @@ export const GET_CHAPTERS = graphql(`
       doi
       workId
       title
+      fullTitle
       workType
       updatedAt
       contributions {
