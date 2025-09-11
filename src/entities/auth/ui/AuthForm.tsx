@@ -4,7 +4,7 @@ import { useTransition } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { signInAction } from '@/app/actions/signIn';
-import { FORM_FIELDS } from '@/src/shared/constants';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 
 const { EMAIL, PASSWORD } = FORM_FIELDS;
 

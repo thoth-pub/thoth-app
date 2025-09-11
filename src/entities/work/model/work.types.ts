@@ -13,6 +13,7 @@ import {
   licenseValidationSchema,
   publicationDateValidationSchema,
   titleValidationSchema,
+  workStatusValidationSchema,
   workTypeValidationSchema,
 } from '../model/work.validation';
 
@@ -40,9 +41,12 @@ export type WorkEntity = {
   copyrightHolder?: string | null;
   landingPage?: string | null;
   coverUrl?: string | null;
+  publicationDate: string | null;
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;
+
+export type WorkStatusForm = z.infer<typeof workStatusValidationSchema>;
 
 export type TitleForm = z.infer<typeof titleValidationSchema>;
 

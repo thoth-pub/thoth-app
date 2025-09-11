@@ -1,6 +1,6 @@
 import type { Control, FieldValues, Path, PathValue } from 'react-hook-form';
 
-import { FORM_FIELDS, InputTypes } from '@/src/shared/constants';
+import { FORM_FIELDS, InputTypes } from '@/src/shared/constants/formFields';
 
 export type FormFieldName = (typeof FORM_FIELDS)[keyof typeof FORM_FIELDS]['name'];
 

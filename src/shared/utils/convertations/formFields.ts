@@ -34,3 +34,9 @@ export const convertEntityToSelectFieldOptions = <T extends { id: string }>(
 export const convertDateToFormattedDate = (date: string) => {
   return dayjs(date).format(config.dateFormat);
 };
+
+export const getDateInFuture = (days: number = 1) => {
+  const date = dayjs().add(days, 'day');
+
+  return convertDateToFormattedDate(date.toString());
+};

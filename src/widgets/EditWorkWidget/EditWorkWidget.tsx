@@ -8,10 +8,11 @@ type EditWorkWidgetProps = {
   workStatusOptions: FormFieldOption[];
   imprintOptions: FormFieldOption[];
   workTypeOptions: FormFieldOption[];
+  licenseOptions: FormFieldOption[];
 };
 
 const EditWorkWidget = (props: EditWorkWidgetProps) => {
-  const { workStatusOptions, imprintOptions, workTypeOptions, queryToken, workId } = props;
+  const { workStatusOptions, imprintOptions, workTypeOptions, licenseOptions, queryToken, workId } = props;
 
   return (
     <div className="flex flex-col gap-8">
@@ -21,6 +22,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
         queryToken={queryToken}
         imprintOptions={imprintOptions}
         workTypeOptions={workTypeOptions}
+        licenseOptions={licenseOptions}
       />
       <WorkDescriptionDetails />
     </div>

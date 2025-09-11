@@ -5,7 +5,7 @@ import { Controller, type FieldValues, type Path } from 'react-hook-form';
 import { config } from '@/src/shared/config';
 import { BaseFieldProps } from '@/src/shared/interfaces';
 
-type DateFieldProps<T extends FieldValues> = BaseFieldProps<T> & DatePickerProps;
+export type DateFieldProps<T extends FieldValues> = BaseFieldProps<T> & DatePickerProps;
 
 const { dateFormat } = config;
 

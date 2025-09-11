@@ -8,6 +8,7 @@ export const WORK_FRAGMENT = graphql(`
     fullTitle
     workType
     updatedAt
+    publicationDate
     contributions {
       fullName
     }

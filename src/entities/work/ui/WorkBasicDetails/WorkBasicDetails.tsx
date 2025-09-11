@@ -1,6 +1,7 @@
 'use client';
 
-import { FORM_FIELDS, IDs } from '@/src/shared/constants';
+import { IDs } from '@/src/shared/constants';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
 import { AccordionSection, FormsWrapper, MarkdownFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
 import { isBookChapter } from '@/src/shared/utils';
@@ -39,9 +40,11 @@ type WorkBasicDetailsProps = {
   queryToken: QueryToken;
   imprintOptions: FormFieldOption[];
   workTypeOptions: FormFieldOption[];
+  licenseOptions: FormFieldOption[];
 };
 
-const WorkBasicDetails = ({ workId, imprintOptions, workTypeOptions, queryToken }: WorkBasicDetailsProps) => {
+const WorkBasicDetails = (props: WorkBasicDetailsProps) => {
+  const { workId, imprintOptions, workTypeOptions, licenseOptions, queryToken } = props;
   const {
     work,
     changeWorkType,
@@ -108,6 +111,8 @@ const WorkBasicDetails = ({ workId, imprintOptions, workTypeOptions, queryToken 
           label={LICENSE.label}
           name={LICENSE.name}
           id={LICENSE_ID}
+          select
+          options={licenseOptions}
           type={LICENSE.type}
           defaultValue={work?.license ?? undefined}
           onSubmit={changeLicense}

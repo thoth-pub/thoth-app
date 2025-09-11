@@ -1,7 +1,8 @@
 'use client';
 
-import type { WorkStatus } from '@/src/entities/work/model/work.types';
-import { FORM_FIELDS, IDs } from '@/src/shared/constants';
+import type { WorkStatus, WorkStatusForm } from '@/src/entities/work/model/work.types';
+import { IDs } from '@/src/shared/constants';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { type FormFieldOption } from '@/src/shared/interfaces';
 import { DateFormWithPreview, FormsWrapper, TextFormWithPreview } from '@/src/shared/ui';
 
@@ -10,15 +11,16 @@ import { publicationDateValidationSchema, workStatusValidationSchema } from '../
 export type WorkHeaderFormProps = {
   status: WorkStatus;
   workStatusOptions: FormFieldOption[];
+  isPublicationDateDisabled?: boolean;
+  minDate?: string;
+  onStatusUpdate?: (data: WorkStatusForm) => void;
 };
 
 const { WORK_STATUS, PUBLICATION_DATE } = FORM_FIELDS;
 const { WORK_STATUS: WORK_STATUS_ID, PUBLICATION_DATE: PUBLICATION_DATE_ID } = IDs.FORM_FIELDS;
 
-const WorkHeaderForm = ({ workStatusOptions, status }: WorkHeaderFormProps) => {
-  const onSubmit = (data: unknown) => {
-    console.log(data);
-  };
+const WorkHeaderForm = (props: WorkHeaderFormProps) => {
+  const { workStatusOptions, status, isPublicationDateDisabled, minDate, onStatusUpdate } = props;
 
   return (
     <FormsWrapper>
@@ -30,16 +32,18 @@ const WorkHeaderForm = ({ workStatusOptions, status }: WorkHeaderFormProps) => {
         select
         options={workStatusOptions}
         defaultValue={status}
-        onSubmit={onSubmit}
+        onSubmit={onStatusUpdate}
       />
 
-      <DateFormWithPreview
-        validationSchema={publicationDateValidationSchema}
-        label={PUBLICATION_DATE.label}
-        name={PUBLICATION_DATE.name}
-        id={PUBLICATION_DATE_ID}
-        onSubmit={onSubmit}
-      />
+      {!isPublicationDateDisabled && (
+        <DateFormWithPreview
+          validationSchema={publicationDateValidationSchema}
+          label={PUBLICATION_DATE.label}
+          name={PUBLICATION_DATE.name}
+          id={PUBLICATION_DATE_ID}
+          minDate={minDate}
+        />
+      )}
     </FormsWrapper>
   );
 };

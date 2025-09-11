@@ -15,7 +15,10 @@ type WorkHeaderProps = {
 } & Omit<WorkHeaderFormProps, 'status'>;
 
 const WorkHeader = ({ workId, queryToken, workStatusOptions }: WorkHeaderProps) => {
-  const { title, status, deleteWork } = useWorkHeader({ workId, queryToken });
+  const { title, status, isPublicationDateDisabled, minDate, deleteWork, changeWorkStatus } = useWorkHeader({
+    workId,
+    queryToken,
+  });
 
   return (
     <div className="flex flex-col gap-4 overflow-hidden rounded-2xl bg-[var(--color-background-alt)] px-8 py-4 shadow-xl">
@@ -31,7 +34,13 @@ const WorkHeader = ({ workId, queryToken, workStatusOptions }: WorkHeaderProps) 
         </div>
       </div>
 
-      <WorkHeaderForm workStatusOptions={workStatusOptions} status={status} />
+      <WorkHeaderForm
+        workStatusOptions={workStatusOptions}
+        status={status}
+        isPublicationDateDisabled={isPublicationDateDisabled}
+        onStatusUpdate={changeWorkStatus}
+        minDate={minDate}
+      />
     </div>
   );
 };

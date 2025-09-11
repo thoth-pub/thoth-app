@@ -6,9 +6,9 @@ import { useForm } from 'react-hook-form';
 
 import type { CreateWorkMutation } from '@/gql/graphql';
 import { FormFieldOption } from '@/src/shared';
-import { FORM_FIELDS, NOTIFICATIONS, ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
+import { NOTIFICATIONS, ROUTES, WorkStatuses } from '@/src/shared/constants';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
-import { convertFormFieldsToSelectFieldOptions } from '@/src/shared/utils';
 import { isBookChapter } from '@/src/shared/utils';
 
 import { CREATE_WORK } from '../../model/work.mutations';
@@ -17,17 +17,17 @@ import { createWorkValidationSchema } from '../../model/work.validation';
 
 type UseCreateWorkFormProps = {
   imprintOptions: FormFieldOption[];
+  workTypeOptions: FormFieldOption[];
   queryToken: string;
 };
 
 const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
 
-const useCreateWorkForm = ({ queryToken, imprintOptions }: UseCreateWorkFormProps) => {
+const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions }: UseCreateWorkFormProps) => {
   const router = useRouter();
   const { sendSuccessNotification, sendErrorNotification } = useNotifications();
 
-  const workTypesOptions = convertFormFieldsToSelectFieldOptions(WorkTypes.options);
   const {
     control,
     handleSubmit,
@@ -37,7 +37,7 @@ const useCreateWorkForm = ({ queryToken, imprintOptions }: UseCreateWorkFormProp
     mode: 'onChange',
     defaultValues: {
       [TITLE.name]: TITLE.defaultValue,
-      [WORK_TYPE.name]: workTypesOptions.length > 0 ? workTypesOptions[0].value : WORK_TYPE.defaultValue,
+      [WORK_TYPE.name]: workTypeOptions.length > 0 ? workTypeOptions[0].value : WORK_TYPE.defaultValue,
       [IMPRINT.name]: imprintOptions.length > 0 ? imprintOptions[0].value : IMPRINT.defaultValue,
       [LICENSE.name]: LICENSE.defaultValue,
     },
@@ -79,7 +79,7 @@ const useCreateWorkForm = ({ queryToken, imprintOptions }: UseCreateWorkFormProp
     });
   });
 
-  return { control, workTypesOptions, isImprintVisible, isSubmitDisabled, isLoading: loading, submit };
+  return { control, isImprintVisible, isSubmitDisabled, isLoading: loading, submit };
 };
 
 export default useCreateWorkForm;

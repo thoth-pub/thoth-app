@@ -34,6 +34,7 @@ const useWork = (id: WorkId, queryToken: QueryToken) => {
     work,
     deleteWork,
     updateWork,
+    toDto: mapper.toDto,
   };
 };
 

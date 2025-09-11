@@ -1,6 +1,7 @@
 'use client';
 
-import { FORM_FIELDS, IDs } from '@/src/shared/constants';
+import { IDs } from '@/src/shared/constants';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
 import { Button, CircullarProgress, PageHeader } from '@/src/shared/ui';
 
@@ -12,12 +13,15 @@ const { CREATE_WORK } = IDs.FORM_FIELDS;
 
 type CreateWorkFormProps = {
   imprintOptions: FormFieldOption[];
+  workTypeOptions: FormFieldOption[];
+  licenseOptions: FormFieldOption[];
   queryToken: QueryToken;
 };
 
-const CreateWorkForm = ({ imprintOptions, queryToken }: CreateWorkFormProps) => {
-  const { control, workTypesOptions, isImprintVisible, isSubmitDisabled, isLoading, submit } = useCreateWorkForm({
+const CreateWorkForm = ({ imprintOptions, licenseOptions, workTypeOptions, queryToken }: CreateWorkFormProps) => {
+  const { control, isImprintVisible, isSubmitDisabled, isLoading, submit } = useCreateWorkForm({
     imprintOptions,
+    workTypeOptions,
     queryToken,
   });
 
@@ -63,13 +67,15 @@ const CreateWorkForm = ({ imprintOptions, queryToken }: CreateWorkFormProps) => 
           placeholder={WORK_TYPE.placeholder}
           control={control}
           select
-          options={workTypesOptions}
+          options={workTypeOptions}
         />
         <CreateWorkFormField
           label={LICENSE.label}
           name={LICENSE.name}
           placeholder={LICENSE.placeholder}
           control={control}
+          select
+          options={licenseOptions}
           type={LICENSE.type}
         />
       </form>

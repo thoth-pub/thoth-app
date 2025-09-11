@@ -30,7 +30,16 @@ const TextFieldComponent = <T extends FieldValues>({
           {...field}
           error={!!error}
           helperText={error ? error.message : null}
-          slotProps={{ htmlInput: { min } }}
+          slotProps={{
+            htmlInput: { min },
+            select: {
+              MenuProps: {
+                sx: {
+                  maxHeight: '300px',
+                },
+              },
+            },
+          }}
           {...restProps}
         >
           {options &&

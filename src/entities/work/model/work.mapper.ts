@@ -1,4 +1,4 @@
-import { isBookChapter } from '@/src/shared';
+import { convertDateToFormattedDate, isBookChapter, isPublicationDateAvailable } from '@/src/shared';
 import type { BaseMapper } from '@/src/shared/interfaces';
 
 import type { WorkDto, WorkEntity } from './work.types';
@@ -23,6 +23,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       copyrightHolder,
       landingPage,
       coverUrl,
+      publicationDate,
     } = dto;
 
     return {
@@ -41,13 +42,29 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       landingPage,
       coverUrl,
       fullTitle,
+      publicationDate: publicationDate ?? null,
     };
   }
-
+  // TODO add logic for publication date for Active, Superseded, Withdrawn statuses
   toDto(entity: WorkEntity): Partial<WorkDto> {
-    const { id, title, type, imprintId, status, edition, license, copyrightHolder, landingPage, coverUrl, fullTitle } =
-      entity;
+    const {
+      id,
+      title,
+      type,
+      imprintId,
+      status,
+      edition,
+      license,
+      copyrightHolder,
+      landingPage,
+      coverUrl,
+      fullTitle,
+      publicationDate,
+    } = entity;
     const defaultEdition = edition ?? 1;
+
+    const appliedPublicationDate =
+      isPublicationDateAvailable(status) && publicationDate ? convertDateToFormattedDate(publicationDate) : null;
 
     return {
       workId: id,
@@ -61,6 +78,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       copyrightHolder: copyrightHolder ?? null,
       landingPage: landingPage ?? null,
       coverUrl: coverUrl ?? null,
+      publicationDate: appliedPublicationDate,
     };
   }
 }

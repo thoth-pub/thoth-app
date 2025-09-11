@@ -3,7 +3,6 @@
 import { type QueryToken } from '@/src/shared';
 
 import useWork from '../../api/hooks/useWork';
-import { WorkDtoMapper } from '../../model/work.mapper';
 import type {
   CopyrightHolderForm,
   CoverUrlForm,
@@ -21,13 +20,11 @@ type UseWorkBasicDetailsProps = {
   queryToken: QueryToken;
 };
 
-const mapper = new WorkDtoMapper();
-
 export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsProps) => {
-  const { work, updateWork } = useWork(workId, queryToken);
+  const { work, updateWork, toDto } = useWork(workId, queryToken);
 
   const changeWorkType = ({ workType }: WorkTypeForm) => {
-    const data = mapper.toDto({ ...work, type: workType as WorkType });
+    const data = toDto({ ...work, type: workType as WorkType });
 
     updateWork({
       variables: {
@@ -37,7 +34,7 @@ export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsP
   };
 
   const changeEdition = ({ edition }: EditionForm) => {
-    const data = mapper.toDto({ ...work, edition });
+    const data = toDto({ ...work, edition });
 
     updateWork({
       variables: {
@@ -47,7 +44,7 @@ export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsP
   };
 
   const changeImprint = ({ imprintId }: ImprintForm) => {
-    const data = mapper.toDto({ ...work, imprintId });
+    const data = toDto({ ...work, imprintId });
 
     updateWork({
       variables: {
@@ -57,7 +54,7 @@ export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsP
   };
 
   const changeLicense = ({ license }: LicenseForm) => {
-    const data = mapper.toDto({ ...work, license });
+    const data = toDto({ ...work, license });
 
     updateWork({
       variables: {
@@ -67,7 +64,7 @@ export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsP
   };
 
   const changeCopyrightHolder = ({ copyrightHolder }: CopyrightHolderForm) => {
-    const data = mapper.toDto({ ...work, copyrightHolder });
+    const data = toDto({ ...work, copyrightHolder });
 
     updateWork({
       variables: {
@@ -77,7 +74,7 @@ export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsP
   };
 
   const changeLandingPage = ({ landingPage }: LandingPageForm) => {
-    const data = mapper.toDto({ ...work, landingPage });
+    const data = toDto({ ...work, landingPage });
 
     updateWork({
       variables: {
@@ -87,7 +84,7 @@ export const useWorkBasicDetails = ({ workId, queryToken }: UseWorkBasicDetailsP
   };
 
   const changeCoverUrl = ({ coverUrl }: CoverUrlForm) => {
-    const data = mapper.toDto({ ...work, coverUrl });
+    const data = toDto({ ...work, coverUrl });
 
     updateWork({
       variables: {
