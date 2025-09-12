@@ -7,6 +7,7 @@ import { Control, type FieldValues } from 'react-hook-form';
 import type { FormFieldLabel } from '@/src/shared/interfaces';
 import { InputLabel } from '@/src/shared/ui';
 
+import FormFieldWrapper from '../FormFieldWrapper/FormFieldWrapper';
 import EditButton from './components/EditButton';
 import EditTab from './components/EditTab';
 import PreviewTab from './components/PreviewTab';
@@ -44,7 +45,7 @@ const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) 
   });
 
   return (
-    <div className="grid min-h-[2.75rem] w-full grid-cols-[11.25rem_1fr] items-start">
+    <FormFieldWrapper>
       <InputLabel
         htmlFor={id}
         sx={{ color: isValid ? 'var(--color-form-field-label-alt)' : 'var(--color-form-field-label)' }}
@@ -73,7 +74,7 @@ const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) 
           </EditTab>
         )}
       </AnimatePresence>
-    </div>
+    </FormFieldWrapper>
   );
 };
 

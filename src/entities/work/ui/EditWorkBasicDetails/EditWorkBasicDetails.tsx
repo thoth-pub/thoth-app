@@ -3,13 +3,7 @@
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
-import {
-  AccordionSection,
-  AutocompleteFormWithPreview,
-  FormsWrapper,
-  MarkdownFormWithPreview,
-  TextFormWithPreview,
-} from '@/src/shared/ui';
+import { AccordionSection, AutocompleteFormWithPreview, FormsWrapper, TextFormWithPreview } from '@/src/shared/ui';
 import { isBookChapter } from '@/src/shared/utils';
 
 import type { WorkId, WorkType } from '../../model/work.types';
@@ -20,9 +14,9 @@ import {
   imprintValidationSchema,
   landingPageValidationSchema,
   licenseValidationSchema,
-  titleValidationSchema,
   workTypeValidationSchema,
 } from '../../model/work.validation';
+import EditWorkTitlesForm from '../EditWorkTitlesForm/EditWorkTitlesForm';
 import { useEditWorkBasicDetails } from './useEditWorkBasicDetails';
 
 const {
@@ -71,13 +65,14 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
   return (
     <AccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
       <FormsWrapper>
-        <MarkdownFormWithPreview
+        {/* <MarkdownFormWithPreview
           validationSchema={titleValidationSchema}
           label={WORK_TITLE.label}
           name={WORK_TITLE.name}
           id={WORK_TITLE_ID}
           defaultValue={work?.title}
-        />
+        /> */}
+        <EditWorkTitlesForm />
 
         {!isChapter && (
           <TextFormWithPreview

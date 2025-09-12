@@ -1,4 +1,4 @@
-import { ERRORS, WorkStatuses, WorkTypes } from '@/src/shared/constants';
+import { ERRORS, LanguageType, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 
 import { convertFormFieldsToSelectFieldOptions } from '../utils';
 
@@ -41,6 +41,13 @@ export const FORM_FIELDS = {
     name: 'title',
     placeholder: 'Title',
     errorMessage: TITLE_REQUIRED,
+    type: InputTypes.TEXT,
+    defaultValue: '',
+  },
+  SUBTITLE: {
+    label: 'Subtitle',
+    name: 'subtitle',
+    placeholder: 'Subtitle',
     type: InputTypes.TEXT,
     defaultValue: '',
   },
@@ -134,6 +141,8 @@ export const FORM_FIELDS = {
 export const workTypeOptions = convertFormFieldsToSelectFieldOptions(WorkTypes.options);
 
 export const workStatusOptions = convertFormFieldsToSelectFieldOptions(WorkStatuses.options);
+
+export const languageOptions = convertFormFieldsToSelectFieldOptions(LanguageType.options);
 
 export const licenseOptions = [
   { label: 'CC BY', value: 'https://creativecommons.org/licenses/by/4.0/' },

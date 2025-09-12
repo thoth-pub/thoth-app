@@ -86,6 +86,7 @@
   --color-background-alt: var(--white-opacity-50);
   --color-typography: var(--black);
   --color-typography-secondary: var(--white);
+  --color-typography-alt: var(--purple);
   --color-border: var(--green);
   --color-border-alt: var(--purple);
   --color-purple: var(--purple);

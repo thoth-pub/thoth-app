@@ -1,9 +1,8 @@
 'use client';
 
-import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 
-import { Button, Typography } from '@/src/shared/ui';
+import AddButton from '../../../core/AddButton/AddButton';
 
 type EditButtonProps = {
   isEmpty: boolean;
@@ -12,26 +11,16 @@ type EditButtonProps = {
   onEdit: () => void;
 };
 
-const iconClassNames = 'opacity-0 transition duration-300 ease-in-out ml-1';
-
 const EditButton = ({ isEmpty, isValueHighlighted, placeholder, onEdit }: EditButtonProps) => {
-  const startIcon = isEmpty ? (
-    <AddIcon fontSize="small" className={iconClassNames} />
-  ) : (
-    <EditIcon fontSize="small" className={iconClassNames} />
-  );
+  if (isEmpty) {
+    return (
+      <AddButton onAdd={onEdit} isTextHighlighted={isValueHighlighted}>
+        {placeholder.toLowerCase()}
+      </AddButton>
+    );
+  }
 
-  return (
-    <Button onClick={onEdit} size="small" startIcon={startIcon} sx={{ minHeight: '1.5rem', minWidth: '1.5rem' }}>
-      {isEmpty ? (
-        <Typography variant="button" color={isValueHighlighted ? 'success' : 'primary'} className="capitalize">
-          {placeholder.toLowerCase()}
-        </Typography>
-      ) : (
-        ''
-      )}
-    </Button>
-  );
+  return <AddButton onAdd={onEdit} StartIcon={EditIcon} />;
 };
 
 export default EditButton;

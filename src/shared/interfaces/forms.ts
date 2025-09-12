@@ -14,7 +14,7 @@ export type FormFieldOption = {
 };
 
 export type BaseFieldProps<T extends FieldValues> = {
-  name: FormFieldName;
+  name: FormFieldName | string;
   control: Control<T>;
   defaultValue?: PathValue<T, Path<T>>;
 };

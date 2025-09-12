@@ -3,10 +3,9 @@
 import MDEditor from '@uiw/react-md-editor';
 import { FieldValues } from 'react-hook-form';
 
-import Switch from '../../core/Switch/Switch';
-import Typography from '../../core/Typography/Typography';
 import FormWithPreview, { type FormWithPreviewProps } from '../FormWithPreview/FormWithPreview';
 import MarkdownField from '../MarkdownField/MarkdownField';
+import MarkdownSwitch from '../MarkdownSwitch/MarkdownSwitch';
 
 type MarkdownFormWithPreviewProps<T extends FieldValues> = { defaultValue?: string } & Omit<
   FormWithPreviewProps<T>,
@@ -38,15 +37,7 @@ const MarkdownFormWithPreview = <T extends FieldValues>(props: MarkdownFormWithP
     >
       {({ control }) => (
         <MarkdownField name={name} control={control} disableLineBreaks id={id}>
-          <div className="flex items-start gap-1 pt-2">
-            <Typography variant="body2" color="primary">
-              JATS
-            </Typography>
-            <Switch defaultChecked size="small" className="-mt-0.5" />
-            <Typography variant="body2" color="primary">
-              Markdown
-            </Typography>
-          </div>
+          <MarkdownSwitch />
         </MarkdownField>
       )}
     </FormWithPreview>
