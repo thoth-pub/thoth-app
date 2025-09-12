@@ -18,13 +18,14 @@ import { createWorkValidationSchema } from '../../model/work.validation';
 type UseCreateWorkFormProps = {
   imprintOptions: FormFieldOption[];
   workTypeOptions: FormFieldOption[];
+  licenseOptions: FormFieldOption[];
   queryToken: string;
 };
 
 const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
 
-const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions }: UseCreateWorkFormProps) => {
+const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licenseOptions }: UseCreateWorkFormProps) => {
   const router = useRouter();
   const { sendSuccessNotification, sendErrorNotification } = useNotifications();
 
@@ -39,7 +40,7 @@ const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions }: UseC
       [TITLE.name]: TITLE.defaultValue,
       [WORK_TYPE.name]: workTypeOptions.length > 0 ? workTypeOptions[0].value : WORK_TYPE.defaultValue,
       [IMPRINT.name]: imprintOptions.length > 0 ? imprintOptions[0].value : IMPRINT.defaultValue,
-      [LICENSE.name]: LICENSE.defaultValue,
+      [LICENSE.name]: licenseOptions.length > 0 ? licenseOptions[0] : undefined,
     },
     reValidateMode: 'onSubmit',
   });
@@ -72,7 +73,7 @@ const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions }: UseC
           workStatus: WorkStatuses.enum.Forthcoming,
           workType: workType as WorkType,
           imprintId,
-          license,
+          license: license.value,
           edition: isBookChapter(workType as WorkType) ? null : 1,
         },
       },

@@ -23,6 +23,7 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions, workTypeOptions, query
   const { control, isImprintVisible, isSubmitDisabled, isLoading, submit } = useCreateWorkForm({
     imprintOptions,
     workTypeOptions,
+    licenseOptions,
     queryToken,
   });
 
@@ -73,7 +74,6 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions, workTypeOptions, query
         <CreateWorkFormAutocompleteField
           label={LICENSE.label}
           name={LICENSE.name}
-          placeholder={LICENSE.placeholder}
           control={control}
           options={licenseOptions}
         />

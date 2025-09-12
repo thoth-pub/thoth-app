@@ -11,13 +11,11 @@ import Autocomplete from '../../core/Autocomplete/Autocomplete';
 
 export type AutocompleteFieldProps<T extends FieldValues> = {
   options: FormFieldOption[];
-  placeholder: string;
 } & Omit<AutocompleteProps<FormFieldOption, true, false, false>, 'options' | 'renderInput'> &
   BaseFieldProps<T>;
 
 const AutocompleteField = <T extends FieldValues>(props: AutocompleteFieldProps<T>) => {
-  const { defaultValue, control, name, placeholder, options, fullWidth = true, ...restProps } = props;
-
+  const { defaultValue, control, name, options, fullWidth = true, ...restProps } = props;
   return (
     <Controller
       name={name as Path<T>}
@@ -33,9 +31,8 @@ const AutocompleteField = <T extends FieldValues>(props: AutocompleteFieldProps<
             options={options}
             id={name}
             popupIcon={<ArrowDropDownIcon />}
-            renderInput={(params) => (
-              <TextField {...params} placeholder={value && value.length > 0 ? undefined : placeholder} />
-            )}
+            isOptionEqualToValue={(option: FormFieldOption, value: FormFieldOption) => option.value === value.value}
+            renderInput={(params) => <TextField {...params} />}
           />
         );
       }}

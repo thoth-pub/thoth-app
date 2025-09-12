@@ -89,7 +89,9 @@ export const createWorkValidationSchema = z.object({
   [TITLE.name]: titleValidation,
   [IMPRINT.name]: imprintValidation,
   [WORK_TYPE.name]: workTypeValidation,
-  [LICENSE.name]: licenseValidation,
+  [LICENSE.name]: z.object({
+    value: licenseValidation,
+  }),
 });
 
 export const titleValidationSchema = z.object({
