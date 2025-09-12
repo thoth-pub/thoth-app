@@ -46,21 +46,20 @@ export const useFormWithPreview = <T extends FieldValues>(props: UseFormWithPrev
   const isValueFilledAndValid = !!formFieldValue && isValid;
 
   const serializedValue = useMemo(() => {
-    const selectedOption = options.find((option) => option.value === formFieldValue);
+    const selectedOption = options.find(
+      (option) =>
+        option.value === formFieldValue ||
+        (typeof formFieldValue === 'object' &&
+          formFieldValue !== null &&
+          'value' in formFieldValue &&
+          option.value === (formFieldValue as FormFieldOption).value),
+    );
 
     if (selectedOption) return selectedOption.label;
 
     if (isDayJsInstance(formFieldValue)) return convertDateToFormattedDate(formFieldValue);
 
     if (typeof formFieldValue === 'string') return formFieldValue;
-    
-    if (
-      typeof formFieldValue === 'object' &&
-      formFieldValue !== null &&
-      'value' in formFieldValue &&
-      'label' in formFieldValue
-    )
-      return (formFieldValue as FormFieldOption).label;
 
     return JSON.stringify(formFieldValue);
   }, [formFieldValue, options]);
