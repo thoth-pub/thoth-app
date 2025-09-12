@@ -5,6 +5,7 @@ import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
 import { Button, CircullarProgress, PageHeader } from '@/src/shared/ui';
 
+import CreateWorkFormAutocompleteField from './components/CreateWorkFormAutocompleteField';
 import CreateWorkFormField from './components/CreateWorkFormField';
 import useCreateWorkForm from './useCreateWorkForm';
 
@@ -69,14 +70,12 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions, workTypeOptions, query
           select
           options={workTypeOptions}
         />
-        <CreateWorkFormField
+        <CreateWorkFormAutocompleteField
           label={LICENSE.label}
           name={LICENSE.name}
           placeholder={LICENSE.placeholder}
           control={control}
-          select
           options={licenseOptions}
-          type={LICENSE.type}
         />
       </form>
     </>

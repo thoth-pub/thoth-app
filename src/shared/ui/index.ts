@@ -10,6 +10,7 @@ export { default as MarkdownEditor, type MarkdownEditorProps } from './core/Mark
 export { default as PageHeader } from './core/PageHeader/PageHeader';
 export { default as Switch } from './core/Switch/Switch';
 export { default as Typography } from './core/Typography/Typography';
+export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
 export { default as DateField } from './forms/DateField/DateField';
 export {
   default as DateFormWithPreview,

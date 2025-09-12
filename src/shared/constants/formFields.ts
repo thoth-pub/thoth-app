@@ -47,7 +47,7 @@ export const FORM_FIELDS = {
   LICENSE: {
     label: 'License',
     name: 'license',
-    placeholder: 'URL',
+    placeholder: 'License',
     errorMessage: URL_REQUIRED,
     type: InputTypes.URL,
     defaultValue: '',

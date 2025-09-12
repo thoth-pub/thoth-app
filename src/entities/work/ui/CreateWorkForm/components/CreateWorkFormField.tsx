@@ -1,7 +1,7 @@
-import { InputLabel, TextField, type TextFieldComponentProps } from '@/src/shared/ui';
+import { TextField, type TextFieldComponentProps } from '@/src/shared/ui';
 
 import type { CreateWorkForm } from '../../../model/work.types';
-import FormFieldWrapper from './FormFieldWrapper';
+import CreateWorkFormFieldWrapper from './CreateWorkFormFieldWrapper';
 
 type CreateWorkFormFieldProps = {
   label: string;
@@ -9,12 +9,9 @@ type CreateWorkFormFieldProps = {
 
 const CreateWorkFormField = ({ label, name, ...restProps }: CreateWorkFormFieldProps) => {
   return (
-    <FormFieldWrapper>
-      <InputLabel className="min-w-[10rem]" htmlFor={name}>
-        {label}
-      </InputLabel>
+    <CreateWorkFormFieldWrapper label={label} name={name}>
       <TextField fullWidth id={name} name={name} {...restProps} />
-    </FormFieldWrapper>
+    </CreateWorkFormFieldWrapper>
   );
 };
 
