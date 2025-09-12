@@ -5,13 +5,12 @@ import CreateWorkFormFieldWrapper from './CreateWorkFormFieldWrapper';
 
 type CreateWorkFormFieldProps = {
   label: string;
-  placeholder: string;
 } & Omit<AutocompleteFieldProps<CreateWorkForm>, 'label'>;
 
-const CreateWorkFormField = ({ label, name, options, placeholder, ...restProps }: CreateWorkFormFieldProps) => {
+const CreateWorkFormField = ({ label, name, options, ...restProps }: CreateWorkFormFieldProps) => {
   return (
     <CreateWorkFormFieldWrapper label={label} name={name}>
-      <AutocompleteField name={name} options={options} id={name} placeholder={placeholder} {...restProps} />
+      <AutocompleteField name={name} options={options} id={name} {...restProps} />
     </CreateWorkFormFieldWrapper>
   );
 };

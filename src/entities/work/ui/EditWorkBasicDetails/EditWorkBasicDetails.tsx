@@ -3,7 +3,13 @@
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
-import { AccordionSection, FormsWrapper, MarkdownFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
+import {
+  AccordionSection,
+  AutocompleteFormWithPreview,
+  FormsWrapper,
+  MarkdownFormWithPreview,
+  TextFormWithPreview,
+} from '@/src/shared/ui';
 import { isBookChapter } from '@/src/shared/utils';
 
 import type { WorkId, WorkType } from '../../model/work.types';
@@ -47,6 +53,7 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
   const { workId, imprintOptions, workTypeOptions, licenseOptions, queryToken } = props;
   const {
     work,
+    defaultLicense,
     changeWorkType,
     changeEdition,
     changeImprint,
@@ -57,6 +64,7 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
   } = useEditWorkBasicDetails({
     workId,
     queryToken,
+    licenseOptions,
   });
   const isChapter = isBookChapter(work?.type as WorkType);
 
@@ -106,15 +114,13 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
           onSubmit={changeWorkType}
         />
 
-        <TextFormWithPreview
+        <AutocompleteFormWithPreview
           validationSchema={licenseValidationSchema}
           label={LICENSE.label}
           name={LICENSE.name}
           id={LICENSE_ID}
-          select
           options={licenseOptions}
-          type={LICENSE.type}
-          defaultValue={work?.license ?? undefined}
+          defaultValue={defaultLicense}
           onSubmit={changeLicense}
         />
 

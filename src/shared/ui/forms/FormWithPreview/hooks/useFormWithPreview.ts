@@ -1,6 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import type { Dayjs } from 'dayjs';
 import { useMemo, useState } from 'react';
 import { type FieldValues, type Path, useForm } from 'react-hook-form';
 import { type ZodType } from 'zod';
@@ -41,7 +42,7 @@ export const useFormWithPreview = <T extends FieldValues>(props: UseFormWithPrev
     switchEditState();
   });
 
-  const formFieldValue = getValues(name as Path<T>) ?? '';
+  const formFieldValue: FormFieldOption | string | Dayjs = getValues(name as Path<T>) ?? '';
   const isValueFilledAndValid = !!formFieldValue && isValid;
 
   const serializedValue = useMemo(() => {
@@ -52,6 +53,14 @@ export const useFormWithPreview = <T extends FieldValues>(props: UseFormWithPrev
     if (isDayJsInstance(formFieldValue)) return convertDateToFormattedDate(formFieldValue);
 
     if (typeof formFieldValue === 'string') return formFieldValue;
+    
+    if (
+      typeof formFieldValue === 'object' &&
+      formFieldValue !== null &&
+      'value' in formFieldValue &&
+      'label' in formFieldValue
+    )
+      return (formFieldValue as FormFieldOption).label;
 
     return JSON.stringify(formFieldValue);
   }, [formFieldValue, options]);

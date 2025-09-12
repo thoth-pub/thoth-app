@@ -1,6 +1,6 @@
 'use client';
 
-import { type QueryToken } from '@/src/shared';
+import { FormFieldOption, type QueryToken } from '@/src/shared';
 
 import useWork from '../../api/hooks/useWork';
 import type {
@@ -16,12 +16,14 @@ import type {
 } from '../../model/work.types';
 
 type UseEditWorkBasicDetailsProps = {
+  licenseOptions: FormFieldOption[];
   workId: WorkId;
   queryToken: QueryToken;
 };
 
-export const useEditWorkBasicDetails = ({ workId, queryToken }: UseEditWorkBasicDetailsProps) => {
+export const useEditWorkBasicDetails = ({ workId, queryToken, licenseOptions }: UseEditWorkBasicDetailsProps) => {
   const { work, updateWork, toDto } = useWork(workId, queryToken);
+  const defaultLicense = licenseOptions.find((option) => option.value === work.license) ?? licenseOptions[0];
 
   const changeWorkType = ({ workType }: WorkTypeForm) => {
     const data = toDto({ ...work, type: workType as WorkType });
@@ -54,7 +56,7 @@ export const useEditWorkBasicDetails = ({ workId, queryToken }: UseEditWorkBasic
   };
 
   const changeLicense = ({ license }: LicenseForm) => {
-    const data = toDto({ ...work, license });
+    const data = toDto({ ...work, license: license.value });
 
     updateWork({
       variables: {
@@ -94,6 +96,8 @@ export const useEditWorkBasicDetails = ({ workId, queryToken }: UseEditWorkBasic
   };
 
   return {
+    defaultLicense,
+    work,
     changeWorkType,
     changeEdition,
     changeImprint,
@@ -101,6 +105,5 @@ export const useEditWorkBasicDetails = ({ workId, queryToken }: UseEditWorkBasic
     changeCopyrightHolder,
     changeLandingPage,
     changeCoverUrl,
-    work,
   };
 };

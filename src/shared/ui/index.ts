@@ -11,6 +11,7 @@ export { default as PageHeader } from './core/PageHeader/PageHeader';
 export { default as Switch } from './core/Switch/Switch';
 export { default as Typography } from './core/Typography/Typography';
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
+export { default as AutocompleteFormWithPreview } from './forms/AutocompleteFormWithPreview/AutocompleteFormWithPreview';
 export { default as DateField } from './forms/DateField/DateField';
 export {
   default as DateFormWithPreview,

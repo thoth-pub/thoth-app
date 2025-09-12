@@ -53,7 +53,9 @@ const audioCountValidation = optionalPositiveIntValidation;
 
 const videoCountValidation = optionalPositiveIntValidation;
 
-const licenseValidation = getRequiredUrlValidation();
+const licenseValidation = z.object({
+  value: getRequiredUrlValidation(),
+});
 
 const copyrightHolderValidation = optionalStringValidation;
 
@@ -89,9 +91,7 @@ export const createWorkValidationSchema = z.object({
   [TITLE.name]: titleValidation,
   [IMPRINT.name]: imprintValidation,
   [WORK_TYPE.name]: workTypeValidation,
-  [LICENSE.name]: z.object({
-    value: licenseValidation,
-  }),
+  [LICENSE.name]: licenseValidation,
 });
 
 export const titleValidationSchema = z.object({
