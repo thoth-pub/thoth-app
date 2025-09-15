@@ -140,6 +140,8 @@
 
   --color-chip-background: var(--white);
   --color-chip-text: var(--purple);
+
+  --color-autocomplete-group-background: var(--purple-light);
 }
 
 @theme inline {

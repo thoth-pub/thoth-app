@@ -3,7 +3,7 @@
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
-import { Button, CircullarProgress, PageHeader } from '@/src/shared/ui';
+import { AutocompleteGroup, Button, CircullarProgress, PageHeader } from '@/src/shared/ui';
 
 import CreateWorkFormAutocompleteField from './components/CreateWorkFormAutocompleteField';
 import CreateWorkFormField from './components/CreateWorkFormField';
@@ -76,6 +76,12 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions, workTypeOptions, query
           name={LICENSE.name}
           control={control}
           options={licenseOptions}
+          groupBy={(option) => option.group ?? ''}
+          renderGroup={({ group, children, key }) => (
+            <AutocompleteGroup key={key} group={group}>
+              {children}
+            </AutocompleteGroup>
+          )}
         />
       </form>
     </>

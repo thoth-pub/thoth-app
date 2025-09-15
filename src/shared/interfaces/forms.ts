@@ -11,6 +11,7 @@ export type FormFieldLabel = (typeof FORM_FIELDS)[keyof typeof FORM_FIELDS]['lab
 export type FormFieldOption = {
   value: string;
   label: string;
+  group?: string;
 };
 
 export type BaseFieldProps<T extends FieldValues> = {

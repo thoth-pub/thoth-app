@@ -1,10 +1,12 @@
 export { default as Accordion } from './core/Accordion/Accordion';
 export { default as AccordionDetails } from './core/Accordion/components/AccordionDetails';
 export { default as AccordionSummary } from './core/Accordion/components/AccordionSummary';
+export { default as AutocompleteGroup } from './core/AutocompleteGroup/AutocompleteGroup';
 export { default as Button } from './core/Button/Button';
 export { default as ButtonGroup } from './core/ButtonGroup/ButtonGroup';
 export { default as Chip } from './core/Chip/Chip';
 export { default as CircullarProgress } from './core/CircullarProgress/CircullarProgress';
+export { default as DataGrid } from './core/DataGrid/DataGrid';
 export { default as IconButton } from './core/IconButton/IconButton';
 export { default as Link } from './core/Link/Link';
 export { default as MarkdownEditor, type MarkdownEditorProps } from './core/MarkdownEditor/MarkdownEditor';

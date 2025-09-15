@@ -654,7 +654,7 @@ export const licenseOptions = [
   { label: 'CC BY-NC 3.0 ZA', value: 'https://creativecommons.org/licenses/by-nc/3.0/za/' },
   { label: 'CC BY-NC-SA 3.0 ZA', value: 'https://creativecommons.org/licenses/by-nc-sa/3.0/za/' },
   { label: 'CC BY-NC-ND 3.0 ZA', value: 'https://creativecommons.org/licenses/by-nc-nd/3.0/za/' },
-];
+].map((option, index) => ({ ...option, group: index < 6 ? 'Modern Licenses' : 'Legacy Licenses' }));
 
 export const languageOptionsAlt = [
   { label: 'Afrikaans', value: LanguageTypeAlt.enum.af },

@@ -3,7 +3,13 @@
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
-import { AccordionSection, AutocompleteFormWithPreview, FormsWrapper, TextFormWithPreview } from '@/src/shared/ui';
+import {
+  AccordionSection,
+  AutocompleteFormWithPreview,
+  AutocompleteGroup,
+  FormsWrapper,
+  TextFormWithPreview,
+} from '@/src/shared/ui';
 import { isBookChapter } from '@/src/shared/utils';
 
 import type { WorkId, WorkType } from '../../model/work.types';
@@ -116,6 +122,12 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
           options={licenseOptions}
           defaultValue={defaultLicense}
           onSubmit={changeLicense}
+          groupBy={(option) => option.group ?? ''}
+          renderGroup={({ group, children, key }) => (
+            <AutocompleteGroup key={key} group={group}>
+              {children}
+            </AutocompleteGroup>
+          )}
         />
 
         <TextFormWithPreview
