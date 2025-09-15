@@ -2,7 +2,7 @@
 
 import EditIcon from '@mui/icons-material/Edit';
 
-import AddButton from '../../../core/AddButton/AddButton';
+import AddButton from '../../core/AddButton/AddButton';
 
 type EditButtonProps = {
   isEmpty: boolean;

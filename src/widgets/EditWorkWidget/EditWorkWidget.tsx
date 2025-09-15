@@ -1,4 +1,9 @@
-import { EditWorkBasicDetails, EditWorkDescriptionDetails, EditWorkHeader } from '@/src/entities/work';
+import {
+  EditWorkBasicDetails,
+  EditWorkContributors,
+  EditWorkDescriptionDetails,
+  EditWorkHeader,
+} from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import type { FormFieldOption, QueryToken } from '@/src/shared';
 
@@ -25,6 +30,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
         licenseOptions={licenseOptions}
       />
       <EditWorkDescriptionDetails />
+      <EditWorkContributors />
     </div>
   );
 };

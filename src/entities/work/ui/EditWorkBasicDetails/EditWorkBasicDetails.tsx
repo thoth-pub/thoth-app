@@ -16,13 +16,12 @@ import {
   licenseValidationSchema,
   workTypeValidationSchema,
 } from '../../model/work.validation';
-import EditWorkTitlesForm from '../EditWorkTitlesForm/EditWorkTitlesForm';
+import EditWorkTitlesFormWithPreview from '../EditWorkTitlesForm/EditWorkTitlesFormWithPreview';
 import { useEditWorkBasicDetails } from './useEditWorkBasicDetails';
 
 const {
   FORM_SECTIONS: { BASIC_DETAILS },
   FORM_FIELDS: {
-    WORK_TITLE: WORK_TITLE_ID,
     EDITION: EDITION_ID,
     IMPRINT: IMPRINT_ID,
     WORK_TYPE: WORK_TYPE_ID,
@@ -33,7 +32,7 @@ const {
   },
 } = IDs;
 
-const { WORK_TITLE, EDITION, IMPRINT, WORK_TYPE, LICENSE, COPYRIGHT_HOLDER, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
+const { EDITION, IMPRINT, WORK_TYPE, LICENSE, COPYRIGHT_HOLDER, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
 type EditWorkBasicDetailsProps = {
   workId: WorkId;
@@ -72,7 +71,7 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
           id={WORK_TITLE_ID}
           defaultValue={work?.title}
         /> */}
-        <EditWorkTitlesForm />
+        <EditWorkTitlesFormWithPreview />
 
         {!isChapter && (
           <TextFormWithPreview

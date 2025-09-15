@@ -14,6 +14,7 @@ import {
   publicationDateValidationSchema,
   titleValidationSchema,
   workStatusValidationSchema,
+  workTitlesValidationSchema,
   workTypeValidationSchema,
 } from '../model/work.validation';
 
@@ -51,6 +52,8 @@ export type WorkStatusForm = z.infer<typeof workStatusValidationSchema>;
 export type TitleForm = z.infer<typeof titleValidationSchema>;
 
 export type PublicationDateForm = z.infer<typeof publicationDateValidationSchema>;
+
+export type WorkTitlesForm = z.infer<typeof workTitlesValidationSchema>;
 
 export type WorkTypeForm = z.infer<typeof workTypeValidationSchema>;
 

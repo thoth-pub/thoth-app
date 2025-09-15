@@ -4,17 +4,17 @@ import { AnimatePresence } from 'motion/react';
 import { type ReactNode } from 'react';
 import { Control, type FieldValues } from 'react-hook-form';
 
-import type { FormFieldLabel } from '@/src/shared/interfaces';
-import { InputLabel } from '@/src/shared/ui';
+import type { FormFieldLabel as FormFieldLabelType } from '@/src/shared/interfaces';
 
+import EditButton from '../EditButton/EditButton';
+import FormFieldLabel from '../FormFieldLabel/FormFieldLabel';
 import FormFieldWrapper from '../FormFieldWrapper/FormFieldWrapper';
-import EditButton from './components/EditButton';
 import EditTab from './components/EditTab';
 import PreviewTab from './components/PreviewTab';
 import { useFormWithPreview, type UseFormWithPreviewProps } from './hooks/useFormWithPreview';
 
 export type FormWithPreviewProps<T extends FieldValues> = {
-  label: FormFieldLabel;
+  label: FormFieldLabelType;
   isDisabled?: boolean;
   id?: string;
   children: (props: { control: Control<FieldValues>; formId?: string }) => ReactNode;
@@ -46,12 +46,7 @@ const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) 
 
   return (
     <FormFieldWrapper>
-      <InputLabel
-        htmlFor={id}
-        sx={{ color: isValid ? 'var(--color-form-field-label-alt)' : 'var(--color-form-field-label)' }}
-      >
-        {label}
-      </InputLabel>
+      <FormFieldLabel label={label} id={id} isHighlighted={isValid} />
       <AnimatePresence initial={false} mode="wait">
         {!isInEditState && (
           <PreviewTab

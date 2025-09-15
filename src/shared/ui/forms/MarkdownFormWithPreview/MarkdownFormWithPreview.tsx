@@ -1,8 +1,8 @@
 'use client';
 
-import MDEditor from '@uiw/react-md-editor';
 import { FieldValues } from 'react-hook-form';
 
+import { MarkdownPreview } from '../..';
 import FormWithPreview, { type FormWithPreviewProps } from '../FormWithPreview/FormWithPreview';
 import MarkdownField from '../MarkdownField/MarkdownField';
 import MarkdownSwitch from '../MarkdownSwitch/MarkdownSwitch';
@@ -23,17 +23,7 @@ const MarkdownFormWithPreview = <T extends FieldValues>(props: MarkdownFormWithP
       id={id}
       defaultValues={{ [name]: defaultValue }}
       onSubmit={onSubmit}
-      preview={(value, isValueHighlighted) => (
-        <MDEditor.Markdown
-          source={value}
-          style={{
-            whiteSpace: 'pre-wrap',
-            width: '100%',
-            backgroundColor: 'transparent',
-            color: isValueHighlighted ? 'var(--color-markdown-preview-text-alt)' : 'var(--color-markdown-preview-text)',
-          }}
-        />
-      )}
+      preview={(value, isValueHighlighted) => <MarkdownPreview source={value} isHighlighted={isValueHighlighted} />}
     >
       {({ control }) => (
         <MarkdownField name={name} control={control} disableLineBreaks id={id}>

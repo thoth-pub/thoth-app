@@ -5,6 +5,7 @@ import {
   dateValidation,
   getRequiredStringValidation,
   getRequiredUrlValidation,
+  languageValidation,
   optionalDateValidation,
   optionalPositiveIntValidation,
   optionalStringValidation,
@@ -25,6 +26,9 @@ const {
   COPYRIGHT_HOLDER,
   LANDING_PAGE,
   COVER_URL,
+  SUBTITLE,
+  LANGUAGE,
+  TITLES,
 } = FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
@@ -87,6 +91,10 @@ const pageIntervalValidation = optionalStringValidation;
 
 const updatedAtWithRelationsValidation = timestampValidation;
 
+const titleLanguageValidation = z.object({
+  value: languageValidation,
+});
+
 export const createWorkValidationSchema = z.object({
   [TITLE.name]: titleValidation,
   [IMPRINT.name]: imprintValidation,
@@ -96,6 +104,12 @@ export const createWorkValidationSchema = z.object({
 
 export const titleValidationSchema = z.object({
   [WORK_TITLE.name]: titleValidation,
+  [SUBTITLE.name]: subtitleValidation,
+  [LANGUAGE.name]: titleLanguageValidation,
+});
+
+export const workTitlesValidationSchema = z.object({
+  [TITLES.name]: z.array(titleValidationSchema),
 });
 
 export const publicationDateValidationSchema = z.object({

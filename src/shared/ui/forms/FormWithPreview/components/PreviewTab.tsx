@@ -5,7 +5,7 @@ import type { ReactNode } from 'react';
 import { Typography } from '@/src/shared/ui';
 import { isUrl } from '@/src/shared/utils';
 
-import { AnimationWrapper } from './AnimationWrapper';
+import FormFieldAnimationWrapper from '../../FormAnimationWrapper/FormAnimationWrapper';
 
 type PreviewTabProps = {
   value: string;
@@ -19,7 +19,11 @@ const PreviewTab = ({ value, preview, children, isValueHighlighted, onEdit }: Pr
   const isUrlValue = isUrl(value);
 
   return (
-    <AnimationWrapper className="flex hover:[&>button>span>svg]:opacity-100" key="view-mode" onDoubleClick={onEdit}>
+    <FormFieldAnimationWrapper
+      className="flex hover:[&>button>span>svg]:opacity-100"
+      key="view-mode"
+      onDoubleClick={onEdit}
+    >
       {children}
       {preview ? (
         preview
@@ -32,7 +36,7 @@ const PreviewTab = ({ value, preview, children, isValueHighlighted, onEdit }: Pr
           {value.toLowerCase()}
         </Typography>
       )}
-    </AnimationWrapper>
+    </FormFieldAnimationWrapper>
   );
 };
 

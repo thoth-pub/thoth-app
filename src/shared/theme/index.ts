@@ -199,5 +199,16 @@ export const theme = createTheme({
         },
       },
     },
+    MuiChip: {
+      styleOverrides: {
+        root: {
+          backgroundColor: 'var(--color-chip-background)',
+          color: 'var(--color-chip-text)',
+          fontWeight: 600,
+          fontSize: '0.875rem',
+          lineHeight: '1.125rem',
+        },
+      },
+    },
   },
 });

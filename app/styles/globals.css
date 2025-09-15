@@ -137,6 +137,9 @@
   --color-notification-background-success: var(--color-success);
   --color-notification-background-error: var(--color-error);
   --color-notification-border: var(--yellow);
+
+  --color-chip-background: var(--white);
+  --color-chip-text: var(--purple);
 }
 
 @theme inline {

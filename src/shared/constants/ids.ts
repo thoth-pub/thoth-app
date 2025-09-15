@@ -15,5 +15,6 @@ export const IDs = {
   FORM_SECTIONS: {
     BASIC_DETAILS: 'basic-details',
     DESCRIPTIONS_DETAILS: 'descriptions-details',
+    CONTRIBUTORS: 'contributors',
   },
 } as const;

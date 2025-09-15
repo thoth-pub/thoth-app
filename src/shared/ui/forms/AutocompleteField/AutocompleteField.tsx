@@ -5,17 +5,18 @@ import type { AutocompleteProps } from '@mui/material/Autocomplete';
 import TextField from '@mui/material/TextField';
 import { Controller, type FieldValues, Path } from 'react-hook-form';
 
-import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
+import type { FormFieldOption } from '@/src/shared/interfaces';
 
 import Autocomplete from '../../core/Autocomplete/Autocomplete';
+import { TextFieldComponentProps } from '../TextField/TextField';
 
 export type AutocompleteFieldProps<T extends FieldValues> = {
   options: FormFieldOption[];
 } & Omit<AutocompleteProps<FormFieldOption, true, false, false>, 'options' | 'renderInput'> &
-  BaseFieldProps<T>;
+  TextFieldComponentProps<T>;
 
 const AutocompleteField = <T extends FieldValues>(props: AutocompleteFieldProps<T>) => {
-  const { defaultValue, control, name, options, fullWidth = true, ...restProps } = props;
+  const { defaultValue, control, name, options, fullWidth = true, variant, ...restProps } = props;
   return (
     <Controller
       name={name as Path<T>}
@@ -32,7 +33,7 @@ const AutocompleteField = <T extends FieldValues>(props: AutocompleteFieldProps<
             id={name}
             popupIcon={<ArrowDropDownIcon />}
             isOptionEqualToValue={(option: FormFieldOption, value: FormFieldOption) => option.value === value.value}
-            renderInput={(params) => <TextField {...params} />}
+            renderInput={(params) => <TextField {...params} variant={variant} />}
           />
         );
       }}

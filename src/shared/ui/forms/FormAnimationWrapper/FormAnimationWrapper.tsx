@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'motion/react';
 import { type ReactNode } from 'react';
 
@@ -8,7 +10,7 @@ type AnimationWrapperProps = {
   onDoubleClick?: () => void;
 };
 
-export const AnimationWrapper = (props: AnimationWrapperProps) => {
+const FormAnimationWrapper = (props: AnimationWrapperProps) => {
   const { children, className, key, onDoubleClick } = props;
 
   return (
@@ -25,3 +27,5 @@ export const AnimationWrapper = (props: AnimationWrapperProps) => {
     </motion.div>
   );
 };
+
+export default FormAnimationWrapper;

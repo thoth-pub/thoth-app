@@ -1,6 +1,6 @@
 'use client';
 
-import DeleteIcon from '@mui/icons-material/Delete';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
 import type { QueryToken } from '@/src/shared';
 import { Button, IconButton, Typography } from '@/src/shared/ui';
@@ -28,7 +28,7 @@ const EditWorkHeader = ({ workId, queryToken, workStatusOptions }: EditWorkHeade
         </Typography>
         <div className="flex h-max flex-shrink-0 gap-4">
           <IconButton aria-label="delete" size="small" onClick={() => deleteWork()}>
-            <DeleteIcon fontSize="small" />
+            <DeleteOutlineIcon fontSize="small" />
           </IconButton>
           <Button variant="contained">Done</Button>
         </div>
