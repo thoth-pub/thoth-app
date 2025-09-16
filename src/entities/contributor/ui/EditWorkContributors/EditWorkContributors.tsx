@@ -52,7 +52,6 @@ const EditWorkContributors = () => {
         selectedContributor={selectedContributor}
         onEdit={setSelectedContributor}
         onCloseEdit={() => setSelectedContributor('')}
-        mainContributor={data[0].name}
       />
     </AccordionSection>
   );

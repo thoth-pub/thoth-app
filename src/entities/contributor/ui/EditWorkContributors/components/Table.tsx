@@ -19,22 +19,13 @@ type TableProps = {
     orchidId?: string;
   }[];
   selectedContributor: string;
-  mainContributor: string;
   onEdit?: (contributor: string) => void;
   onCloseEdit?: () => void;
   onDelete?: (contributor: string) => void;
   onSelectAsMain?: (contributor: string) => void;
 };
 
-export const Table = ({
-  data,
-  selectedContributor,
-  mainContributor,
-  onEdit,
-  onCloseEdit,
-  onDelete,
-  onSelectAsMain,
-}: TableProps) => {
+export const Table = ({ data, selectedContributor, onEdit, onCloseEdit, onDelete, onSelectAsMain }: TableProps) => {
   const [items, setItems] = useState(data);
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -61,7 +52,7 @@ export const Table = ({
               <Row
                 key={item.name}
                 isEditing={selectedContributor === item.name}
-                mainContributor={mainContributor}
+                mainContributor={items[0].name}
                 item={item}
                 onCloseEdit={() => onCloseEdit?.()}
                 onEdit={(name) => onEdit?.(name)}
