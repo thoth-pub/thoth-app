@@ -1,6 +1,6 @@
 import { ERRORS, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 
-import { convertFormFieldsToSelectFieldOptions } from '../utils';
+import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
 import { LanguageTypeAlt } from './languages';
 
 const {
@@ -127,6 +127,24 @@ export const FORM_FIELDS = {
   TITLES: {
     label: 'Titles',
     name: 'titles',
+  },
+  CONTRIBUTOR_FULLNAME: {
+    label: 'Full Name',
+    name: 'contributorFullName',
+    placeholder: 'Full Name',
+    type: InputTypes.TEXT,
+  },
+  CONTRIBUTOR_TYPE: {
+    label: 'Contributor Type',
+    name: 'contributorType',
+    placeholder: 'Contributor Type',
+    type: InputTypes.TEXT,
+  },
+  CONTRIBUTOR_BIOGRAPHY: {
+    label: 'Biography',
+    name: 'contributorBiography',
+    placeholder: 'Biography',
+    type: InputTypes.TEXT,
   },
   // FIRST_NAME: 'firstName',
   // LAST_NAME: 'lastName',
@@ -654,7 +672,7 @@ export const licenseOptions = [
   { label: 'CC BY-NC 3.0 ZA', value: 'https://creativecommons.org/licenses/by-nc/3.0/za/' },
   { label: 'CC BY-NC-SA 3.0 ZA', value: 'https://creativecommons.org/licenses/by-nc-sa/3.0/za/' },
   { label: 'CC BY-NC-ND 3.0 ZA', value: 'https://creativecommons.org/licenses/by-nc-nd/3.0/za/' },
-].map((option, index) => ({ ...option, group: index < 6 ? 'Modern Licenses' : 'Legacy Licenses' }));
+].map((option, index) => ({ ...option, group: index < 8 ? '' : 'Legacy Licenses' }));
 
 export const languageOptionsAlt = [
   { label: 'Afrikaans', value: LanguageTypeAlt.enum.af },
@@ -1260,7 +1278,13 @@ export const languageOptionsAlt = [
   { label: 'Zarma (Niger)', value: LanguageTypeAlt.enum.dje_ne },
   { label: 'Zulu', value: LanguageTypeAlt.enum.zu },
   { label: 'Zulu (South Africa)', value: LanguageTypeAlt.enum.zu_za },
-];
+].map(({ label, value }) => {
+  const labelForValue = convertLanguageCode(value);
+  return {
+    value,
+    label: label.endsWith(')') ? label.replace(')', `, ${labelForValue})`) : `${label} (${labelForValue})`,
+  };
+});
 
 export const languageOptions = [
   { label: 'Afar', value: 'AAR' },

@@ -9,4 +9,5 @@ export const ERRORS = {
   WORK_TYPE_REQUIRED: 'Work Type is required',
   COPYRIGHT_HOLDER_REQUIRED: 'Copyright holder is required',
   WORK_STATUS_REQUIRED: 'Work Status is required',
+  CONTRIBUTOR_TYPE_REQUIRED: 'Contributor Type is required',
 } as const;

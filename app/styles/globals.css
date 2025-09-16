@@ -141,7 +141,15 @@
   --color-chip-background: var(--white);
   --color-chip-text: var(--purple);
 
-  --color-autocomplete-group-background: var(--purple-light);
+  --color-autocomplete-group-background: var(--purple-light-alt);
+
+  --color-table-text: var(--purple);
+  --color-table-border: var(--purple);
+  --color-table-row-hover-background: var(--white);
+  --color-table-edit-row-form-background: var(--white);
+
+  --color-tooltip-background: var(--white);
+  --color-tooltip-border: var(--gray);
 }
 
 @theme inline {

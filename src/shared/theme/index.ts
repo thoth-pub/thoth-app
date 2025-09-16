@@ -210,5 +210,43 @@ export const theme = createTheme({
         },
       },
     },
+    MuiTable: {
+      styleOverrides: {
+        root: {
+          borderColor: 'var(--color-table-border)',
+          '& .MuiTableCell-root': {
+            borderColor: 'var(--color-table-border)',
+            color: 'var(--color-table-text)',
+            fontSize: '1rem',
+            lineHeight: '1.5rem',
+          },
+          '& .MuiTableCell-root.MuiTableCell-body': {
+            borderColor: 'transparent',
+          },
+          '& .MuiTableBody-root': {
+            '& .MuiTableRow-root:hover': {
+              backgroundColor: 'var(--color-table-row-hover-background)',
+              cursor: 'pointer',
+            },
+          },
+        },
+      },
+    },
+    MuiTooltip: {
+      styleOverrides: {
+        tooltip: {
+          backgroundColor: 'var(--color-tooltip-background)',
+          border: '1px solid var(--color-tooltip-border)',
+          boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
+          padding: '0.25rem',
+          '& .MuiTooltip-arrow': {
+            '&:before': {
+              border: '1px solid var(--color-tooltip-border)',
+            },
+            color: 'var(--color-tooltip-background)',
+          },
+        },
+      },
+    },
   },
 });

@@ -1,3 +1,4 @@
+export * from './contributors';
 export * from './countries';
 export * from './errors';
 export * from './ids';

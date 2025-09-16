@@ -38,7 +38,6 @@ const useEditWorkTitlesFormWithPreview = () => {
   };
 
   const onSubmit = handleSubmit((data) => {
-    console.log(data);
     setFormFields(data.titles);
     switchPreviewMode();
   });

@@ -5,18 +5,16 @@ import { type ReactNode } from 'react';
 
 type AnimationWrapperProps = {
   children: Readonly<ReactNode>;
-  key?: string;
   className?: string;
   onDoubleClick?: () => void;
 };
 
 const FormAnimationWrapper = (props: AnimationWrapperProps) => {
-  const { children, className, key, onDoubleClick } = props;
+  const { children, className, onDoubleClick } = props;
 
   return (
     <motion.div
       className={className}
-      key={key}
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}

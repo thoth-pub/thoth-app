@@ -11,6 +11,7 @@ export const config = {
     maxItemsPerRequestLimit: 100,
     doiPrefix: 'https://doi.org/',
     rorPrefix: 'https://ror.org/',
+    orcidPrefix: 'https://orcid.org/',
   },
   fieldsDebounceDelay: 1000,
   validations: {

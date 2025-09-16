@@ -1,9 +1,5 @@
-import {
-  EditWorkBasicDetails,
-  EditWorkContributors,
-  EditWorkDescriptionDetails,
-  EditWorkHeader,
-} from '@/src/entities/work';
+import { EditWorkContributors } from '@/src/entities/contributor';
+import { EditWorkBasicDetails, EditWorkDescriptionDetails, EditWorkHeader } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import type { FormFieldOption, QueryToken } from '@/src/shared';
 
