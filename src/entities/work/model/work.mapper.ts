@@ -11,7 +11,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       fullTitle,
       workType,
       updatedAt,
-      contributions = [],
       doi,
       imprint: {
         publisher: { publisherName = '' },
@@ -24,6 +23,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       landingPage,
       coverUrl,
       publicationDate,
+      contributions = [],
     } = dto;
 
     return {
@@ -43,6 +43,34 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       coverUrl,
       fullTitle,
       publicationDate: publicationDate ?? null,
+      contributions: contributions
+        .map(
+          ({
+            fullName,
+            lastName,
+            contributorId,
+            contributionType,
+            mainContribution,
+            contributionOrdinal,
+            biography,
+            contributor: { orcid = '' },
+            affiliations = [],
+          }) => ({
+            fullName,
+            lastName,
+            id: contributorId,
+            type: contributionType,
+            isMain: mainContribution,
+            orderNumber: contributionOrdinal,
+            biography: biography ?? '',
+            orchidId: orcid,
+            affiliations: affiliations.map(({ institution: { institutionName, ror = '' } }) => ({
+              name: institutionName,
+              rorId: ror,
+            })),
+          }),
+        )
+        .sort((a, b) => a.orderNumber - b.orderNumber),
     };
   }
   // TODO add logic for publication date for Active, Superseded, Withdrawn statuses

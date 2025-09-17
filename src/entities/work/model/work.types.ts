@@ -1,8 +1,9 @@
 import z from 'zod';
 
-import type { WorkFragmentFragment } from '@/gql/graphql';
+import type { ContributionType, WorkFragmentFragment } from '@/gql/graphql';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
+import type { ContributorId } from '../../contributor/model/contributor.types';
 import {
   copyrightHolderValidationSchema,
   coverUrlValidationSchema,
@@ -26,6 +27,23 @@ export type WorkType = z.infer<typeof WorkTypes>;
 
 export type WorkStatus = z.infer<typeof WorkStatuses>;
 
+export type WorkAffiliation = {
+  name: string;
+  rorId: string;
+};
+
+export type WorkContribution = {
+  fullName: string;
+  lastName: string;
+  id: ContributorId;
+  type: ContributionType;
+  isMain: boolean;
+  orderNumber: number;
+  biography: string;
+  orchidId: string;
+  affiliations: WorkAffiliation[];
+};
+
 export type WorkEntity = {
   id: string;
   title: string;
@@ -43,6 +61,7 @@ export type WorkEntity = {
   landingPage?: string | null;
   coverUrl?: string | null;
   publicationDate: string | null;
+  contributions: WorkContribution[];
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;

@@ -20,7 +20,7 @@ type EditWorkContributorsProps = {
 export const EditWorkContributors = (props: EditWorkContributorsProps) => {
   const { workId, queryToken, contributorTypeOptions } = props;
 
-  const { createContribution } = useWork(workId, queryToken);
+  const { work, createContribution } = useWork(workId, queryToken);
 
   const addContributor = ({ id, fullName, lastName }: ContributorEntity, contributionType: ContributionType) => {
     createContribution({
@@ -29,7 +29,7 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
           workId,
           contributorId: id,
           contributionType,
-          contributionOrdinal: 1,
+          contributionOrdinal: work.contributions.length + 1,
           fullName,
           lastName,
           mainContribution: false,
@@ -38,9 +38,11 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
     });
   };
 
+  console.log('work', work);
+
   return (
     <AccordionSection title="Contributors" panelId={CONTRIBUTORS} defaultExpanded>
-      <ContributorsTable />
+      <ContributorsTable data={work.contributions} />
       <AddContributorsModal onAdd={addContributor} contributorTypeOptions={contributorTypeOptions} />
     </AccordionSection>
   );

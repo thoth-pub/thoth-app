@@ -24,5 +24,23 @@ export const WORK_FRAGMENT = graphql(`
     copyrightHolder
     landingPage
     coverUrl
+    contributions {
+      fullName
+      lastName
+      contributorId
+      contributionType
+      mainContribution
+      contributionOrdinal
+      biography
+      contributor {
+        orcid
+      }
+      affiliations {
+        institution {
+          ror
+          institutionName
+        }
+      }
+    }
   }
 `);

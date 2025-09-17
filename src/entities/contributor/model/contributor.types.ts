@@ -14,6 +14,6 @@ export type ContributorEntity = {
   fullName: string;
 };
 
-export type ContributorId = Pick<ContributorEntity, 'id'>;
+export type ContributorId = string;
 
 export type ContributionType = z.infer<typeof ContributorTypes>;
