@@ -14,6 +14,7 @@ export { default as InputAdornment } from './core/InputAdornment/InputAdornment'
 export { default as Link } from './core/Link/Link';
 export { default as MarkdownEditor, type MarkdownEditorProps } from './core/MarkdownEditor/MarkdownEditor';
 export { default as MarkdownPreview } from './core/MarkdownPreview/MarkdownPreview';
+export { default as MenuItem } from './core/MenuItem/MenuItem';
 export { default as Modal } from './core/Modal/Modal';
 export { default as Switch } from './core/Switch/Switch';
 export { default as TableBody } from './core/Table/components/TableBody';
@@ -52,4 +53,3 @@ export { default as AccordionSection } from './layout/AccordionSection/Accordion
 export { default as Footer } from './layout/Footer/Footer';
 export { default as Header } from './layout/Header/Header';
 export { default as PageHeader } from './layout/PageHeader/PageHeader';
-export { default as MenuItem } from './core/MenuItem/MenuItem';
