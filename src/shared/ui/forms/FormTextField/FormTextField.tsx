@@ -1,25 +1,26 @@
 'use client';
 
 import MenuItem from '@mui/material/MenuItem';
-import TextField, { type TextFieldProps } from '@mui/material/TextField';
 import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
 
-export type TextFieldComponentProps<T extends FieldValues> = {
+import TextField, { type TextFieldProps } from '../../core/TextField/TextField';
+
+export type FormTextFieldComponentProps<T extends FieldValues> = {
   min?: number;
   options?: FormFieldOption[];
 } & BaseFieldProps<T> &
   TextFieldProps;
 
-const TextFieldComponent = <T extends FieldValues>({
+const FormTextFieldComponentProps = <T extends FieldValues>({
   control,
   name,
   defaultValue,
   options,
   min,
   ...restProps
-}: TextFieldComponentProps<T>) => {
+}: FormTextFieldComponentProps<T>) => {
   return (
     <Controller
       name={name as Path<T>}
@@ -54,4 +55,4 @@ const TextFieldComponent = <T extends FieldValues>({
   );
 };
 
-export default TextFieldComponent;
+export default FormTextFieldComponentProps;

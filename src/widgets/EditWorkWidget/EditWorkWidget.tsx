@@ -1,7 +1,8 @@
-import { EditWorkContributors } from '@/src/entities/contributor';
 import { EditWorkBasicDetails, EditWorkDescriptionDetails, EditWorkHeader } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import type { FormFieldOption, QueryToken } from '@/src/shared';
+
+import { EditWorkContributors } from './components/EditWorkContributors';
 
 type EditWorkWidgetProps = {
   queryToken: QueryToken;
@@ -10,10 +11,19 @@ type EditWorkWidgetProps = {
   imprintOptions: FormFieldOption[];
   workTypeOptions: FormFieldOption[];
   licenseOptions: FormFieldOption[];
+  contributorTypeOptions: FormFieldOption[];
 };
 
 const EditWorkWidget = (props: EditWorkWidgetProps) => {
-  const { workStatusOptions, imprintOptions, workTypeOptions, licenseOptions, queryToken, workId } = props;
+  const {
+    workStatusOptions,
+    imprintOptions,
+    workTypeOptions,
+    licenseOptions,
+    queryToken,
+    workId,
+    contributorTypeOptions,
+  } = props;
 
   return (
     <div className="flex flex-col gap-8">
@@ -26,7 +36,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
         licenseOptions={licenseOptions}
       />
       <EditWorkDescriptionDetails />
-      <EditWorkContributors />
+      <EditWorkContributors workId={workId} queryToken={queryToken} contributorTypeOptions={contributorTypeOptions} />
     </div>
   );
 };

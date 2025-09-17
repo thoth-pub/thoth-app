@@ -1,3 +1,5 @@
+'use client';
+
 import type { DocumentNode } from '@apollo/client';
 import { useMutation } from '@apollo/client/react';
 

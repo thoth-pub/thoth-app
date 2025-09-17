@@ -1,4 +1,6 @@
 // API
+export { default as useCreateWork } from './api/hooks/useCreateWork';
+export { default as useWork } from './api/hooks/useWork';
 export { WorkService } from './api/work.service';
 
 // UI

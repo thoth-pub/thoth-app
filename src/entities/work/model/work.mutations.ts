@@ -7,3 +7,11 @@ export const CREATE_WORK = graphql(`
     }
   }
 `);
+
+export const CREATE_CONTRIBUTION = graphql(`
+  mutation CreateContribution($data: NewContribution!) {
+    createContribution(data: $data) {
+      workId
+    }
+  }
+`);

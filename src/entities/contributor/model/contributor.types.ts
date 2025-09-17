@@ -1,10 +1,19 @@
-import type { Contributor } from '@/gql/graphql';
+import z from 'zod';
 
-export type ContributorDto = Pick<Contributor, 'contributorId' | 'fullName' | 'orcid' | 'updatedAt'>;
+import type { Contributor } from '@/gql/graphql';
+import { ContributorTypes } from '@/src/shared/constants';
+
+export type ContributorDto = Pick<Contributor, 'contributorId' | 'fullName' | 'orcid' | 'updatedAt' | 'lastName'>;
 
 export type ContributorEntity = {
   id: string;
   name: string;
   orcid: string;
   updatedAt: string;
+  lastName: string;
+  fullName: string;
 };
+
+export type ContributorId = Pick<ContributorEntity, 'id'>;
+
+export type ContributionType = z.infer<typeof ContributorTypes>;

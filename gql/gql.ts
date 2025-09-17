@@ -14,7 +14,7 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
-    "\n  query GetContributors {\n    contributors {\n      orcid\n      fullName\n      updatedAt\n      contributorId\n    }\n  }\n": typeof types.GetContributorsDocument,
+    "\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n    }\n  }\n": typeof types.GetContributorsDocument,
     "\n  query GetImprintsCount($publishers: [Uuid!]!) {\n    imprintCount(publishers: $publishers)\n  }\n": typeof types.GetImprintsCountDocument,
     "\n  query GetImprints($offset: Int!, $limit: Int, $publishers: [Uuid!]!) {\n    imprints(offset: $offset, limit: $limit, publishers: $publishers) {\n      imprintId\n      imprintName\n      imprintUrl\n      updatedAt\n      publisher {\n        publisherName\n      }\n    }\n  }\n": typeof types.GetImprintsDocument,
     "\n  query GetInstitutions($offset: Int!, $limit: Int, $filter: String) {\n    institutions(offset: $offset, limit: $limit, filter: $filter) {\n      institutionId\n      institutionName\n      institutionDoi\n      ror\n      countryCode\n      updatedAt\n    }\n  }\n": typeof types.GetInstitutionsDocument,
@@ -23,6 +23,7 @@ type Documents = {
     "\n  query GetPublishers($publishers: [Uuid!]!, $offset: Int!, $limit: Int) {\n    publishers(publishers: $publishers, offset: $offset, limit: $limit) {\n      publisherId\n      publisherName\n      publisherShortname\n      publisherUrl\n      updatedAt\n    }\n  }\n": typeof types.GetPublishersDocument,
     "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n    }\n  }\n": typeof types.GetSeriesDocument,
     "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n": typeof types.CreateWorkDocument,
+    "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n    }\n  }\n": typeof types.CreateContributionDocument,
     "\n  query GetBooks($publishers: [Uuid!]!) {\n    books(publishers: $publishers) {\n      doi\n      workId\n      title\n      fullTitle\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n      imprintId\n      workStatus\n      edition\n    }\n  }\n": typeof types.GetBooksDocument,
     "\n  query GetChapters($publishers: [Uuid!]!) {\n    chapters(publishers: $publishers) {\n      doi\n      workId\n      title\n      fullTitle\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n      imprintId\n      workStatus\n      edition\n    }\n  }\n": typeof types.GetChaptersDocument,
     "\n  query GetWorks($publishers: [Uuid!]!) {\n    works(publishers: $publishers) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetWorksDocument,
@@ -32,7 +33,7 @@ type Documents = {
     "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    fullTitle\n    workType\n    updatedAt\n    publicationDate\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n    license\n    copyrightHolder\n    landingPage\n    coverUrl\n  }\n": typeof types.WorkFragmentFragmentDoc,
 };
 const documents: Documents = {
-    "\n  query GetContributors {\n    contributors {\n      orcid\n      fullName\n      updatedAt\n      contributorId\n    }\n  }\n": types.GetContributorsDocument,
+    "\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n    }\n  }\n": types.GetContributorsDocument,
     "\n  query GetImprintsCount($publishers: [Uuid!]!) {\n    imprintCount(publishers: $publishers)\n  }\n": types.GetImprintsCountDocument,
     "\n  query GetImprints($offset: Int!, $limit: Int, $publishers: [Uuid!]!) {\n    imprints(offset: $offset, limit: $limit, publishers: $publishers) {\n      imprintId\n      imprintName\n      imprintUrl\n      updatedAt\n      publisher {\n        publisherName\n      }\n    }\n  }\n": types.GetImprintsDocument,
     "\n  query GetInstitutions($offset: Int!, $limit: Int, $filter: String) {\n    institutions(offset: $offset, limit: $limit, filter: $filter) {\n      institutionId\n      institutionName\n      institutionDoi\n      ror\n      countryCode\n      updatedAt\n    }\n  }\n": types.GetInstitutionsDocument,
@@ -41,6 +42,7 @@ const documents: Documents = {
     "\n  query GetPublishers($publishers: [Uuid!]!, $offset: Int!, $limit: Int) {\n    publishers(publishers: $publishers, offset: $offset, limit: $limit) {\n      publisherId\n      publisherName\n      publisherShortname\n      publisherUrl\n      updatedAt\n    }\n  }\n": types.GetPublishersDocument,
     "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n    }\n  }\n": types.GetSeriesDocument,
     "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n": types.CreateWorkDocument,
+    "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n    }\n  }\n": types.CreateContributionDocument,
     "\n  query GetBooks($publishers: [Uuid!]!) {\n    books(publishers: $publishers) {\n      doi\n      workId\n      title\n      fullTitle\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n      imprintId\n      workStatus\n      edition\n    }\n  }\n": types.GetBooksDocument,
     "\n  query GetChapters($publishers: [Uuid!]!) {\n    chapters(publishers: $publishers) {\n      doi\n      workId\n      title\n      fullTitle\n      workType\n      updatedAt\n      contributions {\n        fullName\n      }\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n      imprintId\n      workStatus\n      edition\n    }\n  }\n": types.GetChaptersDocument,
     "\n  query GetWorks($publishers: [Uuid!]!) {\n    works(publishers: $publishers) {\n      ...WorkFragment\n    }\n  }\n": types.GetWorksDocument,
@@ -67,7 +69,7 @@ export function graphql(source: string): unknown;
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query GetContributors {\n    contributors {\n      orcid\n      fullName\n      updatedAt\n      contributorId\n    }\n  }\n"): (typeof documents)["\n  query GetContributors {\n    contributors {\n      orcid\n      fullName\n      updatedAt\n      contributorId\n    }\n  }\n"];
+export function graphql(source: "\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n    }\n  }\n"): (typeof documents)["\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -100,6 +102,10 @@ export function graphql(source: "\n  query GetSeries($publishers: [Uuid!]!) {\n 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n"): (typeof documents)["\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n    }\n  }\n"): (typeof documents)["\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

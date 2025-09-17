@@ -1,4 +1,4 @@
-import { ERRORS, WorkStatuses, WorkTypes } from '@/src/shared/constants';
+import { ContributorTypes, ERRORS, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
 import { LanguageTypeAlt } from './languages';
@@ -180,6 +180,7 @@ export const licenseOptions = [
   { label: 'CC BY-NC-ND', value: 'https://creativecommons.org/licenses/by-nc-nd/4.0/' },
   { label: 'CC0', value: 'https://creativecommons.org/publicdomain/zero/1.0/' },
   { label: 'Public Domain', value: 'https://creativecommons.org/publicdomain/mark/1.0/' },
+  { label: 'All Rights Reserved', value: '' },
   { label: 'CC BY 1.0', value: 'https://creativecommons.org/licenses/by/1.0/' },
   { label: 'CC BY-SA 1.0', value: 'https://creativecommons.org/licenses/by-sa/1.0/' },
   { label: 'CC BY-ND 1.0', value: 'https://creativecommons.org/licenses/by-nd/1.0/' },
@@ -672,7 +673,7 @@ export const licenseOptions = [
   { label: 'CC BY-NC 3.0 ZA', value: 'https://creativecommons.org/licenses/by-nc/3.0/za/' },
   { label: 'CC BY-NC-SA 3.0 ZA', value: 'https://creativecommons.org/licenses/by-nc-sa/3.0/za/' },
   { label: 'CC BY-NC-ND 3.0 ZA', value: 'https://creativecommons.org/licenses/by-nc-nd/3.0/za/' },
-].map((option, index) => ({ ...option, group: index < 8 ? '' : 'Legacy Licenses' }));
+].map((option, index) => ({ ...option, group: index < 9 ? '' : 'Legacy Licenses' }));
 
 export const languageOptionsAlt = [
   { label: 'Afrikaans', value: LanguageTypeAlt.enum.af },
@@ -1775,3 +1776,5 @@ export const languageOptions = [
   { label: 'No linguistic content', value: 'ZXX' },
   { label: 'Zaza', value: 'ZZA' },
 ];
+
+export const contributorTypeOptions = convertFormFieldsToSelectFieldOptions(ContributorTypes.options);

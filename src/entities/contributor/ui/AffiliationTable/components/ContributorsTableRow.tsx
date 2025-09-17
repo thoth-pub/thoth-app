@@ -8,11 +8,11 @@ import { AnimatePresence } from 'motion/react';
 import { convertOrchidIdToText, convertRorIdToText } from '@/src/shared';
 import { OrchidLogo, RorLogo, TableCell, TableRow } from '@/src/shared/ui';
 
-import { EditForm } from './EditForm';
+import { ContributorEditForm } from './ContributorEditForm';
 import { LinkTooltip } from './LinkTooltip';
 import { RowButtonGroup } from './RowButtonGroup';
 
-type RowProps = {
+type ContributorsTableRowProps = {
   isEditing: boolean;
   mainContributor: string;
   onCloseEdit: () => void;
@@ -30,7 +30,9 @@ type RowProps = {
   };
 };
 
-export const Row = ({ isEditing, mainContributor, item, onCloseEdit, onEdit, onDelete, onSelectAsMain }: RowProps) => {
+export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
+  const { isEditing, mainContributor, item, onCloseEdit, onEdit, onDelete, onSelectAsMain } = props;
+
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: item.id });
 
   const style = {
@@ -43,7 +45,7 @@ export const Row = ({ isEditing, mainContributor, item, onCloseEdit, onEdit, onD
       {isEditing ? (
         <TableRow onDoubleClick={onCloseEdit} className="w-full bg-[var(--color-table-edit-row-form-background)]">
           <TableCell colSpan={4} className="rounded-2xl">
-            <EditForm onClose={onCloseEdit} name={item.name} orchidId={item.orchidId} />
+            <ContributorEditForm onClose={onCloseEdit} name={item.name} orchidId={item.orchidId} />
           </TableCell>
         </TableRow>
       ) : (
@@ -57,7 +59,7 @@ export const Row = ({ isEditing, mainContributor, item, onCloseEdit, onEdit, onD
           <TableCell className="rounded-tl-2xl rounded-bl-2xl pl-1 font-bold">
             <div className="flex gap-1">
               <DragIndicatorIcon className="opacity-0" {...listeners} />
-              <div className="flex gap-1">
+              <div className="flex shrink-0 gap-1">
                 {item.name}
                 {item.orchidId && (
                   <LinkTooltip link={item.orchidId} linkText={convertOrchidIdToText(item.orchidId)}>
@@ -80,7 +82,11 @@ export const Row = ({ isEditing, mainContributor, item, onCloseEdit, onEdit, onD
           </TableCell>
           <TableCell className="flex justify-between rounded-tr-2xl rounded-br-2xl">
             {item.bio}
-            <RowButtonGroup isSelected={mainContributor === item.name} onEdit={() => onEdit?.(item.name)} />
+            <RowButtonGroup
+              isSelected={mainContributor === item.name}
+              onEdit={() => onEdit?.(item.name)}
+              onSelect={() => onSelectAsMain?.(item.name)}
+            />
           </TableCell>
         </TableRow>
       )}

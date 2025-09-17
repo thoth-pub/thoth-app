@@ -1,10 +1,10 @@
 import { TableCell, TableHead, TableRow, Typography } from '@/src/shared/ui';
 
-type TableHeaderProps = {
+type ContributorsTableHeaderProps = {
   cells: string[];
 };
 
-export const TableHeader = ({ cells }: TableHeaderProps) => {
+export const ContributorsTableHeader = ({ cells }: ContributorsTableHeaderProps) => {
   return (
     <TableHead>
       <TableRow>

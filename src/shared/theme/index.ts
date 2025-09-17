@@ -238,7 +238,7 @@ export const theme = createTheme({
           backgroundColor: 'var(--color-tooltip-background)',
           border: '1px solid var(--color-tooltip-border)',
           boxShadow: '0 0 10px 0 rgba(0, 0, 0, 0.1)',
-          padding: '0.25rem',
+          padding: '0.75rem',
           '& .MuiTooltip-arrow': {
             '&:before': {
               border: '1px solid var(--color-tooltip-border)',

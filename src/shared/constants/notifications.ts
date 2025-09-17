@@ -4,4 +4,5 @@ export const NOTIFICATIONS = {
   WORK_CREATION_FAILED: 'Failed to create work',
   WORK_UPDATE_FAILED: 'Failed to update work',
   WORK_DELETE_FAILED: 'Failed to delete work',
+  WORK_CONTRIBUTION_CREATION_FAILED: 'Failed to create work contribution',
 } as const;

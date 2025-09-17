@@ -38,6 +38,14 @@
   }
 }
 
+@font-face {
+  font-family: 'Academicons';
+  src: url('/academicons.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
 @layer base {
   body {
     margin: unset;
@@ -93,6 +101,9 @@
   --color-primary: var(--purple);
   --color-success: var(--green);
   --color-error: var(--red);
+  --color-hover: var(--purple-light);
+  --color-placeholder: var(--gray);
+  --color-icon: var(--purple);
 
   /* Tier 3 */
   --header-height: 5.625rem;
@@ -150,6 +161,10 @@
 
   --color-tooltip-background: var(--white);
   --color-tooltip-border: var(--gray);
+
+  --color-modal-background: var(--white);
+
+  --color-list-item-selected: var(--purple-light-alt);
 }
 
 @theme inline {

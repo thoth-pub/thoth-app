@@ -1,12 +1,14 @@
+'use client';
+
 import { motion } from 'motion/react';
 
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { AddButton, MarkdownFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
 
 import { contributorTypeValidationSchema } from '../../../model/contributor.validation';
-import { Header } from './Header';
+import { EditContributorFormHeader } from './EditContributorFormHeader';
 
-type EditFormProps = {
+type ContributorEditFormProps = {
   name: string;
   orchidId?: string;
   onClose?: () => void;
@@ -14,7 +16,7 @@ type EditFormProps = {
 
 const { CONTRIBUTOR_FULLNAME, CONTRIBUTOR_TYPE, CONTRIBUTOR_BIOGRAPHY } = FORM_FIELDS;
 
-export const EditForm = ({ name, orchidId, onClose }: EditFormProps) => {
+export const ContributorEditForm = ({ name, orchidId, onClose }: ContributorEditFormProps) => {
   return (
     <motion.div
       onSubmit={onClose}
@@ -24,7 +26,7 @@ export const EditForm = ({ name, orchidId, onClose }: EditFormProps) => {
       exit={{ opacity: 0, height: 0 }}
       transition={{ duration: 0.3, ease: 'easeIn' }}
     >
-      <Header title={name} orchidId={orchidId} onDone={onClose} />
+      <EditContributorFormHeader title={name} orchidId={orchidId} onDone={onClose} />
       <TextFormWithPreview
         name={CONTRIBUTOR_FULLNAME.name}
         label={CONTRIBUTOR_FULLNAME.label}

@@ -4,14 +4,13 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
 import { useForm } from 'react-hook-form';
 
-import type { CreateWorkMutation } from '@/gql/graphql';
 import { FormFieldOption } from '@/src/shared';
 import { NOTIFICATIONS, ROUTES, WorkStatuses } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 import { isBookChapter } from '@/src/shared/utils';
 
-import { CREATE_WORK } from '../../model/work.mutations';
+import useCreateWork from '../../api/hooks/useCreateWork';
 import type { CreateWorkForm as CreateWorkFormType, WorkType } from '../../model/work.types';
 import { createWorkValidationSchema } from '../../model/work.validation';
 
@@ -45,17 +44,14 @@ const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licens
     reValidateMode: 'onSubmit',
   });
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateWorkMutation>({
+  const { createWork, loading } = useCreateWork({
     queryToken,
-    mutation: CREATE_WORK,
-    options: {
-      onCompleted: (data) => {
-        sendSuccessNotification(WORK_CREATION_SUCCESS);
-        router.push(ROUTES.WORK_PAGE(data.createWork.workId));
-      },
-      onError: () => {
-        sendErrorNotification(WORK_CREATION_FAILED);
-      },
+    onCompleted: (data) => {
+      sendSuccessNotification(WORK_CREATION_SUCCESS);
+      router.push(ROUTES.WORK_PAGE(data.createWork.workId));
+    },
+    onError: () => {
+      sendErrorNotification(WORK_CREATION_FAILED);
     },
   });
 
@@ -65,7 +61,7 @@ const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licens
   const submit = handleSubmit((data) => {
     const { title, workType, imprintId, license } = data;
 
-    mutate({
+    createWork({
       variables: {
         data: {
           title,

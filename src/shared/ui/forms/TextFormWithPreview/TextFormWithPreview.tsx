@@ -2,14 +2,14 @@
 
 import { FieldValues } from 'react-hook-form';
 
+import FormTextField, { type FormTextFieldComponentProps } from '../FormTextField/FormTextField';
 import FormWithPreview, { type FormWithPreviewProps } from '../FormWithPreview/FormWithPreview';
-import TextField, { type TextFieldComponentProps } from '../TextField/TextField';
 
 type TextFormWithPreviewProps<T extends FieldValues> = Omit<
   FormWithPreviewProps<T>,
   'preview' | 'children' | 'isDisabled' | 'defaultValues'
 > &
-  Omit<TextFieldComponentProps<T>, 'control' | 'onSubmit'>;
+  Omit<FormTextFieldComponentProps<T>, 'control' | 'onSubmit'>;
 
 const TextFormWithPreview = <T extends FieldValues>(props: TextFormWithPreviewProps<T>) => {
   const { validationSchema, label, name, id, options, defaultValue, onSubmit, ...restProps } = props;
@@ -24,7 +24,7 @@ const TextFormWithPreview = <T extends FieldValues>(props: TextFormWithPreviewPr
       defaultValues={{ [name]: defaultValue }}
       onSubmit={onSubmit}
     >
-      {({ control }) => <TextField control={control} name={name} fullWidth options={options} {...restProps} />}
+      {({ control }) => <FormTextField control={control} name={name} fullWidth options={options} {...restProps} />}
     </FormWithPreview>
   );
 };

@@ -70,13 +70,6 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
   return (
     <AccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
       <FormsWrapper>
-        {/* <MarkdownFormWithPreview
-          validationSchema={titleValidationSchema}
-          label={WORK_TITLE.label}
-          name={WORK_TITLE.name}
-          id={WORK_TITLE_ID}
-          defaultValue={work?.title}
-        /> */}
         <EditWorkTitlesFormWithPreview />
 
         {!isChapter && (

@@ -16,10 +16,10 @@ export const LinkTooltip = ({ link, linkText, children }: LinkTooltipProps) => {
       className="shadow-2xl"
       title={
         <div className="flex items-center gap-1">
-          <LaunchIcon fontSize="small" color="primary" className="h-3 w-3" />
           <Link href={link} target="_blank" rel="noopener noreferrer">
             {linkText}
           </Link>
+          <LaunchIcon color="primary" className="h-4 w-4" />
         </div>
       }
       placement="right"

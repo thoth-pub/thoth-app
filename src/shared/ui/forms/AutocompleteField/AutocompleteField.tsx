@@ -2,18 +2,18 @@
 
 import ArrowDropDownIcon from '@mui/icons-material/ArrowDropDown';
 import type { AutocompleteProps } from '@mui/material/Autocomplete';
-import TextField from '@mui/material/TextField';
 import { Controller, type FieldValues, Path } from 'react-hook-form';
 
 import type { FormFieldOption } from '@/src/shared/interfaces';
 
 import Autocomplete from '../../core/Autocomplete/Autocomplete';
-import { TextFieldComponentProps } from '../TextField/TextField';
+import TextField from '../../core/TextField/TextField';
+import { FormTextFieldComponentProps } from '../FormTextField/FormTextField';
 
 export type AutocompleteFieldProps<T extends FieldValues> = {
   options: FormFieldOption[];
 } & Omit<AutocompleteProps<FormFieldOption, true, false, false>, 'options' | 'renderInput'> &
-  TextFieldComponentProps<T>;
+  FormTextFieldComponentProps<T>;
 
 const AutocompleteField = <T extends FieldValues>(props: AutocompleteFieldProps<T>) => {
   const { defaultValue, control, name, options, fullWidth = true, variant, ...restProps } = props;
