@@ -20,6 +20,25 @@ export const GET_BOOKS = graphql(`
       imprintId
       workStatus
       edition
+      contributions {
+        fullName
+        lastName
+        contributionId
+        contributorId
+        contributionType
+        mainContribution
+        contributionOrdinal
+        biography
+        contributor {
+          orcid
+        }
+        affiliations {
+          institution {
+            ror
+            institutionName
+          }
+        }
+      }
     }
   }
 `);
@@ -44,6 +63,25 @@ export const GET_CHAPTERS = graphql(`
       imprintId
       workStatus
       edition
+      contributions {
+        fullName
+        lastName
+        contributionId
+        contributorId
+        contributionType
+        mainContribution
+        contributionOrdinal
+        biography
+        contributor {
+          orcid
+        }
+        affiliations {
+          institution {
+            ror
+            institutionName
+          }
+        }
+      }
     }
   }
 `);

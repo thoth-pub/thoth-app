@@ -1,6 +1,5 @@
 'use client';
 
-import MenuItem from '@mui/material/MenuItem';
 import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
@@ -41,15 +40,9 @@ const FormTextFieldComponentProps = <T extends FieldValues>({
               },
             },
           }}
+          options={options}
           {...restProps}
-        >
-          {options &&
-            options.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.label}
-              </MenuItem>
-            ))}
-        </TextField>
+        />
       )}
     />
   );

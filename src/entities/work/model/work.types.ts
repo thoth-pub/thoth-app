@@ -1,6 +1,6 @@
 import z from 'zod';
 
-import type { ContributionType, WorkFragmentFragment } from '@/gql/graphql';
+import type { Contribution, ContributionType, WorkFragmentFragment } from '@/gql/graphql';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
 import type { ContributorId } from '../../contributor/model/contributor.types';
@@ -21,6 +21,8 @@ import {
 
 export type WorkDto = WorkFragmentFragment;
 
+export type WorkContributionDto = Partial<Contribution>;
+
 export type WorkId = string;
 
 export type WorkType = z.infer<typeof WorkTypes>;
@@ -35,7 +37,8 @@ export type WorkAffiliation = {
 export type WorkContribution = {
   fullName: string;
   lastName: string;
-  id: ContributorId;
+  id: string;
+  contributorId: ContributorId;
   type: ContributionType;
   isMain: boolean;
   orderNumber: number;

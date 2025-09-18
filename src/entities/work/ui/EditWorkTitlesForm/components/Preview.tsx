@@ -19,7 +19,7 @@ export const Preview = ({ isHighlighted, title, list, onEdit }: PreviewProps) =>
         <FormFieldLabel label="Main Title" isHighlighted={isHighlighted} />
         <div>
           <div className="flex" onDoubleClick={onEdit}>
-            <EditButton isEmpty={!title} isValueHighlighted={isHighlighted} placeholder="Add Title" onEdit={onEdit} />
+            <EditButton isEmpty={!title} placeholder="Add Title" onEdit={onEdit} />
             {title && <MarkdownPreview source={title} isHighlighted={isHighlighted} />}
           </div>
           <LanguagesList list={list} />

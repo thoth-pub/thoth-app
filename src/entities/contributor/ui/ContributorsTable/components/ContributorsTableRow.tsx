@@ -6,30 +6,37 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { AnimatePresence } from 'motion/react';
 
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
-import { convertOrchidIdToText, convertRorIdToText } from '@/src/shared';
+import { convertOrchidIdToText, convertRorIdToText, FormFieldOption } from '@/src/shared';
 import { OrchidLogo, RorLogo, TableCell, TableRow } from '@/src/shared/ui';
 
+import { ContributionType } from '../../../model/contributor.types';
 import { ContributorEditForm } from './ContributorEditForm';
 import { LinkTooltip } from './LinkTooltip';
 import { RowButtonGroup } from './RowButtonGroup';
 
 type ContributorsTableRowProps = {
   isEditing: boolean;
-  onCloseEdit: () => void;
-  onEdit: (id: string) => void;
-  onDelete: (id: string) => void;
-  onSelectAsMain: (id: string) => void;
-  item: WorkContribution;
+  contributor: WorkContribution;
+  contributorTypeOptions: FormFieldOption[];
+  onCloseEdit?: () => void;
+  onEdit?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  onFullNameUpdate?: (fullName: string) => void;
+  onContributorTypeUpdate?: (contributorType: ContributionType) => void;
+  onSelectAsMain?: (id: string) => void;
 };
 
 export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
   const {
     isEditing,
-    item: { id, fullName, type, isMain, orchidId, biography, affiliations },
+    contributor: { id, fullName, type, isMain, orchidId, biography, affiliations },
+    contributorTypeOptions,
     onCloseEdit,
     onEdit,
     onDelete,
     onSelectAsMain,
+    onFullNameUpdate,
+    onContributorTypeUpdate,
   } = props;
 
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
@@ -44,7 +51,15 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
       {isEditing ? (
         <TableRow onDoubleClick={onCloseEdit} className="w-full bg-[var(--color-table-edit-row-form-background)]">
           <TableCell colSpan={4} className="rounded-2xl">
-            <ContributorEditForm onClose={onCloseEdit} name={fullName} orchidId={orchidId} />
+            <ContributorEditForm
+              onClose={onCloseEdit}
+              onFullNameUpdate={(fullName) => onFullNameUpdate?.(fullName)}
+              onContributorTypeUpdate={(contributorType) => onContributorTypeUpdate?.(contributorType)}
+              fullName={fullName}
+              contributorType={type}
+              orchidId={orchidId}
+              contributorTypeOptions={contributorTypeOptions}
+            />
           </TableCell>
         </TableRow>
       ) : (
@@ -68,7 +83,7 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
               </div>
             </div>
           </TableCell>
-          <TableCell className="capitalize">{type.toLowerCase()}</TableCell>
+          <TableCell className="capitalize">{type.toLowerCase().replace('_', ' ')}</TableCell>
           <TableCell>
             <div className="flex">
               <ul>
@@ -91,7 +106,8 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
               className="ml-auto"
               isSelected={isMain}
               onEdit={() => onEdit?.(id)}
-              onSelect={() => onSelectAsMain?.(id)}
+              onSelectAsMain={() => onSelectAsMain?.(id)}
+              onDelete={() => onDelete?.(id)}
             />
           </TableCell>
         </TableRow>

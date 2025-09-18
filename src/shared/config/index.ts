@@ -26,4 +26,5 @@ export const config = {
     duration: 0.5,
   },
   dateFormat: 'YYYY-MM-DD',
+  defaultId: '0000-0000-0000-0000',
 };

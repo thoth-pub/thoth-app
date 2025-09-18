@@ -1,7 +1,7 @@
 import { convertDateToFormattedDate, isBookChapter, isPublicationDateAvailable } from '@/src/shared';
 import type { BaseMapper } from '@/src/shared/interfaces';
 
-import type { WorkDto, WorkEntity } from './work.types';
+import type { WorkContribution, WorkContributionDto, WorkDto, WorkEntity } from './work.types';
 
 export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   toEntity(dto: WorkDto): WorkEntity {
@@ -48,6 +48,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           ({
             fullName,
             lastName,
+            contributionId,
             contributorId,
             contributionType,
             mainContribution,
@@ -58,7 +59,9 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           }) => ({
             fullName,
             lastName,
-            id: contributorId,
+            id: contributionId,
+            contributionId,
+            contributorId,
             type: contributionType,
             isMain: mainContribution,
             orderNumber: contributionOrdinal,
@@ -107,6 +110,32 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       landingPage: landingPage ?? null,
       coverUrl: coverUrl ?? null,
       publicationDate: appliedPublicationDate,
+    };
+  }
+
+  toDtoContribution(entity: WorkContribution): WorkContributionDto {
+    const { fullName, lastName, id, contributorId, type, isMain, orderNumber, biography, orchidId, affiliations } =
+      entity;
+
+    return {
+      fullName,
+      lastName,
+      contributionId: id,
+      contributorId,
+      contributionType: type,
+      mainContribution: isMain,
+      contributionOrdinal: orderNumber,
+      // biography: biography ?? null,
+      // contributor: {
+      //   orcid: orchidId,
+      //   contributorId,
+      // },
+      // affiliations: affiliations.map(({ name, rorId }) => ({
+      //   institution: {
+      //     institutionName: name,
+      //     ror: rorId,
+      //   },
+      // })),
     };
   }
 }

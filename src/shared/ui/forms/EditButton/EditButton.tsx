@@ -6,18 +6,13 @@ import AddButton from '../../core/AddButton/AddButton';
 
 type EditButtonProps = {
   isEmpty: boolean;
-  isValueHighlighted: boolean;
   placeholder: string;
   onEdit: () => void;
 };
 
-const EditButton = ({ isEmpty, isValueHighlighted, placeholder, onEdit }: EditButtonProps) => {
+const EditButton = ({ isEmpty, placeholder, onEdit }: EditButtonProps) => {
   if (isEmpty) {
-    return (
-      <AddButton onAdd={onEdit} isTextHighlighted={isValueHighlighted}>
-        {placeholder.toLowerCase()}
-      </AddButton>
-    );
+    return <AddButton onAdd={onEdit}>{placeholder.toLowerCase()}</AddButton>;
   }
 
   return <AddButton onAdd={onEdit} StartIcon={EditIcon} />;

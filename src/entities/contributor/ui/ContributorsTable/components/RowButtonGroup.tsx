@@ -10,9 +10,11 @@ type RowButtonGroupProps = {
   className?: string;
   onDelete?: () => void;
   onEdit?: () => void;
-  onSelect?: () => void;
+  onSelectAsMain?: () => void;
 };
-export const RowButtonGroup = ({ isSelected, className, onDelete, onEdit, onSelect }: RowButtonGroupProps) => {
+export const RowButtonGroup = (props: RowButtonGroupProps) => {
+  const { isSelected, className, onDelete, onEdit, onSelectAsMain } = props;
+
   return (
     <ButtonGroup className={className}>
       <IconButton onClick={onDelete} className="opacity-0">
@@ -21,7 +23,7 @@ export const RowButtonGroup = ({ isSelected, className, onDelete, onEdit, onSele
       <IconButton onClick={onEdit} className="opacity-0">
         <EditIcon />
       </IconButton>
-      <IconButton onClick={onSelect}>{isSelected ? <StarIcon /> : <StarBorderIcon />}</IconButton>
+      <IconButton onClick={onSelectAsMain}>{isSelected ? <StarIcon /> : <StarBorderIcon />}</IconButton>
     </ButtonGroup>
   );
 };

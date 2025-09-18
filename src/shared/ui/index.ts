@@ -16,6 +16,7 @@ export { default as MarkdownEditor, type MarkdownEditorProps } from './core/Mark
 export { default as MarkdownPreview } from './core/MarkdownPreview/MarkdownPreview';
 export { default as MenuItem } from './core/MenuItem/MenuItem';
 export { default as Modal } from './core/Modal/Modal';
+export { default as ModalWrapper } from './core/ModalWrapper/ModalWrapper';
 export { default as Switch } from './core/Switch/Switch';
 export { default as TableBody } from './core/Table/components/TableBody';
 export { default as TableCell } from './core/Table/components/TableCell';

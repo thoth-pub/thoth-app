@@ -74,6 +74,10 @@ export const theme = createTheme({
           fontSize: '1rem',
           lineHeight: '1.66',
           borderRadius: 'var(--border-button-radius)',
+          '&:disabled > *': {
+            opacity: 0.5,
+            cursor: 'not-allowed',
+          },
         },
         contained: {
           backgroundColor: 'var(--color-button-contained-background)',

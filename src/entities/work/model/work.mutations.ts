@@ -15,3 +15,19 @@ export const CREATE_CONTRIBUTION = graphql(`
     }
   }
 `);
+
+export const DELETE_CONTRIBUTION = graphql(`
+  mutation DeleteContribution($contributionId: Uuid!) {
+    deleteContribution(contributionId: $contributionId) {
+      workId
+    }
+  }
+`);
+
+export const UPDATE_CONTRIBUTION = graphql(`
+  mutation UpdateContribution($data: PatchContribution!) {
+    updateContribution(data: $data) {
+      workId
+    }
+  }
+`);

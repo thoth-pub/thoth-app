@@ -55,12 +55,7 @@ const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) 
             isValueHighlighted={isValid}
             onEdit={switchEditState}
           >
-            <EditButton
-              isEmpty={!fieldValue}
-              isValueHighlighted={isValid}
-              placeholder={`Add ${label}`}
-              onEdit={switchEditState}
-            />
+            <EditButton isEmpty={!fieldValue} placeholder={`Add ${label}`} onEdit={switchEditState} />
           </PreviewTab>
         )}
         {isInEditState && (

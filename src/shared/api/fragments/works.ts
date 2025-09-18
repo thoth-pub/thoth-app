@@ -27,6 +27,7 @@ export const WORK_FRAGMENT = graphql(`
     contributions {
       fullName
       lastName
+      contributionId
       contributorId
       contributionType
       mainContribution
