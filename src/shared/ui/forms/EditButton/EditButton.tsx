@@ -12,7 +12,11 @@ type EditButtonProps = {
 
 const EditButton = ({ isEmpty, placeholder, onEdit }: EditButtonProps) => {
   if (isEmpty) {
-    return <AddButton onAdd={onEdit}>{placeholder.toLowerCase()}</AddButton>;
+    return (
+      <AddButton onAdd={onEdit} className="capitalize">
+        {placeholder.toLowerCase()}
+      </AddButton>
+    );
   }
 
   return <AddButton onAdd={onEdit} StartIcon={EditIcon} />;

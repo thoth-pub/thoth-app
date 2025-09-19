@@ -37,6 +37,7 @@ export type WorkAffiliation = {
 export type WorkContribution = {
   fullName: string;
   lastName: string;
+  firstName: string;
   id: string;
   contributorId: ContributorId;
   type: ContributionType;
@@ -44,6 +45,7 @@ export type WorkContribution = {
   orderNumber: number;
   biography: string;
   orchidId: string;
+  website: string;
   affiliations: WorkAffiliation[];
 };
 

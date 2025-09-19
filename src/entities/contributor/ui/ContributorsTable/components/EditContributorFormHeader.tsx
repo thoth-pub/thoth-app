@@ -1,6 +1,9 @@
 'use client';
 
-import { Button, ButtonGroup, OrchidLogo, Typography } from '@/src/shared/ui';
+import { OrchidLogo, SubmitButton, Typography } from '@/src/shared/ui';
+import { convertOrchidIdToText } from '@/src/shared/utils';
+
+import { LinkTooltip } from './LinkTooltip';
 
 type EditContributorFormHeaderProps = {
   title: string;
@@ -13,13 +16,13 @@ export const EditContributorFormHeader = ({ title, orchidId, onDone }: EditContr
     <div className="flex justify-between">
       <Typography variant="h2" component="h3" className="flex items-center gap-1 text-[var(--color-typography)]">
         {title}
-        {orchidId && <OrchidLogo />}
+        {orchidId && (
+          <LinkTooltip link={orchidId} linkText={convertOrchidIdToText(orchidId)}>
+            <OrchidLogo />
+          </LinkTooltip>
+        )}
       </Typography>
-      <ButtonGroup>
-        <Button variant="contained" onClick={onDone}>
-          Done
-        </Button>
-      </ButtonGroup>
+      <SubmitButton type="button" onClick={onDone} />
     </div>
   );
 };

@@ -12,6 +12,7 @@ type EditWorkWidgetProps = {
   workTypeOptions: FormFieldOption[];
   licenseOptions: FormFieldOption[];
   contributorTypeOptions: FormFieldOption[];
+  isAdmin?: boolean;
 };
 
 const EditWorkWidget = (props: EditWorkWidgetProps) => {
@@ -23,6 +24,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
     queryToken,
     workId,
     contributorTypeOptions,
+    isAdmin = false,
   } = props;
 
   return (
@@ -36,7 +38,12 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
         licenseOptions={licenseOptions}
       />
       <EditWorkDescriptionDetails />
-      <EditWorkContributors workId={workId} queryToken={queryToken} contributorTypeOptions={contributorTypeOptions} />
+      <EditWorkContributors
+        workId={workId}
+        queryToken={queryToken}
+        contributorTypeOptions={contributorTypeOptions}
+        isAdmin={isAdmin}
+      />
     </div>
   );
 };

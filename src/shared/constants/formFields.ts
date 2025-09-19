@@ -158,6 +158,12 @@ export const FORM_FIELDS = {
     placeholder: 'Last Name',
     type: InputTypes.TEXT,
   },
+  FULL_NAME: {
+    label: 'Full Name',
+    name: 'fullName',
+    placeholder: 'Full Name',
+    type: InputTypes.TEXT,
+  },
   ORCID: {
     label: 'ORCID',
     name: 'orcid',

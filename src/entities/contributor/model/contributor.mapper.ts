@@ -4,7 +4,7 @@ import type { ContributorDto, ContributorEntity } from './contributor.types';
 
 export class ContributorDtoMapper implements BaseMapper<ContributorEntity, ContributorDto> {
   toEntity(dto: ContributorDto): ContributorEntity {
-    const { contributorId, fullName, orcid, updatedAt, lastName } = dto;
+    const { contributorId, fullName, orcid, updatedAt, lastName, firstName, website } = dto;
 
     return {
       id: contributorId,
@@ -13,6 +13,8 @@ export class ContributorDtoMapper implements BaseMapper<ContributorEntity, Contr
       updatedAt,
       lastName,
       fullName,
+      firstName: firstName ?? '',
+      website: website ?? '',
     };
   }
 }

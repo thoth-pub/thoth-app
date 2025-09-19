@@ -5,8 +5,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { type ChangeEvent, useState } from 'react';
 
 import { useContributors } from '@/src/entities/contributor';
-import type { ContributorEntity, ContributorId } from '@/src/entities/contributor/model/contributor.types';
-import type { QueryToken } from '@/src/shared';
+import type { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { config } from '@/src/shared/config';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
@@ -21,16 +20,13 @@ import {
   Typography,
 } from '@/src/shared/ui';
 
-import CreateContributorModal from '../CreateContributorModal/CreateContributorModal';
-
 type AddContributorsModalProps = {
-  queryToken: QueryToken;
   isDisabled?: boolean;
   onAdd: (data: { fullName: string; lastName: string; contributorId: string }) => void;
-  onCreate: (data: ContributorEntity) => void;
+  onCreate: () => void;
 };
 
-const AddContributorsModal = ({ queryToken, isDisabled = false, onAdd, onCreate }: AddContributorsModalProps) => {
+const AddContributorsModal = ({ isDisabled = false, onAdd, onCreate }: AddContributorsModalProps) => {
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, config.fieldsDebounceDelay);
   const { contributors, loading } = useContributors({ filter: debouncedValue });
@@ -72,8 +68,8 @@ const AddContributorsModal = ({ queryToken, isDisabled = false, onAdd, onCreate 
     setSearchValue('');
   };
 
-  const handleCreate = (data: ContributorEntity) => {
-    onCreate(data);
+  const handleCreate = () => {
+    onCreate();
     handleModalState();
   };
 
@@ -113,10 +109,10 @@ const AddContributorsModal = ({ queryToken, isDisabled = false, onAdd, onCreate 
             ) : (
               <ul className="flex w-full flex-col overflow-y-scroll">
                 {isEmpty && (
-                  <li className="w-full p-2 text-center">
-                    <Typography variant="body1" component="span">
-                      No contributors found
-                    </Typography>
+                  <li className="w-full p-2">
+                    <Button variant="text" className="px-5" fullWidth onClick={handleCreate}>
+                      Add new contributor
+                    </Button>
                   </li>
                 )}
                 {isInitial && (
@@ -147,7 +143,6 @@ const AddContributorsModal = ({ queryToken, isDisabled = false, onAdd, onCreate 
             <Button variant="contained" onClick={handleAdd} disabled={!selectedContributorRecord}>
               Add
             </Button>
-            <CreateContributorModal queryToken={queryToken} onCreate={handleCreate} />
           </div>
         </ModalWrapper>
       </Modal>

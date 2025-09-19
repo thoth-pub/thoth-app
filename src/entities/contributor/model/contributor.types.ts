@@ -3,7 +3,10 @@ import z from 'zod';
 import type { Contributor } from '@/gql/graphql';
 import { ContributorTypes } from '@/src/shared/constants';
 
-export type ContributorDto = Pick<Contributor, 'contributorId' | 'fullName' | 'orcid' | 'updatedAt' | 'lastName'>;
+export type ContributorDto = Pick<
+  Contributor,
+  'contributorId' | 'fullName' | 'orcid' | 'updatedAt' | 'lastName' | 'website' | 'firstName'
+>;
 
 export type ContributorEntity = {
   id: string;
@@ -12,6 +15,8 @@ export type ContributorEntity = {
   updatedAt: string;
   lastName: string;
   fullName: string;
+  firstName: string;
+  website: string;
 };
 
 export type ContributionId = string;

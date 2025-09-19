@@ -1,11 +1,11 @@
-import type { Contributor, CreateContributorMutation } from '@/gql/graphql';
+import type { Contributor, UpdateContributorMutation } from '@/gql/graphql';
 import type { QueryToken } from '@/src/shared';
 import { useMutationWithAuth } from '@/src/shared/hooks';
 
 import { ContributorDtoMapper } from '../../model/contributor.mapper';
-import { CREATE_CONTRIBUTOR, GET_CONTRIBUTORS } from '../../model/contributor.schema';
+import { GET_CONTRIBUTORS, UPDATE_CONTRIBUTOR } from '../../model/contributor.schema';
 
-type UseCreateContributorProps = {
+type UseUpdateContributorProps = {
   queryToken: QueryToken;
   onCompleted: (data: Contributor) => void;
   onError: (error: Error) => void;
@@ -13,15 +13,15 @@ type UseCreateContributorProps = {
 
 const mapper = new ContributorDtoMapper();
 
-const useCreateContributor = (props: UseCreateContributorProps) => {
+const useUpdateContributor = (props: UseUpdateContributorProps) => {
   const { queryToken, onCompleted, onError } = props;
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateContributorMutation>({
+  const [mutate, { loading }] = useMutationWithAuth<UpdateContributorMutation>({
     queryToken,
-    mutation: CREATE_CONTRIBUTOR,
+    mutation: UPDATE_CONTRIBUTOR,
     options: {
       onCompleted: (data) => {
-        onCompleted(data.createContributor as Contributor);
+        onCompleted(data.updateContributor as Contributor);
       },
       onError: (error) => {
         onError(error);
@@ -31,10 +31,10 @@ const useCreateContributor = (props: UseCreateContributorProps) => {
   });
 
   return {
-    createContributor: mutate,
+    updateContributor: mutate,
     toEntity: mapper.toEntity,
     loading,
   };
 };
 
-export default useCreateContributor;
+export default useUpdateContributor;

@@ -1,7 +1,7 @@
 import { createFragmentRegistry } from '@apollo/client/cache';
 
-import { WORK_FRAGMENT } from '../fragments';
+import { CONTRIBUTOR_FRAGMENT,WORK_FRAGMENT } from '../fragments';
 
 export const fragmentRegistry = createFragmentRegistry();
 
-fragmentRegistry.register(WORK_FRAGMENT);
+fragmentRegistry.register(WORK_FRAGMENT, CONTRIBUTOR_FRAGMENT);

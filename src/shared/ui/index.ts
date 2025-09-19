@@ -47,6 +47,7 @@ export { default as InputLabel } from './forms/InputLabel/InputLabel';
 export { default as MarkdownField } from './forms/MarkdownField/MarkdownField';
 export { default as MarkdownFormWithPreview } from './forms/MarkdownFormWithPreview/MarkdownFormWithPreview';
 export { default as MarkdownSwitch } from './forms/MarkdownSwitch/MarkdownSwitch';
+export { default as SubmitButton } from './forms/SubmitButton/SubmitButton';
 export { default as TextFormWithPreview } from './forms/TextFormWithPreview/TextFormWithPreview';
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';

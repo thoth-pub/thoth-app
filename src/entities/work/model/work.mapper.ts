@@ -48,17 +48,19 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           ({
             fullName,
             lastName,
+            firstName,
             contributionId,
             contributorId,
             contributionType,
             mainContribution,
             contributionOrdinal,
             biography,
-            contributor: { orcid = '' },
+            contributor: { orcid = '', website = '' },
             affiliations = [],
           }) => ({
             fullName,
             lastName,
+            firstName: firstName ?? '',
             id: contributionId,
             contributionId,
             contributorId,
@@ -67,6 +69,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
             orderNumber: contributionOrdinal,
             biography: biography ?? '',
             orchidId: orcid,
+            website: website ?? '',
             affiliations: affiliations.map(({ institution: { institutionName, ror = '' } }) => ({
               name: institutionName,
               rorId: ror,
@@ -114,12 +117,25 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   }
 
   toDtoContribution(entity: WorkContribution): WorkContributionDto {
-    const { fullName, lastName, id, contributorId, type, isMain, orderNumber, biography, orchidId, affiliations } =
-      entity;
+    const {
+      fullName,
+      lastName,
+      id,
+      contributorId,
+      type,
+      isMain,
+      orderNumber,
+      firstName,
+      website,
+      biography,
+      orchidId,
+      affiliations,
+    } = entity;
 
     return {
       fullName,
       lastName,
+      firstName: firstName && firstName.length > 0 ? firstName : null,
       contributionId: id,
       contributorId,
       contributionType: type,
@@ -128,7 +144,10 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       // biography: biography ?? null,
       // contributor: {
       //   orcid: orchidId,
-      //   contributorId,
+      //   website,
+      //   fullName,
+      //   lastName,
+      //   updatedAt: new Date().toISOString(),
       // },
       // affiliations: affiliations.map(({ name, rorId }) => ({
       //   institution: {

@@ -7,7 +7,7 @@ import { config } from '@/src/shared/config';
 import { ContributorTypes, ERRORS, LanguageTypeAlt, WorkStatuses } from '@/src/shared/constants';
 import type { ErrorMessage } from '@/src/shared/interfaces';
 
-const { doiPrefix, rorPrefix, orcidPrefix } = config.validations;
+const { doiPrefix, rorPrefix } = config.validations;
 
 const { INVALID_URL } = ERRORS;
 
@@ -55,17 +55,18 @@ export const contributorType = z.enum(ContributorTypes.enum);
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });
 
-export const optionalUrlValidation = getUrlValidation().optional();
+export const optionalUrlValidation = getUrlValidation().optional().or(z.literal(''));
 export const getRequiredUrlValidation = (errorMessage?: ErrorMessage) =>
   getUrlValidation(errorMessage ?? INVALID_URL).nonempty({ message: errorMessage ?? INVALID_URL });
 
 /* External Identifiers Validations */
 export const idValidation = z.uuid();
 export const doiValidation = getStringValidation().refine((doi) => doi.startsWith(doiPrefix));
-export const orcidValidation = getStringValidation().refine(
-  (value) => orcid.validate(config.validations.orcidPrefix + value),
-  { message: 'Invalid ORCID ID (0000-0000-0000-0000 or 0000-0000-0000-000X)' },
-);
+export const orcidValidation = getStringValidation()
+  .optional()
+  .refine((value) => (value ? orcid.validate(config.validations.orcidPrefix + value) : true), {
+    message: 'Invalid ORCID ID (0000-0000-0000-0000 or 0000-0000-0000-000X)',
+  });
 export const rorValidation = getStringValidation().refine((ror) => ror.startsWith(rorPrefix));
 
 export const issnValidation = optionalStringValidation.refine((issn) => {

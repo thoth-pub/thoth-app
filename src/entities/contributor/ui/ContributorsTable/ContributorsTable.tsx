@@ -23,6 +23,7 @@ type ContributorsTableProps = {
   onContributorTypeUpdate?: (contributorType: ContributionType) => void;
   onSelectAsMain?: (id: ContributionId) => void;
   onReorderEnd?: (items: WorkContribution[]) => void;
+  onEditProfile?: (id: ContributionId) => void;
 };
 
 const ContributorsTable = (props: ContributorsTableProps) => {
@@ -37,6 +38,7 @@ const ContributorsTable = (props: ContributorsTableProps) => {
     onEdit,
     onSelectAsMain,
     onReorderEnd,
+    onEditProfile,
   } = props;
 
   const [items, setItems] = useState(data);
@@ -81,6 +83,7 @@ const ContributorsTable = (props: ContributorsTableProps) => {
                 onFullNameUpdate={(fullName) => onFullNameUpdate?.(fullName)}
                 onContributorTypeUpdate={(contributorType) => onContributorTypeUpdate?.(contributorType)}
                 onSelectAsMain={(id) => onSelectAsMain?.(id)}
+                onEditProfile={(id) => onEditProfile?.(id)}
               />
             ))}
           </TableBody>

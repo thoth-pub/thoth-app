@@ -10,4 +10,6 @@ export const NOTIFICATIONS = {
   // Contributors
   CONTRIBUTOR_CREATION_SUCCESS: 'Contributor created successfully',
   CONTRIBUTOR_CREATION_FAILED: 'Failed to create contributor',
+  CONTRIBUTOR_UPDATE_SUCCESS: 'Contributor profile updated successfully',
+  CONTRIBUTOR_UPDATE_FAILED: 'Failed to update contributor profile',
 } as const;

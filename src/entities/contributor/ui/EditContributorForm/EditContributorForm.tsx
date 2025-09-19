@@ -8,16 +8,19 @@ import { Button, FormFieldWrapper, FormTextField, InputLabel } from '@/src/share
 
 import { type ContributorForm, contributorFormValidationSchema } from '../../model/contributor.validation';
 
-const { FIRST_NAME, LAST_NAME, ORCID, WEBSITE_URL } = FORM_FIELDS;
+const { FIRST_NAME, LAST_NAME, FULL_NAME, ORCID, WEBSITE_URL } = FORM_FIELDS;
 
-type CreateContributorFormProps = {
+type EditContributorFormProps = {
   onSubmit: (data: ContributorForm) => void;
+  defaultValues?: ContributorForm;
+  isNew?: boolean;
 };
 
-const CreateContributorForm = ({ onSubmit }: CreateContributorFormProps) => {
+const EditContributorForm = ({ defaultValues, isNew = false, onSubmit }: EditContributorFormProps) => {
   const { control, handleSubmit } = useForm({
     resolver: zodResolver(contributorFormValidationSchema),
     mode: 'onChange',
+    defaultValues,
   });
 
   return (
@@ -31,6 +34,10 @@ const CreateContributorForm = ({ onSubmit }: CreateContributorFormProps) => {
         <FormTextField control={control} name={LAST_NAME.name} placeholder={LAST_NAME.placeholder} />
       </FormFieldWrapper>
       <FormFieldWrapper>
+        <InputLabel>{FULL_NAME.placeholder}</InputLabel>
+        <FormTextField control={control} name={FULL_NAME.name} placeholder={FULL_NAME.placeholder} />
+      </FormFieldWrapper>
+      <FormFieldWrapper>
         <InputLabel>{ORCID.placeholder}</InputLabel>
         <FormTextField control={control} name={ORCID.name} placeholder={ORCID.placeholder} />
       </FormFieldWrapper>
@@ -39,10 +46,10 @@ const CreateContributorForm = ({ onSubmit }: CreateContributorFormProps) => {
         <FormTextField control={control} name={WEBSITE_URL.name} placeholder={WEBSITE_URL.placeholder} />
       </FormFieldWrapper>
       <Button variant="contained" type="submit" className="self-start">
-        Create
+        {isNew ? 'Create' : 'Update'}
       </Button>
     </form>
   );
 };
 
-export default CreateContributorForm;
+export default EditContributorForm;

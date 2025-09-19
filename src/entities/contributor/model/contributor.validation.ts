@@ -9,8 +9,16 @@ import {
   orcidValidation,
 } from '@/src/shared/utils/validations';
 
-const { CONTRIBUTOR_FULLNAME, CONTRIBUTOR_TYPE, CONTRIBUTOR_BIOGRAPHY, FIRST_NAME, LAST_NAME, ORCID, WEBSITE_URL } =
-  FORM_FIELDS;
+const {
+  CONTRIBUTOR_FULLNAME,
+  CONTRIBUTOR_TYPE,
+  FULL_NAME,
+  CONTRIBUTOR_BIOGRAPHY,
+  FIRST_NAME,
+  LAST_NAME,
+  ORCID,
+  WEBSITE_URL,
+} = FORM_FIELDS;
 
 export const contributorFullNameValidationSchema = z.object({
   [CONTRIBUTOR_FULLNAME.name]: getRequiredStringValidation(),
@@ -29,6 +37,7 @@ export type ContributorBiographyForm = z.infer<typeof contributorBiography>;
 export const contributorFormValidationSchema = z.object({
   [FIRST_NAME.name]: optionalStringValidation,
   [LAST_NAME.name]: getRequiredStringValidation(),
+  [FULL_NAME.name]: getRequiredStringValidation(),
   [ORCID.name]: orcidValidation,
   [WEBSITE_URL.name]: optionalUrlValidation,
 });
