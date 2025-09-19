@@ -7,4 +7,7 @@ export const NOTIFICATIONS = {
   WORK_CONTRIBUTION_CREATION_FAILED: 'Failed to create work contribution',
   WORK_CONTRIBUTION_DELETION_FAILED: 'Failed to delete work contribution',
   WORK_CONTRIBUTION_UPDATE_FAILED: 'Failed to update work contribution',
+  // Contributors
+  CONTRIBUTOR_CREATION_SUCCESS: 'Contributor created successfully',
+  CONTRIBUTOR_CREATION_FAILED: 'Failed to create contributor',
 } as const;

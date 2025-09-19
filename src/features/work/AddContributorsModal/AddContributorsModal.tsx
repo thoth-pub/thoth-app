@@ -5,7 +5,8 @@ import SearchIcon from '@mui/icons-material/Search';
 import { type ChangeEvent, useState } from 'react';
 
 import { useContributors } from '@/src/entities/contributor';
-import type { ContributorId } from '@/src/entities/contributor/model/contributor.types';
+import type { ContributorEntity, ContributorId } from '@/src/entities/contributor/model/contributor.types';
+import type { QueryToken } from '@/src/shared';
 import { config } from '@/src/shared/config';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
@@ -23,11 +24,13 @@ import {
 import CreateContributorModal from '../CreateContributorModal/CreateContributorModal';
 
 type AddContributorsModalProps = {
+  queryToken: QueryToken;
   isDisabled?: boolean;
   onAdd: (data: { fullName: string; lastName: string; contributorId: string }) => void;
+  onCreate: (data: ContributorEntity) => void;
 };
 
-const AddContributorsModal = ({ isDisabled = false, onAdd }: AddContributorsModalProps) => {
+const AddContributorsModal = ({ queryToken, isDisabled = false, onAdd, onCreate }: AddContributorsModalProps) => {
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, config.fieldsDebounceDelay);
   const { contributors, loading } = useContributors({ filter: debouncedValue });
@@ -67,6 +70,11 @@ const AddContributorsModal = ({ isDisabled = false, onAdd }: AddContributorsModa
     handleModalState();
     setSelected('');
     setSearchValue('');
+  };
+
+  const handleCreate = (data: ContributorEntity) => {
+    onCreate(data);
+    handleModalState();
   };
 
   return (
@@ -139,7 +147,7 @@ const AddContributorsModal = ({ isDisabled = false, onAdd }: AddContributorsModa
             <Button variant="contained" onClick={handleAdd} disabled={!selectedContributorRecord}>
               Add
             </Button>
-            <CreateContributorModal />
+            <CreateContributorModal queryToken={queryToken} onCreate={handleCreate} />
           </div>
         </ModalWrapper>
       </Modal>

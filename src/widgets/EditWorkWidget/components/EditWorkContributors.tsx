@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 
 import { ContributorsTable } from '@/src/entities/contributor';
-import type { ContributionType } from '@/src/entities/contributor/model/contributor.types';
+import type { ContributionType, ContributorEntity } from '@/src/entities/contributor/model/contributor.types';
 import { useWork } from '@/src/entities/work';
 import type { WorkContribution, WorkId } from '@/src/entities/work/model/work.types';
 import { AddContributorsModal } from '@/src/features';
@@ -213,6 +213,14 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
     await Promise.all(promises);
   };
 
+  const createNewContributorProfile = ({
+    fullName,
+    lastName,
+    id,
+  }: Pick<ContributorEntity, 'fullName' | 'lastName' | 'id'>) => {
+    preselectContributor({ fullName: fullName ?? '', lastName, contributorId: id });
+  };
+
   return (
     <AccordionSection title="Contributors" panelId={CONTRIBUTORS} defaultExpanded>
       <ContributorsTable
@@ -227,7 +235,12 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
         onSelectAsMain={setAsMainContributor}
         onReorderEnd={onReorder}
       />
-      <AddContributorsModal onAdd={preselectContributor} isDisabled={isDefault} />
+      <AddContributorsModal
+        queryToken={queryToken}
+        isDisabled={isDefault}
+        onAdd={preselectContributor}
+        onCreate={createNewContributorProfile}
+      />
     </AccordionSection>
   );
 };

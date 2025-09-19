@@ -1,5 +1,6 @@
 import dayjs from 'dayjs';
 import isbn3 from 'isbn3';
+import { orcid } from 'orcid';
 import z from 'zod';
 
 import { config } from '@/src/shared/config';
@@ -61,7 +62,10 @@ export const getRequiredUrlValidation = (errorMessage?: ErrorMessage) =>
 /* External Identifiers Validations */
 export const idValidation = z.uuid();
 export const doiValidation = getStringValidation().refine((doi) => doi.startsWith(doiPrefix));
-export const orcidValidation = getStringValidation().refine((orcid) => orcid.startsWith(orcidPrefix));
+export const orcidValidation = getStringValidation().refine(
+  (value) => orcid.validate(config.validations.orcidPrefix + value),
+  { message: 'Invalid ORCID ID (0000-0000-0000-0000 or 0000-0000-0000-000X)' },
+);
 export const rorValidation = getStringValidation().refine((ror) => ror.startsWith(rorPrefix));
 
 export const issnValidation = optionalStringValidation.refine((issn) => {

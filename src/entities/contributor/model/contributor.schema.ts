@@ -11,3 +11,17 @@ export const GET_CONTRIBUTORS = graphql(`
     }
   }
 `);
+
+export const CREATE_CONTRIBUTOR = graphql(`
+  mutation CreateContributor($data: NewContributor!) {
+    createContributor(data: $data) {
+      contributorId
+      firstName
+      fullName
+      lastName
+      updatedAt
+      orcid
+      website
+    }
+  }
+`);
