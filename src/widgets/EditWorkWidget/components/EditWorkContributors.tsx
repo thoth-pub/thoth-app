@@ -76,12 +76,33 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
     setSelectedContributor(null);
   };
 
-  const deleteContributor = (id: string) => {
-    // TODO: add reordering logic
-    deleteContribution({
+  const deleteContributor = async (id: string) => {
+    const index = contributions.findIndex((contribution) => contribution.id === id);
+
+    if (index < 0) return;
+
+    const changedItems = contributions.slice(index + 1).map((contribution) => ({
+      ...contribution,
+      orderNumber: contribution.orderNumber - 1,
+    }));
+
+    await deleteContribution({
       variables: {
         contributionId: id,
       },
+    });
+
+    changedItems.forEach(async (contribution) => {
+      const data = contributionToDto(contribution);
+
+      await updateContribution({
+        variables: {
+          data: {
+            workId,
+            ...data,
+          },
+        },
+      });
     });
   };
 
@@ -176,41 +197,31 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
 
       return previousItem?.orderNumber !== orderNumber;
     });
-    // should increase numbers because they are reserved
 
-    const promises: Promise<unknown>[] = [];
+    changedItems.forEach(async (contribution) => {
+      const { contributorId, contributionType, mainContribution, biography, fullName, lastName } =
+        contributionToDto(contribution);
 
-    changedItems.forEach((contribution) => {
-      const data = contributionToDto({ ...contribution, orderNumber: contribution.orderNumber * 1000 });
+      const existingContribution = contributions[contribution.orderNumber - 1];
 
-      promises.push(
-        updateContribution({
-          variables: {
-            data: {
-              workId,
-              ...data,
-            },
+      if (!existingContribution) return;
+
+      await updateContribution({
+        variables: {
+          data: {
+            workId,
+            contributionId: existingContribution.id,
+            contributorId,
+            contributionType,
+            mainContribution,
+            biography,
+            fullName,
+            lastName,
+            contributionOrdinal: existingContribution.orderNumber,
           },
-        }),
-      );
+        },
+      });
     });
-
-    changedItems.forEach((contribution) => {
-      const data = contributionToDto({ ...contribution, orderNumber: contribution.orderNumber });
-
-      promises.push(
-        updateContribution({
-          variables: {
-            data: {
-              workId,
-              ...data,
-            },
-          },
-        }),
-      );
-    });
-
-    await Promise.all(promises);
   };
 
   const createNewContributorProfile = ({
@@ -220,6 +231,8 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
   }: Pick<ContributorEntity, 'fullName' | 'lastName' | 'id'>) => {
     preselectContributor({ fullName: fullName ?? '', lastName, contributorId: id });
   };
+
+  console.log(contributions);
 
   return (
     <AccordionSection title="Contributors" panelId={CONTRIBUTORS} defaultExpanded>
