@@ -12,6 +12,20 @@ export const GET_CONTRIBUTORS = graphql(`
   }
 `);
 
+export const GET_LINKED_PUBLISHERS = graphql(`
+  query GetLinkedPublishers($contributorId: Uuid!, $offset: Int!, $limit: Int) {
+    contributor(contributorId: $contributorId) {
+      contributions(offset: $offset, limit: $limit) {
+        work {
+          imprint {
+            publisherId
+          }
+        }
+      }
+    }
+  }
+`);
+
 export const CREATE_CONTRIBUTOR = graphql(`
   mutation CreateContributor($data: NewContributor!) {
     createContributor(data: $data) {

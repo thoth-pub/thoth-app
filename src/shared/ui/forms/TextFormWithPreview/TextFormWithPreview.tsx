@@ -12,7 +12,7 @@ type TextFormWithPreviewProps<T extends FieldValues> = Omit<
   Omit<FormTextFieldComponentProps<T>, 'control' | 'onSubmit' | 'onChange'>;
 
 const TextFormWithPreview = <T extends FieldValues>(props: TextFormWithPreviewProps<T>) => {
-  const { validationSchema, label, name, id, options, defaultValue, onSubmit, ...restProps } = props;
+  const { validationSchema, label, name, id, options, defaultValue, disabled, onSubmit, ...restProps } = props;
 
   return (
     <FormWithPreview
@@ -23,8 +23,11 @@ const TextFormWithPreview = <T extends FieldValues>(props: TextFormWithPreviewPr
       options={options}
       defaultValues={{ [name]: defaultValue }}
       onSubmit={onSubmit}
+      isDisabled={disabled}
     >
-      {({ control }) => <FormTextField control={control} name={name} fullWidth options={options} {...restProps} />}
+      {({ control }) => (
+        <FormTextField control={control} name={name} disabled={disabled} fullWidth options={options} {...restProps} />
+      )}
     </FormWithPreview>
   );
 };

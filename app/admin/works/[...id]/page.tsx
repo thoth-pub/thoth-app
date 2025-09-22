@@ -56,6 +56,7 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
           workTypeOptions={workTypeOptions}
           licenseOptions={licenseOptions}
           contributorTypeOptions={contributorTypeOptions}
+          linkedPublishers={linkedPublishers}
           isAdmin={isUserAdmin}
         />
       </Suspense>

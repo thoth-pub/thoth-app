@@ -9,4 +9,3 @@ export { type ContributorEntity } from './model/contributor.types';
 
 // UI
 export { default as ContributorsTable } from './ui/ContributorsTable/ContributorsTable';
-export { default as CreateContributorForm } from './ui/EditContributorForm/EditContributorForm';

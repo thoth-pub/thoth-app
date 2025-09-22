@@ -1,3 +1,4 @@
+import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { EditWorkBasicDetails, EditWorkDescriptionDetails, EditWorkHeader } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import type { FormFieldOption, QueryToken } from '@/src/shared';
@@ -12,6 +13,7 @@ type EditWorkWidgetProps = {
   workTypeOptions: FormFieldOption[];
   licenseOptions: FormFieldOption[];
   contributorTypeOptions: FormFieldOption[];
+  linkedPublishers?: PublisherId[];
   isAdmin?: boolean;
 };
 
@@ -24,6 +26,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
     queryToken,
     workId,
     contributorTypeOptions,
+    linkedPublishers = [],
     isAdmin = false,
   } = props;
 
@@ -42,6 +45,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
         workId={workId}
         queryToken={queryToken}
         contributorTypeOptions={contributorTypeOptions}
+        linkedPublishers={linkedPublishers}
         isAdmin={isAdmin}
       />
     </div>

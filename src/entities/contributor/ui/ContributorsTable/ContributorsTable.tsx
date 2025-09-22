@@ -16,14 +16,18 @@ type ContributorsTableProps = {
   data: WorkContribution[];
   contributorTypeOptions: FormFieldOption[];
   selectedId: ContributionId;
+  isOrchidFieldDisabled?: boolean;
+  isWebsiteUrlFieldDisabled?: boolean;
   onDelete?: (id: ContributorId) => void;
   onCloseEdit?: () => void;
   onEdit?: (id: ContributionId) => void;
   onFullNameUpdate?: (fullName: string) => void;
+  onLastNameUpdate?: (lastName: string) => void;
+  onOrcidUpdate?: (orcid: string) => void;
+  onWebsiteUrlUpdate?: (websiteUrl: string) => void;
   onContributorTypeUpdate?: (contributorType: ContributionType) => void;
   onSelectAsMain?: (id: ContributionId) => void;
   onReorderEnd?: (items: WorkContribution[]) => void;
-  onEditProfile?: (id: ContributionId) => void;
 };
 
 const ContributorsTable = (props: ContributorsTableProps) => {
@@ -31,14 +35,18 @@ const ContributorsTable = (props: ContributorsTableProps) => {
     data,
     contributorTypeOptions,
     selectedId,
+    isOrchidFieldDisabled = false,
+    isWebsiteUrlFieldDisabled = false,
     onDelete,
     onFullNameUpdate,
+    onLastNameUpdate,
+    onOrcidUpdate,
+    onWebsiteUrlUpdate,
     onContributorTypeUpdate,
     onCloseEdit,
     onEdit,
     onSelectAsMain,
     onReorderEnd,
-    onEditProfile,
   } = props;
 
   const [items, setItems] = useState(data);
@@ -77,13 +85,17 @@ const ContributorsTable = (props: ContributorsTableProps) => {
                 isEditing={selectedId === item.id}
                 contributor={item}
                 contributorTypeOptions={contributorTypeOptions}
+                isOrchidFieldDisabled={isOrchidFieldDisabled}
+                isWebsiteUrlFieldDisabled={isWebsiteUrlFieldDisabled}
                 onCloseEdit={onCloseEdit}
                 onEdit={(id) => onEdit?.(id)}
                 onDelete={(id) => onDelete?.(id)}
                 onFullNameUpdate={(fullName) => onFullNameUpdate?.(fullName)}
+                onLastNameUpdate={(lastName) => onLastNameUpdate?.(lastName)}
+                onOrcidUpdate={(orcid) => onOrcidUpdate?.(orcid)}
+                onWebsiteUrlUpdate={(websiteUrl) => onWebsiteUrlUpdate?.(websiteUrl)}
                 onContributorTypeUpdate={(contributorType) => onContributorTypeUpdate?.(contributorType)}
                 onSelectAsMain={(id) => onSelectAsMain?.(id)}
-                onEditProfile={(id) => onEditProfile?.(id)}
               />
             ))}
           </TableBody>

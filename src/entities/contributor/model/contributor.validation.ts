@@ -24,11 +24,29 @@ export const contributorFullNameValidationSchema = z.object({
   [CONTRIBUTOR_FULLNAME.name]: getRequiredStringValidation(),
 });
 
+export const contributorLastNameValidationSchema = z.object({
+  [LAST_NAME.name]: getRequiredStringValidation(),
+});
+
+export const orcidValidationSchema = z.object({
+  [ORCID.name]: orcidValidation,
+});
+
+export const websiteUrlValidationSchema = z.object({
+  [WEBSITE_URL.name]: optionalUrlValidation,
+});
+
 export const contributorTypeValidationSchema = z.object({ [CONTRIBUTOR_TYPE.name]: contributorType });
 
 export const contributorBiography = z.object({ [CONTRIBUTOR_BIOGRAPHY.name]: optionalStringValidation });
 
 export type ContributorFullNameForm = z.infer<typeof contributorFullNameValidationSchema>;
+
+export type ContributorLastNameForm = z.infer<typeof contributorLastNameValidationSchema>;
+
+export type OrcidForm = z.infer<typeof orcidValidationSchema>;
+
+export type WebsiteUrlForm = z.infer<typeof websiteUrlValidationSchema>;
 
 export type ContributorTypeForm = z.infer<typeof contributorTypeValidationSchema>;
 

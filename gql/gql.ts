@@ -15,6 +15,7 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  */
 type Documents = {
     "\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n    }\n  }\n": typeof types.GetContributorsDocument,
+    "\n  query GetLinkedPublishers($contributorId: Uuid!, $offset: Int!, $limit: Int) {\n    contributor(contributorId: $contributorId) {\n      contributions(offset: $offset, limit: $limit) {\n        work {\n          imprint {\n            publisherId\n          }\n        }\n      }\n    }\n  }\n": typeof types.GetLinkedPublishersDocument,
     "\n  mutation CreateContributor($data: NewContributor!) {\n    createContributor(data: $data) {\n      ...ContributorFragment\n    }\n  }\n": typeof types.CreateContributorDocument,
     "\n  mutation UpdateContributor($data: PatchContributor!) {\n    updateContributor(data: $data) {\n      ...ContributorFragment\n    }\n  }\n": typeof types.UpdateContributorDocument,
     "\n  query GetImprintsCount($publishers: [Uuid!]!) {\n    imprintCount(publishers: $publishers)\n  }\n": typeof types.GetImprintsCountDocument,
@@ -39,6 +40,7 @@ type Documents = {
 };
 const documents: Documents = {
     "\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n    }\n  }\n": types.GetContributorsDocument,
+    "\n  query GetLinkedPublishers($contributorId: Uuid!, $offset: Int!, $limit: Int) {\n    contributor(contributorId: $contributorId) {\n      contributions(offset: $offset, limit: $limit) {\n        work {\n          imprint {\n            publisherId\n          }\n        }\n      }\n    }\n  }\n": types.GetLinkedPublishersDocument,
     "\n  mutation CreateContributor($data: NewContributor!) {\n    createContributor(data: $data) {\n      ...ContributorFragment\n    }\n  }\n": types.CreateContributorDocument,
     "\n  mutation UpdateContributor($data: PatchContributor!) {\n    updateContributor(data: $data) {\n      ...ContributorFragment\n    }\n  }\n": types.UpdateContributorDocument,
     "\n  query GetImprintsCount($publishers: [Uuid!]!) {\n    imprintCount(publishers: $publishers)\n  }\n": types.GetImprintsCountDocument,
@@ -80,6 +82,10 @@ export function graphql(source: string): unknown;
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n    }\n  }\n"): (typeof documents)["\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GetLinkedPublishers($contributorId: Uuid!, $offset: Int!, $limit: Int) {\n    contributor(contributorId: $contributorId) {\n      contributions(offset: $offset, limit: $limit) {\n        work {\n          imprint {\n            publisherId\n          }\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetLinkedPublishers($contributorId: Uuid!, $offset: Int!, $limit: Int) {\n    contributor(contributorId: $contributorId) {\n      contributions(offset: $offset, limit: $limit) {\n        work {\n          imprint {\n            publisherId\n          }\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

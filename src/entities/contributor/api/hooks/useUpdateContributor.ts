@@ -1,4 +1,6 @@
 import type { Contributor, UpdateContributorMutation } from '@/gql/graphql';
+import { GET_WORK } from '@/src/entities/work/model/work.schema';
+import type { WorkId } from '@/src/entities/work/model/work.types';
 import type { QueryToken } from '@/src/shared';
 import { useMutationWithAuth } from '@/src/shared/hooks';
 
@@ -7,6 +9,7 @@ import { GET_CONTRIBUTORS, UPDATE_CONTRIBUTOR } from '../../model/contributor.sc
 
 type UseUpdateContributorProps = {
   queryToken: QueryToken;
+  workId?: WorkId;
   onCompleted: (data: Contributor) => void;
   onError: (error: Error) => void;
 };
@@ -14,7 +17,7 @@ type UseUpdateContributorProps = {
 const mapper = new ContributorDtoMapper();
 
 const useUpdateContributor = (props: UseUpdateContributorProps) => {
-  const { queryToken, onCompleted, onError } = props;
+  const { queryToken, workId = '', onCompleted, onError } = props;
 
   const [mutate, { loading }] = useMutationWithAuth<UpdateContributorMutation>({
     queryToken,
@@ -26,7 +29,7 @@ const useUpdateContributor = (props: UseUpdateContributorProps) => {
       onError: (error) => {
         onError(error);
       },
-      refetchQueries: [{ query: GET_CONTRIBUTORS }],
+      refetchQueries: [{ query: GET_CONTRIBUTORS }, { query: GET_WORK, variables: { workId } }],
     },
   });
 

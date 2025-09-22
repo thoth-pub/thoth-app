@@ -1,4 +1,9 @@
-import { convertDateToFormattedDate, isBookChapter, isPublicationDateAvailable } from '@/src/shared';
+import {
+  convertDateToFormattedDate,
+  convertOrchidIdToText,
+  isBookChapter,
+  isPublicationDateAvailable,
+} from '@/src/shared';
 import type { BaseMapper } from '@/src/shared/interfaces';
 
 import type { WorkContribution, WorkContributionDto, WorkDto, WorkEntity } from './work.types';
@@ -55,7 +60,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
             mainContribution,
             contributionOrdinal,
             biography,
-            contributor: { orcid = '', website = '' },
+            contributor: { orcid, website = '' },
             affiliations = [],
           }) => ({
             fullName,
@@ -68,7 +73,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
             isMain: mainContribution,
             orderNumber: contributionOrdinal,
             biography: biography ?? '',
-            orchidId: orcid,
+            orchidId: orcid ? convertOrchidIdToText(orcid) : '',
             website: website ?? '',
             affiliations: affiliations.map(({ institution: { institutionName, ror = '' } }) => ({
               name: institutionName,

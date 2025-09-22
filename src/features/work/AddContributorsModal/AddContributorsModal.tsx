@@ -35,7 +35,6 @@ const AddContributorsModal = ({ isDisabled = false, onAdd, onCreate }: AddContri
 
   const selectedContributorRecord = contributors.find((contributor) => contributor.id === selected);
 
-  const isEmpty = contributors.length === 0 && !loading && debouncedValue.length > 0;
   const isInitial = contributors.length === 0 && !loading && debouncedValue.length === 0;
 
   const handleModalState = () => {
@@ -108,13 +107,6 @@ const AddContributorsModal = ({ isDisabled = false, onAdd, onCreate }: AddContri
               <CircullarProgress className="m-auto" />
             ) : (
               <ul className="flex w-full flex-col overflow-y-scroll">
-                {isEmpty && (
-                  <li className="w-full p-2">
-                    <Button variant="text" className="px-5" fullWidth onClick={handleCreate}>
-                      Add new contributor
-                    </Button>
-                  </li>
-                )}
                 {isInitial && (
                   <li className="w-full p-2 text-center text-[var(--color-placeholder)]">
                     <Typography variant="body1" component="span">
@@ -142,6 +134,9 @@ const AddContributorsModal = ({ isDisabled = false, onAdd, onCreate }: AddContri
           <div className="flex gap-4">
             <Button variant="contained" onClick={handleAdd} disabled={!selectedContributorRecord}>
               Add
+            </Button>
+            <Button variant="text" onClick={handleCreate}>
+              Create new
             </Button>
           </div>
         </ModalWrapper>
