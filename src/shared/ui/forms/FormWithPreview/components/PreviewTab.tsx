@@ -9,13 +9,12 @@ import FormFieldAnimationWrapper from '../../FormAnimationWrapper/FormAnimationW
 
 type PreviewTabProps = {
   value: string;
-  isValueHighlighted: boolean;
   preview: ReactNode;
   children?: ReactNode;
   onEdit: () => void;
 };
 
-const PreviewTab = ({ value, preview, children, isValueHighlighted, onEdit }: PreviewTabProps) => {
+const PreviewTab = ({ value, preview, children, onEdit }: PreviewTabProps) => {
   const isUrlValue = isUrl(value);
 
   return (
@@ -28,11 +27,7 @@ const PreviewTab = ({ value, preview, children, isValueHighlighted, onEdit }: Pr
       {preview ? (
         preview
       ) : (
-        <Typography
-          variant="button"
-          color={isValueHighlighted ? 'success' : 'primary'}
-          className={isUrlValue ? 'lowercase' : 'capitalize'}
-        >
+        <Typography variant="button" className={isUrlValue ? 'lowercase' : 'capitalize'}>
           {value.toLowerCase()}
         </Typography>
       )}

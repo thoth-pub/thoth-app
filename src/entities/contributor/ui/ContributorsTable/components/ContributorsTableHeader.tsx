@@ -10,7 +10,7 @@ export const ContributorsTableHeader = ({ cells }: ContributorsTableHeaderProps)
       <TableRow>
         {cells.map((cell) => (
           <TableCell key={cell}>
-            <Typography variant="h2" component="span" color="primary">
+            <Typography variant="h2" component="span">
               {cell}
             </Typography>
           </TableCell>

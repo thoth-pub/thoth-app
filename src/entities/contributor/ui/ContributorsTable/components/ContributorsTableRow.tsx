@@ -59,7 +59,7 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
   return (
     <AnimatePresence mode="wait">
       {isEditing ? (
-        <TableRow  className="w-full bg-[var(--color-table-edit-row-form-background)]">
+        <TableRow className="w-full bg-[var(--color-table-edit-row-form-background)]">
           <TableCell colSpan={4} className="rounded-2xl">
             <ContributorEditForm
               onClose={onCloseEdit}
@@ -89,7 +89,7 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
         >
           <TableCell className="rounded-tl-2xl rounded-bl-2xl pl-1 font-bold">
             <div className="flex gap-1">
-              <DragIndicatorIcon className="opacity-0" {...listeners} />
+              <DragIndicatorIcon className="my-auto opacity-0" color="primary" fontSize="small" {...listeners} />
               <div className="flex shrink-0 gap-1">
                 {fullName}
                 {orchidId && (

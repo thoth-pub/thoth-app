@@ -18,7 +18,7 @@ export type FormWithPreviewProps<T extends FieldValues> = {
   isDisabled?: boolean;
   id?: string;
   children: (props: { control: Control<FieldValues>; formId?: string }) => ReactNode;
-  preview?: (value: string, isValueHighlighted: boolean) => ReactNode;
+  preview?: (value: string) => ReactNode;
   onSubmit?: (data: T) => void;
 } & UseFormWithPreviewProps<T>;
 
@@ -46,16 +46,20 @@ const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) 
 
   return (
     <FormFieldWrapper>
-      <FormFieldLabel label={label} id={id} isHighlighted={isValid} />
+      <FormFieldLabel label={label} id={id} />
       <AnimatePresence initial={false} mode="wait">
         {!isInEditState && (
           <PreviewTab
             value={serializedValue}
-            preview={preview && isValid ? preview(serializedValue, isValid) : null}
-            isValueHighlighted={isValid}
+            preview={preview && isValid ? preview(serializedValue) : null}
             onEdit={switchEditState}
           >
-            <EditButton disabled={isDisabled} isEmpty={!fieldValue} placeholder={`Add ${label}`} onEdit={switchEditState} />
+            <EditButton
+              disabled={isDisabled}
+              isEmpty={!fieldValue}
+              placeholder={`Add ${label}`}
+              onEdit={switchEditState}
+            />
           </PreviewTab>
         )}
         {isInEditState && (

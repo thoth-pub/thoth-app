@@ -29,7 +29,7 @@ const EditWorkTitlesFormWithPreview = () => {
   return (
     <AnimatePresence initial={false} mode="wait">
       {isPreviewMode ? (
-        <Preview isHighlighted={isValid} title={fullMainTitle} list={selectedLanguages} onEdit={switchPreviewMode} />
+        <Preview title={fullMainTitle} list={selectedLanguages} onEdit={switchPreviewMode} />
       ) : (
         <Form
           fields={fields}

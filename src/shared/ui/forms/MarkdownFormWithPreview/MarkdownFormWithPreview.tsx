@@ -23,7 +23,7 @@ const MarkdownFormWithPreview = <T extends FieldValues>(props: MarkdownFormWithP
       id={id}
       defaultValues={{ [name]: defaultValue }}
       onSubmit={onSubmit}
-      preview={(value, isValueHighlighted) => <MarkdownPreview source={value} isHighlighted={isValueHighlighted} />}
+      preview={(value) => <MarkdownPreview source={value} />}
     >
       {({ control }) => (
         <MarkdownField name={name} control={control} disableLineBreaks id={id}>

@@ -6,21 +6,20 @@ import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel'
 import { LanguagesList } from './LanguagesList';
 
 type PreviewProps = {
-  isHighlighted: boolean;
   title: string;
   list: string[];
   onEdit: () => void;
 };
 
-export const Preview = ({ isHighlighted, title, list, onEdit }: PreviewProps) => {
+export const Preview = ({ title, list, onEdit }: PreviewProps) => {
   return (
     <FormAnimationWrapper key="preview-mode">
       <FormFieldWrapper>
-        <FormFieldLabel label="Main Title" isHighlighted={isHighlighted} />
+        <FormFieldLabel label="Main Title" />
         <div>
           <div className="flex" onDoubleClick={onEdit}>
             <EditButton isEmpty={!title} placeholder="Add Title" onEdit={onEdit} />
-            {title && <MarkdownPreview source={title} isHighlighted={isHighlighted} />}
+            {title && <MarkdownPreview source={title} />}
           </div>
           <LanguagesList list={list} />
         </div>

@@ -121,11 +121,9 @@
   --color-icon-button-medium-text: var(--yellow);
 
   --color-markdown-background: var(--white);
-  --color-markdown-text: var(--black);
+  --color-markdown-text: var(--color-typography);
   --color-markdown-border: var(--purple);
   --color-markdown-radius: var(--default-radius);
-  --color-markdown-preview-text: var(--purple);
-  --color-markdown-preview-text-alt: var(--color-success);
   --color-markdown-error: var(--color-error);
 
   --color-switch: var(--purple);
@@ -133,16 +131,10 @@
   --color-text-field-background: var(--white-opacity-30);
   --color-text-field-border: var(--purple);
   --color-text-field-label: var(--black-opacity-50);
-  --color-text-field-text: var(--black);
+  --color-text-field-text: var(--color-typography);
   --color-text-field-error: var(--color-error);
-  /* TODO check this colors */
-  --color-text-field-menu-background: var(--yellow);
-  --color-text-field-icon: var(--black);
-  --color-text-field-hover: var(--purple-light);
-  --color-text-field-selected: var(--purple-light-alt);
 
-  --color-form-field-label: var(--purple);
-  --color-form-field-label-alt: var(--color-success);
+  --color-form-field-label: var(--color-typography);
 
   --color-notification-text: var(--yellow);
   --color-notification-background-success: var(--color-success);
@@ -154,7 +146,7 @@
 
   --color-autocomplete-group-background: var(--purple-light-alt);
 
-  --color-table-text: var(--purple);
+  --color-table-text: var(--color-typography);
   --color-table-border: var(--purple);
   --color-table-row-hover-background: var(--white);
   --color-table-edit-row-form-background: var(--white);

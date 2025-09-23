@@ -3,11 +3,10 @@
 import MDEditor from '@uiw/react-md-editor';
 
 type MarkdownPreviewProps = {
-  isHighlighted?: boolean;
   source: string;
 };
 
-const MarkdownPreview = ({ source, isHighlighted = false }: MarkdownPreviewProps) => {
+const MarkdownPreview = ({ source }: MarkdownPreviewProps) => {
   return (
     <MDEditor.Markdown
       source={source}
@@ -15,7 +14,7 @@ const MarkdownPreview = ({ source, isHighlighted = false }: MarkdownPreviewProps
         whiteSpace: 'pre-wrap',
         width: '100%',
         backgroundColor: 'transparent',
-        color: isHighlighted ? 'var(--color-markdown-preview-text-alt)' : 'var(--color-markdown-preview-text)',
+        color: 'var(--color-markdown-text)',
       }}
     />
   );
