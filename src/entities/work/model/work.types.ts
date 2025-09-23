@@ -44,7 +44,7 @@ export type WorkContribution = {
   isMain: boolean;
   orderNumber: number;
   biography: string;
-  orchidId: string;
+  orcidId: string;
   website: string;
   affiliations: WorkAffiliation[];
 };

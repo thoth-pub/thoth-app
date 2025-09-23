@@ -4,15 +4,18 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { AnimatePresence } from 'motion/react';
+import removeMd from 'remove-markdown';
 
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
-import { convertOrchidIdToText, convertRorIdToText, FormFieldOption } from '@/src/shared';
-import { OrchidLogo, RorLogo, TableCell, TableRow } from '@/src/shared/ui';
+import { config, convertOrchidIdToText, convertRorIdToText, FormFieldOption, truncateString } from '@/src/shared';
+import { OrchidLogo, RorLogo, TableCell, TableRow, Typography } from '@/src/shared/ui';
 
 import { ContributionType } from '../../../model/contributor.types';
 import { ContributorEditForm } from './ContributorEditForm';
 import { LinkTooltip } from './LinkTooltip';
 import { RowButtonGroup } from './RowButtonGroup';
+
+const { maxPreviewLength } = config.tables;
 
 type ContributorsTableRowProps = {
   isEditing: boolean;
@@ -26,6 +29,7 @@ type ContributorsTableRowProps = {
   onFullNameUpdate?: (fullName: string) => void;
   onLastNameUpdate?: (lastName: string) => void;
   onContributorTypeUpdate?: (contributorType: ContributionType) => void;
+  onBiographyUpdate?: (biography: string) => void;
   onOrcidUpdate?: (orcid: string) => void;
   onWebsiteUrlUpdate?: (websiteUrl: string) => void;
   onSelectAsMain?: (id: string) => void;
@@ -34,7 +38,7 @@ type ContributorsTableRowProps = {
 export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
   const {
     isEditing,
-    contributor: { id, fullName, lastName, type, isMain, orchidId, biography, affiliations, website },
+    contributor: { id, fullName, lastName, type, isMain, orcidId, biography, affiliations, website },
     contributorTypeOptions,
     isOrchidFieldDisabled = false,
     isWebsiteUrlFieldDisabled = false,
@@ -44,6 +48,7 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
     onSelectAsMain,
     onFullNameUpdate,
     onLastNameUpdate,
+    onBiographyUpdate,
     onOrcidUpdate,
     onWebsiteUrlUpdate,
     onContributorTypeUpdate,
@@ -56,6 +61,9 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
     transition,
   };
 
+  const plainText = removeMd(biography);
+  const truncatedBiography = truncateString(plainText, maxPreviewLength);
+
   return (
     <AnimatePresence mode="wait">
       {isEditing ? (
@@ -66,13 +74,15 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
               fullName={fullName}
               lastName={lastName}
               contributorType={type}
-              orchidId={orchidId}
+              orcidId={orcidId}
               website={website}
+              biography={biography}
               contributorTypeOptions={contributorTypeOptions}
               isOrchidFieldDisabled={isOrchidFieldDisabled}
               isWebsiteUrlFieldDisabled={isWebsiteUrlFieldDisabled}
               onFullNameUpdate={(fullName) => onFullNameUpdate?.(fullName)}
               onLastNameUpdate={(lastName) => onLastNameUpdate?.(lastName)}
+              onBiographyUpdate={(biography) => onBiographyUpdate?.(biography)}
               onContributorTypeUpdate={(contributorType) => onContributorTypeUpdate?.(contributorType)}
               onOrcidUpdate={(orcid) => onOrcidUpdate?.(orcid)}
               onWebsiteUrlUpdate={(websiteUrl) => onWebsiteUrlUpdate?.(websiteUrl)}
@@ -87,21 +97,21 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
           className="hover:[&>td>div>button]:opacity-100 hover:[&>td>div>svg]:opacity-100"
           {...attributes}
         >
-          <TableCell className="rounded-tl-2xl rounded-bl-2xl pl-1 font-bold">
+          <TableCell className="w-50 rounded-tl-2xl rounded-bl-2xl pl-1">
             <div className="flex gap-1">
               <DragIndicatorIcon className="my-auto opacity-0" color="primary" fontSize="small" {...listeners} />
               <div className="flex shrink-0 gap-1">
                 {fullName}
-                {orchidId && (
-                  <LinkTooltip link={orchidId} linkText={convertOrchidIdToText(orchidId)}>
+                {orcidId && (
+                  <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
                     <OrchidLogo />
                   </LinkTooltip>
                 )}
               </div>
             </div>
           </TableCell>
-          <TableCell className="capitalize">{type.toLowerCase().replace('_', ' ')}</TableCell>
-          <TableCell>
+          <TableCell className="w-50 capitalize">{type.toLowerCase().replace('_', ' ')}</TableCell>
+          <TableCell className="w-100">
             <div className="flex">
               <ul>
                 {affiliations.map((affiliation) => (
@@ -118,7 +128,7 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
             </div>
           </TableCell>
           <TableCell className="flex justify-between rounded-tr-2xl rounded-br-2xl">
-            {biography}
+            <Typography>{truncatedBiography}</Typography>
             <RowButtonGroup
               className="ml-auto"
               isSelected={isMain}

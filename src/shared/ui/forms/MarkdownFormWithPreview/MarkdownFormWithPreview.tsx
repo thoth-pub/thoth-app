@@ -7,13 +7,23 @@ import FormWithPreview, { type FormWithPreviewProps } from '../FormWithPreview/F
 import MarkdownField from '../MarkdownField/MarkdownField';
 import MarkdownSwitch from '../MarkdownSwitch/MarkdownSwitch';
 
-type MarkdownFormWithPreviewProps<T extends FieldValues> = { defaultValue?: string } & Omit<
-  FormWithPreviewProps<T>,
-  'preview' | 'children' | 'isDisabled' | 'defaultValues'
->;
+type MarkdownFormWithPreviewProps<T extends FieldValues> = {
+  defaultValue?: string;
+  disableLineBreaks?: boolean;
+  extendedToolbar?: boolean;
+} & Omit<FormWithPreviewProps<T>, 'preview' | 'children' | 'isDisabled' | 'defaultValues'>;
 
 const MarkdownFormWithPreview = <T extends FieldValues>(props: MarkdownFormWithPreviewProps<T>) => {
-  const { validationSchema, label, name, id, defaultValue, onSubmit } = props;
+  const {
+    validationSchema,
+    label,
+    name,
+    id,
+    defaultValue,
+    extendedToolbar = false,
+    disableLineBreaks = false,
+    onSubmit,
+  } = props;
 
   return (
     <FormWithPreview
@@ -26,7 +36,13 @@ const MarkdownFormWithPreview = <T extends FieldValues>(props: MarkdownFormWithP
       preview={(value) => <MarkdownPreview source={value} />}
     >
       {({ control }) => (
-        <MarkdownField name={name} control={control} disableLineBreaks id={id}>
+        <MarkdownField
+          extendedToolbar={extendedToolbar}
+          name={name}
+          control={control}
+          disableLineBreaks={disableLineBreaks}
+          id={id}
+        >
           <MarkdownSwitch />
         </MarkdownField>
       )}

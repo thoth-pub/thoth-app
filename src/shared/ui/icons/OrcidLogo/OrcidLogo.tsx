@@ -1,9 +1,5 @@
 const OrcidLogo = () => {
-  return (
-    <span style={{ color: '#A8D037' }}>
-      <i className="ai ai-orcid ai-1.5x"></i>
-    </span>
-  );
+  return <img src="/orcid.svg" alt="Orcid" width={24} height={24} />;
 };
 
 export default OrcidLogo;

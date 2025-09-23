@@ -23,6 +23,7 @@ type ContributorsTableProps = {
   onEdit?: (id: ContributionId) => void;
   onFullNameUpdate?: (fullName: string) => void;
   onLastNameUpdate?: (lastName: string) => void;
+  onBiographyUpdate?: (biography: string) => void;
   onOrcidUpdate?: (orcid: string) => void;
   onWebsiteUrlUpdate?: (websiteUrl: string) => void;
   onContributorTypeUpdate?: (contributorType: ContributionType) => void;
@@ -40,6 +41,7 @@ const ContributorsTable = (props: ContributorsTableProps) => {
     onDelete,
     onFullNameUpdate,
     onLastNameUpdate,
+    onBiographyUpdate,
     onOrcidUpdate,
     onWebsiteUrlUpdate,
     onContributorTypeUpdate,
@@ -92,6 +94,7 @@ const ContributorsTable = (props: ContributorsTableProps) => {
                 onDelete={(id) => onDelete?.(id)}
                 onFullNameUpdate={(fullName) => onFullNameUpdate?.(fullName)}
                 onLastNameUpdate={(lastName) => onLastNameUpdate?.(lastName)}
+                onBiographyUpdate={(biography) => onBiographyUpdate?.(biography)}
                 onOrcidUpdate={(orcid) => onOrcidUpdate?.(orcid)}
                 onWebsiteUrlUpdate={(websiteUrl) => onWebsiteUrlUpdate?.(websiteUrl)}
                 onContributorTypeUpdate={(contributorType) => onContributorTypeUpdate?.(contributorType)}

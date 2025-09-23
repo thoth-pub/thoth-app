@@ -63,7 +63,7 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
     return contributions.every((contribution) => linkedPublishers.includes(contribution));
   }, [contributedToPublishers, workId]);
 
-  const isOrchidFieldDisabled = !!selectedContributor?.orchidId && !isAdmin && !isContributedOnlyToCurrentPublisher;
+  const isOrchidFieldDisabled = !!selectedContributor?.orcidId && !isAdmin && !isContributedOnlyToCurrentPublisher;
   const isWebsiteUrlFieldDisabled = !!selectedContributor?.website && !isAdmin && !isContributedOnlyToCurrentPublisher;
 
   const preselectContributor = (
@@ -78,7 +78,7 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
       isMain: false,
       orderNumber: 0,
       biography: '',
-      orchidId: '',
+      orcidId: '',
       website: '',
       firstName: '',
       affiliations: [],
@@ -97,13 +97,13 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
       return;
     }
 
-    const { lastName, fullName, firstName, orchidId, website } = selectedContributor;
+    const { lastName, fullName, firstName, orcidId, website } = selectedContributor;
 
     createProfile({
       lastName,
       fullName,
       firstName,
-      orcid: orchidId,
+      orcid: orcidId,
       websiteUrl: website,
     });
   };
@@ -195,6 +195,10 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
     });
   };
 
+  const updateContributionBiography = (biography: string) => {
+    handleDataUpdateContribution({ biography });
+  };
+
   const reorderContributions = async (items: WorkContribution[]) => {
     const reorderedItems = items.map((item, index) => ({
       ...item,
@@ -238,7 +242,7 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
 
     setSelectedContributor({
       ...selectedContributor,
-      orchidId: updatedData.orcid ?? '',
+      orcidId: updatedData.orcid ?? '',
       website: updatedData.website ?? '',
     });
 
@@ -249,7 +253,7 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
       lastName: selectedContributor.lastName ?? '',
       fullName: selectedContributor.fullName ?? '',
       firstName: selectedContributor.firstName ?? '',
-      orcid: updatedData.orcid ?? selectedContributor.orchidId,
+      orcid: updatedData.orcid ?? selectedContributor.orcidId,
       websiteUrl: updatedData.website ?? selectedContributor.website,
     };
 
@@ -291,6 +295,7 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
     updateContributionFullName,
     updateContributionLastName,
     updateContributionType,
+    updateContributionBiography,
     updateContributionOrcid,
     updateContributionWebsite,
     saveContribution,

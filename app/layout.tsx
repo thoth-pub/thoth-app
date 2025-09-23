@@ -42,9 +42,6 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <head>
-        <link rel="stylesheet" href="/academicons.min.css" precedence="default" />
-      </head>
       <Providers>
         <body className={`${economica.variable} ${openSans.variable} flex h-dvh min-h-dvh flex-col antialiased`}>
           <Header>{session && <SignOutButton />}</Header>

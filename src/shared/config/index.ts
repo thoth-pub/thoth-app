@@ -27,4 +27,7 @@ export const config = {
   },
   dateFormat: 'YYYY-MM-DD',
   defaultId: '0000-0000-0000-0000',
+  tables: {
+    maxPreviewLength: 150,
+  },
 };

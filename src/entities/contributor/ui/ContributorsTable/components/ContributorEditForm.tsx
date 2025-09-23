@@ -8,6 +8,8 @@ import { AddButton, MarkdownFormWithPreview, TextFormWithPreview } from '@/src/s
 
 import { type ContributionType } from '../../../model/contributor.types';
 import {
+  ContributorBiographyForm,
+  contributorBiographyValidationSchema,
   ContributorFullNameForm,
   contributorFullNameValidationSchema,
   ContributorLastNameForm,
@@ -26,12 +28,14 @@ type ContributorEditFormProps = {
   lastName: string;
   contributorType: ContributionType;
   contributorTypeOptions: FormFieldOption[];
-  orchidId?: string;
+  biography?: string;
+  orcidId?: string;
   website?: string;
   isOrchidFieldDisabled?: boolean;
   isWebsiteUrlFieldDisabled?: boolean;
   onFullNameUpdate: (fullName: string) => void;
   onLastNameUpdate: (lastName: string) => void;
+  onBiographyUpdate: (biography: string) => void;
   onOrcidUpdate: (orcid: string) => void;
   onWebsiteUrlUpdate: (websiteUrl: string) => void;
   onContributorTypeUpdate: (contributorType: ContributionType) => void;
@@ -46,13 +50,15 @@ export const ContributorEditForm = (props: ContributorEditFormProps) => {
     lastName,
     contributorType,
     contributorTypeOptions,
-    orchidId = '',
+    biography = '',
+    orcidId = '',
     website = '',
     isOrchidFieldDisabled = false,
     isWebsiteUrlFieldDisabled = false,
     onClose,
     onFullNameUpdate,
     onLastNameUpdate,
+    onBiographyUpdate,
     onOrcidUpdate,
     onWebsiteUrlUpdate,
     onContributorTypeUpdate,
@@ -78,6 +84,12 @@ export const ContributorEditForm = (props: ContributorEditFormProps) => {
     onWebsiteUrlUpdate(websiteUrl ?? '');
   };
 
+  const changeBiography = ({ contributorBiography }: ContributorBiographyForm) => {
+    if (!contributorBiography) return;
+
+    onBiographyUpdate(contributorBiography);
+  };
+
   return (
     <motion.div
       className="my-4 ml-3 flex flex-col gap-8"
@@ -86,7 +98,7 @@ export const ContributorEditForm = (props: ContributorEditFormProps) => {
       exit={{ opacity: 0, height: 0 }}
       transition={{ duration: 0.3, ease: 'easeIn' }}
     >
-      <EditContributorFormHeader title={fullName} orchidId={orchidId} onDone={onClose} />
+      <EditContributorFormHeader title={fullName} orcidId={orcidId} onDone={onClose} />
       <TextFormWithPreview
         name={LAST_NAME.name}
         label={LAST_NAME.label}
@@ -113,13 +125,16 @@ export const ContributorEditForm = (props: ContributorEditFormProps) => {
       <MarkdownFormWithPreview
         name={CONTRIBUTOR_BIOGRAPHY.name}
         label={CONTRIBUTOR_BIOGRAPHY.label}
-        validationSchema={contributorTypeValidationSchema}
+        validationSchema={contributorBiographyValidationSchema}
+        defaultValue={biography}
+        extendedToolbar
+        onSubmit={changeBiography}
       />
       <TextFormWithPreview
         name={ORCID.name}
         label={ORCID.label}
         validationSchema={orcidValidationSchema}
-        defaultValue={orchidId}
+        defaultValue={orcidId}
         disabled={isOrchidFieldDisabled}
         onSubmit={changeOrcid}
       />

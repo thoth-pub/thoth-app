@@ -1,9 +1,5 @@
 const RorLogo = () => {
-  return (
-    <span style={{ color: '#53baa1' }}>
-      <i className="ai ai-ror ai-1.5x"></i>
-    </span>
-  );
+  return <img style={{ color: '#53baa1' }} src="/ror.svg" alt="Ror" width={24} height={24} />;
 };
 
 export default RorLogo;

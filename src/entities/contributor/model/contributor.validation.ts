@@ -36,9 +36,11 @@ export const websiteUrlValidationSchema = z.object({
   [WEBSITE_URL.name]: optionalUrlValidation,
 });
 
-export const contributorTypeValidationSchema = z.object({ [CONTRIBUTOR_TYPE.name]: contributorType });
+export const contributorBiographyValidationSchema = z.object({
+  [CONTRIBUTOR_BIOGRAPHY.name]: optionalStringValidation,
+});
 
-export const contributorBiography = z.object({ [CONTRIBUTOR_BIOGRAPHY.name]: optionalStringValidation });
+export const contributorTypeValidationSchema = z.object({ [CONTRIBUTOR_TYPE.name]: contributorType });
 
 export type ContributorFullNameForm = z.infer<typeof contributorFullNameValidationSchema>;
 
@@ -50,7 +52,7 @@ export type WebsiteUrlForm = z.infer<typeof websiteUrlValidationSchema>;
 
 export type ContributorTypeForm = z.infer<typeof contributorTypeValidationSchema>;
 
-export type ContributorBiographyForm = z.infer<typeof contributorBiography>;
+export type ContributorBiographyForm = z.infer<typeof contributorBiographyValidationSchema>;
 
 export const contributorFormValidationSchema = z.object({
   [FIRST_NAME.name]: optionalStringValidation,

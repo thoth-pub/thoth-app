@@ -50,8 +50,8 @@ export const convertLanguageCode = (code: string) => {
   return `${start}-${end.toUpperCase()}`;
 };
 
-export const convertOrchidIdToText = (orchidId: string) => {
-  return orchidId.replace(orcidPrefix, '');
+export const convertOrchidIdToText = (orcidId: string) => {
+  return orcidId.replace(orcidPrefix, '');
 };
 
 export const convertRorIdToText = (rorId: string) => {

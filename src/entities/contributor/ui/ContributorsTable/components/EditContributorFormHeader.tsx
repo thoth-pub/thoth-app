@@ -7,17 +7,17 @@ import { LinkTooltip } from './LinkTooltip';
 
 type EditContributorFormHeaderProps = {
   title: string;
-  orchidId?: string;
+  orcidId?: string;
   onDone?: () => void;
 };
 
-export const EditContributorFormHeader = ({ title, orchidId, onDone }: EditContributorFormHeaderProps) => {
+export const EditContributorFormHeader = ({ title, orcidId, onDone }: EditContributorFormHeaderProps) => {
   return (
     <div className="flex justify-between">
       <Typography variant="h2" component="h3" className="flex items-center gap-1 text-[var(--color-typography)]">
         {title}
-        {orchidId && (
-          <LinkTooltip link={orchidId} linkText={convertOrchidIdToText(orchidId)}>
+        {orcidId && (
+          <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
             <OrchidLogo />
           </LinkTooltip>
         )}

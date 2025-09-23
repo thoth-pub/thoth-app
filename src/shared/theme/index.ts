@@ -19,6 +19,7 @@ export const theme = createTheme({
       fontSize: '1.375rem',
       lineHeight: '1.26',
       letterSpacing: 'var(--default-letter-spacing)',
+      textTransform: 'uppercase',
     },
     body1: {
       fontWeight: 400,
@@ -225,6 +226,7 @@ export const theme = createTheme({
             lineHeight: '1.5rem',
           },
           '& .MuiTableCell-root.MuiTableCell-body': {
+            verticalAlign: 'top',
             borderColor: 'transparent',
           },
           '& .MuiTableBody-root': {

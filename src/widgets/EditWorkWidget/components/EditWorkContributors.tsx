@@ -35,6 +35,7 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
     updateContributionWebsite,
     updateContributionType,
     updateContributionAsMain,
+    updateContributionBiography,
     deleteContribution,
     reorderContributions,
     saveContribution,
@@ -61,6 +62,7 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
         onLastNameUpdate={updateContributionLastName}
         onOrcidUpdate={updateContributionOrcid}
         onWebsiteUrlUpdate={updateContributionWebsite}
+        onBiographyUpdate={updateContributionBiography}
         onContributorTypeUpdate={updateContributionType}
         onSelectAsMain={updateContributionAsMain}
         onReorderEnd={reorderContributions}

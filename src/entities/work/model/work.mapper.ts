@@ -73,7 +73,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
             isMain: mainContribution,
             orderNumber: contributionOrdinal,
             biography: biography ?? '',
-            orchidId: orcid ? convertOrchidIdToText(orcid) : '',
+            orcidId: orcid ? convertOrchidIdToText(orcid) : '',
             website: website ?? '',
             affiliations: affiliations.map(({ institution: { institutionName, ror = '' } }) => ({
               name: institutionName,
@@ -133,7 +133,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       firstName,
       website,
       biography,
-      orchidId,
+      orcidId,
       affiliations,
     } = entity;
 
@@ -146,9 +146,9 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       contributionType: type,
       mainContribution: isMain,
       contributionOrdinal: orderNumber,
-      // biography: biography ?? null,
+      biography: biography && biography.length > 0 ? biography : null,
       // contributor: {
-      //   orcid: orchidId,
+      //   orcid: orcidId,
       //   website,
       //   fullName,
       //   lastName,

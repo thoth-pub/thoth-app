@@ -15,17 +15,27 @@ export type MarkdownEditorProps = Partial<{
   value: string;
   error: boolean;
   errorMessage: string;
-  disableLineBreaks: boolean;
-  children: Readonly<ReactNode>;
+  extendedToolbar?: boolean;
+  disableLineBreaks?: boolean;
   id?: string;
+  children: Readonly<ReactNode>;
   onChange: (value?: string) => void;
 }>;
 
-const { BOLD, ITALIC, STRIKETHROUGH, UNDERLINE } = TextEditorTag;
+const { BOLD, ITALIC, STRIKETHROUGH, UNDERLINE, LINK, UNORDERED_LIST, ORDERED_LIST, PARAGRAPH } = TextEditorTag;
 
 const MarkdownEditor = (props: MarkdownEditorProps) => {
-  const { value, error, errorMessage, disableLineBreaks = false, children, onChange, id } = props;
-  const { editorRef, customizeText, update } = useMarkdownEditor({ disableLineBreaks, onChange });
+  const {
+    value,
+    error,
+    errorMessage,
+    extendedToolbar = false,
+    disableLineBreaks = false,
+    children,
+    onChange,
+    id,
+  } = props;
+  const { editorRef, customizeText, update, toggleTextCase } = useMarkdownEditor({ disableLineBreaks, onChange });
 
   return (
     <div className="flex flex-1 flex-col gap-1">
@@ -51,10 +61,16 @@ const MarkdownEditor = (props: MarkdownEditorProps) => {
       <div className="flex flex-1 justify-between">
         <MarkdownEditorToolbar
           className="self-start"
+          isExtended={extendedToolbar}
           onBoldPressed={() => customizeText(BOLD)}
           onItalicPressed={() => customizeText(ITALIC)}
           onStrikethroughPressed={() => customizeText(STRIKETHROUGH)}
           onUnderlinePressed={() => customizeText(UNDERLINE)}
+          onLinkPressed={() => customizeText(LINK)}
+          onUnorderedListPressed={() => customizeText(UNORDERED_LIST)}
+          onOrderedListPressed={() => customizeText(ORDERED_LIST)}
+          onToggleTextCasePressed={toggleTextCase}
+          onAddParagraphPressed={() => customizeText(PARAGRAPH)}
         />
         {children}
       </div>
