@@ -176,6 +176,22 @@ export const FORM_FIELDS = {
     placeholder: 'Website URL',
     type: InputTypes.TEXT,
   },
+  AFFILIATION: {
+    label: 'Affiliation',
+    name: 'affiliation',
+    placeholder: 'Affiliation',
+    type: InputTypes.TEXT,
+  },
+  AFFILIATIONS: {
+    label: 'Affiliations',
+    name: 'affiliations',
+  },
+  POSITION: {
+    label: 'Position',
+    name: 'position',
+    placeholder: 'Position',
+    type: InputTypes.TEXT,
+  },
   // FIRST_NAME: 'firstName',
   // LAST_NAME: 'lastName',
   // FULL_NAME: 'fullName',

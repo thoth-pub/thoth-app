@@ -18,6 +18,9 @@ const {
   LAST_NAME,
   ORCID,
   WEBSITE_URL,
+  AFFILIATIONS,
+  AFFILIATION,
+  POSITION,
 } = FORM_FIELDS;
 
 export const contributorFullNameValidationSchema = z.object({
@@ -42,6 +45,29 @@ export const contributorBiographyValidationSchema = z.object({
 
 export const contributorTypeValidationSchema = z.object({ [CONTRIBUTOR_TYPE.name]: contributorType });
 
+export const contributorFormValidationSchema = z.object({
+  [FIRST_NAME.name]: optionalStringValidation,
+  [LAST_NAME.name]: getRequiredStringValidation(),
+  [FULL_NAME.name]: getRequiredStringValidation(),
+  [ORCID.name]: orcidValidation,
+  [WEBSITE_URL.name]: optionalUrlValidation,
+});
+
+const affiliationValidationSchema = z.object({
+  value: getRequiredStringValidation(),
+});
+
+const positionValidationSchema = getRequiredStringValidation();
+
+export const affiliationsValidationSchema = z.object({
+  [AFFILIATIONS.name]: z.array(
+    z.object({
+      [AFFILIATION.name]: affiliationValidationSchema,
+      [POSITION.name]: positionValidationSchema,
+    }),
+  ),
+});
+
 export type ContributorFullNameForm = z.infer<typeof contributorFullNameValidationSchema>;
 
 export type ContributorLastNameForm = z.infer<typeof contributorLastNameValidationSchema>;
@@ -54,12 +80,6 @@ export type ContributorTypeForm = z.infer<typeof contributorTypeValidationSchema
 
 export type ContributorBiographyForm = z.infer<typeof contributorBiographyValidationSchema>;
 
-export const contributorFormValidationSchema = z.object({
-  [FIRST_NAME.name]: optionalStringValidation,
-  [LAST_NAME.name]: getRequiredStringValidation(),
-  [FULL_NAME.name]: getRequiredStringValidation(),
-  [ORCID.name]: orcidValidation,
-  [WEBSITE_URL.name]: optionalUrlValidation,
-});
-
 export type ContributorForm = z.infer<typeof contributorFormValidationSchema>;
+
+export type AffiliationsForm = z.infer<typeof affiliationsValidationSchema>;

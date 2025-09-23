@@ -65,7 +65,7 @@ export const Form = (props: FormProps) => {
           />
         ))}
 
-        <AddButton className="ml-[11.25rem] self-start" onAdd={addLanguage}>
+        <AddButton className="ml-[11.25rem] self-start" onAdd={addLanguage} type="button">
           Add Translation
         </AddButton>
       </form>

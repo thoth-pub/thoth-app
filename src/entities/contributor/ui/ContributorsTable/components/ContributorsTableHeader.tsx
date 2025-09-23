@@ -13,7 +13,7 @@ export const ContributorsTableHeader = ({ cells }: ContributorsTableHeaderProps)
             <Typography
               variant="h2"
               component="span"
-              sx={{ fontFamily: 'unset', fontWeight: 'unset', textTransform: 'unset' }}
+              sx={{ fontFamily: 'unset', fontWeight: 'unset', textTransform: 'unset',  }}
             >
               {cell}
             </Typography>

@@ -5,11 +5,11 @@ import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 import { IconButton, SubmitButton } from '@/src/shared/ui';
 
 type FormControlGroupProps = {
-  isDisabled: boolean;
+  isDisabled?: boolean;
   formId?: string;
 };
 
-const FormControlGroup = ({ isDisabled, formId }: FormControlGroupProps) => {
+const FormControlGroup = ({ isDisabled = false, formId }: FormControlGroupProps) => {
   return (
     <div className="flex gap-1">
       <SubmitButton form={formId} type="submit" disabled={isDisabled} />

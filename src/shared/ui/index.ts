@@ -9,6 +9,7 @@ export { default as Checkbox } from './core/Checkbox/Checkbox';
 export { default as Chip } from './core/Chip/Chip';
 export { default as CircullarProgress } from './core/CircullarProgress/CircullarProgress';
 export { default as ClickAwayListener } from './core/ClickAwayListener/ClickAwayListener';
+export { default as DeleteButton } from './core/DeleteButton/DeleteButton';
 export { default as IconButton } from './core/IconButton/IconButton';
 export { default as InputAdornment } from './core/InputAdornment/InputAdornment';
 export { default as Link } from './core/Link/Link';

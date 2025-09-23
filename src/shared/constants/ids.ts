@@ -11,6 +11,7 @@ export const IDs = {
     COPYRIGHT_HOLDER: 'copyright-holder',
     LANDING_PAGE: 'landing-page',
     COVER_URL: 'cover-url',
+    AFFILIATIONS: 'affiliations',
   },
   FORM_SECTIONS: {
     BASIC_DETAILS: 'basic-details',

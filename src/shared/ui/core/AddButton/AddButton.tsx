@@ -12,7 +12,7 @@ type AddButtonProps = Partial<{
   StartIcon: typeof AddIcon;
   onAdd: () => void;
 }> &
-  ButtonProps;
+  Omit<ButtonProps, 'onClick'>;
 
 const iconClassNames = 'opacity-0 transition duration-300 ease-in-out ml-1';
 

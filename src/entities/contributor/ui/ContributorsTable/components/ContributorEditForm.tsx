@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 
 import type { FormFieldOption } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { AddButton, MarkdownFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
+import { MarkdownFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
 
 import { type ContributionType } from '../../../model/contributor.types';
 import {
@@ -21,6 +21,7 @@ import {
   WebsiteUrlForm,
   websiteUrlValidationSchema,
 } from '../../../model/contributor.validation';
+import { AffiliationsForm } from './AffiliationsForm';
 import { EditContributorFormHeader } from './EditContributorFormHeader';
 
 type ContributorEditFormProps = {
@@ -146,7 +147,7 @@ export const ContributorEditForm = (props: ContributorEditFormProps) => {
         disabled={isWebsiteUrlFieldDisabled}
         onSubmit={changeWebsiteUrl}
       />
-      <AddButton className="ml-[180px] self-start">Add Affiliation</AddButton>
+      <AffiliationsForm />
     </motion.div>
   );
 };
