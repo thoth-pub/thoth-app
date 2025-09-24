@@ -1,4 +1,4 @@
-export const config = {
+export const appConfig = {
   meta: {
     title: 'Thoth Metadata Management Platform',
     description: ' Metadata Management Platform',

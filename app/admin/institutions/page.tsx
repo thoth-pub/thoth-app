@@ -5,7 +5,7 @@ import { auth } from '@/auth';
 import TestList from '@/delete/dev/testList';
 import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '@/src/entities/institution';
 import { ROUTES } from '@/src/shared';
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 import { PreloadQuery } from '@/src/shared/graphqlClient';
 
 export default async function InstitutionsPage() {
@@ -21,7 +21,7 @@ export default async function InstitutionsPage() {
         query={GET_INSTITUTIONS}
         variables={{
           offset: 0,
-          limit: config.data.itemsPerRequestLimit,
+          limit: appConfig.data.itemsPerRequestLimit,
         }}
       >
         <PreloadQuery query={GET_INSTITUTIONS_COUNT}>

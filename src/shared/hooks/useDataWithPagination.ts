@@ -5,9 +5,9 @@ import { useSuspenseQuery } from '@apollo/client/react';
 import { useCallback, useState } from 'react';
 
 import { Exact, InputMaybe, Scalars } from '@/gql/graphql';
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 
-const ITEMS_PER_PAGE = config.data.itemsPerRequestLimit;
+const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 
 type UseDataWithPaginationProps<QueryResult> = {
   query: TypedDocumentNode<

@@ -5,7 +5,7 @@ import { useEffect, useRef } from 'react';
 
 import type { GetLinkedPublishersQuery } from '@/gql/graphql';
 import type { PublisherId } from '@/src/entities/publisher';
-import { config, isDefaultId } from '@/src/shared';
+import { appConfig, isDefaultId } from '@/src/shared';
 
 import { ContributorDtoMapper } from '../../model/contributor.mapper';
 import { GET_LINKED_PUBLISHERS } from '../../model/contributor.schema';
@@ -17,7 +17,7 @@ type UseContributorProps = {
   id?: ContributorId;
 };
 
-const { maxItemsPerRequestLimit } = config.data;
+const { maxItemsPerRequestLimit } = appConfig.data;
 
 const useLinkedPublishers = ({ id = '' }: UseContributorProps) => {
   const {
@@ -26,7 +26,7 @@ const useLinkedPublishers = ({ id = '' }: UseContributorProps) => {
     error,
     fetchMore,
   } = useQuery<GetLinkedPublishersQuery>(GET_LINKED_PUBLISHERS, {
-    variables: { contributorId: id, offset: 0, limit: config.data.maxItemsPerRequestLimit },
+    variables: { contributorId: id, offset: 0, limit: maxItemsPerRequestLimit },
     skip: id.length === 0 || isDefaultId(id),
   });
   const data = mapper.toLinkedPublishers(linkedPublishersData);

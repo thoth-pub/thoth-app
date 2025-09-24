@@ -4,12 +4,12 @@ import { DatePicker, type DatePickerProps } from '@mui/x-date-pickers/DatePicker
 import dayjs from 'dayjs';
 import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 import { BaseFieldProps } from '@/src/shared/interfaces';
 
 export type DateFieldProps<T extends FieldValues> = BaseFieldProps<T> & DatePickerProps;
 
-const { dateFormat } = config;
+const { dateFormat } = appConfig;
 
 const DateField = <T extends FieldValues>(props: DateFieldProps<T>) => {
   const { control, name, ...rest } = props;

@@ -3,11 +3,11 @@
 import { motion } from 'motion/react';
 import { ReactNode } from 'react';
 
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 
 const {
   animation: { duration },
-} = config;
+} = appConfig;
 
 function Template({ children }: { children: Readonly<ReactNode> }) {
   return (

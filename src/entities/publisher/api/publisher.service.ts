@@ -1,11 +1,11 @@
-import { config } from '@/src/shared';
+import { appConfig } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublisherDtoMapper } from '../model/publisher.mapper';
 import { GET_PUBLISHERS } from '../model/publisher.schema';
 import type { PublisherEntity, PublisherId } from '../model/publisher.types';
 
-const { itemsPerRequestLimit, maxItemsPerRequestLimit } = config.data;
+const { itemsPerRequestLimit, maxItemsPerRequestLimit } = appConfig.data;
 
 type GetPublishersProps = {
   publishersIds: PublisherId[];

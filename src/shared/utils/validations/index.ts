@@ -3,11 +3,11 @@ import isbn3 from 'isbn3';
 import { orcid } from 'orcid';
 import z from 'zod';
 
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 import { ContributorTypes, ERRORS, LanguageTypeAlt, WorkStatuses } from '@/src/shared/constants';
 import type { ErrorMessage } from '@/src/shared/interfaces';
 
-const { doiPrefix, rorPrefix } = config.validations;
+const { doiPrefix, rorPrefix } = appConfig.validations;
 
 const { INVALID_URL } = ERRORS;
 
@@ -64,7 +64,7 @@ export const idValidation = z.uuid();
 export const doiValidation = getStringValidation().refine((doi) => doi.startsWith(doiPrefix));
 export const orcidValidation = getStringValidation()
   .optional()
-  .refine((value) => (value ? orcid.validate(config.validations.orcidPrefix + value) : true), {
+  .refine((value) => (value ? orcid.validate(appConfig.validations.orcidPrefix + value) : true), {
     message: 'Invalid ORCID ID (0000-0000-0000-0000 or 0000-0000-0000-000X)',
   });
 export const rorValidation = getStringValidation().refine((ror) => ror.startsWith(rorPrefix));

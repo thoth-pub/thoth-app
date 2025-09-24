@@ -1,12 +1,12 @@
 import { PublisherId } from '@/src/entities/publisher';
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ImprintDtoMapper } from '../model/imprint.mapper';
 import { GET_IMPRINTS, GET_IMPRINTS_COUNT } from '../model/imprint.schema';
 import type { ImprintEntity } from '../model/imprint.types';
 
-const { itemsPerRequestLimit, maxItemsPerRequestLimit } = config.data;
+const { itemsPerRequestLimit, maxItemsPerRequestLimit } = appConfig.data;
 
 type GetImprintsProps = {
   publishersIds: PublisherId[];

@@ -1,3 +1,3 @@
-import { config } from '../../config';
+import { appConfig } from '../../config';
 
-export const isDefaultId = (id: string) => id === config.defaultId;
+export const isDefaultId = (id: string) => id === appConfig.defaultId;

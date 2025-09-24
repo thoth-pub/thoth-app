@@ -1,4 +1,4 @@
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 import { Link, Typography } from '@/src/shared/ui';
 
 const {
@@ -6,7 +6,7 @@ const {
   cc4Link,
   publicDomainLink,
   meta: { title },
-} = config;
+} = appConfig;
 
 export const FooterLinks = () => {
   return (

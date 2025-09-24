@@ -1,12 +1,12 @@
 import dayjs from 'dayjs';
 
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 import type { FormFieldOption } from '@/src/shared/interfaces';
 
 const {
   data: { orcidPrefix, rorPrefix },
   dataApi: { textSeparator },
-} = config;
+} = appConfig;
 
 export const convertFormFieldsToSelectFieldOptions = (formFields: string[]): FormFieldOption[] => {
   return formFields.map((option) => {
@@ -33,7 +33,7 @@ export const convertEntityToSelectFieldOptions = <T extends { id: string }>(
 };
 
 export const convertDateToFormattedDate = (date: string) => {
-  return dayjs(date).format(config.dateFormat);
+  return dayjs(date).format(appConfig.dateFormat);
 };
 
 export const getDateInFuture = (days: number = 1) => {

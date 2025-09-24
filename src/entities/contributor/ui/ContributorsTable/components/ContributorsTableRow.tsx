@@ -7,7 +7,7 @@ import { AnimatePresence } from 'motion/react';
 import removeMd from 'remove-markdown';
 
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
-import { config, convertOrchidIdToText, convertRorIdToText, FormFieldOption, truncateString } from '@/src/shared';
+import { appConfig, convertOrchidIdToText, convertRorIdToText, FormFieldOption, truncateString } from '@/src/shared';
 import { OrchidLogo, RorLogo, TableCell, TableRow, Typography } from '@/src/shared/ui';
 
 import { ContributionType } from '../../../model/contributor.types';
@@ -15,7 +15,7 @@ import { ContributorEditForm } from './ContributorEditForm';
 import { LinkTooltip } from './LinkTooltip';
 import { RowButtonGroup } from './RowButtonGroup';
 
-const { maxPreviewLength } = config.tables;
+const { maxPreviewLength } = appConfig.tables;
 
 type ContributorsTableRowProps = {
   isEditing: boolean;

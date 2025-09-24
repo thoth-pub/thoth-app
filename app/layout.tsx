@@ -5,14 +5,14 @@ import { Economica, Open_Sans } from 'next/font/google';
 
 import { auth } from '@/auth';
 import { SignOutButton } from '@/src/features';
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 import { Footer, Header } from '@/src/shared/ui';
 
 import Providers from './providers';
 
 const {
   meta: { title, description },
-} = config;
+} = appConfig;
 
 const openSans = Open_Sans({
   variable: '--font-open-sans',

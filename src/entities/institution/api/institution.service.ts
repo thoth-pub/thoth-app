@@ -1,11 +1,11 @@
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { InstitutionDtoMapper } from '../model/institution.mapper';
 import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '../model/institution.schema';
 import type { InstitutionEntity } from '../model/institution.types';
 
-const defaultLimit = config.data.itemsPerRequestLimit;
+const { itemsPerRequestLimit, maxItemsPerRequestLimit } = appConfig.data;
 
 export class InstitutionService extends BaseService {
   async getInstitutionsCount(): Promise<number> {
@@ -16,7 +16,7 @@ export class InstitutionService extends BaseService {
     return data?.institutionCount ?? 0;
   }
 
-  async getInstitutions(offset: number = 0, limit: number = defaultLimit): Promise<InstitutionEntity[]> {
+  async getInstitutions(offset: number = 0, limit: number = itemsPerRequestLimit): Promise<InstitutionEntity[]> {
     const { data } = await this.queryClient({
       query: GET_INSTITUTIONS,
       variables: {
@@ -33,5 +33,19 @@ export class InstitutionService extends BaseService {
     const res = data.institutions.map(dtoMapper.toEntity);
 
     return res;
+  }
+
+  async getAllInstitutions(limit: number = maxItemsPerRequestLimit): Promise<InstitutionEntity[]> {
+    const maxInstitutionsCount = await this.getInstitutionsCount();
+    let offset = 0;
+    const institutions = [];
+
+    do {
+      const data = await this.getInstitutions(offset, limit);
+      institutions.push(...data);
+      offset += limit;
+    } while (offset < maxInstitutionsCount);
+
+    return institutions;
   }
 }

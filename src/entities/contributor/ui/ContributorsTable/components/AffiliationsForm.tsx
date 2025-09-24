@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Fragment, useState } from 'react';
 import { useFieldArray, useForm } from 'react-hook-form';
 
-import { type FormFieldOption, IDs } from '@/src/shared';
+import { IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import {
   AddButton,
@@ -29,16 +29,12 @@ const {
   FORM_FIELDS: { AFFILIATIONS: AFFILIATIONS_ID },
 } = IDs;
 
-type AffiliationFormProps = {
-  affiliationOptions?: FormFieldOption[];
-};
-
 const fieldsDefaultValues = {
   [AFFILIATION.name]: { value: '1' },
   [POSITION.name]: '',
 };
 
-export const AffiliationsForm = (props: AffiliationFormProps) => {
+export const AffiliationsForm = () => {
   const [isPreviewMode, setIsPreviewMode] = useState(true);
   const [formValues, setFormValues] = useState<{ affiliation: { value: string }; position: string; id: string }[]>([]);
   const { control, handleSubmit } = useForm({
@@ -156,12 +152,7 @@ export const AffiliationsForm = (props: AffiliationFormProps) => {
                 <FormFieldWrapper>
                   <InputLabel>{AFFILIATION.label}</InputLabel>
                   <FormFieldWithControlsWrapper>
-                    <AutocompleteField
-                      fullWidth
-                      name={getAffiliationFieldName(index)}
-                      control={control}
-                      options={[{ value: '1', label: '1' }]}
-                    />
+                    <AutocompleteField fullWidth name={getAffiliationFieldName(index)} control={control} options={[]} />
 
                     {index === 0 && <FormControlGroup formId={AFFILIATIONS_ID} />}
                     <DeleteButton onDelete={() => onRemoveAffiliation(index)} />

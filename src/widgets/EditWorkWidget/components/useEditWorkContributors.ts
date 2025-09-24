@@ -6,7 +6,7 @@ import type { ContributionType, ContributorEntity } from '@/src/entities/contrib
 import type { PublisherId } from '@/src/entities/publisher';
 import { useWork } from '@/src/entities/work';
 import type { WorkContribution, WorkId } from '@/src/entities/work/model/work.types';
-import { config, isDefaultId, type QueryToken } from '@/src/shared';
+import { appConfig, isDefaultId, type QueryToken } from '@/src/shared';
 import { ContributorTypes } from '@/src/shared/constants';
 
 import { useEditContributorProfile } from './useEditContributorProfile';
@@ -69,7 +69,7 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
   const preselectContributor = (
     contributor: Partial<{ fullName: string; lastName: string; contributorId: string }>,
   ) => {
-    const id = config.defaultId;
+    const id = appConfig.defaultId;
 
     const newContribution = {
       ...contributor,

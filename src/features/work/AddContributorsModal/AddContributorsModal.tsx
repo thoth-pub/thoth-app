@@ -6,7 +6,7 @@ import { type ChangeEvent, useState } from 'react';
 
 import { useContributors } from '@/src/entities/contributor';
 import type { ContributorId } from '@/src/entities/contributor/model/contributor.types';
-import { config } from '@/src/shared/config';
+import { appConfig } from '@/src/shared/config';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
   AddButton,
@@ -28,7 +28,7 @@ type AddContributorsModalProps = {
 
 const AddContributorsModal = ({ isDisabled = false, onAdd, onCreate }: AddContributorsModalProps) => {
   const [searchValue, setSearchValue] = useState('');
-  const debouncedValue = useDebouncedValue(searchValue, config.fieldsDebounceDelay);
+  const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { contributors, loading } = useContributors({ filter: debouncedValue });
   const [selected, setSelected] = useState<ContributorId | ''>('');
   const [open, setOpen] = useState(false);

@@ -5,7 +5,7 @@ import useContributor from '@/src/entities/contributor/api/hooks/useLinkedPublis
 import { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { ContributorForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { config, QueryToken } from '@/src/shared';
+import { appConfig, QueryToken } from '@/src/shared';
 import { NOTIFICATIONS } from '@/src/shared/constants';
 import { useNotifications } from '@/src/shared/hooks';
 
@@ -56,7 +56,7 @@ export const useEditContributorProfile = (props: EditContributorProfileProps) =>
       firstName: firstName && firstName !== '' ? firstName : null,
       lastName,
       fullName,
-      orcid: orcid && orcid.length > 0 ? config.validations.orcidPrefix + orcid : null,
+      orcid: orcid && orcid.length > 0 ? appConfig.validations.orcidPrefix + orcid : null,
       website: websiteUrl && websiteUrl.length > 0 ? websiteUrl : null,
     };
 
@@ -75,7 +75,7 @@ export const useEditContributorProfile = (props: EditContributorProfileProps) =>
       firstName: firstName && firstName !== '' ? firstName : null,
       lastName,
       fullName,
-      orcid: orcid && orcid.length > 0 ? config.validations.orcidPrefix + orcid : null,
+      orcid: orcid && orcid.length > 0 ? appConfig.validations.orcidPrefix + orcid : null,
       website: websiteUrl && websiteUrl.length > 0 ? websiteUrl : null,
       contributorId: id,
     };
