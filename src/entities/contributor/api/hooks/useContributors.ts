@@ -20,7 +20,7 @@ const useContributors = ({ filter }: UseContributorsProps) => {
   const contributors = data.contributors.map(mapper.toEntity);
 
   return {
-    contributors: contributors,
+    contributors,
     loading,
   };
 };

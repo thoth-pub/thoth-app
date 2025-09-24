@@ -6,12 +6,12 @@ import { useEffect, useMemo } from 'react';
 import { GetInstitutionsQuery } from '@/gql/graphql';
 import { useDataWithPagination, useFilter } from '@/src/shared/hooks';
 
-import { InstitutionDtoMapper } from '../model/institution.mapper';
-import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '../model/institution.schema';
+import { InstitutionDtoMapper } from '../../model/institution.mapper';
+import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '../../model/institution.schema';
 
 const dtoMapper = new InstitutionDtoMapper();
 
-const useInstitutions = () => {
+const useInstitutionsWithPagination = () => {
   const { filter, debouncedFilter, updateFilter } = useFilter();
 
   const { data: institutionsCount } = useSuspenseQuery(GET_INSTITUTIONS_COUNT, {
@@ -50,4 +50,4 @@ const useInstitutions = () => {
   };
 };
 
-export default useInstitutions;
+export default useInstitutionsWithPagination;

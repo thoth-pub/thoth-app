@@ -6,11 +6,12 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { AnimatePresence } from 'motion/react';
 import removeMd from 'remove-markdown';
 
+import { ContributionType } from '@/src/entities/contributor/model/contributor.types';
+import { AffiliationsForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
 import { appConfig, convertOrchidIdToText, convertRorIdToText, FormFieldOption, truncateString } from '@/src/shared';
 import { OrchidLogo, RorLogo, TableCell, TableRow, Typography } from '@/src/shared/ui';
 
-import { ContributionType } from '../../../model/contributor.types';
 import { ContributorEditForm } from './ContributorEditForm';
 import { LinkTooltip } from './LinkTooltip';
 import { RowButtonGroup } from './RowButtonGroup';
@@ -33,6 +34,9 @@ type ContributorsTableRowProps = {
   onOrcidUpdate?: (orcid: string) => void;
   onWebsiteUrlUpdate?: (websiteUrl: string) => void;
   onSelectAsMain?: (id: string) => void;
+  onAffiliationsReorder: (data: AffiliationsForm['affiliations']) => void;
+  onAffiliationsUpdate: (data: AffiliationsForm) => void;
+  onAffiliationsDelete: (id: string) => void;
 };
 
 export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
@@ -52,6 +56,9 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
     onOrcidUpdate,
     onWebsiteUrlUpdate,
     onContributorTypeUpdate,
+    onAffiliationsReorder,
+    onAffiliationsUpdate,
+    onAffiliationsDelete,
   } = props;
 
   const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
@@ -80,12 +87,16 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
               contributorTypeOptions={contributorTypeOptions}
               isOrchidFieldDisabled={isOrchidFieldDisabled}
               isWebsiteUrlFieldDisabled={isWebsiteUrlFieldDisabled}
+              affiliations={affiliations}
               onFullNameUpdate={(fullName) => onFullNameUpdate?.(fullName)}
               onLastNameUpdate={(lastName) => onLastNameUpdate?.(lastName)}
               onBiographyUpdate={(biography) => onBiographyUpdate?.(biography)}
               onContributorTypeUpdate={(contributorType) => onContributorTypeUpdate?.(contributorType)}
               onOrcidUpdate={(orcid) => onOrcidUpdate?.(orcid)}
               onWebsiteUrlUpdate={(websiteUrl) => onWebsiteUrlUpdate?.(websiteUrl)}
+              onAffiliationsReorder={onAffiliationsReorder}
+              onAffiliationsUpdate={onAffiliationsUpdate}
+              onAffiliationsDelete={onAffiliationsDelete}
             />
           </TableCell>
         </TableRow>
@@ -113,12 +124,12 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
           <TableCell className="w-50 capitalize">{type.toLowerCase().replace('_', ' ')}</TableCell>
           <TableCell className="w-100">
             <div className="flex">
-              <ul>
-                {affiliations.map((affiliation) => (
-                  <li key={affiliation.name}>
-                    {affiliation.name}
-                    {affiliation.rorId && (
-                      <LinkTooltip link={affiliation.rorId} linkText={convertRorIdToText(affiliation.rorId)}>
+              <ul className="flex flex-col gap-1">
+                {affiliations.map(({ id, institutionName, rorId }) => (
+                  <li key={id} className="flex items-center gap-1">
+                    {institutionName}
+                    {rorId && (
+                      <LinkTooltip link={rorId} linkText={convertRorIdToText(rorId)}>
                         <RorLogo />
                       </LinkTooltip>
                     )}

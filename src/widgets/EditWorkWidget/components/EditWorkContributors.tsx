@@ -40,6 +40,9 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
     reorderContributions,
     saveContribution,
     edit,
+    updateAffiliations,
+    reorderAffiliations,
+    deleteAffiliation,
   } = useEditWorkContributors({
     workId,
     queryToken,
@@ -66,6 +69,9 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
         onContributorTypeUpdate={updateContributionType}
         onSelectAsMain={updateContributionAsMain}
         onReorderEnd={reorderContributions}
+        onAffiliationsReorder={reorderAffiliations}
+        onAffiliationsUpdate={updateAffiliations}
+        onAffiliationsDelete={deleteAffiliation}
       />
       <AddContributorsModal
         isDisabled={!!selectedContributor}

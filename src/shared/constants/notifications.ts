@@ -12,4 +12,9 @@ export const NOTIFICATIONS = {
   CONTRIBUTOR_CREATION_FAILED: 'Failed to create contributor',
   CONTRIBUTOR_UPDATE_SUCCESS: 'Contributor profile updated successfully',
   CONTRIBUTOR_UPDATE_FAILED: 'Failed to update contributor profile',
+  // Affiliations
+  AFFILIATION_CREATION_SUCCESS: 'Affiliation created successfully',
+  AFFILIATION_CREATION_FAILED: 'Failed to create affiliation',
+  AFFILIATION_UPDATE_SUCCESS: 'Affiliation updated successfully',
+  AFFILIATION_UPDATE_FAILED: 'Failed to update affiliation',
 } as const;

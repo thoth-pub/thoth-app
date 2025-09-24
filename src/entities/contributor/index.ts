@@ -8,4 +8,4 @@ export { default as useUpdateContributor } from './api/hooks/useUpdateContributo
 export { type ContributorEntity } from './model/contributor.types';
 
 // UI
-export { default as ContributorsTable } from './ui/ContributorsTable/ContributorsTable';
+export { default as ContributorsTable } from '../../widgets/WorkContributors/WorkContributors';

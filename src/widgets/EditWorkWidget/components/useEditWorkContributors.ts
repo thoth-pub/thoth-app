@@ -3,12 +3,14 @@
 import { useMemo, useState } from 'react';
 
 import type { ContributionType, ContributorEntity } from '@/src/entities/contributor/model/contributor.types';
+import type { AffiliationsForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { PublisherId } from '@/src/entities/publisher';
 import { useWork } from '@/src/entities/work';
 import type { WorkContribution, WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig, isDefaultId, type QueryToken } from '@/src/shared';
 import { ContributorTypes } from '@/src/shared/constants';
 
+import { useEditContributionAffiliations } from './useEditContributionAffiliations';
 import { useEditContributorProfile } from './useEditContributorProfile';
 
 type EditWorkContributorsProps = {
@@ -28,6 +30,13 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
 
   const [selectedContributor, setSelectedContributor] = useState<WorkContribution | null>(null);
   const isRecentlyAddedContribution = selectedContributor ? isDefaultId(selectedContributor.id) : false;
+
+  const { updateAffiliations, deleteAffiliation } = useEditContributionAffiliations({
+    queryToken,
+    contributionId: selectedContributor?.id ?? '',
+    affiliations: selectedContributor?.affiliations ?? [],
+    workId,
+  });
 
   const contributions = useMemo(() => {
     if (!selectedContributor || !isRecentlyAddedContribution) return work.contributions;
@@ -282,6 +291,32 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
     setSelectedContributor(contributor);
   };
 
+  const updateContributionAffiliations = (data: AffiliationsForm) => {
+    if (!selectedContributor || isRecentlyAddedContribution) return;
+
+    const changedAffiliations = data.affiliations.filter(({ affiliation: { label }, position }) => {
+      const existingAffiliation = selectedContributor.affiliations.find(
+        (affiliation) => affiliation.id === affiliation.id,
+      );
+
+      if (!existingAffiliation) return true;
+
+      return existingAffiliation.institutionName !== label || existingAffiliation.position !== position;
+    });
+
+    updateAffiliations({ ...data, affiliations: changedAffiliations });
+  };
+
+  const deleteContributionAffiliation = (id: string) => {
+    if (!selectedContributor || isRecentlyAddedContribution || isDefaultId(id)) return;
+
+    deleteAffiliation(id);
+  };
+
+  const reorderAffiliations = () => {
+    console.log('reorderAffiliations');
+  };
+
   return {
     contributions,
     selectedContributor,
@@ -301,5 +336,9 @@ export const useEditWorkContributors = (props: EditWorkContributorsProps) => {
     saveContribution,
 
     edit: handleEdit,
+
+    updateAffiliations: updateContributionAffiliations,
+    deleteAffiliation: deleteContributionAffiliation,
+    reorderAffiliations,
   };
 };

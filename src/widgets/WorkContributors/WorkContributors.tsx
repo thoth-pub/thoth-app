@@ -8,11 +8,16 @@ import type { WorkContribution } from '@/src/entities/work/model/work.types';
 import type { FormFieldOption } from '@/src/shared';
 import { Table as TableComponent, TableBody } from '@/src/shared/ui';
 
-import type { ContributionId, ContributionType, ContributorId } from '../../model/contributor.types';
+import type {
+  ContributionId,
+  ContributionType,
+  ContributorId,
+} from '../../entities/contributor/model/contributor.types';
+import type { AffiliationsForm } from '../../entities/contributor/model/contributor.validation';
 import { ContributorsTableHeader } from './components/ContributorsTableHeader';
 import { ContributorsTableRow } from './components/ContributorsTableRow';
 
-type ContributorsTableProps = {
+type WorkContributorsProps = {
   data: WorkContribution[];
   contributorTypeOptions: FormFieldOption[];
   selectedId: ContributionId;
@@ -29,9 +34,12 @@ type ContributorsTableProps = {
   onContributorTypeUpdate?: (contributorType: ContributionType) => void;
   onSelectAsMain?: (id: ContributionId) => void;
   onReorderEnd?: (items: WorkContribution[]) => void;
+  onAffiliationsReorder: (data: AffiliationsForm['affiliations']) => void;
+  onAffiliationsUpdate: (data: AffiliationsForm) => void;
+  onAffiliationsDelete: (id: string) => void;
 };
 
-const ContributorsTable = (props: ContributorsTableProps) => {
+const WorkContributors = (props: WorkContributorsProps) => {
   const {
     data,
     contributorTypeOptions,
@@ -49,6 +57,9 @@ const ContributorsTable = (props: ContributorsTableProps) => {
     onEdit,
     onSelectAsMain,
     onReorderEnd,
+    onAffiliationsReorder,
+    onAffiliationsUpdate,
+    onAffiliationsDelete,
   } = props;
 
   const [items, setItems] = useState(data);
@@ -99,6 +110,9 @@ const ContributorsTable = (props: ContributorsTableProps) => {
                 onWebsiteUrlUpdate={(websiteUrl) => onWebsiteUrlUpdate?.(websiteUrl)}
                 onContributorTypeUpdate={(contributorType) => onContributorTypeUpdate?.(contributorType)}
                 onSelectAsMain={(id) => onSelectAsMain?.(id)}
+                onAffiliationsReorder={onAffiliationsReorder}
+                onAffiliationsUpdate={onAffiliationsUpdate}
+                onAffiliationsDelete={onAffiliationsDelete}
               />
             ))}
           </TableBody>
@@ -108,4 +122,4 @@ const ContributorsTable = (props: ContributorsTableProps) => {
   );
 };
 
-export default ContributorsTable;
+export default WorkContributors;

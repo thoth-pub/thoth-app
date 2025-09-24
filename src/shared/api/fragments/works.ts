@@ -39,9 +39,13 @@ export const WORK_FRAGMENT = graphql(`
         website
       }
       affiliations {
+        position
+        affiliationId
+        affiliationOrdinal
         institution {
           ror
           institutionName
+          institutionId
         }
       }
     }

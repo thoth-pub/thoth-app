@@ -2,12 +2,9 @@
 
 import { motion } from 'motion/react';
 
-import type { FormFieldOption } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { MarkdownFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
-
-import { type ContributionType } from '../../../model/contributor.types';
+import { type ContributionType } from '@/src/entities/contributor/model/contributor.types';
 import {
+  AffiliationsForm as AffiliationsFormType,
   ContributorBiographyForm,
   contributorBiographyValidationSchema,
   ContributorFullNameForm,
@@ -20,7 +17,12 @@ import {
   orcidValidationSchema,
   WebsiteUrlForm,
   websiteUrlValidationSchema,
-} from '../../../model/contributor.validation';
+} from '@/src/entities/contributor/model/contributor.validation';
+import type { WorkAffiliation } from '@/src/entities/work/model/work.types';
+import type { FormFieldOption } from '@/src/shared';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { MarkdownFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
+
 import { AffiliationsForm } from './AffiliationsForm';
 import { EditContributorFormHeader } from './EditContributorFormHeader';
 
@@ -34,16 +36,27 @@ type ContributorEditFormProps = {
   website?: string;
   isOrchidFieldDisabled?: boolean;
   isWebsiteUrlFieldDisabled?: boolean;
+  affiliations: WorkAffiliation[];
   onFullNameUpdate: (fullName: string) => void;
   onLastNameUpdate: (lastName: string) => void;
   onBiographyUpdate: (biography: string) => void;
   onOrcidUpdate: (orcid: string) => void;
   onWebsiteUrlUpdate: (websiteUrl: string) => void;
   onContributorTypeUpdate: (contributorType: ContributionType) => void;
+  onAffiliationsReorder: (data: AffiliationsFormType['affiliations']) => void;
+  onAffiliationsUpdate: (data: AffiliationsFormType) => void;
+  onAffiliationsDelete: (id: string) => void;
   onClose?: () => void;
 };
 
-const { CONTRIBUTOR_FULLNAME, CONTRIBUTOR_TYPE, CONTRIBUTOR_BIOGRAPHY, LAST_NAME, ORCID, WEBSITE_URL } = FORM_FIELDS;
+const {
+  CONTRIBUTOR_FULLNAME,
+  CONTRIBUTOR_TYPE,
+  CONTRIBUTOR_BIOGRAPHY,
+  LAST_NAME,
+  ORCID,
+  WEBSITE_URL,
+} = FORM_FIELDS;
 
 export const ContributorEditForm = (props: ContributorEditFormProps) => {
   const {
@@ -54,6 +67,7 @@ export const ContributorEditForm = (props: ContributorEditFormProps) => {
     biography = '',
     orcidId = '',
     website = '',
+    affiliations,
     isOrchidFieldDisabled = false,
     isWebsiteUrlFieldDisabled = false,
     onClose,
@@ -63,6 +77,9 @@ export const ContributorEditForm = (props: ContributorEditFormProps) => {
     onOrcidUpdate,
     onWebsiteUrlUpdate,
     onContributorTypeUpdate,
+    onAffiliationsReorder,
+    onAffiliationsUpdate,
+    onAffiliationsDelete,
   } = props;
 
   const changeFullName = ({ contributorFullName }: ContributorFullNameForm) => {
@@ -147,7 +164,12 @@ export const ContributorEditForm = (props: ContributorEditFormProps) => {
         disabled={isWebsiteUrlFieldDisabled}
         onSubmit={changeWebsiteUrl}
       />
-      <AffiliationsForm />
+      <AffiliationsForm
+        defaultValue={affiliations}
+        onAffiliationsReorder={onAffiliationsReorder}
+        onAffiliationsUpdate={onAffiliationsUpdate}
+        onAffiliationsDelete={onAffiliationsDelete}
+      />
     </motion.div>
   );
 };

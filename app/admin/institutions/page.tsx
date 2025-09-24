@@ -2,7 +2,6 @@ import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 
 import { auth } from '@/auth';
-import TestList from '@/delete/dev/testList';
 import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '@/src/entities/institution';
 import { ROUTES } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
@@ -26,7 +25,7 @@ export default async function InstitutionsPage() {
       >
         <PreloadQuery query={GET_INSTITUTIONS_COUNT}>
           <Suspense fallback={<p>loading...</p>}>
-            <TestList />
+            <p>Institutions</p>
           </Suspense>
         </PreloadQuery>
       </PreloadQuery>

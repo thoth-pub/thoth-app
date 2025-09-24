@@ -75,10 +75,22 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
             biography: biography ?? '',
             orcidId: orcid ? convertOrchidIdToText(orcid) : '',
             website: website ?? '',
-            affiliations: affiliations.map(({ institution: { institutionName, ror = '' } }) => ({
-              name: institutionName,
-              rorId: ror,
-            })),
+            affiliations: affiliations.map(
+              ({
+                institution: { institutionName, institutionId, ror = '' },
+                position = '',
+                affiliationId,
+                affiliationOrdinal,
+              }) => ({
+                contributionId,
+                id: affiliationId,
+                institutionName: institutionName,
+                institutionId: institutionId,
+                rorId: ror,
+                position: position ?? '',
+                orderNumber: affiliationOrdinal,
+              }),
+            ),
           }),
         )
         .sort((a, b) => a.orderNumber - b.orderNumber),
@@ -122,20 +134,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   }
 
   toDtoContribution(entity: WorkContribution): WorkContributionDto {
-    const {
-      fullName,
-      lastName,
-      id,
-      contributorId,
-      type,
-      isMain,
-      orderNumber,
-      firstName,
-      website,
-      biography,
-      orcidId,
-      affiliations,
-    } = entity;
+    const { fullName, lastName, id, contributorId, type, isMain, orderNumber, firstName, biography } = entity;
 
     return {
       fullName,
@@ -147,19 +146,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       mainContribution: isMain,
       contributionOrdinal: orderNumber,
       biography: biography && biography.length > 0 ? biography : null,
-      // contributor: {
-      //   orcid: orcidId,
-      //   website,
-      //   fullName,
-      //   lastName,
-      //   updatedAt: new Date().toISOString(),
-      // },
-      // affiliations: affiliations.map(({ name, rorId }) => ({
-      //   institution: {
-      //     institutionName: name,
-      //     ror: rorId,
-      //   },
-      // })),
     };
   }
 }

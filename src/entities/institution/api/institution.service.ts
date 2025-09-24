@@ -5,7 +5,7 @@ import { InstitutionDtoMapper } from '../model/institution.mapper';
 import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '../model/institution.schema';
 import type { InstitutionEntity } from '../model/institution.types';
 
-const { itemsPerRequestLimit, maxItemsPerRequestLimit } = appConfig.data;
+const { itemsPerRequestLimit } = appConfig.data;
 
 export class InstitutionService extends BaseService {
   async getInstitutionsCount(): Promise<number> {
@@ -33,19 +33,5 @@ export class InstitutionService extends BaseService {
     const res = data.institutions.map(dtoMapper.toEntity);
 
     return res;
-  }
-
-  async getAllInstitutions(limit: number = maxItemsPerRequestLimit): Promise<InstitutionEntity[]> {
-    const maxInstitutionsCount = await this.getInstitutionsCount();
-    let offset = 0;
-    const institutions = [];
-
-    do {
-      const data = await this.getInstitutions(offset, limit);
-      institutions.push(...data);
-      offset += limit;
-    } while (offset < maxInstitutionsCount);
-
-    return institutions;
   }
 }

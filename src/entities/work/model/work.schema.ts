@@ -33,9 +33,13 @@ export const GET_BOOKS = graphql(`
           orcid
         }
         affiliations {
+          position
+          affiliationId
+          affiliationOrdinal
           institution {
             ror
             institutionName
+            institutionId
           }
         }
       }
@@ -76,9 +80,13 @@ export const GET_CHAPTERS = graphql(`
           orcid
         }
         affiliations {
+          position
+          affiliationId
+          affiliationOrdinal
           institution {
             ror
             institutionName
+            institutionId
           }
         }
       }

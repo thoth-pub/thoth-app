@@ -55,6 +55,7 @@ export const contributorFormValidationSchema = z.object({
 
 const affiliationValidationSchema = z.object({
   value: getRequiredStringValidation(),
+  label: getRequiredStringValidation(),
 });
 
 const positionValidationSchema = getRequiredStringValidation();
@@ -62,6 +63,7 @@ const positionValidationSchema = getRequiredStringValidation();
 export const affiliationsValidationSchema = z.object({
   [AFFILIATIONS.name]: z.array(
     z.object({
+      id: getRequiredStringValidation(),
       [AFFILIATION.name]: affiliationValidationSchema,
       [POSITION.name]: positionValidationSchema,
     }),
