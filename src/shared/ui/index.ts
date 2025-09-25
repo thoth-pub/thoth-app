@@ -7,7 +7,6 @@ export { default as Checkbox } from './core/Checkbox/Checkbox';
 export { default as Chip } from './core/Chip/Chip';
 export { default as CircullarProgress } from './core/CircullarProgress/CircullarProgress';
 export { default as ClickAwayListener } from './core/ClickAwayListener/ClickAwayListener';
-export { default as DataIndicator } from './core/DataIndicator/DataIndicator';
 export { default as DeleteButton } from './core/DeleteButton/DeleteButton';
 export { default as IconButton } from './core/IconButton/IconButton';
 export { default as InputAdornment } from './core/InputAdornment/InputAdornment';
@@ -53,7 +52,7 @@ export { default as TextFormWithPreview } from './forms/TextFormWithPreview/Text
 // Icons
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';
-export { default as ContentSection } from './layout/ContentSection/ContentSection';
+export { default as RecommendedSection } from './layout/RecommendedSection/RecommendedSection';
 // Layout
 export { default as Footer } from './layout/Footer/Footer';
 export { default as Header } from './layout/Header/Header';

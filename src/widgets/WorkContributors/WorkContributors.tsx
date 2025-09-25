@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
 import type { FormFieldOption } from '@/src/shared';
 import { Table as TableComponent, TableBody } from '@/src/shared/ui';
+import RecommendedSection from '@/src/shared/ui/layout/RecommendedSection/RecommendedSection';
 
 import type {
   ContributionId,
@@ -87,38 +88,42 @@ const WorkContributors = (props: WorkContributorsProps) => {
   };
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={items} strategy={verticalListSortingStrategy}>
-        <TableComponent>
-          <ContributorsTableHeader cells={['Name', 'Type', 'Institution', 'Biography']} />
-          <TableBody>
-            {items.map((item) => (
-              <ContributorsTableRow
-                key={item.id}
-                isEditing={selectedId === item.id}
-                contributor={item}
-                contributorTypeOptions={contributorTypeOptions}
-                isOrchidFieldDisabled={isOrchidFieldDisabled}
-                isWebsiteUrlFieldDisabled={isWebsiteUrlFieldDisabled}
-                onCloseEdit={onCloseEdit}
-                onEdit={(id) => onEdit?.(id)}
-                onDelete={(id) => onDelete?.(id)}
-                onFullNameUpdate={(fullName) => onFullNameUpdate?.(fullName)}
-                onLastNameUpdate={(lastName) => onLastNameUpdate?.(lastName)}
-                onBiographyUpdate={(biography) => onBiographyUpdate?.(biography)}
-                onOrcidUpdate={(orcid) => onOrcidUpdate?.(orcid)}
-                onWebsiteUrlUpdate={(websiteUrl) => onWebsiteUrlUpdate?.(websiteUrl)}
-                onContributorTypeUpdate={(contributorType) => onContributorTypeUpdate?.(contributorType)}
-                onSelectAsMain={(id) => onSelectAsMain?.(id)}
-                onAffiliationsReorder={onAffiliationsReorder}
-                onAffiliationsUpdate={onAffiliationsUpdate}
-                onAffiliationsDelete={onAffiliationsDelete}
-              />
-            ))}
-          </TableBody>
-        </TableComponent>
-      </SortableContext>
-    </DndContext>
+    <RecommendedSection title="Contributors">
+      {({ showRecomendations }) => (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={items} strategy={verticalListSortingStrategy}>
+            <TableComponent>
+              <ContributorsTableHeader cells={['Name', 'Type', 'Institution', 'Biography']} />
+              <TableBody>
+                {items.map((item) => (
+                  <ContributorsTableRow
+                    key={item.id}
+                    isEditing={selectedId === item.id}
+                    contributor={item}
+                    contributorTypeOptions={contributorTypeOptions}
+                    isOrchidFieldDisabled={isOrchidFieldDisabled}
+                    isWebsiteUrlFieldDisabled={isWebsiteUrlFieldDisabled}
+                    onCloseEdit={onCloseEdit}
+                    onEdit={(id) => onEdit?.(id)}
+                    onDelete={(id) => onDelete?.(id)}
+                    onFullNameUpdate={(fullName) => onFullNameUpdate?.(fullName)}
+                    onLastNameUpdate={(lastName) => onLastNameUpdate?.(lastName)}
+                    onBiographyUpdate={(biography) => onBiographyUpdate?.(biography)}
+                    onOrcidUpdate={(orcid) => onOrcidUpdate?.(orcid)}
+                    onWebsiteUrlUpdate={(websiteUrl) => onWebsiteUrlUpdate?.(websiteUrl)}
+                    onContributorTypeUpdate={(contributorType) => onContributorTypeUpdate?.(contributorType)}
+                    onSelectAsMain={(id) => onSelectAsMain?.(id)}
+                    onAffiliationsReorder={onAffiliationsReorder}
+                    onAffiliationsUpdate={onAffiliationsUpdate}
+                    onAffiliationsDelete={onAffiliationsDelete}
+                  />
+                ))}
+              </TableBody>
+            </TableComponent>
+          </SortableContext>
+        </DndContext>
+      )}
+    </RecommendedSection>
   );
 };
 
