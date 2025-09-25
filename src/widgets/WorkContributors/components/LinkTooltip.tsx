@@ -13,7 +13,7 @@ export const LinkTooltip = ({ link, linkText, children }: LinkTooltipProps) => {
   return (
     <Tooltip
       arrow
-      className="shadow-2xl"
+      className="shrink-0 shadow-2xl"
       title={
         <div className="flex items-center gap-1">
           <Link href={link} target="_blank" rel="noopener noreferrer">

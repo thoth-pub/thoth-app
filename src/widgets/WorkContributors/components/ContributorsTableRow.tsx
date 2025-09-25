@@ -126,7 +126,7 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
             <div className="flex">
               <ul className="flex flex-col gap-1">
                 {affiliations.map(({ id, institutionName, rorId }) => (
-                  <li key={id} className="flex items-center gap-1">
+                  <li key={id} className="flex items-center justify-between gap-1">
                     {institutionName}
                     {rorId && (
                       <LinkTooltip link={rorId} linkText={convertRorIdToText(rorId)}>
