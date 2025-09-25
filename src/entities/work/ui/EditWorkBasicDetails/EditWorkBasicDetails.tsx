@@ -1,13 +1,15 @@
 'use client';
 
+import { AnimatePresence } from 'motion/react';
+
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
 import {
-  AccordionSection,
   AutocompleteFormWithPreview,
   AutocompleteGroup,
-  FormsWrapper,
+  ContentSection,
+  DataIndicator,
   TextFormWithPreview,
 } from '@/src/shared/ui';
 import { isBookChapter } from '@/src/shared/utils';
@@ -23,10 +25,11 @@ import {
   workTypeValidationSchema,
 } from '../../model/work.validation';
 import EditWorkTitlesFormWithPreview from '../EditWorkTitlesForm/EditWorkTitlesFormWithPreview';
+import { TestForm1 } from './test/TestForm1';
+import { TestForm2 } from './test/TestForm2';
 import { useEditWorkBasicDetails } from './useEditWorkBasicDetails';
 
 const {
-  FORM_SECTIONS: { BASIC_DETAILS },
   FORM_FIELDS: {
     EDITION: EDITION_ID,
     IMPRINT: IMPRINT_ID,
@@ -68,91 +71,92 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
   const isChapter = isBookChapter(work?.type as WorkType);
 
   return (
-    <AccordionSection title="Basic Details" panelId={BASIC_DETAILS} defaultExpanded>
-      <FormsWrapper>
-        <EditWorkTitlesFormWithPreview />
+    <ContentSection title="Basic details" headerContent={<DataIndicator />}>
+      <EditWorkTitlesFormWithPreview />
+      <AnimatePresence mode="wait">
+        <TestForm1 />
+        <TestForm2 />
+      </AnimatePresence>
+      {!isChapter && (
+        <TextFormWithPreview
+          validationSchema={editionValidationSchema}
+          label={EDITION.label}
+          name={EDITION.name}
+          id={EDITION_ID}
+          type={EDITION.type}
+          defaultValue={work?.edition ?? undefined}
+          min={1}
+          onSubmit={changeEdition}
+        />
+      )}
 
-        {!isChapter && (
-          <TextFormWithPreview
-            validationSchema={editionValidationSchema}
-            label={EDITION.label}
-            name={EDITION.name}
-            id={EDITION_ID}
-            type={EDITION.type}
-            defaultValue={work?.edition ?? undefined}
-            min={1}
-            onSubmit={changeEdition}
-          />
+      <TextFormWithPreview
+        validationSchema={imprintValidationSchema}
+        label={IMPRINT.label}
+        name={IMPRINT.name}
+        id={IMPRINT_ID}
+        select
+        options={imprintOptions}
+        defaultValue={work?.imprintId}
+        onSubmit={changeImprint}
+      />
+
+      <TextFormWithPreview
+        validationSchema={workTypeValidationSchema}
+        label={WORK_TYPE.label}
+        name={WORK_TYPE.name}
+        id={WORK_TYPE_ID}
+        select
+        options={workTypeOptions}
+        defaultValue={work?.type}
+        onSubmit={changeWorkType}
+      />
+
+      <AutocompleteFormWithPreview
+        validationSchema={licenseValidationSchema}
+        label={LICENSE.label}
+        name={LICENSE.name}
+        id={LICENSE_ID}
+        options={licenseOptions}
+        defaultValue={defaultLicense}
+        onSubmit={changeLicense}
+        groupBy={(option) => option.group ?? ''}
+        renderGroup={({ group, children, key }) => (
+          <AutocompleteGroup key={key} group={group}>
+            {children}
+          </AutocompleteGroup>
         )}
+      />
 
-        <TextFormWithPreview
-          validationSchema={imprintValidationSchema}
-          label={IMPRINT.label}
-          name={IMPRINT.name}
-          id={IMPRINT_ID}
-          select
-          options={imprintOptions}
-          defaultValue={work?.imprintId}
-          onSubmit={changeImprint}
-        />
+      <TextFormWithPreview
+        validationSchema={copyrightHolderValidationSchema}
+        label={COPYRIGHT_HOLDER.label}
+        name={COPYRIGHT_HOLDER.name}
+        id={COPYRIGHT_HOLDER_ID}
+        defaultValue={work?.copyrightHolder ?? undefined}
+        onSubmit={changeCopyrightHolder}
+      />
 
-        <TextFormWithPreview
-          validationSchema={workTypeValidationSchema}
-          label={WORK_TYPE.label}
-          name={WORK_TYPE.name}
-          id={WORK_TYPE_ID}
-          select
-          options={workTypeOptions}
-          defaultValue={work?.type}
-          onSubmit={changeWorkType}
-        />
+      <TextFormWithPreview
+        validationSchema={landingPageValidationSchema}
+        label={LANDING_PAGE.label}
+        name={LANDING_PAGE.name}
+        id={LANDING_PAGE_ID}
+        type={LANDING_PAGE.type}
+        defaultValue={work?.landingPage ?? undefined}
+        onSubmit={changeLandingPage}
+      />
 
-        <AutocompleteFormWithPreview
-          validationSchema={licenseValidationSchema}
-          label={LICENSE.label}
-          name={LICENSE.name}
-          id={LICENSE_ID}
-          options={licenseOptions}
-          defaultValue={defaultLicense}
-          onSubmit={changeLicense}
-          groupBy={(option) => option.group ?? ''}
-          renderGroup={({ group, children, key }) => (
-            <AutocompleteGroup key={key} group={group}>
-              {children}
-            </AutocompleteGroup>
-          )}
-        />
-
-        <TextFormWithPreview
-          validationSchema={copyrightHolderValidationSchema}
-          label={COPYRIGHT_HOLDER.label}
-          name={COPYRIGHT_HOLDER.name}
-          id={COPYRIGHT_HOLDER_ID}
-          defaultValue={work?.copyrightHolder ?? undefined}
-          onSubmit={changeCopyrightHolder}
-        />
-
-        <TextFormWithPreview
-          validationSchema={landingPageValidationSchema}
-          label={LANDING_PAGE.label}
-          name={LANDING_PAGE.name}
-          id={LANDING_PAGE_ID}
-          type={LANDING_PAGE.type}
-          defaultValue={work?.landingPage ?? undefined}
-          onSubmit={changeLandingPage}
-        />
-
-        <TextFormWithPreview
-          validationSchema={coverUrlValidationSchema}
-          label={COVER_URL.label}
-          name={COVER_URL.name}
-          id={COVER_URL_ID}
-          type={COVER_URL.type}
-          defaultValue={work?.coverUrl ?? undefined}
-          onSubmit={changeCoverUrl}
-        />
-      </FormsWrapper>
-    </AccordionSection>
+      <TextFormWithPreview
+        validationSchema={coverUrlValidationSchema}
+        label={COVER_URL.label}
+        name={COVER_URL.name}
+        id={COVER_URL_ID}
+        type={COVER_URL.type}
+        defaultValue={work?.coverUrl ?? undefined}
+        onSubmit={changeCoverUrl}
+      />
+    </ContentSection>
   );
 };
 

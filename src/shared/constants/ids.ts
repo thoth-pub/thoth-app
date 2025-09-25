@@ -13,9 +13,7 @@ export const IDs = {
     COVER_URL: 'cover-url',
     AFFILIATIONS: 'affiliations',
   },
-  FORM_SECTIONS: {
-    BASIC_DETAILS: 'basic-details',
-    DESCRIPTIONS_DETAILS: 'descriptions-details',
-    CONTRIBUTORS: 'contributors',
-  },
+  FORMS: {
+    
+  }
 } as const;

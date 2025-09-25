@@ -1,5 +1,5 @@
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
-import { EditWorkBasicDetails, EditWorkDescriptionDetails, EditWorkHeader } from '@/src/entities/work';
+import { EditWorkBasicDetails, EditWorkHeader } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import type { FormFieldOption, QueryToken } from '@/src/shared';
 
@@ -40,7 +40,6 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
         workTypeOptions={workTypeOptions}
         licenseOptions={licenseOptions}
       />
-      <EditWorkDescriptionDetails />
       <EditWorkContributors
         workId={workId}
         queryToken={queryToken}

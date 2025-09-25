@@ -1,6 +1,4 @@
-export { default as Accordion } from './core/Accordion/Accordion';
-export { default as AccordionDetails } from './core/Accordion/components/AccordionDetails';
-export { default as AccordionSummary } from './core/Accordion/components/AccordionSummary';
+// Core
 export { default as AddButton } from './core/AddButton/AddButton';
 export { default as AutocompleteGroup } from './core/AutocompleteGroup/AutocompleteGroup';
 export { default as Button } from './core/Button/Button';
@@ -9,6 +7,7 @@ export { default as Checkbox } from './core/Checkbox/Checkbox';
 export { default as Chip } from './core/Chip/Chip';
 export { default as CircullarProgress } from './core/CircullarProgress/CircullarProgress';
 export { default as ClickAwayListener } from './core/ClickAwayListener/ClickAwayListener';
+export { default as DataIndicator } from './core/DataIndicator/DataIndicator';
 export { default as DeleteButton } from './core/DeleteButton/DeleteButton';
 export { default as IconButton } from './core/IconButton/IconButton';
 export { default as InputAdornment } from './core/InputAdornment/InputAdornment';
@@ -18,6 +17,7 @@ export { default as MarkdownPreview } from './core/MarkdownPreview/MarkdownPrevi
 export { default as MenuItem } from './core/MenuItem/MenuItem';
 export { default as Modal } from './core/Modal/Modal';
 export { default as ModalWrapper } from './core/ModalWrapper/ModalWrapper';
+export { default as Paper } from './core/Paper/Paper';
 export { default as Switch } from './core/Switch/Switch';
 export { default as TableBody } from './core/Table/components/TableBody';
 export { default as TableCell } from './core/Table/components/TableCell';
@@ -28,6 +28,7 @@ export { default as Table } from './core/Table/Table';
 export { default as TextField, type TextFieldProps } from './core/TextField/TextField';
 export { default as Tooltip } from './core/Tooltip/Tooltip';
 export { default as Typography } from './core/Typography/Typography';
+// Forms
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
 export { default as AutocompleteFormWithPreview } from './forms/AutocompleteFormWithPreview/AutocompleteFormWithPreview';
 export { default as DateField } from './forms/DateField/DateField';
@@ -41,7 +42,6 @@ export { default as FormControlGroup } from './forms/FormControlGroup/FormContro
 export { default as FormFieldInput } from './forms/FormFieldLabel/FormFieldLabel';
 export { default as FormFieldWithControlsWrapper } from './forms/FormFieldWithControlsWrapper/FormFieldWithControlsWrapper';
 export { default as FormFieldWrapper } from './forms/FormFieldWrapper/FormFieldWrapper';
-export { default as FormsWrapper } from './forms/FormsWrapper/FormsWrapper';
 export { default as FormTextField, type FormTextFieldComponentProps } from './forms/FormTextField/FormTextField';
 export { default as FormWithPreview } from './forms/FormWithPreview/FormWithPreview';
 export { default as InputLabel } from './forms/InputLabel/InputLabel';
@@ -50,9 +50,11 @@ export { default as MarkdownFormWithPreview } from './forms/MarkdownFormWithPrev
 export { default as MarkdownSwitch } from './forms/MarkdownSwitch/MarkdownSwitch';
 export { default as SubmitButton } from './forms/SubmitButton/SubmitButton';
 export { default as TextFormWithPreview } from './forms/TextFormWithPreview/TextFormWithPreview';
+// Icons
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';
-export { default as AccordionSection } from './layout/AccordionSection/AccordionSection';
+export { default as ContentSection } from './layout/ContentSection/ContentSection';
+// Layout
 export { default as Footer } from './layout/Footer/Footer';
 export { default as Header } from './layout/Header/Header';
 export { default as PageHeader } from './layout/PageHeader/PageHeader';

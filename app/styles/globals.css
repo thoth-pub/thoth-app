@@ -157,6 +157,9 @@
   --color-modal-background: var(--white);
 
   --color-list-item-selected: var(--purple-light-alt);
+
+  --color-data-indicator-border: var(--color-success);
+  --color-data-indicator-border-error: var(--color-success);
 }
 
 @theme inline {

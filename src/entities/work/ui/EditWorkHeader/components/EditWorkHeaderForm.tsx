@@ -4,7 +4,7 @@ import type { WorkStatus, WorkStatusForm } from '@/src/entities/work/model/work.
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { type FormFieldOption } from '@/src/shared/interfaces';
-import { DateFormWithPreview, FormsWrapper, TextFormWithPreview } from '@/src/shared/ui';
+import { DateFormWithPreview, TextFormWithPreview } from '@/src/shared/ui';
 
 import { publicationDateValidationSchema, workStatusValidationSchema } from '../../../model/work.validation';
 
@@ -23,7 +23,7 @@ const EditWorkHeaderForm = (props: EditWorkHeaderFormProps) => {
   const { workStatusOptions, status, isPublicationDateDisabled, minDate, onStatusUpdate } = props;
 
   return (
-    <FormsWrapper>
+    <>
       <TextFormWithPreview
         validationSchema={workStatusValidationSchema}
         label={WORK_STATUS.label}
@@ -44,7 +44,7 @@ const EditWorkHeaderForm = (props: EditWorkHeaderFormProps) => {
           minDate={minDate}
         />
       )}
-    </FormsWrapper>
+    </>
   );
 };
 

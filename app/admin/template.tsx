@@ -11,14 +11,14 @@ const {
 
 function Template({ children }: { children: Readonly<ReactNode> }) {
   return (
-    <motion.section
+    <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration }}
       className="flex w-full flex-col gap-[var(--default-gap)] p-[var(--default-content-padding)]"
     >
       {children}
-    </motion.section>
+    </motion.div>
   );
 }
 

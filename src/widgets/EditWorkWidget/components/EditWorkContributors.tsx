@@ -5,12 +5,8 @@ import type { PublisherId } from '@/src/entities/publisher';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { AddContributorsModal } from '@/src/features';
 import { type FormFieldOption, type QueryToken } from '@/src/shared';
-import { IDs } from '@/src/shared/constants';
-import { AccordionSection } from '@/src/shared/ui';
 
 import { useEditWorkContributors } from './useEditWorkContributors';
-
-const { CONTRIBUTORS } = IDs.FORM_SECTIONS;
 
 type EditWorkContributorsProps = {
   workId: WorkId;
@@ -51,7 +47,7 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
   });
 
   return (
-    <AccordionSection title="Contributors" panelId={CONTRIBUTORS} defaultExpanded>
+    <>
       <ContributorsTable
         data={contributions}
         contributorTypeOptions={contributorTypeOptions}
@@ -78,6 +74,6 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
         onAdd={preselectContributor}
         onCreate={() => preselectContributor({})}
       />
-    </AccordionSection>
+    </>
   );
 };
