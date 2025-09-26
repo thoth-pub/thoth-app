@@ -132,11 +132,8 @@ export const imprintValidationSchema = z.object({
   [IMPRINT.name]: imprintValidation,
 });
 
-export const licenseValidationSchema = z.object({
+export const licenseAndCopyrightHolderValidationSchema = z.object({
   [LICENSE.name]: licenseValidation,
-});
-
-export const copyrightHolderValidationSchema = z.object({
   [COPYRIGHT_HOLDER.name]: copyrightHolderValidation,
 });
 

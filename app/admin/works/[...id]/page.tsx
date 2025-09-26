@@ -6,7 +6,7 @@ import { ImprintService } from '@/src/entities/imprint';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import { convertEntityToSelectFieldOptions, convertLinkedPublishers, isAdmin } from '@/src/shared';
 import { ROUTES } from '@/src/shared/constants';
-import { contributorTypeOptions, licenseOptions, workStatusOptions } from '@/src/shared/constants/formFields';
+import { contributorTypeOptions, workStatusOptions } from '@/src/shared/constants/formFields';
 import { getClient, PreloadQuery, query } from '@/src/shared/graphqlClient';
 import { EditWorkWidget } from '@/src/widgets';
 
@@ -48,7 +48,6 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
           queryToken={session.user.queryToken}
           workStatusOptions={workStatusOptions}
           imprintOptions={imprintOptions}
-          licenseOptions={licenseOptions}
           contributorTypeOptions={contributorTypeOptions}
           linkedPublishers={linkedPublishers}
           isAdmin={isUserAdmin}

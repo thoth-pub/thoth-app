@@ -5,13 +5,12 @@ import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
 import type { ContributionId, ContributorId } from '../../contributor/model/contributor.types';
 import {
-  copyrightHolderValidationSchema,
   coverUrlValidationSchema,
   createWorkValidationSchema,
   editionValidationSchema,
   imprintValidationSchema,
   landingPageValidationSchema,
-  licenseValidationSchema,
+  licenseAndCopyrightHolderValidationSchema,
   publicationDateValidationSchema,
   titleValidationSchema,
   workStatusValidationSchema,
@@ -90,9 +89,7 @@ export type EditionForm = z.infer<typeof editionValidationSchema>;
 
 export type ImprintForm = z.infer<typeof imprintValidationSchema>;
 
-export type LicenseForm = z.infer<typeof licenseValidationSchema>;
-
-export type CopyrightHolderForm = z.infer<typeof copyrightHolderValidationSchema>;
+export type LicenseAndCopyrightHolderForm = z.infer<typeof licenseAndCopyrightHolderValidationSchema>;
 
 export type LandingPageForm = z.infer<typeof landingPageValidationSchema>;
 
