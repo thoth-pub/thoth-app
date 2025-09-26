@@ -1,7 +1,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 
-import InputLabel from '../../forms/InputLabel/InputLabel';
+import FormFieldLabel from '../../forms/FormFieldLabel/FormFieldLabel';
 import ContentWrapper from '../../layout/ContentWrapper/ContentPreview';
 import Button from '../Button/Button';
 import IconButton from '../IconButton/IconButton';
@@ -10,13 +10,14 @@ import Typography from '../Typography/Typography';
 type PreviewProps = {
   label: string;
   value?: string;
+  isRecommended?: boolean;
   onEdit?: () => void;
 };
 
-const Preview = ({ label, value, onEdit }: PreviewProps) => {
+const Preview = ({ label, value, isRecommended = false, onEdit }: PreviewProps) => {
   return (
     <ContentWrapper>
-      <InputLabel component="span">{label}</InputLabel>
+      <FormFieldLabel component="div" label={label} isRecommended={isRecommended} />
       <div className="flex justify-between">
         <Typography className="ml-2">{value}</Typography>
         {!value && (

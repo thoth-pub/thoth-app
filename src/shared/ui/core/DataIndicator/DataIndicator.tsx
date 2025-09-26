@@ -2,16 +2,17 @@
 
 import { useMemo } from 'react';
 
-import IconButtonComponent from '../IconButton/IconButton';
+import ButtonComponent from '../Button/Button';
 
 type DataIndicatorProps = {
   isEmpty?: boolean;
   isValid?: boolean;
+  isActive?: boolean;
   onClick?: () => void;
 };
 
 const DataIndicator = (props: DataIndicatorProps) => {
-  const { isEmpty = true, isValid = false, onClick } = props;
+  const { isEmpty = true, isValid = false, isActive = false, onClick } = props;
 
   const percentage = useMemo(() => {
     if (isEmpty) return 0;
@@ -20,17 +21,26 @@ const DataIndicator = (props: DataIndicatorProps) => {
   }, [isEmpty, isValid]);
 
   return (
-    <IconButtonComponent
+    <ButtonComponent
       onClick={onClick}
       sx={{
-        color: 'transparent',
-        padding: 0,
+        backgroundColor: isActive ? 'primary.main' : 'transparent',
+        boxShadow: 'unset',
+        padding: '10px',
+        minWidth: '40px',
       }}
+      variant="contained"
+      disabled={isValid}
     >
-      <div className="flex h-5 w-5 overflow-clip rounded-full border-1 border-[var(--color-success)]">
-        <div style={{ width: `${percentage}%` }} className="h-full bg-[var(--color-success)]" />
+      <div
+        className={`flex h-5 w-5 overflow-clip rounded-full border-1 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`}
+      >
+        <div
+          style={{ width: `${percentage}%` }}
+          className={`h-full ${isActive ? 'bg-[var(--color-yellow)]' : 'bg-[var(--color-success)]'}`}
+        />
       </div>
-    </IconButtonComponent>
+    </ButtonComponent>
   );
 };
 

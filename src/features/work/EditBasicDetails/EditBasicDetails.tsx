@@ -1,7 +1,5 @@
 'use client';
 
-import { AnimatePresence } from 'motion/react';
-
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
@@ -61,8 +59,8 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
   const isChapter = isBookChapter(work?.type as WorkType);
 
   return (
-    <RecommendedSection title="Basic details">
-      {({ showRecomendations }) => (
+    <RecommendedSection title="Basic details" isEmpty={false}>
+      {({ showRecommendations }) => (
         <>
           <EditWorkTitlesFormWithPreview />
           {/* {!isChapter && (
@@ -77,11 +75,13 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
               onSubmit={changeEdition}
             />
           )} */}
-          <AnimatePresence mode="wait">
-            <EditWorkType workId={workId} queryToken={queryToken} />
-
-            <EditImprint workId={workId} queryToken={queryToken} imprintOptions={imprintOptions} />
-          </AnimatePresence>
+          <EditWorkType workId={workId} queryToken={queryToken} isRecommended={showRecommendations} />
+          <EditImprint
+            workId={workId}
+            queryToken={queryToken}
+            imprintOptions={imprintOptions}
+            isRecommended={showRecommendations}
+          />
           <AutocompleteFormWithPreview
             validationSchema={licenseValidationSchema}
             label={LICENSE.label}

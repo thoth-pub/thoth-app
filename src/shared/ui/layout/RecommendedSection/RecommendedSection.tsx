@@ -5,29 +5,35 @@ import { useState } from 'react';
 import DataIndicator from '../../core/DataIndicator/DataIndicator';
 import ContentSection from '../ContentSection/ContentSection';
 
-
 type RecommendedSectionProps = {
   title: string;
   isEmpty?: boolean;
   isValid?: boolean;
-  children?: ({ showRecomendations }: { showRecomendations: boolean }) => React.ReactNode;
+  children?: ({ showRecommendations }: { showRecommendations: boolean }) => React.ReactNode;
 };
 
 const RecommendedSection = (props: RecommendedSectionProps) => {
   const { title, isEmpty, isValid, children } = props;
 
-  const [showRecomendations, setShowRecomendations] = useState(false);
+  const [showRecommendations, setShowRecommendations] = useState(false);
 
-  const handleRecomendations = () => {
-    setShowRecomendations((prev) => !prev);
+  const handleRecommendations = () => {
+    setShowRecommendations((prev) => !prev);
   };
 
   return (
     <ContentSection
       title={title}
-      headerContent={<DataIndicator isEmpty={isEmpty} isValid={isValid} onClick={handleRecomendations} />}
+      headerContent={
+        <DataIndicator
+          isActive={showRecommendations}
+          isEmpty={isEmpty}
+          isValid={isValid}
+          onClick={handleRecommendations}
+        />
+      }
     >
-      {children && children({ showRecomendations })}
+      {children && children({ showRecommendations })}
     </ContentSection>
   );
 };

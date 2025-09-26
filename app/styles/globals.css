@@ -98,6 +98,7 @@
   --color-border: var(--green);
   --color-border-alt: var(--purple);
   --color-purple: var(--purple);
+  --color-yellow: var(--yellow);
   --color-primary: var(--purple);
   --color-success: var(--green);
   --color-error: var(--red);
@@ -112,39 +113,40 @@
 
   --color-link: var(--purple);
 
-  --color-button-contained-background: var(--purple);
-  --color-button-contained-text: var(--yellow);
-  --color-button-outlined-border: var(--purple);
+  --color-button-contained-background: var(--color-primary);
+  --color-button-contained-text: var(--color-yellow);
+  --color-button-outlined-border: var(--color-primary);
   --border-button-radius: var(--default-radius);
 
-  --color-icon-button: var(--purple);
-  --color-icon-button-medium-background: var(--purple);
-  --color-icon-button-medium-text: var(--yellow);
+  --color-icon-button: var(--color-primary);
+  --color-icon-button-medium-background: var(--color-primary);
+  --color-icon-button-medium-text: var(--color-yellow);
 
   --color-markdown-background: var(--white);
   --color-markdown-text: var(--color-typography);
-  --color-markdown-border: var(--purple);
+  --color-markdown-border: var(--color-primary);
   --color-markdown-radius: var(--default-radius);
   --color-markdown-error: var(--color-error);
 
   --color-switch: var(--purple);
 
   --color-text-field-background: var(--white-opacity-30);
-  --color-text-field-border: var(--purple);
+  --color-text-field-border: var(--color-primary);
   --color-text-field-label: var(--black-opacity-50);
   --color-text-field-text: var(--color-typography);
   --color-text-field-error: var(--color-error);
+  --color-text-field-helper-text: var(--color-typography);
 
   --color-form-field-label: var(--color-typography);
   --color-form-background: var(--white);
 
-  --color-notification-text: var(--yellow);
+  --color-notification-text: var(--color-yellow);
   --color-notification-background-success: var(--color-success);
   --color-notification-background-error: var(--color-error);
-  --color-notification-border: var(--yellow);
+  --color-notification-border: var(--color-yellow);
 
   --color-chip-background: var(--white);
-  --color-chip-text: var(--purple);
+  --color-chip-text: var(--color-primary);
 
   --color-autocomplete-group-background: var(--purple-light-alt);
 

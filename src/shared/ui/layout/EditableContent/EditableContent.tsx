@@ -1,6 +1,5 @@
 'use client';
 
-import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 import type { Control, DefaultValues, FieldValues } from 'react-hook-form';
 
@@ -9,18 +8,29 @@ import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMach
 
 import { type FormProps, FormWrapper } from './FormWrapper';
 
+type FormFieldsProps = {
+  control: Control<FieldValues>;
+  isHelperTextVisible?: boolean;
+};
+
+type PreviewProps<T extends FieldValues> = Partial<{
+  data: T;
+  onEdit: () => void;
+}>;
+
 type EditableContentProps<T extends FieldValues> = {
   formId: Id;
   onSubmit: (data: T) => void;
-  formFields: ({ control }: { control: Control<FieldValues> }) => Readonly<React.ReactNode>;
-  preview: ({ data, onEdit }: { data?: T; onEdit?: () => void }) => Readonly<React.ReactNode>;
-} & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children'>;
+  formFields: ({ control, isHelperTextVisible }: FormFieldsProps) => Readonly<React.ReactNode>;
+  preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
+} & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose' | 'onInfo'>;
 
 export const EditableContent = <T extends FieldValues>(props: Omit<EditableContentProps<T>, 'onFormSubmit'>) => {
   const { formId, defaultValues, validationSchema, onSubmit, formFields, preview } = props;
 
   const { activeFormId, edit, close } = useFormStateMachine();
   const [formData, setFormData] = useState(defaultValues);
+  const [showInfo, setShowInfo] = useState(false);
   const isActive = activeFormId === formId;
 
   const handleEdit = () => {
@@ -44,28 +54,37 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     onSubmit(data as T);
   };
 
+  const onClose = () => {
+    if (!isActive) return;
+
+    close();
+  };
+
+  const handleShowInfo = () => {
+    setShowInfo((prev) => !prev);
+  };
+
   return (
-    <AnimatePresence>
+    <>
       {isActive ? (
         <FormWrapper
           defaultValues={formData}
           validationSchema={validationSchema}
           onSubmit={submit}
           onAutoSubmit={onAutoSubmit}
+          onClose={onClose}
+          onInfo={handleShowInfo}
         >
-          {({ control }) => formFields({ control })}
+          {({ control }) => formFields({ control, isHelperTextVisible: showInfo })}
         </FormWrapper>
       ) : (
-        <motion.div
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: 5, ease: 'easeIn' }}
+        <div
           onDoubleClick={handleEdit}
           className="group cursor-pointer rounded-xl p-4 duration-300 hover:bg-[var(--color-hover-alt)]"
         >
           {preview({ data: formData as T, onEdit: handleEdit })}
-        </motion.div>
+        </div>
       )}
-    </AnimatePresence>
+    </>
   );
 };

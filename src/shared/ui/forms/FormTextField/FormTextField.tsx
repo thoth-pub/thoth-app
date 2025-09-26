@@ -12,14 +12,9 @@ export type FormTextFieldComponentProps<T extends FieldValues> = {
 } & BaseFieldProps<T> &
   TextFieldProps;
 
-const FormTextFieldComponentProps = <T extends FieldValues>({
-  control,
-  name,
-  defaultValue,
-  options,
-  min,
-  ...restProps
-}: FormTextFieldComponentProps<T>) => {
+const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextFieldComponentProps<T>) => {
+  const { control, name, defaultValue, options, min, isHelperTextVisible = false, helperText, ...restProps } = props;
+
   return (
     <Controller
       name={name as Path<T>}
@@ -29,7 +24,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>({
         <TextField
           {...field}
           error={!!error}
-          helperText={error ? error.message : null}
+          helperText={error ? error.message : helperText}
           slotProps={{
             htmlInput: { min },
             select: {
@@ -38,6 +33,9 @@ const FormTextFieldComponentProps = <T extends FieldValues>({
                   maxHeight: '300px',
                 },
               },
+            },
+            formHelperText: {
+              hidden: !isHelperTextVisible,
             },
           }}
           options={options}

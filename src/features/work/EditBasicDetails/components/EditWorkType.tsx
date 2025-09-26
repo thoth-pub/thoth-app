@@ -3,7 +3,7 @@
 import { useWork } from '@/src/entities/work';
 import type { WorkId, WorkType, WorkTypeForm } from '@/src/entities/work/model/work.types';
 import { workTypeValidationSchema } from '@/src/entities/work/model/work.validation';
-import { convertOptionToString, IDs, type QueryToken } from '@/src/shared';
+import { convertOptionToString, HELPER_TEXT, IDs, type QueryToken } from '@/src/shared';
 import { FORM_FIELDS, workTypeOptions } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
@@ -12,14 +12,16 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 type EditImprintProps = {
   workId: WorkId;
   queryToken: QueryToken;
+  isRecommended?: boolean;
 };
 
 const { WORK_TYPE } = FORM_FIELDS;
 
-export const EditImprint = ({ workId, queryToken }: EditImprintProps) => {
+export const EditImprint = ({ workId, queryToken, isRecommended = false }: EditImprintProps) => {
   const { work, updateWorkRef } = useWork(workId, queryToken);
 
   const value = convertOptionToString(work?.type ?? '');
+  const showIndicator = isRecommended && !value;
 
   const updateWorkType = ({ workType }: WorkTypeForm) => {
     updateWorkRef({ ...work, type: workType as WorkType });
@@ -31,13 +33,23 @@ export const EditImprint = ({ workId, queryToken }: EditImprintProps) => {
       defaultValues={{ [WORK_TYPE.name]: work?.type }}
       validationSchema={workTypeValidationSchema}
       onSubmit={updateWorkType}
-      formFields={({ control }) => (
+      formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={WORK_TYPE.label} id={WORK_TYPE.name} />
-          <FormTextField control={control} name={WORK_TYPE.name} fullWidth select options={workTypeOptions} />
+          <FormFieldLabel label={WORK_TYPE.label} id={WORK_TYPE.name} isRecommended={showIndicator} />
+          <FormTextField
+            control={control}
+            name={WORK_TYPE.name}
+            fullWidth
+            select
+            options={workTypeOptions}
+            helperText={HELPER_TEXT.WORK_TYPE}
+            isHelperTextVisible={isHelperTextVisible}
+          />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => <Preview label={WORK_TYPE.label} value={value} onEdit={onEdit} />}
+      preview={({ onEdit }) => (
+        <Preview label={WORK_TYPE.label} value={value} isRecommended={showIndicator} onEdit={onEdit} />
+      )}
     />
   );
 };

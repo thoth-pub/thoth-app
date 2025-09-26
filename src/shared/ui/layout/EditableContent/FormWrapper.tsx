@@ -1,5 +1,4 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { motion } from 'motion/react';
 import { type Control, type DefaultValues, type FieldValues, SubmitHandler, useForm } from 'react-hook-form';
 import { useUnmount } from 'react-use';
 import type { ZodType } from 'zod';
@@ -12,10 +11,12 @@ export type FormProps<T extends FieldValues> = {
   children: (props: { control: Control<FieldValues> }) => Readonly<React.ReactNode>;
   onSubmit: SubmitHandler<T>;
   onAutoSubmit: (data: FieldValues) => void;
+  onClose: () => void;
+  onInfo: () => void;
 };
 
 export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
-  const { validationSchema, defaultValues, children, onSubmit, onAutoSubmit } = props;
+  const { validationSchema, defaultValues, children, onSubmit, onAutoSubmit, onClose, onInfo } = props;
 
   const {
     control,
@@ -28,6 +29,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     defaultValues,
   });
 
+  const isSubmitDisabled = !isValid || !isDirty;
   const shouldSubmitAutomatically = isDirty && isValid && !isSubmitSuccessful;
 
   const handleSubmitForm = handleSubmit((data) => {
@@ -43,15 +45,9 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
   });
 
   return (
-    <motion.form
-      onSubmit={handleSubmitForm}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 5, ease: 'easeIn' }}
-      className="flex gap-1 rounded-xl bg-[var(--color-form-background)] p-4"
-    >
+    <form onSubmit={handleSubmitForm} className="flex gap-1 rounded-xl bg-[var(--color-form-background)] p-4">
       <div className="grow">{children({ control: control as Control<FieldValues> })}</div>
-      <FormControlGroup isDisabled={!isValid} />
-    </motion.form>
+      <FormControlGroup isDisabled={isSubmitDisabled} onClose={onClose} onInfo={onInfo} />
+    </form>
   );
 };

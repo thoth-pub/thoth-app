@@ -132,6 +132,9 @@ export const theme = createTheme({
           '& .MuiIconButton-root': {
             color: 'var(--color-text-field-text)',
           },
+          '& .MuiFormHelperText-root': {
+            color: 'var(--color-text-field-helper-text)',
+          },
         },
       },
     },

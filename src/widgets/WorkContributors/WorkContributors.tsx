@@ -89,7 +89,7 @@ const WorkContributors = (props: WorkContributorsProps) => {
 
   return (
     <RecommendedSection title="Contributors">
-      {({ showRecomendations }) => (
+      {({ showRecommendations }) => (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items} strategy={verticalListSortingStrategy}>
             <TableComponent>

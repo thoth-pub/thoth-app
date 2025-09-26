@@ -9,6 +9,7 @@ export { default as CircullarProgress } from './core/CircullarProgress/Circullar
 export { default as ClickAwayListener } from './core/ClickAwayListener/ClickAwayListener';
 export { default as DeleteButton } from './core/DeleteButton/DeleteButton';
 export { default as IconButton } from './core/IconButton/IconButton';
+export { default as Indicator } from './core/Indicator/Indicator';
 export { default as InputAdornment } from './core/InputAdornment/InputAdornment';
 export { default as Link } from './core/Link/Link';
 export { default as MarkdownEditor, type MarkdownEditorProps } from './core/MarkdownEditor/MarkdownEditor';

@@ -1,6 +1,7 @@
 export * from './contributors';
 export * from './countries';
 export * from './errors';
+export * from './helperText';
 export * from './ids';
 export * from './languages';
 export * from './lengths';

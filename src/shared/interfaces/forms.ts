@@ -18,4 +18,5 @@ export type BaseFieldProps<T extends FieldValues> = {
   name: FormFieldName | string;
   control: Control<T>;
   defaultValue?: PathValue<T, Path<T>>;
+  isHelperTextVisible?: boolean;
 };
