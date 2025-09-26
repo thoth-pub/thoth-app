@@ -58,10 +58,14 @@ export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message
 export const optionalUrlValidation = getUrlValidation().optional().or(z.literal(''));
 export const getRequiredUrlValidation = (errorMessage?: ErrorMessage) =>
   getUrlValidation(errorMessage ?? INVALID_URL).nonempty({ message: errorMessage ?? INVALID_URL });
+export const doiValidation = optionalUrlValidation.refine((doi) => {
+  if (!doi) return true;
+
+  return doi.startsWith(doiPrefix);
+});
 
 /* External Identifiers Validations */
 export const idValidation = z.uuid();
-export const doiValidation = getStringValidation().refine((doi) => doi.startsWith(doiPrefix));
 export const orcidValidation = getStringValidation()
   .optional()
   .refine((value) => (value ? orcid.validate(appConfig.validations.orcidPrefix + value) : true), {

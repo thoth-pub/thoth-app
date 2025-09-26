@@ -15,4 +15,5 @@ export const IDs = {
   WORK_IMPRINT: 'work_imprint',
   WORK_TYPE: 'work_type',
   WORK_LICENSE_AND_COPYRIGHT_HOLDER: 'work_license_and_copyright_holder',
+  WORK_DOI_AND_COVERS: 'work_doi_and_covers',
 } as const;

@@ -118,6 +118,12 @@ export const FORM_FIELDS = {
     placeholder: 'Cover URL',
     type: InputTypes.URL,
   },
+  DOI: {
+    label: 'DOI',
+    name: 'doi',
+    placeholder: 'https://doi.org/',
+    type: InputTypes.URL,
+  },
   LANGUAGE: {
     label: 'Language',
     name: 'language',

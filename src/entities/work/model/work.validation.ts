@@ -3,6 +3,7 @@ import z from 'zod';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import {
   dateValidation,
+  doiValidation,
   getRequiredStringValidation,
   getRequiredUrlValidation,
   languageValidation,
@@ -15,6 +16,7 @@ import {
 } from '@/src/shared/utils/validations';
 
 const {
+  DOI,
   TITLE,
   LICENSE,
   IMPRINT,
@@ -137,10 +139,8 @@ export const licenseAndCopyrightHolderValidationSchema = z.object({
   [COPYRIGHT_HOLDER.name]: copyrightHolderValidation,
 });
 
-export const landingPageValidationSchema = z.object({
+export const doiAndCoversValidationSchema = z.object({
+  [DOI.name]: doiValidation,
   [LANDING_PAGE.name]: landingPageValidation,
-});
-
-export const coverUrlValidationSchema = z.object({
   [COVER_URL.name]: coverUrlValidation,
 });
