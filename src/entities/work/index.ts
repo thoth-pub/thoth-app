@@ -5,5 +5,4 @@ export { WorkService } from './api/work.service';
 
 // UI
 export { default as CreateWorkForm } from './ui/CreateWorkForm/CreateWorkForm';
-export { default as EditWorkBasicDetails } from './ui/EditWorkBasicDetails/EditWorkBasicDetails';
 export { default as EditWorkHeader } from './ui/EditWorkHeader/EditWorkHeader';

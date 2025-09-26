@@ -2,6 +2,7 @@ export * from './auth/session';
 export * from './convertations/formFields';
 export * from './helpers/isDefaultId';
 export * from './helpers/isUrl';
+export * from './helpers/isValidUUID';
 export * from './helpers/truncateString';
 export * from './publishers';
 export * from './styles';

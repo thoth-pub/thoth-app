@@ -1,12 +1,14 @@
 import { assign, setup } from 'xstate';
 
+import type { Id } from '../../interfaces';
+
 type FormContext = {
-  activeForm: '1' | '2' | null;
+  activeForm: Id | null;
 };
 
 export const formStateMachine = setup({
   types: {
-    events: {} as { type: 'setFormId'; id: FormContext['activeForm'] } | { type: 'close' },
+    events: {} as { type: 'setActiveFormId'; id: FormContext['activeForm'] } | { type: 'close' },
   },
 }).createMachine({
   id: 'formEditor',
@@ -17,7 +19,7 @@ export const formStateMachine = setup({
   states: {
     init: {
       on: {
-        setFormId: {
+        setActiveFormId: {
           target: 'editing',
           actions: assign({
             activeForm: ({ event }) => event?.id ?? null,

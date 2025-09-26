@@ -13,26 +13,20 @@ import {
 } from '@/src/shared/ui';
 import { isBookChapter } from '@/src/shared/utils';
 
-import type { WorkId, WorkType } from '../../model/work.types';
+import type { WorkId, WorkType } from '../../../entities/work/model/work.types';
 import {
   copyrightHolderValidationSchema,
   coverUrlValidationSchema,
-  editionValidationSchema,
-  imprintValidationSchema,
   landingPageValidationSchema,
   licenseValidationSchema,
-  workTypeValidationSchema,
-} from '../../model/work.validation';
-import EditWorkTitlesFormWithPreview from '../EditWorkTitlesForm/EditWorkTitlesFormWithPreview';
-import { TestForm1 } from './test/TestForm1';
-import { TestForm2 } from './test/TestForm2';
-import { useEditWorkBasicDetails } from './useEditWorkBasicDetails';
+} from '../../../entities/work/model/work.validation';
+import EditWorkTitlesFormWithPreview from '../../../entities/work/ui/EditWorkTitlesForm/EditWorkTitlesFormWithPreview';
+import EditImprint from './components/EditImprint';
+import EditWorkType from './components/EditWorkType';
+import { useEditBasicDetails } from './useEditBasicDetails';
 
 const {
   FORM_FIELDS: {
-    EDITION: EDITION_ID,
-    IMPRINT: IMPRINT_ID,
-    WORK_TYPE: WORK_TYPE_ID,
     LICENSE: LICENSE_ID,
     COPYRIGHT_HOLDER: COPYRIGHT_HOLDER_ID,
     LANDING_PAGE: LANDING_PAGE_ID,
@@ -40,29 +34,26 @@ const {
   },
 } = IDs;
 
-const { EDITION, IMPRINT, WORK_TYPE, LICENSE, COPYRIGHT_HOLDER, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
+const { LICENSE, COPYRIGHT_HOLDER, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
 type EditWorkBasicDetailsProps = {
   workId: WorkId;
   queryToken: QueryToken;
   imprintOptions: FormFieldOption[];
-  workTypeOptions: FormFieldOption[];
   licenseOptions: FormFieldOption[];
 };
 
-const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
-  const { workId, imprintOptions, workTypeOptions, licenseOptions, queryToken } = props;
+const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
+  const { workId, imprintOptions, licenseOptions, queryToken } = props;
   const {
     work,
     defaultLicense,
-    changeWorkType,
     changeEdition,
-    changeImprint,
     changeLicense,
     changeCopyrightHolder,
     changeLandingPage,
     changeCoverUrl,
-  } = useEditWorkBasicDetails({
+  } = useEditBasicDetails({
     workId,
     queryToken,
     licenseOptions,
@@ -74,11 +65,7 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
       {({ showRecomendations }) => (
         <>
           <EditWorkTitlesFormWithPreview />
-          <AnimatePresence mode="wait">
-            <TestForm1 />
-            <TestForm2 />
-          </AnimatePresence>
-          {!isChapter && (
+          {/* {!isChapter && (
             <TextFormWithPreview
               validationSchema={editionValidationSchema}
               label={EDITION.label}
@@ -89,30 +76,12 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
               min={1}
               onSubmit={changeEdition}
             />
-          )}
+          )} */}
+          <AnimatePresence mode="wait">
+            <EditWorkType workId={workId} queryToken={queryToken} />
 
-          <TextFormWithPreview
-            validationSchema={imprintValidationSchema}
-            label={IMPRINT.label}
-            name={IMPRINT.name}
-            id={IMPRINT_ID}
-            select
-            options={imprintOptions}
-            defaultValue={work?.imprintId}
-            onSubmit={changeImprint}
-          />
-
-          <TextFormWithPreview
-            validationSchema={workTypeValidationSchema}
-            label={WORK_TYPE.label}
-            name={WORK_TYPE.name}
-            id={WORK_TYPE_ID}
-            select
-            options={workTypeOptions}
-            defaultValue={work?.type}
-            onSubmit={changeWorkType}
-          />
-
+            <EditImprint workId={workId} queryToken={queryToken} imprintOptions={imprintOptions} />
+          </AnimatePresence>
           <AutocompleteFormWithPreview
             validationSchema={licenseValidationSchema}
             label={LICENSE.label}
@@ -163,4 +132,4 @@ const EditWorkBasicDetails = (props: EditWorkBasicDetailsProps) => {
   );
 };
 
-export default EditWorkBasicDetails;
+export default EditBasicDetails;

@@ -6,7 +6,7 @@ import { QueryToken, WorkTypes } from '@/src/shared';
 
 import { WorkDtoMapper } from '../../model/work.mapper';
 import { GET_WORK } from '../../model/work.schema';
-import type { WorkDto, WorkId } from '../../model/work.types';
+import type { WorkDto, WorkEntity, WorkId } from '../../model/work.types';
 import useDeleteWork from './useDeleteWork';
 import { useUpdateWork } from './useUpdateWork';
 import { useWorkContribution } from './useWorkContribution';
@@ -35,10 +35,21 @@ const useWork = (id: WorkId, queryToken: QueryToken) => {
 
   const work = mapper.toEntity(data.work as WorkDto);
 
+  const updateWorkRef = (data: WorkEntity) => {
+    const dto = mapper.toDto(data);
+
+    updateWork({
+      variables: {
+        data: dto,
+      },
+    });
+  };
+
   return {
     work,
     deleteWork,
     updateWork,
+    updateWorkRef,
     createContribution,
     deleteContribution,
     updateContribution,

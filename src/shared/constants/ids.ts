@@ -5,7 +5,6 @@ export const IDs = {
     WORK_TITLE: 'work-title',
     PUBLICATION_DATE: 'publication-date',
     EDITION: 'edition',
-    IMPRINT: 'imprint',
     WORK_TYPE: 'work-type',
     LICENSE: 'license',
     COPYRIGHT_HOLDER: 'copyright-holder',
@@ -13,7 +12,6 @@ export const IDs = {
     COVER_URL: 'cover-url',
     AFFILIATIONS: 'affiliations',
   },
-  FORMS: {
-    
-  }
+  WORK_IMPRINT: 'work_imprint',
+  WORK_TYPE: 'work_type',
 } as const;

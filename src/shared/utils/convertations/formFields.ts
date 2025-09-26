@@ -8,16 +8,18 @@ const {
   dataApi: { textSeparator },
 } = appConfig;
 
-export const convertFormFieldsToSelectFieldOptions = (formFields: string[]): FormFieldOption[] => {
-  return formFields.map((option) => {
-    const words = option.split(textSeparator);
-    const preparedWords = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
+export const convertOptionToString = (option: string): string => {
+  const words = option.split(textSeparator);
+  const preparedWords = words.map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase());
 
-    return {
-      value: option,
-      label: preparedWords.join(' '),
-    };
-  });
+  return preparedWords.join(' ');
+};
+
+export const convertFormFieldsToSelectFieldOptions = (formFields: string[]): FormFieldOption[] => {
+  return formFields.map((option) => ({
+    value: option,
+    label: convertOptionToString(option),
+  }));
 };
 
 export const convertEntityToSelectFieldOptions = <T extends { id: string }>(

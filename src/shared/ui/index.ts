@@ -17,6 +17,7 @@ export { default as MenuItem } from './core/MenuItem/MenuItem';
 export { default as Modal } from './core/Modal/Modal';
 export { default as ModalWrapper } from './core/ModalWrapper/ModalWrapper';
 export { default as Paper } from './core/Paper/Paper';
+export { default as Preview } from './core/Preview/Preview';
 export { default as Switch } from './core/Switch/Switch';
 export { default as TableBody } from './core/Table/components/TableBody';
 export { default as TableCell } from './core/Table/components/TableCell';
@@ -52,8 +53,9 @@ export { default as TextFormWithPreview } from './forms/TextFormWithPreview/Text
 // Icons
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';
-export { default as RecommendedSection } from './layout/RecommendedSection/RecommendedSection';
 // Layout
+export { default as ContentWrapper } from './layout/ContentWrapper/ContentPreview';
 export { default as Footer } from './layout/Footer/Footer';
 export { default as Header } from './layout/Header/Header';
 export { default as PageHeader } from './layout/PageHeader/PageHeader';
+export { default as RecommendedSection } from './layout/RecommendedSection/RecommendedSection';
