@@ -28,12 +28,16 @@ const DataIndicator = (props: DataIndicatorProps) => {
         boxShadow: 'unset',
         padding: '10px',
         minWidth: '40px',
+
+        '&.MuiButtonBase-root.MuiButton-root.Mui-disabled': {
+          backgroundColor: 'transparent',
+        },
       }}
       variant="contained"
       disabled={isValid}
     >
       <div
-        className={`flex h-5 w-5 overflow-clip rounded-full border-1 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`}
+        className={`flex h-5 w-5 overflow-clip rounded-full border-1 opacity-100 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`}
       >
         <div
           style={{ width: `${percentage}%` }}

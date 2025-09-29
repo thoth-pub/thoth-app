@@ -1,7 +1,7 @@
 'use client';
 
 import { type ContributorEntity, useCreateContributor, useUpdateContributor } from '@/src/entities/contributor';
-import useContributor from '@/src/entities/contributor/api/hooks/useLinkedPublishers';
+import useLinkedPublishers from '@/src/entities/contributor/api/hooks/useLinkedPublishers';
 import { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { ContributorForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { WorkId } from '@/src/entities/work/model/work.types';
@@ -29,7 +29,7 @@ export const useEditContributorProfile = (props: EditContributorProfileProps) =>
   } = props;
 
   const { sendSuccessNotification, sendErrorNotification } = useNotifications();
-  const { contributedToPublishers } = useContributor({ id: contributorId });
+  const { contributedToPublishers } = useLinkedPublishers({ id: contributorId });
 
   const { createContributor, toEntity } = useCreateContributor({
     queryToken,

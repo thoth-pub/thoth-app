@@ -72,6 +72,7 @@
   --gray: #bdbfc2;
   --gray-alt: #e9e9e9;
   --green: #42b072;
+  --green-opacity-50: rgba(66, 176, 114, 0.5);
   --red: #ff0000;
 
   --max-width: calc(1440px + 2.5rem);
@@ -154,6 +155,7 @@
   --color-table-border: var(--color-success);
   --color-table-row-hover-background: var(--white);
   --color-table-edit-row-form-background: var(--white);
+  --color-table-cell-recommendations-background: var(--green-opacity-50);
 
   --color-tooltip-background: var(--white);
   --color-tooltip-border: var(--gray);

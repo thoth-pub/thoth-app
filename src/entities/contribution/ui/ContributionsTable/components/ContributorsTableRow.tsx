@@ -6,59 +6,35 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { AnimatePresence } from 'motion/react';
 import removeMd from 'remove-markdown';
 
-import { ContributionType } from '@/src/entities/contributor/model/contributor.types';
-import { AffiliationsForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
-import { appConfig, convertOrchidIdToText, convertRorIdToText, FormFieldOption, truncateString } from '@/src/shared';
-import { OrchidLogo, RorLogo, TableCell, TableRow, Typography } from '@/src/shared/ui';
+import { appConfig, convertOrchidIdToText, convertRorIdToText, truncateString } from '@/src/shared';
+import { LinkTooltip, OrchidLogo, RorLogo, TableCell, TableRow, Typography } from '@/src/shared/ui';
 
-import { ContributorEditForm } from './ContributorEditForm';
-import { LinkTooltip } from './LinkTooltip';
 import { RowButtonGroup } from './RowButtonGroup';
 
 const { maxPreviewLength } = appConfig.tables;
 
 type ContributorsTableRowProps = {
-  isEditing: boolean;
   contributor: WorkContribution;
-  contributorTypeOptions: FormFieldOption[];
-  isOrchidFieldDisabled?: boolean;
-  isWebsiteUrlFieldDisabled?: boolean;
-  onCloseEdit?: () => void;
+  form: Readonly<React.ReactNode>;
+  isEditing: boolean;
+  isEditable: boolean;
+  showRecommendations: boolean;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
-  onFullNameUpdate?: (fullName: string) => void;
-  onLastNameUpdate?: (lastName: string) => void;
-  onContributorTypeUpdate?: (contributorType: ContributionType) => void;
-  onBiographyUpdate?: (biography: string) => void;
-  onOrcidUpdate?: (orcid: string) => void;
-  onWebsiteUrlUpdate?: (websiteUrl: string) => void;
   onSelectAsMain?: (id: string) => void;
-  onAffiliationsReorder: (data: AffiliationsForm['affiliations']) => void;
-  onAffiliationsUpdate: (data: AffiliationsForm) => void;
-  onAffiliationsDelete: (id: string) => void;
 };
 
 export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
   const {
+    contributor: { id, fullName, type, isMain, orcidId, biography, affiliations },
+    form,
     isEditing,
-    contributor: { id, fullName, lastName, type, isMain, orcidId, biography, affiliations, website },
-    contributorTypeOptions,
-    isOrchidFieldDisabled = false,
-    isWebsiteUrlFieldDisabled = false,
-    onCloseEdit,
+    isEditable = true,
+    showRecommendations,
     onEdit,
     onDelete,
     onSelectAsMain,
-    onFullNameUpdate,
-    onLastNameUpdate,
-    onBiographyUpdate,
-    onOrcidUpdate,
-    onWebsiteUrlUpdate,
-    onContributorTypeUpdate,
-    onAffiliationsReorder,
-    onAffiliationsUpdate,
-    onAffiliationsDelete,
   } = props;
 
   const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
@@ -76,28 +52,7 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
       {isEditing ? (
         <TableRow className="w-full bg-[var(--color-table-edit-row-form-background)]">
           <TableCell colSpan={4} className="rounded-2xl">
-            <ContributorEditForm
-              onClose={onCloseEdit}
-              fullName={fullName}
-              lastName={lastName}
-              contributorType={type}
-              orcidId={orcidId}
-              website={website}
-              biography={biography}
-              contributorTypeOptions={contributorTypeOptions}
-              isOrchidFieldDisabled={isOrchidFieldDisabled}
-              isWebsiteUrlFieldDisabled={isWebsiteUrlFieldDisabled}
-              affiliations={affiliations}
-              onFullNameUpdate={(fullName) => onFullNameUpdate?.(fullName)}
-              onLastNameUpdate={(lastName) => onLastNameUpdate?.(lastName)}
-              onBiographyUpdate={(biography) => onBiographyUpdate?.(biography)}
-              onContributorTypeUpdate={(contributorType) => onContributorTypeUpdate?.(contributorType)}
-              onOrcidUpdate={(orcid) => onOrcidUpdate?.(orcid)}
-              onWebsiteUrlUpdate={(websiteUrl) => onWebsiteUrlUpdate?.(websiteUrl)}
-              onAffiliationsReorder={onAffiliationsReorder}
-              onAffiliationsUpdate={onAffiliationsUpdate}
-              onAffiliationsDelete={onAffiliationsDelete}
-            />
+            {form}
           </TableCell>
         </TableRow>
       ) : (
@@ -122,7 +77,9 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
             </div>
           </TableCell>
           <TableCell className="w-50 capitalize">{type.toLowerCase().replace('_', ' ')}</TableCell>
-          <TableCell className="w-100">
+          <TableCell
+            className={`w-100 ${showRecommendations && !affiliations.length ? 'bg-[var(--color-table-cell-recommendations-background)]' : ''}`}
+          >
             <div className="flex">
               <ul className="flex flex-col gap-1">
                 {affiliations.map(({ id, institutionName, rorId }) => (
@@ -138,11 +95,14 @@ export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
               </ul>
             </div>
           </TableCell>
-          <TableCell className="flex justify-between rounded-tr-2xl rounded-br-2xl">
+          <TableCell
+            className={`flex justify-between rounded-tr-2xl rounded-br-2xl ${showRecommendations && !biography ? 'bg-[var(--color-table-cell-recommendations-background)]' : ''}`}
+          >
             <Typography>{truncatedBiography}</Typography>
             <RowButtonGroup
               className="ml-auto"
               isSelected={isMain}
+              isDisabled={!isEditable}
               onEdit={() => onEdit?.(id)}
               onSelectAsMain={() => onSelectAsMain?.(id)}
               onDelete={() => onDelete?.(id)}

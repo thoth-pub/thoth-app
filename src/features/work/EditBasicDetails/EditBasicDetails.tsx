@@ -37,15 +37,15 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
               onSubmit={changeEdition}
             />
           )} */}
-          <EditWorkType workId={workId} queryToken={queryToken} isRecommended={showRecommendations} />
+          <EditWorkType workId={workId} queryToken={queryToken} recommended={showRecommendations} />
           <EditImprint
             workId={workId}
             queryToken={queryToken}
             imprintOptions={imprintOptions}
-            isRecommended={showRecommendations}
+            recommended={showRecommendations}
           />
-          <EditLicense workId={workId} queryToken={queryToken} isRecommended={showRecommendations} />
-          <EditDoi workId={workId} queryToken={queryToken} isRecommended={showRecommendations} />
+          <EditLicense workId={workId} queryToken={queryToken} recommended={showRecommendations} />
+          <EditDoi workId={workId} queryToken={queryToken} recommended={showRecommendations} />
         </>
       )}
     </RecommendedSection>

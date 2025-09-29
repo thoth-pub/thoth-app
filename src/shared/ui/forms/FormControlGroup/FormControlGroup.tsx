@@ -1,9 +1,8 @@
 'use client';
 
-import CloseIcon from '@mui/icons-material/Close';
 import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 
-import { IconButton, SubmitButton } from '@/src/shared/ui';
+import { CloseButton, IconButton, SubmitButton } from '@/src/shared/ui';
 
 type FormControlGroupProps = {
   isDisabled?: boolean;
@@ -16,9 +15,7 @@ const FormControlGroup = ({ isDisabled = false, formId, onClose, onInfo }: FormC
   return (
     <div className="flex gap-1">
       <SubmitButton form={formId} type="submit" disabled={isDisabled} aria-label="submit form" />
-      <IconButton onClick={onClose} aria-label="Close form">
-        <CloseIcon />
-      </IconButton>
+      <CloseButton onClose={onClose} />
       <IconButton onClick={onInfo} aria-label="Show info">
         <InfoOutlineIcon />
       </IconButton>

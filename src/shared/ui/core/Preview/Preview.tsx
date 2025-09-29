@@ -10,23 +10,25 @@ import Typography from '../Typography/Typography';
 type PreviewProps = {
   label: string;
   value?: string;
-  isRecommended?: boolean;
+  recommended?: boolean;
+  disabled?: boolean;
+  children?: Readonly<React.ReactNode>;
   onEdit?: () => void;
 };
 
-const Preview = ({ label, value, isRecommended = false, onEdit }: PreviewProps) => {
+const Preview = ({ label, value, children, recommended = false, disabled = false, onEdit }: PreviewProps) => {
   return (
     <ContentWrapper>
-      <FormFieldLabel component="div" label={label} isRecommended={isRecommended} />
+      <FormFieldLabel component="div" label={label} recommended={recommended} />
       <div className="flex justify-between">
-        <Typography className="ml-2">{value}</Typography>
+        {children ? children : <Typography className="ml-2">{value}</Typography>}
         {!value && (
-          <Button startIcon={<AddIcon />} onClick={onEdit} className="mr-auto">
+          <Button disabled={disabled} startIcon={<AddIcon />} onClick={onEdit} className="mr-auto">
             Add {label}
           </Button>
         )}
         {value && (
-          <IconButton className="opacity-0 group-hover:opacity-100" onClick={onEdit}>
+          <IconButton disabled={disabled} className="opacity-0 group-hover:opacity-100" onClick={onEdit}>
             <EditIcon />
           </IconButton>
         )}

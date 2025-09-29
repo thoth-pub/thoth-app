@@ -13,10 +13,11 @@ export type FormTextFieldComponentProps<T extends FieldValues> = {
   options?: FormFieldOption[];
   isDoiField?: boolean;
   isUrlField?: boolean;
+  isRorField?: boolean;
 } & BaseFieldProps<T> &
   TextFieldProps;
 
-const { protocolPrefix, doiPrefix } = appConfig.validations;
+const { protocolPrefix, doiPrefix, rorPrefix } = appConfig.validations;
 
 const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextFieldComponentProps<T>) => {
   const {
@@ -29,6 +30,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     helperText,
     isDoiField = false,
     isUrlField = false,
+    isRorField = false,
     ...restProps
   } = props;
 
@@ -50,6 +52,10 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
 
             if (isUrlField && !e.target.value.startsWith(protocolPrefix) && e.target.value.length > 0) {
               return onChange(protocolPrefix + e.target.value);
+            }
+
+            if (isRorField && !e.target.value.startsWith(rorPrefix) && e.target.value.length > 0) {
+              return onChange(rorPrefix + e.target.value);
             }
 
             onChange(e.target.value);

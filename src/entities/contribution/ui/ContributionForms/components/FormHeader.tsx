@@ -1,17 +1,16 @@
 'use client';
 
-import { OrchidLogo, SubmitButton, Typography } from '@/src/shared/ui';
+import { CloseButton, LinkTooltip, OrchidLogo, SubmitButton, Typography } from '@/src/shared/ui';
 import { convertOrchidIdToText } from '@/src/shared/utils';
 
-import { LinkTooltip } from './LinkTooltip';
-
-type EditContributorFormHeaderProps = {
+type FormHeaderProps = {
   title: string;
   orcidId?: string;
   onDone?: () => void;
+  onClose?: () => void;
 };
 
-export const EditContributorFormHeader = ({ title, orcidId, onDone }: EditContributorFormHeaderProps) => {
+export const FormHeader = ({ title, orcidId, onDone, onClose }: FormHeaderProps) => {
   return (
     <div className="flex justify-between">
       <Typography variant="h2" component="h3" className="flex items-center gap-1 text-[var(--color-typography)]">
@@ -22,7 +21,10 @@ export const EditContributorFormHeader = ({ title, orcidId, onDone }: EditContri
           </LinkTooltip>
         )}
       </Typography>
-      <SubmitButton type="button" onClick={onDone} />
+      <div className="flex gap-1">
+        <SubmitButton type="button" onClick={onDone} />
+        <CloseButton onClose={onClose} />
+      </div>
     </div>
   );
 };

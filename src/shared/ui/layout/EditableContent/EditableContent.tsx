@@ -20,13 +20,16 @@ type PreviewProps<T extends FieldValues> = Partial<{
 
 type EditableContentProps<T extends FieldValues> = {
   formId: Id;
+  isTableVariant?: boolean;
+  isDisabled?: boolean;
   onSubmit: (data: T) => void;
   formFields: ({ control, isHelperTextVisible }: FormFieldsProps) => Readonly<React.ReactNode>;
   preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
-} & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose' | 'onInfo'>;
+  onSkipSubmit?: (data: T) => void;
+} & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose' | 'onInfo' | 'onSkipSubmit'>;
 
 export const EditableContent = <T extends FieldValues>(props: Omit<EditableContentProps<T>, 'onFormSubmit'>) => {
-  const { formId, defaultValues, validationSchema, onSubmit, formFields, preview } = props;
+  const { formId, defaultValues, validationSchema, isTableVariant = false, onSubmit, formFields, preview } = props;
 
   const { activeFormId, edit, close } = useFormStateMachine();
   const [formData, setFormData] = useState(defaultValues);
@@ -70,6 +73,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
         <FormWrapper
           defaultValues={formData}
           validationSchema={validationSchema}
+          isTableVariant={isTableVariant}
           onSubmit={submit}
           onAutoSubmit={onAutoSubmit}
           onClose={onClose}
@@ -80,7 +84,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
       ) : (
         <div
           onDoubleClick={handleEdit}
-          className="group cursor-pointer rounded-xl p-4 duration-300 hover:bg-[var(--color-hover-alt)]"
+          className={`group cursor-pointer duration-300 hover:bg-[var(--color-hover-alt)] ${isTableVariant ? '' : 'rounded-xl p-4'}`}
         >
           {preview({ data: formData as T, onEdit: handleEdit })}
         </div>

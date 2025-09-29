@@ -12,8 +12,14 @@ export const IDs = {
     COVER_URL: 'cover-url',
     AFFILIATIONS: 'affiliations',
   },
+  // WORK
   WORK_IMPRINT: 'work_imprint',
   WORK_TYPE: 'work_type',
   WORK_LICENSE_AND_COPYRIGHT_HOLDER: 'work_license_and_copyright_holder',
   WORK_DOI_AND_COVERS: 'work_doi_and_covers',
+  // CONTRIBUTOR
+  CONTRIBUTOR_NAMES: 'contributor_names',
+  CONTRIBUTOR_TYPE: 'contributor_type',
+  CONTRIBUTOR_BIOGRAPHY: 'contributor_biography',
+  CONTRIBUTOR_ORCID: 'contributor_orcid',
 } as const;

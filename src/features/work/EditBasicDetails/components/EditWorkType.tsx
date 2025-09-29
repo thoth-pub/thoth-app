@@ -12,16 +12,16 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 type EditImprintProps = {
   workId: WorkId;
   queryToken: QueryToken;
-  isRecommended?: boolean;
+  recommended?: boolean;
 };
 
 const { WORK_TYPE } = FORM_FIELDS;
 
-export const EditImprint = ({ workId, queryToken, isRecommended = false }: EditImprintProps) => {
+export const EditImprint = ({ workId, queryToken, recommended = false }: EditImprintProps) => {
   const { work, updateWorkRef } = useWork(workId, queryToken);
 
   const value = convertOptionToString(work?.type ?? '');
-  const showIndicator = isRecommended && !value;
+  const showIndicator = recommended && !value;
 
   const updateWorkType = ({ workType }: WorkTypeForm) => {
     updateWorkRef({ ...work, type: workType as WorkType });
@@ -35,7 +35,7 @@ export const EditImprint = ({ workId, queryToken, isRecommended = false }: EditI
       onSubmit={updateWorkType}
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={WORK_TYPE.label} id={WORK_TYPE.name} isRecommended={showIndicator} />
+          <FormFieldLabel label={WORK_TYPE.label} id={WORK_TYPE.name} recommended={showIndicator} />
           <FormTextField
             control={control}
             name={WORK_TYPE.name}
@@ -48,7 +48,7 @@ export const EditImprint = ({ workId, queryToken, isRecommended = false }: EditI
         </ContentWrapper>
       )}
       preview={({ onEdit }) => (
-        <Preview label={WORK_TYPE.label} value={value} isRecommended={showIndicator} onEdit={onEdit} />
+        <Preview label={WORK_TYPE.label} value={value} recommended={showIndicator} onEdit={onEdit} />
       )}
     />
   );

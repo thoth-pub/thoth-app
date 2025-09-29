@@ -11,21 +11,12 @@ type EditWorkWidgetProps = {
   workId: WorkId;
   workStatusOptions: FormFieldOption[];
   imprintOptions: FormFieldOption[];
-  contributorTypeOptions: FormFieldOption[];
   linkedPublishers?: PublisherId[];
   isAdmin?: boolean;
 };
 
 const EditWorkWidget = (props: EditWorkWidgetProps) => {
-  const {
-    workStatusOptions,
-    imprintOptions,
-    queryToken,
-    workId,
-    contributorTypeOptions,
-    linkedPublishers = [],
-    isAdmin = false,
-  } = props;
+  const { workStatusOptions, imprintOptions, queryToken, workId, linkedPublishers = [], isAdmin = false } = props;
 
   return (
     <div className="flex flex-col gap-8">
@@ -34,7 +25,6 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
       <EditWorkContributors
         workId={workId}
         queryToken={queryToken}
-        contributorTypeOptions={contributorTypeOptions}
         linkedPublishers={linkedPublishers}
         isAdmin={isAdmin}
       />

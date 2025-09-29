@@ -1,18 +1,19 @@
 'use client';
 
-import CloseIcon from '@mui/icons-material/Close';
 import SearchIcon from '@mui/icons-material/Search';
 import { type ChangeEvent, useState } from 'react';
 
+import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useContributors } from '@/src/entities/contributor';
 import type { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { appConfig } from '@/src/shared/config';
+import { ContributorTypes } from '@/src/shared/constants';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
   AddButton,
   Button,
   CircullarProgress,
-  IconButton,
+  CloseButton,
   InputAdornment,
   Modal,
   ModalWrapper,
@@ -20,16 +21,28 @@ import {
   Typography,
 } from '@/src/shared/ui';
 
-type AddContributorsModalProps = {
-  isDisabled?: boolean;
-  onAdd: (data: { fullName: string; lastName: string; contributorId: string }) => void;
-  onCreate: () => void;
+const defautlId = appConfig.defaultId;
+
+const defaultContribution = {
+  id: defautlId,
+  type: ContributorTypes.enum.Author,
+  isMain: false,
+  orderNumber: 0,
+  biography: '',
+  orcidId: '',
+  website: '',
+  firstName: '',
+  affiliations: [],
+  fullName: 'Full Name',
+  lastName: 'Last Name',
+  contributorId: defautlId,
 };
 
-const AddContributorsModal = ({ isDisabled = false, onAdd, onCreate }: AddContributorsModalProps) => {
+const AddContributionModal = () => {
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { contributors, loading } = useContributors({ filter: debouncedValue });
+  const { activeContribution, edit } = useContributionStateMachine();
   const [selected, setSelected] = useState<ContributorId | ''>('');
   const [open, setOpen] = useState(false);
 
@@ -57,35 +70,31 @@ const AddContributorsModal = ({ isDisabled = false, onAdd, onCreate }: AddContri
   const handleAdd = () => {
     if (!selectedContributorRecord) return;
 
-    onAdd({
-      fullName: selectedContributorRecord.name,
-      lastName: selectedContributorRecord.lastName,
-      contributorId: selectedContributorRecord.id,
-    });
+    const { id, lastName, fullName } = selectedContributorRecord;
+
+    edit({ ...defaultContribution, contributorId: id, lastName, fullName });
     handleModalState();
     setSelected('');
     setSearchValue('');
   };
 
   const handleCreate = () => {
-    onCreate();
+    edit({ ...defaultContribution });
     handleModalState();
   };
 
   return (
     <>
-      <AddButton onAdd={handleModalState} className="mt-3" disabled={isDisabled}>
+      <AddButton onAdd={handleModalState} className="mt-3 self-end" disabled={!!activeContribution}>
         Add Contributor
       </AddButton>
-      <Modal open={open} onClose={() => setOpen(false)}>
+      <Modal open={open} onClose={handleModalState}>
         <ModalWrapper>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="text-[var(--color-typography)]">
               Add contributor
             </Typography>
-            <IconButton onClick={handleModalState}>
-              <CloseIcon className="color-[var(--color-typography)]" />
-            </IconButton>
+            <CloseButton onClose={handleModalState} />
           </div>
           <TextField
             placeholder="Search contributor"
@@ -145,4 +154,4 @@ const AddContributorsModal = ({ isDisabled = false, onAdd, onCreate }: AddContri
   );
 };
 
-export default AddContributorsModal;
+export default AddContributionModal;

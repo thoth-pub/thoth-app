@@ -12,21 +12,21 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 type EditDoiProps = {
   workId: WorkId;
   queryToken: QueryToken;
-  isRecommended?: boolean;
+  recommended?: boolean;
 };
 
 const { DOI, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
-export const EditDoi = ({ workId, queryToken, isRecommended = false }: EditDoiProps) => {
+export const EditDoi = ({ workId, queryToken, recommended = false }: EditDoiProps) => {
   const { work, updateWorkRef } = useWork(workId, queryToken);
 
   const doiValue = work?.doi ?? '';
   const landingPageValue = work?.landingPage ?? '';
   const coverUrlValue = work?.coverUrl ?? '';
 
-  const showDoiIndicator = isRecommended && !work?.doi;
-  const showLandingPageIndicator = isRecommended && !work?.landingPage;
-  const showCoverUrlIndicator = isRecommended && !work?.coverUrl;
+  const showDoiIndicator = recommended && !work?.doi;
+  const showLandingPageIndicator = recommended && !work?.landingPage;
+  const showCoverUrlIndicator = recommended && !work?.coverUrl;
 
   const placeholderValue = [doiValue, landingPageValue, coverUrlValue].filter((value) => value.length > 0).join(', ');
 
@@ -47,7 +47,7 @@ export const EditDoi = ({ workId, queryToken, isRecommended = false }: EditDoiPr
       formFields={({ control, isHelperTextVisible }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
-            <FormFieldLabel label={DOI.label} id={DOI.name} isRecommended={showDoiIndicator} />
+            <FormFieldLabel label={DOI.label} id={DOI.name} recommended={showDoiIndicator} />
             <FormTextField
               control={control}
               name={DOI.name}
@@ -58,11 +58,7 @@ export const EditDoi = ({ workId, queryToken, isRecommended = false }: EditDoiPr
             />
           </ContentWrapper>
           <ContentWrapper>
-            <FormFieldLabel
-              label={LANDING_PAGE.label}
-              id={LANDING_PAGE.name}
-              isRecommended={showLandingPageIndicator}
-            />
+            <FormFieldLabel label={LANDING_PAGE.label} id={LANDING_PAGE.name} recommended={showLandingPageIndicator} />
             <FormTextField
               control={control}
               name={LANDING_PAGE.name}
@@ -73,7 +69,7 @@ export const EditDoi = ({ workId, queryToken, isRecommended = false }: EditDoiPr
             />
           </ContentWrapper>
           <ContentWrapper>
-            <FormFieldLabel label={COVER_URL.label} id={COVER_URL.name} isRecommended={showCoverUrlIndicator} />
+            <FormFieldLabel label={COVER_URL.label} id={COVER_URL.name} recommended={showCoverUrlIndicator} />
             <FormTextField
               control={control}
               name={COVER_URL.name}
@@ -89,7 +85,7 @@ export const EditDoi = ({ workId, queryToken, isRecommended = false }: EditDoiPr
         <Preview
           label={DOI.label}
           value={placeholderValue}
-          isRecommended={showDoiIndicator || showLandingPageIndicator || showCoverUrlIndicator}
+          recommended={showDoiIndicator || showLandingPageIndicator || showCoverUrlIndicator}
           onEdit={onEdit}
         />
       )}

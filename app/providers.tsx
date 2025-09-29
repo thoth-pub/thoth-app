@@ -2,7 +2,6 @@
 
 import { SessionProvider } from 'next-auth/react';
 
-import { FormStateMachineContext } from '@/src/shared';
 import {
   ApolloClientProvider,
   LocalizationProvider,
@@ -11,17 +10,19 @@ import {
   ThemeProvider,
 } from '@/src/shared/providers';
 
+import StoreProvider from './store';
+
 const Providers = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   return (
     <SessionProvider>
       <ApolloClientProvider>
-        <FormStateMachineContext.Provider>
+        <StoreProvider>
           <StylesCacheProvider>
             <ThemeProvider>
               <LocalizationProvider>{children}</LocalizationProvider>
             </ThemeProvider>
           </StylesCacheProvider>
-        </FormStateMachineContext.Provider>
+        </StoreProvider>
       </ApolloClientProvider>
       <NotificationProvider />
     </SessionProvider>

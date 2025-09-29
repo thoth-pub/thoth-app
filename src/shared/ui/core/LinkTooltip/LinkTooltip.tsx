@@ -9,7 +9,7 @@ type LinkTooltipProps = {
   children: Readonly<ReactNode>;
 };
 
-export const LinkTooltip = ({ link, linkText, children }: LinkTooltipProps) => {
+const LinkTooltip = ({ link, linkText, children }: LinkTooltipProps) => {
   return (
     <Tooltip
       arrow
@@ -28,3 +28,5 @@ export const LinkTooltip = ({ link, linkText, children }: LinkTooltipProps) => {
     </Tooltip>
   );
 };
+
+export default LinkTooltip;

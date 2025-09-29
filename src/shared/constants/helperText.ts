@@ -6,4 +6,11 @@ export const HELPER_TEXT = {
   LANDING_PAGE: 'Enter the landing page URL of the work.',
   COVER_URL: 'Enter the cover URL of the work.',
   DOI: 'Enter the DOI URL of the work.',
+  FULL_NAME: 'Enter the full name.',
+  FIRST_NAME: 'Enter the first name.',
+  LAST_NAME: 'Enter the last name.',
+  CONTRIBUTOR_TYPE: 'Choose the type of contributor.',
+  CONTRIBUTOR_BIOGRAPHY: 'Enter the biography of the contributor.',
+  CONTRIBUTOR_ORCID: 'Enter the ORCID ID of the contributor.',
+  CONTRIBUTOR_WEBSITE_URL: 'Enter the website URL of the contributor.',
 };

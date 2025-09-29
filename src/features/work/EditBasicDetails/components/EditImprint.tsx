@@ -13,16 +13,16 @@ type EditImprintProps = {
   imprintOptions: FormFieldOption[];
   workId: WorkId;
   queryToken: QueryToken;
-  isRecommended?: boolean;
+  recommended?: boolean;
 };
 
 const { IMPRINT } = FORM_FIELDS;
 
-export const EditImprint = ({ workId, queryToken, imprintOptions, isRecommended = false }: EditImprintProps) => {
+export const EditImprint = ({ workId, queryToken, imprintOptions, recommended = false }: EditImprintProps) => {
   const { work, updateWorkRef } = useWork(workId, queryToken);
 
   const value = work?.publisherName ?? '';
-  const showIndicator = isRecommended && !value;
+  const showIndicator = recommended && !value;
 
   const updateImprint = ({ imprintId }: ImprintForm) => {
     updateWorkRef({ ...work, imprintId });
@@ -36,7 +36,7 @@ export const EditImprint = ({ workId, queryToken, imprintOptions, isRecommended 
       onSubmit={updateImprint}
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={IMPRINT.label} id={IMPRINT.name} isRecommended={showIndicator} />
+          <FormFieldLabel label={IMPRINT.label} id={IMPRINT.name} recommended={showIndicator} />
           <FormTextField
             control={control}
             name={IMPRINT.name}
@@ -49,7 +49,7 @@ export const EditImprint = ({ workId, queryToken, imprintOptions, isRecommended 
         </ContentWrapper>
       )}
       preview={({ onEdit }) => (
-        <Preview label={IMPRINT.label} value={value} isRecommended={showIndicator} onEdit={onEdit} />
+        <Preview label={IMPRINT.label} value={value} recommended={showIndicator} onEdit={onEdit} />
       )}
     />
   );

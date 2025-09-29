@@ -8,6 +8,7 @@ import FormControlGroup from '../../forms/FormControlGroup/FormControlGroup';
 export type FormProps<T extends FieldValues> = {
   validationSchema: ZodType<unknown, FieldValues>;
   defaultValues?: DefaultValues<T>;
+  isTableVariant?: boolean;
   children: (props: { control: Control<FieldValues> }) => Readonly<React.ReactNode>;
   onSubmit: SubmitHandler<T>;
   onAutoSubmit: (data: FieldValues) => void;
@@ -16,7 +17,16 @@ export type FormProps<T extends FieldValues> = {
 };
 
 export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
-  const { validationSchema, defaultValues, children, onSubmit, onAutoSubmit, onClose, onInfo } = props;
+  const {
+    validationSchema,
+    defaultValues,
+    isTableVariant = false,
+    children,
+    onSubmit,
+    onAutoSubmit,
+    onClose,
+    onInfo,
+  } = props;
 
   const {
     control,
@@ -45,7 +55,10 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
   });
 
   return (
-    <form onSubmit={handleSubmitForm} className="flex gap-1 rounded-xl bg-[var(--color-form-background)] p-4">
+    <form
+      onSubmit={handleSubmitForm}
+      className={`flex gap-1 bg-[var(--color-form-background)] ${isTableVariant ? '' : 'rounded-xl p-4'} `}
+    >
       <div className="grow">{children({ control: control as Control<FieldValues> })}</div>
       <FormControlGroup isDisabled={isSubmitDisabled} onClose={onClose} onInfo={onInfo} />
     </form>

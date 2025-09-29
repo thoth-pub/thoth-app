@@ -1,79 +1,57 @@
 'use client';
 
-import { ContributorsTable } from '@/src/entities/contributor';
+import { ContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
 import type { PublisherId } from '@/src/entities/publisher';
+import { useWork } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { AddContributorsModal } from '@/src/features';
-import { type FormFieldOption, type QueryToken } from '@/src/shared';
-
-import { useEditWorkContributors } from './useEditWorkContributors';
+import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
+import { isDefaultId, type QueryToken } from '@/src/shared';
+import { RecommendedSection } from '@/src/shared/ui';
 
 type EditWorkContributorsProps = {
   workId: WorkId;
   queryToken: QueryToken;
-  contributorTypeOptions: FormFieldOption[];
   linkedPublishers?: PublisherId[];
   isAdmin?: boolean;
 };
 
 export const EditWorkContributors = (props: EditWorkContributorsProps) => {
-  const { workId, queryToken, contributorTypeOptions, isAdmin = false, linkedPublishers = [] } = props;
+  const { workId, queryToken, isAdmin = false, linkedPublishers = [] } = props;
+  const { activeContribution } = useContributionStateMachine();
 
-  const {
-    contributions,
-    selectedContributor,
-    isOrchidFieldDisabled,
-    isWebsiteUrlFieldDisabled,
-    preselectContributor,
-    updateContributionFullName,
-    updateContributionLastName,
-    updateContributionOrcid,
-    updateContributionWebsite,
-    updateContributionType,
-    updateContributionAsMain,
-    updateContributionBiography,
-    deleteContribution,
-    reorderContributions,
-    saveContribution,
-    edit,
-    updateAffiliations,
-    reorderAffiliations,
-    deleteAffiliation,
-  } = useEditWorkContributors({
-    workId,
-    queryToken,
-    isAdmin,
-    linkedPublishers,
-  });
+  const { work } = useWork(workId, queryToken);
+
+  const isNewContribution = activeContribution && isDefaultId(activeContribution.id);
+
+  const isValid =
+    work.contributions.length > 0 &&
+    work.contributions.every((contribution) => contribution.biography && contribution.affiliations.length > 0);
 
   return (
-    <>
-      <ContributorsTable
-        data={contributions}
-        contributorTypeOptions={contributorTypeOptions}
-        selectedId={selectedContributor?.id ?? ''}
-        isOrchidFieldDisabled={isOrchidFieldDisabled}
-        isWebsiteUrlFieldDisabled={isWebsiteUrlFieldDisabled}
-        onEdit={edit}
-        onCloseEdit={saveContribution}
-        onDelete={deleteContribution}
-        onFullNameUpdate={updateContributionFullName}
-        onLastNameUpdate={updateContributionLastName}
-        onOrcidUpdate={updateContributionOrcid}
-        onWebsiteUrlUpdate={updateContributionWebsite}
-        onBiographyUpdate={updateContributionBiography}
-        onContributorTypeUpdate={updateContributionType}
-        onSelectAsMain={updateContributionAsMain}
-        onReorderEnd={reorderContributions}
-        onAffiliationsReorder={reorderAffiliations}
-        onAffiliationsUpdate={updateAffiliations}
-        onAffiliationsDelete={deleteAffiliation}
-      />
-      <AddContributorsModal
-        isDisabled={!!selectedContributor}
-        onAdd={preselectContributor}
-        onCreate={() => preselectContributor({})}
-      />
-    </>
+    <RecommendedSection title="Contributors" isEmpty={work.contributions.length === 0} isValid={isValid}>
+      {({ showRecommendations }) => (
+        <>
+          <ContributionsTable
+            workId={workId}
+            queryToken={queryToken}
+            form={
+              <EditContribution
+                showRecommendations={showRecommendations}
+                workId={workId}
+                queryToken={queryToken}
+                isAdmin={isAdmin}
+                linkedPublishers={linkedPublishers}
+              />
+            }
+            showRecommendations={showRecommendations}
+          />
+          {activeContribution?.id}
+          {isNewContribution && (
+            <AddNewContribution showRecommendations={showRecommendations} workId={workId} queryToken={queryToken} />
+          )}
+          <AddContributionModal />
+        </>
+      )}
+    </RecommendedSection>
   );
 };

@@ -19,18 +19,18 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 type EditLicenseProps = {
   workId: WorkId;
   queryToken: QueryToken;
-  isRecommended?: boolean;
+  recommended?: boolean;
 };
 
 const { LICENSE, COPYRIGHT_HOLDER } = FORM_FIELDS;
 
-export const EditLicense = ({ workId, queryToken, isRecommended = false }: EditLicenseProps) => {
+export const EditLicense = ({ workId, queryToken, recommended = false }: EditLicenseProps) => {
   const { work, updateWorkRef } = useWork(workId, queryToken);
 
   const licenseValue = licenseOptions.find((option) => option.value === work.license) ?? licenseOptions[0];
   const copyrightHolderValue = work?.copyrightHolder ?? '';
-  const showLicenseIndicator = isRecommended && !work?.license;
-  const showCopyrightHolderIndicator = isRecommended && !work?.copyrightHolder;
+  const showLicenseIndicator = recommended && !work?.license;
+  const showCopyrightHolderIndicator = recommended && !work?.copyrightHolder;
 
   const placeholderValue = licenseValue.label + ' © ' + copyrightHolderValue;
 
@@ -50,7 +50,7 @@ export const EditLicense = ({ workId, queryToken, isRecommended = false }: EditL
       formFields={({ control, isHelperTextVisible }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
-            <FormFieldLabel label={LICENSE.label} id={LICENSE.name} isRecommended={showLicenseIndicator} />
+            <FormFieldLabel label={LICENSE.label} id={LICENSE.name} recommended={showLicenseIndicator} />
             <AutocompleteField
               control={control}
               name={LICENSE.name}
@@ -71,7 +71,7 @@ export const EditLicense = ({ workId, queryToken, isRecommended = false }: EditL
             <FormFieldLabel
               label={COPYRIGHT_HOLDER.label}
               id={COPYRIGHT_HOLDER.name}
-              isRecommended={showCopyrightHolderIndicator}
+              recommended={showCopyrightHolderIndicator}
             />
             <FormTextField
               control={control}
@@ -87,7 +87,7 @@ export const EditLicense = ({ workId, queryToken, isRecommended = false }: EditL
         <Preview
           label={LICENSE.label}
           value={placeholderValue}
-          isRecommended={showLicenseIndicator || showCopyrightHolderIndicator}
+          recommended={showLicenseIndicator || showCopyrightHolderIndicator}
           onEdit={onEdit}
         />
       )}

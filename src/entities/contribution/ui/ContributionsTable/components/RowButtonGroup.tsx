@@ -7,20 +7,21 @@ import { ButtonGroup, IconButton } from '@/src/shared/ui';
 
 type RowButtonGroupProps = {
   isSelected: boolean;
+  isDisabled: boolean;
   className?: string;
   onDelete?: () => void;
   onEdit?: () => void;
   onSelectAsMain?: () => void;
 };
 export const RowButtonGroup = (props: RowButtonGroupProps) => {
-  const { isSelected, className, onDelete, onEdit, onSelectAsMain } = props;
+  const { isSelected, className, isDisabled = false, onDelete, onEdit, onSelectAsMain } = props;
 
   return (
     <ButtonGroup className={className}>
       <IconButton onClick={onDelete} className="opacity-0">
         <DeleteOutlineIcon />
       </IconButton>
-      <IconButton onClick={onEdit} className="opacity-0">
+      <IconButton onClick={onEdit} className="opacity-0" disabled={isDisabled}>
         <EditIcon />
       </IconButton>
       <IconButton onClick={onSelectAsMain}>{isSelected ? <StarIcon /> : <StarBorderIcon />}</IconButton>
