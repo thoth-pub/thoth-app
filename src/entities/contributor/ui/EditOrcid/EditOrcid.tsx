@@ -38,7 +38,6 @@ const EditOrcid = (props: EditOrcidProps) => {
             fullWidth
             helperText={CONTRIBUTOR_ORCID_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
-            isRorField
             disabled={disabled}
           />
         </ContentWrapper>

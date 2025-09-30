@@ -5,37 +5,50 @@ import type { QueryToken } from '@/src/shared';
 import { useMutationWithAuth } from '@/src/shared/hooks';
 
 import { ContributorDtoMapper } from '../../model/contributor.mapper';
-import { GET_CONTRIBUTORS, UPDATE_CONTRIBUTOR } from '../../model/contributor.schema';
+import { GET_CONTRIBUTOR, GET_CONTRIBUTORS, UPDATE_CONTRIBUTOR } from '../../model/contributor.schema';
+import type { ContributorEntity, ContributorId } from '../../model/contributor.types';
 
 type UseUpdateContributorProps = {
   queryToken: QueryToken;
   workId?: WorkId;
-  onCompleted: (data: Contributor) => void;
-  onError: (error: Error) => void;
+  contributorId?: ContributorId;
+  onCompleted?: (data: Contributor) => void;
+  onError?: (error: Error) => void;
 };
 
 const mapper = new ContributorDtoMapper();
 
 const useUpdateContributor = (props: UseUpdateContributorProps) => {
-  const { queryToken, workId = '', onCompleted, onError } = props;
+  const { queryToken, workId = '', contributorId = '', onCompleted, onError } = props;
 
   const [mutate, { loading }] = useMutationWithAuth<UpdateContributorMutation>({
     queryToken,
     mutation: UPDATE_CONTRIBUTOR,
     options: {
       onCompleted: (data) => {
-        onCompleted(data.updateContributor as Contributor);
+        onCompleted?.(data.updateContributor as Contributor);
       },
       onError: (error) => {
-        onError(error);
+        onError?.(error);
       },
-      refetchQueries: [{ query: GET_CONTRIBUTORS }, { query: GET_WORK, variables: { workId } }],
+      refetchQueries: [
+        { query: GET_CONTRIBUTORS },
+        { query: GET_WORK, variables: { workId } },
+        { query: GET_CONTRIBUTOR, variables: { contributorId: contributorId } },
+      ],
     },
   });
 
+  const updateContributor = (
+    contributor: Pick<ContributorEntity, 'id' | 'firstName' | 'lastName' | 'fullName' | 'orcid' | 'website'>,
+  ) => {
+    const data = mapper.toDto(contributor);
+
+    mutate({ variables: { data: data } });
+  };
+
   return {
-    updateContributor: mutate,
-    toEntity: mapper.toEntity,
+    updateContributor,
     loading,
   };
 };

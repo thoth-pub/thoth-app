@@ -41,3 +41,11 @@ export const UPDATE_CONTRIBUTOR = graphql(`
     }
   }
 `);
+
+export const GET_CONTRIBUTOR = graphql(`
+  query GetContributor($contributorId: Uuid!) {
+    contributor(contributorId: $contributorId) {
+      ...ContributorFragment
+    }
+  }
+`);

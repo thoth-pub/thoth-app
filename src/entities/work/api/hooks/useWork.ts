@@ -55,13 +55,21 @@ const useWork = (id: WorkId, queryToken: QueryToken) => {
     });
   };
 
+  const createContributionRef = (data: WorkContribution) => {
+    const dto = mapper.toDtoContribution(data);
+
+    createContribution({
+      variables: { data: { workId: id, ...dto } },
+    });
+  };
+
   return {
     work,
     deleteWork,
     updateWork,
     updateWorkRef,
     updateWorkContributionRef,
-    createContribution,
+    createContributionRef,
     deleteContribution,
     updateContribution,
     toDto: mapper.toDto,

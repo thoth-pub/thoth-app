@@ -14,7 +14,7 @@ import { RowButtonGroup } from './RowButtonGroup';
 
 const { maxPreviewLength } = appConfig.tables;
 
-type ContributorsTableRowProps = {
+type ContributionsTableRowProps = {
   contributor: WorkContribution;
   form: Readonly<React.ReactNode>;
   isEditing: boolean;
@@ -25,7 +25,7 @@ type ContributorsTableRowProps = {
   onSelectAsMain?: (id: string) => void;
 };
 
-export const ContributorsTableRow = (props: ContributorsTableRowProps) => {
+export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
   const {
     contributor: { id, fullName, type, isMain, orcidId, biography, affiliations },
     form,

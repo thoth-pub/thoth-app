@@ -17,6 +17,7 @@ type ContributionFormsProps = {
   isWebsiteUrlEditionDisabled?: boolean;
   children?: React.ReactNode;
   onDone?: () => void;
+  onClose?: () => void;
   onNamesSubmit: (data: ContributionNamesForm) => void;
   onContributorTypeSubmit: (data: ContributionTypeForm) => void;
   onBiographySubmit: (data: ContributionBiographyForm) => void;
@@ -31,6 +32,7 @@ const ContributionForms = (props: ContributionFormsProps) => {
     onContributorTypeSubmit,
     onBiographySubmit,
     onDone,
+    onClose,
   } = props;
 
   const { fullName, firstName, lastName, type, biography, orcidId } = contribution;
@@ -43,7 +45,7 @@ const ContributionForms = (props: ContributionFormsProps) => {
       exit={{ opacity: 0, height: 0 }}
       transition={{ duration: 0.3, ease: 'easeIn' }}
     >
-      <FormHeader title={fullName} orcidId={orcidId} onDone={onDone} onClose={close} />
+      <FormHeader title={fullName} orcidId={orcidId} onDone={onDone} onClose={onClose} />
       <EditNames
         fullName={fullName}
         firstName={firstName}

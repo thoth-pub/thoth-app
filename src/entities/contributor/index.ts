@@ -1,5 +1,6 @@
 // API
 export { ContributorService } from './api/contributor.service';
+export { default as useContributor } from './api/hooks/useContributor';
 export { default as useContributors } from './api/hooks/useContributors';
 export { default as useCreateContributor } from './api/hooks/useCreateContributor';
 export { default as useLinkedPublishers } from './api/hooks/useLinkedPublishers';

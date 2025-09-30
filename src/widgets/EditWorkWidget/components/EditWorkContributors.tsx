@@ -45,7 +45,6 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
             }
             showRecommendations={showRecommendations}
           />
-          {activeContribution?.id}
           {isNewContribution && (
             <AddNewContribution showRecommendations={showRecommendations} workId={workId} queryToken={queryToken} />
           )}

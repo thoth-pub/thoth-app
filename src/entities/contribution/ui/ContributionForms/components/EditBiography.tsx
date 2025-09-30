@@ -40,7 +40,7 @@ export const EditBiography = (props: EditBiographyProps) => {
       )}
       preview={({ data, onEdit }) => (
         <Preview label={CONTRIBUTOR_BIOGRAPHY.label} value={biography} onEdit={onEdit}>
-          <MarkdownPreview source={data?.contributorBiography ?? ''} />
+          {biography && <MarkdownPreview source={data?.contributorBiography} />}
         </Preview>
       )}
     />

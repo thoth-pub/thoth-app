@@ -1,10 +1,5 @@
 import { ContributionForms } from '@/src/entities/contribution';
-import type {
-  ContributionBiographyForm,
-  ContributionNamesForm,
-} from '@/src/entities/contribution/model/contribution.types';
-import type { ContributionType } from '@/src/entities/contributor/model/contributor.types';
-// import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
+import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import type { QueryToken } from '@/src/shared';
 
@@ -19,44 +14,34 @@ type AddNewContributionProps = {
 const AddNewContribution = (props: AddNewContributionProps) => {
   const { showRecommendations, workId, queryToken } = props;
 
-  const { activeContribution, close } = useAddNewContribution({ workId, queryToken });
+  const {
+    contribution,
+    close,
+    create,
+    updateNames,
+    updateContributorType,
+    updateBiography,
+    updateOrcid,
+    updateWebsiteUrl,
+  } = useAddNewContribution({ workId, queryToken });
 
-  const handleDone = () => {
-    console.log('handleDone');
-    close();
-  };
-
-  const handleNamesSubmit = (data: ContributionNamesForm) => {
-    console.log('handleNamesSubmit', data);
-  };
-
-  const handleContributorTypeSubmit = (data: { contributorType: ContributionType }) => {
-    console.log('handleContributorTypeSubmit', data);
-  };
-
-  const handleBiographySubmit = (data: ContributionBiographyForm) => {
-    console.log('handleBiographySubmit', data);
-  };
-
-  // const handleOrcidSubmit = (data: OrcidForm) => {
-  //   console.log('handleOrcidSubmit', data);
-  // };
-
-  // const handleWebsiteUrlSubmit = (data: WebsiteUrlForm) => {
-  //   console.log('handleWebsiteUrlSubmit', data);
-  // };
-
-  if (!activeContribution) return null;
+  if (!contribution) return null;
 
   return (
-    <ContributionForms
-      showRecommendations={showRecommendations}
-      contribution={activeContribution}
-      onNamesSubmit={handleNamesSubmit}
-      onContributorTypeSubmit={handleContributorTypeSubmit}
-      onBiographySubmit={handleBiographySubmit}
-      onDone={handleDone}
-    />
+    <div className="rounded-2xl bg-[var(--color-form-background)] p-4">
+      <ContributionForms
+        showRecommendations={showRecommendations}
+        contribution={contribution}
+        onNamesSubmit={updateNames}
+        onContributorTypeSubmit={updateContributorType}
+        onBiographySubmit={updateBiography}
+        onDone={create}
+        onClose={close}
+      >
+        <EditOrcid orcidId={contribution.orcidId} recommended={showRecommendations} onSubmit={updateOrcid} />
+        <EditWebsite websiteUrl={contribution.website} recommended={showRecommendations} onSubmit={updateWebsiteUrl} />
+      </ContributionForms>
+    </div>
   );
 };
 

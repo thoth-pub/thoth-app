@@ -70,9 +70,9 @@ const AddContributionModal = () => {
   const handleAdd = () => {
     if (!selectedContributorRecord) return;
 
-    const { id, lastName, fullName } = selectedContributorRecord;
+    const { id, lastName, fullName, orcid, website } = selectedContributorRecord;
 
-    edit({ ...defaultContribution, contributorId: id, lastName, fullName });
+    edit({ ...defaultContribution, contributorId: id, lastName, fullName, orcidId: orcid, website });
     handleModalState();
     setSelected('');
     setSearchValue('');

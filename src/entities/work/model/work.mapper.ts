@@ -2,6 +2,7 @@ import {
   convertDateToFormattedDate,
   convertOrchidIdToText,
   isBookChapter,
+  isDefaultId,
   isPublicationDateAvailable,
 } from '@/src/shared';
 import type { BaseMapper } from '@/src/shared/interfaces';
@@ -142,7 +143,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       fullName,
       lastName,
       firstName: firstName && firstName.length > 0 ? firstName : null,
-      contributionId: id,
+      contributionId: id && !isDefaultId(id) ? id : undefined,
       contributorId,
       contributionType: type,
       mainContribution: isMain,

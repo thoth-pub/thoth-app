@@ -25,7 +25,7 @@ export const EditWebsite = (props: EditWebsiteProps) => {
   return (
     <EditableContent
       isTableVariant
-      formId={IDs.CONTRIBUTOR_ORCID}
+      formId={IDs.CONTRIBUTOR_WEBSITE_URL}
       defaultValues={{ [WEBSITE_URL.name]: websiteUrl }}
       validationSchema={websiteUrlValidationSchema}
       onSubmit={onSubmit}

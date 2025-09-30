@@ -3,7 +3,7 @@
 import MDEditor from '@uiw/react-md-editor';
 
 type MarkdownPreviewProps = {
-  source: string;
+  source?: string;
 };
 
 const MarkdownPreview = ({ source }: MarkdownPreviewProps) => {
