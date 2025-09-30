@@ -1,10 +1,8 @@
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { EditWorkHeader } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { EditBasicDetails } from '@/src/features';
+import { EditBasicDetails, EditContributors } from '@/src/features';
 import type { FormFieldOption, QueryToken } from '@/src/shared';
-
-import { EditWorkContributors } from './components/EditWorkContributors';
 
 type EditWorkWidgetProps = {
   queryToken: QueryToken;
@@ -22,12 +20,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
     <div className="flex flex-col gap-8">
       <EditWorkHeader queryToken={queryToken} workId={workId} workStatusOptions={workStatusOptions} />
       <EditBasicDetails workId={workId} queryToken={queryToken} imprintOptions={imprintOptions} />
-      <EditWorkContributors
-        workId={workId}
-        queryToken={queryToken}
-        linkedPublishers={linkedPublishers}
-        isAdmin={isAdmin}
-      />
+      <EditContributors workId={workId} queryToken={queryToken} linkedPublishers={linkedPublishers} isAdmin={isAdmin} />
     </div>
   );
 };

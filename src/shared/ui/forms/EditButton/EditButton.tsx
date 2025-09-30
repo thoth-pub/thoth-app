@@ -11,7 +11,7 @@ type EditButtonProps = {
   isEmpty: boolean;
   placeholder: string;
   className?: string;
-  onEdit: () => void;
+  onEdit?: () => void;
 };
 
 const EditButton = ({ isEmpty, placeholder, disabled, className, onEdit }: EditButtonProps) => {

@@ -4,3 +4,4 @@ export { default as EditContribution } from './contribution/EditContribution/Edi
 export { default as CreateNewWorkLink } from './CreateNewWorkLink/CreateNewWorkLink';
 export { default as AddContributionModal } from './work/AddContributionModal/AddContributionModal';
 export { default as EditBasicDetails } from './work/EditBasicDetails/EditBasicDetails';
+export { default as EditContributors } from './work/EditContributors/EditContributors';

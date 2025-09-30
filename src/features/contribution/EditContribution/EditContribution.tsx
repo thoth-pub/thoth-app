@@ -1,3 +1,5 @@
+import { AffiliationsForm } from '@/src/entities/affiliation';
+import type { AffiliationsForm as AffiliationsFormType } from '@/src/entities/affiliation/model/affiliation.types';
 import { ContributionForms } from '@/src/entities/contribution';
 import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
@@ -27,6 +29,8 @@ const EditContribution = (props: EditContributionProps) => {
     updateBiography,
     updateOrcid,
     updateWebsiteUrl,
+    updateAffiliations,
+    deleteAffiliation,
   } = useEditContribution({
     workId,
     queryToken,
@@ -59,6 +63,11 @@ const EditContribution = (props: EditContributionProps) => {
         recommended={showRecommendations}
         disabled={isWebsiteUrlEditionDisabled}
         onSubmit={updateWebsiteUrl}
+      />
+      <AffiliationsForm
+        defaultValue={contribution.affiliations}
+        onUpdate={updateAffiliations}
+        onDelete={deleteAffiliation}
       />
     </ContributionForms>
   );

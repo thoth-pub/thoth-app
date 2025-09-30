@@ -1,9 +1,10 @@
+import type { CreateContributionMutation } from '@/gql/graphql';
 import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { CREATE_CONTRIBUTION, DELETE_CONTRIBUTION, UPDATE_CONTRIBUTION } from '../../model/work.mutations';
 import { GET_WORK } from '../../model/work.schema';
-import type { WorkId } from '../../model/work.types';
+import type { WorkContributionDto, WorkId } from '../../model/work.types';
 
 const { WORK_CONTRIBUTION_CREATION_FAILED, WORK_CONTRIBUTION_DELETION_FAILED, WORK_CONTRIBUTION_UPDATE_FAILED } =
   NOTIFICATIONS;
@@ -11,14 +12,18 @@ const { WORK_CONTRIBUTION_CREATION_FAILED, WORK_CONTRIBUTION_DELETION_FAILED, WO
 type UseCWorkContributionProps = {
   workId: WorkId;
   queryToken: QueryToken;
+  onCreateComplete?: (data: WorkContributionDto) => void;
 };
 
-export const useWorkContribution = ({ workId, queryToken }: UseCWorkContributionProps) => {
+export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: UseCWorkContributionProps) => {
   const { sendErrorNotification } = useNotifications();
   const [createContribution, { loading }] = useMutationWithAuth({
     queryToken,
     mutation: CREATE_CONTRIBUTION,
     options: {
+      onCompleted: (data: CreateContributionMutation) => {
+        onCreateComplete?.(data.createContribution);
+      },
       onError: () => {
         sendErrorNotification(WORK_CONTRIBUTION_CREATION_FAILED);
       },

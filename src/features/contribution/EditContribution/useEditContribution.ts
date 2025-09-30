@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 
+import { useAffiliationsForm } from '@/src/entities/affiliation';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import type {
   ContributionBiographyForm,
@@ -58,6 +59,13 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   });
 
   const { contributedToPublishers } = useLinkedPublishers({ id: activeContribution?.contributorId });
+
+  const { updateAffiliations, deleteAffiliation } = useAffiliationsForm({
+    queryToken,
+    contributionId: contribution?.id || '',
+    affiliations: contribution?.affiliations || [],
+    workId,
+  });
 
   const isContributedOnlyToCurrentPublisher = useMemo(() => {
     const contributions = Array.from(new Set(contributedToPublishers));
@@ -139,5 +147,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     updateBiography,
     updateOrcid,
     updateWebsiteUrl,
+    updateAffiliations,
+    deleteAffiliation,
   };
 };

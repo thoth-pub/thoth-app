@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import { useCreateAffiliation } from '@/src/entities/affiliation';
+import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import type {
   ContributionBiographyForm,
@@ -27,7 +29,26 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
 
   const { activeContribution, close } = useContributionStateMachine();
   const [contribution, setContribution] = useState<WorkContribution | null>(activeContribution);
-  const { work, createContributionRef } = useWork(workId, queryToken);
+  const { createAffiliation } = useCreateAffiliation({
+    queryToken,
+    workId,
+  });
+  const { work, createContributionRef } = useWork(workId, queryToken, (data) => {
+    contribution?.affiliations.forEach(async ({ institutionId, position }, index) => {
+      await createAffiliation({
+        variables: {
+          data: {
+            contributionId: data.contributionId,
+            institutionId,
+            affiliationOrdinal: 1 + index,
+            position: position && position.length > 0 ? position : null,
+          },
+        },
+      });
+    });
+
+    // TODO add to set state
+  });
 
   const { sendSuccessNotification, sendErrorNotification } = useNotifications();
   const { contributor } = useContributor({ contributorId: contribution?.contributorId });
@@ -164,6 +185,39 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
     createWithExistingContributor();
   };
 
+  const updateContributionAffiliations = (data: AffiliationsForm) => {
+    if (!contribution) return;
+
+    updateContribution({
+      ...contribution,
+      affiliations: data.affiliations.map((affiliation) => ({
+        id: affiliation.id || '',
+        contributionId: contribution.id || '',
+        institutionId: affiliation.affiliation.value || '',
+        institutionName: affiliation.affiliation.label || '',
+        rorId: affiliation.affiliation.value || '',
+        orderNumber: contribution.affiliations.length + 1,
+        position: affiliation.position || '',
+      })),
+    });
+  };
+
+  const deleteAffiliation = (_id: string, index: number) => {
+    if (!contribution) return;
+
+    const updatedAffiliations = contribution.affiliations
+      .filter((_affiliation, i) => i !== index)
+      .map((affiliation, affiliationIndex) => ({
+        ...affiliation,
+        orderNumber: affiliationIndex + 1,
+      }));
+
+    updateContribution({
+      ...contribution,
+      affiliations: updatedAffiliations,
+    });
+  };
+
   return {
     contribution,
     close,
@@ -173,5 +227,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
     updateBiography,
     updateContributorType,
     updateNames,
+    updateAffiliations: updateContributionAffiliations,
+    deleteAffiliation,
   };
 };

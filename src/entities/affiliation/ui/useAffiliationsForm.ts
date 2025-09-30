@@ -1,8 +1,9 @@
 import { useCreateAffiliation, useDeleteAffiliation, useUpdateAffiliation } from '@/src/entities/affiliation';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
-import type { AffiliationsForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { WorkAffiliation, WorkId } from '@/src/entities/work/model/work.types';
 import { isDefaultId, type QueryToken } from '@/src/shared';
+
+import type { AffiliationsForm } from '../model/affiliation.types';
 
 type UseEditContributionAffiliationsProps = {
   queryToken: QueryToken;
@@ -11,7 +12,7 @@ type UseEditContributionAffiliationsProps = {
   workId?: WorkId;
 };
 
-export const useEditContributionAffiliations = (props: UseEditContributionAffiliationsProps) => {
+const useEditContributionAffiliations = (props: UseEditContributionAffiliationsProps) => {
   const { queryToken, contributionId, affiliations, workId = '' } = props;
 
   const { createAffiliation } = useCreateAffiliation({
@@ -73,7 +74,10 @@ export const useEditContributionAffiliations = (props: UseEditContributionAffili
   };
 
   return {
+    createAffiliation,
     updateAffiliations,
     deleteAffiliation: deleteContributionAffiliation,
   };
 };
+
+export default useEditContributionAffiliations;

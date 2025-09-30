@@ -4,18 +4,17 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
-import { DeleteButton, EditButton, Typography } from '@/src/shared/ui';
+import { DeleteButton, Typography } from '@/src/shared/ui';
 
-type AffiliationsPreviewItemProps = {
+type PreviewItemProps = {
   id: string;
   text: string;
   isDisabled?: boolean;
-  onSwitchMode: () => void;
   onDelete: () => void;
 };
 
-export const AffiliationsPreviewItem = (props: AffiliationsPreviewItemProps) => {
-  const { id, text, isDisabled = false, onSwitchMode, onDelete } = props;
+export const PreviewItem = (props: PreviewItemProps) => {
+  const { id, text, isDisabled = false, onDelete } = props;
 
   const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
 
@@ -38,7 +37,6 @@ export const AffiliationsPreviewItem = (props: AffiliationsPreviewItemProps) => 
         fontSize="small"
         {...listeners}
       />
-      <EditButton isEmpty={false} placeholder="Edit Affiliation" onEdit={onSwitchMode} />
       {text}
       <DeleteButton className="ml-auto" onDelete={onDelete} />
     </Typography>

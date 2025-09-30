@@ -1,3 +1,4 @@
+import { AffiliationsForm } from '@/src/entities/affiliation';
 import { ContributionForms } from '@/src/entities/contribution';
 import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
 import type { WorkId } from '@/src/entities/work/model/work.types';
@@ -23,6 +24,8 @@ const AddNewContribution = (props: AddNewContributionProps) => {
     updateBiography,
     updateOrcid,
     updateWebsiteUrl,
+    updateAffiliations,
+    deleteAffiliation,
   } = useAddNewContribution({ workId, queryToken });
 
   if (!contribution) return null;
@@ -40,6 +43,11 @@ const AddNewContribution = (props: AddNewContributionProps) => {
       >
         <EditOrcid orcidId={contribution.orcidId} recommended={showRecommendations} onSubmit={updateOrcid} />
         <EditWebsite websiteUrl={contribution.website} recommended={showRecommendations} onSubmit={updateWebsiteUrl} />
+        <AffiliationsForm
+          defaultValue={contribution.affiliations}
+          onUpdate={updateAffiliations}
+          onDelete={deleteAffiliation}
+        />
       </ContributionForms>
     </div>
   );

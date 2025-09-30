@@ -28,14 +28,14 @@ export const EditBiography = (props: EditBiographyProps) => {
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={CONTRIBUTOR_BIOGRAPHY.label} id={CONTRIBUTOR_BIOGRAPHY.name} />
-          <MarkdownField extendedToolbar name={CONTRIBUTOR_BIOGRAPHY.name} control={control}>
+          <MarkdownField
+            extendedToolbar
+            name={CONTRIBUTOR_BIOGRAPHY.name}
+            control={control}
+            helperText={isHelperTextVisible ? CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT : ''}
+          >
             <MarkdownSwitch />
           </MarkdownField>
-          {isHelperTextVisible && (
-            <Typography variant="body2" color="text.secondary">
-              {CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT}
-            </Typography>
-          )}
         </ContentWrapper>
       )}
       preview={({ data, onEdit }) => (

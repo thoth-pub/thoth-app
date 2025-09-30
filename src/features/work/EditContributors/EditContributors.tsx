@@ -8,14 +8,14 @@ import { AddContributionModal, AddNewContribution, EditContribution } from '@/sr
 import { isDefaultId, type QueryToken } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
 
-type EditWorkContributorsProps = {
+type EditContributorsProps = {
   workId: WorkId;
   queryToken: QueryToken;
   linkedPublishers?: PublisherId[];
   isAdmin?: boolean;
 };
 
-export const EditWorkContributors = (props: EditWorkContributorsProps) => {
+const EditContributors = (props: EditContributorsProps) => {
   const { workId, queryToken, isAdmin = false, linkedPublishers = [] } = props;
   const { activeContribution } = useContributionStateMachine();
 
@@ -54,3 +54,5 @@ export const EditWorkContributors = (props: EditWorkContributorsProps) => {
     </RecommendedSection>
   );
 };
+
+export default EditContributors;

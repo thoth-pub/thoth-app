@@ -5,3 +5,5 @@ export { default as useUpdateAffiliation } from './api/hooks/useUpdateAffiliatio
 // Types
 
 // UI
+export { default as AffiliationsForm } from './ui/AffiliationsForm';
+export { default as useAffiliationsForm } from './ui/useAffiliationsForm';
