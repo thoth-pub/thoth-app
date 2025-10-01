@@ -4,25 +4,32 @@ import type { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
+import { AffiliationDtoMapper } from '../../model/affiliation.mapper';
 import { CREATE_AFFILIATION } from '../../model/affiliation.schema';
+import { AffiliationDto, AffiliationEntity } from '../../model/affiliation.types';
 
-const { AFFILIATION_CREATION_SUCCESS, AFFILIATION_CREATION_FAILED } = NOTIFICATIONS;
+const { AFFILIATION_CREATION_FAILED } = NOTIFICATIONS;
 
 type UseCreateAffiliationProps = {
   queryToken: QueryToken;
-  workId?: WorkId;
+  workId: WorkId;
+  onCompleted?: (data: AffiliationEntity) => void;
 };
 
-const useCreateAffiliation = (props: UseCreateAffiliationProps) => {
-  const { queryToken, workId = '' } = props;
+const mapper = new AffiliationDtoMapper();
 
-  const { sendSuccessNotification, sendErrorNotification } = useNotifications();
+const useCreateAffiliation = (props: UseCreateAffiliationProps) => {
+  const { queryToken, workId = '', onCompleted } = props;
+
+  const { sendErrorNotification } = useNotifications();
+
   const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
     queryToken,
     mutation: CREATE_AFFILIATION,
     options: {
-      onCompleted: () => {
-        sendSuccessNotification(AFFILIATION_CREATION_SUCCESS);
+      onCompleted: (data: CreateAffiliationMutation) => {
+        const affiliation = mapper.toEntity(data.createAffiliation as AffiliationDto);
+        onCompleted?.(affiliation);
       },
       onError: (error) => {
         console.error(error);

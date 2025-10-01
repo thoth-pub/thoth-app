@@ -5,6 +5,10 @@ export const AFFILIATION_FRAGMENT = graphql(`
     contributionId
     affiliationId
     institutionId
+    institution {
+      institutionName
+      ror
+    }
     affiliationOrdinal
     position
   }

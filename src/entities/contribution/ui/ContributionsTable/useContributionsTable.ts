@@ -27,17 +27,20 @@ export const useContributionsTable = ({ workId, queryToken }: UseContributionsTa
   const isEqual = work.contributions.every((contribution, index) => {
     const item = items[index];
 
+    if (!item) return false;
+
     return (
-      item?.id === contribution.id &&
-      item?.fullName === contribution.fullName &&
-      item?.type === contribution.type &&
-      item?.biography === contribution.biography &&
-      item?.contributorId === contribution.contributorId &&
-      item?.isMain === contribution.isMain &&
-      item?.orderNumber === contribution.orderNumber &&
-      item?.orcidId === contribution.orcidId &&
-      item?.website === contribution.website &&
-      item?.affiliations.every((affiliation, index) => affiliation.id === contribution.affiliations[index].id)
+      item.id === contribution.id &&
+      item.fullName === contribution.fullName &&
+      item.type === contribution.type &&
+      item.biography === contribution.biography &&
+      item.contributorId === contribution.contributorId &&
+      item.isMain === contribution.isMain &&
+      item.orderNumber === contribution.orderNumber &&
+      item.orcidId === contribution.orcidId &&
+      item.website === contribution.website &&
+      item.affiliations.length === contribution.affiliations.length &&
+      item.affiliations.every((affiliation, index) => affiliation.id === contribution.affiliations[index].id)
     );
   });
 
@@ -45,7 +48,11 @@ export const useContributionsTable = ({ workId, queryToken }: UseContributionsTa
     if (!isEqual) {
       setItems(work.contributions);
     }
-  }, [isEqual]);
+
+    if (work.contributions.length !== items.length) {
+      setItems(work.contributions);
+    }
+  }, [isEqual, items.length, work.contributions]);
 
   const dragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -80,13 +87,22 @@ export const useContributionsTable = ({ workId, queryToken }: UseContributionsTa
     updateWorkContributionRef({ ...contribution, isMain: !contribution.isMain });
   };
 
+  const deleteWorkContribution = async (id: ContributionId) => {
+    const contribution = items.find((contribution) => contribution.id === id);
+
+    if (!contribution) return;
+
+    await deleteContribution({ variables: { contributionId: id } });
+    setItems((items) => items.filter((item) => item.id !== contribution.id));
+  };
+
   return {
     contributions: items,
     activeContribution,
     sensors,
     dragEnd,
     editContribution,
-    deleteContribution,
+    deleteContribution: deleteWorkContribution,
     switchMainStatus,
   };
 };

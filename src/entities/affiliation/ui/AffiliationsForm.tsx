@@ -5,13 +5,12 @@ import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-ki
 import { useState } from 'react';
 import { Control } from 'react-hook-form';
 
-import type { WorkAffiliation } from '@/src/entities/work/model/work.types';
 import { IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import { type AffiliationsForm as AffiliationsFormType } from '../model/affiliation.types';
+import type { AffiliationEntity, AffiliationsForm as AffiliationsFormType } from '../model/affiliation.types';
 import { affiliationsValidationSchema } from '../model/affiliation.validation';
 import { FormFields } from './AffiliationsForm/FormFields';
 import { PreviewItem } from './AffiliationsForm/PreviewItem';
@@ -19,7 +18,8 @@ import { PreviewItem } from './AffiliationsForm/PreviewItem';
 const { AFFILIATION, POSITION } = FORM_FIELDS;
 
 type AffiliationsFormProps = {
-  defaultValue: WorkAffiliation[];
+  defaultValue: AffiliationEntity[];
+  showRecommendations?: boolean;
   onReorder?: (data: AffiliationsFormType) => void;
   onUpdate?: (data: AffiliationsFormType) => void;
   onDelete?: (id: string, index: number) => void;
@@ -28,7 +28,7 @@ type AffiliationsFormProps = {
 const { AFFILIATIONS } = FORM_FIELDS;
 
 const AffiliationsForm = (props: AffiliationsFormProps) => {
-  const { defaultValue = [], onReorder, onUpdate, onDelete } = props;
+  const { defaultValue = [], showRecommendations = false, onReorder, onUpdate, onDelete } = props;
 
   const defaultValues = defaultValue.map(({ id, institutionName, institutionId, position }) => ({
     id,
@@ -39,6 +39,8 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
   const [formValues, setFormValues] = useState(defaultValues);
 
   const sensors = useSensors(useSensor(PointerSensor));
+
+  const showIndicator = showRecommendations && formValues.length === 0;
 
   const onSubmit = (data: AffiliationsFormType) => {
     setFormValues(data.affiliations);
@@ -80,7 +82,7 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
         defaultValues={{ [AFFILIATIONS.name]: defaultValues }}
         formFields={({ control }) => <FormFields control={control as unknown as Control<AffiliationsFormType>} />}
         preview={({ data, onEdit }) => (
-          <Preview label={AFFILIATIONS.label} onEdit={onEdit} value={formValues.join(', ')}>
+          <Preview label={AFFILIATIONS.label} onEdit={onEdit} value={formValues.join(', ')} recommended={showIndicator}>
             <div className="flex flex-col gap-[var(--default-gap)]">
               {formValues.length > 0 && (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

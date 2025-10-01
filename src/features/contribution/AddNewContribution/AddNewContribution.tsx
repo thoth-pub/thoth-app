@@ -45,6 +45,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
         <EditWebsite websiteUrl={contribution.website} recommended={showRecommendations} onSubmit={updateWebsiteUrl} />
         <AffiliationsForm
           defaultValue={contribution.affiliations}
+          showRecommendations={showRecommendations}
           onUpdate={updateAffiliations}
           onDelete={deleteAffiliation}
         />

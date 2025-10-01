@@ -66,6 +66,7 @@ const EditContribution = (props: EditContributionProps) => {
       />
       <AffiliationsForm
         defaultValue={contribution.affiliations}
+        showRecommendations={showRecommendations}
         onUpdate={updateAffiliations}
         onDelete={deleteAffiliation}
       />

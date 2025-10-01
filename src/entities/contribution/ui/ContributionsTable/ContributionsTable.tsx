@@ -11,14 +11,14 @@ import { ContributionsTableHeader } from './components/ContributionsTableHeader'
 import { ContributionsTableRow } from './components/ContributionsTableRow';
 import { useContributionsTable } from './useContributionsTable';
 
-type ContributionTableProps = {
+type ContributionsTableProps = {
   workId: WorkId;
   queryToken: QueryToken;
   form: Readonly<React.ReactNode>;
   showRecommendations: boolean;
 };
 
-const ContributionTable = (props: ContributionTableProps) => {
+const ContributionsTable = (props: ContributionsTableProps) => {
   const { workId, queryToken, form, showRecommendations } = props;
 
   const {
@@ -49,7 +49,7 @@ const ContributionTable = (props: ContributionTableProps) => {
                 form={form}
                 showRecommendations={showRecommendations}
                 onEdit={(id) => editContribution(id)}
-                onDelete={(id) => deleteContribution?.({ variables: { contributionId: id } })}
+                onDelete={(id) => deleteContribution?.(id)}
                 onSelectAsMain={(id) => switchMainStatus(id)}
               />
             ))}
@@ -60,4 +60,4 @@ const ContributionTable = (props: ContributionTableProps) => {
   );
 };
 
-export default ContributionTable;
+export default ContributionsTable;

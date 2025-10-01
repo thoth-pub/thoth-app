@@ -3,7 +3,8 @@ import z from 'zod';
 import type { Contribution, ContributionType, WorkFragmentFragment } from '@/gql/graphql';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
-import type { ContributionId, ContributorId } from '../../contributor/model/contributor.types';
+import type { AffiliationEntity } from '../../affiliation';
+import type { ContributorId } from '../../contributor/model/contributor.types';
 import {
   createWorkValidationSchema,
   doiAndCoversValidationSchema,
@@ -27,16 +28,6 @@ export type WorkType = z.infer<typeof WorkTypes>;
 
 export type WorkStatus = z.infer<typeof WorkStatuses>;
 
-export type WorkAffiliation = {
-  id: string;
-  contributionId: ContributionId;
-  institutionId: string;
-  institutionName: string;
-  rorId: string;
-  position: string;
-  orderNumber: number;
-};
-
 export type WorkContribution = {
   fullName: string;
   lastName: string;
@@ -49,7 +40,7 @@ export type WorkContribution = {
   biography: string;
   orcidId: string;
   website: string;
-  affiliations: WorkAffiliation[];
+  affiliations: AffiliationEntity[];
 };
 
 export type WorkEntity = {

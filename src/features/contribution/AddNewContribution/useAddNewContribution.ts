@@ -46,8 +46,6 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
         },
       });
     });
-
-    // TODO add to set state
   });
 
   const { sendSuccessNotification, sendErrorNotification } = useNotifications();

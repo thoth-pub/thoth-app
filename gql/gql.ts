@@ -39,7 +39,7 @@ type Documents = {
     "\n  query GetWork($workId: Uuid!) {\n    work(workId: $workId) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetWorkDocument,
     "\n  mutation UpdateWork($data: PatchWork!) {\n    updateWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": typeof types.UpdateWorkDocument,
     "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n": typeof types.DeleteWorkDocument,
-    "\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    affiliationOrdinal\n    position\n  }\n": typeof types.AffiliationFragmentFragmentDoc,
+    "\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    institution {\n      institutionName\n      ror\n    }\n    affiliationOrdinal\n    position\n  }\n": typeof types.AffiliationFragmentFragmentDoc,
     "\n  fragment ContributorFragment on Contributor {\n    contributorId\n    firstName\n    fullName\n    lastName\n    updatedAt\n    orcid\n    website\n  }\n": typeof types.ContributorFragmentFragmentDoc,
     "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    fullTitle\n    workType\n    updatedAt\n    publicationDate\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n    license\n    copyrightHolder\n    landingPage\n    coverUrl\n    contributions {\n      fullName\n      lastName\n      firstName\n      contributionId\n      contributorId\n      contributionType\n      mainContribution\n      contributionOrdinal\n      biography\n      contributor {\n        orcid\n        website\n      }\n      affiliations {\n        position\n        affiliationId\n        affiliationOrdinal\n        institution {\n          ror\n          institutionName\n          institutionId\n        }\n      }\n    }\n  }\n": typeof types.WorkFragmentFragmentDoc,
 };
@@ -69,7 +69,7 @@ const documents: Documents = {
     "\n  query GetWork($workId: Uuid!) {\n    work(workId: $workId) {\n      ...WorkFragment\n    }\n  }\n": types.GetWorkDocument,
     "\n  mutation UpdateWork($data: PatchWork!) {\n    updateWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": types.UpdateWorkDocument,
     "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n": types.DeleteWorkDocument,
-    "\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    affiliationOrdinal\n    position\n  }\n": types.AffiliationFragmentFragmentDoc,
+    "\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    institution {\n      institutionName\n      ror\n    }\n    affiliationOrdinal\n    position\n  }\n": types.AffiliationFragmentFragmentDoc,
     "\n  fragment ContributorFragment on Contributor {\n    contributorId\n    firstName\n    fullName\n    lastName\n    updatedAt\n    orcid\n    website\n  }\n": types.ContributorFragmentFragmentDoc,
     "\n  fragment WorkFragment on Work {\n    doi\n    workId\n    title\n    fullTitle\n    workType\n    updatedAt\n    publicationDate\n    contributions {\n      fullName\n    }\n    imprint {\n      publisher {\n        publisherName\n      }\n    }\n    imprintId\n    workStatus\n    edition\n    license\n    copyrightHolder\n    landingPage\n    coverUrl\n    contributions {\n      fullName\n      lastName\n      firstName\n      contributionId\n      contributorId\n      contributionType\n      mainContribution\n      contributionOrdinal\n      biography\n      contributor {\n        orcid\n        website\n      }\n      affiliations {\n        position\n        affiliationId\n        affiliationOrdinal\n        institution {\n          ror\n          institutionName\n          institutionId\n        }\n      }\n    }\n  }\n": types.WorkFragmentFragmentDoc,
 };
@@ -191,7 +191,7 @@ export function graphql(source: "\n  mutation DeleteWork($workId: Uuid!) {\n    
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    affiliationOrdinal\n    position\n  }\n"): (typeof documents)["\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    affiliationOrdinal\n    position\n  }\n"];
+export function graphql(source: "\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    institution {\n      institutionName\n      ror\n    }\n    affiliationOrdinal\n    position\n  }\n"): (typeof documents)["\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    institution {\n      institutionName\n      ror\n    }\n    affiliationOrdinal\n    position\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

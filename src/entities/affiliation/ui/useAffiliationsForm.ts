@@ -1,14 +1,14 @@
 import { useCreateAffiliation, useDeleteAffiliation, useUpdateAffiliation } from '@/src/entities/affiliation';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
-import type { WorkAffiliation, WorkId } from '@/src/entities/work/model/work.types';
+import type { WorkId } from '@/src/entities/work/model/work.types';
 import { isDefaultId, type QueryToken } from '@/src/shared';
 
-import type { AffiliationsForm } from '../model/affiliation.types';
+import type { AffiliationEntity, AffiliationsForm } from '../model/affiliation.types';
 
 type UseEditContributionAffiliationsProps = {
   queryToken: QueryToken;
   contributionId: ContributionId;
-  affiliations: WorkAffiliation[];
+  affiliations: AffiliationEntity[];
   workId?: WorkId;
 };
 
