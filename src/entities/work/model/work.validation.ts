@@ -11,6 +11,7 @@ import {
   optionalPositiveIntValidation,
   optionalStringValidation,
   optionalUrlValidation,
+  romanNumeralValidationOptional,
   timestampValidation,
   workStatusValidation,
 } from '@/src/shared/utils/validations';
@@ -35,6 +36,8 @@ const {
   WORK_TABLE_COUNT,
   WORK_AUDIO_COUNT,
   WORK_VIDEO_COUNT,
+  WORK_PAGES_COUNT,
+  WORK_FRONTMATTER_COUNT,
 } = FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
@@ -70,6 +73,10 @@ const licenseValidation = z.object({
 const copyrightHolderValidation = optionalStringValidation;
 
 const landingPageValidation = optionalUrlValidation;
+
+const frontmatterCountValidation = romanNumeralValidationOptional;
+
+const backmatterCountValidation = romanNumeralValidationOptional;
 
 const iccn = optionalStringValidation;
 
@@ -154,4 +161,9 @@ export const mediaValidationSchema = z.object({
   [WORK_TABLE_COUNT.name]: tableCountValidation,
   [WORK_AUDIO_COUNT.name]: audioCountValidation,
   [WORK_VIDEO_COUNT.name]: videoCountValidation,
+});
+
+export const pagesCountValidationSchema = z.object({
+  [WORK_PAGES_COUNT.name]: pagesCountValidation,
+  [WORK_FRONTMATTER_COUNT.name]: frontmatterCountValidation,
 });

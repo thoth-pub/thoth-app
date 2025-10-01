@@ -91,3 +91,9 @@ export const isbnValidation = optionalStringValidation.refine((isbn) => {
 export const isValidDate = (date: string) => dayjs(date).isValid();
 
 export const isDayJsInstance = (date: unknown) => dayjs.isDayjs(date);
+
+const romanRegex = new RegExp(/^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/);
+
+export const romanNumeralValidation = z.string().toUpperCase().regex(romanRegex, 'Invalid Roman Numeral format');
+
+export const romanNumeralValidationOptional = romanNumeralValidation.optional();

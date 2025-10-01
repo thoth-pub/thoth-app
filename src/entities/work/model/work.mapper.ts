@@ -33,6 +33,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       tableCount,
       audioCount,
       videoCount,
+      pageCount,
+      pageBreakdown,
       contributions = [],
     } = dto;
 
@@ -57,6 +59,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       tableCount: tableCount ?? 0,
       audioCount: audioCount ?? 0,
       videoCount: videoCount ?? 0,
+      pageCount: pageCount ?? 0,
+      pageBreakdown: pageBreakdown ?? '',
       contributions: contributions
         .map(
           ({
@@ -106,6 +110,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     };
   }
   // TODO add logic for publication date for Active, Superseded, Withdrawn statuses
+  // TODO add utilities for conversions
   toDto(entity: WorkEntity): Partial<WorkDto> {
     const {
       id,
@@ -125,6 +130,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       tableCount,
       audioCount,
       videoCount,
+      pageCount,
+      pageBreakdown,
     } = entity;
     const defaultEdition = edition ?? 1;
 
@@ -149,6 +156,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       tableCount: +tableCount > 0 ? +tableCount : null,
       audioCount: +audioCount > 0 ? +audioCount : null,
       videoCount: +videoCount > 0 ? +videoCount : null,
+      pageCount: +pageCount > 0 ? +pageCount : null,
+      pageBreakdown: pageBreakdown && pageBreakdown.length > 0 ? pageBreakdown : null,
     };
   }
 

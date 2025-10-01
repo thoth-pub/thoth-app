@@ -24,6 +24,8 @@ export const WORK_FRAGMENT = graphql(`
     copyrightHolder
     landingPage
     coverUrl
+    pageCount
+    pageBreakdown
     imageCount
     tableCount
     audioCount
