@@ -1,9 +1,9 @@
 'use client';
 
 import { useWork } from '@/src/entities/work';
-import { ImprintForm, type WorkId } from '@/src/entities/work/model/work.types';
+import { ImprintForm } from '@/src/entities/work/model/work.types';
 import { imprintValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type FormFieldOption, HELPER_TEXT, IDs, type QueryToken } from '@/src/shared';
+import { type BaseRecommendedSectionProps, type FormFieldOption, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
@@ -11,10 +11,7 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 
 type EditImprintProps = {
   imprintOptions: FormFieldOption[];
-  workId: WorkId;
-  queryToken: QueryToken;
-  recommended?: boolean;
-};
+} & BaseRecommendedSectionProps;
 
 const { IMPRINT } = FORM_FIELDS;
 

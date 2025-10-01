@@ -3,18 +3,12 @@
 import { useMemo } from 'react';
 
 import { useWork } from '@/src/entities/work';
-import type { MediaForm, WorkId } from '@/src/entities/work/model/work.types';
+import type { MediaForm } from '@/src/entities/work/model/work.types';
 import { mediaValidationSchema } from '@/src/entities/work/model/work.validation';
-import { HELPER_TEXT, IDs, type QueryToken } from '@/src/shared';
+import { type BaseRecommendedSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
-
-type EditMediaProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
-  recommended?: boolean;
-};
 
 const { WORK_IMAGE_COUNT, WORK_TABLE_COUNT, WORK_AUDIO_COUNT, WORK_VIDEO_COUNT } = FORM_FIELDS;
 
@@ -25,7 +19,7 @@ const {
   WORK_VIDEO_COUNT: WORK_VIDEO_COUNT_HELPER_TEXT,
 } = HELPER_TEXT;
 
-export const EditMedia = (props: EditMediaProps) => {
+export const EditMedia = (props: BaseRecommendedSectionProps) => {
   const { workId, queryToken, recommended = false } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);

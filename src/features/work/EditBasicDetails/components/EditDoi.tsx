@@ -1,23 +1,17 @@
 'use client';
 
 import { useWork } from '@/src/entities/work';
-import { DoiAndCoversForm, type WorkId } from '@/src/entities/work/model/work.types';
+import { DoiAndCoversForm } from '@/src/entities/work/model/work.types';
 import { doiAndCoversValidationSchema } from '@/src/entities/work/model/work.validation';
-import { HELPER_TEXT, IDs, type QueryToken } from '@/src/shared';
+import { type BaseRecommendedSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-type EditDoiProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
-  recommended?: boolean;
-};
-
 const { DOI, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
-export const EditDoi = ({ workId, queryToken, recommended = false }: EditDoiProps) => {
+export const EditDoi = ({ workId, queryToken, recommended = false }: BaseRecommendedSectionProps) => {
   const { work, updateWork } = useWork(workId, queryToken);
 
   const doiValue = work?.doi ?? '';

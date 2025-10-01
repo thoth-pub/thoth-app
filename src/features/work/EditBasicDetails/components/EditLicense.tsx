@@ -1,9 +1,9 @@
 'use client';
 
 import { useWork } from '@/src/entities/work';
-import { LicenseAndCopyrightHolderForm, type WorkId } from '@/src/entities/work/model/work.types';
+import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { licenseAndCopyrightHolderValidationSchema } from '@/src/entities/work/model/work.validation';
-import { HELPER_TEXT, IDs, type QueryToken } from '@/src/shared';
+import { type BaseRecommendedSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS, licenseOptions } from '@/src/shared/constants/formFields';
 import {
   AutocompleteField,
@@ -16,15 +16,9 @@ import {
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-type EditLicenseProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
-  recommended?: boolean;
-};
-
 const { LICENSE, COPYRIGHT_HOLDER } = FORM_FIELDS;
 
-export const EditLicense = ({ workId, queryToken, recommended = false }: EditLicenseProps) => {
+export const EditLicense = ({ workId, queryToken, recommended = false }: BaseRecommendedSectionProps) => {
   const { work, updateWork } = useWork(workId, queryToken);
 
   const licenseValue = licenseOptions.find((option) => option.value === work.license) ?? licenseOptions[0];

@@ -5,6 +5,7 @@ import type { WorkId } from '@/src/entities/work/model/work.types';
 import type { QueryToken } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
 
+import { EditLanguages } from './components/EditLanguages';
 import { EditMedia } from './components/EditMedia';
 import { EditPagesCount } from './components/EditPagesCount';
 
@@ -45,6 +46,7 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
         <>
           <EditPagesCount workId={workId} queryToken={queryToken} recommended={showRecommendations} />
           <EditMedia workId={workId} queryToken={queryToken} recommended={showRecommendations} />
+          <EditLanguages workId={workId} queryToken={queryToken} recommended={showRecommendations} />
         </>
       )}
     </RecommendedSection>

@@ -6,4 +6,5 @@ export * from './constants';
 export * from './interfaces';
 export * from './store';
 export * from './theme';
+export * from './types';
 export * from './utils';
