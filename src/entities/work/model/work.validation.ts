@@ -31,6 +31,10 @@ const {
   SUBTITLE,
   LANGUAGE,
   TITLES,
+  WORK_IMAGE_COUNT,
+  WORK_TABLE_COUNT,
+  WORK_AUDIO_COUNT,
+  WORK_VIDEO_COUNT,
 } = FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
@@ -143,4 +147,11 @@ export const doiAndCoversValidationSchema = z.object({
   [DOI.name]: doiValidation,
   [LANDING_PAGE.name]: landingPageValidation,
   [COVER_URL.name]: coverUrlValidation,
+});
+
+export const mediaValidationSchema = z.object({
+  [WORK_IMAGE_COUNT.name]: imageCountValidation,
+  [WORK_TABLE_COUNT.name]: tableCountValidation,
+  [WORK_AUDIO_COUNT.name]: audioCountValidation,
+  [WORK_VIDEO_COUNT.name]: videoCountValidation,
 });

@@ -27,11 +27,9 @@ export const intValidation = z.coerce
 
 export const requiredIntValidation = intValidation.nonoptional();
 
-export const optionalIntValidation = intValidation.optional();
+export const positiveIntValidation = z.coerce.number().nonnegative();
 
-export const positiveIntValidation = intValidation.min(1);
-
-export const optionalPositiveIntValidation = positiveIntValidation.optional();
+export const optionalPositiveIntValidation = z.coerce.number().nonnegative().optional();
 
 /* Date Validations */
 export const dateValidation = z.refine((date) => isValidDate(`${date}`));

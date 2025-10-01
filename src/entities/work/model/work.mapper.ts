@@ -29,6 +29,10 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       landingPage,
       coverUrl,
       publicationDate,
+      imageCount,
+      tableCount,
+      audioCount,
+      videoCount,
       contributions = [],
     } = dto;
 
@@ -49,6 +53,10 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       coverUrl,
       fullTitle,
       publicationDate: publicationDate ?? null,
+      imageCount: imageCount ?? 0,
+      tableCount: tableCount ?? 0,
+      audioCount: audioCount ?? 0,
+      videoCount: videoCount ?? 0,
       contributions: contributions
         .map(
           ({
@@ -113,6 +121,10 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       coverUrl,
       fullTitle,
       publicationDate,
+      imageCount,
+      tableCount,
+      audioCount,
+      videoCount,
     } = entity;
     const defaultEdition = edition ?? 1;
 
@@ -133,6 +145,10 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       landingPage: landingPage && landingPage.length > 0 ? landingPage : null,
       coverUrl: coverUrl && coverUrl.length > 0 ? coverUrl : null,
       publicationDate: appliedPublicationDate,
+      imageCount: +imageCount > 0 ? +imageCount : null,
+      tableCount: +tableCount > 0 ? +tableCount : null,
+      audioCount: +audioCount > 0 ? +audioCount : null,
+      videoCount: +videoCount > 0 ? +videoCount : null,
     };
   }
 

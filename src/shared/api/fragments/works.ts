@@ -24,6 +24,10 @@ export const WORK_FRAGMENT = graphql(`
     copyrightHolder
     landingPage
     coverUrl
+    imageCount
+    tableCount
+    audioCount
+    videoCount
     contributions {
       fullName
       lastName

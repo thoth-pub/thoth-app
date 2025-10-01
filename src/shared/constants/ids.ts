@@ -17,6 +17,7 @@ export const IDs = {
   WORK_TYPE: 'work_type',
   WORK_LICENSE_AND_COPYRIGHT_HOLDER: 'work_license_and_copyright_holder',
   WORK_DOI_AND_COVERS: 'work_doi_and_covers',
+  WORK_MEDIA: 'work_media',
   // CONTRIBUTIONS
   CONTRIBUTOR_NAMES: 'contributor_names',
   CONTRIBUTOR_TYPE: 'contributor_type',

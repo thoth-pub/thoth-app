@@ -11,6 +11,7 @@ import {
   editionValidationSchema,
   imprintValidationSchema,
   licenseAndCopyrightHolderValidationSchema,
+  mediaValidationSchema,
   publicationDateValidationSchema,
   titleValidationSchema,
   workStatusValidationSchema,
@@ -61,6 +62,10 @@ export type WorkEntity = {
   coverUrl?: string | null;
   publicationDate: string | null;
   contributions: WorkContribution[];
+  imageCount: number;
+  tableCount: number;
+  audioCount: number;
+  videoCount: number;
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;
@@ -82,3 +87,5 @@ export type ImprintForm = z.infer<typeof imprintValidationSchema>;
 export type LicenseAndCopyrightHolderForm = z.infer<typeof licenseAndCopyrightHolderValidationSchema>;
 
 export type DoiAndCoversForm = z.infer<typeof doiAndCoversValidationSchema>;
+
+export type MediaForm = z.infer<typeof mediaValidationSchema>;

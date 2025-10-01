@@ -44,7 +44,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
           {...field}
           error={!!error}
           helperText={error ? error.message : helperText}
-          value={value.replace(doiPrefix, '').replace(protocolPrefix, '')}
+          value={typeof value === 'string' ? value.replace(doiPrefix, '').replace(protocolPrefix, '') : value}
           onChange={(e) => {
             if (isDoiField && !e.target.value.startsWith(doiPrefix) && e.target.value.length > 0) {
               return onChange(doiPrefix + e.target.value);
@@ -70,7 +70,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
               },
             },
             formHelperText: {
-              hidden: !isHelperTextVisible,
+              hidden: !isHelperTextVisible && !error,
             },
             input: {
               startAdornment: (

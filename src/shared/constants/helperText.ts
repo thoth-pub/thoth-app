@@ -13,4 +13,8 @@ export const HELPER_TEXT = {
   CONTRIBUTOR_BIOGRAPHY: 'Enter the biography of the contributor.',
   CONTRIBUTOR_ORCID: 'Enter the ORCID ID of the contributor.',
   CONTRIBUTOR_WEBSITE_URL: 'Enter the website URL of the contributor.',
+  WORK_TABLE_COUNT: 'Enter the table count of the work.',
+  WORK_IMAGE_COUNT: 'Enter the image count of the work.',
+  WORK_AUDIO_COUNT: 'Enter the audio count of the work.',
+  WORK_VIDEO_COUNT: 'Enter the video count of the work.',
 };
