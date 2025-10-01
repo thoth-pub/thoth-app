@@ -147,7 +147,7 @@
   --color-notification-border: var(--color-yellow);
 
   --color-chip-background: var(--white);
-  --color-chip-text: var(--color-primary);
+  --color-chip-text: var(--color-typography);
 
   --color-autocomplete-group-background: var(--purple-light-alt);
 

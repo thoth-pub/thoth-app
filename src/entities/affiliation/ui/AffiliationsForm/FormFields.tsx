@@ -34,7 +34,7 @@ export const FormFields = (props: FormFieldsProps) => {
 
   useEffectOnce(() => {
     if (fields.length !== 0) return;
-  
+
     append(fieldsDefaultValues);
   });
 
@@ -55,7 +55,7 @@ export const FormFields = (props: FormFieldsProps) => {
   };
 
   const handleAdd = () => {
-    append(fieldsDefaultValues);
+    append({ ...fieldsDefaultValues, id: `${appConfig.defaultId}-${fields.length + 1}` });
   };
 
   return (

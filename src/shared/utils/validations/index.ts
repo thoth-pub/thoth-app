@@ -4,7 +4,7 @@ import { orcid } from 'orcid';
 import z from 'zod';
 
 import { appConfig } from '@/src/shared/config';
-import { ContributorTypes, ERRORS, LanguageTypeAlt, WorkStatuses } from '@/src/shared/constants';
+import { ContributorTypes, ERRORS, LanguageRelation, LanguageTypeAlt, WorkStatuses } from '@/src/shared/constants';
 import type { ErrorMessage } from '@/src/shared/interfaces';
 
 const { doiPrefix, rorPrefix } = appConfig.validations;
@@ -49,6 +49,7 @@ export const updatedAtValidation = timestampValidation;
 export const workStatusValidation = z.enum(WorkStatuses.enum);
 export const languageValidation = z.enum(LanguageTypeAlt.enum);
 export const contributorType = z.enum(ContributorTypes.enum);
+export const languageRelationValidation = z.enum(LanguageRelation.enum);
 
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });

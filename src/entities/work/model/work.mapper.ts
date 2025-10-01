@@ -36,6 +36,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       pageCount,
       pageBreakdown,
       contributions = [],
+      languages = [],
     } = dto;
 
     return {
@@ -61,6 +62,12 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       videoCount: videoCount ?? 0,
       pageCount: pageCount ?? 0,
       pageBreakdown: pageBreakdown ?? '',
+      languages: languages.map(({ languageCode, languageRelation, mainLanguage, languageId }) => ({
+        code: languageCode,
+        relation: languageRelation,
+        isMain: mainLanguage,
+        id: languageId,
+      })),
       contributions: contributions
         .map(
           ({

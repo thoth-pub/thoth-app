@@ -5,6 +5,7 @@ import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
 import type { AffiliationEntity } from '../../affiliation';
 import type { ContributorId } from '../../contributor/model/contributor.types';
+import type { LanguageEntity } from '../../language/model/language.types';
 import {
   createWorkValidationSchema,
   doiAndCoversValidationSchema,
@@ -69,6 +70,7 @@ export type WorkEntity = {
   videoCount: number;
   pageCount: number;
   pageBreakdown: string;
+  languages: LanguageEntity[];
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;

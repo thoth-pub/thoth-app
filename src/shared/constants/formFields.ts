@@ -1,7 +1,7 @@
 import { ContributorTypes, ERRORS, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
-import { LanguageTypeAlt } from './languages';
+import { LanguageRelation,LanguageTypeAlt } from './languages';
 
 const {
   EMAIL_REQUIRED,
@@ -129,6 +129,16 @@ export const FORM_FIELDS = {
     name: 'language',
     placeholder: 'Language',
     type: InputTypes.TEXT,
+  },
+  LANGUAGE_RELATION: {
+    label: 'Language Relation',
+    name: 'languageRelation',
+    placeholder: 'Language Relation',
+    type: InputTypes.TEXT,
+  },
+  LANGUAGES: {
+    label: 'Languages',
+    name: 'languages',
   },
   TITLES: {
     label: 'Titles',
@@ -1872,3 +1882,5 @@ export const languageOptions = [
 ];
 
 export const contributorTypeOptions = convertFormFieldsToSelectFieldOptions(ContributorTypes.options);
+
+export const languageRelationOptions = convertFormFieldsToSelectFieldOptions(LanguageRelation.options);

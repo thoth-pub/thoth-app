@@ -55,5 +55,11 @@ export const WORK_FRAGMENT = graphql(`
         }
       }
     }
+    languages {
+      languageCode
+      languageRelation
+      mainLanguage
+      languageId
+    }
   }
 `);

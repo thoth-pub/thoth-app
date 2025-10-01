@@ -1,8 +1,10 @@
 import z from 'zod';
 
-import { LanguageCode as GQLLanguageType } from '@/gql/graphql';
+import { LanguageCode as GQLLanguageType, LanguageRelation as GQLLanguageRelation } from '@/gql/graphql';
 
 export const LanguageType = z.enum(GQLLanguageType);
+
+export const LanguageRelation = z.enum(GQLLanguageRelation);
 
 export const LanguageTypeAlt = z.enum([
   'af',

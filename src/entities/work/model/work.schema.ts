@@ -43,6 +43,12 @@ export const GET_BOOKS = graphql(`
           }
         }
       }
+      languages {
+        languageCode
+        languageRelation
+        mainLanguage
+        languageId
+      }
     }
   }
 `);
@@ -89,6 +95,12 @@ export const GET_CHAPTERS = graphql(`
             institutionId
           }
         }
+      }
+      languages {
+        languageCode
+        languageRelation
+        mainLanguage
+        languageId
       }
     }
   }

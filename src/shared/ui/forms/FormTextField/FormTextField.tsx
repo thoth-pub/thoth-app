@@ -34,6 +34,8 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     ...restProps
   } = props;
 
+  const addPrefix = isDoiField || isUrlField || isRorField;
+
   return (
     <Controller
       name={name as Path<T>}
@@ -73,10 +75,11 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
               hidden: !isHelperTextVisible && !error,
             },
             input: {
-              startAdornment: (
+              startAdornment: addPrefix && (
                 <InputAdornment position="start">
                   {isUrlField && protocolPrefix}
                   {isDoiField && doiPrefix}
+                  {isRorField && rorPrefix}
                 </InputAdornment>
               ),
             },

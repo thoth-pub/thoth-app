@@ -19,6 +19,7 @@ export const IDs = {
   WORK_DOI_AND_COVERS: 'work_doi_and_covers',
   WORK_MEDIA: 'work_media',
   WORK_PAGES_COUNT: 'work_pages_count',
+  WORK_LANGUAGES: 'work_languages',
   // CONTRIBUTIONS
   CONTRIBUTOR_NAMES: 'contributor_names',
   CONTRIBUTOR_TYPE: 'contributor_type',
