@@ -25,7 +25,7 @@ type EditLicenseProps = {
 const { LICENSE, COPYRIGHT_HOLDER } = FORM_FIELDS;
 
 export const EditLicense = ({ workId, queryToken, recommended = false }: EditLicenseProps) => {
-  const { work, updateWorkRef } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId, queryToken);
 
   const licenseValue = licenseOptions.find((option) => option.value === work.license) ?? licenseOptions[0];
   const copyrightHolderValue = work?.copyrightHolder ?? '';
@@ -35,7 +35,7 @@ export const EditLicense = ({ workId, queryToken, recommended = false }: EditLic
   const placeholderValue = licenseValue.label + ' © ' + copyrightHolderValue;
 
   const updateImprint = ({ license, copyrightHolder }: LicenseAndCopyrightHolderForm) => {
-    updateWorkRef({ ...work, license: license.value, copyrightHolder });
+    updateWork({ ...work, license: license.value, copyrightHolder });
   };
 
   return (

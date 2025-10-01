@@ -28,7 +28,7 @@ const {
 export const EditMedia = (props: EditMediaProps) => {
   const { workId, queryToken, recommended = false } = props;
 
-  const { work, updateWorkRef } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId, queryToken);
 
   const { imageCount, tableCount, audioCount, videoCount } = work;
 
@@ -71,7 +71,7 @@ export const EditMedia = (props: EditMediaProps) => {
   }, [imageCount, tableCount, audioCount, videoCount]);
 
   const handleSubmit = (data: MediaForm) => {
-    updateWorkRef({ ...work, ...data });
+    updateWork({ ...work, ...data });
   };
 
   return (

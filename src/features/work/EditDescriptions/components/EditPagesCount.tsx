@@ -24,7 +24,7 @@ const { WORK_PAGES_COUNT: WORK_PAGES_COUNT_HELPER_TEXT, WORK_FRONTMATTER_COUNT: 
 export const EditPagesCount = (props: EditPagesCountProps) => {
   const { workId, queryToken, recommended = false } = props;
 
-  const { work, updateWorkRef } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId, queryToken);
 
   const { pageCount, pageBreakdown } = work;
 
@@ -48,7 +48,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
   }, [pageCount, pageBreakdown]);
 
   const handleSubmit = ({ pageCount, frontmatterCount }: PagesCountForm) => {
-    updateWorkRef({ ...work, pageCount: pageCount ?? 0, pageBreakdown: frontmatterCount ?? '' });
+    updateWork({ ...work, pageCount: pageCount ?? 0, pageBreakdown: frontmatterCount ?? '' });
   };
 
   return (

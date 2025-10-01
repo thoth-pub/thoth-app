@@ -33,7 +33,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
     queryToken,
     workId,
   });
-  const { work, createContributionRef } = useWork(workId, queryToken, (data) => {
+  const { work, createContribution } = useWork(workId, queryToken, (data) => {
     contribution?.affiliations.forEach(async ({ institutionId, position }, index) => {
       await createAffiliation({
         variables: {
@@ -57,7 +57,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
 
       if (!contribution) return;
 
-      createContributionRef({
+      createContribution({
         ...contribution,
         isMain: true,
         orderNumber: work.contributions.length + 1,
@@ -161,7 +161,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
       });
     }
 
-    createContributionRef({
+    createContribution({
       ...contribution,
       isMain: true,
       orderNumber: work.contributions.length + 1,

@@ -18,7 +18,7 @@ type EditDoiProps = {
 const { DOI, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
 export const EditDoi = ({ workId, queryToken, recommended = false }: EditDoiProps) => {
-  const { work, updateWorkRef } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId, queryToken);
 
   const doiValue = work?.doi ?? '';
   const landingPageValue = work?.landingPage ?? '';
@@ -31,7 +31,7 @@ export const EditDoi = ({ workId, queryToken, recommended = false }: EditDoiProp
   const placeholderValue = [doiValue, landingPageValue, coverUrlValue].filter((value) => value.length > 0).join(', ');
 
   const updateImprint = ({ doi, landingPage, coverUrl }: DoiAndCoversForm) => {
-    updateWorkRef({ ...work, doi: doi ?? '', landingPage, coverUrl });
+    updateWork({ ...work, doi: doi ?? '', landingPage, coverUrl });
   };
 
   return (

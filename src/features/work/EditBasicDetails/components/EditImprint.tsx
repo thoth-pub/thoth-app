@@ -19,13 +19,13 @@ type EditImprintProps = {
 const { IMPRINT } = FORM_FIELDS;
 
 export const EditImprint = ({ workId, queryToken, imprintOptions, recommended = false }: EditImprintProps) => {
-  const { work, updateWorkRef } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId, queryToken);
 
   const value = work?.publisherName ?? '';
   const showIndicator = recommended && !value;
 
   const updateImprint = ({ imprintId }: ImprintForm) => {
-    updateWorkRef({ ...work, imprintId });
+    updateWork({ ...work, imprintId });
   };
 
   return (

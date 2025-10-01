@@ -34,7 +34,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   const { close: closeForm } = useFormStateMachine();
   const [contribution, setContribution] = useState<WorkContribution | null>(activeContribution);
 
-  const { updateWorkContributionRef } = useWork(workId, queryToken);
+  const { updateContribution: updateWorkContribution } = useWork(workId, queryToken);
   const { sendErrorNotification } = useNotifications();
   const { updateContributor } = useUpdateContributor({
     queryToken,
@@ -78,7 +78,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
   const updateContribution = (data: WorkContribution) => {
     setContribution(data);
-    updateWorkContributionRef(data);
+    updateWorkContribution(data);
     closeForm();
   };
 

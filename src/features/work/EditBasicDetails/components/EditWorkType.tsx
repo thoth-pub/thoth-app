@@ -18,13 +18,13 @@ type EditImprintProps = {
 const { WORK_TYPE } = FORM_FIELDS;
 
 export const EditImprint = ({ workId, queryToken, recommended = false }: EditImprintProps) => {
-  const { work, updateWorkRef } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId, queryToken);
 
   const value = convertOptionToString(work?.type ?? '');
   const showIndicator = recommended && !value;
 
   const updateWorkType = ({ workType }: WorkTypeForm) => {
-    updateWorkRef({ ...work, type: workType as WorkType });
+    updateWork({ ...work, type: workType as WorkType });
   };
 
   return (

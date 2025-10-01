@@ -18,7 +18,7 @@ type UseContributionsTableProps = {
 export const useContributionsTable = ({ workId, queryToken }: UseContributionsTableProps) => {
   const { work, deleteContribution } = useWork(workId, queryToken);
 
-  const { updateWorkContributionRef } = useWork(workId, queryToken);
+  const { updateContribution } = useWork(workId, queryToken);
 
   const { activeContribution, edit } = useContributionStateMachine();
   const [items, setItems] = useState(work.contributions);
@@ -84,7 +84,7 @@ export const useContributionsTable = ({ workId, queryToken }: UseContributionsTa
 
     if (!contribution) return;
 
-    updateWorkContributionRef({ ...contribution, isMain: !contribution.isMain });
+    updateContribution({ ...contribution, isMain: !contribution.isMain });
   };
 
   const deleteWorkContribution = async (id: ContributionId) => {

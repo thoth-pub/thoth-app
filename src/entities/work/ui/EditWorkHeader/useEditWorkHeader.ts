@@ -16,18 +16,15 @@ type UseEditWorkHeaderProps = {
 };
 
 const useEditWorkHeader = ({ workId, queryToken }: UseEditWorkHeaderProps) => {
-  const { work, deleteWork, updateWork, toDto } = useWork(workId, queryToken);
+  const { work, deleteWork, updateWork } = useWork(workId, queryToken);
   const isPublicationDateDisabled = !isPublicationDateAvailable(work.status);
   const minDate =
     isPublicationDateShouldBeInFuture(work.status) && !work.publicationDate ? getDateInFuture(0) : undefined;
 
   const changeWorkStatus = ({ workStatus }: WorkStatusForm) => {
-    const data = toDto({ ...work, status: workStatus });
-
     updateWork({
-      variables: {
-        data,
-      },
+      ...work,
+      status: workStatus,
     });
   };
 

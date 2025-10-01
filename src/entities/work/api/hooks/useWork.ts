@@ -27,8 +27,12 @@ const useWork = (id: WorkId, queryToken: QueryToken, onCreateCompleted?: (data: 
     },
   } = useSuspenseQuery(GET_WORK, { variables: { workId: id } });
   const { deleteWork } = useDeleteWork({ workId: id, queryToken });
-  const { updateWork } = useUpdateWork({ workId: id, queryToken });
-  const { createContribution, deleteContribution, updateContribution } = useWorkContribution({
+  const { updateWork: updateWorkMutation } = useUpdateWork({ workId: id, queryToken });
+  const {
+    createContribution: createContributionMutation,
+    deleteContribution,
+    updateContribution: updateContributionMutation,
+  } = useWorkContribution({
     workId: id,
     queryToken,
     onCreateComplete: onCreateCompleted,
@@ -36,30 +40,30 @@ const useWork = (id: WorkId, queryToken: QueryToken, onCreateCompleted?: (data: 
 
   const work = mapper.toEntity(data.work as WorkDto);
 
-  const updateWorkRef = (data: WorkEntity) => {
+  const updateWork = (data: WorkEntity) => {
     const dto = mapper.toDto(data);
 
-    updateWork({
+    updateWorkMutation({
       variables: {
         data: dto,
       },
     });
   };
 
-  const updateWorkContributionRef = (data: WorkContribution) => {
+  const updateContribution = (data: WorkContribution) => {
     const dto = mapper.toDtoContribution(data);
 
-    updateContribution({
+    updateContributionMutation({
       variables: {
         data: { workId: id, ...dto },
       },
     });
   };
 
-  const createContributionRef = (data: WorkContribution) => {
+  const createContribution = (data: WorkContribution) => {
     const dto = mapper.toDtoContribution(data);
 
-    createContribution({
+    createContributionMutation({
       variables: { data: { workId: id, ...dto } },
     });
   };
@@ -68,13 +72,9 @@ const useWork = (id: WorkId, queryToken: QueryToken, onCreateCompleted?: (data: 
     work,
     deleteWork,
     updateWork,
-    updateWorkRef,
-    updateWorkContributionRef,
-    createContributionRef,
-    deleteContribution,
     updateContribution,
-    toDto: mapper.toDto,
-    contributionToDto: mapper.toDtoContribution,
+    createContribution,
+    deleteContribution,
   };
 };
 
