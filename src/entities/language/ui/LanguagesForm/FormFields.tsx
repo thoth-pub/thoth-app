@@ -19,6 +19,7 @@ import { LanguagesForm } from '../../model/language.types';
 type FormFieldsProps = {
   control: Control<LanguagesForm>;
   onDelete?: (id: string) => void;
+  onClose?: () => void;
 };
 
 const { LANGUAGES, LANGUAGE, LANGUAGE_RELATION } = FORM_FIELDS;
@@ -33,7 +34,7 @@ const fieldsDefaultValues = {
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const FormFields = (props: FormFieldsProps) => {
-  const { control, onDelete } = props;
+  const { control, onDelete, onClose } = props;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -66,6 +67,10 @@ export const FormFields = (props: FormFieldsProps) => {
     }
 
     remove(index);
+
+    if (fields.length === 1) {
+      onClose?.();
+    }
   };
 
   const handleAdd = () => {

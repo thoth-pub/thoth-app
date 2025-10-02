@@ -80,6 +80,7 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
         validationSchema={affiliationsValidationSchema}
         onSubmit={onSubmit}
         defaultValues={{ [AFFILIATIONS.name]: defaultValues }}
+        skipAutoSubmit
         formFields={({ control }) => <FormFields control={control as unknown as Control<AffiliationsFormType>} />}
         preview={({ data, onEdit }) => (
           <Preview label={AFFILIATIONS.label} onEdit={onEdit} value={formValues.join(', ')} recommended={showIndicator}>

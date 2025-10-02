@@ -25,8 +25,14 @@ const useDeleteLanguage = (props: UseDeleteLanguageProps) => {
     },
   });
 
+  const deleteLanguage = (languageId: string) => {
+    mutate({
+      variables: { languageId },
+    });
+  };
+
   return {
-    deleteLanguage: mutate,
+    deleteLanguage,
     loading,
   };
 };

@@ -34,7 +34,6 @@ const DataIndicator = (props: DataIndicatorProps) => {
         },
       }}
       variant="contained"
-      disabled={isValid}
     >
       <div
         className={`flex h-5 w-5 overflow-clip rounded-full border-1 opacity-100 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`}

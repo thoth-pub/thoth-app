@@ -2,29 +2,49 @@ import StarIcon from '@mui/icons-material/Star';
 import StarBorderIcon from '@mui/icons-material/StarBorder';
 import { Control } from 'react-hook-form';
 
+import { LanguageRelation } from '@/gql/graphql';
 import { convertOptionToString, IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, languageOptions } from '@/src/shared/constants/formFields';
 import { ButtonGroup, Chip, DeleteButton, IconButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import type { LanguagesForm as LanguagesFormType } from '../../model/language.types';
+import type { LanguageEntity, LanguagesForm as LanguagesFormType } from '../../model/language.types';
 import { languagesValidationSchema } from '../../model/language.validation';
 import { FormFields } from './FormFields';
 
 const { LANGUAGES } = FORM_FIELDS;
 
 type LanguagesFormProps = Partial<{
-  defaultValues: LanguagesFormType['languages'];
   showRecommendations: boolean;
+  languages: LanguageEntity[];
   onUpdate: (data: LanguagesFormType) => void;
   onDelete: (id: string) => void;
   onSelectAsMain: (id: string) => void;
+  onClose?: () => void;
 }>;
 
-const LanguagesForm = (props: LanguagesFormProps) => {
-  const { defaultValues = [], showRecommendations = false, onUpdate, onDelete, onSelectAsMain } = props;
+const { LANGUAGE, LANGUAGE_RELATION } = FORM_FIELDS;
 
-  const placeholder = defaultValues.length > 0 ? defaultValues.join(', ') : undefined;
+const LanguagesForm = (props: LanguagesFormProps) => {
+  const { showRecommendations = false, languages = [], onUpdate, onDelete, onSelectAsMain, onClose } = props;
+
+  const placeholder = languages.length > 0 ? languages.map(({ code }) => code).join(', ') : undefined;
+
+  const defaultValues = languages
+    .map(({ code, relation, id, isMain }) => {
+      const languageOption = languageOptions.find((option) => option.value.toLowerCase() === code.toLowerCase());
+
+      if (!languageOption) return null;
+
+      return {
+        id: id,
+        languageId: id,
+        isMain,
+        [LANGUAGE.name]: languageOption,
+        [LANGUAGE_RELATION.name]: relation as LanguageRelation,
+      };
+    })
+    .filter((item) => !!item);
 
   return (
     <EditableContent
@@ -32,8 +52,9 @@ const LanguagesForm = (props: LanguagesFormProps) => {
       validationSchema={languagesValidationSchema}
       onSubmit={(data) => onUpdate?.(data)}
       defaultValues={{ [LANGUAGES.name]: defaultValues }}
+      skipAutoSubmit
       formFields={({ control }) => (
-        <FormFields control={control as unknown as Control<LanguagesFormType>} onDelete={onDelete} />
+        <FormFields control={control as unknown as Control<LanguagesFormType>} onDelete={onDelete} onClose={onClose} />
       )}
       preview={({ onEdit }) => (
         <Preview label={LANGUAGES.label} onEdit={onEdit} value={placeholder} recommended={showRecommendations}>

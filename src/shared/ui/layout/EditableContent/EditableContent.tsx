@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Control, DefaultValues, FieldValues } from 'react-hook-form';
+import type { Control, DefaultValues, FieldValues, UseFormReset } from 'react-hook-form';
 
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -11,6 +11,7 @@ import { type FormProps, FormWrapper } from './FormWrapper';
 type FormFieldsProps = {
   control: Control<FieldValues>;
   isHelperTextVisible?: boolean;
+  reset: UseFormReset<FieldValues>;
 };
 
 type PreviewProps<T extends FieldValues> = Partial<{
@@ -23,13 +24,23 @@ type EditableContentProps<T extends FieldValues> = {
   isTableVariant?: boolean;
   isDisabled?: boolean;
   onSubmit: (data: T) => void;
-  formFields: ({ control, isHelperTextVisible }: FormFieldsProps) => Readonly<React.ReactNode>;
+  formFields: ({ control, isHelperTextVisible, reset }: FormFieldsProps) => Readonly<React.ReactNode>;
   preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
-  onSkipSubmit?: (data: T) => void;
-} & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose' | 'onInfo' | 'onSkipSubmit'>;
+  skipAutoSubmit?: boolean;
+  resetOnSubmit?: boolean;
+} & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose' | 'onInfo'>;
 
 export const EditableContent = <T extends FieldValues>(props: Omit<EditableContentProps<T>, 'onFormSubmit'>) => {
-  const { formId, defaultValues, validationSchema, isTableVariant = false, onSubmit, formFields, preview } = props;
+  const {
+    formId,
+    defaultValues,
+    validationSchema,
+    isTableVariant = false,
+    skipAutoSubmit = false,
+    onSubmit,
+    formFields,
+    preview,
+  } = props;
 
   const { activeFormId, edit, close } = useFormStateMachine();
   const [formData, setFormData] = useState(defaultValues);
@@ -54,6 +65,9 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
 
   const onAutoSubmit = (data: FieldValues) => {
     setFormData(data as DefaultValues<T>);
+
+    if (skipAutoSubmit) return;
+
     onSubmit(data as T);
   };
 
@@ -79,7 +93,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           onClose={onClose}
           onInfo={handleShowInfo}
         >
-          {({ control }) => formFields({ control, isHelperTextVisible: showInfo })}
+          {({ control, reset }) => formFields({ control, isHelperTextVisible: showInfo, reset })}
         </FormWrapper>
       ) : (
         <div

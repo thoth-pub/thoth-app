@@ -4,7 +4,9 @@ import type { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
+import { LanguageDtoMapper } from '../../model/language.mapper';
 import { CREATE_LANGUAGE } from '../../model/language.schema';
+import { LanguageEntity } from '../../model/language.types';
 
 const { LANGUAGE_CREATION_FAILED } = NOTIFICATIONS;
 
@@ -12,6 +14,8 @@ type UseCreateLanguageProps = {
   queryToken: QueryToken;
   workId: WorkId;
 };
+
+const mapper = new LanguageDtoMapper();
 
 const useCreateLanguage = (props: UseCreateLanguageProps) => {
   const { queryToken, workId = '' } = props;
@@ -30,8 +34,16 @@ const useCreateLanguage = (props: UseCreateLanguageProps) => {
     },
   });
 
+  const createLanguage = (data: Omit<LanguageEntity, 'id'>) => {
+    const { languageId, ...dto } = mapper.toDto({ ...data, id: '' });
+
+    mutate({
+      variables: { data: { ...dto, workId } },
+    });
+  };
+
   return {
-    createLanguage: mutate,
+    createLanguage,
     loading,
   };
 };

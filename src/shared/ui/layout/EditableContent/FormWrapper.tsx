@@ -1,5 +1,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import { type Control, type DefaultValues, type FieldValues, SubmitHandler, useForm } from 'react-hook-form';
+import {
+  type Control,
+  type DefaultValues,
+  type FieldValues,
+  SubmitHandler,
+  useForm,
+  UseFormReset,
+} from 'react-hook-form';
 import { useUnmount } from 'react-use';
 import type { ZodType } from 'zod';
 
@@ -9,7 +16,7 @@ export type FormProps<T extends FieldValues> = {
   validationSchema: ZodType<unknown, FieldValues>;
   defaultValues?: DefaultValues<T>;
   isTableVariant?: boolean;
-  children: (props: { control: Control<FieldValues> }) => Readonly<React.ReactNode>;
+  children: (props: { control: Control<FieldValues>; reset: UseFormReset<FieldValues> }) => Readonly<React.ReactNode>;
   onSubmit: SubmitHandler<T>;
   onAutoSubmit: (data: FieldValues) => void;
   onClose: () => void;
@@ -32,6 +39,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     control,
     handleSubmit,
     getValues,
+    reset,
     formState: { isValid, isDirty, isSubmitSuccessful },
   } = useForm({
     resolver: zodResolver(validationSchema),
@@ -59,7 +67,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
       onSubmit={handleSubmitForm}
       className={`flex gap-1 bg-[var(--color-form-background)] ${isTableVariant ? '' : 'rounded-xl p-4'} `}
     >
-      <div className="grow">{children({ control: control as Control<FieldValues> })}</div>
+      <div className="grow">{children({ control: control as Control<FieldValues>, reset })}</div>
       <FormControlGroup isDisabled={isSubmitDisabled} onClose={onClose} onInfo={onInfo} />
     </form>
   );
