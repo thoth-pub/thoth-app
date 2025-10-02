@@ -7,15 +7,9 @@ import { useEffect, useState } from 'react';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { useWork } from '@/src/entities/work';
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import type { QueryToken } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared';
 
-type UseContributionsTableProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
-};
-
-export const useContributionsTable = ({ workId, queryToken }: UseContributionsTableProps) => {
+export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, deleteContribution } = useWork(workId, queryToken);
 
   const { updateContribution } = useWork(workId, queryToken);

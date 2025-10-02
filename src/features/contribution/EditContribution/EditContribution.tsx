@@ -1,23 +1,18 @@
 import { AffiliationsForm } from '@/src/entities/affiliation';
-import type { AffiliationsForm as AffiliationsFormType } from '@/src/entities/affiliation/model/affiliation.types';
 import { ContributionForms } from '@/src/entities/contribution';
 import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import type { QueryToken } from '@/src/shared';
+import type { BaseRecommendedSectionProps } from '@/src/shared';
 
 import { useEditContribution } from './useEditContribution';
 
-type EditContributionProps = {
-  showRecommendations: boolean;
-  workId: WorkId;
-  queryToken: QueryToken;
+type EditContributionProps = BaseRecommendedSectionProps & {
   isAdmin?: boolean;
   linkedPublishers?: PublisherId[];
 };
 
 const EditContribution = (props: EditContributionProps) => {
-  const { showRecommendations, workId, queryToken, isAdmin, linkedPublishers } = props;
+  const { recommended = false, workId, queryToken, isAdmin, linkedPublishers } = props;
 
   const {
     contribution,
@@ -42,7 +37,7 @@ const EditContribution = (props: EditContributionProps) => {
 
   return (
     <ContributionForms
-      showRecommendations={showRecommendations}
+      showRecommendations={recommended}
       contribution={contribution}
       isOrchidEditionDisabled={isOrchidEditionDisabled}
       isWebsiteUrlEditionDisabled={isWebsiteUrlEditionDisabled}
@@ -54,19 +49,19 @@ const EditContribution = (props: EditContributionProps) => {
     >
       <EditOrcid
         orcidId={contribution.orcidId}
-        recommended={showRecommendations}
+        recommended={recommended}
         disabled={isOrchidEditionDisabled}
         onSubmit={updateOrcid}
       />
       <EditWebsite
         websiteUrl={contribution.website}
-        recommended={showRecommendations}
+        recommended={recommended}
         disabled={isWebsiteUrlEditionDisabled}
         onSubmit={updateWebsiteUrl}
       />
       <AffiliationsForm
         defaultValue={contribution.affiliations}
-        showRecommendations={showRecommendations}
+        showRecommendations={recommended}
         onUpdate={updateAffiliations}
         onDelete={deleteAffiliation}
       />

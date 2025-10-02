@@ -1,12 +1,10 @@
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { EditWorkHeader } from '@/src/entities/work';
-import type { WorkId } from '@/src/entities/work/model/work.types';
 import { EditBasicDetails, EditContributors, EditDescriptions } from '@/src/features';
-import type { FormFieldOption, QueryToken } from '@/src/shared';
+import EditPublications from '@/src/features/work/EditPublications/EditPublications';
+import type { BaseEditSectionProps, FormFieldOption } from '@/src/shared';
 
-type EditWorkWidgetProps = {
-  queryToken: QueryToken;
-  workId: WorkId;
+type EditWorkWidgetProps = BaseEditSectionProps & {
   workStatusOptions: FormFieldOption[];
   imprintOptions: FormFieldOption[];
   linkedPublishers?: PublisherId[];
@@ -22,6 +20,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
       <EditBasicDetails workId={workId} queryToken={queryToken} imprintOptions={imprintOptions} />
       <EditContributors workId={workId} queryToken={queryToken} linkedPublishers={linkedPublishers} isAdmin={isAdmin} />
       <EditDescriptions workId={workId} queryToken={queryToken} />
+      <EditPublications workId={workId} queryToken={queryToken} />
     </div>
   );
 };

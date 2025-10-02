@@ -1,21 +1,16 @@
 'use client';
 
 import {
+  type BaseEditSectionProps,
   getDateInFuture,
   isPublicationDateAvailable,
   isPublicationDateShouldBeInFuture,
-  type QueryToken,
 } from '@/src/shared';
 
 import useWork from '../../api/hooks/useWork';
-import type { WorkId, WorkStatusForm } from '../../model/work.types';
+import type { WorkStatusForm } from '../../model/work.types';
 
-type UseEditWorkHeaderProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
-};
-
-const useEditWorkHeader = ({ workId, queryToken }: UseEditWorkHeaderProps) => {
+const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, deleteWork, updateWork } = useWork(workId, queryToken);
   const isPublicationDateDisabled = !isPublicationDateAvailable(work.status);
   const minDate =

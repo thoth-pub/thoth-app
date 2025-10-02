@@ -2,17 +2,13 @@
 
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
-import type { QueryToken } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared';
 import { Button, IconButton, Typography } from '@/src/shared/ui';
 
-import type { WorkId } from '../../model/work.types';
 import EditWorkHeaderForm, { type EditWorkHeaderFormProps } from './components/EditWorkHeaderForm';
 import useEditWorkHeader from './useEditWorkHeader';
 
-type EditWorkHeaderProps = {
-  queryToken: QueryToken;
-  workId: WorkId;
-} & Omit<EditWorkHeaderFormProps, 'status'>;
+type EditWorkHeaderProps = BaseEditSectionProps & Omit<EditWorkHeaderFormProps, 'status'>;
 
 const EditWorkHeader = ({ workId, queryToken, workStatusOptions }: EditWorkHeaderProps) => {
   const { title, status, isPublicationDateDisabled, minDate, deleteWork, changeWorkStatus } = useEditWorkHeader({

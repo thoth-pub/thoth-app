@@ -1,18 +1,16 @@
 'use client';
 
-import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
+import type { BaseEditSectionProps } from '@/src/shared';
+import type { FormFieldOption } from '@/src/shared/interfaces';
 import { RecommendedSection } from '@/src/shared/ui';
 
-import type { WorkId } from '../../../entities/work/model/work.types';
 import EditWorkTitlesFormWithPreview from '../../../entities/work/ui/EditWorkTitlesForm/EditWorkTitlesFormWithPreview';
 import EditDoi from './components/EditDoi';
 import EditImprint from './components/EditImprint';
 import EditLicense from './components/EditLicense';
 import EditWorkType from './components/EditWorkType';
 
-type EditWorkBasicDetailsProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
+type EditWorkBasicDetailsProps = BaseEditSectionProps & {
   imprintOptions: FormFieldOption[];
 };
 

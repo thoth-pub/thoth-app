@@ -3,14 +3,11 @@
 import { ContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
 import type { PublisherId } from '@/src/entities/publisher';
 import { useWork } from '@/src/entities/work';
-import type { WorkId } from '@/src/entities/work/model/work.types';
 import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
-import { isDefaultId, type QueryToken } from '@/src/shared';
+import { type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
 
-type EditContributorsProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
+type EditContributorsProps = BaseEditSectionProps & {
   linkedPublishers?: PublisherId[];
   isAdmin?: boolean;
 };
@@ -36,7 +33,7 @@ const EditContributors = (props: EditContributorsProps) => {
             queryToken={queryToken}
             form={
               <EditContribution
-                showRecommendations={showRecommendations}
+                recommended={showRecommendations}
                 workId={workId}
                 queryToken={queryToken}
                 isAdmin={isAdmin}
@@ -46,7 +43,7 @@ const EditContributors = (props: EditContributorsProps) => {
             showRecommendations={showRecommendations}
           />
           {isNewContribution && (
-            <AddNewContribution showRecommendations={showRecommendations} workId={workId} queryToken={queryToken} />
+            <AddNewContribution recommended={showRecommendations} workId={workId} queryToken={queryToken} />
           )}
           <AddContributionModal />
         </>

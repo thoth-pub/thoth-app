@@ -24,7 +24,12 @@ const Preview = ({ label, value, children, recommended = false, disabled = false
         {children && children}
         {!children && value && <Typography className="ml-2">{value}</Typography>}
         {!value && (
-          <Button disabled={disabled} endIcon={<AddIcon />} onClick={onEdit} className="w-full justify-between">
+          <Button
+            disabled={disabled}
+            endIcon={<AddIcon className="opacity-0 group-hover:opacity-100" />}
+            onClick={onEdit}
+            className="w-full justify-between"
+          >
             Add {label}
           </Button>
         )}

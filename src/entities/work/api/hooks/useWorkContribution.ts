@@ -1,17 +1,15 @@
 import type { CreateContributionMutation } from '@/gql/graphql';
-import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { CREATE_CONTRIBUTION, DELETE_CONTRIBUTION, UPDATE_CONTRIBUTION } from '../../model/work.mutations';
 import { GET_WORK } from '../../model/work.schema';
-import type { WorkContributionDto, WorkId } from '../../model/work.types';
+import type { WorkContributionDto } from '../../model/work.types';
 
 const { WORK_CONTRIBUTION_CREATION_FAILED, WORK_CONTRIBUTION_DELETION_FAILED, WORK_CONTRIBUTION_UPDATE_FAILED } =
   NOTIFICATIONS;
 
-type UseCWorkContributionProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
+type UseCWorkContributionProps = BaseEditSectionProps & {
   onCreateComplete?: (data: WorkContributionDto) => void;
 };
 

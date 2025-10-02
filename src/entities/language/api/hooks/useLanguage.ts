@@ -1,16 +1,10 @@
-import { type WorkId } from '@/src/entities/work/model/work.types';
-import { type QueryToken } from '@/src/shared';
+import { type BaseEditSectionProps } from '@/src/shared';
 
 import useCreateLanguage from './useCreateLanguage';
 import useDeleteLanguage from './useDeleteLanguage';
 import useUpdateLanguage from './useUpdateLanguage';
 
-type UseLanguageProps = {
-  queryToken: QueryToken;
-  workId: WorkId;
-};
-
-const useLanguage = (props: UseLanguageProps) => {
+const useLanguage = (props: BaseEditSectionProps) => {
   const { queryToken, workId } = props;
 
   const { createLanguage } = useCreateLanguage({ queryToken, workId });

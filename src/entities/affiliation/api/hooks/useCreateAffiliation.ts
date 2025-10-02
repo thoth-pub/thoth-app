@@ -1,7 +1,6 @@
 import type { CreateAffiliationMutation } from '@/gql/graphql';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { AffiliationDtoMapper } from '../../model/affiliation.mapper';
@@ -10,9 +9,7 @@ import { AffiliationDto, AffiliationEntity } from '../../model/affiliation.types
 
 const { AFFILIATION_CREATION_FAILED } = NOTIFICATIONS;
 
-type UseCreateAffiliationProps = {
-  queryToken: QueryToken;
-  workId: WorkId;
+type UseCreateAffiliationProps = BaseEditSectionProps & {
   onCompleted?: (data: AffiliationEntity) => void;
 };
 

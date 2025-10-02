@@ -1,19 +1,12 @@
 import { AffiliationsForm } from '@/src/entities/affiliation';
 import { ContributionForms } from '@/src/entities/contribution';
 import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import type { QueryToken } from '@/src/shared';
+import type { BaseRecommendedSectionProps } from '@/src/shared';
 
 import { useAddNewContribution } from './useAddNewContribution';
 
-type AddNewContributionProps = {
-  showRecommendations: boolean;
-  workId: WorkId;
-  queryToken: QueryToken;
-};
-
-const AddNewContribution = (props: AddNewContributionProps) => {
-  const { showRecommendations, workId, queryToken } = props;
+const AddNewContribution = (props: BaseRecommendedSectionProps) => {
+  const { recommended = false, workId, queryToken } = props;
 
   const {
     contribution,
@@ -33,7 +26,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
   return (
     <div className="rounded-2xl bg-[var(--color-form-background)] p-4">
       <ContributionForms
-        showRecommendations={showRecommendations}
+        showRecommendations={recommended}
         contribution={contribution}
         onNamesSubmit={updateNames}
         onContributorTypeSubmit={updateContributorType}
@@ -41,11 +34,11 @@ const AddNewContribution = (props: AddNewContributionProps) => {
         onDone={create}
         onClose={close}
       >
-        <EditOrcid orcidId={contribution.orcidId} recommended={showRecommendations} onSubmit={updateOrcid} />
-        <EditWebsite websiteUrl={contribution.website} recommended={showRecommendations} onSubmit={updateWebsiteUrl} />
+        <EditOrcid orcidId={contribution.orcidId} recommended={recommended} onSubmit={updateOrcid} />
+        <EditWebsite websiteUrl={contribution.website} recommended={recommended} onSubmit={updateWebsiteUrl} />
         <AffiliationsForm
           defaultValue={contribution.affiliations}
-          showRecommendations={showRecommendations}
+          showRecommendations={recommended}
           onUpdate={updateAffiliations}
           onDelete={deleteAffiliation}
         />

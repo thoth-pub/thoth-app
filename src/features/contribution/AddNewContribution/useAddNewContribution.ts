@@ -13,18 +13,13 @@ import type {
 import { useContributor, useCreateContributor, useUpdateContributor } from '@/src/entities/contributor';
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import { useWork } from '@/src/entities/work';
-import type { WorkContribution, WorkId } from '@/src/entities/work/model/work.types';
-import { isDefaultId, NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import type { WorkContribution } from '@/src/entities/work/model/work.types';
+import { type BaseEditSectionProps, isDefaultId, NOTIFICATIONS } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
-
-type UseAddNewContributionProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
-};
 
 const { CONTRIBUTOR_CREATION_SUCCESS, CONTRIBUTOR_CREATION_FAILED, CONTRIBUTOR_UPDATE_FAILED } = NOTIFICATIONS;
 
-export const useAddNewContribution = (props: UseAddNewContributionProps) => {
+export const useAddNewContribution = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
 
   const { activeContribution, close } = useContributionStateMachine();

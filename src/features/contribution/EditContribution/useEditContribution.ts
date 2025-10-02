@@ -13,14 +13,12 @@ import { useLinkedPublishers, useUpdateContributor } from '@/src/entities/contri
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { useWork } from '@/src/entities/work';
-import type { WorkContribution, WorkId } from '@/src/entities/work/model/work.types';
-import { appConfig, NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import type { WorkContribution } from '@/src/entities/work/model/work.types';
+import { appConfig, type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
-type UseEditContributionProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
+type UseEditContributionProps = BaseEditSectionProps & {
   isAdmin?: boolean;
   linkedPublishers?: PublisherId[];
 };

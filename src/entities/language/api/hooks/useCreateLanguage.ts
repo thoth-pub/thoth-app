@@ -1,7 +1,6 @@
 import type { CreateAffiliationMutation } from '@/gql/graphql';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { LanguageDtoMapper } from '../../model/language.mapper';
@@ -10,14 +9,9 @@ import { LanguageEntity } from '../../model/language.types';
 
 const { LANGUAGE_CREATION_FAILED } = NOTIFICATIONS;
 
-type UseCreateLanguageProps = {
-  queryToken: QueryToken;
-  workId: WorkId;
-};
-
 const mapper = new LanguageDtoMapper();
 
-const useCreateLanguage = (props: UseCreateLanguageProps) => {
+const useCreateLanguage = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();

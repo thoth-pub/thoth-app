@@ -1,17 +1,11 @@
-import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import { BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { GET_WORK, UPDATE_WORK } from '../../model/work.schema';
-import type { WorkId } from '../../model/work.types';
 
 const { WORK_UPDATE_FAILED } = NOTIFICATIONS;
 
-type UseUpdateWorkProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
-};
-
-export const useUpdateWork = ({ workId, queryToken }: UseUpdateWorkProps) => {
+export const useUpdateWork = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { sendErrorNotification } = useNotifications();
   const [mutate, { loading }] = useMutationWithAuth({
     queryToken,

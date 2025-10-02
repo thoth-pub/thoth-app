@@ -4,15 +4,10 @@ import type { LanguageCode } from '@/gql/graphql';
 import { useLanguage } from '@/src/entities/language';
 import { LanguagesForm as LanguagesFormType } from '@/src/entities/language/model/language.types';
 import { useWork } from '@/src/entities/work';
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import { isDefaultId, type QueryToken } from '@/src/shared';
+import { type BaseRecommendedSectionProps, isDefaultId } from '@/src/shared';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
-type useEditLanguagesProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
-  recommended: boolean;
-};
+type useEditLanguagesProps = BaseRecommendedSectionProps;
 
 export const useEditLanguages = (props: useEditLanguagesProps) => {
   const { workId, queryToken, recommended } = props;

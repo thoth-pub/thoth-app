@@ -2,24 +2,18 @@
 
 import { useRouter } from 'next/navigation';
 
-import { NOTIFICATIONS, type QueryToken, ROUTES } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, ROUTES } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import { useMutationWithAuth } from '@/src/shared/hooks';
 
 import { DELETE_WORK, GET_WORKS } from '../../model/work.schema';
-import type { WorkId } from '../../model/work.types';
-
-type UseDeleteWorkProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
-};
 
 const { WORK_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteWork = ({ workId, queryToken }: UseDeleteWorkProps) => {
+const useDeleteWork = ({ workId, queryToken }: BaseEditSectionProps) => {
   const router = useRouter();
   const { sendErrorNotification } = useNotifications();
-  const [ mutate ] = useMutationWithAuth({
+  const [mutate] = useMutationWithAuth({
     queryToken,
     mutation: DELETE_WORK,
     options: {

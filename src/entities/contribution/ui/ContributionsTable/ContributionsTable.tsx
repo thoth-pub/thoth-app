@@ -3,17 +3,14 @@
 import { closestCenter, DndContext } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import { QueryToken } from '@/src/shared';
+import { type BaseEditSectionProps } from '@/src/shared';
 import { Table as TableComponent, TableBody } from '@/src/shared/ui';
 
 import { ContributionsTableHeader } from './components/ContributionsTableHeader';
 import { ContributionsTableRow } from './components/ContributionsTableRow';
 import { useContributionsTable } from './useContributionsTable';
 
-type ContributionsTableProps = {
-  workId: WorkId;
-  queryToken: QueryToken;
+type ContributionsTableProps = BaseEditSectionProps & {
   form: Readonly<React.ReactNode>;
   showRecommendations: boolean;
 };
