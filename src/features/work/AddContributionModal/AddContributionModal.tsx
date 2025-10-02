@@ -85,7 +85,7 @@ const AddContributionModal = () => {
 
   return (
     <>
-      <AddButton onAdd={handleModalState} className="mt-3 self-start" disabled={!!activeContribution}>
+      <AddButton onAdd={handleModalState} className="mt-3 pl-7" disabled={!!activeContribution}>
         Add Contributor
       </AddButton>
       <Modal open={open} onClose={handleModalState}>

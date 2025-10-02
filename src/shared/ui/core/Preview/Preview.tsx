@@ -21,9 +21,10 @@ const Preview = ({ label, value, children, recommended = false, disabled = false
     <ContentWrapper>
       <FormFieldLabel component="div" label={label} recommended={recommended} />
       <div className="flex justify-between">
-        {children ? children : <Typography className="ml-2">{value}</Typography>}
+        {children && children}
+        {!children && value && <Typography className="ml-2">{value}</Typography>}
         {!value && (
-          <Button disabled={disabled} startIcon={<AddIcon />} onClick={onEdit} className="mr-auto">
+          <Button disabled={disabled} endIcon={<AddIcon />} onClick={onEdit} className="w-full justify-between">
             Add {label}
           </Button>
         )}

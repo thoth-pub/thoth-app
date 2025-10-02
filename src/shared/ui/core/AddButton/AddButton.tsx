@@ -24,9 +24,13 @@ const AddButton = ({ onAdd, children, StartIcon = AddIcon, ...props }: AddButton
       {...props}
       onClick={onAdd}
       size="small"
-      startIcon={<StartIcon fontSize="small" className={iconClassNames} />}
+      fullWidth
+      endIcon={<StartIcon fontSize="small" className={iconClassNames} />}
       sx={buttonStyles}
-      className={mergeStyles('capitalized min-w-max hover:[&>span>svg]:opacity-100', props.className)}
+      className={mergeStyles(
+        'capitalized flex w-full min-w-max justify-between hover:[&>span>svg]:opacity-100',
+        props.className,
+      )}
     >
       {children}
     </Button>
