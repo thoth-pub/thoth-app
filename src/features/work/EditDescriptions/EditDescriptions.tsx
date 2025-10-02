@@ -19,34 +19,23 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
 
   const { work } = useWork(workId, queryToken);
 
-  const { imageCount, tableCount, audioCount, videoCount, pageCount, pageBreakdown } = work;
+  const { pageCount, pageBreakdown } = work;
 
-  const isWithoutImages = imageCount === 0;
-  const isWithoutTables = tableCount === 0;
-  const isWithoutAudio = audioCount === 0;
-  const isWithoutVideo = videoCount === 0;
   const isWithoutPages = pageCount === 0;
   const isWithoutPageBreakdown = pageBreakdown.length === 0;
-
-  const isMediaValid = [isWithoutImages, isWithoutTables, isWithoutAudio, isWithoutVideo].some(
-    (indicator) => !indicator,
-  );
-  const isMediaEmpty = [isWithoutImages, isWithoutTables, isWithoutAudio, isWithoutVideo].every(
-    (indicator) => indicator,
-  );
 
   const isPagesValid = !isWithoutPages && !isWithoutPageBreakdown;
   const isPagesEmpty = isWithoutPages && isWithoutPageBreakdown;
 
-  const isValid = isMediaValid && isPagesValid;
-  const isEmpty = isMediaEmpty && isPagesEmpty;
+  const isValid = isPagesValid;
+  const isEmpty = isPagesEmpty;
 
   return (
     <RecommendedSection title="Descriptions" isEmpty={isEmpty} isValid={isValid}>
       {({ showRecommendations }) => (
         <>
           <EditPagesCount workId={workId} queryToken={queryToken} recommended={showRecommendations && !isPagesValid} />
-          <EditMedia workId={workId} queryToken={queryToken} recommended={showRecommendations && !isMediaValid} />
+          <EditMedia workId={workId} queryToken={queryToken} />
           <EditLanguages workId={workId} queryToken={queryToken} recommended={showRecommendations} />
         </>
       )}

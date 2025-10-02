@@ -20,27 +20,11 @@ const {
 } = HELPER_TEXT;
 
 export const EditMedia = (props: BaseRecommendedSectionProps) => {
-  const { workId, queryToken, recommended = false } = props;
+  const { workId, queryToken } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
 
   const { imageCount, tableCount, audioCount, videoCount } = work;
-
-  const isWithoutImages = imageCount === 0;
-  const isWithoutTables = tableCount === 0;
-  const isWithoutAudio = audioCount === 0;
-  const isWithoutVideo = videoCount === 0;
-  const showImageCountIndicator = recommended && isWithoutImages;
-  const showTableCountIndicator = recommended && isWithoutTables;
-  const showAudioCountIndicator = recommended && isWithoutAudio;
-  const showVideoCountIndicator = recommended && isWithoutVideo;
-
-  const showIndicator = [
-    showImageCountIndicator,
-    showTableCountIndicator,
-    showAudioCountIndicator,
-    showVideoCountIndicator,
-  ].some((indicator) => indicator);
 
   const placeholderValue = useMemo(() => {
     const res: string[] = [];
@@ -82,11 +66,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
       formFields={({ control, isHelperTextVisible }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
-            <FormFieldLabel
-              label={WORK_TABLE_COUNT.label}
-              id={WORK_TABLE_COUNT.name}
-              recommended={showTableCountIndicator}
-            />
+            <FormFieldLabel label={WORK_TABLE_COUNT.label} id={WORK_TABLE_COUNT.name} />
             <FormTextField
               control={control}
               name={WORK_TABLE_COUNT.name}
@@ -97,11 +77,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
             />
           </ContentWrapper>
           <ContentWrapper>
-            <FormFieldLabel
-              label={WORK_IMAGE_COUNT.label}
-              id={WORK_IMAGE_COUNT.name}
-              recommended={showImageCountIndicator}
-            />
+            <FormFieldLabel label={WORK_IMAGE_COUNT.label} id={WORK_IMAGE_COUNT.name} />
             <FormTextField
               control={control}
               name={WORK_IMAGE_COUNT.name}
@@ -112,11 +88,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
             />
           </ContentWrapper>
           <ContentWrapper>
-            <FormFieldLabel
-              label={WORK_AUDIO_COUNT.label}
-              id={WORK_AUDIO_COUNT.name}
-              recommended={showAudioCountIndicator}
-            />
+            <FormFieldLabel label={WORK_AUDIO_COUNT.label} id={WORK_AUDIO_COUNT.name} />
             <FormTextField
               control={control}
               name={WORK_AUDIO_COUNT.name}
@@ -127,11 +99,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
             />
           </ContentWrapper>
           <ContentWrapper>
-            <FormFieldLabel
-              label={WORK_VIDEO_COUNT.label}
-              id={WORK_VIDEO_COUNT.name}
-              recommended={showVideoCountIndicator}
-            />
+            <FormFieldLabel label={WORK_VIDEO_COUNT.label} id={WORK_VIDEO_COUNT.name} />
             <FormTextField
               control={control}
               name={WORK_VIDEO_COUNT.name}
@@ -143,9 +111,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
           </ContentWrapper>
         </MultipleContentWrapper>
       )}
-      preview={({ onEdit }) => (
-        <Preview label="Media count" value={placeholderValue} recommended={showIndicator} onEdit={onEdit} />
-      )}
+      preview={({ onEdit }) => <Preview label="Media count" value={placeholderValue} onEdit={onEdit} />}
     />
   );
 };

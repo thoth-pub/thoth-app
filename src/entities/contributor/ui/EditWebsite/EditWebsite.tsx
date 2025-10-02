@@ -20,7 +20,7 @@ export const EditWebsite = (props: EditWebsiteProps) => {
   const { websiteUrl, recommended, disabled, onSubmit } = props;
 
   const value = websiteUrl ?? '';
-  const showPreviewIndicator = recommended && value.length > 0;
+  const showPreviewIndicator = recommended && value.length === 0;
 
   return (
     <EditableContent

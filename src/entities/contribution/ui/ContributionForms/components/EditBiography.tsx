@@ -12,11 +12,14 @@ const { CONTRIBUTOR_BIOGRAPHY: CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT } = HELPER_TEXT
 
 type EditBiographyProps = {
   biography: string;
+  recommended?: boolean;
   onSubmit: (data: ContributionBiographyForm) => void;
 };
 
 export const EditBiography = (props: EditBiographyProps) => {
-  const { biography, onSubmit } = props;
+  const { biography, recommended = false, onSubmit } = props;
+
+  const showPreviewIndicator = recommended && biography.length === 0;
 
   return (
     <EditableContent
@@ -27,7 +30,11 @@ export const EditBiography = (props: EditBiographyProps) => {
       onSubmit={onSubmit}
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={CONTRIBUTOR_BIOGRAPHY.label} id={CONTRIBUTOR_BIOGRAPHY.name} />
+          <FormFieldLabel
+            label={CONTRIBUTOR_BIOGRAPHY.label}
+            id={CONTRIBUTOR_BIOGRAPHY.name}
+            recommended={showPreviewIndicator}
+          />
           <MarkdownField
             extendedToolbar
             name={CONTRIBUTOR_BIOGRAPHY.name}
@@ -39,7 +46,12 @@ export const EditBiography = (props: EditBiographyProps) => {
         </ContentWrapper>
       )}
       preview={({ data, onEdit }) => (
-        <Preview label={CONTRIBUTOR_BIOGRAPHY.label} value={biography} onEdit={onEdit}>
+        <Preview
+          label={CONTRIBUTOR_BIOGRAPHY.label}
+          value={biography}
+          onEdit={onEdit}
+          recommended={showPreviewIndicator}
+        >
           {biography && <MarkdownPreview source={data?.contributorBiography} />}
         </Preview>
       )}

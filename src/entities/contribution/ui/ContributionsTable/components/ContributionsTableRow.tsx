@@ -8,7 +8,7 @@ import removeMd from 'remove-markdown';
 
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
 import { appConfig, convertOrchidIdToText, convertRorIdToText, truncateString } from '@/src/shared';
-import { LinkTooltip, OrchidLogo, RorLogo, TableCell, TableRow, Typography } from '@/src/shared/ui';
+import { Indicator, LinkTooltip, OrchidLogo, RorLogo, TableCell, TableRow, Typography } from '@/src/shared/ui';
 
 import { RowButtonGroup } from './RowButtonGroup';
 
@@ -66,20 +66,19 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
           <TableCell className="w-50 rounded-tl-2xl rounded-bl-2xl pl-1">
             <div className="flex gap-1">
               <DragIndicatorIcon className="my-auto opacity-0" color="primary" fontSize="small" {...listeners} />
-              <div className="flex shrink-0 gap-1">
+              <div className="flex shrink flex-wrap items-center gap-1">
                 {fullName}
                 {orcidId && (
                   <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
                     <OrchidLogo />
                   </LinkTooltip>
                 )}
+                {showRecommendations && (!biography || affiliations.length === 0) && <Indicator />}
               </div>
             </div>
           </TableCell>
           <TableCell className="w-50 capitalize">{type.toLowerCase().replace('_', ' ')}</TableCell>
-          <TableCell
-            className={`w-100 ${showRecommendations && !affiliations.length ? 'bg-[var(--color-table-cell-recommendations-background)]' : ''}`}
-          >
+          <TableCell className="w-100">
             <div className="flex">
               <ul className="flex flex-col gap-1">
                 {affiliations.map(({ id, institutionName, rorId }) => (
@@ -95,9 +94,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
               </ul>
             </div>
           </TableCell>
-          <TableCell
-            className={`flex justify-between rounded-tr-2xl rounded-br-2xl ${showRecommendations && !biography ? 'bg-[var(--color-table-cell-recommendations-background)]' : ''}`}
-          >
+          <TableCell className="flex justify-between rounded-tr-2xl rounded-br-2xl">
             <Typography>{truncatedBiography}</Typography>
             <RowButtonGroup
               className="ml-auto"

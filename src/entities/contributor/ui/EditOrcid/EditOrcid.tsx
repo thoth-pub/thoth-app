@@ -20,7 +20,7 @@ const EditOrcid = (props: EditOrcidProps) => {
   const { orcidId, recommended, disabled, onSubmit } = props;
 
   const value = orcidId ?? '';
-  const showPreviewIndicator = recommended && value.length > 0;
+  const showPreviewIndicator = recommended && value.length === 0;
 
   return (
     <EditableContent

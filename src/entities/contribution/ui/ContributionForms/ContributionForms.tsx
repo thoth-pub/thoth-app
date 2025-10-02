@@ -54,7 +54,7 @@ const ContributionForms = (props: ContributionFormsProps) => {
         onSubmit={onNamesSubmit}
       />
       <EditType contributorType={type} onSubmit={onContributorTypeSubmit} />
-      <EditBiography biography={biography} onSubmit={onBiographySubmit} />
+      <EditBiography biography={biography} recommended={showRecommendations} onSubmit={onBiographySubmit} />
       {children}
     </motion.div>
   );
