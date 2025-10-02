@@ -11,7 +11,6 @@ import {
   optionalPositiveIntValidation,
   optionalStringValidation,
   optionalUrlValidation,
-  romanNumeralValidationOptional,
   timestampValidation,
   workStatusValidation,
 } from '@/src/shared/utils/validations';
@@ -38,6 +37,7 @@ const {
   WORK_VIDEO_COUNT,
   WORK_PAGES_COUNT,
   WORK_FRONTMATTER_COUNT,
+  WORK_BACKMATTER_COUNT,
 } = FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
@@ -74,9 +74,9 @@ const copyrightHolderValidation = optionalStringValidation;
 
 const landingPageValidation = optionalUrlValidation;
 
-const frontmatterCountValidation = romanNumeralValidationOptional;
+const frontMatterCountValidation = optionalPositiveIntValidation;
 
-const backmatterCountValidation = romanNumeralValidationOptional;
+const backMatterCountValidation = optionalPositiveIntValidation;
 
 const iccn = optionalStringValidation;
 
@@ -165,5 +165,6 @@ export const mediaValidationSchema = z.object({
 
 export const pagesCountValidationSchema = z.object({
   [WORK_PAGES_COUNT.name]: pagesCountValidation,
-  [WORK_FRONTMATTER_COUNT.name]: frontmatterCountValidation,
+  [WORK_FRONTMATTER_COUNT.name]: frontMatterCountValidation,
+  [WORK_BACKMATTER_COUNT.name]: backMatterCountValidation,
 });

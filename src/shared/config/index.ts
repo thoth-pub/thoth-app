@@ -22,6 +22,7 @@ export const appConfig = {
   },
   dataApi: {
     textSeparator: '_',
+    pageBreakdownSeparator: '+',
   },
   animation: {
     duration: 0.5,

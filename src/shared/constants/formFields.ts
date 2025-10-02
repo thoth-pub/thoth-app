@@ -1,7 +1,7 @@
 import { ContributorTypes, ERRORS, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
-import { LanguageRelation,LanguageTypeAlt } from './languages';
+import { LanguageRelation, LanguageTypeAlt } from './languages';
 
 const {
   EMAIL_REQUIRED,
@@ -242,13 +242,13 @@ export const FORM_FIELDS = {
     label: 'Frontmatter Count',
     name: 'frontmatterCount',
     placeholder: 'Frontmatter Count',
-    type: InputTypes.TEXT,
+    type: InputTypes.NUMBER,
   },
   WORK_BACKMATTER_COUNT: {
     label: 'Backmatter Count',
     name: 'backmatterCount',
     placeholder: 'Backmatter Count',
-    type: InputTypes.TEXT,
+    type: InputTypes.NUMBER,
   },
   // FIRST_NAME: 'firstName',
   // LAST_NAME: 'lastName',

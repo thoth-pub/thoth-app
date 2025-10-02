@@ -19,4 +19,5 @@ export const HELPER_TEXT = {
   WORK_VIDEO_COUNT: 'Enter the video count of the work.',
   WORK_PAGES_COUNT: 'Enter the pages count of the work.',
   WORK_FRONTMATTER_COUNT: 'Enter the frontmatter count of the work.',
+  WORK_BACKMATTER_COUNT: 'Enter the backmatter count of the work.',
 };

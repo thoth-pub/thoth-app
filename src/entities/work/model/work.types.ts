@@ -69,7 +69,8 @@ export type WorkEntity = {
   audioCount: number;
   videoCount: number;
   pageCount: number;
-  pageBreakdown: string;
+  frontmatterCount: number;
+  backmatterCount: number;
   languages: LanguageEntity[];
 };
 

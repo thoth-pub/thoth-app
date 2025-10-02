@@ -1,6 +1,9 @@
 import {
+  appConfig,
+  convertArabicToRoman,
   convertDateToFormattedDate,
   convertOrchidIdToText,
+  convertRomanToArabic,
   isBookChapter,
   isDefaultId,
   isPublicationDateAvailable,
@@ -8,6 +11,8 @@ import {
 import type { BaseMapper } from '@/src/shared/interfaces';
 
 import type { WorkContribution, WorkContributionDto, WorkDto, WorkEntity } from './work.types';
+
+const { pageBreakdownSeparator } = appConfig.dataApi;
 
 export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   toEntity(dto: WorkDto): WorkEntity {
@@ -39,6 +44,11 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       languages = [],
     } = dto;
 
+    const frontmatterCount = pageBreakdown?.split(pageBreakdownSeparator)[0] ?? '';
+    const backmatterCount = pageBreakdown?.split(pageBreakdownSeparator)[2] ?? '';
+    const frontmatterValue = convertRomanToArabic(frontmatterCount);
+    const backmatterValue = convertRomanToArabic(backmatterCount);
+
     return {
       id: workId,
       title,
@@ -61,7 +71,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       audioCount: audioCount ?? 0,
       videoCount: videoCount ?? 0,
       pageCount: pageCount ?? 0,
-      pageBreakdown: pageBreakdown ?? '',
+      frontmatterCount: frontmatterValue,
+      backmatterCount: backmatterValue,
       languages: languages.map(({ languageCode, languageRelation, mainLanguage, languageId }) => ({
         code: languageCode,
         relation: languageRelation,
@@ -138,12 +149,18 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       audioCount,
       videoCount,
       pageCount,
-      pageBreakdown,
+      frontmatterCount,
+      backmatterCount,
     } = entity;
     const defaultEdition = edition ?? 1;
 
     const appliedPublicationDate =
       isPublicationDateAvailable(status) && publicationDate ? convertDateToFormattedDate(publicationDate) : null;
+
+    const frontmatterValue = convertArabicToRoman(frontmatterCount);
+    const backmatterValue = convertArabicToRoman(backmatterCount);
+
+    const pageBreakdownValue = `${frontmatterValue}${pageBreakdownSeparator}${pageCount}${backmatterValue && backmatterValue.length > 0 ? pageBreakdownSeparator + backmatterValue : ''}`;
 
     return {
       workId: id,
@@ -164,7 +181,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       audioCount: +audioCount > 0 ? +audioCount : null,
       videoCount: +videoCount > 0 ? +videoCount : null,
       pageCount: +pageCount > 0 ? +pageCount : null,
-      pageBreakdown: pageBreakdown && pageBreakdown.length > 0 ? pageBreakdown : null,
+      pageBreakdown: pageBreakdownValue.length > 0 ? pageBreakdownValue : null,
     };
   }
 

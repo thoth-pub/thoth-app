@@ -19,16 +19,19 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
 
   const { work } = useWork(workId, queryToken);
 
-  const { pageCount, pageBreakdown } = work;
+  const { pageCount, frontmatterCount, backmatterCount } = work;
 
   const isWithoutPages = pageCount === 0;
-  const isWithoutPageBreakdown = pageBreakdown.length === 0;
+  const isWithoutPageBreakdown = frontmatterCount === 0 && backmatterCount === 0;
+  const isWithoutLanguages = work.languages.length === 0;
+
+  const isLanguagesValid = !isWithoutLanguages;
 
   const isPagesValid = !isWithoutPages && !isWithoutPageBreakdown;
   const isPagesEmpty = isWithoutPages && isWithoutPageBreakdown;
 
-  const isValid = isPagesValid;
-  const isEmpty = isPagesEmpty;
+  const isValid = isPagesValid && isLanguagesValid;
+  const isEmpty = isPagesEmpty && isWithoutLanguages;
 
   return (
     <RecommendedSection title="Descriptions" isEmpty={isEmpty} isValid={isValid}>
