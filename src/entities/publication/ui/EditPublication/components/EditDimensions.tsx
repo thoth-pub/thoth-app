@@ -7,6 +7,7 @@ import type { PublicationDimensionsForm } from '../../../model/publication.types
 import { dimensionsValidationSchema } from '../../../model/publication.validation';
 
 type EditSizesProps = {
+  recommended: boolean;
   width: number;
   height: number;
   depth: number;
@@ -34,7 +35,14 @@ const {
 } = HELPER_TEXT;
 
 export const EditDimensions = (props: EditSizesProps) => {
-  const { width, height, depth, weight, onSubmit } = props;
+  const { width, height, depth, weight, recommended = false, onSubmit } = props;
+
+  const showWidthIndicator = recommended && width > 0;
+  const showHeightIndicator = recommended && height > 0;
+  const showDepthIndicator = recommended && depth > 0;
+  const showWeightIndicator = recommended && weight > 0;
+
+  const showIndicator = showWidthIndicator || showHeightIndicator || showDepthIndicator || showWeightIndicator;
 
   const handleSubmit = (data: PublicationDimensionsForm) => {
     onSubmit?.(data);
@@ -71,7 +79,11 @@ export const EditDimensions = (props: EditSizesProps) => {
           </ContentWrapper>
 
           <ContentWrapper>
-            <FormFieldLabel label={PUBLICATION_WIDTH.label} id={PUBLICATION_WIDTH.name} />
+            <FormFieldLabel
+              recommended={showWidthIndicator}
+              label={PUBLICATION_WIDTH.label}
+              id={PUBLICATION_WIDTH.name}
+            />
             <FormTextField
               control={control}
               name={PUBLICATION_WIDTH.name}
@@ -84,7 +96,11 @@ export const EditDimensions = (props: EditSizesProps) => {
           </ContentWrapper>
 
           <ContentWrapper>
-            <FormFieldLabel label={PUBLICATION_HEIGHT.label} id={PUBLICATION_HEIGHT.name} />
+            <FormFieldLabel
+              recommended={showHeightIndicator}
+              label={PUBLICATION_HEIGHT.label}
+              id={PUBLICATION_HEIGHT.name}
+            />
             <FormTextField
               control={control}
               name={PUBLICATION_HEIGHT.name}
@@ -97,7 +113,11 @@ export const EditDimensions = (props: EditSizesProps) => {
           </ContentWrapper>
 
           <ContentWrapper>
-            <FormFieldLabel label={PUBLICATION_DEPTH.label} id={PUBLICATION_DEPTH.name} />
+            <FormFieldLabel
+              recommended={showDepthIndicator}
+              label={PUBLICATION_DEPTH.label}
+              id={PUBLICATION_DEPTH.name}
+            />
             <FormTextField
               control={control}
               name={PUBLICATION_DEPTH.name}
@@ -124,7 +144,11 @@ export const EditDimensions = (props: EditSizesProps) => {
           </ContentWrapper>
 
           <ContentWrapper>
-            <FormFieldLabel label={PUBLICATION_WEIGHT.label} id={PUBLICATION_WEIGHT.name} />
+            <FormFieldLabel
+              recommended={showWeightIndicator}
+              label={PUBLICATION_WEIGHT.label}
+              id={PUBLICATION_WEIGHT.name}
+            />
             <FormTextField
               control={control}
               name={PUBLICATION_WEIGHT.name}
@@ -138,7 +162,12 @@ export const EditDimensions = (props: EditSizesProps) => {
         </MultipleContentWrapper>
       )}
       preview={({ data, onEdit }) => (
-        <Preview label={PUBLICATION_DIMENSIONS.label} value={Object.values(data ?? {}).join(', ')} onEdit={onEdit} />
+        <Preview
+          recommended={showIndicator}
+          label={PUBLICATION_DIMENSIONS.label}
+          value={Object.values(data ?? {}).join(', ')}
+          onEdit={onEdit}
+        />
       )}
     />
   );

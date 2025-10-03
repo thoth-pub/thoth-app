@@ -8,6 +8,7 @@ import { isbnValidationSchema } from '../../../model/publication.validation';
 
 type EditIsbnProps = Partial<{
   isbn: string;
+  recommended: boolean;
   onSubmit: (data: string) => void;
 }>;
 
@@ -16,7 +17,9 @@ const { PUBLICATION_ISBN } = FORM_FIELDS;
 const { PUBLICATION_ISBN: PUBLICATION_ISBN_HELPER_TEXT } = HELPER_TEXT;
 
 const EditIsbn = (props: EditIsbnProps) => {
-  const { isbn, onSubmit } = props;
+  const { isbn = '', recommended = false, onSubmit } = props;
+
+  const showIndicator = recommended && isbn?.length > 0;
 
   const handleSubmit = (data: PublicationIsbnForm) => {
     onSubmit?.(data.isbn ?? '');
@@ -31,7 +34,7 @@ const EditIsbn = (props: EditIsbnProps) => {
       onSubmit={handleSubmit}
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={PUBLICATION_ISBN.label} id={PUBLICATION_ISBN.name} />
+          <FormFieldLabel recommended={showIndicator} label={PUBLICATION_ISBN.label} id={PUBLICATION_ISBN.name} />
           <FormTextField
             control={control}
             name={PUBLICATION_ISBN.name}
@@ -41,7 +44,9 @@ const EditIsbn = (props: EditIsbnProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => <Preview label={PUBLICATION_ISBN.label} value={data?.isbn} onEdit={onEdit} />}
+      preview={({ data, onEdit }) => (
+        <Preview recommended={showIndicator} label={PUBLICATION_ISBN.label} value={data?.isbn} onEdit={onEdit} />
+      )}
     />
   );
 };

@@ -1,60 +1,41 @@
 'use client';
 
-import { useState } from 'react';
+import { EditPublication } from '@/src/entities/publication';
+import { BaseRecommendedSectionProps } from '@/src/shared';
 
-import { EditPublication, usePublicationsStateMachine } from '@/src/entities/publication';
-import type {
-  PublicationDimensionsForm,
-  PublicationEntity,
-  PublicationType,
-} from '@/src/entities/publication/model/publication.types';
-import type { BaseEditSectionProps } from '@/src/shared';
+import { useAddNewPublication } from './useAddNewPublication';
 
-const AddNewPublication = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+type AddNewPublicationProps = BaseRecommendedSectionProps & {
+  isDimensionFormHidden: boolean;
+};
 
-  const { activePublication, close } = usePublicationsStateMachine();
-  const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
+const AddNewPublication = (props: AddNewPublicationProps) => {
+  const { workId, queryToken, recommended = false, isDimensionFormHidden = false } = props;
 
-  const create = () => {
-    if (!publication) return;
-
-    console.log('publication', publication);
-    close();
-  };
-
-  const updateType = (type: PublicationType) => {
-    if (!publication) return;
-
-    setPublication({ ...publication, type });
-  };
-
-  const updateIsbn = (isbn: string) => {
-    if (!publication) return;
-
-    setPublication({ ...publication, isbn });
-  };
-
-  const updateDimensions = (dimensions: PublicationDimensionsForm) => {
-    if (!publication) return;
-
-    setPublication({ ...publication, ...dimensions });
-  };
+  const { publication, close, create, updateIsbn, updateType, updateDimensions } = useAddNewPublication({
+    workId,
+    queryToken,
+  });
 
   if (!publication) return null;
+
+  const { type, isbn, width, height, depth, weight } = publication;
 
   return (
     <EditPublication
       title="Add New Publication"
-      publicationType={activePublication.type}
-      isbn={activePublication.isbn}
-      width={activePublication.width}
-      height={activePublication.height}
-      depth={activePublication.depth}
-      weight={activePublication.weight}
+      showRecommendations={recommended}
+      publicationType={type}
+      isDimensionFormHidden={isDimensionFormHidden}
+      isbn={isbn}
+      width={width}
+      height={height}
+      depth={depth}
+      weight={weight}
       onUpdateIsbn={updateIsbn}
       onUpdateType={updateType}
       onClose={close}
+      onDone={create}
       onUpdateDimensions={updateDimensions}
     />
   );

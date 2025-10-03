@@ -4,10 +4,14 @@ import { useState } from 'react';
 
 import { EditPublication as EditPublicationForm, usePublicationsStateMachine } from '@/src/entities/publication';
 import type { PublicationEntity } from '@/src/entities/publication/model/publication.types';
-import type { BaseEditSectionProps } from '@/src/shared';
+import type { BaseRecommendedSectionProps } from '@/src/shared';
 
-const EditPublication = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+type EditPublicationProps = BaseRecommendedSectionProps & {
+  isDimensionFormHidden: boolean;
+};
+
+const EditPublication = (props: EditPublicationProps) => {
+  const { workId, queryToken, recommended = false, isDimensionFormHidden = false } = props;
 
   const { activePublication } = usePublicationsStateMachine();
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
@@ -17,6 +21,8 @@ const EditPublication = (props: BaseEditSectionProps) => {
   return (
     <EditPublicationForm
       title="Edit Publication"
+      showRecommendations={recommended}
+      isDimensionFormHidden={isDimensionFormHidden}
       publicationType={publication.type}
       isbn={publication.isbn}
       width={publication.width}

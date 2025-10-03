@@ -20,7 +20,7 @@ const useDeleteAffiliation = (props: BaseEditSectionProps) => {
   });
 
   return {
-    deleteAffiliation: mutate,
+    deletePublication: mutate,
     loading,
   };
 };

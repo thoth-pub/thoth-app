@@ -2,7 +2,7 @@
 
 import { PublicationsTable, usePublicationsStateMachine } from '@/src/entities/publication';
 import { useWork } from '@/src/entities/work';
-import { appConfig, type BaseEditSectionProps, isDefaultId, PublicationType } from '@/src/shared';
+import { appConfig, type BaseEditSectionProps, isDefaultId, PublicationType, WorkTypes } from '@/src/shared';
 import { AddButton, RecommendedSection } from '@/src/shared/ui';
 
 import { AddNewPublication } from '../../publications';
@@ -30,6 +30,8 @@ const EditPublications = (props: BaseEditSectionProps) => {
   const isNewPublication = activePublication && isDefaultId(activePublication.id);
   const isEmpty = work.publications.length === 0;
 
+  const isDimensionFormHidden = work.type === WorkTypes.enum.BookChapter;
+
   const addPublication = () => {
     if (activePublication) close();
 
@@ -41,7 +43,14 @@ const EditPublications = (props: BaseEditSectionProps) => {
       {({ showRecommendations }) => (
         <>
           <PublicationsTable />
-          {isNewPublication && <AddNewPublication workId={workId} queryToken={queryToken} />}
+          {isNewPublication && (
+            <AddNewPublication
+              workId={workId}
+              queryToken={queryToken}
+              recommended={showRecommendations}
+              isDimensionFormHidden={isDimensionFormHidden}
+            />
+          )}
           <AddButton className="pl-7" onAdd={addPublication} disabled={isNewPublication}>
             Add Publication
           </AddButton>

@@ -23,7 +23,7 @@ const useUpdateAffiliation = (props: BaseEditSectionProps) => {
   });
 
   return {
-    updateAffiliation: mutate,
+    updatePublication: mutate,
     loading,
   };
 };
