@@ -26,7 +26,7 @@ export const EditLicense = ({ workId, queryToken, recommended = false }: BaseRec
   const showLicenseIndicator = recommended && !work?.license;
   const showCopyrightHolderIndicator = recommended && !work?.copyrightHolder;
 
-  const placeholderValue = licenseValue.label + ' © ' + copyrightHolderValue;
+  const placeholderValue = licenseValue.label + `${copyrightHolderValue ? ` © ${copyrightHolderValue}` : ''}`;
 
   const updateImprint = ({ license, copyrightHolder }: LicenseAndCopyrightHolderForm) => {
     updateWork({ ...work, license: license.value, copyrightHolder });

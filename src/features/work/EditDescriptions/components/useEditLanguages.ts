@@ -40,7 +40,10 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
     console.log('newLanguages', newLanguages);
     console.log('existingLanguages', existingLanguages);
 
+    const newCodes: LanguageCode[] = [];
+
     newLanguages.forEach(({ language: { value }, languageRelation }) => {
+      newCodes.push(value as LanguageCode);
       createLanguage({
         code: value as LanguageCode,
         relation: languageRelation,
@@ -49,12 +52,20 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
     });
 
     existingLanguages.forEach(({ languageId, language: { value }, languageRelation, isMain }) => {
+      newCodes.push(value as LanguageCode);
+
       updateLanguage({
         id: languageId,
         code: value as LanguageCode,
         relation: languageRelation,
         isMain,
       });
+    });
+
+    work.languages.forEach((language) => {
+      if (newCodes.includes(language.code)) return;
+
+      deleteLanguageMutation(language.id);
     });
   };
 
