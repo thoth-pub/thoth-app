@@ -126,15 +126,21 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           }),
         )
         .sort((a, b) => a.orderNumber - b.orderNumber),
-      publications: publications.map(({ publicationId, isbn, publicationType, updatedAt }) => ({
-        id: publicationId,
-        isbn: isbn,
-        type: publicationType,
-        updatedAt,
-        doi: doi,
-        publisherName: publisherName,
-        title,
-      })),
+      publications: publications.map(
+        ({ publicationId, isbn, publicationType, updatedAt, width, height, weight, depth }) => ({
+          id: publicationId,
+          isbn: isbn,
+          type: publicationType,
+          updatedAt,
+          doi: doi,
+          publisherName: publisherName,
+          title,
+          width: width ?? 0,
+          height: height ?? 0,
+          weight: weight ?? 0,
+          depth: depth ?? 0,
+        }),
+      ),
     };
   }
   // TODO add logic for publication date for Active, Superseded, Withdrawn statuses

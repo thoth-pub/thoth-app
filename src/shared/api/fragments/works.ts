@@ -9,9 +9,6 @@ export const WORK_FRAGMENT = graphql(`
     workType
     updatedAt
     publicationDate
-    contributions {
-      fullName
-    }
     imprint {
       publisher {
         publisherName
@@ -63,12 +60,22 @@ export const WORK_FRAGMENT = graphql(`
     }
     publications {
       publicationId
-      publicationType
       isbn
+      publicationType
+      updatedAt
       weight(units: G)
       width(units: MM)
       height(units: MM)
-      updatedAt
+      depth(units: MM)
+      work {
+        doi
+        title
+        imprint {
+          publisher {
+            publisherName
+          }
+        }
+      }
     }
   }
 `);

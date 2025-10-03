@@ -9,9 +9,6 @@ export const GET_BOOKS = graphql(`
       fullTitle
       workType
       updatedAt
-      contributions {
-        fullName
-      }
       imprint {
         publisher {
           publisherName
@@ -44,10 +41,29 @@ export const GET_BOOKS = graphql(`
         }
       }
       languages {
+        languageId
         languageCode
         languageRelation
         mainLanguage
-        languageId
+      }
+      publications {
+        publicationId
+        isbn
+        publicationType
+        updatedAt
+        weight(units: G)
+        width(units: MM)
+        height(units: MM)
+        depth(units: MM)
+        work {
+          doi
+          title
+          imprint {
+            publisher {
+              publisherName
+            }
+          }
+        }
       }
     }
   }
@@ -62,9 +78,6 @@ export const GET_CHAPTERS = graphql(`
       fullTitle
       workType
       updatedAt
-      contributions {
-        fullName
-      }
       imprint {
         publisher {
           publisherName
@@ -97,10 +110,29 @@ export const GET_CHAPTERS = graphql(`
         }
       }
       languages {
+        languageId
         languageCode
         languageRelation
         mainLanguage
-        languageId
+      }
+      publications {
+        publicationId
+        isbn
+        publicationType
+        updatedAt
+        weight(units: G)
+        width(units: MM)
+        height(units: MM)
+        depth(units: MM)
+        work {
+          doi
+          title
+          imprint {
+            publisher {
+              publisherName
+            }
+          }
+        }
       }
     }
   }

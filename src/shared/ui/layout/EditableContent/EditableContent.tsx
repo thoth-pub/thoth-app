@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type { Control, DefaultValues, FieldValues, UseFormReset } from 'react-hook-form';
+import type { Control, DefaultValues, FieldValues, UseFormReset, ValidationMode } from 'react-hook-form';
 
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -28,6 +28,7 @@ type EditableContentProps<T extends FieldValues> = {
   preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
   skipAutoSubmit?: boolean;
   resetOnSubmit?: boolean;
+  validationMode?: keyof ValidationMode;
 } & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose' | 'onInfo'>;
 
 export const EditableContent = <T extends FieldValues>(props: Omit<EditableContentProps<T>, 'onFormSubmit'>) => {
@@ -37,6 +38,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     validationSchema,
     isTableVariant = false,
     skipAutoSubmit = false,
+    validationMode = 'onChange',
     onSubmit,
     formFields,
     preview,
@@ -88,6 +90,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           defaultValues={formData}
           validationSchema={validationSchema}
           isTableVariant={isTableVariant}
+          validationMode={validationMode}
           onSubmit={submit}
           onAutoSubmit={onAutoSubmit}
           onClose={onClose}

@@ -1,10 +1,35 @@
-import { EditPublication as EditPublicationForm } from '@/src/entities/publication';
+'use client';
+
+import { useState } from 'react';
+
+import { EditPublication as EditPublicationForm, usePublicationsStateMachine } from '@/src/entities/publication';
+import type { PublicationEntity } from '@/src/entities/publication/model/publication.types';
 import type { BaseEditSectionProps } from '@/src/shared';
 
 const EditPublication = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
 
-  return <EditPublicationForm title="Edit Publication" onDone={() => {}} onClose={() => {}} />;
+  const { activePublication } = usePublicationsStateMachine();
+  const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
+
+  if (!publication) return null;
+
+  return (
+    <EditPublicationForm
+      title="Edit Publication"
+      publicationType={publication.type}
+      isbn={publication.isbn}
+      width={publication.width}
+      height={publication.height}
+      depth={publication.depth}
+      weight={publication.weight}
+      onUpdateIsbn={() => {}}
+      onUpdateType={() => {}}
+      onDone={() => {}}
+      onClose={() => {}}
+      onUpdateDimensions={() => {}}
+    />
+  );
 };
 
 export default EditPublication;

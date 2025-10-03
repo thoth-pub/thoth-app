@@ -15,6 +15,10 @@ const defaultPublication = {
   updatedAt: '',
   doi: '',
   publisherName: '',
+  width: 0,
+  height: 0,
+  depth: 0,
+  weight: 0,
 };
 
 const EditPublications = (props: BaseEditSectionProps) => {

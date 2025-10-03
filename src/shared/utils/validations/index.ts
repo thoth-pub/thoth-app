@@ -4,7 +4,16 @@ import { orcid } from 'orcid';
 import z from 'zod';
 
 import { appConfig } from '@/src/shared/config';
-import { ContributorTypes, ERRORS, LanguageRelation, LanguageTypeAlt, WorkStatuses } from '@/src/shared/constants';
+import {
+  ContributorTypes,
+  ERRORS,
+  LanguageRelation,
+  LanguageTypeAlt,
+  LengthUnit,
+  PublicationType,
+  WeightUnit,
+  WorkStatuses,
+} from '@/src/shared/constants';
 import type { ErrorMessage } from '@/src/shared/interfaces';
 
 const { doiPrefix, rorPrefix } = appConfig.validations;
@@ -50,7 +59,9 @@ export const workStatusValidation = z.enum(WorkStatuses.enum);
 export const languageValidation = z.enum(LanguageTypeAlt.enum);
 export const contributorType = z.enum(ContributorTypes.enum);
 export const languageRelationValidation = z.enum(LanguageRelation.enum);
-
+export const publicationTypeValidation = z.enum(PublicationType.enum);
+export const lengthUnitValidation = z.enum(LengthUnit.enum);
+export const weightUnitValidation = z.enum(WeightUnit.enum);
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });
 
@@ -83,11 +94,16 @@ export const issnValidation = optionalStringValidation.refine((issn) => {
 
 export const pageBreakdownValidation = optionalStringValidation;
 
-export const isbnValidation = optionalStringValidation.refine((isbn) => {
-  if (!isbn) return true;
+export const isbnValidation = optionalStringValidation.refine(
+  (isbn) => {
+    if (!isbn) return true;
 
-  return isbn3.parse(isbn)?.isValid ?? false;
-});
+    return isbn3.parse(isbn)?.isValid ?? false;
+  },
+  {
+    message: 'Invalid ISBN',
+  },
+);
 
 export const isValidDate = (date: string) => dayjs(date).isValid();
 

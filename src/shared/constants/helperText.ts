@@ -20,4 +20,12 @@ export const HELPER_TEXT = {
   WORK_PAGES_COUNT: 'Enter the pages count of the work.',
   WORK_FRONTMATTER_COUNT: 'Enter the frontmatter count of the work.',
   WORK_BACKMATTER_COUNT: 'Enter the backmatter count of the work.',
+  PUBLICATION_TYPE: 'Choose the type of publication.',
+  PUBLICATION_ISBN: 'Enter the ISBN of the publication.',
+  PUBLICATION_WIDTH: 'Enter the width of the publication.',
+  PUBLICATION_HEIGHT: 'Enter the height of the publication.',
+  PUBLICATION_DEPTH: 'Enter the depth of the publication.',
+  PUBLICATION_WEIGHT: 'Enter the weight of the publication.',
+  LENGTH_UNIT: 'Choose the unit of measurement for the length.',
+  WEIGHT_UNIT: 'Choose the unit of measurement for the weight.',
 };

@@ -1,3 +1,5 @@
+'use client';
+
 import { motion } from 'motion/react';
 
 import { mergeStyles } from '@/src/shared/utils';

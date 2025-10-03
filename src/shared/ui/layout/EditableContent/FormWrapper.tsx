@@ -6,6 +6,7 @@ import {
   SubmitHandler,
   useForm,
   UseFormReset,
+  ValidationMode,
 } from 'react-hook-form';
 import { useUnmount } from 'react-use';
 import type { ZodType } from 'zod';
@@ -16,6 +17,7 @@ export type FormProps<T extends FieldValues> = {
   validationSchema: ZodType<unknown, FieldValues>;
   defaultValues?: DefaultValues<T>;
   isTableVariant?: boolean;
+  validationMode?: keyof ValidationMode;
   children: (props: { control: Control<FieldValues>; reset: UseFormReset<FieldValues> }) => Readonly<React.ReactNode>;
   onSubmit: SubmitHandler<T>;
   onAutoSubmit: (data: FieldValues) => void;
@@ -28,6 +30,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     validationSchema,
     defaultValues,
     isTableVariant = false,
+    validationMode = 'onChange',
     children,
     onSubmit,
     onAutoSubmit,
@@ -43,7 +46,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     formState: { isValid, isDirty, isSubmitSuccessful },
   } = useForm({
     resolver: zodResolver(validationSchema),
-    mode: 'onChange',
+    mode: validationMode,
     defaultValues,
   });
 

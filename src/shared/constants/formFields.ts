@@ -1,4 +1,12 @@
-import { ContributorTypes, ERRORS, WorkStatuses, WorkTypes } from '@/src/shared/constants';
+import {
+  ContributorTypes,
+  ERRORS,
+  LengthUnit,
+  PublicationType,
+  WeightUnit,
+  WorkStatuses,
+  WorkTypes,
+} from '@/src/shared/constants';
 
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
 import { LanguageRelation, LanguageTypeAlt } from './languages';
@@ -233,9 +241,9 @@ export const FORM_FIELDS = {
     type: InputTypes.NUMBER,
   },
   WORK_PAGES_COUNT: {
-    label: 'Pages Count',
+    label: 'Total Pages Count',
     name: 'pageCount',
-    placeholder: 'Pages Count',
+    placeholder: 'Total Pages Count',
     type: InputTypes.NUMBER,
   },
   WORK_FRONTMATTER_COUNT: {
@@ -250,30 +258,73 @@ export const FORM_FIELDS = {
     placeholder: 'Backmatter Count',
     type: InputTypes.NUMBER,
   },
-  // FIRST_NAME: 'firstName',
-  // LAST_NAME: 'lastName',
-  // FULL_NAME: 'fullName',
+  PUBLICATION_TYPE: {
+    label: 'Publication Type',
+    name: 'publicationType',
+    placeholder: 'Publication Type',
+    type: InputTypes.TEXT,
+  },
+  PUBLICATION_ISBN: {
+    label: 'ISBN',
+    name: 'isbn',
+    placeholder: 'ISBN',
+    type: InputTypes.TEXT,
+  },
+  PUBLICATION_DIMENSIONS: {
+    label: 'Dimensions',
+    name: 'dimensions',
+  },
+  PUBLICATION_WIDTH: {
+    label: 'Width',
+    name: 'width',
+    placeholder: 'Width',
+    type: InputTypes.NUMBER,
+  },
+  PUBLICATION_HEIGHT: {
+    label: 'Height',
+    name: 'height',
+    placeholder: 'Height',
+    type: InputTypes.NUMBER,
+  },
+  PUBLICATION_DEPTH: {
+    label: 'Depth',
+    name: 'depth',
+    placeholder: 'Depth',
+    type: InputTypes.NUMBER,
+  },
+  PUBLICATION_WEIGHT: {
+    label: 'Weight',
+    name: 'weight',
+    placeholder: 'Weight',
+    type: InputTypes.NUMBER,
+  },
+  LENGTH_UNIT: {
+    label: 'Length Unit',
+    name: 'lengthUnit',
+    placeholder: 'Length Unit',
+    type: InputTypes.TEXT,
+  },
+  WEIGHT_UNIT: {
+    label: 'Weight Unit',
+    name: 'weightUnit',
+    placeholder: 'Weight Unit',
+    type: InputTypes.TEXT,
+  },
   // SHORT_NAME: 'shortName',
   // NAME: 'name',
-  // WEBSITE_URL: 'websiteUrl',
-  // URL: 'url',
   // DESCRIPTION: 'description',
   // SERIES_TYPE: 'seriesType',
-  // PUBLICATION_TYPE: 'publicationType',
-  // DOI: 'doi',
-  // ORCID: 'orcid',
-  // ROLE: 'role',
-  // CREATED_AT: 'createdAt',
-  // UPDATED_AT: 'updatedAt',
-  // ISSN_PRINT: 'isnnPrint',
-  // ISSN_DIGITAL: 'isnnDigital',
-  // PAGE_BREAKDOWN: 'pageBreakdown',
-  // COUNTRY_CODE: 'countryCode',
 } as const;
 
 export const workTypeOptions = convertFormFieldsToSelectFieldOptions(WorkTypes.options);
 
 export const workStatusOptions = convertFormFieldsToSelectFieldOptions(WorkStatuses.options);
+
+export const publicationTypeOptions = convertFormFieldsToSelectFieldOptions(PublicationType.options);
+
+export const lengthUnitOptions = convertFormFieldsToSelectFieldOptions([LengthUnit.enum.Mm, LengthUnit.enum.In]);
+
+export const weightUnitOptions = convertFormFieldsToSelectFieldOptions(WeightUnit.options);
 
 export const licenseOptions = [
   { label: 'CC BY', value: 'https://creativecommons.org/licenses/by/4.0/' },

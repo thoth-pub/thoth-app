@@ -9,6 +9,10 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       publicationType,
       updatedAt,
       isbn = '',
+      width,
+      height,
+      depth,
+      weight,
       work: {
         title,
         doi,
@@ -26,6 +30,10 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       isbn,
       doi,
       publisherName,
+      width: width ?? 0,
+      height: height ?? 0,
+      depth: depth ?? 0,
+      weight: weight ?? 0,
     };
   }
 }

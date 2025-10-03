@@ -64,7 +64,7 @@ const LanguagesForm = (props: LanguagesFormProps) => {
                 <li key={languageId} className="flex items-center gap-1">
                   <Chip label={value} size="small" component="span" />
                   <Typography>
-                    {convertOptionToString(languageRelation)}, {label}
+                    {label} ({convertOptionToString(languageRelation).toLowerCase()})
                   </Typography>
                   <ButtonGroup className="ml-auto">
                     <DeleteButton

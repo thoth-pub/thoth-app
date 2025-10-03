@@ -7,7 +7,14 @@ import type { PagesCountForm } from '@/src/entities/work/model/work.types';
 import { pagesCountValidationSchema } from '@/src/entities/work/model/work.validation';
 import { type BaseRecommendedSectionProps, convertArabicToRoman, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { ContentWrapper, FormFieldLabel, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
+import {
+  ContentWrapper,
+  FormFieldLabel,
+  FormTextField,
+  MultipleContentWrapper,
+  Preview,
+  Typography,
+} from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 const { WORK_PAGES_COUNT, WORK_FRONTMATTER_COUNT, WORK_BACKMATTER_COUNT } = FORM_FIELDS;
@@ -32,7 +39,7 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
 
   const showIndicator = showPagesCountIndicator || showFrontmatterCountIndicator;
 
-  const placeholder = useMemo(() => {
+  const pageBreakdownValue = useMemo(() => {
     const res: string[] = [];
 
     if (frontmatterCount) {
@@ -40,15 +47,17 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
     }
 
     if (pageCount) {
-      res.push(`${pageCount} ${pageCount > 1 ? 'pages' : 'page'}`);
+      res.push(`${pageCount - frontmatterCount - backmatterCount} ${pageCount > 1 ? 'pages' : 'page'}`);
     }
 
     if (backmatterCount) {
       res.push(backmatterValue);
     }
 
-    return res.join(' + ');
+    return res.join(' + ').toLowerCase();
   }, [pageCount, frontmatterCount, backmatterCount]);
+
+  const placeholder = `${pageCount} ${pageCount > 1 ? 'pages' : 'page'} (${pageBreakdownValue})`;
 
   const handleSubmit = ({ pageCount, frontmatterCount, backmatterCount }: PagesCountForm) => {
     updateWork({
@@ -115,7 +124,9 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
         </MultipleContentWrapper>
       )}
       preview={({ onEdit }) => (
-        <Preview label={WORK_PAGES_COUNT.label} value={placeholder} recommended={showIndicator} onEdit={onEdit} />
+        <Preview label={WORK_PAGES_COUNT.label} value={placeholder} recommended={showIndicator} onEdit={onEdit}>
+          <Typography>{placeholder}</Typography>
+        </Preview>
       )}
     />
   );

@@ -63,7 +63,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
           className="hover:[&>td>div>button]:opacity-100 hover:[&>td>div>svg]:opacity-100"
           {...attributes}
         >
-          <TableCell className="w-50 rounded-tl-2xl rounded-bl-2xl pl-1">
+          <TableCell className="w-100 rounded-tl-2xl rounded-bl-2xl pl-1">
             <div className="flex gap-1">
               <DragIndicatorIcon className="my-auto opacity-0" color="primary" fontSize="small" {...listeners} />
               <div className="flex shrink flex-wrap items-center gap-1">
@@ -77,7 +77,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
               </div>
             </div>
           </TableCell>
-          <TableCell className="w-50 capitalize">{type.toLowerCase().replace('_', ' ')}</TableCell>
+          <TableCell className="w-45 capitalize">{type.toLowerCase().replace('_', ' ')}</TableCell>
           <TableCell className="w-100">
             <div className="flex">
               <ul className="flex flex-col gap-1">

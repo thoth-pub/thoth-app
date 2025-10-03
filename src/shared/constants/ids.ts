@@ -27,4 +27,8 @@ export const IDs = {
   CONTRIBUTOR_ORCID: 'contributor_orcid',
   CONTRIBUTOR_WEBSITE_URL: 'contributor_website_url',
   CONTRIBUTOR_AFFILIATIONS: 'contributor_affiliations',
+  // PUBLICATIONS
+  PUBLICATION_TYPE: 'publication_type',
+  PUBLICATION_ISBN: 'publication_isbn',
+  PUBLICATION_SIZES: 'publication_sizes',
 } as const;
