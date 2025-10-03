@@ -2,6 +2,7 @@ import { AffiliationsForm } from '@/src/entities/affiliation';
 import { ContributionForms } from '@/src/entities/contribution';
 import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
 import type { BaseRecommendedSectionProps } from '@/src/shared';
+import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
 import { useAddNewContribution } from './useAddNewContribution';
 
@@ -24,7 +25,7 @@ const AddNewContribution = (props: BaseRecommendedSectionProps) => {
   if (!contribution) return null;
 
   return (
-    <div className="rounded-2xl bg-[var(--color-form-background)] p-4">
+    <TableNewEntityFormWrapper>
       <ContributionForms
         showRecommendations={recommended}
         contribution={contribution}
@@ -43,7 +44,7 @@ const AddNewContribution = (props: BaseRecommendedSectionProps) => {
           onDelete={deleteAffiliation}
         />
       </ContributionForms>
-    </div>
+    </TableNewEntityFormWrapper>
   );
 };
 

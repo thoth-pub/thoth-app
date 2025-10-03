@@ -42,6 +42,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       pageBreakdown,
       contributions = [],
       languages = [],
+      publications = [],
     } = dto;
 
     const frontmatterCount = pageBreakdown?.split(pageBreakdownSeparator)[0] ?? '';
@@ -125,6 +126,15 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           }),
         )
         .sort((a, b) => a.orderNumber - b.orderNumber),
+      publications: publications.map(({ publicationId, isbn, publicationType, updatedAt }) => ({
+        id: publicationId,
+        isbn: isbn,
+        type: publicationType,
+        updatedAt,
+        doi: doi,
+        publisherName: publisherName,
+        title,
+      })),
     };
   }
   // TODO add logic for publication date for Active, Superseded, Withdrawn statuses

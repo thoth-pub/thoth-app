@@ -23,9 +23,10 @@ const EditContributors = (props: EditContributorsProps) => {
   const isValid =
     work.contributions.length > 0 &&
     work.contributions.every((contribution) => contribution.biography && contribution.affiliations.length > 0);
+  const isEmpty = work.contributions.length === 0;
 
   return (
-    <RecommendedSection title="Contributors" isEmpty={work.contributions.length === 0} isValid={isValid}>
+    <RecommendedSection title="Contributors" isEmpty={isEmpty} isValid={isValid}>
       {({ showRecommendations }) => (
         <>
           <ContributionsTable

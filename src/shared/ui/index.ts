@@ -31,6 +31,9 @@ export { default as Table } from './core/Table/Table';
 export { default as TextField, type TextFieldProps } from './core/TextField/TextField';
 export { default as Tooltip } from './core/Tooltip/Tooltip';
 export { default as Typography } from './core/Typography/Typography';
+export { default as TableFormsHeader } from './forms/TableFormsHeader/TableFormsHeader';
+export { default as TableFormsWrapper } from './forms/TableFormsWrapper/TableFormsWrapper';
+export { default as TableNewEntityFormWrapper } from './forms/TableNewEntityFormWrapper/TableNewEntityFormWrapper';
 // Forms
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
 export { default as AutocompleteFormWithPreview } from './forms/AutocompleteFormWithPreview/AutocompleteFormWithPreview';

@@ -61,5 +61,14 @@ export const WORK_FRAGMENT = graphql(`
       mainLanguage
       languageId
     }
+    publications {
+      publicationId
+      publicationType
+      isbn
+      weight(units: G)
+      width(units: MM)
+      height(units: MM)
+      updatedAt
+    }
   }
 `);

@@ -6,6 +6,7 @@ import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 import type { AffiliationEntity } from '../../affiliation';
 import type { ContributorId } from '../../contributor/model/contributor.types';
 import type { LanguageEntity } from '../../language/model/language.types';
+import { PublicationEntity } from '../../publication/model/publication.types';
 import {
   createWorkValidationSchema,
   doiAndCoversValidationSchema,
@@ -72,6 +73,7 @@ export type WorkEntity = {
   frontmatterCount: number;
   backmatterCount: number;
   languages: LanguageEntity[];
+  publications: PublicationEntity[];
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;
