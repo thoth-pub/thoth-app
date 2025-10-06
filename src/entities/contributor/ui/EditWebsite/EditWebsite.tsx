@@ -29,6 +29,7 @@ export const EditWebsite = (props: EditWebsiteProps) => {
       defaultValues={{ [WEBSITE_URL.name]: websiteUrl }}
       validationSchema={websiteUrlValidationSchema}
       onSubmit={onSubmit}
+      borderTransparent
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={WEBSITE_URL.label} id={WEBSITE_URL.name} recommended={showPreviewIndicator} />

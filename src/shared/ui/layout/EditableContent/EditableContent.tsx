@@ -23,6 +23,7 @@ type EditableContentProps<T extends FieldValues> = {
   formId: Id;
   isTableVariant?: boolean;
   isDisabled?: boolean;
+  borderTransparent?: boolean;
   onSubmit: (data: T) => void;
   formFields: ({ control, isHelperTextVisible, reset }: FormFieldsProps) => Readonly<React.ReactNode>;
   preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
@@ -37,6 +38,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     defaultValues,
     validationSchema,
     isTableVariant = false,
+    borderTransparent = false,
     skipAutoSubmit = false,
     validationMode = 'onChange',
     onSubmit,
@@ -91,6 +93,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           validationSchema={validationSchema}
           isTableVariant={isTableVariant}
           validationMode={validationMode}
+          borderTransparent={borderTransparent}
           onSubmit={submit}
           onAutoSubmit={onAutoSubmit}
           onClose={onClose}
@@ -101,7 +104,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
       ) : (
         <div
           onDoubleClick={handleEdit}
-          className={`group cursor-pointer duration-300 hover:bg-[var(--color-hover-alt)] ${isTableVariant ? '' : 'rounded-xl p-4'}`}
+          className={`group cursor-pointer ${borderTransparent ? '' : 'border-1 border-[transparent] hover:border-[var(--color-hover-border)]'} duration-300 hover:bg-[var(--color-hover-alt)] ${isTableVariant ? '' : 'rounded-xl p-4'}`}
         >
           {preview({ data: formData as T, onEdit: handleEdit })}
         </div>

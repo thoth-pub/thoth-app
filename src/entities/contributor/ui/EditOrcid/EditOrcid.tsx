@@ -29,6 +29,7 @@ const EditOrcid = (props: EditOrcidProps) => {
       defaultValues={{ [ORCID.name]: orcidId }}
       validationSchema={orcidValidationSchema}
       onSubmit={onSubmit}
+      borderTransparent
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={ORCID.label} id={ORCID.name} recommended={showPreviewIndicator} />

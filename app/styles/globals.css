@@ -60,7 +60,7 @@
   /* Tier 1 */
   --yellow: #fff2d9;
   --purple: #744d82;
-  --purple-alt: #865ea0;
+  --purple-opacity-25: rgba(110, 79, 127, 0.25);
   --purple-secondary: #bfb1c4;
   --purple-light: #f4e5f9;
   --purple-light-alt: #f2cdff;
@@ -105,6 +105,7 @@
   --color-error: var(--red);
   --color-hover: var(--purple-light);
   --color-hover-alt: var(--white);
+  --color-hover-border: var(--purple-opacity-25);
   --color-placeholder: var(--gray);
   --color-icon: var(--purple);
 
@@ -140,6 +141,7 @@
 
   --color-form-field-label: var(--color-typography);
   --color-form-background: var(--white);
+  --color-form-border: var(--purple-opacity-25);
 
   --color-notification-text: var(--color-yellow);
   --color-notification-background-success: var(--color-success);
@@ -154,6 +156,7 @@
   --color-table-text: var(--color-typography);
   --color-table-border: var(--color-success);
   --color-table-row-hover-background: var(--white);
+  --color-table-row-hover-border: var(--purple-opacity-25);
   --color-table-edit-row-form-background: var(--white);
   --color-table-cell-recommendations-background: var(--green-opacity-50);
 

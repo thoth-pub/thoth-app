@@ -51,19 +51,13 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
     <AnimatePresence mode="wait">
       {isEditing ? (
         <TableRow className="w-full bg-[var(--color-table-edit-row-form-background)]">
-          <TableCell colSpan={4} className="rounded-2xl">
+          <TableCell colSpan={4} className="rounded-2xl border-1 border-[var(--color-form-border)]">
             {form}
           </TableCell>
         </TableRow>
       ) : (
-        <TableRow
-          ref={setNodeRef}
-          style={style}
-          onDoubleClick={() => onEdit?.(id)}
-          className="hover:[&>td>div>button]:opacity-100 hover:[&>td>div>svg]:opacity-100"
-          {...attributes}
-        >
-          <TableCell className="w-75 rounded-tl-2xl rounded-bl-2xl pl-1">
+        <TableRow ref={setNodeRef} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
+          <TableCell className="w-75 rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-1 group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
             <div className="flex gap-1">
               <DragIndicatorIcon className="my-auto opacity-0" color="primary" fontSize="small" {...listeners} />
               <div className="flex shrink flex-wrap items-center gap-1">
@@ -77,9 +71,11 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
               </div>
             </div>
           </TableCell>
-          <TableCell className="w-45 capitalize">{type.toLowerCase().replace('_', ' ')}</TableCell>
-          <TableCell className="w-50">
-            <div className="flex">
+          <TableCell className="w-45 border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+            {type.toLowerCase().replace('_', ' ')}
+          </TableCell>
+          <TableCell className="w-50 border-1 border-r-0 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+            <div className="flex rounded-tr-2xl rounded-br-2xl">
               <ul className="flex flex-col gap-1">
                 {affiliations.map(({ id, institutionName, rorId }) => (
                   <li key={id} className="flex items-center justify-between gap-1">
@@ -94,16 +90,18 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
               </ul>
             </div>
           </TableCell>
-          <TableCell className="flex justify-between rounded-tr-2xl rounded-br-2xl">
-            <Typography>{truncatedBiography}</Typography>
-            <RowButtonGroup
-              className="ml-auto"
-              isSelected={isMain}
-              isDisabled={!isEditable}
-              onEdit={() => onEdit?.(id)}
-              onSelectAsMain={() => onSelectAsMain?.(id)}
-              onDelete={() => onDelete?.(id)}
-            />
+          <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+            <div className="flex justify-between">
+              <Typography>{truncatedBiography}</Typography>
+              <RowButtonGroup
+                className="ml-auto"
+                isSelected={isMain}
+                isDisabled={!isEditable}
+                onEdit={() => onEdit?.(id)}
+                onSelectAsMain={() => onSelectAsMain?.(id)}
+                onDelete={() => onDelete?.(id)}
+              />
+            </div>
           </TableCell>
         </TableRow>
       )}

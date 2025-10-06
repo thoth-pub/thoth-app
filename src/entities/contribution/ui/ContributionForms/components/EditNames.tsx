@@ -41,6 +41,7 @@ export const EditNames = ({ fullName, firstName, lastName, recommended, onSubmit
       defaultValues={{ [FULL_NAME.name]: fullName, [FIRST_NAME.name]: firstName, [LAST_NAME.name]: lastName }}
       validationSchema={namesFormValidationSchema}
       onSubmit={onSubmit}
+      borderTransparent
       formFields={({ control, isHelperTextVisible }) => (
         <MultipleContentWrapper>
           <ContentWrapper>

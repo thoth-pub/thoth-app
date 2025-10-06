@@ -29,6 +29,7 @@ export const EditType = (props: EditTypeProps) => {
       defaultValues={{ [CONTRIBUTOR_TYPE.name]: defaultValue.value as ContributionType }}
       validationSchema={contributorTypeValidationSchema}
       onSubmit={onSubmit}
+      borderTransparent
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={CONTRIBUTOR_TYPE.label} id={CONTRIBUTOR_TYPE.name} />

@@ -18,26 +18,26 @@ const PublicationsTable = (props: PublicationsTableProps) => {
   const { activePublication, publications, form, showRecommendations, onDelete, onEdit } = props;
 
   return (
-    <Table>
+    <Table className="border-separate">
       <TableHeader cells={['Publication Type', 'ISBN']} />
       <TableBody>
         {publications.map((publication) => (
           <Fragment key={publication.id}>
             {activePublication?.id === publication.id ? (
               <TableRow>
-                <TableCell colSpan={3} className="rounded-2xl p-0">
+                <TableCell colSpan={3} className="rounded-2xl border-1 border-[var(--color-form-border)] p-0">
                   {form}
                 </TableCell>
               </TableRow>
             ) : (
               <TableRow className="group">
-                <TableCell className="rounded-tl-2xl rounded-bl-2xl pl-7 capitalize">
+                <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-7 capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
                   <div className="flex items-center gap-1">
                     {publication.type.toLowerCase()}{' '}
                     {showRecommendations && publication.isbn.length === 0 && <Indicator />}
                   </div>
                 </TableCell>
-                <TableCell className="rounded-tr-2xl rounded-br-2xl">
+                <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
                   <div className="flex justify-between">
                     {publication.isbn}{' '}
                     <RowButtonGroup

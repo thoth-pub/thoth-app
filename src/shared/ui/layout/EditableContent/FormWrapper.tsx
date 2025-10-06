@@ -18,6 +18,7 @@ export type FormProps<T extends FieldValues> = {
   defaultValues?: DefaultValues<T>;
   isTableVariant?: boolean;
   validationMode?: keyof ValidationMode;
+  borderTransparent?: boolean;
   children: (props: { control: Control<FieldValues>; reset: UseFormReset<FieldValues> }) => Readonly<React.ReactNode>;
   onSubmit: SubmitHandler<T>;
   onAutoSubmit: (data: FieldValues) => void;
@@ -30,6 +31,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     validationSchema,
     defaultValues,
     isTableVariant = false,
+    borderTransparent = false,
     validationMode = 'onChange',
     children,
     onSubmit,
@@ -68,7 +70,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
   return (
     <form
       onSubmit={handleSubmitForm}
-      className={`flex gap-1 bg-[var(--color-form-background)] ${isTableVariant ? '' : 'rounded-xl p-4'} `}
+      className={`flex gap-1 ${borderTransparent ? '' : 'border-1 border-[var(--color-hover-border)]'} bg-[var(--color-form-background)] ${isTableVariant ? '' : 'rounded-xl p-4'} `}
     >
       <div className="grow">{children({ control: control as Control<FieldValues>, reset })}</div>
       <FormControlGroup isDisabled={isSubmitDisabled} onClose={onClose} onInfo={onInfo} />

@@ -81,6 +81,7 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
         onSubmit={onSubmit}
         defaultValues={{ [AFFILIATIONS.name]: defaultValues }}
         skipAutoSubmit
+        borderTransparent
         formFields={({ control }) => <FormFields control={control as unknown as Control<AffiliationsFormType>} />}
         preview={({ data, onEdit }) => (
           <Preview label={AFFILIATIONS.label} onEdit={onEdit} value={formValues.join(', ')} recommended={showIndicator}>

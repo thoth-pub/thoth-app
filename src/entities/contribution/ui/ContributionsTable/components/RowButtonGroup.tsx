@@ -18,10 +18,10 @@ export const RowButtonGroup = (props: RowButtonGroupProps) => {
 
   return (
     <ButtonGroup className={className}>
-      <IconButton onClick={onDelete} className="opacity-0">
+      <IconButton onClick={onDelete} className="opacity-0 group-hover:opacity-100">
         <DeleteOutlineIcon />
       </IconButton>
-      <IconButton onClick={onEdit} className="opacity-0" disabled={isDisabled}>
+      <IconButton onClick={onEdit} className="opacity-0 group-hover:opacity-100" disabled={isDisabled}>
         <EditIcon />
       </IconButton>
       <IconButton onClick={onSelectAsMain}>{isSelected ? <StarIcon /> : <StarBorderIcon />}</IconButton>

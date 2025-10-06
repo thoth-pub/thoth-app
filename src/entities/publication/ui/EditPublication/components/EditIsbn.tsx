@@ -32,6 +32,7 @@ const EditIsbn = (props: EditIsbnProps) => {
       defaultValues={{ [PUBLICATION_ISBN.name]: isbn }}
       validationSchema={isbnValidationSchema}
       onSubmit={handleSubmit}
+      borderTransparent
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel recommended={showIndicator} label={PUBLICATION_ISBN.label} id={PUBLICATION_ISBN.name} />

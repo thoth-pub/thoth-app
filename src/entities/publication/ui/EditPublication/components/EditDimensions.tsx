@@ -100,6 +100,7 @@ export const EditDimensions = (props: EditSizesProps) => {
     <EditableContent
       isTableVariant
       formId={IDs.PUBLICATION_SIZES}
+      borderTransparent
       defaultValues={{
         [PUBLICATION_WIDTH.name]: width,
         [PUBLICATION_HEIGHT.name]: height,

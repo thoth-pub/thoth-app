@@ -32,6 +32,7 @@ const EditPublicationType = (props: EditPublicationTypeProps) => {
       defaultValues={{ [PUBLICATION_TYPE.name]: defaultValue.value as PublicationType }}
       validationSchema={publicationTypeValidationSchema}
       onSubmit={handleSubmit}
+      borderTransparent
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={PUBLICATION_TYPE.label} id={PUBLICATION_TYPE.name} />

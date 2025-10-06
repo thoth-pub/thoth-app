@@ -28,6 +28,7 @@ export const EditBiography = (props: EditBiographyProps) => {
       defaultValues={{ [CONTRIBUTOR_BIOGRAPHY.name]: biography }}
       validationSchema={contributorBiographyValidationSchema}
       onSubmit={onSubmit}
+      borderTransparent
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel
