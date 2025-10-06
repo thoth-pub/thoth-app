@@ -37,9 +37,6 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
       newLanguages.push(item);
     });
 
-    console.log('newLanguages', newLanguages);
-    console.log('existingLanguages', existingLanguages);
-
     const newCodes: LanguageCode[] = [];
 
     newLanguages.forEach(({ language: { value }, languageRelation }) => {

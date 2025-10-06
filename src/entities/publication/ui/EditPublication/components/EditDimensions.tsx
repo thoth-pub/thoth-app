@@ -1,4 +1,6 @@
-import { HELPER_TEXT, IDs, LengthUnit, WeightUnit } from '@/src/shared';
+import { useMemo } from 'react';
+
+import { convertMmToIn, convertOzToG, HELPER_TEXT, IDs, LengthUnit, WeightUnit } from '@/src/shared';
 import { FORM_FIELDS, lengthUnitOptions, weightUnitOptions } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -48,6 +50,52 @@ export const EditDimensions = (props: EditSizesProps) => {
     onSubmit?.(data);
   };
 
+  const placeholderValues = useMemo(() => {
+    const geometryPlaceholderValues = [];
+    const imperialGeometryPlaceholderValues = [];
+    const weightPlaceholderValues = [];
+    const imperialWeightPlaceholderValues = [];
+
+    const roundImperialValue = (value: number) => {
+      return value.toFixed(2);
+    };
+
+    if (width > 0) {
+      geometryPlaceholderValues.push(`${width} mm`);
+      imperialGeometryPlaceholderValues.push(`${roundImperialValue(convertMmToIn(width))} in`);
+    }
+
+    if (height > 0) {
+      geometryPlaceholderValues.push(`${height} mm`);
+      imperialGeometryPlaceholderValues.push(`${roundImperialValue(convertMmToIn(height))} in`);
+    }
+
+    if (depth > 0) {
+      geometryPlaceholderValues.push(`${depth} mm`);
+      imperialGeometryPlaceholderValues.push(`${roundImperialValue(convertMmToIn(depth))} in`);
+    }
+
+    if (weight > 0) {
+      weightPlaceholderValues.push(`${weight} ${WeightUnit.enum.G}`);
+      imperialWeightPlaceholderValues.push(`${roundImperialValue(convertOzToG(weight))} ${WeightUnit.enum.Oz}`);
+    }
+
+    const geometryPlaceholderValue = geometryPlaceholderValues.join(' x ');
+    const imperialGeometryPlaceholderValue = imperialGeometryPlaceholderValues.join(' x ');
+    const weightPlaceholderValue = weightPlaceholderValues.join(' x ');
+    const imperialWeightPlaceholderValue = imperialWeightPlaceholderValues.join(' x ');
+
+    return [
+      geometryPlaceholderValue,
+      imperialGeometryPlaceholderValue,
+      weightPlaceholderValue,
+      imperialWeightPlaceholderValue,
+    ]
+      .filter((value) => value)
+      .join(' | ')
+      .toLowerCase();
+  }, [width, height, depth, weight]);
+
   return (
     <EditableContent
       isTableVariant
@@ -92,6 +140,7 @@ export const EditDimensions = (props: EditSizesProps) => {
               isHelperTextVisible={isHelperTextVisible}
               type={PUBLICATION_WIDTH.type}
               min={0}
+              step="0.01"
             />
           </ContentWrapper>
 
@@ -109,6 +158,7 @@ export const EditDimensions = (props: EditSizesProps) => {
               isHelperTextVisible={isHelperTextVisible}
               type={PUBLICATION_HEIGHT.type}
               min={0}
+              step="0.01"
             />
           </ContentWrapper>
 
@@ -126,6 +176,7 @@ export const EditDimensions = (props: EditSizesProps) => {
               isHelperTextVisible={isHelperTextVisible}
               type={PUBLICATION_DEPTH.type}
               min={0}
+              step="0.01"
             />
           </ContentWrapper>
 
@@ -157,15 +208,16 @@ export const EditDimensions = (props: EditSizesProps) => {
               isHelperTextVisible={isHelperTextVisible}
               type={PUBLICATION_WEIGHT.type}
               min={0}
+              step="0.01"
             />
           </ContentWrapper>
         </MultipleContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
+      preview={({ onEdit }) => (
         <Preview
           recommended={showIndicator}
           label={PUBLICATION_DIMENSIONS.label}
-          value={Object.values(data ?? {}).join(', ')}
+          value={placeholderValues}
           onEdit={onEdit}
         />
       )}

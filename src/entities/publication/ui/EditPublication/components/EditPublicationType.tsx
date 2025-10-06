@@ -1,4 +1,4 @@
-import { HELPER_TEXT, IDs } from '@/src/shared';
+import { convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS, publicationTypeOptions } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -47,7 +47,11 @@ const EditPublicationType = (props: EditPublicationTypeProps) => {
         </ContentWrapper>
       )}
       preview={({ data, onEdit }) => (
-        <Preview label={PUBLICATION_TYPE.label} value={data?.publicationType} onEdit={onEdit} />
+        <Preview
+          label={PUBLICATION_TYPE.label}
+          value={convertOptionToString(data?.publicationType ?? '')}
+          onEdit={onEdit}
+        />
       )}
     />
   );

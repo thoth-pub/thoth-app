@@ -57,7 +57,7 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
     return res.join(' + ').toLowerCase();
   }, [pageCount, frontmatterCount, backmatterCount]);
 
-  const placeholder = `${pageCount} ${pageCount > 1 ? 'pages' : 'page'} (${pageBreakdownValue})`;
+  const placeholder = pageCount ? `${pageCount} ${pageCount > 1 ? 'pages' : 'page'} (${pageBreakdownValue})` : '';
 
   const handleSubmit = ({ pageCount, frontmatterCount, backmatterCount }: PagesCountForm) => {
     updateWork({
@@ -125,7 +125,7 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
       )}
       preview={({ onEdit }) => (
         <Preview label={WORK_PAGES_COUNT.label} value={placeholder} recommended={showIndicator} onEdit={onEdit}>
-          <Typography>{placeholder}</Typography>
+          <Typography className="ml-2">{placeholder}</Typography>
         </Preview>
       )}
     />

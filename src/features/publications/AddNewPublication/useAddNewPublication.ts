@@ -2,8 +2,7 @@
 
 import { useState } from 'react';
 
-import { usePublicationsStateMachine } from '@/src/entities/publication';
-import useCreatePublication from '@/src/entities/publication/api/hooks/useCreatePublication';
+import { useCreatePublication, usePublicationsStateMachine } from '@/src/entities/publication';
 import type {
   PublicationDimensionsForm,
   PublicationEntity,

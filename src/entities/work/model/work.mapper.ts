@@ -129,7 +129,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       publications: publications.map(
         ({ publicationId, isbn, publicationType, updatedAt, width, height, weight, depth }) => ({
           id: publicationId,
-          isbn: isbn,
+          isbn: isbn ?? '',
           type: publicationType,
           updatedAt,
           doi: doi,

@@ -28,6 +28,7 @@ export { default as TableFooter } from './core/Table/components/TableFooter';
 export { default as TableHead } from './core/Table/components/TableHead';
 export { default as TableRow } from './core/Table/components/TableRow';
 export { default as Table } from './core/Table/Table';
+export { default as TableHeader } from './core/TableHeader/TableHeader';
 export { default as TextField, type TextFieldProps } from './core/TextField/TextField';
 export { default as Tooltip } from './core/Tooltip/Tooltip';
 export { default as Typography } from './core/Typography/Typography';

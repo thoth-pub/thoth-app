@@ -5,11 +5,12 @@ type FormFieldLabelProps = {
   label: string;
   id?: string;
   recommended?: boolean;
+  component?: 'div' | 'label';
 } & InputLabelProps;
 
-const FormFieldLabel = ({ id, label, recommended = false }: FormFieldLabelProps) => {
+const FormFieldLabel = ({ id, label, recommended = false, component = 'label' }: FormFieldLabelProps) => {
   return (
-    <InputLabel htmlFor={id} className="flex items-center gap-3">
+    <InputLabel component={component} htmlFor={id} className="flex items-center gap-3">
       {label} {recommended && <Indicator />}
     </InputLabel>
   );

@@ -3,9 +3,13 @@ import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import { type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
+import { PublicationDtoMapper } from '../../model/publication.mapper';
 import { UPDATE_PUBLICATION } from '../../model/publication.schema';
+import { PublicationEntity } from '../../model/publication.types';
 
 const { PUBLICATION_UPDATE_FAILED } = NOTIFICATIONS;
+
+const mapper = new PublicationDtoMapper();
 
 const useUpdateAffiliation = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
@@ -22,8 +26,16 @@ const useUpdateAffiliation = (props: BaseEditSectionProps) => {
     },
   });
 
+  const updatePublication = (data: PublicationEntity) => {
+    const dto = mapper.toDto(data);
+
+    mutate({
+      variables: { data: { ...dto, workId } },
+    });
+  };
+
   return {
-    updatePublication: mutate,
+    updatePublication,
     loading,
   };
 };

@@ -28,7 +28,7 @@ const Preview = ({ label, value, children, recommended = false, disabled = false
             disabled={disabled}
             endIcon={<AddIcon className="opacity-0 group-hover:opacity-100" />}
             onClick={onEdit}
-            className="w-full justify-between"
+            className="mr-2 ml-2 w-full justify-between"
           >
             Add {label}
           </Button>

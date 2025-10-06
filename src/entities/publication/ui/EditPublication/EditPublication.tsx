@@ -1,4 +1,4 @@
-import { PublicationType as PublicationTypeEnum } from '@/src/shared/constants';
+import { isDimensionsAvailable } from '@/src/shared';
 import { TableFormsHeader, TableFormsWrapper, TableNewEntityFormWrapper } from '@/src/shared/ui';
 
 import type { PublicationDimensionsForm, PublicationType } from '../../model/publication.types';
@@ -7,7 +7,6 @@ import EditIsbn from './components/EditIsbn';
 import EditPublicationType from './components/EditPublicationType';
 
 type EditPublicationProps = {
-  title: string;
   publicationType: PublicationType;
   showRecommendations: boolean;
   isbn: string;
@@ -25,7 +24,6 @@ type EditPublicationProps = {
 
 const EditPublication = (props: EditPublicationProps) => {
   const {
-    title,
     publicationType,
     isbn,
     width,
@@ -41,14 +39,12 @@ const EditPublication = (props: EditPublicationProps) => {
     onUpdateDimensions,
   } = props;
 
-  const isPhisical =
-    publicationType === PublicationTypeEnum.enum.Hardback || publicationType === PublicationTypeEnum.enum.Paperback;
-  const isDimensionsHidden = isDimensionFormHidden || !isPhisical;
+  const isDimensionsHidden = isDimensionFormHidden || !isDimensionsAvailable(publicationType);
 
   return (
     <TableNewEntityFormWrapper>
       <TableFormsWrapper>
-        <TableFormsHeader title={title} onDone={onDone} onClose={onClose} />
+        <TableFormsHeader title={publicationType} onDone={onDone} onClose={onClose} />
         <EditPublicationType publicationType={publicationType} onSubmit={onUpdateType} />
         <EditIsbn recommended={showRecommendations} isbn={isbn} onSubmit={onUpdateIsbn} />
         {!isDimensionsHidden && (

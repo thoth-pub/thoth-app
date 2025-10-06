@@ -23,7 +23,6 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
 
   return (
     <EditPublication
-      title="Add New Publication"
       showRecommendations={recommended}
       publicationType={type}
       isDimensionFormHidden={isDimensionFormHidden}

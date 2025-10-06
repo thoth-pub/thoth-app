@@ -10,6 +10,7 @@ import TextField, { type TextFieldProps } from '../../core/TextField/TextField';
 
 export type FormTextFieldComponentProps<T extends FieldValues> = {
   min?: number;
+  step?: string;
   options?: FormFieldOption[];
   isDoiField?: boolean;
   isUrlField?: boolean;
@@ -28,6 +29,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     min,
     isHelperTextVisible = false,
     helperText,
+    step,
     isDoiField = false,
     isUrlField = false,
     isRorField = false,
@@ -75,6 +77,9 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
               hidden: !isHelperTextVisible && !error,
             },
             input: {
+              inputProps: {
+                step,
+              },
               startAdornment: addPrefix && (
                 <InputAdornment position="start">
                   {isUrlField && protocolPrefix}

@@ -1,10 +1,10 @@
 import { TableCell, TableHead, TableRow, Typography } from '@/src/shared/ui';
 
-type ContributionsTableHeaderProps = {
+type TableHeaderProps = {
   cells: string[];
 };
 
-export const ContributionsTableHeader = ({ cells }: ContributionsTableHeaderProps) => {
+const TableHeader = ({ cells }: TableHeaderProps) => {
   return (
     <TableHead>
       <TableRow>
@@ -13,7 +13,7 @@ export const ContributionsTableHeader = ({ cells }: ContributionsTableHeaderProp
             <Typography
               variant="h2"
               component="span"
-              sx={{ fontFamily: 'unset', fontWeight: 'unset', textTransform: 'unset',  }}
+              sx={{ fontFamily: 'unset', fontWeight: 'unset', textTransform: 'unset' }}
             >
               {cell}
             </Typography>
@@ -23,3 +23,5 @@ export const ContributionsTableHeader = ({ cells }: ContributionsTableHeaderProp
     </TableHead>
   );
 };
+
+export default TableHeader;

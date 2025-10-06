@@ -4,9 +4,8 @@ import { closestCenter, DndContext } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { type BaseEditSectionProps } from '@/src/shared';
-import { Table as TableComponent, TableBody } from '@/src/shared/ui';
+import { Table as TableComponent, TableBody, TableHeader } from '@/src/shared/ui';
 
-import { ContributionsTableHeader } from './components/ContributionsTableHeader';
 import { ContributionsTableRow } from './components/ContributionsTableRow';
 import { useContributionsTable } from './useContributionsTable';
 
@@ -35,7 +34,7 @@ const ContributionsTable = (props: ContributionsTableProps) => {
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}>
       <SortableContext items={contributions} strategy={verticalListSortingStrategy}>
         <TableComponent>
-          <ContributionsTableHeader cells={['Name', 'Type', 'Institution', 'Biography']} />
+          <TableHeader cells={['Name', 'Type', 'Institution', 'Biography']} />
           <TableBody>
             {contributions.map((contribution) => (
               <ContributionsTableRow

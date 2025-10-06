@@ -1,10 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-
-import { EditPublication as EditPublicationForm, usePublicationsStateMachine } from '@/src/entities/publication';
-import type { PublicationEntity } from '@/src/entities/publication/model/publication.types';
+import { EditPublication as EditPublicationForm } from '@/src/entities/publication';
 import type { BaseRecommendedSectionProps } from '@/src/shared';
+
+import { useEditPublication } from './useEditPublication';
 
 type EditPublicationProps = BaseRecommendedSectionProps & {
   isDimensionFormHidden: boolean;
@@ -13,27 +12,28 @@ type EditPublicationProps = BaseRecommendedSectionProps & {
 const EditPublication = (props: EditPublicationProps) => {
   const { workId, queryToken, recommended = false, isDimensionFormHidden = false } = props;
 
-  const { activePublication } = usePublicationsStateMachine();
-  const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
+  const { activePublication, close, updateSizes, updateIsbn, updateType } = useEditPublication({
+    workId,
+    queryToken,
+  });
 
-  if (!publication) return null;
+  if (!activePublication) return null;
 
   return (
     <EditPublicationForm
-      title="Edit Publication"
       showRecommendations={recommended}
       isDimensionFormHidden={isDimensionFormHidden}
-      publicationType={publication.type}
-      isbn={publication.isbn}
-      width={publication.width}
-      height={publication.height}
-      depth={publication.depth}
-      weight={publication.weight}
-      onUpdateIsbn={() => {}}
-      onUpdateType={() => {}}
-      onDone={() => {}}
-      onClose={() => {}}
-      onUpdateDimensions={() => {}}
+      publicationType={activePublication.type}
+      isbn={activePublication.isbn}
+      width={activePublication.width}
+      height={activePublication.height}
+      depth={activePublication.depth}
+      weight={activePublication.weight}
+      onUpdateIsbn={updateIsbn}
+      onUpdateType={updateType}
+      onDone={close}
+      onClose={close}
+      onUpdateDimensions={updateSizes}
     />
   );
 };

@@ -19,8 +19,14 @@ const useDeleteAffiliation = (props: BaseEditSectionProps) => {
     },
   });
 
+  const deletePublication = (publicationId: string) => {
+    mutate({
+      variables: { publicationId },
+    });
+  };
+
   return {
-    deletePublication: mutate,
+    deletePublication,
     loading,
   };
 };
