@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import { useCreateLocation, useDeleteLocation } from '@/src/entities/locations';
+import type { LocationsForm } from '@/src/entities/locations/model/location.type';
 import { useCreatePrice, useDeletePrice, useUpdatePrice } from '@/src/entities/price';
 import type { CurrencyCode, PricesForm } from '@/src/entities/price/model/price.type';
 import { usePublicationsStateMachine, useUpdatePublication } from '@/src/entities/publication';
@@ -21,6 +23,8 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { createPrice } = useCreatePrice({ workId, queryToken });
   const { updatePrice } = useUpdatePrice({ workId, queryToken });
   const { deletePrice } = useDeletePrice({ workId, queryToken });
+  const { createLocation } = useCreateLocation({ workId, queryToken });
+  const { deleteLocation: deleteLocationMutation } = useDeleteLocation({ workId, queryToken });
 
   const updateSizes = (sizes: PublicationDimensionsForm) => {
     if (!publication) return;
@@ -94,6 +98,50 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, prices });
   };
 
+  // TODO: update after changes on backend
+  const updateLocations = async (data: LocationsForm) => {
+    if (!publication) return;
+
+    const locations = data.locations.map(({ platformId, platform, canonical, fullUrl, landingPage }) => ({
+      id: platformId,
+      locationPlatform: platform.value,
+      canonical,
+      fullTextUrl: fullUrl ?? '',
+      landingPage: landingPage ?? '',
+    }));
+
+    const prevLocations = [...publication.locations];
+
+    prevLocations.forEach(({ id }) => {
+      deleteLocationMutation(id);
+    });
+
+    locations.forEach(({ locationPlatform, canonical, fullTextUrl, landingPage }) => {
+      createLocation({
+        publicationId: publication.id,
+        locationPlatform,
+        canonical,
+        fullTextUrl,
+        landingPage,
+      });
+    });
+
+    setPublication({ ...publication, locations });
+  };
+
+  const deleteLocation = (platformId: string) => {
+    if (!publication) return;
+
+    const item = publication.locations.find(({ id }) => id === platformId);
+
+    if (!item) return;
+
+    const updatedLocations = publication.locations.filter(({ id }) => id !== platformId);
+
+    deleteLocationMutation(platformId);
+    setPublication({ ...publication, locations: updatedLocations });
+  };
+
   return {
     activePublication: publication,
     close,
@@ -101,5 +149,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     updateIsbn,
     updateType,
     updatePrices,
+    updateLocations,
+    deleteLocation,
   };
 };

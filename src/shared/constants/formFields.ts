@@ -326,6 +326,28 @@ export const FORM_FIELDS = {
     placeholder: 'Price',
     type: InputTypes.NUMBER,
   },
+  LOCATIONS: {
+    label: 'Locations',
+    name: 'locations',
+  },
+  CANONICAL: {
+    label: 'Canonical',
+    name: 'canonical',
+    placeholder: 'Canonical',
+    type: InputTypes.TEXT,
+  },
+  PLATFORM: {
+    label: 'Platform',
+    name: 'platform',
+    placeholder: 'Platform',
+    type: InputTypes.TEXT,
+  },
+  URL: {
+    label: 'Full URL',
+    name: 'fullUrl',
+    placeholder: 'Full URL',
+    type: InputTypes.URL,
+  },
   // SHORT_NAME: 'shortName',
   // DESCRIPTION: 'description',
   // SERIES_TYPE: 'seriesType',
@@ -2255,3 +2277,24 @@ export const currencyOptions = [
   { value: 'ZWN', label: 'Zimbabwean dollar (second)' },
   { value: 'ZWR', label: 'Zimbabwean dollar (third)' },
 ].sort((a, b) => a.label.localeCompare(b.label));
+
+export const locationPlatformOptions = [
+  { value: 'DOAB', label: 'DOAB (Directory of Open Access Books)' },
+  { value: 'EBSCO_HOST', label: 'EBSCO Host' },
+  { value: 'EBSCO_KB', label: 'EBSCO Knowledge Base' },
+  { value: 'GOOGLE_BOOKS', label: 'Google Books' },
+  { value: 'INTERNET_ARCHIVE', label: 'Internet Archive' },
+  { value: 'JISC_KB', label: 'JISC Knowledge Base' },
+  { value: 'JSTOR', label: 'JSTOR' },
+  { value: 'OAPEN', label: 'OAPEN (Open Access Publishing in European Networks)' },
+  { value: 'OCLC_KB', label: 'OCLC Knowledge Base' },
+  { value: 'OTHER', label: 'Other' },
+  { value: 'PROJECT_MUSE', label: 'Project MUSE' },
+  { value: 'PROQUEST_EXLIBRIS', label: 'ProQuest ExLibris' },
+  { value: 'PROQUEST_KB', label: 'ProQuest Knowledge Base' },
+  { value: 'PUBLISHER_WEBSITE', label: 'Publisher Website' },
+  { value: 'SCIELO_BOOKS', label: 'SciELO Books' },
+  { value: 'SCIENCE_OPEN', label: 'ScienceOpen' },
+  { value: 'THOTH', label: 'Thoth (Publisher CDN)' },
+  { value: 'ZENODO', label: 'Zenodo' },
+];

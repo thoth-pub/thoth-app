@@ -38,6 +38,7 @@ export { default as TableNewEntityFormWrapper } from './forms/TableNewEntityForm
 // Forms
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
 export { default as AutocompleteFormWithPreview } from './forms/AutocompleteFormWithPreview/AutocompleteFormWithPreview';
+export { default as CheckboxFormField } from './forms/CheckboxFormField/CheckboxFormField';
 export { default as DateField } from './forms/DateField/DateField';
 export {
   default as DateFormWithPreview,

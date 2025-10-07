@@ -22,6 +22,7 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
         },
       },
       prices = [],
+      locations = [],
     } = dto;
 
     return {
@@ -41,12 +42,19 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
         currencyCode,
         unitPrice,
       })),
+      locations: locations.map(({ locationId, canonical, fullTextUrl, landingPage, locationPlatform }) => ({
+        id: locationId,
+        canonical,
+        fullTextUrl: fullTextUrl ?? '',
+        landingPage: landingPage ?? '',
+        locationPlatform,
+      })),
     };
   }
 
   toDto(entity: Pick<PublicationEntity, 'id' | 'type' | 'isbn' | 'width' | 'height' | 'depth' | 'weight'>): Omit<
     PublicationDto,
-    'weight' | 'height' | 'width' | 'depth' | 'updatedAt' | 'work' | 'prices'
+    'weight' | 'height' | 'width' | 'depth' | 'updatedAt' | 'work' | 'prices' | 'locations'
   > & {
     widthMm: number | null;
     widthIn: number | null;

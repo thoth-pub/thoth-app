@@ -30,4 +30,7 @@ export const HELPER_TEXT = {
   WEIGHT_UNIT: 'Choose the unit of measurement for the weight.',
   PRICE_CURRENCY: 'Choose the currency of the price.',
   PRICE_VALUE: 'Enter the value of the price.',
+  LOCATION_PLATFORM: 'Choose the platform of the publication.',
+  LOCATION_URL_HELPER_TEXT: 'Enter the URL where a publication can be acquired or viewed.',
+  LANDING_PAGE_HELPER_TEXT: 'Enter the landing page URL of the publication.',
 };

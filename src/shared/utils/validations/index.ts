@@ -11,6 +11,7 @@ import {
   LanguageRelation,
   LanguageTypeAlt,
   LengthUnit,
+  LocationPlatforms,
   PublicationType,
   WeightUnit,
   WorkStatuses,
@@ -55,6 +56,10 @@ export const timestampValidation = z.iso.datetime();
 export const createdAtValidation = timestampValidation;
 export const updatedAtValidation = timestampValidation;
 
+/* Boolean Validations */
+
+export const booleanValidation = z.boolean();
+
 /* Enums Validations */
 export const workStatusValidation = z.enum(WorkStatuses.enum);
 export const languageValidation = z.enum(LanguageTypeAlt.enum);
@@ -64,6 +69,7 @@ export const publicationTypeValidation = z.enum(PublicationType.enum);
 export const lengthUnitValidation = z.enum(LengthUnit.enum);
 export const weightUnitValidation = z.enum(WeightUnit.enum);
 export const currencyCodeValidation = z.enum(CurrencyCode.enum);
+export const locationPlatformValidation = z.enum(LocationPlatforms.enum);
 
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });

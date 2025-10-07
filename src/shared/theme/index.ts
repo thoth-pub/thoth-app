@@ -258,5 +258,14 @@ export const theme = createTheme({
         },
       },
     },
+    MuiCheckbox: {
+      styleOverrides: {
+        root: {
+          '& .MuiSvgIcon-root': {
+            fill: 'var(--color-checkbox-border)',
+          },
+        },
+      },
+    },
   },
 });

@@ -81,6 +81,13 @@ export const WORK_FRAGMENT = graphql(`
         priceId
         currencyCode
       }
+      locations {
+        canonical
+        fullTextUrl
+        landingPage
+        locationPlatform
+        locationId
+      }
     }
   }
 `);

@@ -69,6 +69,13 @@ export const GET_BOOKS = graphql(`
           priceId
           currencyCode
         }
+        locations {
+          canonical
+          fullTextUrl
+          landingPage
+          locationPlatform
+          locationId
+        }
       }
     }
   }
@@ -142,6 +149,13 @@ export const GET_CHAPTERS = graphql(`
           unitPrice
           priceId
           currencyCode
+        }
+        locations {
+          canonical
+          fullTextUrl
+          landingPage
+          locationPlatform
+          locationId
         }
       }
     }

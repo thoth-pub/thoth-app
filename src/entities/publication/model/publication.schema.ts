@@ -21,6 +21,13 @@ export const GET_PUBLICATIONS = graphql(`
         priceId
         currencyCode
       }
+      locations {
+        canonical
+        fullTextUrl
+        landingPage
+        locationPlatform
+        locationId
+      }
     }
   }
 `);

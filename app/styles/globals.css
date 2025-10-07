@@ -170,6 +170,8 @@
 
   --color-data-indicator-border: var(--color-success);
   --color-data-indicator-border-error: var(--color-success);
+
+  --color-checkbox-border: var(--color-primary);
 }
 
 @theme inline {

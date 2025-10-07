@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import { useCreateLocation } from '@/src/entities/locations';
+import type { LocationsForm } from '@/src/entities/locations/model/location.type';
 import { useCreatePrice } from '@/src/entities/price';
 import type { PricesForm } from '@/src/entities/price/model/price.type';
 import { useCreatePublication, usePublicationsStateMachine } from '@/src/entities/publication';
@@ -22,6 +24,10 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     workId,
     queryToken,
   });
+  const { createLocation } = useCreateLocation({
+    workId,
+    queryToken,
+  });
   const { createPublication } = useCreatePublication({
     workId,
     queryToken,
@@ -35,6 +41,16 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
           publicationId: id,
           currencyCode,
           unitPrice,
+        });
+      });
+
+      publication.locations.forEach(({ locationPlatform, canonical, fullTextUrl, landingPage }) => {
+        createLocation({
+          publicationId: id,
+          locationPlatform,
+          canonical,
+          fullTextUrl,
+          landingPage,
         });
       });
 
@@ -94,6 +110,20 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, prices });
   };
 
+  const updateLocations = (data: LocationsForm) => {
+    if (!publication) return;
+
+    const locations = data.locations.map(({ platformId, platform, canonical, fullUrl, landingPage }) => ({
+      id: platformId,
+      locationPlatform: platform.value,
+      canonical,
+      fullTextUrl: fullUrl ?? '',
+      landingPage: landingPage ?? '',
+    }));
+
+    setPublication({ ...publication, locations });
+  };
+
   return {
     publication,
     close,
@@ -102,5 +132,6 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     updateIsbn,
     updateDimensions,
     updatePrices,
+    updateLocations,
   };
 };
