@@ -4,7 +4,7 @@ import { Control } from 'react-hook-form';
 
 import { IDs } from '@/src/shared';
 import { currencyOptions, FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { Chip, Preview, Typography } from '@/src/shared/ui';
+import { Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import type { PriceEntity, PricesForm } from '../../model/price.type';
@@ -38,7 +38,10 @@ const EditPrice = (props: EditPriceProps) => {
     };
   });
 
-  const placeholder = prices.length > 0 ? prices.map(({ currencyCode }) => currencyCode).join(', ') : undefined;
+  const placeholder =
+    prices.length > 0
+      ? prices.map(({ currencyCode, unitPrice }) => `${unitPrice} ${currencyCode}`).join(', ')
+      : undefined;
 
   return (
     <EditableContent
@@ -57,20 +60,7 @@ const EditPrice = (props: EditPriceProps) => {
           onClose={onClose}
         />
       )}
-      preview={({ onEdit }) => (
-        <Preview label={PRICES.label} onEdit={onEdit} value={placeholder}>
-          {defaultValues.length > 0 && (
-            <ul className="flex w-full flex-col gap-[var(--default-gap)]">
-              {defaultValues.map(({ priceId, currency: { value }, priceValue }) => (
-                <li key={priceId} className="flex items-center gap-1">
-                  <Chip label={value} size="small" component="span" />
-                  <Typography>{priceValue}</Typography>
-                </li>
-              ))}
-            </ul>
-          )}
-        </Preview>
-      )}
+      preview={({ onEdit }) => <Preview label={PRICES.label} onEdit={onEdit} value={placeholder} />}
     />
   );
 };

@@ -8,7 +8,6 @@ import {
   AutocompleteField,
   AutocompleteGroup,
   DeleteButton,
-  FormFieldLabel,
   FormFieldWithControlsWrapper,
   FormFieldWrapper,
   FormTextField,
@@ -89,37 +88,36 @@ export const FormFields = (props: FormFieldsProps) => {
         {fields.map((field, index) => (
           <li key={field.id} className={itemsStyle}>
             <FormFieldWrapper>
-              <InputLabel>{CURRENCY.label}</InputLabel>
+              <InputLabel className={`${index === 0 ? 'opacity-100' : 'opacity-0'}`}>{PRICES.label}</InputLabel>
               <FormFieldWithControlsWrapper>
-                <AutocompleteField
-                  control={control}
-                  name={getCurrencyFieldName(index)}
-                  fullWidth
-                  select
-                  options={currencyOptions}
-                  helperText={PRICE_CURRENCY}
-                  isHelperTextVisible={isHelperTextVisible}
-                  groupBy={(option) => option.group ?? ''}
-                  renderGroup={({ group, children, key }) => (
-                    <AutocompleteGroup key={key} group={group}>
-                      {children}
-                    </AutocompleteGroup>
-                  )}
-                />
+                <div className="grid w-full grid-cols-2 gap-1">
+                  <FormTextField
+                    control={control}
+                    name={getValueFieldName(index)}
+                    helperText={PRICE_VALUE}
+                    isHelperTextVisible={isHelperTextVisible}
+                    type={VALUE.type}
+                    min={0.01}
+                    step="0.01"
+                  />
+                  <AutocompleteField
+                    control={control}
+                    name={getCurrencyFieldName(index)}
+                    fullWidth
+                    select
+                    options={currencyOptions}
+                    helperText={PRICE_CURRENCY}
+                    isHelperTextVisible={isHelperTextVisible}
+                    groupBy={(option) => option.group ?? ''}
+                    renderGroup={({ group, children, key }) => (
+                      <AutocompleteGroup key={key} group={group}>
+                        {children}
+                      </AutocompleteGroup>
+                    )}
+                  />
+                </div>
                 <DeleteButton onDelete={() => handleRemove(index)} />
               </FormFieldWithControlsWrapper>
-            </FormFieldWrapper>
-            <FormFieldWrapper>
-              <FormFieldLabel label={VALUE.label} id={VALUE.name} />
-              <FormTextField
-                control={control}
-                name={getValueFieldName(index)}
-                helperText={PRICE_VALUE}
-                isHelperTextVisible={isHelperTextVisible}
-                type={VALUE.type}
-                min={0.01}
-                step="0.01"
-              />
             </FormFieldWrapper>
           </li>
         ))}
