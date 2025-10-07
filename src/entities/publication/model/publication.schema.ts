@@ -16,6 +16,11 @@ export const GET_PUBLICATIONS = graphql(`
           }
         }
       }
+      prices {
+        unitPrice
+        priceId
+        currencyCode
+      }
     }
   }
 `);
@@ -24,6 +29,20 @@ export const CREATE_PUBLICATION = graphql(`
   mutation CreatePublication($data: NewPublication!) {
     createPublication(data: $data) {
       publicationId
+      work {
+        doi
+        title
+        imprint {
+          publisher {
+            publisherName
+          }
+        }
+      }
+      prices {
+        unitPrice
+        priceId
+        currencyCode
+      }
     }
   }
 `);

@@ -23,4 +23,8 @@ export const NOTIFICATIONS = {
   // Publications
   PUBLICATION_CREATION_FAILED: 'Failed to create publication',
   PUBLICATION_UPDATE_FAILED: 'Failed to update publication',
+  // Prices
+  PRICE_CREATION_FAILED: 'Failed to create price',
+  PRICE_UPDATE_FAILED: 'Failed to update price',
+  PRICE_DELETE_FAILED: 'Failed to delete price',
 } as const;

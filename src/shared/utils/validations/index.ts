@@ -6,6 +6,7 @@ import z from 'zod';
 import { appConfig } from '@/src/shared/config';
 import {
   ContributorTypes,
+  CurrencyCode,
   ERRORS,
   LanguageRelation,
   LanguageTypeAlt,
@@ -36,7 +37,7 @@ export const intValidation = z.coerce
 
 export const requiredIntValidation = intValidation.nonoptional();
 
-export const positiveIntValidation = z.coerce.number().nonnegative();
+export const positiveIntValidation = z.coerce.number().nonnegative().min(0.01);
 
 export const optionalPositiveIntValidation = z.coerce.number().nonnegative().optional();
 
@@ -62,6 +63,8 @@ export const languageRelationValidation = z.enum(LanguageRelation.enum);
 export const publicationTypeValidation = z.enum(PublicationType.enum);
 export const lengthUnitValidation = z.enum(LengthUnit.enum);
 export const weightUnitValidation = z.enum(WeightUnit.enum);
+export const currencyCodeValidation = z.enum(CurrencyCode.enum);
+
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });
 

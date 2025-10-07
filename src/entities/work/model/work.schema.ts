@@ -64,6 +64,11 @@ export const GET_BOOKS = graphql(`
             }
           }
         }
+        prices {
+          unitPrice
+          priceId
+          currencyCode
+        }
       }
     }
   }
@@ -132,6 +137,11 @@ export const GET_CHAPTERS = graphql(`
               publisherName
             }
           }
+        }
+        prices {
+          unitPrice
+          priceId
+          currencyCode
         }
       }
     }

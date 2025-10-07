@@ -215,6 +215,7 @@ export const theme = createTheme({
           fontWeight: 600,
           fontSize: '0.875rem',
           lineHeight: '1.125rem',
+          border: '1px solid var(--color-chip-border)',
         },
       },
     },

@@ -15,6 +15,7 @@ type EditPublicationProps = {
   depth: number;
   weight: number;
   isDimensionFormHidden: boolean;
+  children?: Readonly<React.ReactNode>;
   onDone?: () => void;
   onClose?: () => void;
   onUpdateType?: (type: PublicationType) => void;
@@ -32,6 +33,7 @@ const EditPublication = (props: EditPublicationProps) => {
     weight,
     showRecommendations,
     isDimensionFormHidden,
+    children,
     onDone,
     onClose,
     onUpdateType,
@@ -57,6 +59,7 @@ const EditPublication = (props: EditPublicationProps) => {
             onSubmit={onUpdateDimensions}
           />
         )}
+        {children}
       </TableFormsWrapper>
     </TableNewEntityFormWrapper>
   );

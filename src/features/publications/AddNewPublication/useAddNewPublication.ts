@@ -2,6 +2,8 @@
 
 import { useState } from 'react';
 
+import { useCreatePrice } from '@/src/entities/price';
+import type { PricesForm } from '@/src/entities/price/model/price.type';
 import { useCreatePublication, usePublicationsStateMachine } from '@/src/entities/publication';
 import type {
   PublicationDimensionsForm,
@@ -14,15 +16,36 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
 
   const { activePublication, close } = usePublicationsStateMachine();
-  const { createPublication } = useCreatePublication({ workId, queryToken });
+
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
+  const { createPrice } = useCreatePrice({
+    workId,
+    queryToken,
+  });
+  const { createPublication } = useCreatePublication({
+    workId,
+    queryToken,
+    onCompleted: (data) => {
+      if (!publication) return close();
+
+      const { id } = data;
+
+      publication.prices.forEach(({ currencyCode, unitPrice }) => {
+        createPrice({
+          publicationId: id,
+          currencyCode,
+          unitPrice,
+        });
+      });
+
+      close();
+    },
+  });
 
   const create = () => {
     if (!publication) return;
 
     createPublication(publication);
-
-    close();
   };
 
   const updateType = (type: PublicationType) => {
@@ -59,6 +82,18 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, ...dimensions, width, height, depth, weight });
   };
 
+  const updatePrices = (data: PricesForm) => {
+    if (!publication) return;
+
+    const prices = data.prices.map(({ priceId, currency, priceValue }) => ({
+      id: priceId,
+      currencyCode: currency.value,
+      unitPrice: priceValue,
+    }));
+
+    setPublication({ ...publication, prices });
+  };
+
   return {
     publication,
     close,
@@ -66,5 +101,6 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     updateType,
     updateIsbn,
     updateDimensions,
+    updatePrices,
   };
 };

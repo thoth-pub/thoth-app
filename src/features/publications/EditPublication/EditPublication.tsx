@@ -1,5 +1,6 @@
 'use client';
 
+import { EditPrice } from '@/src/entities/price';
 import { EditPublication as EditPublicationForm } from '@/src/entities/publication';
 import type { BaseRecommendedSectionProps } from '@/src/shared';
 
@@ -12,7 +13,7 @@ type EditPublicationProps = BaseRecommendedSectionProps & {
 const EditPublication = (props: EditPublicationProps) => {
   const { workId, queryToken, recommended = false, isDimensionFormHidden = false } = props;
 
-  const { activePublication, close, updateSizes, updateIsbn, updateType } = useEditPublication({
+  const { activePublication, close, updateSizes, updateIsbn, updateType, updatePrices } = useEditPublication({
     workId,
     queryToken,
   });
@@ -34,7 +35,9 @@ const EditPublication = (props: EditPublicationProps) => {
       onDone={close}
       onClose={close}
       onUpdateDimensions={updateSizes}
-    />
+    >
+      <EditPrice prices={activePublication.prices} onUpdate={updatePrices} onClose={close} />
+    </EditPublicationForm>
   );
 };
 

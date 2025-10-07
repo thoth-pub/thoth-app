@@ -127,7 +127,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
         )
         .sort((a, b) => a.orderNumber - b.orderNumber),
       publications: publications.map(
-        ({ publicationId, isbn, publicationType, updatedAt, width, height, weight, depth }) => ({
+        ({ publicationId, isbn, publicationType, updatedAt, width, height, weight, depth, prices }) => ({
           id: publicationId,
           isbn: isbn ?? '',
           type: publicationType,
@@ -139,6 +139,11 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           height: height ?? 0,
           weight: weight ?? 0,
           depth: depth ?? 0,
+          prices: prices.map(({ unitPrice, priceId, currencyCode }) => ({
+            id: priceId,
+            currencyCode,
+            unitPrice,
+          })),
         }),
       ),
     };

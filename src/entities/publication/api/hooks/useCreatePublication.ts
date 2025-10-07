@@ -1,25 +1,34 @@
-import type { CreateAffiliationMutation } from '@/gql/graphql';
+import type { CreatePublicationMutation } from '@/gql/graphql';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import { type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { PublicationDtoMapper } from '../../model/publication.mapper';
 import { CREATE_PUBLICATION } from '../../model/publication.schema';
-import { PublicationEntity } from '../../model/publication.types';
+import { PublicationDto, PublicationEntity } from '../../model/publication.types';
 
 const { PUBLICATION_CREATION_FAILED } = NOTIFICATIONS;
 
+type UseCreatePublicationProps = BaseEditSectionProps & {
+  onCompleted?: (data: PublicationEntity) => void;
+};
+
 const mapper = new PublicationDtoMapper();
 
-const useCreatePublication = (props: BaseEditSectionProps) => {
-  const { queryToken, workId = '' } = props;
+const useCreatePublication = (props: UseCreatePublicationProps) => {
+  const { queryToken, workId = '', onCompleted } = props;
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
+  const [mutate, { loading }] = useMutationWithAuth<CreatePublicationMutation>({
     queryToken,
     mutation: CREATE_PUBLICATION,
     options: {
+      onCompleted: (data: CreatePublicationMutation) => {
+        const publication = mapper.toEntity(data.createPublication as PublicationDto);
+
+        onCompleted?.(publication);
+      },
       onError: (error) => {
         console.error(error);
         sendErrorNotification(PUBLICATION_CREATION_FAILED);

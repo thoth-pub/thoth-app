@@ -76,6 +76,11 @@ export const WORK_FRAGMENT = graphql(`
           }
         }
       }
+      prices {
+        unitPrice
+        priceId
+        currencyCode
+      }
     }
   }
 `);

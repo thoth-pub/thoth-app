@@ -20,6 +20,7 @@ const defaultPublication = {
   height: 0,
   depth: 0,
   weight: 0,
+  prices: [],
 };
 
 const EditPublications = (props: BaseEditSectionProps) => {

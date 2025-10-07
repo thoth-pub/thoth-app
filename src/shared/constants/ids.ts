@@ -31,4 +31,5 @@ export const IDs = {
   PUBLICATION_TYPE: 'publication_type',
   PUBLICATION_ISBN: 'publication_isbn',
   PUBLICATION_SIZES: 'publication_sizes',
+  PRICES: 'publication_prices',
 } as const;

@@ -15,12 +15,13 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       depth,
       weight,
       work: {
-        title,
-        doi,
+        title = '',
+        doi = '',
         imprint: {
           publisher: { publisherName },
         },
       },
+      prices = [],
     } = dto;
 
     return {
@@ -35,12 +36,17 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       height: height ?? 0,
       depth: depth ?? 0,
       weight: weight ?? 0,
+      prices: prices.map(({ unitPrice, priceId, currencyCode }) => ({
+        id: priceId,
+        currencyCode,
+        unitPrice,
+      })),
     };
   }
 
   toDto(entity: Pick<PublicationEntity, 'id' | 'type' | 'isbn' | 'width' | 'height' | 'depth' | 'weight'>): Omit<
     PublicationDto,
-    'weight' | 'height' | 'width' | 'depth' | 'updatedAt' | 'work'
+    'weight' | 'height' | 'width' | 'depth' | 'updatedAt' | 'work' | 'prices'
   > & {
     widthMm: number | null;
     widthIn: number | null;

@@ -2,6 +2,7 @@ import z from 'zod';
 
 import type { Publication, PublicationType as GQLPublicationType, Publisher, Work } from '@/gql/graphql';
 
+import type { PriceDto, PriceEntity } from '../../price/model/price.type';
 import {
   dimensionsValidationSchema,
   isbnValidationSchema,
@@ -15,12 +16,15 @@ export type PublicationDto = Pick<
   work: Pick<Work, 'doi' | 'title'> & {
     imprint: { publisher: Pick<Publisher, 'publisherName'> };
   };
+  prices: PriceDto[];
 };
+
+export type PublicationId = string;
 
 export type PublicationType = GQLPublicationType;
 
 export type PublicationEntity = {
-  id: string;
+  id: PublicationId;
   isbn: string;
   title: string;
   type: PublicationType;
@@ -31,6 +35,7 @@ export type PublicationEntity = {
   height: number;
   depth: number;
   weight: number;
+  prices: PriceEntity[];
 };
 
 export type PublicationTypeForm = z.infer<typeof publicationTypeValidationSchema>;

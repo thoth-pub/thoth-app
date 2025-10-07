@@ -1,5 +1,6 @@
 export * from './affiliations';
 export * from './contributors';
 export * from './languages';
+export * from './price';
 export * from './publications';
 export * from './works';
