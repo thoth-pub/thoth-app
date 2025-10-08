@@ -5,8 +5,9 @@ import {
   type FieldValues,
   SubmitHandler,
   useForm,
-  UseFormReset,
-  ValidationMode,
+  type UseFormReset,
+  type UseFormSetValue,
+  type ValidationMode,
 } from 'react-hook-form';
 import { useUnmount } from 'react-use';
 import type { ZodType } from 'zod';
@@ -19,7 +20,11 @@ export type FormProps<T extends FieldValues> = {
   isTableVariant?: boolean;
   validationMode?: keyof ValidationMode;
   borderTransparent?: boolean;
-  children: (props: { control: Control<FieldValues>; reset: UseFormReset<FieldValues> }) => Readonly<React.ReactNode>;
+  children: (props: {
+    control: Control<FieldValues>;
+    reset: UseFormReset<FieldValues>;
+    setValue: UseFormSetValue<FieldValues>;
+  }) => Readonly<React.ReactNode>;
   onSubmit: SubmitHandler<T>;
   onAutoSubmit: (data: FieldValues) => void;
   onClose: () => void;
@@ -45,6 +50,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     handleSubmit,
     getValues,
     reset,
+    setValue,
     formState: { isValid, isDirty, isSubmitSuccessful },
   } = useForm({
     resolver: zodResolver(validationSchema),
@@ -72,7 +78,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
       onSubmit={handleSubmitForm}
       className={`flex gap-1 ${borderTransparent ? '' : 'border-1 border-[var(--color-hover-border)]'} bg-[var(--color-form-background)] ${isTableVariant ? '' : 'rounded-xl p-4'} `}
     >
-      <div className="grow">{children({ control: control as Control<FieldValues>, reset })}</div>
+      <div className="grow">{children({ control: control as Control<FieldValues>, reset, setValue })}</div>
       <FormControlGroup isDisabled={isSubmitDisabled} onClose={onClose} onInfo={onInfo} />
     </form>
   );

@@ -1,7 +1,14 @@
 'use client';
 
 import { useState } from 'react';
-import type { Control, DefaultValues, FieldValues, UseFormReset, ValidationMode } from 'react-hook-form';
+import type {
+  Control,
+  DefaultValues,
+  FieldValues,
+  UseFormReset,
+  UseFormSetValue,
+  ValidationMode,
+} from 'react-hook-form';
 
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -12,6 +19,7 @@ type FormFieldsProps = {
   control: Control<FieldValues>;
   isHelperTextVisible?: boolean;
   reset: UseFormReset<FieldValues>;
+  setValue: UseFormSetValue<FieldValues>;
 };
 
 type PreviewProps<T extends FieldValues> = Partial<{
@@ -25,7 +33,7 @@ type EditableContentProps<T extends FieldValues> = {
   isDisabled?: boolean;
   borderTransparent?: boolean;
   onSubmit: (data: T) => void;
-  formFields: ({ control, isHelperTextVisible, reset }: FormFieldsProps) => Readonly<React.ReactNode>;
+  formFields: ({ control, isHelperTextVisible, reset, setValue }: FormFieldsProps) => Readonly<React.ReactNode>;
   preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
   skipAutoSubmit?: boolean;
   resetOnSubmit?: boolean;
@@ -99,7 +107,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           onClose={onClose}
           onInfo={handleShowInfo}
         >
-          {({ control, reset }) => formFields({ control, isHelperTextVisible: showInfo, reset })}
+          {({ control, reset, setValue }) => formFields({ control, isHelperTextVisible: showInfo, reset, setValue })}
         </FormWrapper>
       ) : (
         <div

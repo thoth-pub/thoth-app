@@ -26,8 +26,6 @@ export const HELPER_TEXT = {
   PUBLICATION_HEIGHT: 'Enter the height of the publication.',
   PUBLICATION_DEPTH: 'Enter the depth of the publication.',
   PUBLICATION_WEIGHT: 'Enter the weight of the publication.',
-  LENGTH_UNIT: 'Choose the unit of measurement for the length.',
-  WEIGHT_UNIT: 'Choose the unit of measurement for the weight.',
   PRICE_CURRENCY: 'Choose the currency of the price.',
   PRICE_VALUE: 'Enter the value of the price.',
   LOCATION_PLATFORM: 'Choose the platform of the publication.',

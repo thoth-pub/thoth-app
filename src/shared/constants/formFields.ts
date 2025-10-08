@@ -274,41 +274,53 @@ export const FORM_FIELDS = {
     label: 'Dimensions',
     name: 'dimensions',
   },
-  PUBLICATION_WIDTH: {
+  PUBLICATION_WIDTH_MM: {
     label: 'Width',
-    name: 'width',
+    name: 'widthMm',
     placeholder: 'Width',
     type: InputTypes.NUMBER,
   },
-  PUBLICATION_HEIGHT: {
+  PUBLICATION_WIDTH_IN: {
+    label: 'Width',
+    name: 'widthIn',
+    placeholder: 'Width',
+    type: InputTypes.NUMBER,
+  },
+  PUBLICATION_HEIGHT_MM: {
     label: 'Height',
-    name: 'height',
+    name: 'heightMm',
     placeholder: 'Height',
     type: InputTypes.NUMBER,
   },
-  PUBLICATION_DEPTH: {
+  PUBLICATION_HEIGHT_IN: {
+    label: 'Height',
+    name: 'heightIn',
+    placeholder: 'Height',
+    type: InputTypes.NUMBER,
+  },
+  PUBLICATION_DEPTH_MM: {
     label: 'Depth',
-    name: 'depth',
+    name: 'depthMm',
     placeholder: 'Depth',
     type: InputTypes.NUMBER,
   },
-  PUBLICATION_WEIGHT: {
+  PUBLICATION_DEPTH_IN: {
+    label: 'Depth',
+    name: 'depthIn',
+    placeholder: 'Depth',
+    type: InputTypes.NUMBER,
+  },
+  PUBLICATION_WEIGHT_G: {
     label: 'Weight',
-    name: 'weight',
+    name: 'weightG',
     placeholder: 'Weight',
     type: InputTypes.NUMBER,
   },
-  LENGTH_UNIT: {
-    label: 'Length Unit',
-    name: 'lengthUnit',
-    placeholder: 'Length Unit',
-    type: InputTypes.TEXT,
-  },
-  WEIGHT_UNIT: {
-    label: 'Weight Unit',
-    name: 'weightUnit',
-    placeholder: 'Weight Unit',
-    type: InputTypes.TEXT,
+  PUBLICATION_WEIGHT_OZ: {
+    label: 'Weight',
+    name: 'weightOz',
+    placeholder: 'Weight',
+    type: InputTypes.NUMBER,
   },
   PRICES: {
     label: 'Price',

@@ -34,9 +34,13 @@ export type PublicationEntity = {
   doi: string;
   publisherName: string;
   width: number;
+  widthIn: number;
   height: number;
+  heightIn: number;
   depth: number;
+  depthIn: number;
   weight: number;
+  weightOz: number;
   prices: PriceEntity[];
   locations: LocationEntity[];
 };

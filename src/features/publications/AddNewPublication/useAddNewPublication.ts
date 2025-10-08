@@ -12,7 +12,7 @@ import type {
   PublicationEntity,
   PublicationType,
 } from '@/src/entities/publication/model/publication.types';
-import { type BaseEditSectionProps, convertInToMm, convertOzToG, LengthUnit, WeightUnit } from '@/src/shared';
+import { type BaseEditSectionProps } from '@/src/shared';
 
 export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
@@ -83,23 +83,27 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const updateDimensions = (dimensions: PublicationDimensionsForm) => {
     if (!publication) return;
 
-    let width = dimensions.width ? +dimensions.width : 0;
-    let height = dimensions.height ? +dimensions.height : 0;
-    let depth = dimensions.depth ? +dimensions.depth : 0;
+    const width = dimensions.widthMm ? +dimensions.widthMm : 0;
+    const widthIn = dimensions.widthIn ? +dimensions.widthIn : 0;
+    const height = dimensions.heightMm ? +dimensions.heightMm : 0;
+    const heightIn = dimensions.heightIn ? +dimensions.heightIn : 0;
+    const depth = dimensions.depthMm ? +dimensions.depthMm : 0;
+    const depthIn = dimensions.depthIn ? +dimensions.depthIn : 0;
+    const weight = dimensions.weightG ? +dimensions.weightG : 0;
+    const weightOz = dimensions.weightOz ? +dimensions.weightOz : 0;
 
-    if (dimensions.lengthUnit === LengthUnit.enum.In) {
-      width = convertInToMm(width);
-      height = convertInToMm(height);
-      depth = convertInToMm(depth);
-    }
-
-    let weight = dimensions.weight ? +dimensions.weight : 0;
-
-    if (dimensions.weightUnit === WeightUnit.enum.Oz) {
-      weight = convertOzToG(weight);
-    }
-
-    setPublication({ ...publication, ...dimensions, width, height, depth, weight });
+    setPublication({
+      ...publication,
+      ...dimensions,
+      width,
+      widthIn,
+      height,
+      heightIn,
+      depth,
+      depthIn,
+      weight,
+      weightOz,
+    });
   };
 
   const updatePrices = (data: PricesForm) => {

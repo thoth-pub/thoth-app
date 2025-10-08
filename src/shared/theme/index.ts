@@ -53,6 +53,9 @@ export const theme = createTheme({
     success: {
       main: '#42b072',
     },
+    secondary: {
+      main: '#fff2d9',
+    },
   },
   components: {
     MuiLink: {

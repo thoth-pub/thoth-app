@@ -20,6 +20,10 @@ const defaultPublication = {
   height: 0,
   depth: 0,
   weight: 0,
+  widthIn: 0,
+  heightIn: 0,
+  depthIn: 0,
+  weightOz: 0,
   prices: [],
   locations: [],
 };

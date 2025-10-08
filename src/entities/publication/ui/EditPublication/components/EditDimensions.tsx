@@ -1,12 +1,13 @@
 import { useMemo } from 'react';
 
-import { convertMmToIn, convertOzToG, HELPER_TEXT, IDs, LengthUnit, WeightUnit } from '@/src/shared';
-import { FORM_FIELDS, lengthUnitOptions, weightUnitOptions } from '@/src/shared/constants/formFields';
-import { ContentWrapper, FormFieldLabel, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
+import { convertMmToIn, convertOzToG, HELPER_TEXT, IDs, WeightUnit } from '@/src/shared';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { MultipleContentWrapper, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import type { PublicationDimensionsForm } from '../../../model/publication.types';
 import { dimensionsValidationSchema } from '../../../model/publication.validation';
+import { DimensionsFormField } from './DimensionsFormField';
 
 type EditSizesProps = {
   recommended: boolean;
@@ -18,13 +19,15 @@ type EditSizesProps = {
 };
 
 const {
-  PUBLICATION_WIDTH,
-  PUBLICATION_HEIGHT,
-  PUBLICATION_DEPTH,
-  PUBLICATION_WEIGHT,
+  PUBLICATION_WIDTH_MM,
+  PUBLICATION_WIDTH_IN,
+  PUBLICATION_HEIGHT_MM,
+  PUBLICATION_HEIGHT_IN,
+  PUBLICATION_DEPTH_MM,
+  PUBLICATION_DEPTH_IN,
+  PUBLICATION_WEIGHT_G,
+  PUBLICATION_WEIGHT_OZ,
   PUBLICATION_DIMENSIONS,
-  LENGTH_UNIT,
-  WEIGHT_UNIT,
 } = FORM_FIELDS;
 
 const {
@@ -32,8 +35,6 @@ const {
   PUBLICATION_HEIGHT: PUBLICATION_HEIGHT_HELPER_TEXT,
   PUBLICATION_DEPTH: PUBLICATION_DEPTH_HELPER_TEXT,
   PUBLICATION_WEIGHT: PUBLICATION_WEIGHT_HELPER_TEXT,
-  LENGTH_UNIT: LENGTH_UNIT_HELPER_TEXT,
-  WEIGHT_UNIT: WEIGHT_UNIT_HELPER_TEXT,
 } = HELPER_TEXT;
 
 export const EditDimensions = (props: EditSizesProps) => {
@@ -102,116 +103,68 @@ export const EditDimensions = (props: EditSizesProps) => {
       formId={IDs.PUBLICATION_SIZES}
       borderTransparent
       defaultValues={{
-        [PUBLICATION_WIDTH.name]: width,
-        [PUBLICATION_HEIGHT.name]: height,
-        [PUBLICATION_DEPTH.name]: depth,
-        [LENGTH_UNIT.name]: LengthUnit.enum.Mm,
-        [WEIGHT_UNIT.name]: WeightUnit.enum.G,
-        [PUBLICATION_WEIGHT.name]: weight,
+        [PUBLICATION_WIDTH_MM.name]: width,
+        [PUBLICATION_WIDTH_IN.name]: convertMmToIn(width),
+        [PUBLICATION_HEIGHT_MM.name]: height,
+        [PUBLICATION_HEIGHT_IN.name]: convertMmToIn(height),
+        [PUBLICATION_DEPTH_MM.name]: depth,
+        [PUBLICATION_DEPTH_IN.name]: convertMmToIn(depth),
+        [PUBLICATION_WEIGHT_G.name]: weight,
+        [PUBLICATION_WEIGHT_OZ.name]: convertOzToG(weight),
       }}
       validationSchema={dimensionsValidationSchema}
       onSubmit={handleSubmit}
-      formFields={({ control, isHelperTextVisible }) => (
+      formFields={({ control, isHelperTextVisible, setValue }) => (
         <MultipleContentWrapper>
-          <ContentWrapper>
-            <FormFieldLabel label={LENGTH_UNIT.label} id={LENGTH_UNIT.name} />
-            <FormTextField
-              control={control}
-              name={LENGTH_UNIT.name}
-              id={LENGTH_UNIT.name}
-              select
-              options={lengthUnitOptions}
-              helperText={LENGTH_UNIT_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
-              type={LENGTH_UNIT.type}
-            />
-          </ContentWrapper>
+          <div className="grid max-w-max grid-cols-[16.5rem_16.5rem] border-b border-[var(--color-table-border)] pb-2 pl-[11.25rem]">
+            <Typography>Metric</Typography>
+            <Typography className="pl-6">Imperial</Typography>
+          </div>
 
-          <ContentWrapper>
-            <FormFieldLabel
-              recommended={showWidthIndicator}
-              label={PUBLICATION_WIDTH.label}
-              id={PUBLICATION_WIDTH.name}
-            />
-            <FormTextField
-              control={control}
-              name={PUBLICATION_WIDTH.name}
-              id={PUBLICATION_WIDTH.name}
-              helperText={PUBLICATION_WIDTH_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
-              type={PUBLICATION_WIDTH.type}
-              min={0}
-              step="0.01"
-            />
-          </ContentWrapper>
+          <DimensionsFormField
+            control={control}
+            metricFieldName={PUBLICATION_WIDTH_MM.name}
+            imperialFieldName={PUBLICATION_WIDTH_IN.name}
+            label={PUBLICATION_WIDTH_MM.label}
+            recommended={showWidthIndicator}
+            isHelperTextVisible={isHelperTextVisible}
+            helperText={PUBLICATION_WIDTH_HELPER_TEXT}
+            onAutoConvert={setValue}
+          />
 
-          <ContentWrapper>
-            <FormFieldLabel
-              recommended={showHeightIndicator}
-              label={PUBLICATION_HEIGHT.label}
-              id={PUBLICATION_HEIGHT.name}
-            />
-            <FormTextField
-              control={control}
-              name={PUBLICATION_HEIGHT.name}
-              id={PUBLICATION_HEIGHT.name}
-              helperText={PUBLICATION_HEIGHT_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
-              type={PUBLICATION_HEIGHT.type}
-              min={0}
-              step="0.01"
-            />
-          </ContentWrapper>
+          <DimensionsFormField
+            control={control}
+            metricFieldName={PUBLICATION_HEIGHT_MM.name}
+            imperialFieldName={PUBLICATION_HEIGHT_IN.name}
+            label={PUBLICATION_HEIGHT_MM.label}
+            recommended={showHeightIndicator}
+            isHelperTextVisible={isHelperTextVisible}
+            helperText={PUBLICATION_HEIGHT_HELPER_TEXT}
+            onAutoConvert={setValue}
+          />
 
-          <ContentWrapper>
-            <FormFieldLabel
-              recommended={showDepthIndicator}
-              label={PUBLICATION_DEPTH.label}
-              id={PUBLICATION_DEPTH.name}
-            />
-            <FormTextField
-              control={control}
-              name={PUBLICATION_DEPTH.name}
-              id={PUBLICATION_DEPTH.name}
-              helperText={PUBLICATION_DEPTH_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
-              type={PUBLICATION_DEPTH.type}
-              min={0}
-              step="0.01"
-            />
-          </ContentWrapper>
+          <DimensionsFormField
+            control={control}
+            metricFieldName={PUBLICATION_DEPTH_MM.name}
+            imperialFieldName={PUBLICATION_DEPTH_IN.name}
+            label={PUBLICATION_DEPTH_MM.label}
+            recommended={showDepthIndicator}
+            isHelperTextVisible={isHelperTextVisible}
+            helperText={PUBLICATION_DEPTH_HELPER_TEXT}
+            onAutoConvert={setValue}
+          />
 
-          <ContentWrapper>
-            <FormFieldLabel label={WEIGHT_UNIT.label} id={WEIGHT_UNIT.name} />
-            <FormTextField
-              control={control}
-              name={WEIGHT_UNIT.name}
-              id={WEIGHT_UNIT.name}
-              select
-              options={weightUnitOptions}
-              helperText={WEIGHT_UNIT_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
-              type={WEIGHT_UNIT.type}
-            />
-          </ContentWrapper>
-
-          <ContentWrapper>
-            <FormFieldLabel
-              recommended={showWeightIndicator}
-              label={PUBLICATION_WEIGHT.label}
-              id={PUBLICATION_WEIGHT.name}
-            />
-            <FormTextField
-              control={control}
-              name={PUBLICATION_WEIGHT.name}
-              id={PUBLICATION_WEIGHT.name}
-              helperText={PUBLICATION_WEIGHT_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
-              type={PUBLICATION_WEIGHT.type}
-              min={0}
-              step="0.01"
-            />
-          </ContentWrapper>
+          <DimensionsFormField
+            control={control}
+            metricFieldName={PUBLICATION_WEIGHT_G.name}
+            imperialFieldName={PUBLICATION_WEIGHT_OZ.name}
+            label={PUBLICATION_WEIGHT_G.label}
+            recommended={showWeightIndicator}
+            isHelperTextVisible={isHelperTextVisible}
+            helperText={PUBLICATION_WEIGHT_HELPER_TEXT}
+            measurementUnit={WeightUnit.enum.G}
+            onAutoConvert={setValue}
+          />
         </MultipleContentWrapper>
       )}
       preview={({ onEdit }) => (

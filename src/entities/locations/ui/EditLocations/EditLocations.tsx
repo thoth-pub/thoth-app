@@ -1,4 +1,4 @@
-import DescriptionIcon from '@mui/icons-material/Description';
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import type { Control } from 'react-hook-form';
 
 import { IDs } from '@/src/shared';
@@ -68,7 +68,7 @@ const EditLocations = (props: EditLocationsProps) => {
                 <li key={platformId} className="flex items-center gap-1">
                   <Chip label={label} size="small" component="span" />
                   <Typography>{landingPage}</Typography>
-                  {fullTextUrl && fullTextUrl.length > 0 && <DescriptionIcon color="primary" />}
+                  {fullTextUrl && fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
                   <ButtonGroup className="ml-auto">
                     <DeleteButton onClick={() => onDelete?.(platformId)} />
                     <FavoriteButton isFavorite={canonical} onClick={() => onSelectAsCanonical?.(platformId)} />
