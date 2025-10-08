@@ -41,7 +41,7 @@ const EditPublicationType = (props: EditPublicationTypeProps) => {
             name={PUBLICATION_TYPE.name}
             select
             options={publicationTypeOptions}
-            fullWidth
+            id={PUBLICATION_TYPE.name}
             helperText={PUBLICATION_TYPE_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
           />

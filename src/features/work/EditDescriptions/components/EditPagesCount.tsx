@@ -90,6 +90,7 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
               control={control}
               name={WORK_PAGES_COUNT.name}
               helperText={WORK_PAGES_COUNT_HELPER_TEXT}
+              id={WORK_PAGES_COUNT.name}
               isHelperTextVisible={isHelperTextVisible}
               type={WORK_PAGES_COUNT.type}
               min={0}
@@ -105,6 +106,7 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
               control={control}
               name={WORK_FRONTMATTER_COUNT.name}
               helperText={WORK_FRONTMATTER_COUNT_HELPER_TEXT}
+              id={WORK_FRONTMATTER_COUNT.name}
               isHelperTextVisible={isHelperTextVisible}
               type={WORK_FRONTMATTER_COUNT.type}
               min={0}
@@ -116,6 +118,7 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
               control={control}
               name={WORK_BACKMATTER_COUNT.name}
               helperText={WORK_BACKMATTER_COUNT_HELPER_TEXT}
+              id={WORK_BACKMATTER_COUNT.name}
               isHelperTextVisible={isHelperTextVisible}
               type={WORK_BACKMATTER_COUNT.type}
               min={0}

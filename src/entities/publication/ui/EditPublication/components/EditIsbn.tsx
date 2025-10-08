@@ -39,7 +39,7 @@ const EditIsbn = (props: EditIsbnProps) => {
           <FormTextField
             control={control}
             name={PUBLICATION_ISBN.name}
-            fullWidth
+            id={PUBLICATION_ISBN.name}
             helperText={PUBLICATION_ISBN_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
           />

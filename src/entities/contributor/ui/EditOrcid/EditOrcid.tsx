@@ -36,7 +36,7 @@ const EditOrcid = (props: EditOrcidProps) => {
           <FormTextField
             control={control}
             name={ORCID.name}
-            fullWidth
+            id={ORCID.name}
             helperText={CONTRIBUTOR_ORCID_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
             disabled={disabled}

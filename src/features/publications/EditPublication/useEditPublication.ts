@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 
-import { useCreateLocation, useDeleteLocation } from '@/src/entities/locations';
-import type { LocationsForm } from '@/src/entities/locations/model/location.type';
+import { useCreateLocation, useDeleteLocation, useUpdateLocation } from '@/src/entities/locations';
+import type { LocationEntity, LocationsForm } from '@/src/entities/locations/model/location.type';
 import { useCreatePrice, useDeletePrice, useUpdatePrice } from '@/src/entities/price';
 import type { CurrencyCode, PricesForm } from '@/src/entities/price/model/price.type';
 import { usePublicationsStateMachine, useUpdatePublication } from '@/src/entities/publication';
@@ -12,7 +12,7 @@ import type {
   PublicationEntity,
   PublicationType,
 } from '@/src/entities/publication/model/publication.types';
-import { type BaseEditSectionProps } from '@/src/shared';
+import { type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 
 export const useEditPublication = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
@@ -24,6 +24,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { updatePrice } = useUpdatePrice({ workId, queryToken });
   const { deletePrice } = useDeletePrice({ workId, queryToken });
   const { createLocation } = useCreateLocation({ workId, queryToken });
+  const { updateLocation } = useUpdateLocation({ workId, queryToken });
   const { deleteLocation: deleteLocationMutation } = useDeleteLocation({ workId, queryToken });
 
   const updateSizes = (sizes: PublicationDimensionsForm) => {
@@ -110,13 +111,20 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       landingPage: landingPage ?? '',
     }));
 
-    const prevLocations = [...publication.locations];
+    const newLocations = locations.filter(({ id }) => isDefaultId(id));
+    const existingLocations = locations.filter(({ id }) => !isDefaultId(id));
+    const updatedLocations = publication.locations.filter((location) => {
+      const existingLocation = existingLocations.find(({ id }) => id === location.id);
 
-    prevLocations.forEach(({ id }) => {
-      deleteLocationMutation(id);
+      if (!existingLocation) return false;
+
+      const keys = Object.keys(existingLocation) as (keyof LocationEntity)[];
+      const isUpdated = keys.some((key) => existingLocation[key] !== location[key]);
+
+      return isUpdated;
     });
 
-    locations.forEach(({ locationPlatform, canonical, fullTextUrl, landingPage }) => {
+    newLocations.forEach(({ locationPlatform, canonical, fullTextUrl, landingPage }) => {
       createLocation({
         publicationId: publication.id,
         locationPlatform,
@@ -126,7 +134,18 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       });
     });
 
-    setPublication({ ...publication, locations });
+    updatedLocations.forEach(({ id, locationPlatform, canonical, fullTextUrl, landingPage }) => {
+      updateLocation({
+        id,
+        locationPlatform,
+        canonical,
+        fullTextUrl,
+        landingPage,
+        publicationId: publication.id,
+      });
+    });
+
+    setPublication({ ...publication, locations: [...newLocations, ...updatedLocations] });
   };
 
   const deleteLocation = (platformId: string) => {

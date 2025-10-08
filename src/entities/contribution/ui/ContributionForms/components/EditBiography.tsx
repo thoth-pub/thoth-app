@@ -41,6 +41,7 @@ export const EditBiography = (props: EditBiographyProps) => {
             name={CONTRIBUTOR_BIOGRAPHY.name}
             control={control}
             helperText={isHelperTextVisible ? CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT : ''}
+            id={CONTRIBUTOR_BIOGRAPHY.name}
           >
             <MarkdownSwitch />
           </MarkdownField>

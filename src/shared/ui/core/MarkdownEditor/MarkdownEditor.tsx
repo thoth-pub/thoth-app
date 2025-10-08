@@ -55,7 +55,7 @@ const MarkdownEditor = (props: MarkdownEditorProps) => {
           color: 'var(--color-markdown-text)',
         }}
         inputMode="text"
-        id={id}
+        textareaProps={{ id }}
         ref={editorRef}
       />
       <div className="flex flex-1 justify-between">

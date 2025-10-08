@@ -9,6 +9,7 @@ import {
   AutocompleteGroup,
   CheckboxFormField,
   DeleteButton,
+  FormFieldLabel,
   FormFieldWithControlsWrapper,
   FormFieldWrapper,
   FormTextField,
@@ -99,12 +100,12 @@ export const FormFields = (props: FormFieldsProps) => {
         {fields.map((field, index) => (
           <li key={field.id} className={itemsStyle}>
             <FormFieldWrapper>
-              <InputLabel>{LOCATIONS.label}</InputLabel>
+              <FormFieldLabel label={LOCATIONS.label} id={getPlatformFieldName(index)} />
               <FormFieldWithControlsWrapper>
                 <AutocompleteField
                   control={control}
                   name={getPlatformFieldName(index)}
-                  fullWidth
+                  id={getPlatformFieldName(index)}
                   select
                   options={locationPlatformOptions}
                   helperText={LOCATION_PLATFORM}
@@ -120,30 +121,33 @@ export const FormFields = (props: FormFieldsProps) => {
               </FormFieldWithControlsWrapper>
             </FormFieldWrapper>
             <FormFieldWrapper>
-              <InputLabel>{LANDING_PAGE.label}</InputLabel>
+              <FormFieldLabel label={LANDING_PAGE.label} id={getLandingPageFieldName(index)} />
               <FormTextField
                 control={control}
                 name={getLandingPageFieldName(index)}
+                id={getLandingPageFieldName(index)}
                 helperText={LANDING_PAGE_HELPER_TEXT}
                 isHelperTextVisible={isHelperTextVisible}
                 isUrlField
               />
             </FormFieldWrapper>
             <FormFieldWrapper>
-              <InputLabel>{URL.label}</InputLabel>
+              <FormFieldLabel label={URL.label} id={getUrlFieldName(index)} />
               <FormTextField
                 control={control}
                 name={getUrlFieldName(index)}
+                id={getUrlFieldName(index)}
                 helperText={LOCATION_URL_HELPER_TEXT}
                 isHelperTextVisible={isHelperTextVisible}
                 isUrlField
               />
             </FormFieldWrapper>
             <FormFieldWrapper>
-              <InputLabel>{CANONICAL.label}</InputLabel>
+              <FormFieldLabel label={CANONICAL.label} id={getCanonicalFieldName(index)} />
               <CheckboxFormField
                 control={control}
                 name={getCanonicalFieldName(index)}
+                id={getCanonicalFieldName(index)}
                 className="mr-auto p-0"
                 isHelperTextVisible={isHelperTextVisible}
               />

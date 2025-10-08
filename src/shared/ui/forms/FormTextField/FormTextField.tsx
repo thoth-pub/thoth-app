@@ -15,6 +15,7 @@ export type FormTextFieldComponentProps<T extends FieldValues> = {
   isDoiField?: boolean;
   isUrlField?: boolean;
   isRorField?: boolean;
+  id?: string;
 } & BaseFieldProps<T> &
   TextFieldProps;
 
@@ -30,6 +31,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     isHelperTextVisible = false,
     helperText,
     step,
+    id,
     isDoiField = false,
     isUrlField = false,
     isRorField = false,
@@ -79,6 +81,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
             input: {
               inputProps: {
                 step,
+                id,
               },
               startAdornment: addPrefix && (
                 <InputAdornment position="start">

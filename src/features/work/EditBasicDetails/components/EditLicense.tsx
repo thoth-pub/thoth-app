@@ -48,7 +48,7 @@ export const EditLicense = ({ workId, queryToken, recommended = false }: BaseRec
             <AutocompleteField
               control={control}
               name={LICENSE.name}
-              fullWidth
+              id={LICENSE.name}
               select
               options={licenseOptions}
               helperText={HELPER_TEXT.LICENSE}
@@ -70,7 +70,7 @@ export const EditLicense = ({ workId, queryToken, recommended = false }: BaseRec
             <FormTextField
               control={control}
               name={COPYRIGHT_HOLDER.name}
-              fullWidth
+              id={COPYRIGHT_HOLDER.name}
               helperText={HELPER_TEXT.COPYRIGHT_HOLDER}
               isHelperTextVisible={isHelperTextVisible}
             />

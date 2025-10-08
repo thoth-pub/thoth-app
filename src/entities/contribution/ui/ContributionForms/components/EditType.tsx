@@ -38,7 +38,7 @@ export const EditType = (props: EditTypeProps) => {
             name={CONTRIBUTOR_TYPE.name}
             select
             options={contributorTypeOptions}
-            fullWidth
+            id={CONTRIBUTOR_TYPE.name}
             helperText={CONTRIBUTOR_TYPE_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
           />

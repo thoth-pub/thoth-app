@@ -11,11 +11,11 @@ import { useDebouncedValue } from '@/src/shared/hooks';
 import {
   AutocompleteField,
   DeleteButton,
+  FormFieldLabel,
   FormFieldWithControlsWrapper,
   FormFieldWrapper,
   FormTextField,
   InputAdornment,
-  InputLabel,
 } from '@/src/shared/ui';
 
 import type { AffiliationsForm } from '../../model/affiliation.types';
@@ -39,12 +39,13 @@ export const FormField = ({ control, affiliationFieldName, positionFieldName, on
   return (
     <>
       <FormFieldWrapper>
-        <InputLabel>{AFFILIATION.label}</InputLabel>
+        <FormFieldLabel label={AFFILIATION.label} id={AFFILIATION.name} />
         <FormFieldWithControlsWrapper>
           <AutocompleteField
             freeSolo
             disableClearable
             name={affiliationFieldName}
+            id={affiliationFieldName}
             control={control}
             options={options}
             className="pl-[1.25rem]"
@@ -60,8 +61,14 @@ export const FormField = ({ control, affiliationFieldName, positionFieldName, on
         </FormFieldWithControlsWrapper>
       </FormFieldWrapper>
       <FormFieldWrapper>
-        <InputLabel>{POSITION.label}</InputLabel>
-        <FormTextField className="pl-[1.25rem]" fullWidth name={positionFieldName} control={control} />
+        <FormFieldLabel label={POSITION.label} id={POSITION.name} />
+        <FormTextField
+          className="pl-[1.25rem]"
+          id={positionFieldName}
+          fullWidth
+          name={positionFieldName}
+          control={control}
+        />
       </FormFieldWrapper>
     </>
   );

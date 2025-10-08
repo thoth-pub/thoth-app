@@ -33,7 +33,7 @@ export const EditImprint = ({ workId, queryToken, recommended = false }: BaseRec
           <FormTextField
             control={control}
             name={WORK_TYPE.name}
-            fullWidth
+            id={WORK_TYPE.name}
             select
             options={workTypeOptions}
             helperText={HELPER_TEXT.WORK_TYPE}

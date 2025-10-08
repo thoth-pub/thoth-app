@@ -36,7 +36,7 @@ export const EditWebsite = (props: EditWebsiteProps) => {
           <FormTextField
             control={control}
             name={WEBSITE_URL.name}
-            fullWidth
+            id={WEBSITE_URL.name}
             helperText={CONTRIBUTOR_WEBSITE_URL_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
             isUrlField

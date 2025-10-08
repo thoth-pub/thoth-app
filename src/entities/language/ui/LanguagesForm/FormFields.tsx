@@ -8,6 +8,7 @@ import {
   AddButton,
   AutocompleteField,
   DeleteButton,
+  FormFieldLabel,
   FormFieldWithControlsWrapper,
   FormFieldWrapper,
   FormTextField,
@@ -83,12 +84,13 @@ export const FormFields = (props: FormFieldsProps) => {
         {fields.map((field, index) => (
           <li key={field.id} className={itemsStyle}>
             <FormFieldWrapper>
-              <InputLabel>{LANGUAGE.label}</InputLabel>
+              <FormFieldLabel label={LANGUAGE.label} id={LANGUAGE.name} />
               <FormFieldWithControlsWrapper>
                 <AutocompleteField
                   name={getLanguageFieldName(index)}
                   control={control}
                   fullWidth
+                  id={getLanguageFieldName(index)}
                   options={languageOptions}
                 />
                 <DeleteButton onDelete={() => handleRemove(index)} />
@@ -96,10 +98,11 @@ export const FormFields = (props: FormFieldsProps) => {
             </FormFieldWrapper>
 
             <FormFieldWrapper>
-              <InputLabel>{LANGUAGE_RELATION.label}</InputLabel>
+              <FormFieldLabel label={LANGUAGE_RELATION.label} id={LANGUAGE_RELATION.name} />
               <FormTextField
                 name={getLanguageRelationFieldName(index)}
                 control={control}
+                id={getLanguageRelationFieldName(index)}
                 select
                 options={languageRelationOptions}
               />

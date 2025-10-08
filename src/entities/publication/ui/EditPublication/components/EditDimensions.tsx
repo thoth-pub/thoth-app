@@ -118,7 +118,7 @@ export const EditDimensions = (props: EditSizesProps) => {
             <FormTextField
               control={control}
               name={LENGTH_UNIT.name}
-              fullWidth
+              id={LENGTH_UNIT.name}
               select
               options={lengthUnitOptions}
               helperText={LENGTH_UNIT_HELPER_TEXT}
@@ -136,7 +136,7 @@ export const EditDimensions = (props: EditSizesProps) => {
             <FormTextField
               control={control}
               name={PUBLICATION_WIDTH.name}
-              fullWidth
+              id={PUBLICATION_WIDTH.name}
               helperText={PUBLICATION_WIDTH_HELPER_TEXT}
               isHelperTextVisible={isHelperTextVisible}
               type={PUBLICATION_WIDTH.type}
@@ -154,7 +154,7 @@ export const EditDimensions = (props: EditSizesProps) => {
             <FormTextField
               control={control}
               name={PUBLICATION_HEIGHT.name}
-              fullWidth
+              id={PUBLICATION_HEIGHT.name}
               helperText={PUBLICATION_HEIGHT_HELPER_TEXT}
               isHelperTextVisible={isHelperTextVisible}
               type={PUBLICATION_HEIGHT.type}
@@ -172,7 +172,7 @@ export const EditDimensions = (props: EditSizesProps) => {
             <FormTextField
               control={control}
               name={PUBLICATION_DEPTH.name}
-              fullWidth
+              id={PUBLICATION_DEPTH.name}
               helperText={PUBLICATION_DEPTH_HELPER_TEXT}
               isHelperTextVisible={isHelperTextVisible}
               type={PUBLICATION_DEPTH.type}
@@ -186,7 +186,7 @@ export const EditDimensions = (props: EditSizesProps) => {
             <FormTextField
               control={control}
               name={WEIGHT_UNIT.name}
-              fullWidth
+              id={WEIGHT_UNIT.name}
               select
               options={weightUnitOptions}
               helperText={WEIGHT_UNIT_HELPER_TEXT}
@@ -204,7 +204,7 @@ export const EditDimensions = (props: EditSizesProps) => {
             <FormTextField
               control={control}
               name={PUBLICATION_WEIGHT.name}
-              fullWidth
+              id={PUBLICATION_WEIGHT.name}
               helperText={PUBLICATION_WEIGHT_HELPER_TEXT}
               isHelperTextVisible={isHelperTextVisible}
               type={PUBLICATION_WEIGHT.type}

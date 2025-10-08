@@ -49,7 +49,7 @@ export const EditNames = ({ fullName, firstName, lastName, recommended, onSubmit
             <FormTextField
               control={control}
               name={FIRST_NAME.name}
-              fullWidth
+              id={FIRST_NAME.name}
               helperText={FIRST_NAME_HELPER_TEXT}
               isHelperTextVisible={isHelperTextVisible}
             />
@@ -59,7 +59,7 @@ export const EditNames = ({ fullName, firstName, lastName, recommended, onSubmit
             <FormTextField
               control={control}
               name={LAST_NAME.name}
-              fullWidth
+              id={LAST_NAME.name}
               helperText={LAST_NAME_HELPER_TEXT}
               isHelperTextVisible={isHelperTextVisible}
             />
@@ -69,7 +69,7 @@ export const EditNames = ({ fullName, firstName, lastName, recommended, onSubmit
             <FormTextField
               control={control}
               name={FULL_NAME.name}
-              fullWidth
+              id={FULL_NAME.name}
               helperText={FULL_NAME_HELPER_TEXT}
               isHelperTextVisible={isHelperTextVisible}
             />

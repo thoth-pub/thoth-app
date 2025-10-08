@@ -45,7 +45,7 @@ export const EditDoi = ({ workId, queryToken, recommended = false }: BaseRecomme
             <FormTextField
               control={control}
               name={DOI.name}
-              fullWidth
+              id={DOI.name}
               helperText={HELPER_TEXT.DOI}
               isHelperTextVisible={isHelperTextVisible}
               isDoiField
@@ -56,7 +56,7 @@ export const EditDoi = ({ workId, queryToken, recommended = false }: BaseRecomme
             <FormTextField
               control={control}
               name={LANDING_PAGE.name}
-              fullWidth
+              id={LANDING_PAGE.name}
               helperText={HELPER_TEXT.LANDING_PAGE}
               isHelperTextVisible={isHelperTextVisible}
               isUrlField
@@ -67,7 +67,7 @@ export const EditDoi = ({ workId, queryToken, recommended = false }: BaseRecomme
             <FormTextField
               control={control}
               name={COVER_URL.name}
-              fullWidth
+              id={COVER_URL.name}
               helperText={HELPER_TEXT.COVER_URL}
               isHelperTextVisible={isHelperTextVisible}
               isUrlField

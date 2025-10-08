@@ -37,7 +37,7 @@ export const EditImprint = ({ workId, queryToken, imprintOptions, recommended = 
           <FormTextField
             control={control}
             name={IMPRINT.name}
-            fullWidth
+            id={IMPRINT.name}
             select
             options={imprintOptions}
             helperText={HELPER_TEXT.IMPRINT}

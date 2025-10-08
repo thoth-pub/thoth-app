@@ -72,6 +72,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
               name={WORK_TABLE_COUNT.name}
               helperText={WORK_TABLE_COUNT_HELPER_TEXT}
               type={WORK_TABLE_COUNT.type}
+              id={WORK_TABLE_COUNT.name}
               isHelperTextVisible={isHelperTextVisible}
               min={0}
             />
@@ -83,6 +84,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
               name={WORK_IMAGE_COUNT.name}
               helperText={WORK_IMAGE_COUNT_HELPER_TEXT}
               type={WORK_IMAGE_COUNT.type}
+              id={WORK_IMAGE_COUNT.name}
               isHelperTextVisible={isHelperTextVisible}
               min={0}
             />
@@ -94,6 +96,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
               name={WORK_AUDIO_COUNT.name}
               helperText={WORK_AUDIO_COUNT_HELPER_TEXT}
               type={WORK_AUDIO_COUNT.type}
+              id={WORK_AUDIO_COUNT.name}
               isHelperTextVisible={isHelperTextVisible}
               min={0}
             />
@@ -105,6 +108,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
               name={WORK_VIDEO_COUNT.name}
               helperText={WORK_VIDEO_COUNT_HELPER_TEXT}
               type={WORK_VIDEO_COUNT.type}
+              id={WORK_VIDEO_COUNT.name}
               isHelperTextVisible={isHelperTextVisible}
               min={0}
             />
