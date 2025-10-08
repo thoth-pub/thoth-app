@@ -6,7 +6,7 @@ import { mergeStyles } from '@/src/shared/utils';
 
 import AddButton from '../../core/AddButton/AddButton';
 
-type EditButtonProps = {
+type FormEditButtonProps = {
   disabled?: boolean;
   isEmpty: boolean;
   placeholder: string;
@@ -14,7 +14,7 @@ type EditButtonProps = {
   onEdit?: () => void;
 };
 
-const EditButton = ({ isEmpty, placeholder, disabled, className, onEdit }: EditButtonProps) => {
+const FormEditButton = ({ isEmpty, placeholder, disabled, className, onEdit }: FormEditButtonProps) => {
   if (isEmpty) {
     return (
       <AddButton onAdd={onEdit} className={mergeStyles('capitalize', className)} disabled={disabled}>
@@ -26,4 +26,4 @@ const EditButton = ({ isEmpty, placeholder, disabled, className, onEdit }: EditB
   return <AddButton onAdd={onEdit} StartIcon={EditIcon} disabled={disabled} className={className} />;
 };
 
-export default EditButton;
+export default FormEditButton;

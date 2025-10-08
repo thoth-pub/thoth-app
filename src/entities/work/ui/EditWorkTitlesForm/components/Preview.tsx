@@ -1,6 +1,6 @@
 'use client';
 
-import { EditButton, FormAnimationWrapper, FormFieldWrapper, MarkdownPreview } from '@/src/shared/ui';
+import { FormAnimationWrapper, FormEditButton, FormFieldWrapper, MarkdownPreview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
 
 import { LanguagesList } from './LanguagesList';
@@ -18,7 +18,7 @@ export const Preview = ({ title, list, onEdit }: PreviewProps) => {
         <FormFieldLabel label="Main Title" />
         <div>
           <div className="flex" onDoubleClick={onEdit}>
-            <EditButton isEmpty={!title} placeholder="Add Title" onEdit={onEdit} />
+            <FormEditButton isEmpty={!title} placeholder="Add Title" onEdit={onEdit} />
             {title && <MarkdownPreview source={title} />}
           </div>
           <LanguagesList list={list} />

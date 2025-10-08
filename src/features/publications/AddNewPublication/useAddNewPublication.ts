@@ -44,7 +44,11 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
         });
       });
 
-      publication.locations.forEach(({ locationPlatform, canonical, fullTextUrl, landingPage }) => {
+      const sortedLocations = publication.locations.sort((a) => (a.canonical ? -1 : 1));
+
+      if (sortedLocations.length > 0) sortedLocations[0].canonical = true;
+
+      sortedLocations.forEach(({ locationPlatform, canonical, fullTextUrl, landingPage }) => {
         createLocation({
           publicationId: id,
           locationPlatform,
@@ -113,15 +117,30 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const updateLocations = (data: LocationsForm) => {
     if (!publication) return;
 
-    const locations = data.locations.map(({ platformId, platform, canonical, fullUrl, landingPage }) => ({
-      id: platformId,
-      locationPlatform: platform.value,
-      canonical,
-      fullTextUrl: fullUrl ?? '',
-      landingPage: landingPage ?? '',
-    }));
+    const locations = data.locations.map(({ platformId, platform, fullTextUrl, landingPage }) => {
+      const canonical = publication.locations.find(({ id }) => id === platformId)?.canonical ?? false;
+
+      return {
+        id: platformId,
+        locationPlatform: platform.value,
+        canonical,
+        fullTextUrl: fullTextUrl ?? '',
+        landingPage: landingPage ?? '',
+      };
+    });
 
     setPublication({ ...publication, locations });
+  };
+
+  const selectAsCanonical = (platformId: string) => {
+    if (!publication) return;
+
+    const updatedLocations = publication.locations.map((location) => ({
+      ...location,
+      canonical: location.id === platformId,
+    }));
+
+    setPublication({ ...publication, locations: updatedLocations });
   };
 
   return {
@@ -133,5 +152,6 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     updateDimensions,
     updatePrices,
     updateLocations,
+    selectAsCanonical,
   };
 };

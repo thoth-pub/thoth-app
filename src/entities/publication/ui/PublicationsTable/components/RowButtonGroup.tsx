@@ -1,7 +1,6 @@
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import EditIcon from '@mui/icons-material/Edit';
 
-import { ButtonGroup, IconButton } from '@/src/shared/ui';
+import { ButtonGroup, EditButton, IconButton } from '@/src/shared/ui';
 
 type RowButtonGroupProps = {
   isDisabled?: boolean;
@@ -17,9 +16,7 @@ export const RowButtonGroup = (props: RowButtonGroupProps) => {
       <IconButton onClick={onDelete} className="opacity-0 group-hover:opacity-100">
         <DeleteOutlineIcon />
       </IconButton>
-      <IconButton onClick={onEdit} className="opacity-0 group-hover:opacity-100" disabled={isDisabled}>
-        <EditIcon />
-      </IconButton>
+      <EditButton onClick={onEdit} className="opacity-0 group-hover:opacity-100" disabled={isDisabled} />
     </ButtonGroup>
   );
 };

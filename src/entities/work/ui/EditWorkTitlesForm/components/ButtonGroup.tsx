@@ -1,9 +1,6 @@
 'use client';
 
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-
-import { ButtonGroup as ButtonGroupComponent, DeleteButton, IconButton } from '@/src/shared/ui';
+import { ButtonGroup as ButtonGroupComponent, DeleteButton, FavoriteButton } from '@/src/shared/ui';
 
 type ButtonGroupProps = {
   onLanguageSelect: () => void;
@@ -16,8 +13,8 @@ export const ButtonGroup = (props: ButtonGroupProps) => {
 
   return (
     <ButtonGroupComponent>
-      <IconButton onClick={onLanguageSelect}>{isMainLanguage ? <StarIcon /> : <StarBorderIcon />}</IconButton>
-      <DeleteButton onDelete={onLanguageDelete} />
+      <FavoriteButton isFavorite={isMainLanguage} onClick={onLanguageSelect} />
+      <DeleteButton onClick={onLanguageDelete} />
     </ButtonGroupComponent>
   );
 };

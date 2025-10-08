@@ -102,13 +102,17 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const updateLocations = async (data: LocationsForm) => {
     if (!publication) return;
 
-    const locations = data.locations.map(({ platformId, platform, canonical, fullUrl, landingPage }) => ({
-      id: platformId,
-      locationPlatform: platform.value,
-      canonical,
-      fullTextUrl: fullUrl ?? '',
-      landingPage: landingPage ?? '',
-    }));
+    const locations = data.locations.map(({ platformId, platform, fullTextUrl, landingPage }) => {
+      const canonical = publication.locations.find(({ id }) => id === platformId)?.canonical ?? false;
+
+      return {
+        id: platformId,
+        locationPlatform: platform.value,
+        canonical,
+        fullTextUrl: fullTextUrl ?? '',
+        landingPage: landingPage ?? '',
+      };
+    });
 
     const newLocations = locations.filter(({ id }) => isDefaultId(id));
     const existingLocations = locations.filter(({ id }) => !isDefaultId(id));
@@ -165,6 +169,27 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, locations: updatedLocations });
   };
 
+  const selectAsCanonical = (platformId: string) => {
+    if (!publication) return;
+
+    const location = publication.locations.find(({ id }) => id === platformId);
+
+    if (!location) return;
+
+    const updatedLocations = publication.locations.map((location) => ({
+      ...location,
+      canonical: location.id === platformId,
+    }));
+
+    updateLocation({
+      ...location,
+      canonical: true,
+      publicationId: publication.id,
+    });
+
+    setPublication({ ...publication, locations: updatedLocations });
+  };
+
   return {
     activePublication: publication,
     close,
@@ -174,5 +199,6 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     updatePrices,
     updateLocations,
     deleteLocation,
+    selectAsCanonical,
   };
 };

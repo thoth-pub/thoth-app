@@ -116,7 +116,7 @@ export const FormFields = (props: FormFieldsProps) => {
                     )}
                   />
                 </div>
-                <DeleteButton onDelete={() => handleRemove(index)} />
+                <DeleteButton onClick={() => handleRemove(index)} />
               </FormFieldWithControlsWrapper>
             </FormFieldWrapper>
           </li>

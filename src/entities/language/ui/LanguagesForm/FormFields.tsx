@@ -93,7 +93,7 @@ export const FormFields = (props: FormFieldsProps) => {
                   id={getLanguageFieldName(index)}
                   options={languageOptions}
                 />
-                <DeleteButton onDelete={() => handleRemove(index)} />
+                <DeleteButton onClick={() => handleRemove(index)} />
               </FormFieldWithControlsWrapper>
             </FormFieldWrapper>
 

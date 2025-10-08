@@ -7,7 +7,6 @@ import {
   AddButton,
   AutocompleteField,
   AutocompleteGroup,
-  CheckboxFormField,
   DeleteButton,
   FormFieldLabel,
   FormFieldWithControlsWrapper,
@@ -18,7 +17,7 @@ import {
 
 import type { LocationPlatform, LocationsForm } from '../../../model/location.type';
 
-const { LOCATIONS, PLATFORM, CANONICAL, URL, LANDING_PAGE } = FORM_FIELDS;
+const { LOCATIONS, PLATFORM, FULL_TEXT_URL, LANDING_PAGE } = FORM_FIELDS;
 
 const { LOCATION_PLATFORM, LOCATION_URL_HELPER_TEXT, LANDING_PAGE_HELPER_TEXT } = HELPER_TEXT;
 
@@ -35,8 +34,7 @@ const defaultValue = {
     value: locationPlatformOptions[0].value as LocationPlatform,
     label: locationPlatformOptions[0].label,
   },
-  [CANONICAL.name]: false,
-  [URL.name]: '',
+  [FULL_TEXT_URL.name]: '',
   [LANDING_PAGE.name]: '',
 };
 
@@ -65,15 +63,11 @@ export const FormFields = (props: FormFieldsProps) => {
   };
 
   const getUrlFieldName = (fieldIndex: number) => {
-    return getFormFieldName(fieldIndex, URL.name);
+    return getFormFieldName(fieldIndex, FULL_TEXT_URL.name);
   };
 
   const getLandingPageFieldName = (fieldIndex: number) => {
     return getFormFieldName(fieldIndex, LANDING_PAGE.name);
-  };
-
-  const getCanonicalFieldName = (fieldIndex: number) => {
-    return getFormFieldName(fieldIndex, CANONICAL.name);
   };
 
   const handleAdd = () => {
@@ -117,7 +111,7 @@ export const FormFields = (props: FormFieldsProps) => {
                     </AutocompleteGroup>
                   )}
                 />
-                <DeleteButton onDelete={() => handleRemove(index)} />
+                <DeleteButton onClick={() => handleRemove(index)} />
               </FormFieldWithControlsWrapper>
             </FormFieldWrapper>
             <FormFieldWrapper>
@@ -132,7 +126,7 @@ export const FormFields = (props: FormFieldsProps) => {
               />
             </FormFieldWrapper>
             <FormFieldWrapper>
-              <FormFieldLabel label={URL.label} id={getUrlFieldName(index)} />
+              <FormFieldLabel label={FULL_TEXT_URL.label} id={getUrlFieldName(index)} />
               <FormTextField
                 control={control}
                 name={getUrlFieldName(index)}
@@ -140,16 +134,6 @@ export const FormFields = (props: FormFieldsProps) => {
                 helperText={LOCATION_URL_HELPER_TEXT}
                 isHelperTextVisible={isHelperTextVisible}
                 isUrlField
-              />
-            </FormFieldWrapper>
-            <FormFieldWrapper>
-              <FormFieldLabel label={CANONICAL.label} id={getCanonicalFieldName(index)} />
-              <CheckboxFormField
-                control={control}
-                name={getCanonicalFieldName(index)}
-                id={getCanonicalFieldName(index)}
-                className="mr-auto p-0"
-                isHelperTextVisible={isHelperTextVisible}
               />
             </FormFieldWrapper>
           </li>

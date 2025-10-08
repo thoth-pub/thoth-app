@@ -57,7 +57,7 @@ export const FormField = ({ control, affiliationFieldName, positionFieldName, on
               </InputAdornment>
             }
           />
-          <DeleteButton onDelete={onRemove} />
+          <DeleteButton onClick={onRemove} />
         </FormFieldWithControlsWrapper>
       </FormFieldWrapper>
       <FormFieldWrapper>

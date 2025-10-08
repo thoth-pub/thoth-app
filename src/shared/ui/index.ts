@@ -9,6 +9,8 @@ export { default as CircullarProgress } from './core/CircullarProgress/Circullar
 export { default as ClickAwayListener } from './core/ClickAwayListener/ClickAwayListener';
 export { default as CloseButton } from './core/CloseButton/CloseButton';
 export { default as DeleteButton } from './core/DeleteButton/DeleteButton';
+export { default as EditButton } from './core/EditButton/EditButton';
+export { default as FavoriteButton } from './core/FavoriteButton/FavoriteButton';
 export { default as IconButton } from './core/IconButton/IconButton';
 export { default as Indicator } from './core/Indicator/Indicator';
 export { default as InputAdornment } from './core/InputAdornment/InputAdornment';
@@ -44,9 +46,9 @@ export {
   default as DateFormWithPreview,
   type DateFormWithPreviewProps,
 } from './forms/DateFormWithPreview/DateFormWithPreview';
-export { default as EditButton } from './forms/EditButton/EditButton';
 export { default as FormAnimationWrapper } from './forms/FormAnimationWrapper/FormAnimationWrapper';
 export { default as FormControlGroup } from './forms/FormControlGroup/FormControlGroup';
+export { default as FormEditButton } from './forms/FormEditButton/FormEditButton';
 export { default as FormFieldInput } from './forms/FormFieldLabel/FormFieldLabel';
 export { default as FormFieldLabel } from './forms/FormFieldLabel/FormFieldLabel';
 export { default as FormFieldWithControlsWrapper } from './forms/FormFieldWithControlsWrapper/FormFieldWithControlsWrapper';

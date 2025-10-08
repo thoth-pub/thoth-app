@@ -38,7 +38,7 @@ export const PreviewItem = (props: PreviewItemProps) => {
         {...listeners}
       />
       {text}
-      <DeleteButton className="ml-auto" onDelete={onDelete} />
+      <DeleteButton className="ml-auto" onClick={onDelete} />
     </Typography>
   );
 };

@@ -13,7 +13,7 @@ import EditWorkType from './components/EditWorkType';
 type EditWorkBasicDetailsProps = BaseEditSectionProps & {
   imprintOptions: FormFieldOption[];
 };
-
+// TODO: series form
 const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
   const { workId, imprintOptions, queryToken } = props;
   // const isChapter = isBookChapter(work?.type as WorkType);

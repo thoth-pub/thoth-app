@@ -330,22 +330,16 @@ export const FORM_FIELDS = {
     label: 'Locations',
     name: 'locations',
   },
-  CANONICAL: {
-    label: 'Canonical',
-    name: 'canonical',
-    placeholder: 'Canonical',
-    type: InputTypes.TEXT,
-  },
   PLATFORM: {
     label: 'Platform',
     name: 'platform',
     placeholder: 'Platform',
     type: InputTypes.TEXT,
   },
-  URL: {
-    label: 'Full URL',
-    name: 'fullUrl',
-    placeholder: 'Full URL',
+  FULL_TEXT_URL: {
+    label: 'Full Text URL',
+    name: 'fullTextUrl',
+    placeholder: 'Full Text URL',
     type: InputTypes.URL,
   },
   // SHORT_NAME: 'shortName',

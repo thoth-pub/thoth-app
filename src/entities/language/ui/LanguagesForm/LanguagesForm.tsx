@@ -1,11 +1,9 @@
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
 import { Control } from 'react-hook-form';
 
 import { LanguageRelation } from '@/gql/graphql';
 import { convertOptionToString, IDs } from '@/src/shared';
 import { FORM_FIELDS, languageOptions } from '@/src/shared/constants/formFields';
-import { ButtonGroup, Chip, DeleteButton, IconButton, Preview, Typography } from '@/src/shared/ui';
+import { ButtonGroup, Chip, DeleteButton, FavoriteButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import type { LanguageEntity, LanguagesForm as LanguagesFormType } from '../../model/language.types';
@@ -68,12 +66,10 @@ const LanguagesForm = (props: LanguagesFormProps) => {
                   </Typography>
                   <ButtonGroup className="ml-auto">
                     <DeleteButton
-                      onDelete={() => onDelete?.(languageId)}
+                      onClick={() => onDelete?.(languageId)}
                       className="opacity-0 group-hover:opacity-100"
                     />
-                    <IconButton onClick={() => onSelectAsMain?.(languageId)}>
-                      {isMain ? <StarIcon /> : <StarBorderIcon />}
-                    </IconButton>
+                    <FavoriteButton isFavorite={isMain} onClick={() => onSelectAsMain?.(languageId)} />
                   </ButtonGroup>
                 </li>
               ))}

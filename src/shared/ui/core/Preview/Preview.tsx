@@ -1,10 +1,9 @@
 import AddIcon from '@mui/icons-material/Add';
-import EditIcon from '@mui/icons-material/Edit';
 
 import FormFieldLabel from '../../forms/FormFieldLabel/FormFieldLabel';
 import ContentWrapper from '../../layout/ContentWrapper/ContentPreview';
 import Button from '../Button/Button';
-import IconButton from '../IconButton/IconButton';
+import EditButton from '../EditButton/EditButton';
 import Typography from '../Typography/Typography';
 
 type PreviewProps = {
@@ -33,11 +32,7 @@ const Preview = ({ label, value, children, recommended = false, disabled = false
             Add {label}
           </Button>
         )}
-        {value && (
-          <IconButton disabled={disabled} className="opacity-0 group-hover:opacity-100" onClick={onEdit}>
-            <EditIcon />
-          </IconButton>
-        )}
+        {value && <EditButton disabled={disabled} className="opacity-0 group-hover:opacity-100" onClick={onEdit} />}
       </div>
     </ContentWrapper>
   );

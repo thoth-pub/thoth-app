@@ -7,7 +7,7 @@ import { RecommendedSection } from '@/src/shared/ui';
 import { EditLanguages } from './components/EditLanguages';
 import { EditMedia } from './components/EditMedia';
 import { EditPagesCount } from './components/EditPagesCount';
-
+// TODO: abstract form
 const EditDescriptions = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
 

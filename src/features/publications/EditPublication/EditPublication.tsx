@@ -23,6 +23,7 @@ const EditPublication = (props: EditPublicationProps) => {
     updatePrices,
     updateLocations,
     deleteLocation,
+    selectAsCanonical,
   } = useEditPublication({
     workId,
     queryToken,
@@ -52,6 +53,7 @@ const EditPublication = (props: EditPublicationProps) => {
         onUpdate={updateLocations}
         onClose={close}
         onDelete={deleteLocation}
+        onSelectAsCanonical={selectAsCanonical}
       />
     </EditPublicationForm>
   );

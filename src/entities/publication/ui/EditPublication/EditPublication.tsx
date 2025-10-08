@@ -22,7 +22,7 @@ type EditPublicationProps = {
   onUpdateIsbn?: (isbn: string) => void;
   onUpdateDimensions?: (dimensions: PublicationDimensionsForm) => void;
 };
-
+// TODO: accessibility form
 const EditPublication = (props: EditPublicationProps) => {
   const {
     publicationType,

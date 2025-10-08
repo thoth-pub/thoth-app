@@ -1,9 +1,4 @@
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
-import EditIcon from '@mui/icons-material/Edit';
-import StarIcon from '@mui/icons-material/Star';
-import StarBorderIcon from '@mui/icons-material/StarBorder';
-
-import { ButtonGroup, IconButton } from '@/src/shared/ui';
+import { ButtonGroup, DeleteButton, EditButton, FavoriteButton } from '@/src/shared/ui';
 
 type RowButtonGroupProps = {
   isSelected: boolean;
@@ -18,13 +13,9 @@ export const RowButtonGroup = (props: RowButtonGroupProps) => {
 
   return (
     <ButtonGroup className={className}>
-      <IconButton onClick={onDelete} className="opacity-0 group-hover:opacity-100">
-        <DeleteOutlineIcon />
-      </IconButton>
-      <IconButton onClick={onEdit} className="opacity-0 group-hover:opacity-100" disabled={isDisabled}>
-        <EditIcon />
-      </IconButton>
-      <IconButton onClick={onSelectAsMain}>{isSelected ? <StarIcon /> : <StarBorderIcon />}</IconButton>
+      <DeleteButton onClick={onDelete} className="opacity-0 group-hover:opacity-100" />
+      <FavoriteButton isFavorite={isSelected} onClick={onSelectAsMain} />
+      <EditButton onClick={onEdit} className="opacity-0 group-hover:opacity-100" disabled={isDisabled} />
     </ButtonGroup>
   );
 };

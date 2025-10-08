@@ -1,14 +1,9 @@
 import z from 'zod';
 
-import {
-  booleanValidation,
-  getRequiredStringValidation,
-  locationPlatformValidation,
-  optionalUrlValidation,
-} from '@/src/shared';
+import { getRequiredStringValidation, locationPlatformValidation, optionalUrlValidation } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 
-const { LOCATIONS, PLATFORM, CANONICAL, URL, LANDING_PAGE } = FORM_FIELDS;
+const { LOCATIONS, PLATFORM, FULL_TEXT_URL, LANDING_PAGE } = FORM_FIELDS;
 
 const locationValidationSchema = z.object({
   value: locationPlatformValidation,
@@ -24,8 +19,7 @@ export const locationsValidationSchema = z.object({
     z.object({
       platformId: getRequiredStringValidation(),
       [PLATFORM.name]: locationValidationSchema,
-      [CANONICAL.name]: booleanValidation,
-      [URL.name]: urlValidationSchema,
+      [FULL_TEXT_URL.name]: urlValidationSchema,
       [LANDING_PAGE.name]: landingPageValidationSchema,
     }),
   ),

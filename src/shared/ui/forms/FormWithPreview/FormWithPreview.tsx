@@ -6,7 +6,7 @@ import { Control, type FieldValues } from 'react-hook-form';
 
 import type { FormFieldLabel as FormFieldLabelType } from '@/src/shared/interfaces';
 
-import EditButton from '../EditButton/EditButton';
+import FormEditButton from '../FormEditButton/FormEditButton';
 import FormFieldLabel from '../FormFieldLabel/FormFieldLabel';
 import FormFieldWrapper from '../FormFieldWrapper/FormFieldWrapper';
 import EditTab from './components/EditTab';
@@ -54,7 +54,7 @@ const FormWithPreview = <T extends FieldValues>(props: FormWithPreviewProps<T>) 
             preview={preview && isValid ? preview(serializedValue) : null}
             onEdit={switchEditState}
           >
-            <EditButton
+            <FormEditButton
               disabled={isDisabled}
               isEmpty={!fieldValue}
               placeholder={`Add ${label}`}

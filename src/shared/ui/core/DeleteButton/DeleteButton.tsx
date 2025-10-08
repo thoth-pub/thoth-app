@@ -2,16 +2,11 @@
 
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 
-import { IconButton } from '@/src/shared/ui';
+import IconButton, { type IconButtonProps } from '../IconButton/IconButton';
 
-type DeleteButtonProps = {
-  className?: string;
-  onDelete: () => void;
-};
-
-const DeleteButton = ({ className, onDelete }: DeleteButtonProps) => {
+const DeleteButton = (props: IconButtonProps) => {
   return (
-    <IconButton onClick={onDelete} className={className}>
+    <IconButton {...props}>
       <DeleteOutlineIcon />
     </IconButton>
   );

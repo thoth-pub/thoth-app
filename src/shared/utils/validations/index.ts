@@ -56,10 +56,6 @@ export const timestampValidation = z.iso.datetime();
 export const createdAtValidation = timestampValidation;
 export const updatedAtValidation = timestampValidation;
 
-/* Boolean Validations */
-
-export const booleanValidation = z.boolean();
-
 /* Enums Validations */
 export const workStatusValidation = z.enum(WorkStatuses.enum);
 export const languageValidation = z.enum(LanguageTypeAlt.enum);
