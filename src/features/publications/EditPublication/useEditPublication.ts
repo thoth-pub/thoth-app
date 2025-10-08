@@ -99,7 +99,6 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, prices });
   };
 
-  // TODO: update after changes on backend
   const updateLocations = async (data: LocationsForm) => {
     if (!publication) return;
 
@@ -113,6 +112,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
     const newLocations = locations.filter(({ id }) => isDefaultId(id));
     const existingLocations = locations.filter(({ id }) => !isDefaultId(id));
+    const notUpdatedLocations: LocationEntity[] = [];
     const updatedLocations = publication.locations.filter((location) => {
       const existingLocation = existingLocations.find(({ id }) => id === location.id);
 
@@ -120,6 +120,10 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
       const keys = Object.keys(existingLocation) as (keyof LocationEntity)[];
       const isUpdated = keys.some((key) => existingLocation[key] !== location[key]);
+
+      if (!isUpdated) {
+        notUpdatedLocations.push(location);
+      }
 
       return isUpdated;
     });
@@ -145,7 +149,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       });
     });
 
-    setPublication({ ...publication, locations: [...newLocations, ...updatedLocations] });
+    setPublication({ ...publication, locations: [...newLocations, ...updatedLocations, ...notUpdatedLocations] });
   };
 
   const deleteLocation = (platformId: string) => {
