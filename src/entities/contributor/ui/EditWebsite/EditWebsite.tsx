@@ -1,4 +1,4 @@
-import { HELPER_TEXT, IDs } from '@/src/shared';
+import { getProtocolPrefix, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
@@ -41,6 +41,7 @@ export const EditWebsite = (props: EditWebsiteProps) => {
             isHelperTextVisible={isHelperTextVisible}
             isUrlField
             disabled={disabled}
+            predefinedPrefix={getProtocolPrefix(websiteUrl ?? '')}
           />
         </ContentWrapper>
       )}

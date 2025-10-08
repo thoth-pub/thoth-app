@@ -14,7 +14,7 @@ import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { useWork } from '@/src/entities/work';
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
-import { appConfig, type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, removePrefix } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
@@ -22,8 +22,6 @@ type UseEditContributionProps = BaseEditSectionProps & {
   isAdmin?: boolean;
   linkedPublishers?: PublisherId[];
 };
-
-const { protocolPrefix, orcidPrefix } = appConfig.validations;
 
 export const useEditContribution = (props: UseEditContributionProps) => {
   const { workId, queryToken, isAdmin = false, linkedPublishers = [] } = props;
@@ -46,8 +44,8 @@ export const useEditContribution = (props: UseEditContributionProps) => {
         firstName: data.firstName ?? '',
         lastName: data.lastName,
         fullName: data.fullName,
-        orcidId: data.orcid?.replace(orcidPrefix, ''),
-        website: data.website?.replace(protocolPrefix, '') ?? '',
+        orcidId: removePrefix(data.orcid ?? ''),
+        website: removePrefix(data.website ?? ''),
       });
     },
     onError: () => {

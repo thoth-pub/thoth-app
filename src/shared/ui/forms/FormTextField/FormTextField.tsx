@@ -1,9 +1,10 @@
 'use client';
 
 import { InputAdornment } from '@mui/material';
+import { useState } from 'react';
 import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
-import { appConfig } from '@/src/shared';
+import { appConfig, removePrefix } from '@/src/shared';
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
 
 import TextField, { type TextFieldProps } from '../../core/TextField/TextField';
@@ -11,6 +12,7 @@ import TextField, { type TextFieldProps } from '../../core/TextField/TextField';
 export type FormTextFieldComponentProps<T extends FieldValues> = {
   min?: number;
   step?: string;
+  predefinedPrefix?: string;
   options?: FormFieldOption[];
   isDoiField?: boolean;
   isUrlField?: boolean;
@@ -19,7 +21,7 @@ export type FormTextFieldComponentProps<T extends FieldValues> = {
 } & BaseFieldProps<T> &
   TextFieldProps;
 
-const { protocolPrefix, doiPrefix, rorPrefix } = appConfig.validations;
+const { protocolPrefixHttps, protocolPrefixHttp, doiPrefix, rorPrefix } = appConfig.validations;
 
 const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextFieldComponentProps<T>) => {
   const {
@@ -32,11 +34,14 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     helperText,
     step,
     id,
+    predefinedPrefix = protocolPrefixHttp,
     isDoiField = false,
     isUrlField = false,
     isRorField = false,
     ...restProps
   } = props;
+
+  const [protocolPrefix, setProtocolPrefix] = useState(predefinedPrefix);
 
   const addPrefix = isDoiField || isUrlField || isRorField;
 
@@ -50,13 +55,27 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
           {...field}
           error={!!error}
           helperText={error ? error.message : helperText}
-          value={typeof value === 'string' ? value.replace(doiPrefix, '').replace(protocolPrefix, '') : value}
+          value={typeof value === 'string' ? removePrefix(value) : value}
           onChange={(e) => {
+            // TODO: refactor
             if (isDoiField && !e.target.value.startsWith(doiPrefix) && e.target.value.length > 0) {
               return onChange(doiPrefix + e.target.value);
             }
 
-            if (isUrlField && !e.target.value.startsWith(protocolPrefix) && e.target.value.length > 0) {
+            if (isUrlField && e.target.value.length > 0) {
+              const isHttps = e.target.value.startsWith(protocolPrefixHttps);
+              const isHttp = e.target.value.startsWith(protocolPrefixHttp);
+
+              if (isHttps) {
+                setProtocolPrefix(protocolPrefixHttps);
+                return onChange(e.target.value);
+              }
+
+              if (isHttp) {
+                setProtocolPrefix(protocolPrefixHttp);
+                return onChange(e.target.value);
+              }
+
               return onChange(protocolPrefix + e.target.value);
             }
 

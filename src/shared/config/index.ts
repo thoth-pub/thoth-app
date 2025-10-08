@@ -16,7 +16,8 @@ export const appConfig = {
   fieldsDebounceDelay: 1000,
   validations: {
     doiPrefix: 'https://doi.org/',
-    protocolPrefix: 'https://',
+    protocolPrefixHttps: 'https://',
+    protocolPrefixHttp: 'http://',
     rorPrefix: 'https://ror.org/',
     orcidPrefix: 'https://orcid.org/',
   },

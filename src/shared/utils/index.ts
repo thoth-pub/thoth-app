@@ -5,6 +5,7 @@ export * from './convertations/romans';
 export * from './helpers/isDefaultId';
 export * from './helpers/isUrl';
 export * from './helpers/isValidUUID';
+export * from './helpers/protocolPrefix';
 export * from './helpers/truncateString';
 export * from './publications/isDimensionsAvailable';
 export * from './publishers';

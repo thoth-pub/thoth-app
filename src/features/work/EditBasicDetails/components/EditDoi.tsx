@@ -3,7 +3,7 @@
 import { useWork } from '@/src/entities/work';
 import { DoiAndCoversForm } from '@/src/entities/work/model/work.types';
 import { doiAndCoversValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseRecommendedSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
+import { type BaseRecommendedSectionProps, getProtocolPrefix, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
@@ -60,6 +60,7 @@ export const EditDoi = ({ workId, queryToken, recommended = false }: BaseRecomme
               helperText={HELPER_TEXT.LANDING_PAGE}
               isHelperTextVisible={isHelperTextVisible}
               isUrlField
+              predefinedPrefix={getProtocolPrefix(landingPageValue ?? '')}
             />
           </ContentWrapper>
           <ContentWrapper>
@@ -71,6 +72,7 @@ export const EditDoi = ({ workId, queryToken, recommended = false }: BaseRecomme
               helperText={HELPER_TEXT.COVER_URL}
               isHelperTextVisible={isHelperTextVisible}
               isUrlField
+              predefinedPrefix={getProtocolPrefix(coverUrlValue ?? '')}
             />
           </ContentWrapper>
         </MultipleContentWrapper>

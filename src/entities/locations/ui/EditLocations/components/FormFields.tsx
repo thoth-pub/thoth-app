@@ -1,7 +1,7 @@
 import { type Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
-import { appConfig, HELPER_TEXT, isDefaultId } from '@/src/shared';
+import { appConfig, getProtocolPrefix, HELPER_TEXT, isDefaultId } from '@/src/shared';
 import { FORM_FIELDS, locationPlatformOptions } from '@/src/shared/constants/formFields';
 import {
   AddButton,
@@ -123,6 +123,7 @@ export const FormFields = (props: FormFieldsProps) => {
                 helperText={LANDING_PAGE_HELPER_TEXT}
                 isHelperTextVisible={isHelperTextVisible}
                 isUrlField
+                predefinedPrefix={getProtocolPrefix(field.landingPage ?? '')}
               />
             </FormFieldWrapper>
             <FormFieldWrapper>
@@ -134,6 +135,7 @@ export const FormFields = (props: FormFieldsProps) => {
                 helperText={LOCATION_URL_HELPER_TEXT}
                 isHelperTextVisible={isHelperTextVisible}
                 isUrlField
+                predefinedPrefix={getProtocolPrefix(field.fullTextUrl ?? '')}
               />
             </FormFieldWrapper>
           </li>
