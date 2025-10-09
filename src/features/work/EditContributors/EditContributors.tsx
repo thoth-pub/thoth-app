@@ -1,19 +1,17 @@
 'use client';
 
 import { ContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
-import type { PublisherId } from '@/src/entities/publisher';
 import { useWork } from '@/src/entities/work';
 import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
 import { type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
 
 type EditContributorsProps = BaseEditSectionProps & {
-  linkedPublishers?: PublisherId[];
   isAdmin?: boolean;
 };
 
 const EditContributors = (props: EditContributorsProps) => {
-  const { workId, queryToken, isAdmin = false, linkedPublishers = [] } = props;
+  const { workId, queryToken, isAdmin = false } = props;
   const { activeContribution } = useContributionStateMachine();
 
   const { work } = useWork(workId, queryToken);
@@ -38,7 +36,6 @@ const EditContributors = (props: EditContributorsProps) => {
                 workId={workId}
                 queryToken={queryToken}
                 isAdmin={isAdmin}
-                linkedPublishers={linkedPublishers}
               />
             }
             showRecommendations={showRecommendations}

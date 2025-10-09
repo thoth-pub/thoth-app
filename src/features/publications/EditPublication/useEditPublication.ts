@@ -122,7 +122,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
       if (!existingLocation) return false;
 
-      const keys = Object.keys(existingLocation) as (keyof LocationEntity)[];
+      const keys = Object.keys(existingLocation).filter((key) => key !== 'canonical') as (keyof LocationEntity)[];
       const isUpdated = keys.some((key) => existingLocation[key] !== location[key]);
 
       if (!isUpdated) {

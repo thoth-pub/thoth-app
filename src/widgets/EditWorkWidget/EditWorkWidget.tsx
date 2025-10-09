@@ -1,4 +1,3 @@
-import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { EditWorkHeader } from '@/src/entities/work';
 import { EditBasicDetails, EditContributors, EditDescriptions } from '@/src/features';
 import EditPublications from '@/src/features/work/EditPublications/EditPublications';
@@ -7,18 +6,17 @@ import type { BaseEditSectionProps, FormFieldOption } from '@/src/shared';
 type EditWorkWidgetProps = BaseEditSectionProps & {
   workStatusOptions: FormFieldOption[];
   imprintOptions: FormFieldOption[];
-  linkedPublishers?: PublisherId[];
   isAdmin?: boolean;
 };
 
 const EditWorkWidget = (props: EditWorkWidgetProps) => {
-  const { workStatusOptions, imprintOptions, queryToken, workId, linkedPublishers = [], isAdmin = false } = props;
+  const { workStatusOptions, imprintOptions, queryToken, workId, isAdmin = false } = props;
 
   return (
     <div className="flex flex-col gap-8">
       <EditWorkHeader queryToken={queryToken} workId={workId} workStatusOptions={workStatusOptions} />
       <EditBasicDetails workId={workId} queryToken={queryToken} imprintOptions={imprintOptions} />
-      <EditContributors workId={workId} queryToken={queryToken} linkedPublishers={linkedPublishers} isAdmin={isAdmin} />
+      <EditContributors workId={workId} queryToken={queryToken} isAdmin={isAdmin} />
       <EditDescriptions workId={workId} queryToken={queryToken} />
       <EditPublications workId={workId} queryToken={queryToken} />
     </div>

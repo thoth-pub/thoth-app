@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
+import { ChangeActivePublisher } from '@/src/features';
 import { PAGES, ROUTES } from '@/src/shared/constants';
 
 const AdminLayout = async ({
@@ -19,6 +20,7 @@ const AdminLayout = async ({
     <>
       <aside>
         <ul className="flex h-full flex-col gap-2 border-r-2 border-r-[var(--color-border)] p-4">
+          <ChangeActivePublisher />
           {PAGES.map(({ name, href }) => (
             <li key={href}>
               <Link href={href}>{name}</Link>

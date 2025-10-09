@@ -42,7 +42,7 @@ export default async function RootLayout({
 
   return (
     <html lang="en">
-      <Providers>
+      <Providers session={session}>
         <body className={`${economica.variable} ${openSans.variable} flex h-dvh min-h-dvh flex-col antialiased`}>
           <Header>{session && <SignOutButton />}</Header>
           <main className="flex flex-1">{children}</main>

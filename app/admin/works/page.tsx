@@ -1,14 +1,12 @@
 import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 
 import { auth } from '@/auth';
-import { WorkService } from '@/src/entities/work';
-import { CreateNewWorkLink } from '@/src/features';
+import { GET_WORKS } from '@/src/entities/work/model/work.schema';
 import { ROUTES } from '@/src/shared/constants';
-import { query } from '@/src/shared/graphqlClient';
-import { Link, PageHeader } from '@/src/shared/ui';
+import { PreloadQuery } from '@/src/shared/graphqlClient';
 import { convertLinkedPublishers } from '@/src/shared/utils';
-
-const worksService = new WorkService(query);
+import { AllWorks } from '@/src/widgets';
 
 export default async function WorksPage() {
   const session = await auth();
@@ -18,28 +16,13 @@ export default async function WorksPage() {
   }
 
   const linkedPublishers = session.user.linkedPublishers ? convertLinkedPublishers(session.user.linkedPublishers) : [];
-
-  const works = await worksService.getWorks(linkedPublishers);
+  const activePublisher = linkedPublishers.slice(0, 1);
 
   return (
-    <>
-      <PageHeader title="Name of work">
-        <CreateNewWorkLink />
-      </PageHeader>
-      <ul className="flex flex-col gap-2">
-        {works.map(({ id, title, updatedAt, contributorsNames, doi, publisherName }) => (
-          <li key={id}>
-            <Link href={ROUTES.WORK_PAGE(id)} className="flex gap-2">
-              <span>{id}</span>
-              <span>{title}</span>
-              <span>{contributorsNames.join(', ')}</span>
-              <span>{doi}</span>
-              <span>{publisherName}</span>
-              <span>{updatedAt}</span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </>
+    <PreloadQuery query={GET_WORKS} variables={{ publishers: activePublisher }}>
+      <Suspense fallback={<p>loading...</p>}>
+        <AllWorks />
+      </Suspense>
+    </PreloadQuery>
   );
 }

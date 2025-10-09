@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { auth } from '@/auth';
 import { ImprintService } from '@/src/entities/imprint';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { convertEntityToSelectFieldOptions, convertLinkedPublishers, isAdmin } from '@/src/shared';
+import { convertEntityToSelectFieldOptions, isAdmin } from '@/src/shared';
 import { ROUTES } from '@/src/shared/constants';
 import { workStatusOptions } from '@/src/shared/constants/formFields';
 import { getClient, PreloadQuery, query } from '@/src/shared/graphqlClient';
@@ -33,10 +33,11 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
     redirect(ROUTES.NOT_FOUND);
   }
 
-  const linkedPublishers = session.user.linkedPublishers ? convertLinkedPublishers(session.user.linkedPublishers) : [];
+  const linkedPublishers = session.user.linkedPublishers ? session.user.linkedPublishers : [];
   const isUserAdmin = isAdmin(session);
+  const activePublisher = linkedPublishers.slice(0, 1);
 
-  const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : linkedPublishers });
+  const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : activePublisher });
 
   const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
 
@@ -48,7 +49,6 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
           queryToken={session.user.queryToken}
           workStatusOptions={workStatusOptions}
           imprintOptions={imprintOptions}
-          linkedPublishers={linkedPublishers}
           isAdmin={isUserAdmin}
         />
       </Suspense>

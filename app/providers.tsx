@@ -1,5 +1,6 @@
 'use client';
 
+import { Session } from 'next-auth';
 import { SessionProvider } from 'next-auth/react';
 
 import {
@@ -12,9 +13,14 @@ import {
 
 import StoreProvider from './store';
 
-const Providers = ({ children }: Readonly<{ children: React.ReactNode }>) => {
+type ProvidersProps = {
+  children: Readonly<React.ReactNode>;
+  session: Session | null;
+};
+
+const Providers = ({ children, session }: Readonly<ProvidersProps>) => {
   return (
-    <SessionProvider>
+    <SessionProvider session={session}>
       <ApolloClientProvider>
         <StoreProvider>
           <StylesCacheProvider>

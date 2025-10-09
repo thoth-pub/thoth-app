@@ -1,18 +1,20 @@
 import { AffiliationsForm } from '@/src/entities/affiliation';
 import { ContributionForms } from '@/src/entities/contribution';
 import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
-import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
+import { usePublisherStateMachine } from '@/src/entities/publisher';
 import type { BaseRecommendedSectionProps } from '@/src/shared';
 
 import { useEditContribution } from './useEditContribution';
 
 type EditContributionProps = BaseRecommendedSectionProps & {
   isAdmin?: boolean;
-  linkedPublishers?: PublisherId[];
 };
 
 const EditContribution = (props: EditContributionProps) => {
-  const { recommended = false, workId, queryToken, isAdmin, linkedPublishers } = props;
+  const { recommended = false, workId, queryToken, isAdmin } = props;
+  const { linkedPublishers } = usePublisherStateMachine();
+
+  const publishersIds = linkedPublishers.map((publisher) => publisher.id);
 
   const {
     contribution,
@@ -30,7 +32,7 @@ const EditContribution = (props: EditContributionProps) => {
     workId,
     queryToken,
     isAdmin,
-    linkedPublishers,
+    linkedPublishers: publishersIds,
   });
 
   if (!contribution) return null;
