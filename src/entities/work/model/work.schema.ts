@@ -51,10 +51,14 @@ export const GET_BOOKS = graphql(`
         isbn
         publicationType
         updatedAt
-        weight(units: G)
-        width(units: MM)
-        height(units: MM)
-        depth(units: MM)
+        weightG: weight(units: G)
+        weightOz: weight(units: OZ)
+        widthMm: width(units: MM)
+        widthIn: width(units: IN)
+        heightMm: height(units: MM)
+        heightIn: height(units: IN)
+        depthMm: depth(units: MM)
+        depthIn: depth(units: IN)
         work {
           doi
           title
@@ -132,10 +136,14 @@ export const GET_CHAPTERS = graphql(`
         isbn
         publicationType
         updatedAt
-        weight(units: G)
-        width(units: MM)
-        height(units: MM)
-        depth(units: MM)
+        weightG: weight(units: G)
+        weightOz: weight(units: OZ)
+        widthMm: width(units: MM)
+        widthIn: width(units: IN)
+        heightMm: height(units: MM)
+        heightIn: height(units: IN)
+        depthMm: depth(units: MM)
+        depthIn: depth(units: IN)
         work {
           doi
           title

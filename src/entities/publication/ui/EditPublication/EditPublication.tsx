@@ -11,9 +11,13 @@ type EditPublicationProps = {
   showRecommendations: boolean;
   isbn: string;
   width: number;
+  widthIn: number;
   height: number;
+  heightIn: number;
   depth: number;
+  depthIn: number;
   weight: number;
+  weightOz: number;
   isDimensionFormHidden: boolean;
   children?: Readonly<React.ReactNode>;
   onDone?: () => void;
@@ -28,9 +32,13 @@ const EditPublication = (props: EditPublicationProps) => {
     publicationType,
     isbn,
     width,
+    widthIn,
     height,
+    heightIn,
     depth,
+    depthIn,
     weight,
+    weightOz,
     showRecommendations,
     isDimensionFormHidden,
     children,
@@ -53,9 +61,13 @@ const EditPublication = (props: EditPublicationProps) => {
           <EditDimensions
             recommended={showRecommendations}
             width={width}
+            widthIn={widthIn}
             height={height}
+            heightIn={heightIn}
             depth={depth}
+            depthIn={depthIn}
             weight={weight}
+            weightOz={weightOz}
             onSubmit={onUpdateDimensions}
           />
         )}

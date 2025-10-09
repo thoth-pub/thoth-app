@@ -31,7 +31,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
 
   if (!publication) return null;
 
-  const { type, isbn, width, height, depth, weight } = publication;
+  const { type, isbn, width, height, depth, weight, widthIn, heightIn, depthIn, weightOz } = publication;
 
   return (
     <EditPublication
@@ -40,9 +40,13 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
       isDimensionFormHidden={isDimensionFormHidden}
       isbn={isbn}
       width={width}
+      widthIn={widthIn}
       height={height}
+      heightIn={heightIn}
       depth={depth}
+      depthIn={depthIn}
       weight={weight}
+      weightOz={weightOz}
       onUpdateIsbn={updateIsbn}
       onUpdateType={updateType}
       onClose={close}

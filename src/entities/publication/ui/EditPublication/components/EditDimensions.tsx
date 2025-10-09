@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 
-import { convertMmToIn, convertOzToG, HELPER_TEXT, IDs, WeightUnit } from '@/src/shared';
+import { HELPER_TEXT, IDs, WeightUnit } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { MultipleContentWrapper, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -12,9 +12,13 @@ import { DimensionsFormField } from './DimensionsFormField';
 type EditSizesProps = {
   recommended: boolean;
   width: number;
+  widthIn: number;
   height: number;
+  heightIn: number;
   depth: number;
+  depthIn: number;
   weight: number;
+  weightOz: number;
   onSubmit?: (data: PublicationDimensionsForm) => void;
 };
 
@@ -38,12 +42,12 @@ const {
 } = HELPER_TEXT;
 
 export const EditDimensions = (props: EditSizesProps) => {
-  const { width, height, depth, weight, recommended = false, onSubmit } = props;
+  const { width, height, depth, weight, widthIn, heightIn, depthIn, weightOz, recommended = false, onSubmit } = props;
 
-  const showWidthIndicator = recommended && width > 0;
-  const showHeightIndicator = recommended && height > 0;
-  const showDepthIndicator = recommended && depth > 0;
-  const showWeightIndicator = recommended && weight > 0;
+  const showWidthIndicator = recommended && (width === 0 || widthIn === 0);
+  const showHeightIndicator = recommended && (height === 0 || heightIn === 0);
+  const showDepthIndicator = recommended && (depth === 0 || depthIn === 0);
+  const showWeightIndicator = recommended && (weight === 0 || weightOz === 0);
 
   const showIndicator = showWidthIndicator || showHeightIndicator || showDepthIndicator || showWeightIndicator;
 
@@ -57,28 +61,36 @@ export const EditDimensions = (props: EditSizesProps) => {
     const weightPlaceholderValues = [];
     const imperialWeightPlaceholderValues = [];
 
-    const roundImperialValue = (value: number) => {
-      return value.toFixed(2);
-    };
-
     if (width > 0) {
       geometryPlaceholderValues.push(`${width} mm`);
-      imperialGeometryPlaceholderValues.push(`${roundImperialValue(convertMmToIn(width))} in`);
+    }
+
+    if (widthIn > 0) {
+      imperialGeometryPlaceholderValues.push(`${widthIn} in`);
     }
 
     if (height > 0) {
       geometryPlaceholderValues.push(`${height} mm`);
-      imperialGeometryPlaceholderValues.push(`${roundImperialValue(convertMmToIn(height))} in`);
+    }
+
+    if (heightIn > 0) {
+      imperialGeometryPlaceholderValues.push(`${heightIn} in`);
     }
 
     if (depth > 0) {
       geometryPlaceholderValues.push(`${depth} mm`);
-      imperialGeometryPlaceholderValues.push(`${roundImperialValue(convertMmToIn(depth))} in`);
+    }
+
+    if (depthIn > 0) {
+      imperialGeometryPlaceholderValues.push(`${depthIn} in`);
     }
 
     if (weight > 0) {
       weightPlaceholderValues.push(`${weight} ${WeightUnit.enum.G}`);
-      imperialWeightPlaceholderValues.push(`${roundImperialValue(convertOzToG(weight))} ${WeightUnit.enum.Oz}`);
+    }
+
+    if (weightOz > 0) {
+      imperialWeightPlaceholderValues.push(`${weightOz} ${WeightUnit.enum.Oz}`);
     }
 
     const geometryPlaceholderValue = geometryPlaceholderValues.join(' x ');
@@ -95,7 +107,7 @@ export const EditDimensions = (props: EditSizesProps) => {
       .filter((value) => value)
       .join(' | ')
       .toLowerCase();
-  }, [width, height, depth, weight]);
+  }, [width, height, depth, weight, widthIn, heightIn, depthIn, weightOz]);
 
   return (
     <EditableContent
@@ -104,13 +116,13 @@ export const EditDimensions = (props: EditSizesProps) => {
       borderTransparent
       defaultValues={{
         [PUBLICATION_WIDTH_MM.name]: width,
-        [PUBLICATION_WIDTH_IN.name]: convertMmToIn(width),
+        [PUBLICATION_WIDTH_IN.name]: widthIn,
         [PUBLICATION_HEIGHT_MM.name]: height,
-        [PUBLICATION_HEIGHT_IN.name]: convertMmToIn(height),
+        [PUBLICATION_HEIGHT_IN.name]: heightIn,
         [PUBLICATION_DEPTH_MM.name]: depth,
-        [PUBLICATION_DEPTH_IN.name]: convertMmToIn(depth),
+        [PUBLICATION_DEPTH_IN.name]: depthIn,
         [PUBLICATION_WEIGHT_G.name]: weight,
-        [PUBLICATION_WEIGHT_OZ.name]: convertOzToG(weight),
+        [PUBLICATION_WEIGHT_OZ.name]: weightOz,
       }}
       validationSchema={dimensionsValidationSchema}
       onSubmit={handleSubmit}

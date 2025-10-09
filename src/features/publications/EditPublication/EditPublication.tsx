@@ -38,9 +38,13 @@ const EditPublication = (props: EditPublicationProps) => {
       publicationType={activePublication.type}
       isbn={activePublication.isbn}
       width={activePublication.width}
+      widthIn={activePublication.widthIn}
       height={activePublication.height}
+      heightIn={activePublication.heightIn}
       depth={activePublication.depth}
+      depthIn={activePublication.depthIn}
       weight={activePublication.weight}
+      weightOz={activePublication.weightOz}
       onUpdateIsbn={updateIsbn}
       onUpdateType={updateType}
       onDone={close}
