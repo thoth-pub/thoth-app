@@ -1,6 +1,7 @@
 export * from './auth';
 export { default as AddNewContribution } from './contribution/AddNewContribution/AddNewContribution';
 export { default as EditContribution } from './contribution/EditContribution/EditContribution';
+export { default as ContentLanguage } from './i18n/ContentLanguage';
 export { default as AddNewPublication } from './publications/AddNewPublication/AddNewPublication';
 export { default as EditPublication } from './publications/EditPublication/EditPublication';
 export { default as ChangeActivePublisher } from './publisher/ui/ChangeActivePublisher/ChangeActivePublisher';

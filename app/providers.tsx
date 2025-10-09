@@ -2,7 +2,9 @@
 
 import { Session } from 'next-auth';
 import { SessionProvider } from 'next-auth/react';
+import { I18nextProvider } from 'react-i18next';
 
+import { i18nConfig } from '@/src/shared';
 import {
   ApolloClientProvider,
   LocalizationProvider,
@@ -21,16 +23,18 @@ type ProvidersProps = {
 const Providers = ({ children, session }: Readonly<ProvidersProps>) => {
   return (
     <SessionProvider session={session}>
-      <ApolloClientProvider>
-        <StoreProvider>
-          <StylesCacheProvider>
-            <ThemeProvider>
-              <LocalizationProvider>{children}</LocalizationProvider>
-            </ThemeProvider>
-          </StylesCacheProvider>
-        </StoreProvider>
-      </ApolloClientProvider>
-      <NotificationProvider />
+      <I18nextProvider i18n={i18nConfig}>
+        <ApolloClientProvider>
+          <StoreProvider>
+            <StylesCacheProvider>
+              <ThemeProvider>
+                <LocalizationProvider>{children}</LocalizationProvider>
+              </ThemeProvider>
+            </StylesCacheProvider>
+          </StoreProvider>
+        </ApolloClientProvider>
+        <NotificationProvider />
+      </I18nextProvider>
     </SessionProvider>
   );
 };

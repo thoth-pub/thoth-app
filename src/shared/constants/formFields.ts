@@ -10,6 +10,7 @@ import {
 
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
 import { LanguageRelation, LanguageTypeAlt } from './languages';
+import { LOCALES } from './locales';
 
 const {
   EMAIL_REQUIRED,
@@ -2303,4 +2304,9 @@ export const locationPlatformOptions = [
   { value: 'SCIENCE_OPEN', label: 'ScienceOpen' },
   { value: 'THOTH', label: 'Thoth (Publisher CDN)' },
   { value: 'ZENODO', label: 'Zenodo' },
+];
+
+export const contentLanguageOptions = [
+  { value: LOCALES.enum.en, label: 'English' },
+  { value: LOCALES.enum.es, label: 'Spanish' },
 ];

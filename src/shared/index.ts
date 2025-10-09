@@ -3,6 +3,7 @@ export * from './api/fragments';
 export * from './api/registries';
 export * from './config';
 export * from './constants';
+export * from './i18n';
 export * from './interfaces';
 export * from './store';
 export * from './theme';

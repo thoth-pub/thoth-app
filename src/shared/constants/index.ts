@@ -6,6 +6,7 @@ export * from './helperText';
 export * from './ids';
 export * from './languages';
 export * from './lengths';
+export * from './locales';
 export * from './locations';
 export * from './notifications';
 export * from './pages';
