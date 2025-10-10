@@ -6,13 +6,6 @@ export const ROUTES = {
   CREATE_WORK: '/admin/works/new/create',
   WORK_PAGE: (id: string) => `/admin/works/${id}`,
   WORKS: '/admin/works',
-  BOOKS: '/admin/books',
-  CHAPTERS: '/admin/chapters',
-  PUBLICATIONS: '/admin/publications',
-  PUBLISHERS: '/admin/publishers',
-  IMPRINTS: '/admin/imprints',
-  CONTRIBUTORS: '/admin/contributors',
   SERIES: '/admin/series',
-  INSTITUTIONS: '/admin/institutions',
   NOT_FOUND: '/not-found',
 } as const;
