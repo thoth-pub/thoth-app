@@ -7,5 +7,6 @@ export const ROUTES = {
   WORK_PAGE: (id: string) => `/admin/works/${id}`,
   WORKS: '/admin/works',
   SERIES: '/admin/series',
+  PROFILE: '/admin/profile',
   NOT_FOUND: '/not-found',
 } as const;

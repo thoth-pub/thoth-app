@@ -75,9 +75,7 @@
   --green-opacity-50: rgba(66, 176, 114, 0.5);
   --red: #ff0000;
 
-  --max-width: calc(1440px + 2.5rem);
-
-  --max-form-content-width: calc(1400px);
+  --max-width: 1880px;
 
   --side-padding: 1.25rem;
 
@@ -111,9 +109,12 @@
 
   /* Tier 3 */
   --header-height: 5.625rem;
-  --footer-height: 4rem;
 
   --color-link: var(--purple);
+
+  --color-nav-background: var(--white-opacity-50);
+  --color-nav-border: var(--purple-opacity-25);
+  --border-nav-radius: var(--default-radius);
 
   --color-button-contained-background: var(--color-primary);
   --color-button-contained-text: var(--color-yellow);

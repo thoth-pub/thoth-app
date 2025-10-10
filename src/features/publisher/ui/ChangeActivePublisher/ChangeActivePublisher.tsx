@@ -18,24 +18,13 @@ const ChangeActivePublisher = () => {
 
   const { activePublisher, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
 
-  const test = [
-    ...publishers,
-    {
-      id: '5e62434f-d92b-45e5-a658-9a916fa64f4b',
-      name: 'Test',
-      shortName: 'Test',
-      url: 'Test',
-      updatedAt: '',
-    },
-  ];
-
-  const publishersOptions = convertEntityToSelectFieldOptions(test, 'name');
+  const publishersOptions = convertEntityToSelectFieldOptions(publishers, 'name');
 
   useEffect(() => {
     if (publishers.length === 0 || activePublisher) return;
 
-    setLinkedPublishers(test);
-  }, [test]);
+    setLinkedPublishers(publishers);
+  }, [publishers]);
 
   const handleUpdatePublisher = (publisher: PublisherId) => {
     changeActivePublisher(publisher);
@@ -47,8 +36,9 @@ const ChangeActivePublisher = () => {
       value={activePublisher}
       fullWidth
       select
+      className="w-[240px] shrink-0"
       onChange={(e) => handleUpdatePublisher(e.target.value)}
-      disabled={test.length === 1}
+      disabled={publishers.length === 1}
     />
   );
 };
