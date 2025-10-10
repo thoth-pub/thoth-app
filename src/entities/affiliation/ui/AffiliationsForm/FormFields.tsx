@@ -1,6 +1,7 @@
 'use client';
 
 import { type Control, useFieldArray } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
 import { appConfig } from '@/src/shared';
@@ -26,6 +27,8 @@ export const fieldsDefaultValues = {
 
 export const FormFields = (props: FormFieldsProps) => {
   const { control } = props;
+
+  const { t } = useTranslation();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -76,8 +79,8 @@ export const FormFields = (props: FormFieldsProps) => {
         <InputLabel className={`${fields.length === 0 ? 'opacity-1' : 'opacity-0'}`} component="span">
           {AFFILIATIONS.label}
         </InputLabel>
-        <AddButton type="button" className="mt-[2rem] mr-auto" onAdd={handleAdd}>
-          Add New Affiliation
+        <AddButton type="button" className="mt-[2rem] mr-auto capitalize" onAdd={handleAdd}>
+          {t('add new affiliation')}
         </AddButton>
       </FormFieldWrapper>
     </>

@@ -1,9 +1,12 @@
+'use client';
+
 import { Control, useFieldArray } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
 import type { LanguageRelation } from '@/gql/graphql';
-import { appConfig, isDefaultId } from '@/src/shared';
-import { FORM_FIELDS, languageOptions, languageRelationOptions } from '@/src/shared/constants/formFields';
+import { appConfig, getLanguageRelationOptions, isDefaultId } from '@/src/shared';
+import { FORM_FIELDS, languageOptions } from '@/src/shared/constants/formFields';
 import {
   AddButton,
   AutocompleteField,
@@ -25,13 +28,6 @@ type FormFieldsProps = {
 
 const { LANGUAGES, LANGUAGE, LANGUAGE_RELATION } = FORM_FIELDS;
 
-const fieldsDefaultValues = {
-  languageId: appConfig.defaultId,
-  isMain: false,
-  [LANGUAGE.name]: languageOptions[0],
-  [LANGUAGE_RELATION.name]: languageRelationOptions[0].value as LanguageRelation,
-};
-
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const FormFields = (props: FormFieldsProps) => {
@@ -41,6 +37,16 @@ export const FormFields = (props: FormFieldsProps) => {
     control,
     name: LANGUAGES.name,
   });
+
+  const { t, i18n } = useTranslation();
+  const languageRelationOptions = getLanguageRelationOptions(i18n.language);
+
+  const fieldsDefaultValues = {
+    languageId: appConfig.defaultId,
+    isMain: false,
+    [LANGUAGE.name]: languageOptions[0],
+    [LANGUAGE_RELATION.name]: languageRelationOptions[0].value as LanguageRelation,
+  };
 
   useEffectOnce(() => {
     if (fields.length !== 0) return;
@@ -115,8 +121,8 @@ export const FormFields = (props: FormFieldsProps) => {
         <InputLabel className={`${fields.length === 0 ? 'opacity-1' : 'opacity-0'}`} component="span">
           {LANGUAGES.label}
         </InputLabel>
-        <AddButton type="button" className="mt-[2rem] mr-auto" onAdd={handleAdd}>
-          Add New Language
+        <AddButton type="button" className="mt-[2rem] mr-auto capitalize" onAdd={handleAdd}>
+          {t('add new language')}
         </AddButton>
       </FormFieldWrapper>
     </>

@@ -1,4 +1,7 @@
+'use client';
+
 import AddIcon from '@mui/icons-material/Add';
+import { useTranslation } from 'react-i18next';
 
 import FormFieldLabel from '../../forms/FormFieldLabel/FormFieldLabel';
 import ContentWrapper from '../../layout/ContentWrapper/ContentPreview';
@@ -12,24 +15,31 @@ type PreviewProps = {
   recommended?: boolean;
   disabled?: boolean;
   children?: Readonly<React.ReactNode>;
+  capitalize?: boolean;
   onEdit?: () => void;
 };
 
-const Preview = ({ label, value, children, recommended = false, disabled = false, onEdit }: PreviewProps) => {
+const Preview = (props: PreviewProps) => {
+  const { label, value, children, recommended = false, disabled = false, capitalize = false, onEdit } = props;
+  const { t } = useTranslation();
+
   return (
     <ContentWrapper>
       <FormFieldLabel component="div" label={label} recommended={recommended} />
       <div className="flex justify-between">
         {children && children}
-        {!children && value && <Typography className="ml-2">{value}</Typography>}
+        {!children && value && <Typography className={`ml-2 ${capitalize ? 'capitalize' : ''}`}>{value}</Typography>}
         {!value && (
           <Button
             disabled={disabled}
             endIcon={<AddIcon className="opacity-0 group-hover:opacity-100" />}
             onClick={onEdit}
             className="mr-2 ml-2 w-full justify-between"
+            sx={{
+              textTransform: 'capitalize',
+            }}
           >
-            Add {label}
+            {t('add')} {label}
           </Button>
         )}
         {value && <EditButton disabled={disabled} className="opacity-0 group-hover:opacity-100" onClick={onEdit} />}

@@ -2,6 +2,7 @@
 
 import SearchIcon from '@mui/icons-material/Search';
 import { type ChangeEvent, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useContributors } from '@/src/entities/contributor';
@@ -40,6 +41,7 @@ const defaultContribution = {
 
 const AddContributionModal = () => {
   const [searchValue, setSearchValue] = useState('');
+  const { t } = useTranslation();
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { contributors, loading } = useContributors({ filter: debouncedValue });
   const { activeContribution, edit } = useContributionStateMachine();
@@ -85,14 +87,14 @@ const AddContributionModal = () => {
 
   return (
     <>
-      <AddButton onAdd={handleModalState} className="mt-3 pr-6 pl-7" disabled={!!activeContribution}>
-        Add Contributor
+      <AddButton onAdd={handleModalState} className="mt-3 pr-6 pl-7 capitalize" disabled={!!activeContribution}>
+        {t('add contributor')}
       </AddButton>
       <Modal open={open} onClose={handleModalState}>
         <ModalWrapper>
           <div className="flex justify-between">
-            <Typography variant="h2" component="h3" className="text-[var(--color-typography)]">
-              Add contributor
+            <Typography variant="h2" component="h3" className="text-[var(--color-typography)] capitalize">
+              {t('add contributor')}
             </Typography>
             <CloseButton onClose={handleModalState} />
           </div>
@@ -141,8 +143,13 @@ const AddContributionModal = () => {
           </div>
 
           <div className="flex gap-4">
-            <Button variant="contained" onClick={handleAdd} disabled={!selectedContributorRecord}>
-              Add
+            <Button
+              variant="contained"
+              className="capitalize"
+              onClick={handleAdd}
+              disabled={!selectedContributorRecord}
+            >
+              {t('add contributor')}
             </Button>
             <Button variant="text" onClick={handleCreate}>
               Create new

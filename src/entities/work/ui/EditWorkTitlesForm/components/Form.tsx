@@ -1,6 +1,7 @@
 'use client';
 
 import type { Control } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { FormAnimationWrapper } from '@/src/shared/ui';
@@ -42,6 +43,8 @@ export const Form = (props: FormProps) => {
     onSubmit,
   } = props;
 
+  const { t } = useTranslation();
+
   return (
     <FormAnimationWrapper key="edit-mode">
       <form className="flex flex-col gap-[var(--default-gap)]" onSubmit={onSubmit}>
@@ -65,8 +68,8 @@ export const Form = (props: FormProps) => {
           />
         ))}
 
-        <AddButton className="ml-[11.25rem] self-start" onAdd={addLanguage} type="button">
-          Add Translation
+        <AddButton className="ml-[11.25rem] self-start capitalize" onAdd={addLanguage} type="button">
+          {t('add translation')}
         </AddButton>
       </form>
     </FormAnimationWrapper>

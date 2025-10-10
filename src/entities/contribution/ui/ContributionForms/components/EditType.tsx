@@ -1,6 +1,10 @@
+'use client';
+
+import { useTranslation } from 'react-i18next';
+
 import type { ContributionType } from '@/src/entities/contributor/model/contributor.types';
-import { HELPER_TEXT, IDs } from '@/src/shared';
-import { contributorTypeOptions, FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { getContributorTypeOptions, HELPER_TEXT, IDs } from '@/src/shared';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -18,6 +22,8 @@ type EditTypeProps = {
 
 export const EditType = (props: EditTypeProps) => {
   const { contributorType, onSubmit } = props;
+  const { t, i18n } = useTranslation();
+  const contributorTypeOptions = getContributorTypeOptions(i18n.language);
 
   const defaultValue =
     contributorTypeOptions.find((option) => option.value === contributorType) ?? contributorTypeOptions[0];
@@ -44,7 +50,9 @@ export const EditType = (props: EditTypeProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => <Preview label={CONTRIBUTOR_TYPE.label} value={defaultValue.label} onEdit={onEdit} />}
+      preview={({ onEdit }) => (
+        <Preview capitalize label={CONTRIBUTOR_TYPE.label} value={t(defaultValue.label)} onEdit={onEdit} />
+      )}
     />
   );
 };

@@ -22,12 +22,7 @@ const ContentLanguage = () => {
       select
       options={contentLanguageOptions}
       name="contentLanguage"
-      className="min-w-[300px]"
-      sx={{
-        '& .MuiSelect-select': {
-          height: '10px',
-        },
-      }}
+      className="min-w-[200px]"
       onChange={(e) => handleChange(e.target.value as Locale)}
     />
   );

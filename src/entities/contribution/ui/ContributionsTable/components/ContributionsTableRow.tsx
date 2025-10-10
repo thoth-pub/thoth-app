@@ -4,6 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { AnimatePresence } from 'motion/react';
+import { useTranslation } from 'react-i18next';
 import removeMd from 'remove-markdown';
 
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
@@ -36,7 +37,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
     onDelete,
     onSelectAsMain,
   } = props;
-
+  const { t } = useTranslation();
   const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
 
   const style = {
@@ -72,7 +73,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
             </div>
           </TableCell>
           <TableCell className="w-45 border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-            {type.toLowerCase().replace('_', ' ')}
+            {t(type.toLowerCase().replace('_', ' '))}
           </TableCell>
           <TableCell className="w-50 border-1 border-r-0 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
             <div className="flex rounded-tr-2xl rounded-br-2xl">

@@ -1,15 +1,13 @@
 import {
-  ContributorTypes,
   ERRORS,
   LengthUnit,
   PublicationType,
   WeightUnit,
   WorkStatuses,
-  WorkTypes,
 } from '@/src/shared/constants';
 
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
-import { LanguageRelation, LanguageTypeAlt } from './languages';
+import { LanguageTypeAlt } from './languages';
 import { LOCALES } from './locales';
 
 const {
@@ -359,8 +357,6 @@ export const FORM_FIELDS = {
   // DESCRIPTION: 'description',
   // SERIES_TYPE: 'seriesType',
 } as const;
-
-export const workTypeOptions = convertFormFieldsToSelectFieldOptions(WorkTypes.options);
 
 export const workStatusOptions = convertFormFieldsToSelectFieldOptions(WorkStatuses.options);
 
@@ -1975,10 +1971,6 @@ export const languageOptions = [
   { label: 'No linguistic content', value: 'ZXX' },
   { label: 'Zaza', value: 'ZZA' },
 ];
-
-export const contributorTypeOptions = convertFormFieldsToSelectFieldOptions(ContributorTypes.options);
-
-export const languageRelationOptions = convertFormFieldsToSelectFieldOptions(LanguageRelation.options);
 
 export const currencyOptions = [
   { value: 'ADP', label: 'Andorran peseta' },

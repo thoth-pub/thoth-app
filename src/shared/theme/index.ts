@@ -138,6 +138,17 @@ export const theme = createTheme({
           '& .MuiFormHelperText-root': {
             color: 'var(--color-text-field-helper-text)',
           },
+          '& .MuiSelect-select': {
+            height: '10px',
+            textTransform: 'capitalize',
+          },
+        },
+      },
+    },
+    MuiMenuItem: {
+      styleOverrides: {
+        root: {
+          textTransform: 'capitalize',
         },
       },
     },

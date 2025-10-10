@@ -1,4 +1,5 @@
 import { type Control, useFieldArray } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
 import { appConfig, getProtocolPrefix, HELPER_TEXT, isDefaultId } from '@/src/shared';
@@ -42,6 +43,8 @@ const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const FormFields = (props: FormFieldsProps) => {
   const { control, isHelperTextVisible = false, onDelete, onClose } = props;
+
+  const { t } = useTranslation();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -146,8 +149,8 @@ export const FormFields = (props: FormFieldsProps) => {
         <InputLabel className={`${fields.length === 0 ? 'opacity-1' : 'opacity-0'}`} component="span">
           {LOCATIONS.label}
         </InputLabel>
-        <AddButton type="button" className="mt-[2rem] mr-auto" onAdd={handleAdd}>
-          Add New Location
+        <AddButton type="button" className="mt-[2rem] mr-auto capitalize" onAdd={handleAdd}>
+          {t('add new location')}
         </AddButton>
       </FormFieldWrapper>
     </>
