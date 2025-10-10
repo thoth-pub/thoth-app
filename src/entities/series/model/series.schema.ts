@@ -12,3 +12,9 @@ export const GET_SERIES = graphql(`
     }
   }
 `);
+
+export const GET_SERIES_COUNT = graphql(`
+  query GetSeriesCount($publishers: [Uuid!]!) {
+    seriesCount(publishers: $publishers)
+  }
+`);

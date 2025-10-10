@@ -116,3 +116,9 @@ export const DELETE_WORK = graphql(`
     }
   }
 `);
+
+export const GET_WORKS_COUNT = graphql(`
+  query GetWorksCount($publishers: [Uuid!]!) {
+    workCount(publishers: $publishers)
+  }
+`);

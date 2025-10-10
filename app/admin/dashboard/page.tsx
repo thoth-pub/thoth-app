@@ -1,15 +1,31 @@
-import Link from 'next/link';
+import { redirect } from 'next/navigation';
+import { Suspense } from 'react';
 
-import { PAGES } from '@/src/shared/constants';
+import { auth } from '@/auth';
+import { GET_SERIES_COUNT } from '@/src/entities/series/model/series.schema';
+import { GET_WORKS_COUNT } from '@/src/entities/work/model/work.schema';
+import { Dashboard } from '@/src/features';
+import { convertLinkedPublishers } from '@/src/shared';
+import { ROUTES } from '@/src/shared/constants';
+import { PreloadQuery } from '@/src/shared/graphqlClient';
 
 export default async function DashboardPage() {
+  const session = await auth();
+
+  if (!session || !session.user) {
+    redirect(ROUTES.LOGIN);
+  }
+
+  const linkedPublishers = session.user.linkedPublishers ? convertLinkedPublishers(session.user.linkedPublishers) : [];
+  const activePublisher = linkedPublishers.slice(0, 1);
+
   return (
-    <ul>
-      {PAGES.map(({ name, href }) => (
-        <li key={href}>
-          <Link href={href}>{name}</Link>
-        </li>
-      ))}
-    </ul>
+    <PreloadQuery query={GET_WORKS_COUNT} variables={{ publishers: activePublisher }}>
+      <PreloadQuery query={GET_SERIES_COUNT} variables={{ publishers: activePublisher }}>
+        <Suspense fallback={<p>loading...</p>}>
+          <Dashboard />
+        </Suspense>
+      </PreloadQuery>
+    </PreloadQuery>
   );
 }

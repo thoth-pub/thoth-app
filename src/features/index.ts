@@ -2,6 +2,7 @@ export * from './auth';
 export { default as AddNewContribution } from './contribution/AddNewContribution/AddNewContribution';
 export { default as EditContribution } from './contribution/EditContribution/EditContribution';
 export { default as ContentLanguage } from './i18n/ContentLanguage';
+export { default as Dashboard } from './layout/Dashboard/Dashboard';
 export { default as Navigation } from './layout/Navigation/Navigation';
 export { default as AddNewPublication } from './publications/AddNewPublication/AddNewPublication';
 export { default as EditPublication } from './publications/EditPublication/EditPublication';
