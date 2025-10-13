@@ -82,17 +82,19 @@ const Navigation = () => {
         <div
           className={`mt-auto flex gap-2 rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)] py-2 ${isExpanded ? 'px-4' : 'h-[2.5rem] w-[2.5rem] px-1.5'}`}
         >
-          <PermIdentityRoundedIcon color="primary" className="my-auto shrink-0" />
-          <Typography
-            color="primary"
-            component="span"
-            className={`flex max-w-[85%] flex-col gap-1 font-semibold transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
-          >
-            John Doe
-            <Typography color="primary" component="span" variant="body2" className="overflow-hidden text-ellipsis">
-              john.doelongmail@example.com
+          <PermIdentityRoundedIcon color="primary" className="m-auto shrink-0" />
+          {isExpanded && (
+            <Typography
+              color="primary"
+              component="span"
+              className={`flex max-w-[85%] flex-col gap-1 font-semibold transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
+            >
+              John Doe
+              <Typography color="primary" component="span" variant="body2" className="overflow-hidden text-ellipsis">
+                john.doelongmail@example.com
+              </Typography>
             </Typography>
-          </Typography>
+          )}
         </div>
       </motion.div>
     </Paper>
