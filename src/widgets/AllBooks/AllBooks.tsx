@@ -19,6 +19,8 @@ const AllBooks = () => {
     changePage,
     direction,
     changeDirection,
+    workStatus,
+    changeWorkStatus,
   } = useAllBooks();
 
   return (
@@ -30,9 +32,11 @@ const AllBooks = () => {
           direction={direction}
           page={activePage}
           pagesCount={totalPagesCount}
+          workStatus={workStatus}
           loading={loading}
           onDirectionChange={changeDirection}
           onPageChange={changePage}
+          onWorkStatusChange={changeWorkStatus}
         />
       </ContentSection>
     </>

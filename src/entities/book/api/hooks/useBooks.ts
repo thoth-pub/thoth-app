@@ -1,6 +1,6 @@
 import { useQuery } from '@apollo/client/react';
 
-import type { WorkFragmentFragment } from '@/gql/graphql';
+import type { WorkFragmentFragment, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
 import { appConfig, type Direction } from '@/src/shared';
 
@@ -15,17 +15,25 @@ type UseBooksProps = {
   limit?: number;
   direction?: Direction;
   filter?: string;
+  workStatus?: WorkStatus;
 };
 
 const useBooks = (props: UseBooksProps) => {
-  const { publishersIds, offset = 0, limit = appConfig.data.itemsPerRequestLimit, direction, filter = '' } = props;
+  const {
+    publishersIds,
+    offset = 0,
+    limit = appConfig.data.itemsPerRequestLimit,
+    direction,
+    filter = '',
+    workStatus,
+  } = props;
 
   const {
     data: { books } = { books: [] },
     error,
     loading,
   } = useQuery(GET_BOOKS, {
-    variables: { offset, limit, publishers: publishersIds, direction, filter },
+    variables: { offset, limit, publishers: publishersIds, direction, filter, workStatus },
     skip: publishersIds.length === 0,
   });
 

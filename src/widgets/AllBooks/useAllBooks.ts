@@ -7,6 +7,7 @@ import { Direction } from '@/gql/graphql';
 import useBooks from '@/src/entities/book/api/hooks/useBooks';
 import useBooksCount from '@/src/entities/book/api/hooks/useBooksCount';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
+import type { WorkStatus } from '@/src/entities/work/model/work.types';
 import { appConfig, ROUTES } from '@/src/shared';
 import { useDebouncedValue } from '@/src/shared/hooks';
 
@@ -18,6 +19,7 @@ export const useAllBooks = () => {
   const { activePublisher } = usePublisherStateMachine();
   const publishers = activePublisher ? [activePublisher] : [];
 
+  const [workStatus, setWorkStatus] = useState<WorkStatus | 'All'>('All');
   const [activePage, setActivePage] = useState(1);
   const [direction, setDirection] = useState<Direction>(Direction.Asc);
   const [searchValue, setSearchValue] = useState('');
@@ -31,6 +33,7 @@ export const useAllBooks = () => {
     limit: ITEMS_PER_PAGE,
     direction,
     filter: debouncedValue,
+    workStatus: workStatus === 'All' ? undefined : workStatus,
   });
 
   const totalPagesCount = Math.ceil(bookCount / ITEMS_PER_PAGE);
@@ -45,6 +48,10 @@ export const useAllBooks = () => {
 
   const navigateToWork = (id: string) => {
     router.push(ROUTES.WORK_PAGE(id));
+  };
+
+  const changeWorkStatus = (value: WorkStatus) => {
+    setWorkStatus(value);
   };
 
   return {
@@ -65,5 +72,7 @@ export const useAllBooks = () => {
     // Filter
     direction,
     changeDirection,
+    workStatus,
+    changeWorkStatus,
   };
 };

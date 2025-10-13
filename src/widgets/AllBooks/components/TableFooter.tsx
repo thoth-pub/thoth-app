@@ -1,7 +1,7 @@
 'use client';
 
-import { Direction } from '@/gql/graphql';
-import { directionOptions } from '@/src/shared/constants/formFields';
+import { Direction, WorkStatus } from '@/gql/graphql';
+import { directionOptions, workStatusOptions } from '@/src/shared/constants/formFields';
 import { Pagination, TextField } from '@/src/shared/ui';
 
 type TableFooterProps = {
@@ -9,15 +9,24 @@ type TableFooterProps = {
   page: number;
   pagesCount: number;
   loading: boolean;
+  workStatus: WorkStatus | 'All';
+  onWorkStatusChange: (workStatus: WorkStatus) => void;
   onDirectionChange: (direction: Direction) => void;
   onPageChange: (value: number) => void;
 };
 
 export const TableFooter = (props: TableFooterProps) => {
-  const { direction, page, pagesCount, loading, onDirectionChange, onPageChange } = props;
+  const { direction, page, pagesCount, loading, workStatus, onWorkStatusChange, onDirectionChange, onPageChange } =
+    props;
 
   return (
     <div className="ml-auto flex items-center gap-2">
+      <TextField
+        select
+        options={[...workStatusOptions, { value: 'All', label: 'All' }]}
+        value={workStatus}
+        onChange={(e) => onWorkStatusChange(e.target.value as WorkStatus)}
+      />
       <TextField
         select
         options={directionOptions}

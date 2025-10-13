@@ -1,13 +1,21 @@
 import { graphql } from '@/gql';
 
 export const GET_BOOKS = graphql(`
-  query GetBooks($offset: Int!, $limit: Int, $publishers: [Uuid!]!, $direction: Direction = ASC, $filter: String) {
+  query GetBooks(
+    $offset: Int!
+    $limit: Int
+    $publishers: [Uuid!]!
+    $direction: Direction = ASC
+    $filter: String
+    $workStatus: WorkStatus
+  ) {
     books(
       offset: $offset
       limit: $limit
       publishers: $publishers
       order: { direction: $direction, field: UPDATED_AT }
       filter: $filter
+      workStatus: $workStatus
     ) {
       ...WorkFragment
     }
