@@ -52,7 +52,7 @@ export const BooksTable = (props: BooksTableProps) => {
         ) : (
           <>
             {books.map(({ id, reference, title, type, updatedAt, contributorsNames }) => (
-              <TableRow key={id} className="group" onClick={() => navigateToWork(id)}>
+              <TableRow key={id} className="group" onDoubleClick={() => navigateToWork(id)}>
                 <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-7 capitalize group-hover:border-t-[var(--color-table-border-alt)] group-hover:border-b-[var(--color-table-border-alt)] group-hover:border-l-[var(--color-table-border-alt)]">
                   {reference}
                 </TableCell>

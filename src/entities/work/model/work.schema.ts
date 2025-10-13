@@ -47,6 +47,15 @@ export const GET_CHAPTERS = graphql(`
         languageRelation
         mainLanguage
       }
+      fundings {
+        fundingId
+        grantNumber
+        institutionId
+        jurisdiction
+        program
+        projectName
+        projectShortname
+      }
       publications {
         publicationId
         isbn

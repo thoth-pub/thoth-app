@@ -12,3 +12,4 @@ export { default as CreateNewWorkLink } from './work/CreateNewWorkLink/CreateNew
 export { default as EditBasicDetails } from './work/EditBasicDetails/EditBasicDetails';
 export { default as EditContributors } from './work/EditContributors/EditContributors';
 export { default as EditDescriptions } from './work/EditDescriptions/EditDescriptions';
+export { default as EditFundings } from './work/EditFundings/EditFundings';

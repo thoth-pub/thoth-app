@@ -31,4 +31,10 @@ export const HELPER_TEXT = {
   LOCATION_PLATFORM: 'Choose the platform of the publication.',
   LOCATION_URL_HELPER_TEXT: 'Enter the URL where a publication can be acquired or viewed.',
   LANDING_PAGE_HELPER_TEXT: 'Enter the landing page URL of the publication.',
+  INSTITUTION: 'Select the institution of the funding.',
+  GRANT_NUMBER: 'Enter the grant number of the funding.',
+  JURISDICTION: 'Enter the jurisdiction of the funding.',
+  PROGRAM: 'Enter the program of the funding.',
+  PROJECT_NAME: 'Enter the project name of the funding.',
+  PROJECT_SHORTNAME: 'Enter the project shortname of the funding.',
 };

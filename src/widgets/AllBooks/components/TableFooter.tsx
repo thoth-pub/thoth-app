@@ -26,12 +26,14 @@ export const TableFooter = (props: TableFooterProps) => {
         options={[...workStatusOptions, { value: 'All', label: 'All' }]}
         value={workStatus}
         onChange={(e) => onWorkStatusChange(e.target.value as WorkStatus)}
+        variant="standard"
       />
       <TextField
         select
         options={directionOptions}
         value={direction}
         onChange={(e) => onDirectionChange(e.target.value as Direction)}
+        variant="standard"
       />
       <Pagination
         page={page}

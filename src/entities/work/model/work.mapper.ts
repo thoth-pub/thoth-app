@@ -10,9 +10,12 @@ import {
 } from '@/src/shared';
 import type { BaseMapper } from '@/src/shared/interfaces';
 
+import { FundingDtoMapper } from '../../funding/model/funding.mapper';
 import type { WorkContribution, WorkContributionDto, WorkDto, WorkEntity } from './work.types';
 
 const { pageBreakdownSeparator } = appConfig.dataApi;
+
+const fundingMapper = new FundingDtoMapper();
 
 export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   toEntity(dto: WorkDto): WorkEntity {
@@ -43,6 +46,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       reference,
       contributions = [],
       languages = [],
+      fundings = [],
       publications = [],
     } = dto;
 
@@ -76,6 +80,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       pageCount: pageCount ?? 0,
       frontmatterCount: frontmatterValue,
       backmatterCount: backmatterValue,
+      fundings: fundings.map(fundingMapper.toEntity),
       languages: languages.map(({ languageCode, languageRelation, mainLanguage, languageId }) => ({
         code: languageCode,
         relation: languageRelation,

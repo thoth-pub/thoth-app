@@ -59,6 +59,15 @@ export const WORK_FRAGMENT = graphql(`
       mainLanguage
       languageId
     }
+    fundings {
+      fundingId
+      grantNumber
+      institutionId
+      jurisdiction
+      program
+      projectName
+      projectShortname
+    }
     publications {
       publicationId
       isbn

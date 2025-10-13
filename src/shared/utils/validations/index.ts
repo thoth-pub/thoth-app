@@ -119,3 +119,5 @@ const romanRegex = new RegExp(/^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I
 export const romanNumeralValidation = z.string().toUpperCase().regex(romanRegex, 'Invalid Roman Numeral format');
 
 export const romanNumeralValidationOptional = romanNumeralValidation.optional();
+
+export const uuidValidation = z.uuid();

@@ -33,4 +33,6 @@ export const IDs = {
   PUBLICATION_SIZES: 'publication_sizes',
   PRICES: 'publication_prices',
   LOCATIONS: 'publication_locations',
+  // FUNDINGS
+  FUNDING: 'funding',
 } as const;
