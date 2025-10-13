@@ -26,7 +26,7 @@ const useWork = (id: WorkId, queryToken: QueryToken, onCreateCompleted?: (data: 
       work: defaultValues,
     },
   } = useSuspenseQuery(GET_WORK, { variables: { workId: id } });
-  const { deleteWork } = useDeleteWork({ workId: id, queryToken });
+  const { deleteWork } = useDeleteWork({ queryToken });
   const { updateWork: updateWorkMutation } = useUpdateWork({ workId: id, queryToken });
   const {
     createContribution: createContributionMutation,

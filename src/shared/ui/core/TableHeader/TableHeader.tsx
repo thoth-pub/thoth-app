@@ -2,14 +2,15 @@ import { TableCell, TableHead, TableRow, Typography } from '@/src/shared/ui';
 
 type TableHeaderProps = {
   cells: string[];
+  cellStyles?: string[];
 };
 
-const TableHeader = ({ cells }: TableHeaderProps) => {
+const TableHeader = ({ cells, cellStyles = [] }: TableHeaderProps) => {
   return (
     <TableHead>
       <TableRow>
-        {cells.map((cell) => (
-          <TableCell key={cell}>
+        {cells.map((cell, index) => (
+          <TableCell key={cell} className={cellStyles[index]}>
             <Typography
               variant="h2"
               component="span"

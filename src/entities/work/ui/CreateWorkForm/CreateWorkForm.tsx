@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
-import { AutocompleteGroup, Button, CircullarProgress, PageHeader } from '@/src/shared/ui';
+import { AutocompleteGroup, Button, CircularProgress, PageHeader } from '@/src/shared/ui';
 import { getWorkTypeOptions } from '@/src/shared/utils';
 
 import CreateWorkFormAutocompleteField from './components/CreateWorkFormAutocompleteField';
@@ -42,7 +42,7 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions, queryToken }: CreateWo
           type="submit"
           form={CREATE_WORK}
           loading={isLoading}
-          loadingIndicator={<CircullarProgress size={22} sx={{ color: 'inherit' }} />}
+          loadingIndicator={<CircularProgress size={22} sx={{ color: 'inherit' }} />}
         >
           New
         </Button>

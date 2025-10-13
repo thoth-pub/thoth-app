@@ -17,6 +17,7 @@ export const GET_CHAPTERS = graphql(`
       imprintId
       workStatus
       edition
+      reference
       contributions {
         fullName
         lastName
@@ -86,8 +87,8 @@ export const GET_CHAPTERS = graphql(`
 `);
 
 export const GET_WORKS = graphql(`
-  query GetWorks($publishers: [Uuid!]!) {
-    works(publishers: $publishers) {
+  query GetWorks($offset: Int!, $limit: Int, $publishers: [Uuid!]!) {
+    works(offset: $offset, limit: $limit, publishers: $publishers) {
       ...WorkFragment
     }
   }

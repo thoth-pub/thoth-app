@@ -64,6 +64,7 @@ export type WorkEntity = {
   landingPage?: string | null;
   coverUrl?: string | null;
   publicationDate: string | null;
+  reference?: string | null;
   contributions: WorkContribution[];
   imageCount: number;
   tableCount: number;

@@ -1,12 +1,7 @@
-import {
-  ERRORS,
-  LengthUnit,
-  PublicationType,
-  WeightUnit,
-  WorkStatuses,
-} from '@/src/shared/constants';
+import { ERRORS, LengthUnit, PublicationType, WeightUnit, WorkStatuses } from '@/src/shared/constants';
 
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
+import { FILTER_OPTIONS } from './filter';
 import { LanguageTypeAlt } from './languages';
 import { LOCALES } from './locales';
 
@@ -2301,4 +2296,9 @@ export const locationPlatformOptions = [
 export const contentLanguageOptions = [
   { value: LOCALES.enum.en, label: 'English' },
   { value: LOCALES.enum.es, label: 'Spanish' },
+];
+
+export const directionOptions = [
+  { value: FILTER_OPTIONS.enum.Asc, label: 'Ascending' },
+  { value: FILTER_OPTIONS.enum.Desc, label: 'Descending' },
 ];

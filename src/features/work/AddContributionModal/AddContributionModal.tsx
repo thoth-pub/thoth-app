@@ -13,7 +13,7 @@ import { useDebouncedValue } from '@/src/shared/hooks';
 import {
   AddButton,
   Button,
-  CircullarProgress,
+  CircularProgress,
   CloseButton,
   InputAdornment,
   Modal,
@@ -115,7 +115,7 @@ const AddContributionModal = () => {
 
           <div className="flex min-h-40">
             {loading ? (
-              <CircullarProgress className="m-auto" />
+              <CircularProgress className="m-auto" />
             ) : (
               <ul className="flex w-full flex-col overflow-y-scroll">
                 {isInitial && (

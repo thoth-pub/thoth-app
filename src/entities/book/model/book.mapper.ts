@@ -1,21 +1,12 @@
-import {
-  appConfig,
-  convertArabicToRoman,
-  convertDateToFormattedDate,
-  convertOrchidIdToText,
-  convertRomanToArabic,
-  isBookChapter,
-  isDefaultId,
-  isPublicationDateAvailable,
-} from '@/src/shared';
+import { appConfig, convertOrchidIdToText, convertRomanToArabic } from '@/src/shared';
 import type { BaseMapper } from '@/src/shared/interfaces';
 
-import type { WorkContribution, WorkContributionDto, WorkDto, WorkEntity } from './work.types';
+import type { BookDto, BookEntity } from './book.types';
 
 const { pageBreakdownSeparator } = appConfig.dataApi;
 
-export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
-  toEntity(dto: WorkDto): WorkEntity {
+export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
+  toEntity(dto: BookDto): BookEntity {
     const {
       workId,
       title,
@@ -174,79 +165,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           })),
         }),
       ),
-    };
-  }
-  // TODO add logic for publication date for Active, Superseded, Withdrawn statuses
-  // TODO add utilities for conversions
-  toDto(entity: WorkEntity): Partial<WorkDto> {
-    const {
-      id,
-      title,
-      type,
-      imprintId,
-      status,
-      doi,
-      edition,
-      license,
-      copyrightHolder,
-      landingPage,
-      coverUrl,
-      fullTitle,
-      publicationDate,
-      imageCount,
-      tableCount,
-      audioCount,
-      videoCount,
-      pageCount,
-      frontmatterCount,
-      backmatterCount,
-    } = entity;
-    const defaultEdition = edition ?? 1;
-
-    const appliedPublicationDate =
-      isPublicationDateAvailable(status) && publicationDate ? convertDateToFormattedDate(publicationDate) : null;
-
-    const frontmatterValue = convertArabicToRoman(frontmatterCount);
-    const backmatterValue = convertArabicToRoman(backmatterCount);
-
-    const pageBreakdownValue = `${frontmatterValue}${pageBreakdownSeparator}${pageCount}${backmatterValue && backmatterValue.length > 0 ? pageBreakdownSeparator + backmatterValue : ''}`;
-
-    return {
-      workId: id,
-      workStatus: status,
-      title,
-      fullTitle,
-      imprintId,
-      workType: type,
-      edition: isBookChapter(type) ? null : defaultEdition,
-      license: license ?? null,
-      copyrightHolder: copyrightHolder && copyrightHolder.length > 0 ? copyrightHolder : null,
-      doi: doi && doi.length > 0 ? doi : null,
-      landingPage: landingPage && landingPage.length > 0 ? landingPage : null,
-      coverUrl: coverUrl && coverUrl.length > 0 ? coverUrl : null,
-      publicationDate: appliedPublicationDate,
-      imageCount: +imageCount > 0 ? +imageCount : null,
-      tableCount: +tableCount > 0 ? +tableCount : null,
-      audioCount: +audioCount > 0 ? +audioCount : null,
-      videoCount: +videoCount > 0 ? +videoCount : null,
-      pageCount: +pageCount > 0 ? +pageCount : null,
-      pageBreakdown: pageBreakdownValue.length > 0 ? pageBreakdownValue : null,
-    };
-  }
-
-  toDtoContribution(entity: WorkContribution): WorkContributionDto {
-    const { fullName, lastName, id, contributorId, type, isMain, orderNumber, firstName, biography } = entity;
-
-    return {
-      fullName,
-      lastName,
-      firstName: firstName && firstName.length > 0 ? firstName : null,
-      contributionId: id && !isDefaultId(id) ? id : undefined,
-      contributorId,
-      contributionType: type,
-      mainContribution: isMain,
-      contributionOrdinal: orderNumber,
-      biography: biography && biography.length > 0 ? biography : null,
     };
   }
 }

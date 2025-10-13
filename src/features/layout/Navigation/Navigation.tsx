@@ -11,6 +11,7 @@ import { useState } from 'react';
 import { PAGES } from '@/src/shared/constants';
 import { IconButton, Paper, Typography } from '@/src/shared/ui';
 
+import { SignOutButton } from '../../auth';
 import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
 
@@ -38,6 +39,7 @@ const Navigation = () => {
 
         <ChangeActivePublisher />
         <ContentLanguage />
+        <SignOutButton />
         <nav>
           <ul className="flex flex-col rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)]">
             {PAGES.map(({ name, href, icon: Icon }) => (
@@ -62,9 +64,9 @@ const Navigation = () => {
           <Typography
             color="primary"
             component="span"
-            className={`flex flex-col gap-1 font-semibold transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
+            className={`flex max-w-[85%] flex-col gap-1 font-semibold transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
           >
-            John Doe John Doe John Doe
+            John Doe
             <Typography color="primary" component="span" variant="body2" className="overflow-hidden text-ellipsis">
               john.doelongmail@example.com
             </Typography>

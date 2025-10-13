@@ -14,6 +14,7 @@ export const WORK_FRAGMENT = graphql(`
         publisherName
       }
     }
+    reference
     imprintId
     workStatus
     edition

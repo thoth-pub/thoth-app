@@ -12,7 +12,7 @@ export const PAGES = [
     icon: HomeRoundedIcon,
   },
   {
-    name: 'Works',
+    name: 'Books',
     href: ROUTES.WORKS,
     icon: MenuBookRoundedIcon,
   },

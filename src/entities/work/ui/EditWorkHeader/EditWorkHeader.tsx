@@ -23,7 +23,7 @@ const EditWorkHeader = ({ workId, queryToken, workStatusOptions }: EditWorkHeade
           {title}
         </Typography>
         <div className="flex h-max flex-shrink-0 gap-4">
-          <IconButton aria-label="delete" size="small" onClick={() => deleteWork()}>
+          <IconButton aria-label="delete" size="small" onClick={() => deleteWork(workId)}>
             <DeleteOutlineIcon fontSize="small" />
           </IconButton>
           <Button variant="contained">Done</Button>

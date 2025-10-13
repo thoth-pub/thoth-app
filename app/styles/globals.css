@@ -157,6 +157,7 @@
 
   --color-table-text: var(--color-typography);
   --color-table-border: var(--color-success);
+  --color-table-border-alt: var(--purple-opacity-25);
   --color-table-row-hover-background: var(--white);
   --color-table-row-hover-border: var(--purple-opacity-25);
   --color-table-edit-row-form-background: var(--white);

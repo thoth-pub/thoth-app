@@ -1,4 +1,5 @@
 export * from './auth/session';
+export * from './convertations/date';
 export * from './convertations/dimensions';
 export * from './convertations/formFields';
 export * from './convertations/romans';

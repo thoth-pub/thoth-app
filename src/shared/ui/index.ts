@@ -5,7 +5,7 @@ export { default as Button } from './core/Button/Button';
 export { default as ButtonGroup } from './core/ButtonGroup/ButtonGroup';
 export { default as Checkbox } from './core/Checkbox/Checkbox';
 export { default as Chip } from './core/Chip/Chip';
-export { default as CircullarProgress } from './core/CircullarProgress/CircullarProgress';
+export { default as CircularProgress } from './core/CircularProgress/CircularProgress';
 export { default as ClickAwayListener } from './core/ClickAwayListener/ClickAwayListener';
 export { default as CloseButton } from './core/CloseButton/CloseButton';
 export { default as DeleteButton } from './core/DeleteButton/DeleteButton';
@@ -21,6 +21,7 @@ export { default as MarkdownPreview } from './core/MarkdownPreview/MarkdownPrevi
 export { default as MenuItem } from './core/MenuItem/MenuItem';
 export { default as Modal } from './core/Modal/Modal';
 export { default as ModalWrapper } from './core/ModalWrapper/ModalWrapper';
+export { default as Pagination } from './core/Pagination/Pagination';
 export { default as Paper } from './core/Paper/Paper';
 export { default as Preview } from './core/Preview/Preview';
 export { default as Switch } from './core/Switch/Switch';
