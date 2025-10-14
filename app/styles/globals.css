@@ -74,6 +74,7 @@
   --green: #42b072;
   --green-opacity-50: rgba(66, 176, 114, 0.5);
   --red: #ff0000;
+  --color-blue: #394963;
 
   --max-width: 1880px;
 
@@ -174,6 +175,8 @@
   --color-data-indicator-border-error: var(--color-success);
 
   --color-checkbox-border: var(--color-primary);
+
+  --color-breadcrumb-text: var(--color-blue);
 }
 
 @theme inline {

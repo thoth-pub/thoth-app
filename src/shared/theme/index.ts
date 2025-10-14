@@ -281,5 +281,12 @@ export const theme = createTheme({
         },
       },
     },
+    MuiBreadcrumbs: {
+      styleOverrides: {
+        root: {
+          color: 'var(--color-breadcrumb-text)',
+        },
+      },
+    },
   },
 });

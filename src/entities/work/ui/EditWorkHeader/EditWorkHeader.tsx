@@ -1,9 +1,10 @@
 'use client';
 
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import NextLink from 'next/link';
 
-import type { BaseEditSectionProps } from '@/src/shared';
-import { Button, IconButton, Typography } from '@/src/shared/ui';
+import { type BaseEditSectionProps, convertOptionToString, ROUTES } from '@/src/shared';
+import { Breadcrumbs, InputLabel, Link, Typography } from '@/src/shared/ui';
+import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import EditWorkHeaderForm, { type EditWorkHeaderFormProps } from './components/EditWorkHeaderForm';
 import useEditWorkHeader from './useEditWorkHeader';
@@ -11,33 +12,65 @@ import useEditWorkHeader from './useEditWorkHeader';
 type EditWorkHeaderProps = BaseEditSectionProps & Omit<EditWorkHeaderFormProps, 'status'>;
 
 const EditWorkHeader = ({ workId, queryToken, workStatusOptions }: EditWorkHeaderProps) => {
-  const { title, status, isPublicationDateDisabled, minDate, deleteWork, changeWorkStatus } = useEditWorkHeader({
-    workId,
-    queryToken,
-  });
+  const { title, id, status, publicationDate, isPublicationDateDisabled, minDate, changeWorkStatus } =
+    useEditWorkHeader({
+      workId,
+      queryToken,
+    });
 
   return (
-    <div className="flex flex-col gap-4 overflow-hidden rounded-2xl bg-[var(--color-background-alt)] px-8 py-4 shadow-xl">
-      <div className="flex justify-between">
-        <Typography variant="h1" component="h1">
+    <ContentSection className="px-8 py-4">
+      <div className="flex flex-col justify-between gap-3">
+        <Typography variant="h1" component="h1" className="max-w-[90%]">
           {title}
         </Typography>
-        <div className="flex h-max flex-shrink-0 gap-4">
-          <IconButton aria-label="delete" size="small" onClick={() => deleteWork(workId)}>
-            <DeleteOutlineIcon fontSize="small" />
-          </IconButton>
-          <Button variant="contained">Done</Button>
-        </div>
-      </div>
 
-      <EditWorkHeaderForm
-        workStatusOptions={workStatusOptions}
-        status={status}
-        isPublicationDateDisabled={isPublicationDateDisabled}
-        onStatusUpdate={changeWorkStatus}
-        minDate={minDate}
-      />
-    </div>
+        <Breadcrumbs aria-label="breadcrumb">
+          <NextLink href={ROUTES.DASHBOARD} passHref>
+            <Link color="inherit" className="no-underline">
+              <Typography component="span" color="inherit">
+                Home
+              </Typography>
+            </Link>
+          </NextLink>
+          <NextLink href={ROUTES.WORKS} passHref>
+            <Link color="inherit" className="no-underline">
+              <Typography component="span" color="inherit">
+                Books
+              </Typography>
+            </Link>
+          </NextLink>
+          <Typography>Edit book</Typography>
+        </Breadcrumbs>
+
+        <div className="grid grid-cols-[repeat(3,1fr)] gap-2">
+          <div className="flex flex-col gap-1">
+            <InputLabel component="span">Internal ID</InputLabel>
+            <Typography>{id}</Typography>
+          </div>
+          <div className="flex flex-col gap-1">
+            <InputLabel component="span">Status</InputLabel>
+            <Typography component="span" color="inherit">
+              {convertOptionToString(status)}
+            </Typography>
+          </div>
+          <div className="flex flex-col gap-1">
+            <InputLabel component="span">Publication Date</InputLabel>
+            <Typography component="span" color="inherit">
+              {publicationDate}
+            </Typography>
+          </div>
+        </div>
+
+        {/* <EditWorkHeaderForm
+          workStatusOptions={workStatusOptions}
+          status={status}
+          isPublicationDateDisabled={isPublicationDateDisabled}
+          onStatusUpdate={changeWorkStatus}
+          minDate={minDate}
+        /> */}
+      </div>
+    </ContentSection>
   );
 };
 

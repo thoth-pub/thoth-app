@@ -1,6 +1,7 @@
 // Core
 export { default as AddButton } from './core/AddButton/AddButton';
 export { default as AutocompleteGroup } from './core/AutocompleteGroup/AutocompleteGroup';
+export { default as Breadcrumbs } from './core/Breadcrumbs/Breadcrumbs';
 export { default as Button } from './core/Button/Button';
 export { default as ButtonGroup } from './core/ButtonGroup/ButtonGroup';
 export { default as Checkbox } from './core/Checkbox/Checkbox';
@@ -42,13 +43,8 @@ export { default as TableFormsWrapper } from './forms/TableFormsWrapper/TableFor
 export { default as TableNewEntityFormWrapper } from './forms/TableNewEntityFormWrapper/TableNewEntityFormWrapper';
 // Forms
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
-export { default as AutocompleteFormWithPreview } from './forms/AutocompleteFormWithPreview/AutocompleteFormWithPreview';
 export { default as CheckboxFormField } from './forms/CheckboxFormField/CheckboxFormField';
 export { default as DateField } from './forms/DateField/DateField';
-export {
-  default as DateFormWithPreview,
-  type DateFormWithPreviewProps,
-} from './forms/DateFormWithPreview/DateFormWithPreview';
 export { default as FormAnimationWrapper } from './forms/FormAnimationWrapper/FormAnimationWrapper';
 export { default as FormControlGroup } from './forms/FormControlGroup/FormControlGroup';
 export { default as FormEditButton } from './forms/FormEditButton/FormEditButton';
@@ -57,13 +53,10 @@ export { default as FormFieldLabel } from './forms/FormFieldLabel/FormFieldLabel
 export { default as FormFieldWithControlsWrapper } from './forms/FormFieldWithControlsWrapper/FormFieldWithControlsWrapper';
 export { default as FormFieldWrapper } from './forms/FormFieldWrapper/FormFieldWrapper';
 export { default as FormTextField, type FormTextFieldComponentProps } from './forms/FormTextField/FormTextField';
-export { default as FormWithPreview } from './forms/FormWithPreview/FormWithPreview';
 export { default as InputLabel } from './forms/InputLabel/InputLabel';
 export { default as MarkdownField } from './forms/MarkdownField/MarkdownField';
-export { default as MarkdownFormWithPreview } from './forms/MarkdownFormWithPreview/MarkdownFormWithPreview';
 export { default as MarkdownSwitch } from './forms/MarkdownSwitch/MarkdownSwitch';
 export { default as SubmitButton } from './forms/SubmitButton/SubmitButton';
-export { default as TextFormWithPreview } from './forms/TextFormWithPreview/TextFormWithPreview';
 // Icons
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';

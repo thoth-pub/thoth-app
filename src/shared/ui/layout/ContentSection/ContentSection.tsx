@@ -1,17 +1,24 @@
 import { Paper } from '@mui/material';
 import { ReactNode } from 'react';
 
+import { mergeStyles } from '@/src/shared';
+
 import Typography from '../../core/Typography/Typography';
 
 type ContentSectionProps = Partial<{
   title: string;
   children: Readonly<ReactNode>;
+  className: string;
   headerContent: Readonly<ReactNode>;
 }>;
 
-const ContentSection = ({ children, title, headerContent }: ContentSectionProps) => {
+const ContentSection = ({ children, title, headerContent, className }: ContentSectionProps) => {
   return (
-    <Paper elevation={3} component="section" className="rounded-2xl bg-[var(--color-background-alt)] px-4 py-8">
+    <Paper
+      elevation={3}
+      component="section"
+      className={mergeStyles('rounded-2xl bg-[var(--color-background-alt)] px-4 py-8', className)}
+    >
       {title && (
         <div className="mb-9 flex items-center justify-between pl-4">
           <Typography variant="h2">{title}</Typography>
