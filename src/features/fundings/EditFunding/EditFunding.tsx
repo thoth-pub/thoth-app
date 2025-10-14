@@ -1,28 +1,44 @@
-import { useFundingsStateMachine } from '@/src/entities/funding';
+'use client';
+
 import type { BaseRecommendedSectionProps } from '@/src/shared';
 
 import EditFundingForm from '../EditFundingForm/EditFundingForm';
+import { useEditFunding } from './useEditFunding';
 
 const EditFunding = (props: BaseRecommendedSectionProps) => {
   const { workId, queryToken, recommended = false } = props;
 
-  const { close, edit } = useFundingsStateMachine();
+  const {
+    activeFunding,
+    close,
+    updateProject,
+    updateProjectShortName,
+    updateJurisdiction,
+    updateProgram,
+    updateGrantNumber,
+    updateInstitution,
+  } = useEditFunding({ workId, queryToken });
+
+  if (!activeFunding) return null;
+
+  const { grantNumber, jurisdiction, program, projectName, projectShortname, institutionId, institutionName } =
+    activeFunding;
 
   return (
     <EditFundingForm
       recommended={recommended}
-      grantNumber={''}
-      institution={{ value: '', label: '' }}
-      jurisdiction={''}
-      program={''}
-      projectName={''}
-      projectShortname={''}
-      onProjectUpdate={(data) => console.log('project updated', data)}
-      onProjectShortNameUpdate={(data) => console.log('project short name updated', data)}
-      onJurisdictionUpdate={(data) => console.log('jurisdiction updated', data)}
-      onProgramUpdate={(data) => console.log('program updated', data)}
-      onGrantNumberUpdate={(data) => console.log('grant number updated', data)}
-      onInstitutionUpdate={(data) => console.log('institution updated', data)}
+      grantNumber={grantNumber}
+      institution={{ value: institutionId, label: institutionName }}
+      jurisdiction={jurisdiction}
+      program={program}
+      projectName={projectName}
+      projectShortname={projectShortname}
+      onProjectUpdate={updateProject}
+      onProjectShortNameUpdate={updateProjectShortName}
+      onJurisdictionUpdate={updateJurisdiction}
+      onProgramUpdate={updateProgram}
+      onGrantNumberUpdate={updateGrantNumber}
+      onInstitutionUpdate={updateInstitution}
       onDone={close}
       onClose={close}
     />

@@ -1,6 +1,7 @@
 // API
 export { default as useCreateFunding } from './api/hooks/createFunding';
 export { default as useDeleteFunding } from './api/hooks/deleteFunding';
+export { default as useUpdateFunding } from './api/hooks/updateFunding';
 
 // Store
 export * from './store/funding.provider';

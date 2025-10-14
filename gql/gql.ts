@@ -25,6 +25,7 @@ type Documents = {
     "\n  mutation UpdateContributor($data: PatchContributor!) {\n    updateContributor(data: $data) {\n      ...ContributorFragment\n    }\n  }\n": typeof types.UpdateContributorDocument,
     "\n  query GetContributor($contributorId: Uuid!) {\n    contributor(contributorId: $contributorId) {\n      ...ContributorFragment\n    }\n  }\n": typeof types.GetContributorDocument,
     "\n  mutation CreateFunding($data: NewFunding!) {\n    createFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n": typeof types.CreateFundingDocument,
+    "\n  mutation UpdateFunding($data: PatchFunding!) {\n    updateFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n": typeof types.UpdateFundingDocument,
     "\n  mutation DeleteFunding($fundingId: Uuid!) {\n    deleteFunding(fundingId: $fundingId) {\n      ...FundingFragment\n    }\n  }\n": typeof types.DeleteFundingDocument,
     "\n  query GetImprintsCount($publishers: [Uuid!]!) {\n    imprintCount(publishers: $publishers)\n  }\n": typeof types.GetImprintsCountDocument,
     "\n  query GetImprints($offset: Int!, $limit: Int, $publishers: [Uuid!]!) {\n    imprints(offset: $offset, limit: $limit, publishers: $publishers) {\n      imprintId\n      imprintName\n      imprintUrl\n      updatedAt\n      publisher {\n        publisherName\n      }\n    }\n  }\n": typeof types.GetImprintsDocument,
@@ -77,6 +78,7 @@ const documents: Documents = {
     "\n  mutation UpdateContributor($data: PatchContributor!) {\n    updateContributor(data: $data) {\n      ...ContributorFragment\n    }\n  }\n": types.UpdateContributorDocument,
     "\n  query GetContributor($contributorId: Uuid!) {\n    contributor(contributorId: $contributorId) {\n      ...ContributorFragment\n    }\n  }\n": types.GetContributorDocument,
     "\n  mutation CreateFunding($data: NewFunding!) {\n    createFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n": types.CreateFundingDocument,
+    "\n  mutation UpdateFunding($data: PatchFunding!) {\n    updateFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n": types.UpdateFundingDocument,
     "\n  mutation DeleteFunding($fundingId: Uuid!) {\n    deleteFunding(fundingId: $fundingId) {\n      ...FundingFragment\n    }\n  }\n": types.DeleteFundingDocument,
     "\n  query GetImprintsCount($publishers: [Uuid!]!) {\n    imprintCount(publishers: $publishers)\n  }\n": types.GetImprintsCountDocument,
     "\n  query GetImprints($offset: Int!, $limit: Int, $publishers: [Uuid!]!) {\n    imprints(offset: $offset, limit: $limit, publishers: $publishers) {\n      imprintId\n      imprintName\n      imprintUrl\n      updatedAt\n      publisher {\n        publisherName\n      }\n    }\n  }\n": types.GetImprintsDocument,
@@ -176,6 +178,10 @@ export function graphql(source: "\n  query GetContributor($contributorId: Uuid!)
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation CreateFunding($data: NewFunding!) {\n    createFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateFunding($data: NewFunding!) {\n    createFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateFunding($data: PatchFunding!) {\n    updateFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateFunding($data: PatchFunding!) {\n    updateFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
