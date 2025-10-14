@@ -24,6 +24,8 @@ export { default as ModalWrapper } from './core/ModalWrapper/ModalWrapper';
 export { default as Pagination } from './core/Pagination/Pagination';
 export { default as Paper } from './core/Paper/Paper';
 export { default as Preview } from './core/Preview/Preview';
+export { default as SpeedDialActions } from './core/SpeedDial/components/SpeedDialActions';
+export { default as SpeedDial } from './core/SpeedDial/SpeedDial';
 export { default as Switch } from './core/Switch/Switch';
 export { default as TableBody } from './core/Table/components/TableBody';
 export { default as TableCell } from './core/Table/components/TableCell';

@@ -1,5 +1,5 @@
 import { EditWorkHeader } from '@/src/entities/work';
-import { EditBasicDetails, EditContributors, EditDescriptions, EditFundings } from '@/src/features';
+import { EditBasicDetails, EditContributors, EditDescriptions, EditFundings, WorkSpeedDial } from '@/src/features';
 import EditPublications from '@/src/features/work/EditPublications/EditPublications';
 import type { BaseEditSectionProps, FormFieldOption } from '@/src/shared';
 
@@ -20,6 +20,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
       <EditDescriptions workId={workId} queryToken={queryToken} />
       <EditPublications workId={workId} queryToken={queryToken} />
       <EditFundings workId={workId} queryToken={queryToken} />
+      <WorkSpeedDial />
     </div>
   );
 };
