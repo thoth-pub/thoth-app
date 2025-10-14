@@ -34,7 +34,10 @@ const ContributionsTable = (props: ContributionsTableProps) => {
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}>
       <SortableContext items={contributions} strategy={verticalListSortingStrategy}>
         <Table className="border-separate">
-          <TableHeader cells={['Name', 'Type', 'Institution', 'Biography']} />
+          <TableHeader
+            cells={['Name', 'Type', 'Institution', 'Biography']}
+            cellStyles={['w-[20rem]', 'w-[5rem]', 'w-[20rem]', 'w-[15rem]']}
+          />
           <TableBody>
             {contributions.map((contribution) => (
               <ContributionsTableRow

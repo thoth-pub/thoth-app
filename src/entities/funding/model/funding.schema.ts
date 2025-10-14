@@ -7,3 +7,11 @@ export const CREATE_FUNDING = graphql(`
     }
   }
 `);
+
+export const DELETE_FUNDING = graphql(`
+  mutation DeleteFunding($fundingId: Uuid!) {
+    deleteFunding(fundingId: $fundingId) {
+      ...FundingFragment
+    }
+  }
+`);

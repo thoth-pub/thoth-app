@@ -12,7 +12,7 @@ i18n
   .use(LanguageDetector)
   .init({
     resources,
-    debug: true,
+    // debug: true,
     supportedLngs: LOCALES.options,
     fallbackLng: LOCALES.enum.en,
     defaultNS: 'translation',

@@ -35,4 +35,11 @@ export const IDs = {
   LOCATIONS: 'publication_locations',
   // FUNDINGS
   FUNDING: 'funding',
+  FUNDING_PROJECT_NAME: 'funding_project_name',
+  FUNDING_PROJECT_SHORTNAME: 'funding_project_shortname',
+  FUNDING_JURISDICTION: 'funding_jurisdiction',
+  FUNDING_PROGRAM: 'funding_program',
+  FUNDING_GRANT_NUMBER: 'funding_grant_number',
+  // INSTITUTIONS
+  INSTITUTION: 'institution',
 } as const;

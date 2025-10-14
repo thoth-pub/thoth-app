@@ -58,7 +58,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
         </TableRow>
       ) : (
         <TableRow ref={setNodeRef} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
-          <TableCell className="w-75 rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-1 group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
+          <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-1 group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
             <div className="flex gap-1">
               <DragIndicatorIcon className="my-auto opacity-0" color="primary" fontSize="small" {...listeners} />
               <div className="flex shrink flex-wrap items-center gap-1">
@@ -72,10 +72,10 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
               </div>
             </div>
           </TableCell>
-          <TableCell className="w-45 border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+          <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
             {t(type.toLowerCase().replace('_', ' '))}
           </TableCell>
-          <TableCell className="w-50 border-1 border-r-0 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+          <TableCell className="border-1 border-r-0 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
             <div className="flex rounded-tr-2xl rounded-br-2xl">
               <ul className="flex flex-col gap-1">
                 {affiliations.map(({ id, institutionName, rorId }) => (

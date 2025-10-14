@@ -31,4 +31,8 @@ export const NOTIFICATIONS = {
   LOCATION_DELETE_FAILED: 'Failed to delete location',
   LOCATION_UPDATE_FAILED: 'Failed to update location',
   LOCATION_CREATE_FAILED: 'Failed to create location',
+  // Fundings
+  FUNDING_CREATION_FAILED: 'Failed to create funding',
+  FUNDING_UPDATE_FAILED: 'Failed to update funding',
+  FUNDING_DELETE_FAILED: 'Failed to delete funding',
 } as const;

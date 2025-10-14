@@ -9,5 +9,9 @@ export const FUNDING_FRAGMENT = graphql(`
     program
     projectName
     projectShortname
+    institution {
+      institutionName
+      ror
+    }
   }
 `);

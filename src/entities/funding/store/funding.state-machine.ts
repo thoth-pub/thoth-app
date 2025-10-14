@@ -28,7 +28,7 @@ export const fundingStateMachine = setup({
       },
     },
     editing: {
-      on: { close: { target: 'init', actions: assign({ activePublication: () => null }) } },
+      on: { close: { target: 'init', actions: assign({ activeFunding: () => null }) } },
     },
   },
 });

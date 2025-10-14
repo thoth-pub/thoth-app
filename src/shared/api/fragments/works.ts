@@ -67,6 +67,10 @@ export const WORK_FRAGMENT = graphql(`
       program
       projectName
       projectShortname
+      institution {
+        institutionName
+        ror
+      }
     }
     publications {
       publicationId

@@ -55,6 +55,10 @@ export const GET_CHAPTERS = graphql(`
         program
         projectName
         projectShortname
+        institution {
+          institutionName
+          ror
+        }
       }
       publications {
         publicationId
