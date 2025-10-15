@@ -394,9 +394,16 @@ export const FORM_FIELDS = {
     name: 'funding',
     placeholder: 'Funding',
   },
-  // SHORT_NAME: 'shortName',
-  // DESCRIPTION: 'description',
-  // SERIES_TYPE: 'seriesType',
+  REFERENCE_URL: {
+    label: 'URL',
+    name: 'url',
+    placeholder: 'URL',
+  },
+  REFERENCE_CITATION: {
+    label: 'Citation',
+    name: 'unstructuredCitation',
+    placeholder: 'Citation',
+  },
 } as const;
 
 export const workStatusOptions = convertFormFieldsToSelectFieldOptions(WorkStatuses.options);

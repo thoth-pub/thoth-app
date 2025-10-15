@@ -6,7 +6,7 @@ import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { LocationDtoMapper } from '../../model/location.mapper';
 import { UPDATE_LOCATION } from '../../model/location.schema';
-import { LocationEntity } from '../../model/location.type';
+import { LocationEntity } from '../../model/location.types';
 
 const { LOCATION_UPDATE_FAILED } = NOTIFICATIONS;
 

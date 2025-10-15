@@ -35,4 +35,8 @@ export const NOTIFICATIONS = {
   FUNDING_CREATION_FAILED: 'Failed to create funding',
   FUNDING_UPDATE_FAILED: 'Failed to update funding',
   FUNDING_DELETE_FAILED: 'Failed to delete funding',
+  // References
+  REFERENCE_CREATION_FAILED: 'Failed to create reference',
+  REFERENCE_UPDATE_FAILED: 'Failed to update reference',
+  REFERENCE_DELETE_FAILED: 'Failed to delete reference',
 } as const;

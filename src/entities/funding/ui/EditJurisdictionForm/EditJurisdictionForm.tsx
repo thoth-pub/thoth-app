@@ -5,7 +5,7 @@ import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import type { FundingJurisdictionFormType } from '../../model/funding.type';
+import type { FundingJurisdictionFormType } from '../../model/funding.types';
 import { jurisdictionValidationSchema } from '../../model/funding.validation';
 
 const { JURISDICTION } = FORM_FIELDS;
@@ -40,9 +40,7 @@ const EditJurisdictionForm = (props: EditJurisdictionFormProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
-        <Preview label={JURISDICTION.label} value={data?.jurisdiction} onEdit={onEdit} />
-      )}
+      preview={({ data, onEdit }) => <Preview label={JURISDICTION.label} value={data?.jurisdiction} onEdit={onEdit} />}
     />
   );
 };

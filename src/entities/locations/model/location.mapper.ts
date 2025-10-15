@@ -1,6 +1,6 @@
 import { BaseMapper } from '@/src/shared/interfaces';
 
-import type { LocationDto, LocationEntity } from './location.type';
+import type { LocationDto, LocationEntity } from './location.types';
 
 export class LocationDtoMapper implements BaseMapper<LocationEntity, LocationDto> {
   toEntity(dto: LocationDto): LocationEntity {

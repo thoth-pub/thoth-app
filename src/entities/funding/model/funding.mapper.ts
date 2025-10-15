@@ -1,7 +1,7 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
 
-import { FundingDto } from './funding.type';
-import { FundingEntity } from './funding.type';
+import { FundingDto } from './funding.types';
+import { FundingEntity } from './funding.types';
 
 export class FundingDtoMapper implements BaseMapper<FundingEntity, FundingDto> {
   toEntity(dto: FundingDto): FundingEntity {

@@ -40,4 +40,6 @@ export const HELPER_TEXT = {
   PROGRAM: 'Enter the program of the funding.',
   PROJECT_NAME: 'Enter the project name of the funding.',
   PROJECT_SHORTNAME: 'Enter the project shortname of the funding.',
+  REFERENCE_URL: 'Enter the URL of the reference.',
+  REFERENCE_CITATION: 'Enter the citation of the reference.',
 };

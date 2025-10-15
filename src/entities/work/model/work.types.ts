@@ -5,9 +5,10 @@ import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
 import type { AffiliationEntity } from '../../affiliation';
 import type { ContributorId } from '../../contributor/model/contributor.types';
-import type { FundingEntity } from '../../funding/model/funding.type';
+import type { FundingEntity } from '../../funding/model/funding.types';
 import type { LanguageEntity } from '../../language/model/language.types';
 import { PublicationEntity } from '../../publication/model/publication.types';
+import { ReferenceEntity } from '../../reference/model/reference.types';
 import {
   createWorkValidationSchema,
   doiAndCoversValidationSchema,
@@ -18,7 +19,6 @@ import {
   pagesCountValidationSchema,
   publicationDateValidationSchema,
   titleValidationSchema,
-  workStatusValidationSchema,
   workTitlesValidationSchema,
   workTypeValidationSchema,
 } from '../model/work.validation';
@@ -78,6 +78,7 @@ export type WorkEntity = {
   languages: LanguageEntity[];
   publications: PublicationEntity[];
   fundings: FundingEntity[];
+  references: ReferenceEntity[];
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;

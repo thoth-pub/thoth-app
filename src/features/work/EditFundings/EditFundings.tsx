@@ -3,7 +3,7 @@
 import { useTranslation } from 'react-i18next';
 
 import { FundingsTable, useDeleteFunding, useFundingsStateMachine } from '@/src/entities/funding';
-import type { FundingEntity } from '@/src/entities/funding/model/funding.type';
+import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
 import { useWork } from '@/src/entities/work';
 import { isDefaultId } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';

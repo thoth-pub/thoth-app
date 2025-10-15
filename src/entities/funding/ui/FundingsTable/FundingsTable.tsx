@@ -3,7 +3,7 @@ import { Fragment } from 'react';
 import { convertRorIdToText } from '@/src/shared';
 import { Indicator, LinkTooltip, RorLogo, Table, TableBody, TableCell, TableHeader, TableRow } from '@/src/shared/ui';
 
-import { FundingEntity } from '../../model/funding.type';
+import { FundingEntity } from '../../model/funding.types';
 import { RowButtonGroup } from './components/RowButtonGroup';
 
 type FundingsTableProps = {

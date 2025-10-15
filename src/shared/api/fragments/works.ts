@@ -108,5 +108,16 @@ export const WORK_FRAGMENT = graphql(`
         locationId
       }
     }
+    references {
+      doi
+      referenceId
+      referenceOrdinal
+      journalTitle
+      articleTitle
+      seriesTitle
+      volumeTitle
+      unstructuredCitation
+      url
+    }
   }
 `);

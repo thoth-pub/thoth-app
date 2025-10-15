@@ -3,9 +3,9 @@
 import { useState } from 'react';
 
 import { useCreateLocation, useDeleteLocation, useUpdateLocation } from '@/src/entities/locations';
-import type { LocationEntity, LocationsForm } from '@/src/entities/locations/model/location.type';
+import type { LocationEntity, LocationsForm } from '@/src/entities/locations/model/location.types';
 import { useCreatePrice, useDeletePrice, useUpdatePrice } from '@/src/entities/price';
-import type { CurrencyCode, PricesForm } from '@/src/entities/price/model/price.type';
+import type { CurrencyCode, PricesForm } from '@/src/entities/price/model/price.types';
 import { usePublicationsStateMachine, useUpdatePublication } from '@/src/entities/publication';
 import type {
   PublicationDimensionsForm,

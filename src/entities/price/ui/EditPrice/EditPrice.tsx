@@ -7,7 +7,7 @@ import { currencyOptions, FORM_FIELDS } from '@/src/shared/constants/formFields'
 import { Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import type { PriceEntity, PricesForm } from '../../model/price.type';
+import type { PriceEntity, PricesForm } from '../../model/price.types';
 import { pricesValidationSchema } from '../../model/price.validation';
 import { FormFields } from './components/FormFields';
 

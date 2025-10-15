@@ -5,7 +5,7 @@ import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import type { FundingProgramFormType } from '../../model/funding.type';
+import type { FundingProgramFormType } from '../../model/funding.types';
 import { programValidationSchema } from '../../model/funding.validation';
 
 const { PROGRAM } = FORM_FIELDS;

@@ -6,7 +6,7 @@ import { FORM_FIELDS, locationPlatformOptions } from '@/src/shared/constants/for
 import { ButtonGroup, Chip, DeleteButton, FavoriteButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import type { LocationEntity, LocationsForm } from '../../model/location.type';
+import type { LocationEntity, LocationsForm } from '../../model/location.types';
 import { locationsValidationSchema } from '../../model/location.validation';
 import { FormFields } from './components/FormFields';
 

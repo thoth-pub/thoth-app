@@ -1,6 +1,6 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
 
-import type { PriceDto, PriceEntity } from './price.type';
+import type { PriceDto, PriceEntity } from './price.types';
 
 export class PriceDtoMapper implements BaseMapper<PriceEntity, PriceDto> {
   toEntity(dto: PriceDto): PriceEntity {

@@ -6,7 +6,7 @@ import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { FundingDtoMapper } from '../../model/funding.mapper';
 import { UPDATE_FUNDING } from '../../model/funding.schema';
-import { FundingEntity } from '../../model/funding.type';
+import { FundingEntity } from '../../model/funding.types';
 
 const { FUNDING_UPDATE_FAILED } = NOTIFICATIONS;
 

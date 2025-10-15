@@ -33,4 +33,8 @@ export const IDs = {
   FUNDING_GRANT_NUMBER: 'funding_grant_number',
   // INSTITUTIONS
   INSTITUTION: 'institution',
+  // REFERENCES
+  REFERENCE_URL: 'reference_url',
+  REFERENCE_CITATION: 'reference_citation',
+  REFERENCE_DOI: 'reference_doi',
 } as const;

@@ -6,7 +6,7 @@ import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { PriceDtoMapper } from '../../model/price.mapper';
 import { UPDATE_PRICE } from '../../model/price.schema';
-import { PriceEntity } from '../../model/price.type';
+import { PriceEntity } from '../../model/price.types';
 
 type UseUpdatePriceProps = BaseEditSectionProps;
 

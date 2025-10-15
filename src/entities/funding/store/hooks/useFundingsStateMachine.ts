@@ -1,6 +1,6 @@
 import { useCallback } from 'react';
 
-import { FundingEntity } from '../../model/funding.type';
+import { FundingEntity } from '../../model/funding.types';
 import { FundingStateMachineContext } from '../funding.provider';
 
 const useFundingsStateMachine = () => {

@@ -5,7 +5,7 @@ import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import type { FundingProjectNameFormType } from '../../model/funding.type';
+import type { FundingProjectNameFormType } from '../../model/funding.types';
 import { projectNameValidationSchema } from '../../model/funding.validation';
 
 const { PROJECT_NAME } = FORM_FIELDS;
@@ -40,9 +40,7 @@ const EditProjectNameForm = (props: EditProjectNameFormProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
-        <Preview label={PROJECT_NAME.label} value={data?.projectName} onEdit={onEdit} />
-      )}
+      preview={({ data, onEdit }) => <Preview label={PROJECT_NAME.label} value={data?.projectName} onEdit={onEdit} />}
     />
   );
 };

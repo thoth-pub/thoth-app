@@ -15,7 +15,7 @@ import {
   InputLabel,
 } from '@/src/shared/ui';
 
-import type { CurrencyCode, PricesForm } from '../../../model/price.type';
+import type { CurrencyCode, PricesForm } from '../../../model/price.types';
 
 type FormFieldsProps = {
   control: Control<PricesForm>;

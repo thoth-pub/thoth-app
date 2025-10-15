@@ -5,7 +5,7 @@ import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import type { FundingProjectShortNameFormType } from '../../model/funding.type';
+import type { FundingProjectShortNameFormType } from '../../model/funding.types';
 import { projectShortNameValidationSchema } from '../../model/funding.validation';
 
 const { PROJECT_SHORTNAME } = FORM_FIELDS;

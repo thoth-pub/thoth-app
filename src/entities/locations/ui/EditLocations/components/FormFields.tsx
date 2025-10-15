@@ -16,7 +16,7 @@ import {
   InputLabel,
 } from '@/src/shared/ui';
 
-import type { LocationPlatform, LocationsForm } from '../../../model/location.type';
+import type { LocationPlatform, LocationsForm } from '../../../model/location.types';
 
 const { LOCATIONS, PLATFORM, FULL_TEXT_URL, LANDING_PAGE } = FORM_FIELDS;
 

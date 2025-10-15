@@ -2,8 +2,8 @@ import z from 'zod';
 
 import type { Publication, PublicationType as GQLPublicationType, Publisher, Work } from '@/gql/graphql';
 
-import type { LocationDto, LocationEntity } from '../../locations/model/location.type';
-import type { PriceDto, PriceEntity } from '../../price/model/price.type';
+import type { LocationDto, LocationEntity } from '../../locations/model/location.types';
+import type { PriceDto, PriceEntity } from '../../price/model/price.types';
 import {
   dimensionsValidationSchema,
   isbnValidationSchema,

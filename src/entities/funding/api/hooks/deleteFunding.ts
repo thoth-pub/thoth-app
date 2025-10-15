@@ -5,7 +5,7 @@ import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { DELETE_FUNDING } from '../../model/funding.schema';
-import type { FundingId } from '../../model/funding.type';
+import type { FundingId } from '../../model/funding.types';
 
 const { FUNDING_DELETE_FAILED } = NOTIFICATIONS;
 

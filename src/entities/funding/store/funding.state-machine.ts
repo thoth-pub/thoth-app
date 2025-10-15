@@ -1,6 +1,6 @@
 import { assign, setup } from 'xstate';
 
-import type { FundingEntity } from '../model/funding.type';
+import type { FundingEntity } from '../model/funding.types';
 
 type FundingContext = {
   activeFunding: FundingEntity | null;

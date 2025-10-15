@@ -13,7 +13,7 @@ import type {
   FundingProgramFormType,
   FundingProjectNameFormType,
   FundingProjectShortNameFormType,
-} from '@/src/entities/funding/model/funding.type';
+} from '@/src/entities/funding/model/funding.types';
 import { EditInstitutionForm } from '@/src/entities/institution';
 import { InstitutionFormType } from '@/src/entities/institution/model/institution.types';
 import { TableFormsHeader, TableFormsWrapper, TableNewEntityFormWrapper } from '@/src/shared/ui';

@@ -5,7 +5,7 @@ import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import type { FundingGrantNumberFormType } from '../../model/funding.type';
+import type { FundingGrantNumberFormType } from '../../model/funding.types';
 import { grantNumberValidationSchema } from '../../model/funding.validation';
 
 const { GRANT_NUMBER } = FORM_FIELDS;

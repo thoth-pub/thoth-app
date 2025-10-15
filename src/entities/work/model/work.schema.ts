@@ -97,6 +97,17 @@ export const GET_CHAPTERS = graphql(`
           locationId
         }
       }
+      references {
+        doi
+        referenceId
+        referenceOrdinal
+        unstructuredCitation
+        journalTitle
+        articleTitle
+        seriesTitle
+        volumeTitle
+        url
+      }
     }
   }
 `);
