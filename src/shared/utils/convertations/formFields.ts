@@ -3,6 +3,8 @@ import dayjs from 'dayjs';
 import { appConfig } from '@/src/shared/config';
 import type { FormFieldOption } from '@/src/shared/interfaces';
 
+import { convertDateToFormattedDate } from './date';
+
 const {
   data: { orcidPrefix, rorPrefix },
   dataApi: { textSeparator },
@@ -32,10 +34,6 @@ export const convertEntityToSelectFieldOptions = <T extends { id: string }>(
       label: `${item[labelKey]}`,
     };
   });
-};
-
-export const convertDateToFormattedDate = (date: string) => {
-  return dayjs(date).format(appConfig.dateFormat);
 };
 
 export const getDateInFuture = (days: number = 1) => {

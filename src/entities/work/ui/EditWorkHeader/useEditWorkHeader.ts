@@ -51,6 +51,8 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
   };
 
   const changeWithdrawnDate = (withdrawnDate: string) => {
+    if (withdrawnDate.length === 0) return;
+
     updateWork({
       ...work,
       withdrawnDate,
