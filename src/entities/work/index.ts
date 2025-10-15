@@ -5,5 +5,7 @@ export { default as useWorksCount } from './api/hooks/useWorksCount';
 
 // UI
 export { default as CreateWorkForm } from './ui/CreateWorkForm/CreateWorkForm';
+export { default as EditPublicationDate } from './ui/EditPublicationDate/EditPublicationDate';
 export { default as EditStatus } from './ui/EditStatus/EditStatus';
+export { default as EditWithdrawDate } from './ui/EditWithdrawDate/EditWithdrawDate';
 export { default as EditWorkHeader } from './ui/EditWorkHeader/EditWorkHeader';

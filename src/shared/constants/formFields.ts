@@ -102,6 +102,11 @@ export const FORM_FIELDS = {
     name: 'publicationDate',
     placeholder: 'Publication Date',
   },
+  WITHDRAWN_DATE: {
+    label: 'Withdrawn Date',
+    name: 'withdrawnDate',
+    placeholder: 'Withdrawn Date',
+  },
   WORK_TITLE: {
     label: 'Title',
     name: 'workTitle',

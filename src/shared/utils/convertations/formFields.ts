@@ -44,6 +44,12 @@ export const getDateInFuture = (days: number = 1) => {
   return convertDateToFormattedDate(date.toString());
 };
 
+export const getDateInFutureFromDate = (date: string, days: number = 1) => {
+  const dateInFuture = dayjs(date).add(days, 'day');
+
+  return convertDateToFormattedDate(dateInFuture.toString());
+};
+
 export const convertLanguageCode = (code: string) => {
   const [start, end] = code.split('_');
 

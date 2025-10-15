@@ -1,4 +1,6 @@
 export const HELPER_TEXT = {
+  WITHDRAWN_DATE: 'Enter the withdrawn date of the work.',
+  PUBLICATION_DATE: 'Enter the publication date of the work.',
   WORK_TYPE: 'Choose the type of work.',
   WORK_STATUS: 'Choose the status of the work.',
   IMPRINT: 'Choose the imprint of the work.',

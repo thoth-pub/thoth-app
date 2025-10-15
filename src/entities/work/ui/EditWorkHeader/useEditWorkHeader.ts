@@ -3,6 +3,7 @@
 import {
   type BaseEditSectionProps,
   getDateInFuture,
+  getDateInFutureFromDate,
   isPublicationDateAvailable,
   isPublicationDateRequired,
   isPublicationDateShouldBeInFuture,
@@ -16,8 +17,7 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, updateWork } = useWork(workId, queryToken);
   const isPublicationDateDisabled = !isPublicationDateAvailable(work.status);
   const isWithdrawnDateRequired = isSupersededOrWithdrawn(work.status);
-  const minDate =
-    isPublicationDateShouldBeInFuture(work.status) && !work.publicationDate ? getDateInFuture(0) : undefined;
+  const minDate = isPublicationDateShouldBeInFuture(work.status) ? getDateInFuture(0) : undefined;
 
   const changeWorkStatus = (workStatus: WorkStatus) => {
     const isPublicationDateDisabled = !isPublicationDateAvailable(workStatus);
@@ -32,7 +32,7 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
     }
 
     if (isWithdrawnDateRequired && !work.withdrawnDate) {
-      withdrawnDate = getDateInFuture(1);
+      withdrawnDate = getDateInFutureFromDate(publicationDate ?? getDateInFuture(1));
     }
 
     updateWork({
@@ -43,15 +43,32 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
     });
   };
 
+  const changePublicationDate = (publicationDate: string) => {
+    updateWork({
+      ...work,
+      publicationDate,
+    });
+  };
+
+  const changeWithdrawnDate = (withdrawnDate: string) => {
+    updateWork({
+      ...work,
+      withdrawnDate,
+    });
+  };
+
   return {
     title: work.title,
     id: work.reference,
     publicationDate: work.publicationDate,
+    withdrawnDate: work.withdrawnDate,
     status: work.status,
     isPublicationDateDisabled,
     isWithdrawnDateRequired,
     minDate,
     changeWorkStatus,
+    changePublicationDate,
+    changeWithdrawnDate,
   };
 };
 

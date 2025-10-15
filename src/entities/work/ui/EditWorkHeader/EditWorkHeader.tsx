@@ -6,20 +6,32 @@ import { type BaseEditSectionProps, ROUTES } from '@/src/shared';
 import { Breadcrumbs, InputLabel, Link, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
+import EditPublicationDate from '../EditPublicationDate/EditPublicationDate';
 import EditStatus from '../EditStatus/EditStatus';
-import { type EditWorkHeaderFormProps } from './components/EditWorkHeaderForm';
+import EditWithdrawDate from '../EditWithdrawDate/EditWithdrawDate';
 import useEditWorkHeader from './useEditWorkHeader';
 
-type EditWorkHeaderProps = BaseEditSectionProps & Omit<EditWorkHeaderFormProps, 'status'>;
+type EditWorkHeaderProps = BaseEditSectionProps;
 
 const itemStyles = 'flex flex-col gap-2';
 
 const EditWorkHeader = ({ workId, queryToken }: EditWorkHeaderProps) => {
-  const { title, id, status, publicationDate, isPublicationDateDisabled, minDate, changeWorkStatus } =
-    useEditWorkHeader({
-      workId,
-      queryToken,
-    });
+  const {
+    title,
+    id,
+    status,
+    publicationDate,
+    withdrawnDate,
+    isPublicationDateDisabled,
+    isWithdrawnDateRequired,
+    minDate,
+    changeWorkStatus,
+    changePublicationDate,
+    changeWithdrawnDate,
+  } = useEditWorkHeader({
+    workId,
+    queryToken,
+  });
 
   return (
     <ContentSection className="px-8 py-4">
@@ -46,7 +58,7 @@ const EditWorkHeader = ({ workId, queryToken }: EditWorkHeaderProps) => {
           <Typography>Edit book</Typography>
         </Breadcrumbs>
 
-        <div className="grid grid-cols-[repeat(3,1fr)] gap-2">
+        <div className="grid grid-cols-[repeat(4,1fr)] gap-2">
           <div className={itemStyles}>
             <InputLabel component="span">Internal ID</InputLabel>
             <Typography>{id}</Typography>
@@ -54,12 +66,20 @@ const EditWorkHeader = ({ workId, queryToken }: EditWorkHeaderProps) => {
           <div className={itemStyles}>
             <EditStatus defaultValue={status} onUpdate={changeWorkStatus} />
           </div>
-          <div className={itemStyles}>
-            <InputLabel component="span">Publication Date</InputLabel>
-            <Typography component="span" color="inherit">
-              {publicationDate}
-            </Typography>
-          </div>
+          {!isPublicationDateDisabled && (
+            <div className={itemStyles}>
+              <EditPublicationDate
+                defaultValue={publicationDate ?? ''}
+                onUpdate={changePublicationDate}
+                minDate={minDate}
+              />
+            </div>
+          )}
+          {isWithdrawnDateRequired && (
+            <div className={itemStyles}>
+              <EditWithdrawDate defaultValue={withdrawnDate ?? ''} onUpdate={changeWithdrawnDate} minDate={minDate} />
+            </div>
+          )}
         </div>
       </div>
     </ContentSection>
