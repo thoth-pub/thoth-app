@@ -1,18 +1,6 @@
 export const IDs = {
-  FORM_FIELDS: {
-    CREATE_WORK: 'create-work',
-    WORK_STATUS: 'work-status',
-    WORK_TITLE: 'work-title',
-    PUBLICATION_DATE: 'publication-date',
-    EDITION: 'edition',
-    WORK_TYPE: 'work-type',
-    LICENSE: 'license',
-    COPYRIGHT_HOLDER: 'copyright-holder',
-    LANDING_PAGE: 'landing-page',
-    COVER_URL: 'cover-url',
-    AFFILIATIONS: 'affiliations',
-  },
   // WORK
+  CREATE_WORK: 'create-work',
   WORK_IMPRINT: 'work_imprint',
   WORK_TYPE: 'work_type',
   WORK_LICENSE_AND_COPYRIGHT_HOLDER: 'work_license_and_copyright_holder',
@@ -20,6 +8,7 @@ export const IDs = {
   WORK_MEDIA: 'work_media',
   WORK_PAGES_COUNT: 'work_pages_count',
   WORK_LANGUAGES: 'work_languages',
+  WORK_STATUS: 'work_status',
   // CONTRIBUTIONS
   CONTRIBUTOR_NAMES: 'contributor_names',
   CONTRIBUTOR_TYPE: 'contributor_type',

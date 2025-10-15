@@ -12,11 +12,15 @@ import {
 import { useUnmount } from 'react-use';
 import type { ZodType } from 'zod';
 
+import { mergeStyles } from '@/src/shared';
+
 import FormControlGroup from '../../forms/FormControlGroup/FormControlGroup';
 
 export type FormProps<T extends FieldValues> = {
   validationSchema: ZodType<unknown, FieldValues>;
   defaultValues?: DefaultValues<T>;
+  className?: string;
+  controlsClassName?: string;
   isTableVariant?: boolean;
   validationMode?: keyof ValidationMode;
   borderTransparent?: boolean;
@@ -38,6 +42,8 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     isTableVariant = false,
     borderTransparent = false,
     validationMode = 'onChange',
+    controlsClassName,
+    className,
     children,
     onSubmit,
     onAutoSubmit,
@@ -76,10 +82,18 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
   return (
     <form
       onSubmit={handleSubmitForm}
-      className={`flex gap-1 ${borderTransparent ? '' : 'border-1 border-[var(--color-hover-border)]'} bg-[var(--color-form-background)] ${isTableVariant ? '' : 'rounded-xl p-4'} `}
+      className={mergeStyles(
+        `flex gap-1 ${borderTransparent ? '' : 'border-1 border-[var(--color-hover-border)]'} bg-[var(--color-form-background)] ${isTableVariant ? '' : 'rounded-xl p-4'} `,
+        className,
+      )}
     >
       <div className="grow">{children({ control: control as Control<FieldValues>, reset, setValue })}</div>
-      <FormControlGroup isDisabled={isSubmitDisabled} onClose={onClose} onInfo={onInfo} />
+      <FormControlGroup
+        isDisabled={isSubmitDisabled}
+        onClose={onClose}
+        onInfo={onInfo}
+        className={controlsClassName}
+      />
     </form>
   );
 };

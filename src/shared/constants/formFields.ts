@@ -91,9 +91,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   WORK_STATUS: {
-    label: 'Work Status',
+    label: 'Status',
     name: 'workStatus',
-    placeholder: 'Work Status',
+    placeholder: 'Status',
     errorMessage: WORK_STATUS_REQUIRED,
     type: InputTypes.TEXT,
   },

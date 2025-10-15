@@ -65,6 +65,7 @@ export type WorkEntity = {
   landingPage?: string | null;
   coverUrl?: string | null;
   publicationDate: string | null;
+  withdrawnDate: string | null;
   reference?: string | null;
   contributions: WorkContribution[];
   imageCount: number;
@@ -80,8 +81,6 @@ export type WorkEntity = {
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;
-
-export type WorkStatusForm = z.infer<typeof workStatusValidationSchema>;
 
 export type TitleForm = z.infer<typeof titleValidationSchema>;
 

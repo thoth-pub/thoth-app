@@ -2,16 +2,19 @@
 
 import NextLink from 'next/link';
 
-import { type BaseEditSectionProps, convertOptionToString, ROUTES } from '@/src/shared';
+import { type BaseEditSectionProps, ROUTES } from '@/src/shared';
 import { Breadcrumbs, InputLabel, Link, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
-import EditWorkHeaderForm, { type EditWorkHeaderFormProps } from './components/EditWorkHeaderForm';
+import EditStatus from '../EditStatus/EditStatus';
+import { type EditWorkHeaderFormProps } from './components/EditWorkHeaderForm';
 import useEditWorkHeader from './useEditWorkHeader';
 
 type EditWorkHeaderProps = BaseEditSectionProps & Omit<EditWorkHeaderFormProps, 'status'>;
 
-const EditWorkHeader = ({ workId, queryToken, workStatusOptions }: EditWorkHeaderProps) => {
+const itemStyles = 'flex flex-col gap-2';
+
+const EditWorkHeader = ({ workId, queryToken }: EditWorkHeaderProps) => {
   const { title, id, status, publicationDate, isPublicationDateDisabled, minDate, changeWorkStatus } =
     useEditWorkHeader({
       workId,
@@ -44,31 +47,20 @@ const EditWorkHeader = ({ workId, queryToken, workStatusOptions }: EditWorkHeade
         </Breadcrumbs>
 
         <div className="grid grid-cols-[repeat(3,1fr)] gap-2">
-          <div className="flex flex-col gap-1">
+          <div className={itemStyles}>
             <InputLabel component="span">Internal ID</InputLabel>
             <Typography>{id}</Typography>
           </div>
-          <div className="flex flex-col gap-1">
-            <InputLabel component="span">Status</InputLabel>
-            <Typography component="span" color="inherit">
-              {convertOptionToString(status)}
-            </Typography>
+          <div className={itemStyles}>
+            <EditStatus defaultValue={status} onUpdate={changeWorkStatus} />
           </div>
-          <div className="flex flex-col gap-1">
+          <div className={itemStyles}>
             <InputLabel component="span">Publication Date</InputLabel>
             <Typography component="span" color="inherit">
               {publicationDate}
             </Typography>
           </div>
         </div>
-
-        {/* <EditWorkHeaderForm
-          workStatusOptions={workStatusOptions}
-          status={status}
-          isPublicationDateDisabled={isPublicationDateDisabled}
-          onStatusUpdate={changeWorkStatus}
-          minDate={minDate}
-        /> */}
       </div>
     </ContentSection>
   );

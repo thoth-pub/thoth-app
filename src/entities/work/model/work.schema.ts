@@ -9,6 +9,8 @@ export const GET_CHAPTERS = graphql(`
       fullTitle
       workType
       updatedAt
+      publicationDate
+      withdrawnDate
       imprint {
         publisher {
           publisherName

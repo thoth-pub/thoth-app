@@ -6,7 +6,6 @@ import {
   convertRomanToArabic,
   isBookChapter,
   isDefaultId,
-  isPublicationDateAvailable,
 } from '@/src/shared';
 import type { BaseMapper } from '@/src/shared/interfaces';
 
@@ -37,6 +36,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       landingPage,
       coverUrl,
       publicationDate,
+      withdrawnDate,
       imageCount,
       tableCount,
       audioCount,
@@ -73,6 +73,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       coverUrl,
       fullTitle,
       publicationDate: publicationDate ?? null,
+      withdrawnDate: withdrawnDate ?? null,
       imageCount: imageCount ?? 0,
       tableCount: tableCount ?? 0,
       audioCount: audioCount ?? 0,
@@ -181,7 +182,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       ),
     };
   }
-  // TODO add logic for publication date for Active, Superseded, Withdrawn statuses
   // TODO add utilities for conversions
   toDto(entity: WorkEntity): Partial<WorkDto> {
     const {
@@ -198,6 +198,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       coverUrl,
       fullTitle,
       publicationDate,
+      withdrawnDate,
       imageCount,
       tableCount,
       audioCount,
@@ -208,8 +209,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     } = entity;
     const defaultEdition = edition ?? 1;
 
-    const appliedPublicationDate =
-      isPublicationDateAvailable(status) && publicationDate ? convertDateToFormattedDate(publicationDate) : null;
+    const appliedPublicationDate = publicationDate ? convertDateToFormattedDate(publicationDate) : null;
+    const appliedWithdrawnDate = withdrawnDate ? convertDateToFormattedDate(withdrawnDate) : null;
 
     const frontmatterValue = convertArabicToRoman(frontmatterCount);
     const backmatterValue = convertArabicToRoman(backmatterCount);
@@ -230,6 +231,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       landingPage: landingPage && landingPage.length > 0 ? landingPage : null,
       coverUrl: coverUrl && coverUrl.length > 0 ? coverUrl : null,
       publicationDate: appliedPublicationDate,
+      withdrawnDate: appliedWithdrawnDate,
       imageCount: +imageCount > 0 ? +imageCount : null,
       tableCount: +tableCount > 0 ? +tableCount : null,
       audioCount: +audioCount > 0 ? +audioCount : null,

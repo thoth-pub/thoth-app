@@ -18,8 +18,11 @@ export const isWorkWithdrawn = (workStatus: WorkStatus) => workStatus === WorkSt
 export const isPublicationDateAvailable = (workStatus: WorkStatus) =>
   !isWorkCancelled(workStatus) && !isWorkPostponed(workStatus);
 
+export const isSupersededOrWithdrawn = (workStatus: WorkStatus) =>
+  isWorkSuperseded(workStatus) || isWorkWithdrawn(workStatus);
+
 export const isPublicationDateRequired = (workStatus: WorkStatus) => {
-  return isWorkActive(workStatus) || isWorkWithdrawn(workStatus) || isWorkSuperseded(workStatus);
+  return isWorkActive(workStatus) || isSupersededOrWithdrawn(workStatus);
 };
 
 export const isPublicationDateShouldBeInFuture = (workStatus: WorkStatus) => isWorkForthcoming(workStatus);

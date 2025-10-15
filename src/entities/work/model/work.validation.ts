@@ -44,17 +44,11 @@ export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
 export const imprintValidation = getRequiredStringValidation(IMPRINT.errorMessage);
 export const workTypeValidation = getRequiredStringValidation(WORK_TYPE.errorMessage);
 
-const statusValidation = workStatusValidation;
 export const publicationDateValidation = optionalDateValidation;
 
 const subtitleValidation = optionalStringValidation;
-const reference = optionalStringValidation;
 
 const editionValidation = optionalPositiveIntValidation;
-
-const withdrawnDateValidation = dateValidation;
-
-const placeValidation = optionalStringValidation;
 
 const pagesCountValidation = optionalPositiveIntValidation;
 
@@ -78,31 +72,7 @@ const frontMatterCountValidation = optionalPositiveIntValidation;
 
 const backMatterCountValidation = optionalPositiveIntValidation;
 
-const iccn = optionalStringValidation;
-
-const oclcValidation = optionalStringValidation;
-
-const shortAbstractValidation = optionalStringValidation;
-
-const longAbstractValidation = optionalStringValidation;
-
-const generalNoteValidation = optionalStringValidation;
-
-const bibliographyNoteValidation = optionalStringValidation;
-
-const tocValidation = optionalStringValidation;
-
 const coverUrlValidation = optionalUrlValidation;
-
-const coverCaptionValidation = optionalStringValidation;
-
-const firstPageValidation = optionalStringValidation;
-
-const lastPageValidation = optionalStringValidation;
-
-const pageIntervalValidation = optionalStringValidation;
-
-const updatedAtWithRelationsValidation = timestampValidation;
 
 const titleLanguageValidation = z.object({
   value: languageValidation,
@@ -130,7 +100,7 @@ export const publicationDateValidationSchema = z.object({
 });
 
 export const workStatusValidationSchema = z.object({
-  [WORK_STATUS.name]: statusValidation,
+  [WORK_STATUS.name]: workStatusValidation,
 });
 
 export const editionValidationSchema = z.object({

@@ -2,18 +2,20 @@
 
 import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 
+import { mergeStyles } from '@/src/shared';
 import { CloseButton, IconButton, SubmitButton } from '@/src/shared/ui';
 
 type FormControlGroupProps = {
   isDisabled?: boolean;
   formId?: string;
+  className?: string;
   onClose?: () => void;
   onInfo?: () => void;
 };
 
-const FormControlGroup = ({ isDisabled = false, formId, onClose, onInfo }: FormControlGroupProps) => {
+const FormControlGroup = ({ isDisabled = false, formId, className, onClose, onInfo }: FormControlGroupProps) => {
   return (
-    <div className="flex gap-1">
+    <div className={mergeStyles('flex gap-1', className)}>
       <SubmitButton form={formId} type="submit" disabled={isDisabled} aria-label="submit form" />
       <CloseButton onClose={onClose} />
       <IconButton onClick={onInfo} aria-label="Show info">
