@@ -19,9 +19,9 @@ const ReferencesTable = (props: ReferencesTableProps) => {
 
   return (
     <Table className="border-separate">
-      <TableHeader cells={['Citation', 'DOI', 'URL']} />
+      <TableHeader cells={['Citation', 'DOI', 'Ordinal']} />
       <TableBody>
-        {references.map(({ id, doi, unstructuredCitation, url }) => (
+        {references.map(({ id, doi, unstructuredCitation, orderNumber }) => (
           <Fragment key={id}>
             {activeReference?.id === id ? (
               <TableRow>
@@ -42,7 +42,7 @@ const ReferencesTable = (props: ReferencesTableProps) => {
                 </TableCell>
                 <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
                   <div className="flex justify-between">
-                    {url}
+                    {orderNumber}
                     <RowButtonGroup className="ml-auto" onDelete={() => onDelete?.(id)} onEdit={() => onEdit?.(id)} />
                   </div>
                 </TableCell>

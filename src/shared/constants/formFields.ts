@@ -406,7 +406,14 @@ export const FORM_FIELDS = {
   },
 } as const;
 
-export const workStatusOptions = convertFormFieldsToSelectFieldOptions(WorkStatuses.options);
+export const workStatusOptions = [
+  { value: WorkStatuses.enum.Forthcoming, label: 'Forthcoming' },
+  { value: WorkStatuses.enum.Active, label: 'Publish' },
+  { value: WorkStatuses.enum.Cancelled, label: 'Cancel' },
+  { value: WorkStatuses.enum.PostponedIndefinitely, label: 'Postpone' },
+  { value: WorkStatuses.enum.Superseded, label: 'New edition' },
+  { value: WorkStatuses.enum.Withdrawn, label: 'Require Remove' },
+];
 
 export const publicationTypeOptions = convertFormFieldsToSelectFieldOptions(PublicationType.options);
 

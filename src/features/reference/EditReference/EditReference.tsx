@@ -17,7 +17,7 @@ const EditReference = (props: BaseRecommendedSectionProps) => {
 
   const updateDoi = (doi: string) => {
     if (!activeReference) return;
-    console.log('doi', doi);
+
     updateReference({ ...activeReference, doi });
   };
 

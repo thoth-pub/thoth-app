@@ -2,10 +2,11 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { FormFieldOption } from '@/src/shared';
-import { NOTIFICATIONS, ROUTES, WorkStatuses } from '@/src/shared/constants';
+import { NOTIFICATIONS, ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useNotifications } from '@/src/shared/hooks';
 import { isBookChapter } from '@/src/shared/utils';
@@ -27,6 +28,12 @@ const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
 const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licenseOptions }: UseCreateWorkFormProps) => {
   const router = useRouter();
   const { sendSuccessNotification, sendErrorNotification } = useNotifications();
+
+  const availableNewWorkOptions = useMemo(() => {
+    return workTypeOptions.filter(
+      (workType) => workType.value !== WorkTypes.enum.BookChapter && workType.value !== WorkTypes.enum.BookSet,
+    );
+  }, [workTypeOptions]);
 
   const {
     control,
@@ -76,7 +83,7 @@ const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licens
     });
   });
 
-  return { control, isImprintVisible, isSubmitDisabled, isLoading: loading, submit };
+  return { control, isImprintVisible, isSubmitDisabled, availableNewWorkOptions, isLoading: loading, submit };
 };
 
 export default useCreateWorkForm;

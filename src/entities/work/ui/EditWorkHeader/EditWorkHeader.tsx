@@ -58,7 +58,7 @@ const EditWorkHeader = ({ workId, queryToken }: EditWorkHeaderProps) => {
           <Typography>Edit book</Typography>
         </Breadcrumbs>
 
-        <div className="grid grid-cols-[repeat(4,1fr)] gap-2">
+        <div className="grid grid-cols-[0.5fr_repeat(3,1fr)] gap-4">
           <div className={itemStyles}>
             <InputLabel component="span">Internal ID</InputLabel>
             <Typography>{id}</Typography>

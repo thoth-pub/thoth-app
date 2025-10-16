@@ -26,12 +26,14 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions, queryToken }: CreateWo
 
   const workTypeOptions = getWorkTypeOptions(i18n.language);
 
-  const { control, isImprintVisible, isSubmitDisabled, isLoading, submit } = useCreateWorkForm({
-    imprintOptions,
-    workTypeOptions,
-    licenseOptions,
-    queryToken,
-  });
+  const { control, isImprintVisible, isSubmitDisabled, isLoading, availableNewWorkOptions, submit } = useCreateWorkForm(
+    {
+      imprintOptions,
+      workTypeOptions,
+      licenseOptions,
+      queryToken,
+    },
+  );
 
   return (
     <>
@@ -75,7 +77,7 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions, queryToken }: CreateWo
           placeholder={WORK_TYPE.placeholder}
           control={control}
           select
-          options={workTypeOptions}
+          options={availableNewWorkOptions}
         />
         <CreateWorkFormAutocompleteField
           label={LICENSE.label}

@@ -1,4 +1,6 @@
-import { convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
+import { useMemo } from 'react';
+
+import { HELPER_TEXT, IDs, WorkStatuses } from '@/src/shared';
 import { FORM_FIELDS, workStatusOptions } from '@/src/shared/constants/formFields';
 import { EditButton, FormFieldLabel, FormTextField, InputLabel, Typography } from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
@@ -17,16 +19,42 @@ type EditStatusProps = {
 const EditStatus = (props: EditStatusProps) => {
   const { defaultValue, onUpdate } = props;
 
-  const value = workStatusOptions.find((option) => option.value === defaultValue) ?? workStatusOptions[0];
+  const availableNewStatusOptions = useMemo(() => {
+    if (defaultValue === WorkStatuses.enum.Forthcoming) {
+      return workStatusOptions.filter(
+        (option) =>
+          option.value === WorkStatuses.enum.PostponedIndefinitely ||
+          option.value === WorkStatuses.enum.Cancelled ||
+          option.value === WorkStatuses.enum.Active,
+      );
+    }
+
+    if (defaultValue === WorkStatuses.enum.PostponedIndefinitely) {
+      return workStatusOptions.filter((option) => option.value === WorkStatuses.enum.Forthcoming);
+    }
+
+    if (defaultValue === WorkStatuses.enum.Active) {
+      return workStatusOptions.filter(
+        (option) => option.value === WorkStatuses.enum.Withdrawn || option.value === WorkStatuses.enum.Superseded,
+      );
+    }
+
+    return [];
+  }, [defaultValue]);
+
+  const isFieldDisable = availableNewStatusOptions.length < 1;
+
+  const defaultValues = availableNewStatusOptions.length > 0 ? availableNewStatusOptions[0].value : undefined;
 
   return (
     <EditableContentAlt
       formId={IDs.WORK_STATUS}
       borderTransparent
       isTableVariant
+      defaultValues={{ [WORK_STATUS.name]: defaultValues }}
       validationSchema={workStatusValidationSchema}
-      defaultValues={{ [WORK_STATUS.name]: value.value }}
       onSubmit={(data) => onUpdate?.(data.workStatus as WorkStatus)}
+      isDisabled={isFieldDisable}
       formFields={({ control, isHelperTextVisible }) => (
         <div className="flex flex-col gap-2">
           <FormFieldLabel label={WORK_STATUS.label} id={WORK_STATUS.name} />
@@ -36,22 +64,31 @@ const EditStatus = (props: EditStatusProps) => {
             id={WORK_STATUS.name}
             select
             fullWidth
-            options={workStatusOptions}
+            options={availableNewStatusOptions}
             helperText={WORK_STATUS_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
             className="h-10"
+            disabled={isFieldDisable}
           />
         </div>
       )}
-      preview={({ data, onEdit }) => (
-        <div className="flex flex-col gap-2">
-          <InputLabel>{WORK_STATUS.label}</InputLabel>
-          <div className="group flex items-center gap-1">
-            <Typography>{convertOptionToString(data?.workStatus ?? '')}</Typography>
-            <EditButton onClick={onEdit} className="opacity-0 group-hover:opacity-100" />
+      preview={({ onEdit }) => {
+        const option = workStatusOptions.find((option) => option.value === defaultValue);
+
+        if (!option) {
+          return null;
+        }
+
+        return (
+          <div className="flex flex-col gap-2">
+            <InputLabel>{WORK_STATUS.label}</InputLabel>
+            <div className="group flex items-center gap-1">
+              <Typography>{option.label}</Typography>
+              <EditButton onClick={onEdit} disabled={isFieldDisable} className="opacity-0 group-hover:opacity-100" />
+            </div>
           </div>
-        </div>
-      )}
+        );
+      }}
     />
   );
 };
