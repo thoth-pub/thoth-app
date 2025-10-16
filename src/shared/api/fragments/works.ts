@@ -119,5 +119,11 @@ export const WORK_FRAGMENT = graphql(`
       unstructuredCitation
       url
     }
+    subjects {
+      subjectId
+      subjectCode
+      subjectType
+      subjectOrdinal
+    }
   }
 `);

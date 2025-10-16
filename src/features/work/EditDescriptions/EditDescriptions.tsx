@@ -1,5 +1,6 @@
 'use client';
 
+import { EditSubjects } from '@/src/entities/subject';
 import { useWork } from '@/src/entities/work';
 import type { BaseEditSectionProps } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
@@ -7,6 +8,7 @@ import { RecommendedSection } from '@/src/shared/ui';
 import { EditLanguages } from './components/EditLanguages';
 import { EditMedia } from './components/EditMedia';
 import { EditPagesCount } from './components/EditPagesCount';
+
 // TODO: abstract form
 const EditDescriptions = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
@@ -34,6 +36,7 @@ const EditDescriptions = (props: BaseEditSectionProps) => {
           <EditPagesCount workId={workId} queryToken={queryToken} recommended={showRecommendations && !isPagesValid} />
           <EditMedia workId={workId} queryToken={queryToken} />
           <EditLanguages workId={workId} queryToken={queryToken} recommended={showRecommendations} />
+          <EditSubjects workId={workId} queryToken={queryToken} />
         </>
       )}
     </RecommendedSection>

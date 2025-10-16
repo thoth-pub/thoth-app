@@ -108,6 +108,12 @@ export const GET_CHAPTERS = graphql(`
         volumeTitle
         url
       }
+      subjects {
+        subjectId
+        subjectCode
+        subjectType
+        subjectOrdinal
+      }
     }
   }
 `);

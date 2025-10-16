@@ -5,4 +5,5 @@ export * from './languages';
 export * from './price';
 export * from './publications';
 export * from './references';
+export * from './subject';
 export * from './works';

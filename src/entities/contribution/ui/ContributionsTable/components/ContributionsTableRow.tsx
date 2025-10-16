@@ -60,7 +60,12 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
         <TableRow ref={setNodeRef} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
           <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-1 group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
             <div className="flex gap-1">
-              <DragIndicatorIcon className="my-auto opacity-0" color="primary" fontSize="small" {...listeners} />
+              <DragIndicatorIcon
+                className="my-auto opacity-0 group-hover:opacity-100"
+                color="primary"
+                fontSize="small"
+                {...listeners}
+              />
               <div className="flex shrink flex-wrap items-center gap-1">
                 {fullName}
                 {orcidId && (

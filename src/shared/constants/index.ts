@@ -13,5 +13,6 @@ export * from './pages';
 export * from './publications';
 export * from './routes';
 export * from './series';
+export * from './subjects';
 export * from './textEditorTags';
 export * from './work';

@@ -1,4 +1,4 @@
-import { ERRORS, LengthUnit, PublicationType, WeightUnit, WorkStatuses } from '@/src/shared/constants';
+import { ERRORS, LengthUnit, PublicationType, SubjectTypes, WeightUnit, WorkStatuses } from '@/src/shared/constants';
 
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
 import { FILTER_OPTIONS } from './filter';
@@ -404,6 +404,20 @@ export const FORM_FIELDS = {
     name: 'unstructuredCitation',
     placeholder: 'Citation',
   },
+  SUBJECTS: {
+    label: 'Subjects',
+    name: 'subjects',
+  },
+  SUBJECT_TYPE: {
+    label: 'Subject Type',
+    name: 'subjectType',
+    placeholder: 'Subject Type',
+  },
+  SUBJECT_CODE: {
+    label: 'Subject Code',
+    name: 'subjectCode',
+    placeholder: 'Subject Code',
+  },
 } as const;
 
 export const workStatusOptions = [
@@ -414,6 +428,8 @@ export const workStatusOptions = [
   { value: WorkStatuses.enum.Superseded, label: 'New edition' },
   { value: WorkStatuses.enum.Withdrawn, label: 'Require Remove' },
 ];
+
+export const subjectTypeOptions = convertFormFieldsToSelectFieldOptions(SubjectTypes.options);
 
 export const publicationTypeOptions = convertFormFieldsToSelectFieldOptions(PublicationType.options);
 

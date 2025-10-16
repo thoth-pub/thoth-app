@@ -13,6 +13,7 @@ import {
   LengthUnit,
   LocationPlatforms,
   PublicationType,
+  SubjectTypes,
   WeightUnit,
   WorkStatuses,
 } from '@/src/shared/constants';
@@ -66,6 +67,7 @@ export const lengthUnitValidation = z.enum(LengthUnit.enum);
 export const weightUnitValidation = z.enum(WeightUnit.enum);
 export const currencyCodeValidation = z.enum(CurrencyCode.enum);
 export const locationPlatformValidation = z.enum(LocationPlatforms.enum);
+export const subjectTypeValidation = z.enum(SubjectTypes.enum);
 
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });

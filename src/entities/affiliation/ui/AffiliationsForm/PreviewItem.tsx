@@ -32,7 +32,7 @@ export const PreviewItem = (props: PreviewItemProps) => {
       {...attributes}
     >
       <DragIndicatorIcon
-        className={`my-auto ${isDisabled ? '!opacity-0' : 'opacity-0'}`}
+        className={`my-auto ${isDisabled ? '!opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
         color="primary"
         fontSize="small"
         {...listeners}

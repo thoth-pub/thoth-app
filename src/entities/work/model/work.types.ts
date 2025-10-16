@@ -9,6 +9,7 @@ import type { FundingEntity } from '../../funding/model/funding.types';
 import type { LanguageEntity } from '../../language/model/language.types';
 import { PublicationEntity } from '../../publication/model/publication.types';
 import { ReferenceEntity } from '../../reference/model/reference.types';
+import type { SubjectEntity } from '../../subject/model/subject.types';
 import {
   createWorkValidationSchema,
   doiAndCoversValidationSchema,
@@ -79,6 +80,7 @@ export type WorkEntity = {
   publications: PublicationEntity[];
   fundings: FundingEntity[];
   references: ReferenceEntity[];
+  subjects: SubjectEntity[];
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;

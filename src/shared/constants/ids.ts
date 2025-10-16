@@ -10,6 +10,7 @@ export const IDs = {
   WORK_MEDIA: 'work_media',
   WORK_PAGES_COUNT: 'work_pages_count',
   WORK_LANGUAGES: 'work_languages',
+  WORK_SUBJECTS: 'work_subjects',
   WORK_STATUS: 'work_status',
   // CONTRIBUTIONS
   CONTRIBUTOR_NAMES: 'contributor_names',

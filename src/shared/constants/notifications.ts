@@ -39,4 +39,8 @@ export const NOTIFICATIONS = {
   REFERENCE_CREATION_FAILED: 'Failed to create reference',
   REFERENCE_UPDATE_FAILED: 'Failed to update reference',
   REFERENCE_DELETE_FAILED: 'Failed to delete reference',
+  // Subjects
+  SUBJECT_CREATION_FAILED: 'Failed to create subject',
+  SUBJECT_UPDATE_FAILED: 'Failed to update subject',
+  SUBJECT_DELETE_FAILED: 'Failed to delete subject',
 } as const;
