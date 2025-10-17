@@ -23,7 +23,7 @@ export const GET_BOOKS = graphql(`
 `);
 
 export const GET_BOOKS_COUNT = graphql(`
-  query GetBooksCount($publishers: [Uuid!]!, $filter: String) {
-    bookCount(publishers: $publishers, filter: $filter)
+  query GetBooksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus) {
+    bookCount(publishers: $publishers, filter: $filter, workStatus: $workStatus)
   }
 `);

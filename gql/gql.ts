@@ -18,7 +18,7 @@ type Documents = {
     "\n  mutation UpdateAffiliation($data: PatchAffiliation!) {\n    updateAffiliation(data: $data) {\n      ...AffiliationFragment\n    }\n  }\n": typeof types.UpdateAffiliationDocument,
     "\n  mutation DeleteAffiliation($affiliationId: Uuid!) {\n    deleteAffiliation(affiliationId: $affiliationId) {\n      affiliationId\n    }\n  }\n": typeof types.DeleteAffiliationDocument,
     "\n  query GetBooks(\n    $offset: Int!\n    $limit: Int\n    $publishers: [Uuid!]!\n    $direction: Direction = ASC\n    $filter: String\n    $workStatus: WorkStatus\n  ) {\n    books(\n      offset: $offset\n      limit: $limit\n      publishers: $publishers\n      order: { direction: $direction, field: UPDATED_AT }\n      filter: $filter\n      workStatus: $workStatus\n    ) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetBooksDocument,
-    "\n  query GetBooksCount($publishers: [Uuid!]!, $filter: String) {\n    bookCount(publishers: $publishers, filter: $filter)\n  }\n": typeof types.GetBooksCountDocument,
+    "\n  query GetBooksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus) {\n    bookCount(publishers: $publishers, filter: $filter, workStatus: $workStatus)\n  }\n": typeof types.GetBooksCountDocument,
     "\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n    }\n  }\n": typeof types.GetContributorsDocument,
     "\n  query GetLinkedPublishers($contributorId: Uuid!, $offset: Int!, $limit: Int) {\n    contributor(contributorId: $contributorId) {\n      contributions(offset: $offset, limit: $limit) {\n        work {\n          imprint {\n            publisherId\n          }\n        }\n      }\n    }\n  }\n": typeof types.GetLinkedPublishersDocument,
     "\n  mutation CreateContributor($data: NewContributor!) {\n    createContributor(data: $data) {\n      ...ContributorFragment\n    }\n  }\n": typeof types.CreateContributorDocument,
@@ -79,7 +79,7 @@ const documents: Documents = {
     "\n  mutation UpdateAffiliation($data: PatchAffiliation!) {\n    updateAffiliation(data: $data) {\n      ...AffiliationFragment\n    }\n  }\n": types.UpdateAffiliationDocument,
     "\n  mutation DeleteAffiliation($affiliationId: Uuid!) {\n    deleteAffiliation(affiliationId: $affiliationId) {\n      affiliationId\n    }\n  }\n": types.DeleteAffiliationDocument,
     "\n  query GetBooks(\n    $offset: Int!\n    $limit: Int\n    $publishers: [Uuid!]!\n    $direction: Direction = ASC\n    $filter: String\n    $workStatus: WorkStatus\n  ) {\n    books(\n      offset: $offset\n      limit: $limit\n      publishers: $publishers\n      order: { direction: $direction, field: UPDATED_AT }\n      filter: $filter\n      workStatus: $workStatus\n    ) {\n      ...WorkFragment\n    }\n  }\n": types.GetBooksDocument,
-    "\n  query GetBooksCount($publishers: [Uuid!]!, $filter: String) {\n    bookCount(publishers: $publishers, filter: $filter)\n  }\n": types.GetBooksCountDocument,
+    "\n  query GetBooksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus) {\n    bookCount(publishers: $publishers, filter: $filter, workStatus: $workStatus)\n  }\n": types.GetBooksCountDocument,
     "\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n    }\n  }\n": types.GetContributorsDocument,
     "\n  query GetLinkedPublishers($contributorId: Uuid!, $offset: Int!, $limit: Int) {\n    contributor(contributorId: $contributorId) {\n      contributions(offset: $offset, limit: $limit) {\n        work {\n          imprint {\n            publisherId\n          }\n        }\n      }\n    }\n  }\n": types.GetLinkedPublishersDocument,
     "\n  mutation CreateContributor($data: NewContributor!) {\n    createContributor(data: $data) {\n      ...ContributorFragment\n    }\n  }\n": types.CreateContributorDocument,
@@ -169,7 +169,7 @@ export function graphql(source: "\n  query GetBooks(\n    $offset: Int!\n    $li
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query GetBooksCount($publishers: [Uuid!]!, $filter: String) {\n    bookCount(publishers: $publishers, filter: $filter)\n  }\n"): (typeof documents)["\n  query GetBooksCount($publishers: [Uuid!]!, $filter: String) {\n    bookCount(publishers: $publishers, filter: $filter)\n  }\n"];
+export function graphql(source: "\n  query GetBooksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus) {\n    bookCount(publishers: $publishers, filter: $filter, workStatus: $workStatus)\n  }\n"): (typeof documents)["\n  query GetBooksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus) {\n    bookCount(publishers: $publishers, filter: $filter, workStatus: $workStatus)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
