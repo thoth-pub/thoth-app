@@ -12,15 +12,11 @@ const { CONTRIBUTOR_ORCID: CONTRIBUTOR_ORCID_HELPER_TEXT } = HELPER_TEXT;
 type EditOrcidProps = {
   disabled?: boolean;
   orcidId?: string;
-  recommended: boolean;
   onSubmit: (data: OrcidForm) => void;
 };
 
 const EditOrcid = (props: EditOrcidProps) => {
-  const { orcidId, recommended, disabled, onSubmit } = props;
-
-  const value = orcidId ?? '';
-  const showPreviewIndicator = recommended && value.length === 0;
+  const { orcidId, disabled, onSubmit } = props;
 
   return (
     <EditableContent
@@ -32,7 +28,7 @@ const EditOrcid = (props: EditOrcidProps) => {
       borderTransparent
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={ORCID.label} id={ORCID.name} recommended={showPreviewIndicator} />
+          <FormFieldLabel label={ORCID.label} id={ORCID.name} />
           <FormTextField
             control={control}
             name={ORCID.name}
@@ -43,15 +39,7 @@ const EditOrcid = (props: EditOrcidProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => (
-        <Preview
-          disabled={disabled}
-          label={ORCID.label}
-          value={orcidId}
-          recommended={showPreviewIndicator}
-          onEdit={onEdit}
-        />
-      )}
+      preview={({ onEdit }) => <Preview disabled={disabled} label={ORCID.label} value={orcidId} onEdit={onEdit} />}
     />
   );
 };

@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { FundingsTable, useDeleteFunding, useFundingsStateMachine } from '@/src/entities/funding';
 import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
-import { useWork } from '@/src/entities/work';
+import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { isDefaultId } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import { BaseEditSectionProps } from '@/src/shared/types';
@@ -31,10 +31,9 @@ const EditFundings = (props: BaseEditSectionProps) => {
   const { t } = useTranslation();
   const { work } = useWork(workId, queryToken);
   const { activeFunding, close, edit } = useFundingsStateMachine();
+  const { isFundingsRequired } = useWorkRecommendations({ workId });
   const { deleteFunding } = useDeleteFunding({ workId, queryToken });
 
-  const isEmpty = work.fundings.length === 0;
-  const isValid = work.fundings.length > 0 && work.fundings.every((funding) => funding.grantNumber.length > 0);
   const isNewFunding = activeFunding && isDefaultId(activeFunding.id);
 
   const addFunding = () => {
@@ -54,7 +53,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
   };
 
   return (
-    <RecommendedSection title="Fundings" isEmpty={isEmpty} isValid={isValid}>
+    <RecommendedSection title="Fundings" isEmpty={false} isValid={!isFundingsRequired}>
       {({ showRecommendations }) => (
         <>
           <FundingsTable

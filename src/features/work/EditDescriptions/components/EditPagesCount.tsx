@@ -33,11 +33,8 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
   const { pageCount, frontmatterCount, backmatterCount } = work;
 
   const showPagesCountIndicator = recommended && pageCount === 0;
-  const showFrontmatterCountIndicator = recommended && frontmatterCount === 0;
   const backmatterValue = convertArabicToRoman(backmatterCount);
   const frontmatterValue = convertArabicToRoman(frontmatterCount);
-
-  const showIndicator = showPagesCountIndicator || showFrontmatterCountIndicator;
 
   const pageBreakdownValue = useMemo(() => {
     const res: string[] = [];
@@ -97,11 +94,7 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
             />
           </ContentWrapper>
           <ContentWrapper>
-            <FormFieldLabel
-              label={WORK_FRONTMATTER_COUNT.label}
-              id={WORK_FRONTMATTER_COUNT.name}
-              recommended={showFrontmatterCountIndicator}
-            />
+            <FormFieldLabel label={WORK_FRONTMATTER_COUNT.label} id={WORK_FRONTMATTER_COUNT.name} />
             <FormTextField
               control={control}
               name={WORK_FRONTMATTER_COUNT.name}
@@ -127,7 +120,12 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
         </MultipleContentWrapper>
       )}
       preview={({ onEdit }) => (
-        <Preview label={WORK_PAGES_COUNT.label} value={placeholder} recommended={showIndicator} onEdit={onEdit}>
+        <Preview
+          label={WORK_PAGES_COUNT.label}
+          value={placeholder}
+          recommended={showPagesCountIndicator}
+          onEdit={onEdit}
+        >
           <Typography className="ml-2">{placeholder}</Typography>
         </Preview>
       )}

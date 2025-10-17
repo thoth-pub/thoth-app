@@ -6,7 +6,8 @@ import { PublicationsTable, usePublicationsStateMachine } from '@/src/entities/p
 import useDeletePublication from '@/src/entities/publication/api/hooks/useDeletePublication';
 import { useWork } from '@/src/entities/work';
 import { appConfig, type BaseEditSectionProps, isDefaultId, PublicationType, WorkTypes } from '@/src/shared';
-import { AddButton, RecommendedSection } from '@/src/shared/ui';
+import { AddButton } from '@/src/shared/ui';
+import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { AddNewPublication, EditPublication } from '../../publications';
 
@@ -38,8 +39,6 @@ const EditPublications = (props: BaseEditSectionProps) => {
   const { work } = useWork(workId, queryToken);
   const { deletePublication: deletePublicationMutation } = useDeletePublication({ workId, queryToken });
 
-  const isEmpty = work.publications.length === 0;
-  const isValid = work.publications.every((publication) => publication.isbn && publication.isbn.length > 0);
   const isNewPublication = activePublication && isDefaultId(activePublication.id);
 
   const isDimensionFormHidden = work.type === WorkTypes.enum.BookChapter;
@@ -67,38 +66,25 @@ const EditPublications = (props: BaseEditSectionProps) => {
   };
 
   return (
-    <RecommendedSection title="Publications" isEmpty={isEmpty} isValid={isValid}>
-      {({ showRecommendations }) => (
-        <>
-          <PublicationsTable
-            activePublication={activePublication}
-            publications={work.publications}
-            showRecommendations={showRecommendations}
-            form={
-              <EditPublication
-                workId={workId}
-                queryToken={queryToken}
-                recommended={showRecommendations}
-                isDimensionFormHidden={isDimensionFormHidden}
-              />
-            }
-            onEdit={editPublication}
-            onDelete={deletePublication}
-          />
-          {isNewPublication && (
-            <AddNewPublication
-              workId={workId}
-              queryToken={queryToken}
-              recommended={showRecommendations}
-              isDimensionFormHidden={isDimensionFormHidden}
-            />
-          )}
-          <AddButton className="px-7 capitalize" onAdd={addPublication} disabled={isNewPublication}>
-            {t('add publication')}
-          </AddButton>
-        </>
-      )}
-    </RecommendedSection>
+    <ContentSection title="Publications">
+      <>
+        <PublicationsTable
+          activePublication={activePublication}
+          publications={work.publications}
+          form={
+            <EditPublication workId={workId} queryToken={queryToken} isDimensionFormHidden={isDimensionFormHidden} />
+          }
+          onEdit={editPublication}
+          onDelete={deletePublication}
+        />
+        {isNewPublication && (
+          <AddNewPublication workId={workId} queryToken={queryToken} isDimensionFormHidden={isDimensionFormHidden} />
+        )}
+        <AddButton className="px-7 capitalize" onAdd={addPublication} disabled={isNewPublication}>
+          {t('add publication')}
+        </AddButton>
+      </>
+    </ContentSection>
   );
 };
 

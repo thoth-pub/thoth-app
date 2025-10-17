@@ -49,15 +49,9 @@ const EditContribution = (props: EditContributionProps) => {
       onContributorTypeSubmit={updateType}
       onBiographySubmit={updateBiography}
     >
-      <EditOrcid
-        orcidId={contribution.orcidId}
-        recommended={recommended}
-        disabled={isOrchidEditionDisabled}
-        onSubmit={updateOrcid}
-      />
+      <EditOrcid orcidId={contribution.orcidId} disabled={isOrchidEditionDisabled} onSubmit={updateOrcid} />
       <EditWebsite
         websiteUrl={contribution.website}
-        recommended={recommended}
         disabled={isWebsiteUrlEditionDisabled}
         onSubmit={updateWebsiteUrl}
       />

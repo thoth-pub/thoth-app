@@ -16,16 +16,18 @@ type PreviewProps = {
   disabled?: boolean;
   children?: Readonly<React.ReactNode>;
   capitalize?: boolean;
+  tooltip?: string;
   onEdit?: () => void;
 };
 
 const Preview = (props: PreviewProps) => {
-  const { label, value, children, recommended = false, disabled = false, capitalize = false, onEdit } = props;
+  const { label, value, children, recommended = false, disabled = false, capitalize = false, tooltip, onEdit } = props;
+
   const { t } = useTranslation();
 
   return (
     <ContentWrapper>
-      <FormFieldLabel component="div" label={label} recommended={recommended} />
+      <FormFieldLabel component="div" label={label} recommended={recommended} tooltip={tooltip} />
       <div className="flex justify-between">
         {children && children}
         {!children && value && <Typography className={`ml-2 ${capitalize ? 'capitalize' : ''}`}>{value}</Typography>}

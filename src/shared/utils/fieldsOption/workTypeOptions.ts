@@ -1,8 +1,6 @@
 import { LOCALES, WorkTypes } from '../../constants';
 
 const workTypeOptions = [
-  { value: WorkTypes.enum.BookChapter, label: 'book chapter' },
-  { value: WorkTypes.enum.BookSet, label: 'book set' },
   { value: WorkTypes.enum.EditedBook, label: 'edited book' },
   { value: WorkTypes.enum.JournalIssue, label: 'journal issue' },
   { value: WorkTypes.enum.Monograph, label: 'monograph' },
@@ -10,8 +8,6 @@ const workTypeOptions = [
 ];
 
 const workTypeOptionsEs = [
-  { value: WorkTypes.enum.BookChapter, label: 'capítulo de libro' },
-  { value: WorkTypes.enum.BookSet, label: 'conjunto de libros' },
   { value: WorkTypes.enum.EditedBook, label: 'libro editado' },
   { value: WorkTypes.enum.JournalIssue, label: 'número de la revista' },
   { value: WorkTypes.enum.Monograph, label: 'monografía' },

@@ -11,16 +11,14 @@ const { CONTRIBUTOR_WEBSITE_URL: CONTRIBUTOR_WEBSITE_URL_HELPER_TEXT } = HELPER_
 
 type EditWebsiteProps = {
   websiteUrl?: string;
-  recommended: boolean;
   disabled?: boolean;
   onSubmit: (data: WebsiteUrlForm) => void;
 };
 
 export const EditWebsite = (props: EditWebsiteProps) => {
-  const { websiteUrl, recommended, disabled, onSubmit } = props;
+  const { websiteUrl, disabled, onSubmit } = props;
 
   const value = websiteUrl ?? '';
-  const showPreviewIndicator = recommended && value.length === 0;
 
   return (
     <EditableContent
@@ -32,7 +30,7 @@ export const EditWebsite = (props: EditWebsiteProps) => {
       borderTransparent
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={WEBSITE_URL.label} id={WEBSITE_URL.name} recommended={showPreviewIndicator} />
+          <FormFieldLabel label={WEBSITE_URL.label} id={WEBSITE_URL.name} />
           <FormTextField
             control={control}
             name={WEBSITE_URL.name}
@@ -46,13 +44,7 @@ export const EditWebsite = (props: EditWebsiteProps) => {
         </ContentWrapper>
       )}
       preview={({ onEdit }) => (
-        <Preview
-          disabled={disabled}
-          label={WEBSITE_URL.label}
-          value={websiteUrl}
-          recommended={showPreviewIndicator}
-          onEdit={onEdit}
-        />
+        <Preview disabled={disabled} label={WEBSITE_URL.label} value={websiteUrl} onEdit={onEdit} />
       )}
     />
   );

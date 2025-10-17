@@ -12,14 +12,11 @@ const { REFERENCE_URL: DOI_HELPER_TEXT } = HELPER_TEXT;
 
 type EditReferenceDoiProps = {
   defaultValue?: string;
-  recommended?: boolean;
   onUpdate?: (data: string) => void;
 };
 
 export const EditReferenceDoi = (props: EditReferenceDoiProps) => {
-  const { defaultValue = '', recommended = false, onUpdate } = props;
-
-  const showIndicator = recommended && defaultValue.length === 0;
+  const { defaultValue = '', onUpdate } = props;
 
   return (
     <EditableContent
@@ -31,7 +28,7 @@ export const EditReferenceDoi = (props: EditReferenceDoiProps) => {
       onSubmit={(data) => onUpdate?.(data.doi)}
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={DOI.label} id={DOI.name} recommended={showIndicator} />
+          <FormFieldLabel label={DOI.label} id={DOI.name} />
           <FormTextField
             control={control}
             name={DOI.name}
@@ -42,9 +39,7 @@ export const EditReferenceDoi = (props: EditReferenceDoiProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
-        <Preview label={DOI.label} value={data?.doi} recommended={showIndicator} onEdit={onEdit} />
-      )}
+      preview={({ data, onEdit }) => <Preview label={DOI.label} value={data?.doi} onEdit={onEdit} />}
     />
   );
 };

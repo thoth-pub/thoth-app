@@ -12,14 +12,11 @@ const { REFERENCE_CITATION: REFERENCE_CITATION_HELPER_TEXT } = HELPER_TEXT;
 
 type EditReferenceCitationProps = {
   defaultValue?: string;
-  recommended?: boolean;
   onUpdate?: (data: string) => void;
 };
 
 export const EditReferenceCitation = (props: EditReferenceCitationProps) => {
-  const { defaultValue = '', recommended = false, onUpdate } = props;
-
-  const showIndicator = recommended && defaultValue.length === 0;
+  const { defaultValue = '', onUpdate } = props;
 
   return (
     <EditableContent
@@ -31,7 +28,7 @@ export const EditReferenceCitation = (props: EditReferenceCitationProps) => {
       onSubmit={(data) => onUpdate?.(data.unstructuredCitation)}
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={REFERENCE_CITATION.label} id={REFERENCE_CITATION.name} recommended={showIndicator} />
+          <FormFieldLabel label={REFERENCE_CITATION.label} id={REFERENCE_CITATION.name} />
           <FormTextField
             control={control}
             name={REFERENCE_CITATION.name}
@@ -42,12 +39,7 @@ export const EditReferenceCitation = (props: EditReferenceCitationProps) => {
         </ContentWrapper>
       )}
       preview={({ data, onEdit }) => (
-        <Preview
-          label={REFERENCE_CITATION.label}
-          value={data?.unstructuredCitation}
-          recommended={showIndicator}
-          onEdit={onEdit}
-        />
+        <Preview label={REFERENCE_CITATION.label} value={data?.unstructuredCitation} onEdit={onEdit} />
       )}
     />
   );

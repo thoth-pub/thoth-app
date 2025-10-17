@@ -8,7 +8,8 @@ import { useWork } from '@/src/entities/work';
 import { isDefaultId } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import { BaseEditSectionProps } from '@/src/shared/types';
-import { AddButton, RecommendedSection } from '@/src/shared/ui';
+import { AddButton } from '@/src/shared/ui';
+import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import AddReference from '../../reference/AddReference/AddReference';
 import EditReference from '../../reference/EditReference/EditReference';
@@ -33,8 +34,6 @@ const EditReferences = (props: BaseEditSectionProps) => {
   const { activeReference, close, edit } = useReferencesStateMachine();
   const { deleteReference } = useDeleteReference({ workId, queryToken });
 
-  const isEmpty = work.references.length === 0;
-  const isValid = work.references.length > 0;
   const isNewReference = activeReference && isDefaultId(activeReference.id);
 
   const editReference = (id: string) => {
@@ -54,24 +53,21 @@ const EditReferences = (props: BaseEditSectionProps) => {
   };
 
   return (
-    <RecommendedSection title="References" isEmpty={isEmpty} isValid={isValid}>
-      {({ showRecommendations }) => (
-        <>
-          <ReferencesTable
-            activeReference={activeReference}
-            references={work.references}
-            showRecommendations={showRecommendations}
-            form={<EditReference workId={workId} queryToken={queryToken} recommended={showRecommendations} />}
-            onDelete={(id) => deleteReference(id)}
-            onEdit={(id) => editReference(id)}
-          />
-          {isNewReference && <AddReference workId={workId} queryToken={queryToken} recommended={showRecommendations} />}
-          <AddButton className="px-7 capitalize" onAdd={addReference} disabled={isNewReference}>
-            {t('add reference')}
-          </AddButton>
-        </>
-      )}
-    </RecommendedSection>
+    <ContentSection title="References">
+      <>
+        <ReferencesTable
+          activeReference={activeReference}
+          references={work.references}
+          form={<EditReference workId={workId} queryToken={queryToken} />}
+          onDelete={(id) => deleteReference(id)}
+          onEdit={(id) => editReference(id)}
+        />
+        {isNewReference && <AddReference workId={workId} queryToken={queryToken} />}
+        <AddButton className="px-7 capitalize" onAdd={addReference} disabled={isNewReference}>
+          {t('add reference')}
+        </AddButton>
+      </>
+    </ContentSection>
   );
 };
 

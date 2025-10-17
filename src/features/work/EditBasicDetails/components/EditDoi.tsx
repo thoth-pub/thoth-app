@@ -1,6 +1,6 @@
 'use client';
 
-import { useWork } from '@/src/entities/work';
+import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { DoiAndCoversForm } from '@/src/entities/work/model/work.types';
 import { doiAndCoversValidationSchema } from '@/src/entities/work/model/work.validation';
 import { type BaseRecommendedSectionProps, getProtocolPrefix, HELPER_TEXT, IDs } from '@/src/shared';
@@ -13,14 +13,15 @@ const { DOI, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
 export const EditDoi = ({ workId, queryToken, recommended = false }: BaseRecommendedSectionProps) => {
   const { work, updateWork } = useWork(workId, queryToken);
+  const { isDoiRequired, isLandingPageRequired, isCoverUrlRequired } = useWorkRecommendations({ workId });
 
   const doiValue = work?.doi ?? '';
   const landingPageValue = work?.landingPage ?? '';
   const coverUrlValue = work?.coverUrl ?? '';
 
-  const showDoiIndicator = recommended && !work?.doi;
-  const showLandingPageIndicator = recommended && !work?.landingPage;
-  const showCoverUrlIndicator = recommended && !work?.coverUrl;
+  const showDoiIndicator = recommended && isDoiRequired;
+  const showLandingPageIndicator = recommended && isLandingPageRequired;
+  const showCoverUrlIndicator = recommended && isCoverUrlRequired;
 
   const placeholderValue = [doiValue, landingPageValue, coverUrlValue].filter((value) => value.length > 0).join(', ');
 

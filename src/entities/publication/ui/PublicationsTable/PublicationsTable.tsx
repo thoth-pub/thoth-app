@@ -1,13 +1,12 @@
 import { Fragment } from 'react';
 
-import { Chip, Indicator, Table, TableBody, TableCell, TableHeader, TableRow } from '@/src/shared/ui';
+import { Chip, Table, TableBody, TableCell, TableHeader, TableRow } from '@/src/shared/ui';
 
 import type { PublicationEntity } from '../../model/publication.types';
 import { RowButtonGroup } from './components/RowButtonGroup';
 
 type PublicationsTableProps = {
   activePublication: PublicationEntity | null;
-  showRecommendations: boolean;
   publications: PublicationEntity[];
   form: Readonly<React.ReactNode>;
   onDelete?: (id: string) => void;
@@ -15,7 +14,7 @@ type PublicationsTableProps = {
 };
 
 const PublicationsTable = (props: PublicationsTableProps) => {
-  const { activePublication, publications, form, showRecommendations, onDelete, onEdit } = props;
+  const { activePublication, publications, form, onDelete, onEdit } = props;
 
   return (
     <Table className="border-separate">
@@ -34,9 +33,7 @@ const PublicationsTable = (props: PublicationsTableProps) => {
                 <TableRow className="group">
                   <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-7 capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
                     <div className="flex flex-col gap-1">
-                      <div className="flex items-center gap-1">
-                        {type.toLowerCase()} {showRecommendations && isbn.length === 0 && <Indicator />}
-                      </div>
+                      <div className="flex items-center gap-1">{type.toLowerCase()}</div>
                       <div className="flex items-center gap-2">
                         {[width, widthIn, height, heightIn, depth, depthIn].some((value) => value) && (
                           <Chip label="mm/in" size="small" className="lowercase" />

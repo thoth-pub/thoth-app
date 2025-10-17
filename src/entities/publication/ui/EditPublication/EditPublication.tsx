@@ -8,7 +8,6 @@ import EditPublicationType from './components/EditPublicationType';
 
 type EditPublicationProps = {
   publicationType: PublicationType;
-  showRecommendations: boolean;
   isbn: string;
   width: number;
   widthIn: number;
@@ -39,7 +38,6 @@ const EditPublication = (props: EditPublicationProps) => {
     depthIn,
     weight,
     weightOz,
-    showRecommendations,
     isDimensionFormHidden,
     children,
     onDone,
@@ -56,10 +54,9 @@ const EditPublication = (props: EditPublicationProps) => {
       <TableFormsWrapper>
         <TableFormsHeader title={publicationType} onDone={onDone} onClose={onClose} />
         <EditPublicationType publicationType={publicationType} onSubmit={onUpdateType} />
-        <EditIsbn recommended={showRecommendations} isbn={isbn} onSubmit={onUpdateIsbn} />
+        <EditIsbn isbn={isbn} onSubmit={onUpdateIsbn} />
         {!isDimensionsHidden && (
           <EditDimensions
-            recommended={showRecommendations}
             width={width}
             widthIn={widthIn}
             height={height}

@@ -10,7 +10,6 @@ import { dimensionsValidationSchema } from '../../../model/publication.validatio
 import { DimensionsFormField } from './DimensionsFormField';
 
 type EditSizesProps = {
-  recommended: boolean;
   width: number;
   widthIn: number;
   height: number;
@@ -42,14 +41,7 @@ const {
 } = HELPER_TEXT;
 
 export const EditDimensions = (props: EditSizesProps) => {
-  const { width, height, depth, weight, widthIn, heightIn, depthIn, weightOz, recommended = false, onSubmit } = props;
-
-  const showWidthIndicator = recommended && (width === 0 || widthIn === 0);
-  const showHeightIndicator = recommended && (height === 0 || heightIn === 0);
-  const showDepthIndicator = recommended && (depth === 0 || depthIn === 0);
-  const showWeightIndicator = recommended && (weight === 0 || weightOz === 0);
-
-  const showIndicator = showWidthIndicator || showHeightIndicator || showDepthIndicator || showWeightIndicator;
+  const { width, height, depth, weight, widthIn, heightIn, depthIn, weightOz, onSubmit } = props;
 
   const handleSubmit = (data: PublicationDimensionsForm) => {
     onSubmit?.(data);
@@ -138,7 +130,6 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_WIDTH_MM.name}
             imperialFieldName={PUBLICATION_WIDTH_IN.name}
             label={PUBLICATION_WIDTH_MM.label}
-            recommended={showWidthIndicator}
             isHelperTextVisible={isHelperTextVisible}
             helperText={PUBLICATION_WIDTH_HELPER_TEXT}
             onAutoConvert={setValue}
@@ -149,7 +140,6 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_HEIGHT_MM.name}
             imperialFieldName={PUBLICATION_HEIGHT_IN.name}
             label={PUBLICATION_HEIGHT_MM.label}
-            recommended={showHeightIndicator}
             isHelperTextVisible={isHelperTextVisible}
             helperText={PUBLICATION_HEIGHT_HELPER_TEXT}
             onAutoConvert={setValue}
@@ -160,7 +150,6 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_DEPTH_MM.name}
             imperialFieldName={PUBLICATION_DEPTH_IN.name}
             label={PUBLICATION_DEPTH_MM.label}
-            recommended={showDepthIndicator}
             isHelperTextVisible={isHelperTextVisible}
             helperText={PUBLICATION_DEPTH_HELPER_TEXT}
             onAutoConvert={setValue}
@@ -171,7 +160,6 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_WEIGHT_G.name}
             imperialFieldName={PUBLICATION_WEIGHT_OZ.name}
             label={PUBLICATION_WEIGHT_G.label}
-            recommended={showWeightIndicator}
             isHelperTextVisible={isHelperTextVisible}
             helperText={PUBLICATION_WEIGHT_HELPER_TEXT}
             measurementUnit={WeightUnit.enum.G}
@@ -180,12 +168,7 @@ export const EditDimensions = (props: EditSizesProps) => {
         </MultipleContentWrapper>
       )}
       preview={({ onEdit }) => (
-        <Preview
-          recommended={showIndicator}
-          label={PUBLICATION_DIMENSIONS.label}
-          value={placeholderValues}
-          onEdit={onEdit}
-        />
+        <Preview label={PUBLICATION_DIMENSIONS.label} value={placeholderValues} onEdit={onEdit} />
       )}
     />
   );

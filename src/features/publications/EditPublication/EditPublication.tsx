@@ -3,16 +3,16 @@
 import { EditLocations } from '@/src/entities/locations';
 import { EditPrice } from '@/src/entities/price';
 import { EditPublication as EditPublicationForm } from '@/src/entities/publication';
-import type { BaseRecommendedSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared';
 
 import { useEditPublication } from './useEditPublication';
 
-type EditPublicationProps = BaseRecommendedSectionProps & {
+type EditPublicationProps = BaseEditSectionProps & {
   isDimensionFormHidden: boolean;
 };
 
 const EditPublication = (props: EditPublicationProps) => {
-  const { workId, queryToken, recommended = false, isDimensionFormHidden = false } = props;
+  const { workId, queryToken, isDimensionFormHidden = false } = props;
 
   const {
     activePublication,
@@ -33,7 +33,6 @@ const EditPublication = (props: EditPublicationProps) => {
 
   return (
     <EditPublicationForm
-      showRecommendations={recommended}
       isDimensionFormHidden={isDimensionFormHidden}
       publicationType={activePublication.type}
       isbn={activePublication.isbn}

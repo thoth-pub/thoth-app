@@ -8,7 +8,7 @@ import { useWork } from '@/src/entities/work';
 import { type BaseRecommendedSectionProps } from '@/src/shared';
 
 const AddReference = (props: BaseRecommendedSectionProps) => {
-  const { queryToken, workId, recommended = false } = props;
+  const { queryToken, workId } = props;
 
   const { activeReference, close } = useReferencesStateMachine();
   const { work } = useWork(workId, queryToken);
@@ -52,7 +52,6 @@ const AddReference = (props: BaseRecommendedSectionProps) => {
       url={url}
       doi={doi}
       citation={unstructuredCitation}
-      recommended={recommended}
       onUrlUpdate={updateUrl}
       onDoiUpdate={updateDoi}
       onCitationUpdate={updateCitation}

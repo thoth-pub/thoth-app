@@ -10,7 +10,6 @@ type EditReferenceFormProps = {
   url?: string;
   doi?: string;
   citation?: string;
-  recommended?: boolean;
   onUrlUpdate?: (data: string) => void;
   onDoiUpdate?: (data: string) => void;
   onCitationUpdate?: (data: string) => void;
@@ -21,7 +20,6 @@ type EditReferenceFormProps = {
 const EditReferenceForm = (props: EditReferenceFormProps) => {
   const {
     url,
-    recommended = false,
     doi,
     citation,
     onUrlUpdate,
@@ -35,8 +33,8 @@ const EditReferenceForm = (props: EditReferenceFormProps) => {
     <TableNewEntityFormWrapper>
       <TableFormsWrapper>
         <TableFormsHeader title="Reference" onDone={onDone} onClose={onClose} />
-        <EditReferenceDoi defaultValue={doi} recommended={recommended} onUpdate={onDoiUpdate} />
-        <EditReferenceCitation defaultValue={citation} recommended={recommended} onUpdate={onCitationUpdate} />
+        <EditReferenceDoi defaultValue={doi} onUpdate={onDoiUpdate} />
+        <EditReferenceCitation defaultValue={citation} onUpdate={onCitationUpdate} />
         <EditReferenceUrl defaultValue={url} onUpdate={onUrlUpdate} />
       </TableFormsWrapper>
     </TableNewEntityFormWrapper>

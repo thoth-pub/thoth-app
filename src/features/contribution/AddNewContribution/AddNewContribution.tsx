@@ -35,8 +35,8 @@ const AddNewContribution = (props: BaseRecommendedSectionProps) => {
         onDone={create}
         onClose={close}
       >
-        <EditOrcid orcidId={contribution.orcidId} recommended={recommended} onSubmit={updateOrcid} />
-        <EditWebsite websiteUrl={contribution.website} recommended={recommended} onSubmit={updateWebsiteUrl} />
+        <EditOrcid orcidId={contribution.orcidId} onSubmit={updateOrcid} />
+        <EditWebsite websiteUrl={contribution.website} onSubmit={updateWebsiteUrl} />
         <AffiliationsForm
           defaultValue={contribution.affiliations}
           showRecommendations={recommended}

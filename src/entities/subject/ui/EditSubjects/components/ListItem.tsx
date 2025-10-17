@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
-import { DeleteButton, Typography } from '@/src/shared/ui';
+import { Chip, DeleteButton, Typography } from '@/src/shared/ui';
 
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 
@@ -27,7 +27,7 @@ const ListItem = ({ subject, onDelete }: ListItemProps) => {
     <li
       ref={setNodeRef}
       style={style}
-      className="group flex items-center gap-1 rounded-xl border-1 border-transparent p-2 hover:border-[var(--color-form-border)]"
+      className="group flex items-center gap-1 rounded-xl border-1 border-transparent p-2 group-hover:bg-[var(--color-form-background)] hover:border-[var(--color-form-border)]"
       {...attributes}
     >
       <DragIndicatorIcon
@@ -36,7 +36,10 @@ const ListItem = ({ subject, onDelete }: ListItemProps) => {
         fontSize="small"
         {...listeners}
       />
-      <Typography>{subject.code}</Typography>
+      <Typography>
+        <Chip label={subject.type} size="small" component="span" className="mr-2" />
+        {subject.code}
+      </Typography>
       <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
     </li>
   );

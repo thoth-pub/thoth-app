@@ -12,7 +12,7 @@ type AddNewPublicationProps = BaseRecommendedSectionProps & {
 };
 
 const AddNewPublication = (props: AddNewPublicationProps) => {
-  const { workId, queryToken, recommended = false, isDimensionFormHidden = false } = props;
+  const { workId, queryToken, isDimensionFormHidden = false } = props;
 
   const {
     publication,
@@ -35,7 +35,6 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
 
   return (
     <EditPublication
-      showRecommendations={recommended}
       publicationType={type}
       isDimensionFormHidden={isDimensionFormHidden}
       isbn={isbn}

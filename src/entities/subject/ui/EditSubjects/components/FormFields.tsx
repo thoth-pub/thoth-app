@@ -19,6 +19,7 @@ import type { SubjectId, SubjectsFormType, SubjectType } from '../../../model/su
 
 type FormFieldsProps = {
   control: Control<SubjectsFormType>;
+  recommended?: boolean;
   onDelete?: (id: SubjectId) => void;
   onClose?: () => void;
 };
@@ -28,7 +29,7 @@ const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const FormFields = (props: FormFieldsProps) => {
-  const { control, onDelete, onClose } = props;
+  const { control, recommended, onDelete, onClose } = props;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -86,7 +87,7 @@ export const FormFields = (props: FormFieldsProps) => {
         {fields.map((field, index) => (
           <li key={field.id} className={itemsStyle}>
             <FormFieldWrapper>
-              <FormFieldLabel label={SUBJECT_TYPE.label} id={SUBJECT_TYPE.name} />
+              <FormFieldLabel label={SUBJECT_TYPE.label} id={SUBJECT_TYPE.name} recommended={recommended} />
               <FormFieldWithControlsWrapper>
                 <FormTextField
                   name={getSubjectTypeFieldName(index)}

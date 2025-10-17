@@ -4,7 +4,7 @@ import { EditReferenceForm, useReferencesStateMachine, useUpdateReference } from
 import type { BaseRecommendedSectionProps } from '@/src/shared';
 
 const EditReference = (props: BaseRecommendedSectionProps) => {
-  const { workId, queryToken, recommended = false } = props;
+  const { workId, queryToken } = props;
 
   const { activeReference, close } = useReferencesStateMachine();
   const { updateReference } = useUpdateReference({ workId, queryToken });
@@ -36,7 +36,6 @@ const EditReference = (props: BaseRecommendedSectionProps) => {
       url={url}
       doi={doi}
       citation={unstructuredCitation}
-      recommended={recommended}
       onUrlUpdate={updateUrl}
       onDoiUpdate={updateDoi}
       onCitationUpdate={updateCitation}

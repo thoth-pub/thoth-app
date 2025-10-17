@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useWork } from '@/src/entities/work';
 import type { WorkType, WorkTypeForm } from '@/src/entities/work/model/work.types';
 import { workTypeValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseRecommendedSectionProps, convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
+import { type BaseEditSectionProps, convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
@@ -14,11 +14,10 @@ import { getWorkTypeOptions } from '@/src/shared/utils';
 
 const { WORK_TYPE } = FORM_FIELDS;
 
-export const EditImprint = ({ workId, queryToken, recommended = false }: BaseRecommendedSectionProps) => {
+export const EditImprint = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, updateWork } = useWork(workId, queryToken);
   const { t, i18n } = useTranslation();
   const value = t(convertOptionToString(work?.type ?? '').toLowerCase());
-  const showIndicator = recommended && !value;
 
   const updateWorkType = ({ workType }: WorkTypeForm) => {
     updateWork({ ...work, type: workType as WorkType });
@@ -34,7 +33,7 @@ export const EditImprint = ({ workId, queryToken, recommended = false }: BaseRec
       onSubmit={updateWorkType}
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={WORK_TYPE.label} id={WORK_TYPE.name} recommended={showIndicator} />
+          <FormFieldLabel label={WORK_TYPE.label} id={WORK_TYPE.name} />
           <FormTextField
             control={control}
             name={WORK_TYPE.name}
@@ -46,9 +45,7 @@ export const EditImprint = ({ workId, queryToken, recommended = false }: BaseRec
           />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => (
-        <Preview label={WORK_TYPE.label} value={value} recommended={showIndicator} onEdit={onEdit} capitalize />
-      )}
+      preview={({ onEdit }) => <Preview label={WORK_TYPE.label} value={value} onEdit={onEdit} capitalize />}
     />
   );
 };

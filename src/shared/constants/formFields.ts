@@ -421,7 +421,7 @@ export const FORM_FIELDS = {
 } as const;
 
 export const workStatusOptions = [
-  { value: WorkStatuses.enum.Forthcoming, label: 'Forthcoming' },
+  { value: WorkStatuses.enum.Forthcoming, label: 'Resume' },
   { value: WorkStatuses.enum.Active, label: 'Publish' },
   { value: WorkStatuses.enum.Cancelled, label: 'Cancel' },
   { value: WorkStatuses.enum.PostponedIndefinitely, label: 'Postpone' },

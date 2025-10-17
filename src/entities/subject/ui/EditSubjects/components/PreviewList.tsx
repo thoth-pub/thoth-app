@@ -4,19 +4,16 @@ import { closestCenter, DndContext, type DragEndEvent, PointerSensor, useSensor,
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useState } from 'react';
 
-import { Chip } from '@/src/shared/ui';
-
-import type { SubjectEntity, SubjectId, SubjectType } from '../../../model/subject.types';
+import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 import ListItem from './ListItem';
 
 type PreviewListProps = {
-  title: SubjectType;
   subjects: SubjectEntity[];
   onReorderEnd?: (subjects: SubjectEntity[]) => void;
   onDelete?: (id: SubjectId) => void;
 };
 
-export const PreviewList = ({ subjects, title, onDelete }: PreviewListProps) => {
+export const PreviewList = ({ subjects, onDelete }: PreviewListProps) => {
   const [items, setItems] = useState(subjects);
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -47,7 +44,6 @@ export const PreviewList = ({ subjects, title, onDelete }: PreviewListProps) => 
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}>
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
-        <Chip label={title} size="small" component="li" className="m-auto max-w-max" />
         {items.map((subject) => (
           <ListItem key={subject.id} subject={subject} onDelete={handleDelete} />
         ))}
