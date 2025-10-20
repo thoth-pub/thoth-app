@@ -1,8 +1,10 @@
+import { ServerError } from '@apollo/client';
+
 import type { Contributor, UpdateContributorMutation } from '@/gql/graphql';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import type { QueryToken } from '@/src/shared';
-import { useMutationWithAuth } from '@/src/shared/hooks';
+import { NOTIFICATIONS, type QueryToken,serverErrorParser } from '@/src/shared';
+import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { ContributorDtoMapper } from '../../model/contributor.mapper';
 import { GET_CONTRIBUTOR, GET_CONTRIBUTORS, UPDATE_CONTRIBUTOR } from '../../model/contributor.schema';
@@ -18,8 +20,12 @@ type UseUpdateContributorProps = {
 
 const mapper = new ContributorDtoMapper();
 
+const { CONTRIBUTOR_UPDATE_FAILED } = NOTIFICATIONS;
+
 const useUpdateContributor = (props: UseUpdateContributorProps) => {
   const { queryToken, workId = '', contributorId = '', onCompleted, onError } = props;
+
+  const { sendErrorNotification } = useNotifications();
 
   const [mutate, { loading }] = useMutationWithAuth<UpdateContributorMutation>({
     queryToken,
@@ -29,6 +35,15 @@ const useUpdateContributor = (props: UseUpdateContributorProps) => {
         onCompleted?.(data.updateContributor as Contributor);
       },
       onError: (error) => {
+        if (ServerError.is(error)) {
+          const errorMessage = serverErrorParser(error.bodyText, CONTRIBUTOR_UPDATE_FAILED);
+
+          sendErrorNotification(errorMessage);
+          onError?.(error);
+          return;
+        }
+
+        sendErrorNotification(CONTRIBUTOR_UPDATE_FAILED);
         onError?.(error);
       },
       refetchQueries: [

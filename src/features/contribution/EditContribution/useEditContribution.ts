@@ -1,5 +1,6 @@
 'use client';
 
+import { ServerError } from '@apollo/client';
 import { useMemo, useState } from 'react';
 
 import { useAffiliationsForm } from '@/src/entities/affiliation';
@@ -14,7 +15,7 @@ import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { useWork } from '@/src/entities/work';
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
-import { type BaseEditSectionProps, NOTIFICATIONS, removePrefix } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, removePrefix, serverErrorParser } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
@@ -48,7 +49,15 @@ export const useEditContribution = (props: UseEditContributionProps) => {
         website: removePrefix(data.website ?? ''),
       });
     },
-    onError: () => {
+    onError: (error) => {
+      if (ServerError.is(error)) {
+        const errorMessage = serverErrorParser(error.bodyText, NOTIFICATIONS.CONTRIBUTOR_UPDATE_FAILED);
+
+        sendErrorNotification(errorMessage);
+        close();
+        return;
+      }
+
       sendErrorNotification(NOTIFICATIONS.CONTRIBUTOR_UPDATE_FAILED);
       close();
     },

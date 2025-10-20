@@ -3,6 +3,7 @@ export * from './convertations/date';
 export * from './convertations/dimensions';
 export * from './convertations/formFields';
 export * from './convertations/romans';
+export * from './errors/serverErrorParser';
 export * from './fieldsOption/contributorTypeOptions';
 export * from './fieldsOption/languageRelationOptions';
 export * from './fieldsOption/workTypeOptions';

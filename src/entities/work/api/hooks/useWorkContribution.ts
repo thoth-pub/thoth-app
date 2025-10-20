@@ -1,5 +1,7 @@
+import { ServerError } from '@apollo/client';
+
 import type { CreateContributionMutation } from '@/gql/graphql';
-import { type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { CREATE_CONTRIBUTION, DELETE_CONTRIBUTION, UPDATE_CONTRIBUTION } from '../../model/work.mutations';
@@ -22,7 +24,15 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
       onCompleted: (data: CreateContributionMutation) => {
         onCreateComplete?.(data.createContribution);
       },
-      onError: () => {
+      onError: (error) => {
+        if (ServerError.is(error)) {
+          const errorMessage = serverErrorParser(error.bodyText, WORK_CONTRIBUTION_CREATION_FAILED);
+
+          sendErrorNotification(errorMessage);
+
+          return;
+        }
+
         sendErrorNotification(WORK_CONTRIBUTION_CREATION_FAILED);
       },
       refetchQueries: [{ query: GET_WORK, variables: { workId } }],
@@ -33,7 +43,14 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
     queryToken,
     mutation: DELETE_CONTRIBUTION,
     options: {
-      onError: () => {
+      onError: (error) => {
+        if (ServerError.is(error)) {
+          const errorMessage = serverErrorParser(error.bodyText, WORK_CONTRIBUTION_DELETION_FAILED);
+
+          sendErrorNotification(errorMessage);
+          return;
+        }
+
         sendErrorNotification(WORK_CONTRIBUTION_DELETION_FAILED);
       },
       refetchQueries: [{ query: GET_WORK, variables: { workId } }],
@@ -44,7 +61,14 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
     queryToken,
     mutation: UPDATE_CONTRIBUTION,
     options: {
-      onError: () => {
+      onError: (error) => {
+        if (ServerError.is(error)) {
+          const errorMessage = serverErrorParser(error.bodyText, WORK_CONTRIBUTION_UPDATE_FAILED);
+
+          sendErrorNotification(errorMessage);
+          return;
+        }
+
         sendErrorNotification(WORK_CONTRIBUTION_UPDATE_FAILED);
       },
       refetchQueries: [{ query: GET_WORK, variables: { workId } }],

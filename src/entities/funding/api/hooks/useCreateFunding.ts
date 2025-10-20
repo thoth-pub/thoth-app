@@ -1,6 +1,8 @@
+import { ServerError } from '@apollo/client';
+
 import { CreateAffiliationMutation } from '@/gql/graphql';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { NOTIFICATIONS } from '@/src/shared';
+import { NOTIFICATIONS, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
@@ -24,7 +26,14 @@ const useCreateFunding = (props: UseCreateFundingProps) => {
     mutation: CREATE_FUNDING,
     options: {
       onError: (error) => {
-        console.error(error);
+        if (ServerError.is(error)) {
+          const errorMessage = serverErrorParser(error.bodyText, FUNDING_CREATION_FAILED);
+
+          sendErrorNotification(errorMessage);
+
+          return;
+        }
+
         sendErrorNotification(FUNDING_CREATION_FAILED);
       },
       refetchQueries: [{ query: GET_WORK, variables: { workId } }],

@@ -6,6 +6,7 @@ import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
 import { AutocompleteGroup, Button, CircularProgress, PageHeader } from '@/src/shared/ui';
+import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { getWorkTypeOptions } from '@/src/shared/utils';
 
 import CreateWorkFormAutocompleteField from './components/CreateWorkFormAutocompleteField';
@@ -49,49 +50,47 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions, queryToken }: CreateWo
           New
         </Button>
       </PageHeader>
-      <form
-        id={CREATE_WORK}
-        onSubmit={submit}
-        className="flex flex-col gap-[var(--default-gap)] rounded-md border-2 border-[var(--color-border-alt)] bg-[var(--color-background-alt)] p-[var(--default-content-padding)]"
-      >
-        <CreateWorkFormField
-          label={TITLE.label}
-          name={TITLE.name}
-          placeholder={TITLE.placeholder}
-          control={control}
-          type={TITLE.type}
-        />
-        {isImprintVisible && (
+      <ContentSection>
+        <form id={CREATE_WORK} onSubmit={submit} className="flex flex-col gap-[var(--default-gap)]">
           <CreateWorkFormField
-            label={IMPRINT.label}
-            name={IMPRINT.name}
-            placeholder={IMPRINT.placeholder}
+            label={TITLE.label}
+            name={TITLE.name}
+            placeholder={TITLE.placeholder}
+            control={control}
+            type={TITLE.type}
+          />
+          {isImprintVisible && (
+            <CreateWorkFormField
+              label={IMPRINT.label}
+              name={IMPRINT.name}
+              placeholder={IMPRINT.placeholder}
+              control={control}
+              select
+              options={imprintOptions}
+            />
+          )}
+          <CreateWorkFormField
+            label={WORK_TYPE.label}
+            name={WORK_TYPE.name}
+            placeholder={WORK_TYPE.placeholder}
             control={control}
             select
-            options={imprintOptions}
+            options={availableNewWorkOptions}
           />
-        )}
-        <CreateWorkFormField
-          label={WORK_TYPE.label}
-          name={WORK_TYPE.name}
-          placeholder={WORK_TYPE.placeholder}
-          control={control}
-          select
-          options={availableNewWorkOptions}
-        />
-        <CreateWorkFormAutocompleteField
-          label={LICENSE.label}
-          name={LICENSE.name}
-          control={control}
-          options={licenseOptions}
-          groupBy={(option) => option.group ?? ''}
-          renderGroup={({ group, children, key }) => (
-            <AutocompleteGroup key={key} group={group}>
-              {children}
-            </AutocompleteGroup>
-          )}
-        />
-      </form>
+          <CreateWorkFormAutocompleteField
+            label={LICENSE.label}
+            name={LICENSE.name}
+            control={control}
+            options={licenseOptions}
+            groupBy={(option) => option.group ?? ''}
+            renderGroup={({ group, children, key }) => (
+              <AutocompleteGroup key={key} group={group}>
+                {children}
+              </AutocompleteGroup>
+            )}
+          />
+        </form>
+      </ContentSection>
     </>
   );
 };

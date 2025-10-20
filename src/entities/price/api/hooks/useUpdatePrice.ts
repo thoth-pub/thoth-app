@@ -1,7 +1,9 @@
+import { ServerError } from '@apollo/client';
+
 import type { UpdatePriceMutation } from '@/gql/graphql';
 import type { PublicationId } from '@/src/entities/publication/model/publication.types';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { PriceDtoMapper } from '../../model/price.mapper';
@@ -24,7 +26,15 @@ const useUpdatePrice = (props: UseUpdatePriceProps) => {
     mutation: UPDATE_PRICE,
     options: {
       refetchQueries: [{ query: GET_WORK, variables: { workId } }],
-      onError: () => {
+      onError: (error) => {
+        if (ServerError.is(error)) {
+          const errorMessage = serverErrorParser(error.bodyText, PRICE_UPDATE_FAILED);
+
+          sendErrorNotification(errorMessage);
+
+          return;
+        }
+
         sendErrorNotification(PRICE_UPDATE_FAILED);
       },
     },

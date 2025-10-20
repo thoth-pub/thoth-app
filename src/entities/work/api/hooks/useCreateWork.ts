@@ -1,27 +1,40 @@
+import { ServerError } from '@apollo/client';
+
 import type { CreateWorkMutation } from '@/gql/graphql';
-import type { QueryToken } from '@/src/shared';
-import { useMutationWithAuth } from '@/src/shared/hooks';
+import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
+import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { CREATE_WORK } from '../../model/work.mutations';
 
 type UseCreateWorkProps = {
   queryToken: QueryToken;
   onCompleted: (data: CreateWorkMutation) => void;
-  onError: (error: Error) => void;
 };
 
+const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
+
 const useCreateWork = (props: UseCreateWorkProps) => {
-  const { queryToken, onCompleted, onError } = props;
+  const { queryToken, onCompleted } = props;
+
+  const { sendErrorNotification, sendSuccessNotification } = useNotifications();
 
   const [mutate, { loading }] = useMutationWithAuth<CreateWorkMutation>({
     queryToken,
     mutation: CREATE_WORK,
     options: {
       onCompleted: (data) => {
+        sendSuccessNotification(WORK_CREATION_SUCCESS);
         onCompleted(data);
       },
       onError: (error) => {
-        onError(error);
+        if (ServerError.is(error)) {
+          const errorMessage = serverErrorParser(error.bodyText, WORK_CREATION_FAILED);
+
+          sendErrorNotification(errorMessage);
+          return;
+        }
+
+        sendErrorNotification(WORK_CREATION_FAILED);
       },
     },
   });

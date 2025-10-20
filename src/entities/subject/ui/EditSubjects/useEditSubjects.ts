@@ -3,9 +3,9 @@ import { BaseEditSectionProps, isDefaultId } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
-import useCreateSubject from '../../api/hooks/createSubject';
-import useDeleteSubject from '../../api/hooks/deleteSubject';
-import useUpdateSubject from '../../api/hooks/updateSubject';
+import useCreateSubject from '../../api/hooks/useCreateSubject';
+import useDeleteSubject from '../../api/hooks/useDeleteSubject';
+import useUpdateSubject from '../../api/hooks/useUpdateSubject';
 import type { SubjectsFormType, SubjectType } from '../../model/subject.types';
 
 const { SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;

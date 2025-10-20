@@ -14,10 +14,7 @@ import { useContributor, useCreateContributor, useUpdateContributor } from '@/sr
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import { useWork } from '@/src/entities/work';
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
-import { type BaseEditSectionProps, isDefaultId, NOTIFICATIONS } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
-
-const { CONTRIBUTOR_CREATION_SUCCESS, CONTRIBUTOR_CREATION_FAILED, CONTRIBUTOR_UPDATE_FAILED } = NOTIFICATIONS;
+import { type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 
 export const useAddNewContribution = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
@@ -43,13 +40,10 @@ export const useAddNewContribution = (props: BaseEditSectionProps) => {
     });
   });
 
-  const { sendSuccessNotification, sendErrorNotification } = useNotifications();
   const { contributor } = useContributor({ contributorId: contribution?.contributorId });
   const { createContributor } = useCreateContributor({
     queryToken,
     onCompleted: (data) => {
-      sendSuccessNotification(CONTRIBUTOR_CREATION_SUCCESS);
-
       if (!contribution) return;
 
       createContribution({
@@ -59,19 +53,13 @@ export const useAddNewContribution = (props: BaseEditSectionProps) => {
         contributorId: data.contributorId,
       });
     },
-    onError: () => {
-      sendErrorNotification(CONTRIBUTOR_CREATION_FAILED);
-      close();
-    },
+    onError: () => close(),
   });
   const { updateContributor } = useUpdateContributor({
     queryToken,
     workId,
     contributorId: contribution?.contributorId,
-    onError: () => {
-      sendErrorNotification(CONTRIBUTOR_UPDATE_FAILED);
-      close();
-    },
+    onError: () => close(),
   });
 
   const updateContribution = (data: WorkContribution) => {

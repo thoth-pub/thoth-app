@@ -1,7 +1,9 @@
+import { ServerError } from '@apollo/client';
+
 import type { CreateLocationMutation } from '@/gql/graphql';
 import type { PublicationId } from '@/src/entities/publication/model/publication.types';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
+import { BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { LocationDtoMapper } from '../../model/location.mapper';
@@ -22,7 +24,14 @@ const useCreateLocation = (props: BaseEditSectionProps) => {
     mutation: CREATE_LOCATION,
     options: {
       onError: (error) => {
-        console.error(error);
+        if (ServerError.is(error)) {
+          const errorMessage = serverErrorParser(error.bodyText, LOCATION_CREATE_FAILED);
+
+          sendErrorNotification(errorMessage);
+
+          return;
+        }
+
         sendErrorNotification(LOCATION_CREATE_FAILED);
       },
       refetchQueries: [{ query: GET_WORK, variables: { workId } }],

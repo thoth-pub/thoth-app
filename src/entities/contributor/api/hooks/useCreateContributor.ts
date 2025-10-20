@@ -1,6 +1,8 @@
+import { ServerError } from '@apollo/client';
+
 import type { Contributor, CreateContributorMutation } from '@/gql/graphql';
-import type { QueryToken } from '@/src/shared';
-import { useMutationWithAuth } from '@/src/shared/hooks';
+import { NOTIFICATIONS, type QueryToken,serverErrorParser } from '@/src/shared';
+import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { ContributorDtoMapper } from '../../model/contributor.mapper';
 import { CREATE_CONTRIBUTOR, GET_CONTRIBUTORS } from '../../model/contributor.schema';
@@ -14,17 +16,32 @@ type UseCreateContributorProps = {
 
 const mapper = new ContributorDtoMapper();
 
+const { CONTRIBUTOR_CREATION_SUCCESS, CONTRIBUTOR_CREATION_FAILED } = NOTIFICATIONS;
+
 const useCreateContributor = (props: UseCreateContributorProps) => {
   const { queryToken, onCompleted, onError } = props;
+
+  const { sendErrorNotification, sendSuccessNotification } = useNotifications();
 
   const [mutate, { loading }] = useMutationWithAuth<CreateContributorMutation>({
     queryToken,
     mutation: CREATE_CONTRIBUTOR,
     options: {
       onCompleted: (data) => {
+        sendSuccessNotification(CONTRIBUTOR_CREATION_SUCCESS);
+
         onCompleted?.(data.createContributor as Contributor);
       },
       onError: (error) => {
+        if (ServerError.is(error)) {
+          const errorMessage = serverErrorParser(error.bodyText, CONTRIBUTOR_CREATION_FAILED);
+
+          sendErrorNotification(errorMessage);
+          onError?.(error);
+          return;
+        }
+
+        sendErrorNotification(CONTRIBUTOR_CREATION_FAILED);
         onError?.(error);
       },
       refetchQueries: [{ query: GET_CONTRIBUTORS }],

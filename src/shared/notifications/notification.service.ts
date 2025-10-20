@@ -10,7 +10,7 @@ export class NotificationService {
       },
     });
   }
-  sendErrorNotification(message: NotificationMessage) {
+  sendErrorNotification(message: NotificationMessage | string) {
     toast.error(message, {
       style: {
         background: 'var(--color-notification-background-error)',

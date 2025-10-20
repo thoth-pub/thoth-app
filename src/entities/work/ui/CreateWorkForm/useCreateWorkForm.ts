@@ -6,9 +6,8 @@ import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { FormFieldOption } from '@/src/shared';
-import { NOTIFICATIONS, ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
+import { ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { useNotifications } from '@/src/shared/hooks';
 import { isBookChapter } from '@/src/shared/utils';
 
 import useCreateWork from '../../api/hooks/useCreateWork';
@@ -23,11 +22,9 @@ type UseCreateWorkFormProps = {
 };
 
 const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
-const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
 
 const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licenseOptions }: UseCreateWorkFormProps) => {
   const router = useRouter();
-  const { sendSuccessNotification, sendErrorNotification } = useNotifications();
 
   const availableNewWorkOptions = useMemo(() => {
     return workTypeOptions.filter(
@@ -54,11 +51,7 @@ const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licens
   const { createWork, loading } = useCreateWork({
     queryToken,
     onCompleted: (data) => {
-      sendSuccessNotification(WORK_CREATION_SUCCESS);
       router.push(ROUTES.WORK_PAGE(data.createWork.workId));
-    },
-    onError: () => {
-      sendErrorNotification(WORK_CREATION_FAILED);
     },
   });
 
