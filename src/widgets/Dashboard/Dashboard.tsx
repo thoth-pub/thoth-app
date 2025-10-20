@@ -8,8 +8,8 @@ import { Button, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { PublishedBooksChart, TotalBooksChart } from '@/src/widgets';
 
+import RecentlyPublishedBooks from '../RecentlyPublishedBooks/RecentlyPublishedBooks';
 import RecentlyUpdatedBooks from '../RecentlyUpdatedBooks/RecentlyUpdatedBooks';
-import RecentlyPublishedBooks from '../RecentlyUpdatedBooks/RecentlyUpdatedBooks';
 
 const Dashboard = () => {
   return (
