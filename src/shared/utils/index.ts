@@ -6,6 +6,7 @@ export * from './convertations/romans';
 export * from './fieldsOption/contributorTypeOptions';
 export * from './fieldsOption/languageRelationOptions';
 export * from './fieldsOption/workTypeOptions';
+export * from './helpers/getSameDayAndMonthDateInPast';
 export * from './helpers/isDefaultId';
 export * from './helpers/isUrl';
 export * from './helpers/isValidUUID';

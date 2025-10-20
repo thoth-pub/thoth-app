@@ -3,12 +3,13 @@
 import AddIcon from '@mui/icons-material/Add';
 import NextLink from 'next/link';
 
-import { PublishedBooksChart, TotalBooksChart } from '@/src/entities/book';
-import { PAGES, ROUTES } from '@/src/shared/constants';
+import { ROUTES } from '@/src/shared/constants';
 import { Button, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { PublishedBooksChart, TotalBooksChart } from '@/src/widgets';
 
-const pages = PAGES.filter(({ href }) => href === ROUTES.WORKS || href === ROUTES.SERIES);
+import RecentlyUpdatedBooks from '../RecentlyUpdatedBooks/RecentlyUpdatedBooks';
+import RecentlyPublishedBooks from '../RecentlyUpdatedBooks/RecentlyUpdatedBooks';
 
 const Dashboard = () => {
   return (
@@ -26,17 +27,13 @@ const Dashboard = () => {
         </div>
       </ContentSection>
 
-      <div className="flex w-full gap-4">
+      <div className="flex w-full gap-[15px]">
         <TotalBooksChart />
         <PublishedBooksChart />
       </div>
 
-      <Typography component="h2" variant="h1" color="primary">
-        Recently updated
-      </Typography>
-      <Typography component="h2" variant="h1" color="primary">
-        Recently published
-      </Typography>
+      <RecentlyUpdatedBooks />
+      <RecentlyPublishedBooks />
     </>
   );
 };

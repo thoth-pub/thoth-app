@@ -2,17 +2,17 @@
 
 import { useMemo } from 'react';
 
-import ButtonComponent from '../Button/Button';
+import ButtonComponent, { type ButtonProps } from '../Button/Button';
 
 type DataIndicatorProps = {
   isEmpty?: boolean;
   isValid?: boolean;
   isActive?: boolean;
   onClick?: () => void;
-};
+} & ButtonProps;
 
 const DataIndicator = (props: DataIndicatorProps) => {
-  const { isEmpty = true, isValid = false, isActive = false, onClick } = props;
+  const { isEmpty = true, isValid = false, isActive = false, sx, onClick, ...rest } = props;
 
   const percentage = useMemo(() => {
     if (isEmpty) return 0;
@@ -32,8 +32,11 @@ const DataIndicator = (props: DataIndicatorProps) => {
         '&.MuiButtonBase-root.MuiButton-root.Mui-disabled': {
           backgroundColor: 'transparent',
         },
+
+        ...sx,
       }}
       variant="contained"
+      {...rest}
     >
       <div
         className={`flex h-5 w-5 overflow-clip rounded-full border-1 opacity-100 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`}

@@ -48,7 +48,7 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
         contribution.affiliations.length === 0,
     );
 
-  const isAllInformationFilled = [
+  const informationForCheck = [
     isTitleRequired,
     isEditionRequired,
     // isWorkTypeRequired,
@@ -63,10 +63,15 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
     isContributionsRequired,
     isSubjectsRequired,
     isFundingsRequired,
-  ].every(Boolean);
+  ];
+
+  const isAllInformationFilled = informationForCheck.every(Boolean);
+
+  const isEmpty = informationForCheck.every((value) => value === false);
 
   return {
     isAllInformationFilled,
+    isEmpty,
     isTitleRequired,
     isEditionRequired,
     isImprintRequired,

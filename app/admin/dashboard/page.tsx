@@ -4,10 +4,10 @@ import { Suspense } from 'react';
 import { auth } from '@/auth';
 import { GET_SERIES_COUNT } from '@/src/entities/series/model/series.schema';
 import { GET_WORKS_COUNT } from '@/src/entities/work/model/work.schema';
-import { Dashboard } from '@/src/features';
 import { convertLinkedPublishers } from '@/src/shared';
 import { ROUTES } from '@/src/shared/constants';
 import { PreloadQuery } from '@/src/shared/graphqlClient';
+import Dashboard from '@/src/widgets/Dashboard/Dashboard';
 
 export default async function DashboardPage() {
   const session = await auth();
