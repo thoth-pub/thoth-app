@@ -1,6 +1,6 @@
 import { useQuery } from '@apollo/client/react';
 
-import type { WorkFragmentFragment, WorkStatus } from '@/gql/graphql';
+import type { Expression, WorkFragmentFragment, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
 import { appConfig, type Direction } from '@/src/shared';
 
@@ -16,6 +16,8 @@ type UseBooksProps = {
   direction?: Direction;
   filter?: string;
   workStatus?: WorkStatus;
+  startedAt?: string;
+  expression?: Expression;
 };
 
 const useBooks = (props: UseBooksProps) => {
@@ -26,6 +28,8 @@ const useBooks = (props: UseBooksProps) => {
     direction,
     filter = '',
     workStatus,
+    startedAt,
+    expression,
   } = props;
 
   const {
@@ -33,7 +37,15 @@ const useBooks = (props: UseBooksProps) => {
     error,
     loading,
   } = useQuery(GET_BOOKS, {
-    variables: { offset, limit, publishers: publishersIds, direction, filter, workStatus },
+    variables: {
+      offset,
+      limit,
+      publishers: publishersIds,
+      direction,
+      filter,
+      workStatus,
+      ...(startedAt && expression ? { startedAt, expression } : {}),
+    },
     skip: publishersIds.length === 0,
   });
 

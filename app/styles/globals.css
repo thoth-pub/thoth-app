@@ -178,11 +178,11 @@
 
   --color-breadcrumb-text: var(--color-blue);
 
-  --color-chart-1: #ffdd75;
-  --color-chart-2: #f1b68d;
+  --color-chart-1: #60afd2;
+  --color-chart-2: #cb6b7d;
   --color-chart-3: #f195a8;
-  --color-chart-5: #cb6b7d;
-  --color-chart-6: #60afd2;
+  --color-chart-4: #f1b68d;
+  --color-chart-5: #ffdd75;
 }
 
 @theme inline {

@@ -9,6 +9,7 @@ export const GET_BOOKS = graphql(`
     $filter: String
     $workStatus: WorkStatus
     $field: WorkField = UPDATED_AT
+    $updatedAtWithRelations: TimeExpression
   ) {
     books(
       offset: $offset
@@ -17,6 +18,7 @@ export const GET_BOOKS = graphql(`
       order: { direction: $direction, field: $field }
       filter: $filter
       workStatus: $workStatus
+      updatedAtWithRelations: $updatedAtWithRelations
     ) {
       ...WorkFragment
     }
