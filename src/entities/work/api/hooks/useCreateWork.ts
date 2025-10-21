@@ -1,10 +1,13 @@
 import { ServerError } from '@apollo/client';
 
-import type { CreateWorkMutation } from '@/gql/graphql';
+import { type CreateWorkMutation,WorkStatus } from '@/gql/graphql';
+import { GET_BOOKS, GET_BOOKS_COUNT } from '@/src/entities/book/model/book.schema';
+import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { CREATE_WORK } from '../../model/work.mutations';
+import { GET_WORKS, GET_WORKS_COUNT } from '../../model/work.schema';
 
 type UseCreateWorkProps = {
   queryToken: QueryToken;
@@ -17,6 +20,7 @@ const useCreateWork = (props: UseCreateWorkProps) => {
   const { queryToken, onCompleted } = props;
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
+  const { activePublisher } = usePublisherStateMachine();
 
   const [mutate, { loading }] = useMutationWithAuth<CreateWorkMutation>({
     queryToken,
@@ -36,6 +40,14 @@ const useCreateWork = (props: UseCreateWorkProps) => {
 
         sendErrorNotification(WORK_CREATION_FAILED);
       },
+      refetchQueries: [
+        { query: GET_WORKS },
+        { query: GET_WORKS_COUNT },
+        { query: GET_BOOKS },
+        { query: GET_BOOKS_COUNT },
+        { query: GET_BOOKS_COUNT, variables: { publishers: [activePublisher], workStatus: WorkStatus.Active } },
+        { query: GET_BOOKS_COUNT, variables: { publishers: [activePublisher], workStatus: WorkStatus.Forthcoming } },
+      ],
     },
   });
 
