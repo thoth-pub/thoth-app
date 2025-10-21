@@ -7,26 +7,38 @@ export const theme = createTheme({
     h1: {
       fontFamily: 'var(--font-economica), sans-serif',
       fontWeight: 700,
-      fontSize: '2rem',
+      fontSize: '1.5rem',
       lineHeight: '1.26',
       letterSpacing: 'var(--default-letter-spacing)',
       verticalAlign: 'middle',
       textTransform: 'uppercase',
+
+      '@media (min-width: 1024px)': {
+        fontSize: '2rem',
+      },
     },
     h2: {
       fontFamily: 'var(--font-economica), sans-serif',
       fontWeight: 700,
-      fontSize: '1.375rem',
+      fontSize: '1rem',
       lineHeight: '1.26',
       letterSpacing: 'var(--default-letter-spacing)',
       textTransform: 'uppercase',
+
+      '@media (min-width: 1024px)': {
+        fontSize: '1.375rem',
+      },
     },
     body1: {
       fontWeight: 400,
-      fontSize: '1rem',
+      fontSize: '0.75rem',
       lineHeight: 'var(--default-line-height)',
       letterSpacing: 'var(--default-letter-spacing)',
       color: 'var(--color-typography)',
+
+      '@media (min-width: 1024px)': {
+        fontSize: '1rem',
+      },
     },
     body2: {
       fontWeight: 400,
@@ -71,16 +83,22 @@ export const theme = createTheme({
     MuiButton: {
       styleOverrides: {
         root: {
-          padding: '0.625rem 1.25rem ',
+          padding: '0.5rem 1rem',
           textTransform: 'none',
           fontWeight: 700,
           fontStyle: 'bold',
-          fontSize: '1rem',
+          fontSize: '0.75rem',
           lineHeight: '1.66',
           borderRadius: 'var(--border-button-radius)',
+
           '&:disabled > *': {
             opacity: 0.5,
             cursor: 'not-allowed',
+          },
+
+          '@media (min-width: 1024px)': {
+            padding: '0.625rem 1.25rem',
+            fontSize: '1rem',
           },
         },
         contained: {
@@ -224,12 +242,18 @@ export const theme = createTheme({
     MuiChip: {
       styleOverrides: {
         root: {
+          padding: '0.125rem 0.5rem',
           backgroundColor: 'var(--color-chip-background)',
           color: 'var(--color-chip-text)',
           fontWeight: 600,
-          fontSize: '0.875rem',
+          fontSize: '0.625rem',
           lineHeight: '1.125rem',
           border: '1px solid var(--color-chip-border)',
+
+          '@media (min-width: 1024px)': {
+            padding: '0.25rem 0.75rem',
+            fontSize: '0.875rem',
+          },
         },
       },
     },

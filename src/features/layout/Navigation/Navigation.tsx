@@ -16,15 +16,16 @@ import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
 
 const Navigation = () => {
-  const [isExpanded, setIsExpanded] = useState(true);
+  const [isExpanded, setIsExpanded] = useState(false);
 
   return (
     <Paper
       component="aside"
       elevation={1}
-      className="sticky top-3 max-h-[40rem] shrink-0 rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)] bg-[var(--color-nav-background)] p-3"
+      className="sticky top-2 max-h-[40rem] shrink-0 rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)] bg-[var(--color-nav-background)] p-3 lg:top-3"
     >
       <motion.div
+        initial={false}
         animate={{ width: isExpanded ? '15rem' : '2.5rem' }}
         className="flex h-full max-w-[15rem] flex-col gap-2 overflow-hidden duration-300"
       >

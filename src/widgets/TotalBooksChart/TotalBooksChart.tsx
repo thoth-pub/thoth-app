@@ -4,10 +4,13 @@ import { PieChart } from '@mui/x-charts';
 
 import { ChartWrapper, useBooksCount, useForthcomingBooksCount, usePublishedBooksCount } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
+import { useIsDesktop } from '@/src/shared/hooks';
 import { DashboardContentWrapper, Typography } from '@/src/shared/ui';
 
 const TotalBooksChart = () => {
   const { activePublisher } = usePublisherStateMachine();
+  const isDesktop = useIsDesktop();
+
   const { bookCount } = useBooksCount(activePublisher ? [activePublisher] : []);
   const { bookCount: publishedBookCount } = usePublishedBooksCount(activePublisher ? [activePublisher] : []);
   const { bookCount: forthcomingBookCount } = useForthcomingBooksCount(activePublisher ? [activePublisher] : []);
@@ -17,20 +20,20 @@ const TotalBooksChart = () => {
   const chartData: { label: string; value: number; color: string }[] = [];
 
   if (publishedBookCount > 0) {
-    chartData.push({ label: 'Published', value: publishedBookCount, color: 'var(--color-primary)' });
+    chartData.push({ label: 'Published', value: publishedBookCount, color: '#F1B68D' });
   }
 
   if (forthcomingBookCount > 0) {
-    chartData.push({ label: 'Resume', value: forthcomingBookCount, color: 'var(--color-success)' });
+    chartData.push({ label: 'Forthcoming', value: forthcomingBookCount, color: '#60AFD2' });
   }
 
   if (otherBooksCount > 0) {
-    chartData.push({ label: 'Other', value: otherBooksCount, color: 'gray' });
+    chartData.push({ label: 'Other', value: otherBooksCount, color: '#F195A8' });
   }
 
   const settings = {
-    width: 130,
-    height: 130,
+    width: isDesktop ? 130 : 95,
+    height: isDesktop ? 130 : 95,
     margin: { right: 0 },
     hideLegend: true,
   };
@@ -42,26 +45,29 @@ const TotalBooksChart = () => {
           <Typography component="h2" variant="h2" color="primary" className="mb-2">
             Statuses
           </Typography>
-          <ul className="flex list-disc flex-col gap-1 pl-8">
+          <ul className="flex list-disc flex-col gap-1 pl-4 lg:pl-8">
             {publishedBookCount > 0 && (
-              <Typography component="li" variant="body1" color="primary" className="list-item">
+              <Typography component="li" className="list-item marker:text-[#F1B68D]">
                 {publishedBookCount} Published
               </Typography>
             )}
             {forthcomingBookCount > 0 && (
-              <Typography component="li" variant="body1" color="success" className="list-item">
-                {forthcomingBookCount} Resume
+              <Typography component="li" className="list-item marker:text-[#60AFD2]">
+                {forthcomingBookCount} Forthcoming
               </Typography>
             )}
             {otherBooksCount > 0 && (
-              <Typography component="li" variant="body1" color="gray  ">
+              <Typography component="li" className="list-item marker:text-[#F195A8]">
                 {otherBooksCount} Other
               </Typography>
             )}
           </ul>
         </div>
         <div className="max-w-[130px]">
-          <PieChart series={[{ innerRadius: 40, outerRadius: 60, data: chartData }]} {...settings} />
+          <PieChart
+            series={[{ innerRadius: isDesktop ? 40 : 30, outerRadius: isDesktop ? 60 : 45, data: chartData }]}
+            {...settings}
+          />
         </div>
       </ChartWrapper>
     </DashboardContentWrapper>

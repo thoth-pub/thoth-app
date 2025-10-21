@@ -27,7 +27,7 @@ const Dashboard = () => {
         </div>
       </ContentSection>
 
-      <div className="flex w-full gap-[15px]">
+      <div className="flex w-full flex-wrap gap-[15px]">
         <TotalBooksChart />
         <PublishedBooksChart />
       </div>

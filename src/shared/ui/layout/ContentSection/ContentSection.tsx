@@ -17,7 +17,7 @@ const ContentSection = ({ children, title, headerContent, className }: ContentSe
     <Paper
       elevation={3}
       component="section"
-      className={mergeStyles('rounded-2xl bg-[var(--color-background-alt)] px-4 py-8', className)}
+      className={mergeStyles('rounded-2xl bg-[var(--color-background-alt)] p-6 lg:p-8', className)}
     >
       {title && (
         <div className="mb-9 flex items-center justify-between pl-4">

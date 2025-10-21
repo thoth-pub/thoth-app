@@ -2,17 +2,20 @@
 
 import { useMemo } from 'react';
 
+import { mergeStyles } from '@/src/shared';
+
 import ButtonComponent, { type ButtonProps } from '../Button/Button';
 
 type DataIndicatorProps = {
   isEmpty?: boolean;
   isValid?: boolean;
   isActive?: boolean;
+  indicatorClassName?: string;
   onClick?: () => void;
 } & ButtonProps;
 
 const DataIndicator = (props: DataIndicatorProps) => {
-  const { isEmpty = true, isValid = false, isActive = false, sx, onClick, ...rest } = props;
+  const { isEmpty = true, isValid = false, isActive = false, sx, indicatorClassName, onClick, ...rest } = props;
 
   const percentage = useMemo(() => {
     if (isEmpty) return 0;
@@ -39,7 +42,10 @@ const DataIndicator = (props: DataIndicatorProps) => {
       {...rest}
     >
       <div
-        className={`flex h-5 w-5 overflow-clip rounded-full border-1 opacity-100 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`}
+        className={mergeStyles(
+          `flex h-5 w-5 overflow-clip rounded-full border-1 opacity-100 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`,
+          indicatorClassName,
+        )}
       >
         <div
           style={{ width: `${percentage}%` }}
