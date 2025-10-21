@@ -12,7 +12,7 @@ type HeaderProps = {
 export const Header = ({ searchValue, onSearch }: HeaderProps) => {
   return (
     <ContentSection>
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <Typography variant="h1">Books</Typography>
         <TextField
           slotProps={{

@@ -30,7 +30,11 @@ const DataIndicator = (props: DataIndicatorProps) => {
         backgroundColor: isActive ? 'primary.main' : 'transparent',
         boxShadow: 'unset',
         padding: '10px',
-        minWidth: '40px',
+        minWidth: '30px',
+
+        '@media (min-width: 1024px)': {
+          minWidth: '40px',
+        },
 
         '&.MuiButtonBase-root.MuiButton-root.Mui-disabled': {
           backgroundColor: 'transparent',
@@ -43,7 +47,7 @@ const DataIndicator = (props: DataIndicatorProps) => {
     >
       <div
         className={mergeStyles(
-          `flex h-5 w-5 overflow-clip rounded-full border-1 opacity-100 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`,
+          `flex h-4 w-4 overflow-clip rounded-full border-1 opacity-100 lg:h-5 lg:w-5 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`,
           indicatorClassName,
         )}
       >

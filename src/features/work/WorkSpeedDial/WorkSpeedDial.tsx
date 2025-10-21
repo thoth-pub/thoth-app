@@ -12,7 +12,7 @@ const WorkSpeedDial = () => {
       sx={{
         position: 'fixed',
         top: 20,
-        right: 72,
+        right: 40,
         '& .MuiSpeedDial-fab': { color: 'secondary.main' },
       }}
       direction="down"

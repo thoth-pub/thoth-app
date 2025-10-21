@@ -47,7 +47,7 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions, queryToken }: CreateWo
           loading={isLoading}
           loadingIndicator={<CircularProgress size={22} sx={{ color: 'inherit' }} />}
         >
-          New
+          Create
         </Button>
       </PageHeader>
       <ContentSection>

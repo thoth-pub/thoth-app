@@ -18,7 +18,7 @@ const AdminLayout = async ({
   return (
     <>
       <Navigation />
-      <div className="flex-1 overflow-clip">{children}</div>
+      <div className="scrollbar-hidden flex-1 overflow-scroll">{children}</div>
     </>
   );
 };

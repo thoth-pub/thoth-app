@@ -33,27 +33,29 @@ const ContributionsTable = (props: ContributionsTableProps) => {
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}>
       <SortableContext items={contributions} strategy={verticalListSortingStrategy}>
-        <Table className="border-separate">
-          <TableHeader
-            cells={['Name', 'Type', 'Institution', 'Biography']}
-            cellStyles={['w-[20rem]', 'w-[5rem]', 'w-[20rem]', 'w-[15rem]']}
-          />
-          <TableBody>
-            {contributions.map((contribution) => (
-              <ContributionsTableRow
-                key={contribution.id}
-                isEditing={activeContribution?.id === contribution.id}
-                isEditable={!activeContribution}
-                contributor={contribution}
-                form={form}
-                showRecommendations={showRecommendations}
-                onEdit={(id) => editContribution(id)}
-                onDelete={(id) => deleteContribution?.(id)}
-                onSelectAsMain={(id) => switchMainStatus(id)}
-              />
-            ))}
-          </TableBody>
-        </Table>
+        <div className="overflow-auto">
+          <Table className="border-separate">
+            <TableHeader
+              cells={['Name', 'Type', 'Institution', 'Biography']}
+              cellStyles={['min-w-[250px]', 'min-w-[120px]', 'min-w-[250px]', 'min-w-[200px]']}
+            />
+            <TableBody>
+              {contributions.map((contribution) => (
+                <ContributionsTableRow
+                  key={contribution.id}
+                  isEditing={activeContribution?.id === contribution.id}
+                  isEditable={!activeContribution}
+                  contributor={contribution}
+                  form={form}
+                  showRecommendations={showRecommendations}
+                  onEdit={(id) => editContribution(id)}
+                  onDelete={(id) => deleteContribution?.(id)}
+                  onSelectAsMain={(id) => switchMainStatus(id)}
+                />
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </SortableContext>
     </DndContext>
   );

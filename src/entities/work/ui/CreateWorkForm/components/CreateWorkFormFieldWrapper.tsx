@@ -13,7 +13,7 @@ type CreateWorkFormFieldWrapperProps = {
 const CreateWorkFormFieldWrapper = ({ label, name, children }: CreateWorkFormFieldWrapperProps) => {
   return (
     <FormFieldWrapper>
-      <InputLabel className="min-w-[10rem]" htmlFor={name}>
+      <InputLabel className="min-w-[8.4rem] lg:min-w-[11.25rem]" htmlFor={name}>
         {label}
       </InputLabel>
       {children}

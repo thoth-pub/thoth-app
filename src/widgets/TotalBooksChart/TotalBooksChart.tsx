@@ -38,6 +38,10 @@ const TotalBooksChart = () => {
     hideLegend: true,
   };
 
+  if (chartData.length === 0) {
+    return null;
+  }
+
   return (
     <DashboardContentWrapper>
       <ChartWrapper>

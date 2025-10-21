@@ -1,8 +1,13 @@
+'use client';
+
+import { useEffect } from 'react';
+
 import { EditWorkHeader } from '@/src/entities/work';
 import { EditBasicDetails, EditContributors, EditDescriptions, EditFundings, WorkSpeedDial } from '@/src/features';
 import EditPublications from '@/src/features/work/EditPublications/EditPublications';
 import EditReferences from '@/src/features/work/EditReferences/EditReferences';
 import type { BaseEditSectionProps, FormFieldOption } from '@/src/shared';
+import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
 type EditWorkWidgetProps = BaseEditSectionProps & {
   imprintOptions: FormFieldOption[];
@@ -11,6 +16,14 @@ type EditWorkWidgetProps = BaseEditSectionProps & {
 
 const EditWorkWidget = (props: EditWorkWidgetProps) => {
   const { imprintOptions, queryToken, workId, isAdmin = false } = props;
+
+  const { close } = useFormStateMachine();
+
+  useEffect(() => {
+    return () => {
+      close();
+    };
+  }, []);
 
   return (
     <div className="flex flex-col gap-8">

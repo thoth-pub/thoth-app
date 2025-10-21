@@ -4,7 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import { useTranslation } from 'react-i18next';
 
 import FormFieldLabel from '../../forms/FormFieldLabel/FormFieldLabel';
-import ContentWrapper from '../../layout/ContentWrapper/ContentPreview';
+import ContentWrapper from '../../layout/ContentWrapper/ContentWrapper';
 import Button from '../Button/Button';
 import EditButton from '../EditButton/EditButton';
 import Typography from '../Typography/Typography';

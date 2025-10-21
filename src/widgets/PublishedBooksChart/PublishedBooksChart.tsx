@@ -43,6 +43,10 @@ const PublishedBooksChart = () => {
   const axisData = sortedData.map(([_, { month }]) => month).slice(0, 5);
   const seriesData = sortedData.map(([_, { value }]) => value).slice(0, 5);
 
+  if (sortedData.length === 0) {
+    return null;
+  }
+
   return (
     <DashboardContentWrapper>
       <ChartWrapper>

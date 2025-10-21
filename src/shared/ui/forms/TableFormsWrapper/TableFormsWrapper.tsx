@@ -7,7 +7,10 @@ import { mergeStyles } from '@/src/shared/utils';
 const TableFormsWrapper = ({ children, className }: { children: React.ReactNode; className?: string }) => {
   return (
     <motion.div
-      className={mergeStyles(`my-4 ml-3 flex flex-col gap-8 rounded-xl bg-[var(--color-form-background)]`, className)}
+      className={mergeStyles(
+        `my-4 ml-3 flex max-w-max flex-col gap-8 rounded-xl bg-[var(--color-form-background)] lg:max-w-full`,
+        className,
+      )}
       initial={{ opacity: 0, height: 0 }}
       animate={{ opacity: 1, height: 'auto' }}
       exit={{ opacity: 0, height: 0 }}

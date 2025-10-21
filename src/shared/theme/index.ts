@@ -42,17 +42,25 @@ export const theme = createTheme({
     },
     body2: {
       fontWeight: 400,
-      fontSize: '0.875rem',
+      fontSize: '0.65rem',
       lineHeight: '1.125',
       letterSpacing: 'var(--default-letter-spacing)',
       color: 'var(--color-typography)',
+
+      '@media (min-width: 1024px)': {
+        fontSize: '0.875rem',
+      },
     },
     button: {
       fontWeight: 400,
-      fontSize: '1rem',
+      fontSize: '0.75rem',
       lineHeight: 'var(--default-line-height)',
       letterSpacing: 'var(--default-letter-spacing)',
       color: 'var(--color-typography)',
+
+      '@media (min-width: 1024px)': {
+        fontSize: '1rem',
+      },
     },
   },
   palette: {
@@ -112,9 +120,13 @@ export const theme = createTheme({
         },
         text: {
           padding: 0,
-          fontSize: '1rem',
+          fontSize: '0.75rem',
           lineHeight: '1.5rem',
           fontWeight: 400,
+
+          '@media (min-width: 1024px)': {
+            fontSize: '1rem',
+          },
         },
         sizeSmall: {
           lineHeight: 'var(--default-line-height)',
@@ -125,37 +137,56 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           fontWeight: 400,
-          fontSize: '1rem',
+          fontSize: '0.75rem',
           lineHeight: 'var(--default-line-height)',
           letterSpacing: '0.025rem',
           color: 'var(--color-text-field-text)',
+
+          '@media (min-width: 1024px)': {
+            fontSize: '1rem',
+          },
+
           '& .MuiInputBase-root': {
-            height: '2.75rem',
+            height: '2rem',
             backgroundColor: 'var(--color-text-field-background)',
             '& fieldset': {
               border: '1px solid var(--color-text-field-border)',
             },
+
+            '@media (min-width: 1024px)': {
+              height: '2.75rem',
+            },
           },
+
           '& .MuiInputBase-root:hover': {
             '& fieldset': {
               borderColor: 'var(--color-text-field-border)',
             },
           },
+
           '& .Mui-error.MuiInputBase-root:hover': {
             '& fieldset': {
               borderColor: 'var(--color-text-field-error)',
             },
           },
+
           '& .MuiInputBase-input': {
-            height: '2.75rem',
+            height: '2rem',
             padding: '0 0.625rem',
+
+            '@media (min-width: 1024px)': {
+              height: '2.75rem',
+            },
           },
+
           '& .MuiIconButton-root': {
             color: 'var(--color-text-field-text)',
           },
+
           '& .MuiFormHelperText-root': {
             color: 'var(--color-text-field-helper-text)',
           },
+
           '& .MuiSelect-select': {
             height: '10px',
             textTransform: 'capitalize',
@@ -174,10 +205,14 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           fontWeight: 700,
-          fontSize: '1rem',
+          fontSize: '0.75rem',
           lineHeight: 'var(--default-line-height)',
           letterSpacing: 'var(--default-letter-spacing)',
           color: 'var(--color-form-field-label)',
+
+          '@media (min-width: 1024px)': {
+            fontSize: '1rem',
+          },
         },
       },
     },
@@ -185,19 +220,31 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           fontWeight: 400,
-          fontSize: '1rem',
+          fontSize: '0.75rem',
           lineHeight: '1.5',
           letterSpacing: '0.025rem',
           color: 'var(--color-text-field-text)',
           backgroundColor: 'var(--color-text-field-background)',
-          '& .MuiPickersSectionList-root ': {
-            height: '2.75rem',
-            padding: '0.625rem 0',
-            opacity: 1,
+
+          '@media (min-width: 1024px)': {
+            fontSize: '1rem',
           },
+
+          '& .MuiPickersSectionList-root ': {
+            height: '2rem',
+            padding: '0.5rem 0',
+            opacity: 1,
+
+            '@media (min-width: 1024px)': {
+              height: '2.75rem',
+              padding: '0.625rem 0',
+            },
+          },
+
           '& .MuiIconButton-root': {
             color: 'var(--color-icon)',
           },
+
           '& .MuiPickersInputBase-root': {
             '& fieldset': {
               border: '1px solid var(--color-text-field-border)',
@@ -264,8 +311,19 @@ export const theme = createTheme({
           '& .MuiTableCell-root': {
             borderColor: 'var(--color-table-border)',
             color: 'var(--color-table-text)',
-            fontSize: '1rem',
+            fontSize: '0.75rem',
             lineHeight: '1.5rem',
+
+            '@media (min-width: 1024px)': {
+              fontSize: '1rem',
+            },
+          },
+          '& .MuiTableHead-root .MuiTableCell-root': {
+            padding: '8px',
+
+            '@media (min-width: 1024px)': {
+              padding: '10px',
+            },
           },
           '& .MuiTableCell-root.MuiTableCell-body': {
             verticalAlign: 'top',
@@ -308,7 +366,12 @@ export const theme = createTheme({
     MuiBreadcrumbs: {
       styleOverrides: {
         root: {
+          fontSize: '0.75rem',
           color: 'var(--color-breadcrumb-text)',
+
+          '@media (min-width: 1024px)': {
+            fontSize: '1rem',
+          },
         },
       },
     },
