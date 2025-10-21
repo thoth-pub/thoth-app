@@ -14,7 +14,13 @@ const TableHeader = ({ cells, cellStyles = [] }: TableHeaderProps) => {
             <Typography
               variant="h2"
               component="span"
-              sx={{ fontFamily: 'unset', fontWeight: 'unset', textTransform: 'unset' }}
+              sx={{
+                fontFamily: 'unset',
+                fontWeight: 'unset',
+                textTransform: 'unset',
+                fontSize: '1rem',
+                '@media (min-width: 1024px)': { fontSize: '1.375rem' },
+              }}
             >
               {cell}
             </Typography>
