@@ -57,7 +57,13 @@ const LanguagesForm = (props: LanguagesFormProps) => {
         <FormFields control={control as unknown as Control<LanguagesFormType>} onDelete={onDelete} onClose={onClose} />
       )}
       preview={({ onEdit }) => (
-        <Preview label={LANGUAGES.label} onEdit={onEdit} value={placeholder} recommended={showRecommendations}>
+        <Preview
+          label={LANGUAGES.label}
+          onEdit={onEdit}
+          value={placeholder}
+          recommended={showRecommendations}
+          editButtonClassName="mt-1.5 lg:mt-0"
+        >
           {placeholder && (
             <ul className="flex w-full flex-col gap-[var(--default-gap)]">
               {defaultValues.map(({ languageId, language: { label, value }, languageRelation, isMain }) => (

@@ -20,7 +20,7 @@ const ContentSection = ({ children, title, headerContent, className }: ContentSe
       className={mergeStyles('rounded-2xl bg-[var(--color-background-alt)] p-4 lg:p-7', className)}
     >
       {title && (
-        <div className="mb-9 flex items-center justify-between pl-2 lg:pl-4">
+        <div className="mb-9 flex items-center justify-between pl-4">
           <Typography variant="h2">{title}</Typography>
           {headerContent}
         </div>

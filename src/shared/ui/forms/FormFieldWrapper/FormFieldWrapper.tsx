@@ -4,7 +4,12 @@ import { mergeStyles } from '@/src/shared/utils';
 
 const FormFieldWrapper = ({ children, className }: { children: Readonly<ReactNode>; className?: string }) => {
   return (
-    <div className={mergeStyles('grid min-h-[2.75rem] w-full grid-cols-[11.25rem_1fr] items-start', className)}>
+    <div
+      className={mergeStyles(
+        'grid min-h-[2.75rem] w-full grid-cols-1 items-start gap-y-2 lg:grid-cols-[11.25rem_1fr]',
+        className,
+      )}
+    >
       {children}
     </div>
   );

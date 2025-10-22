@@ -63,6 +63,7 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
           value={placeholder}
           recommended={recommended}
           tooltip="Theme subject is recommended"
+          editButtonClassName='mt-3.5 lg:mt-2'
         >
           {placeholder && (
             <ul className="flex w-full flex-col gap-[var(--default-gap)]">

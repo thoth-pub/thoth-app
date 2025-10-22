@@ -48,7 +48,7 @@ export const FormField = ({ control, affiliationFieldName, positionFieldName, on
             id={affiliationFieldName}
             control={control}
             options={options}
-            className="pl-[1.25rem]"
+            className="lg:pl-[1.25rem]"
             onInputChange={(_, value) => setSearchValue(value)}
             loading={loading}
             icon={
@@ -63,7 +63,7 @@ export const FormField = ({ control, affiliationFieldName, positionFieldName, on
       <FormFieldWrapper>
         <FormFieldLabel label={POSITION.label} id={POSITION.name} />
         <FormTextField
-          className="pl-[1.25rem]"
+          className="lg:pl-[1.25rem]"
           id={positionFieldName}
           fullWidth
           name={positionFieldName}

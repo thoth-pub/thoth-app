@@ -3,6 +3,8 @@
 import AddIcon from '@mui/icons-material/Add';
 import { useTranslation } from 'react-i18next';
 
+import { mergeStyles } from '@/src/shared';
+
 import FormFieldLabel from '../../forms/FormFieldLabel/FormFieldLabel';
 import ContentWrapper from '../../layout/ContentWrapper/ContentWrapper';
 import Button from '../Button/Button';
@@ -15,13 +17,24 @@ type PreviewProps = {
   recommended?: boolean;
   disabled?: boolean;
   children?: Readonly<React.ReactNode>;
+  editButtonClassName?: string;
   capitalize?: boolean;
   tooltip?: string;
   onEdit?: () => void;
 };
 
 const Preview = (props: PreviewProps) => {
-  const { label, value, children, recommended = false, disabled = false, capitalize = false, tooltip, onEdit } = props;
+  const {
+    label,
+    value,
+    children,
+    recommended = false,
+    disabled = false,
+    capitalize = false,
+    tooltip,
+    editButtonClassName,
+    onEdit,
+  } = props;
 
   const { t } = useTranslation();
 
@@ -30,13 +43,13 @@ const Preview = (props: PreviewProps) => {
       <FormFieldLabel component="div" label={label} recommended={recommended} tooltip={tooltip} />
       <div className="flex justify-between">
         {children && children}
-        {!children && value && <Typography className={`ml-2 ${capitalize ? 'capitalize' : ''}`}>{value}</Typography>}
+        {!children && value && <Typography className={`lg:ml-2 ${capitalize ? 'capitalize' : ''}`}>{value}</Typography>}
         {!value && (
           <Button
             disabled={disabled}
             endIcon={<AddIcon className="opacity-0 group-hover:opacity-100" />}
             onClick={onEdit}
-            className="mr-2 ml-2 w-full justify-between"
+            className="mr-2 w-full justify-between p-0 lg:ml-2"
             sx={{
               textTransform: 'capitalize',
             }}
@@ -44,7 +57,19 @@ const Preview = (props: PreviewProps) => {
             {t('add')} {label}
           </Button>
         )}
-        {value && <EditButton disabled={disabled} className="opacity-0 group-hover:opacity-100" onClick={onEdit} />}
+        {value && (
+          <EditButton
+            disabled={disabled}
+            className={mergeStyles('opacity-0 group-hover:opacity-100', editButtonClassName)}
+            onClick={onEdit}
+            sx={{
+              height: '20px',
+              width: '2rem',
+
+              '@media (min-width: 1024px) ': { height: '2rem' },
+            }}
+          />
+        )}
       </div>
     </ContentWrapper>
   );

@@ -126,7 +126,7 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
           recommended={showPagesCountIndicator}
           onEdit={onEdit}
         >
-          <Typography className="ml-2">{placeholder}</Typography>
+          <Typography className="lg:ml-2">{placeholder}</Typography>
         </Preview>
       )}
     />

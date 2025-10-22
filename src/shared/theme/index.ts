@@ -296,10 +296,22 @@ export const theme = createTheme({
           fontSize: '0.625rem',
           lineHeight: '1.125rem',
           border: '1px solid var(--color-chip-border)',
+          borderRadius: '0.5rem',
+          height: '1rem',
 
           '@media (min-width: 1024px)': {
             padding: '0.25rem 0.75rem',
             fontSize: '0.875rem',
+            borderRadius: '1rem',
+            height: '2rem',
+          },
+
+          '& .MuiChip-label': {
+            padding: '0',
+
+            '@media (min-width: 1024px)': {
+              padding: '0 0.75rem',
+            },
           },
         },
       },
