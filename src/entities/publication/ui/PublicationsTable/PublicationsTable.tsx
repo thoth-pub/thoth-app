@@ -26,7 +26,10 @@ const PublicationsTable = (props: PublicationsTableProps) => {
               <Fragment key={id}>
                 {activePublication?.id === id ? (
                   <TableRow>
-                    <TableCell colSpan={3} className="rounded-2xl border-1 border-[var(--color-form-border)] p-0">
+                    <TableCell
+                      colSpan={3}
+                      className="rounded-2xl border-1 border-[var(--color-form-border)] bg-[var(--color-form-background)] p-0"
+                    >
                       {form}
                     </TableCell>
                   </TableRow>
