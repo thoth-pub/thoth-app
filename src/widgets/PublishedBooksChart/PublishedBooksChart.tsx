@@ -40,8 +40,8 @@ const PublishedBooksChart = () => {
 
   const sortedData = Object.entries(chartData).sort((a, b) => +a - +b);
 
-  const axisData = sortedData.map(([_, { month }]) => month).slice(0, 5);
-  const seriesData = sortedData.map(([_, { value }]) => value).slice(0, 5);
+  const axisData = sortedData.map(([_, { month }]) => month).slice(-5);
+  const seriesData = sortedData.map(([_, { value }]) => value).slice(-5);
 
   if (sortedData.length === 0) {
     return null;
