@@ -43,4 +43,8 @@ export const NOTIFICATIONS = {
   SUBJECT_CREATION_FAILED: 'Failed to create subject',
   SUBJECT_UPDATE_FAILED: 'Failed to update subject',
   SUBJECT_DELETE_FAILED: 'Failed to delete subject',
+  // Series
+  SERIES_CREATION_FAILED: 'Failed to create series',
+  SERIES_UPDATE_FAILED: 'Failed to update series',
+  SERIES_DELETE_FAILED: 'Failed to delete series',
 } as const;

@@ -1,4 +1,12 @@
-import { ERRORS, LengthUnit, PublicationType, SubjectTypes, WeightUnit, WorkStatuses } from '@/src/shared/constants';
+import {
+  ERRORS,
+  LengthUnit,
+  PublicationType,
+  SeriesType,
+  SubjectTypes,
+  WeightUnit,
+  WorkStatuses,
+} from '@/src/shared/constants';
 
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
 import { FILTER_OPTIONS } from './filter';
@@ -418,6 +426,41 @@ export const FORM_FIELDS = {
     name: 'subjectCode',
     placeholder: 'Subject Code',
   },
+  SERIES_TYPE: {
+    label: 'Series Type',
+    name: 'seriesType',
+    placeholder: 'Series Type',
+  },
+  SERIES_NAME: {
+    label: 'Name',
+    name: 'seriesName',
+    placeholder: 'Name',
+  },
+  SERIES_ISSN_PRINT: {
+    label: 'ISSN Print',
+    name: 'issnPrint',
+    placeholder: 'ISSN Print',
+  },
+  SERIES_ISSN_DIGITAL: {
+    label: 'ISSN Digital',
+    name: 'issnDigital',
+    placeholder: 'ISSN Digital',
+  },
+  SERIES_URL: {
+    label: 'URL',
+    name: 'url',
+    placeholder: 'URL',
+  },
+  SERIES_DESCRIPTION: {
+    label: 'Description',
+    name: 'description',
+    placeholder: 'Description',
+  },
+  SERIES_IMPRINT: {
+    label: 'Imprint',
+    name: 'imprintId',
+    placeholder: 'Imprint',
+  },
 } as const;
 
 export const workStatusOptions = [
@@ -428,6 +471,8 @@ export const workStatusOptions = [
   { value: WorkStatuses.enum.Superseded, label: 'New edition' },
   { value: WorkStatuses.enum.Withdrawn, label: 'Require Remove' },
 ];
+
+export const seriesTypeOptions = convertFormFieldsToSelectFieldOptions(SeriesType.options);
 
 export const subjectTypeOptions = convertFormFieldsToSelectFieldOptions(SubjectTypes.options);
 

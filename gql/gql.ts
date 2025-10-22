@@ -48,8 +48,11 @@ type Documents = {
     "\n  mutation CreateReference($data: NewReference!) {\n    createReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": typeof types.CreateReferenceDocument,
     "\n  mutation UpdateReference($data: PatchReference!) {\n    updateReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": typeof types.UpdateReferenceDocument,
     "\n  mutation DeleteReference($referenceId: Uuid!) {\n    deleteReference(referenceId: $referenceId) {\n      ...ReferenceFragment\n    }\n  }\n": typeof types.DeleteReferenceDocument,
-    "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n    }\n  }\n": typeof types.GetSeriesDocument,
+    "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n      imprintId\n      imprint {\n        imprintName\n      }\n      seriesUrl\n      seriesDescription\n    }\n  }\n": typeof types.GetSeriesDocument,
     "\n  query GetSeriesCount($publishers: [Uuid!]!) {\n    seriesCount(publishers: $publishers)\n  }\n": typeof types.GetSeriesCountDocument,
+    "\n  mutation CreateSeries($data: NewSeries!) {\n    createSeries(data: $data) {\n      seriesId\n    }\n  }\n": typeof types.CreateSeriesDocument,
+    "\n  mutation UpdateSeries($data: PatchSeries!) {\n    updateSeries(data: $data) {\n      seriesId\n    }\n  }\n": typeof types.UpdateSeriesDocument,
+    "\n  mutation DeleteSeries($seriesId: Uuid!) {\n    deleteSeries(seriesId: $seriesId) {\n      seriesId\n    }\n  }\n": typeof types.DeleteSeriesDocument,
     "\n  mutation CreateSubject($data: NewSubject!) {\n    createSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.CreateSubjectDocument,
     "\n  mutation UpdateSubject($data: PatchSubject!) {\n    updateSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.UpdateSubjectDocument,
     "\n  mutation DeleteSubject($subjectId: Uuid!) {\n    deleteSubject(subjectId: $subjectId) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.DeleteSubjectDocument,
@@ -109,8 +112,11 @@ const documents: Documents = {
     "\n  mutation CreateReference($data: NewReference!) {\n    createReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": types.CreateReferenceDocument,
     "\n  mutation UpdateReference($data: PatchReference!) {\n    updateReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": types.UpdateReferenceDocument,
     "\n  mutation DeleteReference($referenceId: Uuid!) {\n    deleteReference(referenceId: $referenceId) {\n      ...ReferenceFragment\n    }\n  }\n": types.DeleteReferenceDocument,
-    "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n    }\n  }\n": types.GetSeriesDocument,
+    "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n      imprintId\n      imprint {\n        imprintName\n      }\n      seriesUrl\n      seriesDescription\n    }\n  }\n": types.GetSeriesDocument,
     "\n  query GetSeriesCount($publishers: [Uuid!]!) {\n    seriesCount(publishers: $publishers)\n  }\n": types.GetSeriesCountDocument,
+    "\n  mutation CreateSeries($data: NewSeries!) {\n    createSeries(data: $data) {\n      seriesId\n    }\n  }\n": types.CreateSeriesDocument,
+    "\n  mutation UpdateSeries($data: PatchSeries!) {\n    updateSeries(data: $data) {\n      seriesId\n    }\n  }\n": types.UpdateSeriesDocument,
+    "\n  mutation DeleteSeries($seriesId: Uuid!) {\n    deleteSeries(seriesId: $seriesId) {\n      seriesId\n    }\n  }\n": types.DeleteSeriesDocument,
     "\n  mutation CreateSubject($data: NewSubject!) {\n    createSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": types.CreateSubjectDocument,
     "\n  mutation UpdateSubject($data: PatchSubject!) {\n    updateSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": types.UpdateSubjectDocument,
     "\n  mutation DeleteSubject($subjectId: Uuid!) {\n    deleteSubject(subjectId: $subjectId) {\n      ...SubjectFragment\n    }\n  }\n": types.DeleteSubjectDocument,
@@ -289,11 +295,23 @@ export function graphql(source: "\n  mutation DeleteReference($referenceId: Uuid
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n    }\n  }\n"): (typeof documents)["\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n    }\n  }\n"];
+export function graphql(source: "\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n      imprintId\n      imprint {\n        imprintName\n      }\n      seriesUrl\n      seriesDescription\n    }\n  }\n"): (typeof documents)["\n  query GetSeries($publishers: [Uuid!]!) {\n    serieses(publishers: $publishers) {\n      seriesId\n      seriesName\n      seriesType\n      issnPrint\n      issnDigital\n      updatedAt\n      imprintId\n      imprint {\n        imprintName\n      }\n      seriesUrl\n      seriesDescription\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query GetSeriesCount($publishers: [Uuid!]!) {\n    seriesCount(publishers: $publishers)\n  }\n"): (typeof documents)["\n  query GetSeriesCount($publishers: [Uuid!]!) {\n    seriesCount(publishers: $publishers)\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateSeries($data: NewSeries!) {\n    createSeries(data: $data) {\n      seriesId\n    }\n  }\n"): (typeof documents)["\n  mutation CreateSeries($data: NewSeries!) {\n    createSeries(data: $data) {\n      seriesId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateSeries($data: PatchSeries!) {\n    updateSeries(data: $data) {\n      seriesId\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateSeries($data: PatchSeries!) {\n    updateSeries(data: $data) {\n      seriesId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteSeries($seriesId: Uuid!) {\n    deleteSeries(seriesId: $seriesId) {\n      seriesId\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteSeries($seriesId: Uuid!) {\n    deleteSeries(seriesId: $seriesId) {\n      seriesId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

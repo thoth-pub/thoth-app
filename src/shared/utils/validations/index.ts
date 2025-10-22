@@ -13,6 +13,7 @@ import {
   LengthUnit,
   LocationPlatforms,
   PublicationType,
+  SeriesType,
   SubjectTypes,
   WeightUnit,
   WorkStatuses,
@@ -68,6 +69,7 @@ export const weightUnitValidation = z.enum(WeightUnit.enum);
 export const currencyCodeValidation = z.enum(CurrencyCode.enum);
 export const locationPlatformValidation = z.enum(LocationPlatforms.enum);
 export const subjectTypeValidation = z.enum(SubjectTypes.enum);
+export const seriesTypeValidation = z.enum(SeriesType.enum);
 
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });
