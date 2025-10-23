@@ -1,10 +1,9 @@
-'use client';
-
 import AddIcon from '@mui/icons-material/Add';
 import NextLink from 'next/link';
+import { Suspense } from 'react';
 
 import { ROUTES } from '@/src/shared/constants';
-import { Button, Typography } from '@/src/shared/ui';
+import { Button, DashboardChartSkeleton, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { PublishedBooksChart, TotalBooksChart } from '@/src/widgets';
 
@@ -20,16 +19,20 @@ const Dashboard = () => {
             Dashboard
           </Typography>
           <NextLink href={ROUTES.NEW_WORK} passHref>
-            <Button startIcon={<AddIcon />} variant="contained" component="a">
+            <Button startIcon={<AddIcon />} variant="contained" component="span">
               New
             </Button>
           </NextLink>
         </div>
       </ContentSection>
 
-      <div className="flex w-full flex-wrap gap-[15px]">
-        <TotalBooksChart />
-        <PublishedBooksChart />
+      <div className="flex min-h-[7.5rem] w-full flex-wrap gap-[15px] lg:min-h-[10rem]">
+        <Suspense fallback={<DashboardChartSkeleton />}>
+          <TotalBooksChart />
+        </Suspense>
+        <Suspense fallback={<DashboardChartSkeleton />}>
+          <PublishedBooksChart />
+        </Suspense>
       </div>
 
       <RecentlyUpdatedBooks />

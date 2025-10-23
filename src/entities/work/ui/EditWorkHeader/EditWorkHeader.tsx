@@ -42,14 +42,14 @@ const EditWorkHeader = ({ workId, queryToken }: EditWorkHeaderProps) => {
 
         <Breadcrumbs aria-label="breadcrumb">
           <NextLink href={ROUTES.DASHBOARD} passHref>
-            <Link color="inherit" className="no-underline">
+            <Link color="inherit" className="no-underline" component="span">
               <Typography component="span" color="inherit">
                 Home
               </Typography>
             </Link>
           </NextLink>
           <NextLink href={ROUTES.WORKS} passHref>
-            <Link color="inherit" className="no-underline">
+            <Link color="inherit" className="no-underline" component="span">
               <Typography component="span" color="inherit">
                 Books
               </Typography>

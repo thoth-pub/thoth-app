@@ -1,4 +1,5 @@
 export * from './auth';
+export { default as EditWorkSkeleton } from './books/EditBookLink/components/EditWorkSkeleton';
 export { default as EditBookLink } from './books/EditBookLink/EditBookLink';
 export { default as AddNewContribution } from './contribution/AddNewContribution/AddNewContribution';
 export { default as EditContribution } from './contribution/EditContribution/EditContribution';

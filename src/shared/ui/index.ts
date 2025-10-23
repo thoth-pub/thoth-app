@@ -26,6 +26,7 @@ export { default as ModalWrapper } from './core/ModalWrapper/ModalWrapper';
 export { default as Pagination } from './core/Pagination/Pagination';
 export { default as Paper } from './core/Paper/Paper';
 export { default as Preview } from './core/Preview/Preview';
+export { default as Skeleton } from './core/Skeleton/Skeleton';
 export { default as SpeedDialActions } from './core/SpeedDial/components/SpeedDialActions';
 export { default as SpeedDial } from './core/SpeedDial/SpeedDial';
 export { default as Switch } from './core/Switch/Switch';
@@ -58,6 +59,7 @@ export { default as InputLabel } from './forms/InputLabel/InputLabel';
 export { default as MarkdownField } from './forms/MarkdownField/MarkdownField';
 export { default as MarkdownSwitch } from './forms/MarkdownSwitch/MarkdownSwitch';
 export { default as SubmitButton } from './forms/SubmitButton/SubmitButton';
+export { default as DashboardChartSkeleton } from './layout/DashboardChartSkeleton/DashboardChartSkeleton';
 // Icons
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';
