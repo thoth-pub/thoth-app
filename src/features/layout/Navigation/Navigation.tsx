@@ -8,7 +8,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { PAGES } from '@/src/shared/constants';
+import { PAGES, ROUTES } from '@/src/shared/constants';
 import { IconButton, Paper, Typography } from '@/src/shared/ui';
 
 import { SignOutButton } from '../../auth';
@@ -29,7 +29,10 @@ const Navigation = () => {
         animate={{ width: isExpanded ? '15rem' : '2.5rem' }}
         className="flex h-full max-w-[15rem] flex-col gap-2 overflow-hidden duration-300"
       >
-        <div className={`flex items-center justify-between gap-4 ${isExpanded ? 'flex-row' : 'flex-col'}`}>
+        <Link
+          className={`flex cursor-pointer items-center justify-between gap-4 ${isExpanded ? 'flex-row' : 'flex-col'}`}
+          href={ROUTES.DASHBOARD}
+        >
           {isExpanded ? (
             <Image
               src="/logo.png"
@@ -52,7 +55,7 @@ const Navigation = () => {
           <IconButton onClick={() => setIsExpanded(!isExpanded)} className={`${isExpanded && 'self-start'}`}>
             {!isExpanded ? <ArrowForwardIosRoundedIcon /> : <ArrowBackIosNewRoundedIcon />}
           </IconButton>
-        </div>
+        </Link>
         <ChangeActivePublisher />
         <ContentLanguage />
         <SignOutButton />

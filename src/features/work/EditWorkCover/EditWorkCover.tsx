@@ -6,16 +6,18 @@ import { Typography } from '@mui/material';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
+import { useWork } from '@/src/entities/work';
 import type { CoverUrlForm } from '@/src/entities/work/model/work.types';
 import { coverUrlValidationSchema } from '@/src/entities/work/model/work.validation';
-import { appConfig } from '@/src/shared';
+import { appConfig, BaseEditSectionProps } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import useIsDragStarted from '@/src/shared/hooks/useIsDragStarted';
 import { Button } from '@/src/shared/ui';
 
 const { COVER_URL } = FORM_FIELDS;
 
-const EditWorkCover = () => {
+const EditWorkCover = ({ workId, queryToken }: BaseEditSectionProps) => {
+  const { work } = useWork(workId, queryToken);
   const isDragStarted = useIsDragStarted();
   const {
     register,
@@ -28,7 +30,7 @@ const EditWorkCover = () => {
     reValidateMode: 'onSubmit',
     resolver: zodResolver(coverUrlValidationSchema),
   });
-  const [coverUrl, setCoverUrl] = useState<string>('');
+  const [coverUrl, setCoverUrl] = useState<string>(work.coverUrl ?? '');
 
   const inputRef = useRef<HTMLInputElement>(null);
   const { ref, ...rest } = register(COVER_URL.name);

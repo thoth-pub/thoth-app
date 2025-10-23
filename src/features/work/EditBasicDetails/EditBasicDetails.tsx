@@ -36,7 +36,7 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
             <EditLicense workId={workId} queryToken={queryToken} />
             <EditDoi workId={workId} queryToken={queryToken} recommended={showRecommendations} />
           </div>
-          <EditWorkCover />
+          <EditWorkCover workId={workId} queryToken={queryToken} />
         </div>
       )}
     </RecommendedSection>

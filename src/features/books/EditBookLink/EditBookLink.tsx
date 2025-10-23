@@ -18,14 +18,7 @@ type EditBookLinkProps = {
   image?: string;
 };
 
-const EditBookLink = ({
-  title,
-  id,
-  status,
-  type,
-  image = '/book-placeholder.jpg',
-  contributions,
-}: EditBookLinkProps) => {
+const EditBookLink = ({ title, id, status, type, image = '', contributions }: EditBookLinkProps) => {
   const convertedType = convertOptionToString(type);
 
   const { isAllInformationFilled, isEmpty } = useWorkRecommendations({ workId: id });
@@ -37,13 +30,24 @@ const EditBookLink = ({
     <NextLink href={ROUTES.WORK_PAGE(id)} className="w-full max-w-[330px] shrink-0 lg:max-w-[520px]">
       <DashboardContentWrapper className="shrink-0">
         <div className="flex h-full w-full">
-          <img
-            alt="book cover"
-            src={image}
-            width={isDesktop ? 85 : 75}
-            height={isDesktop ? 135 : 100}
-            className="cover h-full shrink-0"
-          />
+          <div className="cover relative h-full shrink-0">
+            <img
+              src="/placeholder.svg"
+              width={isDesktop ? 85 : 75}
+              height={isDesktop ? 135 : 100}
+              alt="image placeholder"
+              className="h-full w-full rounded object-cover object-center"
+            />
+            {image && image.length > 0 && (
+              <img
+                alt="book cover"
+                src={image}
+                width={isDesktop ? 85 : 75}
+                height={isDesktop ? 135 : 100}
+                className="absolute top-0 left-0 z-10 h-full w-full object-contain object-center"
+              />
+            )}
+          </div>
 
           <div className="flex max-w-[227px] grow flex-col justify-between pl-2 lg:max-w-[410px]">
             <div className="flex items-center justify-between">
