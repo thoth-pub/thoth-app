@@ -61,6 +61,7 @@
   --yellow: #fff2d9;
   --purple: #744d82;
   --purple-opacity-25: rgba(110, 79, 127, 0.25);
+  --purple-opacity-16: rgba(110, 79, 127, 0.15);
   --purple-secondary: #bfb1c4;
   --purple-light: #f4e5f9;
   --purple-light-alt: #f2cdff;
@@ -183,6 +184,8 @@
   --color-chart-3: #f195a8;
   --color-chart-4: #f1b68d;
   --color-chart-5: #ffdd75;
+
+  --color-image-placeholder: var(--purple-opacity-16);
 }
 
 @theme inline {

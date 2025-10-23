@@ -6,6 +6,7 @@ export const appConfig = {
   thothLink: 'https://thoth.pub/',
   cc4Link: 'https://creativecommons.org/licenses/by/4.0/',
   publicDomainLink: 'https://creativecommons.org/public-domain/cc0/',
+  supportedFileTypes: ['image/png', 'image/jpeg', 'image/jpg'],
   data: {
     itemsPerRequestLimit: 20,
     maxItemsPerRequestLimit: 100,
@@ -34,4 +35,5 @@ export const appConfig = {
   tables: {
     maxPreviewLength: 150,
   },
+  maxFileSize: 500000,
 };

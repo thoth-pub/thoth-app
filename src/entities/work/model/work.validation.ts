@@ -1,9 +1,11 @@
 import z from 'zod';
 
+import { ERRORS } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import {
-  dateValidation,
   doiValidation,
+  getFileValidation,
   getRequiredStringValidation,
   getRequiredUrlValidation,
   languageValidation,
@@ -11,7 +13,6 @@ import {
   optionalPositiveIntValidation,
   optionalStringValidation,
   optionalUrlValidation,
-  timestampValidation,
   workStatusValidation,
 } from '@/src/shared/utils/validations';
 
@@ -137,4 +138,12 @@ export const pagesCountValidationSchema = z.object({
   [WORK_PAGES_COUNT.name]: pagesCountValidation,
   [WORK_FRONTMATTER_COUNT.name]: frontMatterCountValidation,
   [WORK_BACKMATTER_COUNT.name]: backMatterCountValidation,
+});
+
+export const coverUrlValidationSchema = z.object({
+  [COVER_URL.name]: getFileValidation(
+    appConfig.supportedFileTypes,
+    ERRORS.FILE_FORMAT_INVALID,
+    ERRORS.MAX_FILE_SIZE_EXCEEDED,
+  ),
 });

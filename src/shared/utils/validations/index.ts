@@ -125,3 +125,13 @@ export const romanNumeralValidation = z.string().toUpperCase().regex(romanRegex,
 export const romanNumeralValidationOptional = romanNumeralValidation.optional();
 
 export const uuidValidation = z.uuid();
+
+export const getFileValidation = (
+  filesFormat: Array<string>,
+  formatErrMessage?: ErrorMessage,
+  maxFileSizeErrMessage?: ErrorMessage,
+) =>
+  z
+    .custom<FileList | undefined>()
+    .refine((files) => files && files[0].size <= appConfig.maxFileSize, maxFileSizeErrMessage)
+    .refine((files) => files && filesFormat.includes(files[0].type), formatErrMessage);

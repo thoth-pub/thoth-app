@@ -10,4 +10,6 @@ export const ERRORS = {
   COPYRIGHT_HOLDER_REQUIRED: 'Copyright holder is required',
   WORK_STATUS_REQUIRED: 'Work Status is required',
   CONTRIBUTOR_TYPE_REQUIRED: 'Contributor Type is required',
+  MAX_FILE_SIZE_EXCEEDED: 'Max file size exceeded',
+  FILE_FORMAT_INVALID: 'File format is invalid',
 } as const;
