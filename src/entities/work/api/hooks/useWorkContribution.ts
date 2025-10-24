@@ -1,7 +1,14 @@
 import { ServerError } from '@apollo/client';
 
-import type { CreateContributionMutation } from '@/gql/graphql';
-import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
+import { type CreateContributionMutation, Direction, Expression, WorkStatus } from '@/gql/graphql';
+import { GET_BOOKS } from '@/src/entities/book/model/book.schema';
+import { usePublisherStateMachine } from '@/src/entities/publisher';
+import {
+  type BaseEditSectionProps,
+  getSameDayAndMonthDateInPast,
+  NOTIFICATIONS,
+  serverErrorParser,
+} from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { CREATE_CONTRIBUTION, DELETE_CONTRIBUTION, UPDATE_CONTRIBUTION } from '../../model/work.mutations';
@@ -16,7 +23,10 @@ type UseCWorkContributionProps = BaseEditSectionProps & {
 };
 
 export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: UseCWorkContributionProps) => {
+  const { activePublisher } = usePublisherStateMachine();
   const { sendErrorNotification } = useNotifications();
+  const startDate = getSameDayAndMonthDateInPast(1);
+
   const [createContribution, { loading }] = useMutationWithAuth({
     queryToken,
     mutation: CREATE_CONTRIBUTION,
@@ -35,7 +45,24 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
 
         sendErrorNotification(WORK_CONTRIBUTION_CREATION_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: [
+        { query: GET_WORK, variables: { workId } },
+        { query: GET_BOOKS, variables: { publishers: [activePublisher] } },
+        {
+          query: GET_BOOKS,
+          variables: { publishers: [activePublisher], startedAt: startDate, expression: Expression.GreaterThan },
+        },
+        { query: GET_BOOKS, variables: { publishers: [activePublisher], limit: 3, direction: Direction.Desc } },
+        {
+          query: GET_BOOKS,
+          variables: {
+            publishers: [activePublisher],
+            workStatus: WorkStatus.Active,
+            limit: 3,
+            direction: Direction.Desc,
+          },
+        },
+      ],
     },
   });
 
@@ -53,7 +80,24 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
 
         sendErrorNotification(WORK_CONTRIBUTION_DELETION_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: [
+        { query: GET_WORK, variables: { workId } },
+        { query: GET_BOOKS, variables: { publishers: [activePublisher] } },
+        {
+          query: GET_BOOKS,
+          variables: { publishers: [activePublisher], startedAt: startDate, expression: Expression.GreaterThan },
+        },
+        { query: GET_BOOKS, variables: { publishers: [activePublisher], limit: 3, direction: Direction.Desc } },
+        {
+          query: GET_BOOKS,
+          variables: {
+            publishers: [activePublisher],
+            workStatus: WorkStatus.Active,
+            limit: 3,
+            direction: Direction.Desc,
+          },
+        },
+      ],
     },
   });
 
@@ -71,7 +115,24 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
 
         sendErrorNotification(WORK_CONTRIBUTION_UPDATE_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: [
+        { query: GET_WORK, variables: { workId } },
+        { query: GET_BOOKS, variables: { publishers: [activePublisher] } },
+        {
+          query: GET_BOOKS,
+          variables: { publishers: [activePublisher], startedAt: startDate, expression: Expression.GreaterThan },
+        },
+        { query: GET_BOOKS, variables: { publishers: [activePublisher], limit: 3, direction: Direction.Desc } },
+        {
+          query: GET_BOOKS,
+          variables: {
+            publishers: [activePublisher],
+            workStatus: WorkStatus.Active,
+            limit: 3,
+            direction: Direction.Desc,
+          },
+        },
+      ],
     },
   });
 
