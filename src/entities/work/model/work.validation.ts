@@ -77,6 +77,7 @@ const coverUrlValidation = optionalUrlValidation;
 
 const titleLanguageValidation = z.object({
   value: languageValidation,
+  label: getRequiredStringValidation(),
 });
 
 export const createWorkValidationSchema = z.object({
@@ -93,7 +94,15 @@ export const titleValidationSchema = z.object({
 });
 
 export const workTitlesValidationSchema = z.object({
-  [TITLES.name]: z.array(titleValidationSchema),
+  [TITLES.name]: z.array(
+    z.object({
+      titleId: getRequiredStringValidation(),
+      [WORK_TITLE.name]: titleValidation,
+      [SUBTITLE.name]: subtitleValidation,
+      [LANGUAGE.name]: titleLanguageValidation,
+    }),
+  ),
+  [EDITION.name]: editionValidation,
 });
 
 export const publicationDateValidationSchema = z.object({

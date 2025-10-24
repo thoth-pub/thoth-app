@@ -4,14 +4,16 @@ import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
 import { BaseFieldProps } from '@/src/shared/interfaces';
 import { MarkdownEditor, type MarkdownEditorProps } from '@/src/shared/ui';
+import { mergeStyles } from '@/src/shared/utils';
 
 import FormHelperText from '../../core/FormHelperText/FormHelperText';
 
-type MarkdownFieldProps<T extends FieldValues> = { helperText?: string } & BaseFieldProps<T> &
+type MarkdownFieldProps<T extends FieldValues> = { helperText?: string; className?: string } & BaseFieldProps<T> &
   Omit<MarkdownEditorProps, 'value'>;
 
 const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T>) => {
-  const { control, name, defaultValue, children, id, disableLineBreaks, extendedToolbar, helperText } = props;
+  const { control, name, defaultValue, children, id, disableLineBreaks, extendedToolbar, helperText, className } =
+    props;
 
   return (
     <Controller
@@ -19,7 +21,7 @@ const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T>) => {
       control={control}
       defaultValue={defaultValue}
       render={({ field: { value, onChange }, fieldState: { error } }) => (
-        <div className="flex flex-col">
+        <div className={mergeStyles('flex flex-col', className)}>
           <MarkdownEditor
             value={value}
             onChange={onChange}
@@ -31,7 +33,7 @@ const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T>) => {
           >
             {children}
           </MarkdownEditor>
-          <FormHelperText>{helperText}</FormHelperText>
+          <FormHelperText className="mt-2">{helperText}</FormHelperText>
         </div>
       )}
     />

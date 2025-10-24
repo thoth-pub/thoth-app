@@ -2,10 +2,9 @@
 
 import type { Control } from 'react-hook-form';
 
+import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { languageOptionsAlt } from '@/src/shared/constants/formFields';
 import { AutocompleteField, Typography } from '@/src/shared/ui';
-
-import type { WorkTitlesForm } from '../../../model/work.types';
 
 type LanguageFieldProps = {
   control: Control<WorkTitlesForm>;
@@ -15,8 +14,8 @@ type LanguageFieldProps = {
 export const LanguageField = (props: LanguageFieldProps) => {
   const { control, languageFieldName } = props;
   return (
-    <div className="flex lg:ml-2">
-      <Typography color="primary" className="mt-auto mr-1 font-semibold">
+    <div className="flex grow-0 lg:ml-2">
+      <Typography color="primary" className="mt-1 mr-1 font-semibold lg:mt-auto">
         Language
       </Typography>
       <AutocompleteField

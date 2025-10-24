@@ -1,6 +1,7 @@
 export const IDs = {
   // WORK
   CREATE_WORK: 'create-work',
+  WORK_TITLE: 'work_title',
   WORK_PUBLICATION_DATE: 'work_publication_date',
   WORK_WITHDRAWN_DATE: 'work_withdrawn_date',
   WORK_IMPRINT: 'work_imprint',

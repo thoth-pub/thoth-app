@@ -26,6 +26,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       workId,
       title,
       fullTitle,
+      subtitle,
       workType,
       updatedAt,
       doi,
@@ -64,6 +65,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     return {
       id: workId,
       title,
+      subtitle: subtitle ?? '',
       type: workType,
       updatedAt,
       contributorsNames: contributions.map((contribution) => contribution.fullName),
@@ -195,6 +197,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     const {
       id,
       title,
+      subtitle,
       type,
       imprintId,
       status,
@@ -229,6 +232,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       workId: id,
       workStatus: status,
       title,
+      subtitle: subtitle ?? '',
       fullTitle,
       imprintId,
       workType: type,

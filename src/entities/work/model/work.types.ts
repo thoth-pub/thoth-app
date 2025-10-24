@@ -53,6 +53,7 @@ export type WorkContribution = {
 export type WorkEntity = {
   id: string;
   title: string;
+  subtitle: string;
   fullTitle: string;
   type: WorkType;
   updatedAt: string;

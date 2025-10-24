@@ -5,6 +5,7 @@ export const WORK_FRAGMENT = graphql(`
     doi
     workId
     title
+    subtitle
     fullTitle
     workType
     updatedAt

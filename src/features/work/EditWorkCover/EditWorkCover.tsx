@@ -75,7 +75,7 @@ const EditWorkCover = ({ workId, queryToken }: BaseEditSectionProps) => {
   return (
     <form
       onDrop={handleDrop}
-      className="relative flex h-full min-h-[300px] w-full flex-col items-center justify-center gap-1 rounded bg-[var(--color-image-placeholder)] lg:min-h-[450px]"
+      className="relative flex h-full max-h-[300px] w-full flex-col items-center justify-center gap-1 rounded bg-[var(--color-image-placeholder)] lg:max-h-[450px]"
     >
       <HighlightAltOutlinedIcon
         fontSize="large"
