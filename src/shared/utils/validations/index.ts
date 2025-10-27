@@ -135,3 +135,5 @@ export const getFileValidation = (
     .custom<FileList | undefined>()
     .refine((files) => files && files[0].size <= appConfig.maxFileSize, maxFileSizeErrMessage)
     .refine((files) => files && filesFormat.includes(files[0].type), formatErrMessage);
+
+export const emailValidation = z.email();

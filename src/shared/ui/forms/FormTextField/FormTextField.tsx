@@ -1,10 +1,13 @@
 'use client';
 
-import { InputAdornment } from '@mui/material';
+import Visibility from '@mui/icons-material/Visibility';
+import VisibilityOff from '@mui/icons-material/VisibilityOff';
+import { IconButton, InputAdornment } from '@mui/material';
 import { useState } from 'react';
 import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
 import { appConfig, removePrefix } from '@/src/shared';
+import { InputTypes } from '@/src/shared/constants/formFields';
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
 
 import TextField, { type TextFieldProps } from '../../core/TextField/TextField';
@@ -34,6 +37,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     helperText,
     step,
     id,
+    type,
     predefinedPrefix = protocolPrefixHttp,
     isDoiField = false,
     isUrlField = false,
@@ -42,8 +46,13 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
   } = props;
 
   const [protocolPrefix, setProtocolPrefix] = useState(predefinedPrefix);
+  const [showPassword, setShowPassword] = useState(false);
 
   const addPrefix = isDoiField || isUrlField || isRorField;
+
+  const isPasswordField = type === InputTypes.PASSWORD;
+
+  const handleClickShowPassword = () => setShowPassword((show) => !show);
 
   return (
     <Controller
@@ -56,6 +65,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
           error={!!error}
           helperText={error ? error.message : helperText}
           value={typeof value === 'string' ? removePrefix(value) : value}
+          type={showPassword ? 'text' : type}
           onChange={(e) => {
             // TODO: refactor
             if (isDoiField && !e.target.value.startsWith(doiPrefix) && e.target.value.length > 0) {
@@ -107,6 +117,16 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
                   {isUrlField && protocolPrefix}
                   {isDoiField && doiPrefix}
                   {isRorField && rorPrefix}
+                </InputAdornment>
+              ),
+              endAdornment: isPasswordField && (
+                <InputAdornment position="end" color="primary">
+                  <IconButton
+                    aria-label={showPassword ? 'hide the password' : 'display the password'}
+                    onClick={handleClickShowPassword}
+                  >
+                    {showPassword ? <VisibilityOff color="primary" /> : <Visibility color="primary" />}
+                  </IconButton>
                 </InputAdornment>
               ),
             },

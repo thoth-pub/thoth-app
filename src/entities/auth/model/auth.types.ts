@@ -1,3 +1,7 @@
+import z from 'zod';
+
+import { authValidationSchema } from './auth.validation';
+
 export type LinkedPublisher = {
   publisherId: string;
   isAdmin: boolean;
@@ -16,3 +20,5 @@ export type AuthorizeUser = {
   surname: string;
   token: string;
 };
+
+export type AuthFormData = z.infer<typeof authValidationSchema>;

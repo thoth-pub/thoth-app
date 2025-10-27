@@ -1,4 +1,6 @@
 export const NOTIFICATIONS = {
+  // Auth
+  AUTH_FAILED: 'Invalid username or password.',
   // Works
   WORK_CREATION_SUCCESS: 'Work created successfully',
   WORK_CREATION_FAILED: 'Failed to create work',
