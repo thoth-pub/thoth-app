@@ -67,7 +67,6 @@ export const FormFields = (props: FormFieldsProps) => {
 
     if (item && item.subjectId && onDelete && !isDefaultId(item.subjectId)) {
       onDelete?.(item.subjectId);
-      console.log(item);
     }
 
     remove(index);

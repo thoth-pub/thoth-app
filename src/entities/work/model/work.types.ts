@@ -50,6 +50,13 @@ export type WorkContribution = {
   affiliations: AffiliationEntity[];
 };
 
+export type WorkIssue = {
+  id: string;
+  ordinal: number;
+  seriesId: string;
+  seriesName: string;
+};
+
 export type WorkEntity = {
   id: string;
   title: string;
@@ -83,6 +90,7 @@ export type WorkEntity = {
   fundings: FundingEntity[];
   references: ReferenceEntity[];
   subjects: SubjectEntity[];
+  issues: WorkIssue[];
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;

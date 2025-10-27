@@ -1,7 +1,6 @@
 import { ServerError } from '@apollo/client';
 
 import { CreateAffiliationMutation } from '@/gql/graphql';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
@@ -35,12 +34,13 @@ const useCreateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
     },
   });
 
-  const createSeries = (data: Omit<SeriesEntity, 'id' | 'updatedAt' | 'imprintName'>) => {
+  const createSeries = (data: Omit<SeriesEntity, 'id' | 'updatedAt' | 'imprintName' | 'issues'>) => {
     const { seriesId, updatedAt, ...dto } = mapper.toDto({
       ...data,
       id: '',
       updatedAt: new Date().toISOString(),
       imprintName: '',
+      issues: [],
     });
 
     mutate({

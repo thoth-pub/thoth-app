@@ -54,7 +54,11 @@ export const EditBiography = (props: EditBiographyProps) => {
           onEdit={onEdit}
           recommended={showPreviewIndicator}
         >
-          {biography && <MarkdownPreview source={data?.contributorBiography} />}
+          {biography && (
+            <Typography>
+              <MarkdownPreview source={data?.contributorBiography} />
+            </Typography>
+          )}
         </Preview>
       )}
     />

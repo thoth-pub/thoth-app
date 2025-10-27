@@ -15,6 +15,7 @@ export class SeriesDtoMapper implements BaseMapper<SeriesEntity, SeriesDto> {
       imprint: { imprintName = '' },
       seriesUrl,
       seriesDescription,
+      issues,
     } = dto;
 
     return {
@@ -28,10 +29,16 @@ export class SeriesDtoMapper implements BaseMapper<SeriesEntity, SeriesDto> {
       imprintName,
       url: seriesUrl ?? '',
       description: seriesDescription ?? '',
+      issues: issues.map((issue) => ({
+        id: issue.issueId,
+        ordinal: issue.issueOrdinal,
+        workId: issue.work.workId,
+        title: issue.work.title,
+      })),
     };
   }
 
-  toDto(entity: SeriesEntity): Omit<SeriesDto, 'imprint'> {
+  toDto(entity: SeriesEntity): Omit<SeriesDto, 'imprint' | 'issues'> {
     const { id, name, type, issnPrint, issnDigital, updatedAt, imprintId, url, description } = entity;
 
     return {

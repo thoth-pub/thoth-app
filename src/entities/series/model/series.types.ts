@@ -1,9 +1,9 @@
 import z from 'zod';
 
-import type { Series } from '@/gql/graphql';
+import type { Issue, Series } from '@/gql/graphql';
 import { SeriesType as SeriesTypeEnum } from '@/src/shared/constants';
 
-import { seriesValidationSchema } from './series.validation';
+import { issueValidationSchema, seriesValidationSchema } from './series.validation';
 
 export type SeriesDto = Pick<
   Series,
@@ -20,12 +20,15 @@ export type SeriesDto = Pick<
   imprint: {
     imprintName: string;
   };
+  issues: { issueId: string; issueOrdinal: number; work: { workId: string; title: string } }[];
 };
 
 export type SeriesType = z.infer<typeof SeriesTypeEnum>;
 
+export type SeriesId = string;
+
 export type SeriesEntity = {
-  id: string;
+  id: SeriesId;
   name: string;
   type: SeriesType;
   issnPrint: string;
@@ -35,6 +38,14 @@ export type SeriesEntity = {
   imprintName: string;
   url: string;
   description: string;
+  issues: {
+    id: string;
+    ordinal: number;
+    workId: string;
+    title: string;
+  }[];
 };
 
 export type SeriesForm = z.infer<typeof seriesValidationSchema>;
+
+export type IssueValidationSchema = z.infer<typeof issueValidationSchema>;

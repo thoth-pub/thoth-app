@@ -16,6 +16,7 @@ const {
   SERIES_IMPRINT,
   SERIES_URL,
   SERIES_DESCRIPTION,
+  WORK_SERIES,
 } = FORM_FIELDS;
 
 export const seriesValidationSchema = z.object({
@@ -26,4 +27,13 @@ export const seriesValidationSchema = z.object({
   [SERIES_URL.name]: optionalUrlValidation,
   [SERIES_DESCRIPTION.name]: optionalStringValidation,
   [SERIES_IMPRINT.name]: getRequiredStringValidation(),
+});
+
+const workSeriesValidationSchema = z.object({
+  value: getRequiredStringValidation(),
+  label: getRequiredStringValidation(),
+});
+
+export const issueValidationSchema = z.object({
+  [WORK_SERIES.name]: workSeriesValidationSchema,
 });

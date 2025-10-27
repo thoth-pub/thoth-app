@@ -55,6 +55,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       publications = [],
       references = [],
       subjects = [],
+      issues = [],
     } = dto;
 
     const frontmatterCount = pageBreakdown?.split(pageBreakdownSeparator)[0] ?? '';
@@ -190,6 +191,12 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           })),
         }),
       ),
+      issues: issues.map(({ issueId, issueOrdinal, series }) => ({
+        id: issueId,
+        ordinal: issueOrdinal,
+        seriesId: series.seriesId,
+        seriesName: series.seriesName,
+      })),
     };
   }
   // TODO add utilities for conversions

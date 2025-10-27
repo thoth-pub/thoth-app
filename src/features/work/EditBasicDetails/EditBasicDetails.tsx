@@ -14,10 +14,11 @@ import EditWorkType from './components/EditWorkType';
 
 type EditWorkBasicDetailsProps = BaseEditSectionProps & {
   imprintOptions: FormFieldOption[];
+  children?: Readonly<React.ReactNode>;
 };
 
 const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
-  const { workId, imprintOptions, queryToken } = props;
+  const { workId, imprintOptions, queryToken, children } = props;
   const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
 
   return (
@@ -37,6 +38,7 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
             <EditDoi workId={workId} queryToken={queryToken} recommended={showRecommendations} />
           </div>
           <EditWorkCover workId={workId} queryToken={queryToken} />
+          {children}
         </div>
       )}
     </RecommendedSection>

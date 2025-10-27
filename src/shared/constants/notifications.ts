@@ -49,4 +49,8 @@ export const NOTIFICATIONS = {
   SERIES_CREATION_FAILED: 'Failed to create series',
   SERIES_UPDATE_FAILED: 'Failed to update series',
   SERIES_DELETE_FAILED: 'Failed to delete series',
+  // Issues
+  ISSUE_CREATION_FAILED: 'Failed to create issue',
+  ISSUE_UPDATE_FAILED: 'Failed to update issue',
+  ISSUE_DELETE_FAILED: 'Failed to delete issue',
 } as const;

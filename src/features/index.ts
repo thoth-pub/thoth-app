@@ -14,4 +14,5 @@ export { default as EditBasicDetails } from './work/EditBasicDetails/EditBasicDe
 export { default as EditContributors } from './work/EditContributors/EditContributors';
 export { default as EditDescriptions } from './work/EditDescriptions/EditDescriptions';
 export { default as EditFundings } from './work/EditFundings/EditFundings';
+export { default as EditSeries } from './work/EditSeries/EditSeries';
 export { default as WorkSpeedDial } from './work/WorkSpeedDial/WorkSpeedDial';

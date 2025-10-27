@@ -126,5 +126,13 @@ export const WORK_FRAGMENT = graphql(`
       subjectType
       subjectOrdinal
     }
+    issues {
+      issueId
+      issueOrdinal
+      series {
+        seriesId
+        seriesName
+      }
+    }
   }
 `);

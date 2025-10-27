@@ -1,8 +1,8 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import HighlightAltOutlinedIcon from '@mui/icons-material/HighlightAltOutlined';
 import { Typography } from '@mui/material';
+import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
@@ -77,9 +77,11 @@ const EditWorkCover = ({ workId, queryToken }: BaseEditSectionProps) => {
       onDrop={handleDrop}
       className="relative flex h-full max-h-[300px] w-full flex-col items-center justify-center gap-1 rounded bg-[var(--color-image-placeholder)] lg:max-h-[450px]"
     >
-      <HighlightAltOutlinedIcon
-        fontSize="large"
-        color="primary"
+      <Image
+        src="/bird.png"
+        alt="Cover"
+        width={64}
+        height={58}
         className={`${coverUrl ? 'opacity-0' : 'opacity-100'}`}
       />
       <Typography className={`text-center font-semibold ${coverUrl ? 'opacity-0' : 'opacity-100'}`}>

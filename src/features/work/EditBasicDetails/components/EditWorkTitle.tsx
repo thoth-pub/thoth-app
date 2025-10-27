@@ -12,6 +12,7 @@ import {
   MarkdownPreview,
   MultipleContentWrapper,
   Preview,
+  Typography,
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
@@ -74,7 +75,9 @@ const EditWorkTitle = ({ workId, queryToken, recommended = false }: BaseRecommen
       preview={({ onEdit }) => (
         <Preview label={WORK_TITLE.label} value={placeholder ?? ''} onEdit={onEdit} recommended={showIndicator}>
           <div className="lg:ml-2">
-            <MarkdownPreview source={placeholder} />
+            <Typography>
+              <MarkdownPreview source={placeholder} />
+            </Typography>
           </div>
         </Preview>
       )}

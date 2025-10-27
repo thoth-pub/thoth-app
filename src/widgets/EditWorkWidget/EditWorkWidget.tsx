@@ -3,7 +3,14 @@
 import { useEffect } from 'react';
 
 import { EditWorkHeader } from '@/src/entities/work';
-import { EditBasicDetails, EditContributors, EditDescriptions, EditFundings, WorkSpeedDial } from '@/src/features';
+import {
+  EditBasicDetails,
+  EditContributors,
+  EditDescriptions,
+  EditFundings,
+  EditSeries,
+  WorkSpeedDial,
+} from '@/src/features';
 import EditPublications from '@/src/features/work/EditPublications/EditPublications';
 import EditReferences from '@/src/features/work/EditReferences/EditReferences';
 import type { BaseEditSectionProps, FormFieldOption } from '@/src/shared';
@@ -28,7 +35,9 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
   return (
     <div className="flex flex-col gap-8">
       <EditWorkHeader queryToken={queryToken} workId={workId} />
-      <EditBasicDetails workId={workId} queryToken={queryToken} imprintOptions={imprintOptions} />
+      <EditBasicDetails workId={workId} queryToken={queryToken} imprintOptions={imprintOptions}>
+        <EditSeries workId={workId} queryToken={queryToken} />
+      </EditBasicDetails>
       <EditContributors workId={workId} queryToken={queryToken} isAdmin={isAdmin} />
       <EditDescriptions workId={workId} queryToken={queryToken} />
       <EditPublications workId={workId} queryToken={queryToken} />

@@ -72,7 +72,7 @@ const AuthForm = () => {
             placeholder={PASSWORD.placeholder}
           />
         </div>
-        <Button type="submit" disabled={isPending}>
+        <Button type="submit" variant="contained" disabled={isPending}>
           {isPending ? 'Loading...' : 'Login'}
         </Button>
       </form>

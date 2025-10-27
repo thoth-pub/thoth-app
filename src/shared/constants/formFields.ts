@@ -265,6 +265,12 @@ export const FORM_FIELDS = {
     placeholder: 'Backmatter Count',
     type: InputTypes.NUMBER,
   },
+  WORK_SERIES: {
+    label: 'Series',
+    name: 'series',
+    placeholder: 'Series',
+    type: InputTypes.TEXT,
+  },
   PUBLICATION_TYPE: {
     label: 'Publication Type',
     name: 'publicationType',

@@ -13,6 +13,7 @@ export const IDs = {
   WORK_LANGUAGES: 'work_languages',
   WORK_SUBJECTS: 'work_subjects',
   WORK_STATUS: 'work_status',
+  WORK_SERIES: 'work_series',
   // CONTRIBUTIONS
   CONTRIBUTOR_NAMES: 'contributor_names',
   CONTRIBUTOR_TYPE: 'contributor_type',
