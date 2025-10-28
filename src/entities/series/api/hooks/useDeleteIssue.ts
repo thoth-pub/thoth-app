@@ -11,7 +11,7 @@ const { ISSUE_DELETE_FAILED } = NOTIFICATIONS;
 const useDeleteIssue = ({ queryToken, workId }: { queryToken: QueryToken; workId: WorkId }) => {
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
+  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
     queryToken,
     mutation: DELETE_ISSUE,
     options: {
@@ -19,7 +19,7 @@ const useDeleteIssue = ({ queryToken, workId }: { queryToken: QueryToken; workId
         console.error(error);
         sendErrorNotification(ISSUE_DELETE_FAILED);
       },
-      refetchQueries: [{ query: GET_SERIES }, { query: GET_WORK, variables: { workId } }],
+      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
     },
   });
 
@@ -27,6 +27,7 @@ const useDeleteIssue = ({ queryToken, workId }: { queryToken: QueryToken; workId
     mutate({
       variables: { issueId },
     });
+    client.refetchQueries({ include: [GET_SERIES] });
   };
 
   return {

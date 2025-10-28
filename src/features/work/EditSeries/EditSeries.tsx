@@ -12,7 +12,7 @@ import { appConfig, type BaseEditSectionProps, convertEntityToSelectFieldOptions
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
-import { Preview, Typography } from '@/src/shared/ui';
+import { DeleteButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { FormFields } from './components/FormFields';
@@ -47,8 +47,6 @@ const EditSeries = (props: BaseEditSectionProps) => {
 
     const selectedSeries = series.find((series) => series.id === data.series.value);
 
-    console.log(selectedSeries);
-
     if (!selectedSeries) return;
 
     createIssue({
@@ -56,18 +54,15 @@ const EditSeries = (props: BaseEditSectionProps) => {
       seriesId: selectedSeries.id,
       workId,
     });
+    client.refetchQueries({ include: [GET_SERIES] });
   };
 
   const editIssue = (data: IssueValidationSchema) => {
-    if (isNew) {
-      createNewIssue(data);
-      client.refetchQueries({ include: [GET_SERIES] });
-      return;
+    if (!isNew) {
+      deleteIssue(work.issues[0].id);
     }
 
-    deleteIssue(work.issues[0].id);
     createNewIssue(data);
-    client.refetchQueries({ include: [GET_SERIES] });
   };
 
   const deleteExistingIssue = () => {
@@ -90,6 +85,7 @@ const EditSeries = (props: BaseEditSectionProps) => {
         },
       }}
       validationSchema={issueValidationSchema}
+      skipAutoSubmit
       onSubmit={editIssue}
       formFields={({ control }) => (
         <FormFields
@@ -105,7 +101,14 @@ const EditSeries = (props: BaseEditSectionProps) => {
         <Preview label={WORK_SERIES.label} value={placeholder} onEdit={onEdit}>
           {work.issues.length > 0 && (
             <div className="flex w-full flex-col gap-2 lg:ml-2">
-              <Typography>{placeholder}</Typography>
+              <div className="flex items-center justify-between gap-2">
+                <Typography className="self-start">{placeholder}</Typography>
+                <DeleteButton
+                  disabled={isNew}
+                  onClick={deleteExistingIssue}
+                  className="opacity-0 group-hover:opacity-100"
+                />
+              </div>
               <IssuesList seriesName={work.issues[0].seriesName ?? ''} workId={workId} queryToken={queryToken} />
             </div>
           )}

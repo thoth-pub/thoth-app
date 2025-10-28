@@ -18,7 +18,7 @@ const useMutationWithAuth = <T>(props: UseMutationWithAuthProps<T>) => {
 
   client.setLink(setAuthorizationHeader(queryToken).concat(httpLink));
 
-  return [mutate, { ...rest }] as const;
+  return [mutate, { client, ...rest }] as const;
 };
 
 export default useMutationWithAuth;

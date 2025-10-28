@@ -14,7 +14,7 @@ const { ISSUE_CREATION_FAILED } = NOTIFICATIONS;
 const useCreateIssue = ({ queryToken, workId }: { queryToken: QueryToken; workId: WorkId }) => {
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
+  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
     queryToken,
     mutation: CREATE_ISSUE,
     options: {
@@ -29,7 +29,7 @@ const useCreateIssue = ({ queryToken, workId }: { queryToken: QueryToken; workId
 
         sendErrorNotification(ISSUE_CREATION_FAILED);
       },
-      refetchQueries: [{ query: GET_SERIES }, { query: GET_WORK, variables: { workId } }],
+      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
     },
   });
 
@@ -39,6 +39,7 @@ const useCreateIssue = ({ queryToken, workId }: { queryToken: QueryToken; workId
     mutate({
       variables: { data: { issueOrdinal: orderNumber, seriesId, workId } },
     });
+    client.refetchQueries({ include: [GET_SERIES] });
   };
 
   return {
