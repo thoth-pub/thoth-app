@@ -20,7 +20,7 @@ import { IssuesList } from './components/IssuesList';
 
 const { WORK_SERIES } = FORM_FIELDS;
 
-const EditSeries = (props: BaseEditSectionProps) => {
+const EditWorkSeries = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
 
   const { work } = useWork(workId, queryToken);
@@ -123,4 +123,4 @@ const EditSeries = (props: BaseEditSectionProps) => {
   );
 };
 
-export default EditSeries;
+export default EditWorkSeries;

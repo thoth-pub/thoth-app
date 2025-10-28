@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { appConfig, convertOptionToString } from '@/src/shared';
+import { appConfig, convertOptionToString, QueryToken } from '@/src/shared';
 import {
   ButtonGroup,
   CircularProgress,
@@ -18,6 +18,7 @@ import {
   Typography,
 } from '@/src/shared/ui';
 
+import useDeleteSeries from '../../api/hooks/useDeleteSeries';
 import useSeries from '../../api/hooks/useSeries';
 import useSeriesCount from '../../api/hooks/useSeriesCount';
 import useSeriesStateMachine from '../../store/hooks/useSeriesStateMachine';
@@ -26,11 +27,12 @@ const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 
 type SeriesTableProps = {
   seriesForm: Readonly<React.ReactNode>;
+  queryToken: QueryToken;
   footerContent?: Readonly<React.ReactNode>;
 };
 
 const SeriesTable = (props: SeriesTableProps) => {
-  const { footerContent, seriesForm } = props;
+  const { footerContent, seriesForm, queryToken } = props;
 
   const { activeSeries, edit } = useSeriesStateMachine();
   const { activePublisher } = usePublisherStateMachine();
@@ -43,6 +45,7 @@ const SeriesTable = (props: SeriesTableProps) => {
     offset: (activePage - 1) * ITEMS_PER_PAGE,
     limit: ITEMS_PER_PAGE,
   });
+  const { deleteSeries } = useDeleteSeries({ queryToken });
 
   const totalPagesCount = Math.ceil(seriesCount / ITEMS_PER_PAGE);
 
@@ -108,7 +111,7 @@ const SeriesTable = (props: SeriesTableProps) => {
                             <Typography>{issnPrint ? issnPrint : issnDigital}</Typography>
                             <ButtonGroup>
                               <DeleteButton
-                                onClick={() => console.log('delete')}
+                                onClick={() => deleteSeries(id)}
                                 className="opacity-0 group-hover:opacity-100"
                               />
                               <EditButton

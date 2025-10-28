@@ -4,7 +4,9 @@ import { SeriesEntity } from '../../model/series.types';
 import { SeriesStateMachineContext } from '../series.provider';
 
 const useSeriesStateMachine = () => {
-  const activeSeries = SeriesStateMachineContext.useSelector((state) => state.context.activeSeries);
+  const activeSeries: SeriesEntity | null = SeriesStateMachineContext.useSelector(
+    (state) => state.context.activeSeries,
+  );
   const actorRef = SeriesStateMachineContext.useActorRef();
 
   const edit = useCallback(

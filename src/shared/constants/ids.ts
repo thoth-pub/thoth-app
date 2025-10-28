@@ -40,4 +40,12 @@ export const IDs = {
   REFERENCE_URL: 'reference_url',
   REFERENCE_CITATION: 'reference_citation',
   REFERENCE_DOI: 'reference_doi',
+  // SERIES
+  SERIES_TYPE: 'series_type',
+  SERIES_NAME: 'series_name',
+  SERIES_ISSN_PRINT: 'series_issn_print',
+  SERIES_ISSN_DIGITAL: 'series_issn_digital',
+  SERIES_URL: 'series_url',
+  SERIES_DESCRIPTION: 'series_description',
+  SERIES_IMPRINT: 'series_imprint',
 } as const;

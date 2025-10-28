@@ -15,7 +15,7 @@ const mapper = new SeriesDtoMapper();
 const useCreateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
+  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
     queryToken,
     mutation: CREATE_SERIES,
     options: {
@@ -30,11 +30,10 @@ const useCreateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
 
         sendErrorNotification(SERIES_CREATION_FAILED);
       },
-      refetchQueries: [{ query: GET_SERIES }],
     },
   });
 
-  const createSeries = (data: Omit<SeriesEntity, 'id' | 'updatedAt' | 'imprintName' | 'issues'>) => {
+  const createSeries = async (data: Omit<SeriesEntity, 'id' | 'updatedAt' | 'imprintName' | 'issues'>) => {
     const { seriesId, updatedAt, ...dto } = mapper.toDto({
       ...data,
       id: '',
@@ -46,6 +45,9 @@ const useCreateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
     mutate({
       variables: { data: { ...dto } },
     });
+
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    client.refetchQueries({ include: [GET_SERIES] });
   };
 
   return {

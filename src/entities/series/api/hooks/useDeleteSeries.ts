@@ -11,7 +11,7 @@ const { SERIES_DELETE_FAILED } = NOTIFICATIONS;
 const useDeleteSeries = ({ queryToken }: { queryToken: QueryToken }) => {
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
+  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
     queryToken,
     mutation: DELETE_SERIES,
     options: {
@@ -19,14 +19,15 @@ const useDeleteSeries = ({ queryToken }: { queryToken: QueryToken }) => {
         console.error(error);
         sendErrorNotification(SERIES_DELETE_FAILED);
       },
-      refetchQueries: [{ query: GET_SERIES }],
     },
   });
 
-  const deleteSeries = (seriesId: SeriesId) => {
+  const deleteSeries = async (seriesId: SeriesId) => {
     mutate({
       variables: { seriesId },
     });
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+    client.refetchQueries({ include: [GET_SERIES] });
   };
 
   return {

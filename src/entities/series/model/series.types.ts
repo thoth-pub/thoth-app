@@ -1,9 +1,17 @@
 import z from 'zod';
 
-import type { Issue, Series } from '@/gql/graphql';
+import type { Series } from '@/gql/graphql';
 import { SeriesType as SeriesTypeEnum } from '@/src/shared/constants';
 
-import { issueValidationSchema, seriesValidationSchema } from './series.validation';
+import {
+  issueValidationSchema,
+  seriesDescriptionValidation,
+  seriesImprintValidation,
+  seriesIssnValidation,
+  seriesNameValidation,
+  seriesTypeValidationSchema,
+  seriesUrlValidation,
+} from './series.validation';
 
 export type SeriesDto = Pick<
   Series,
@@ -46,6 +54,16 @@ export type SeriesEntity = {
   }[];
 };
 
-export type SeriesForm = z.infer<typeof seriesValidationSchema>;
-
 export type IssueValidationSchema = z.infer<typeof issueValidationSchema>;
+
+export type SeriesTypeFormType = z.infer<typeof seriesTypeValidationSchema>;
+
+export type SeriesNameFormType = z.infer<typeof seriesNameValidation>;
+
+export type SeriesIssnFormType = z.infer<typeof seriesIssnValidation>;
+
+export type SeriesUrlFormType = z.infer<typeof seriesUrlValidation>;
+
+export type SeriesDescriptionFormType = z.infer<typeof seriesDescriptionValidation>;
+
+export type SeriesImprintFormType = z.infer<typeof seriesImprintValidation>;

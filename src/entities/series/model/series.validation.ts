@@ -19,13 +19,28 @@ const {
   WORK_SERIES,
 } = FORM_FIELDS;
 
-export const seriesValidationSchema = z.object({
+export const seriesTypeValidationSchema = z.object({
   [SERIES_TYPE.name]: seriesTypeValidation,
+});
+
+export const seriesNameValidation = z.object({
   [SERIES_NAME.name]: getRequiredStringValidation(),
+});
+
+export const seriesIssnValidation = z.object({
   [SERIES_ISSN_PRINT.name]: optionalStringValidation,
   [SERIES_ISSN_DIGITAL.name]: optionalStringValidation,
+});
+
+export const seriesUrlValidation = z.object({
   [SERIES_URL.name]: optionalUrlValidation,
+});
+
+export const seriesDescriptionValidation = z.object({
   [SERIES_DESCRIPTION.name]: optionalStringValidation,
+});
+
+export const seriesImprintValidation = z.object({
   [SERIES_IMPRINT.name]: getRequiredStringValidation(),
 });
 
