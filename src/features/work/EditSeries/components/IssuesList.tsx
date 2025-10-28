@@ -2,7 +2,7 @@
 
 import { closestCenter, DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useSeries, useUpdateIssue } from '@/src/entities/series';
@@ -29,15 +29,7 @@ export const IssuesList = (props: IssuesListProps) => {
 
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const selectedSeries = useMemo(() => {
-    const selectedSeries = series.find((series) => series.name === seriesName);
-
-    if (!selectedSeries) {
-      return null;
-    }
-
-    return selectedSeries;
-  }, [series, seriesName]);
+  const selectedSeries = series.find((series) => series.name === seriesName);
 
   const [issues, setIssues] = useState(selectedSeries?.issues ?? []);
 
@@ -82,9 +74,9 @@ export const IssuesList = (props: IssuesListProps) => {
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
       <SortableContext items={issues} strategy={verticalListSortingStrategy}>
-        <ul className="flex w-full flex-col gap-2">
-          {issues.map(({ id, title }) => (
-            <ListItem key={id} id={id} name={title} isDisabled={issues.length < 2} />
+        <ul className="group flex w-full flex-col gap-2">
+          {issues.map(({ id, title, ordinal }) => (
+            <ListItem key={id} id={id} name={title} orderNumber={ordinal} isDisabled={issues.length < 2} />
           ))}
         </ul>
       </SortableContext>

@@ -22,12 +22,13 @@ type FormFieldsProps = {
   options: FormFieldOption[];
   isLoading?: boolean;
   isDeleteDisabled?: boolean;
+  children?: Readonly<React.ReactNode>;
   onChange: (value: string) => void;
   onDelete: () => void;
 };
 
 export const FormFields = (props: FormFieldsProps) => {
-  const { control, options, isLoading = false, isDeleteDisabled = true, onChange, onDelete } = props;
+  const { control, options, isLoading = false, isDeleteDisabled = true, children, onChange, onDelete } = props;
 
   return (
     <MultipleContentWrapper>
@@ -52,6 +53,7 @@ export const FormFields = (props: FormFieldsProps) => {
           <DeleteButton disabled={isDeleteDisabled} onClick={onDelete} />
         </FormFieldWithControlsWrapper>
       </ContentWrapper>
+      {children}
     </MultipleContentWrapper>
   );
 };

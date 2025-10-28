@@ -5,6 +5,7 @@ import { FundingStateMachineContext } from '@/src/entities/funding';
 import { PublicationsStateMachineContext } from '@/src/entities/publication';
 import { PublisherStateMachineContext } from '@/src/entities/publisher';
 import { ReferenceStateMachineContext } from '@/src/entities/reference';
+import { SeriesStateMachineContext } from '@/src/entities/series';
 import { FormStateMachineContext } from '@/src/shared/store/forms/forms.provider';
 
 const StoreProvider = ({ children }: Readonly<{ children: React.ReactNode }>) => {
@@ -14,7 +15,9 @@ const StoreProvider = ({ children }: Readonly<{ children: React.ReactNode }>) =>
         <ContributionStateMachineContext.Provider>
           <PublicationsStateMachineContext.Provider>
             <FundingStateMachineContext.Provider>
-              <ReferenceStateMachineContext.Provider>{children}</ReferenceStateMachineContext.Provider>
+              <ReferenceStateMachineContext.Provider>
+                <SeriesStateMachineContext.Provider>{children}</SeriesStateMachineContext.Provider>
+              </ReferenceStateMachineContext.Provider>
             </FundingStateMachineContext.Provider>
           </PublicationsStateMachineContext.Provider>
         </ContributionStateMachineContext.Provider>

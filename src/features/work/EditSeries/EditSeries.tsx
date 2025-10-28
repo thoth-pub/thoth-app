@@ -40,7 +40,7 @@ const EditSeries = (props: BaseEditSectionProps) => {
   const { deleteIssue } = useDeleteIssue({ queryToken, workId });
   const { close } = useFormStateMachine();
 
-  const placeholder = work.issues.map((issue) => issue.seriesName).join(', ');
+  const placeholder = work.issues.length > 0 ? `vol. ${work.issues[0].ordinal} of ${work.issues[0].seriesName}` : '';
 
   const createNewIssue = (data: IssueValidationSchema) => {
     if (!activePublisher) return;
@@ -54,15 +54,19 @@ const EditSeries = (props: BaseEditSectionProps) => {
       seriesId: selectedSeries.id,
       workId,
     });
-    client.refetchQueries({ include: [GET_SERIES] });
   };
 
-  const editIssue = (data: IssueValidationSchema) => {
+  const editIssue = async (data: IssueValidationSchema) => {
     if (!isNew) {
       deleteIssue(work.issues[0].id);
     }
 
     createNewIssue(data);
+
+    // series data is not updated immediately, so we need to wait for it to be updated
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    client.refetchQueries({ include: [GET_SERIES] });
   };
 
   const deleteExistingIssue = () => {
@@ -95,21 +99,22 @@ const EditSeries = (props: BaseEditSectionProps) => {
           onChange={setSearchValue}
           onDelete={deleteExistingIssue}
           isDeleteDisabled={isNew}
-        />
+        >
+          {work.issues.length > 0 && (
+            <IssuesList seriesName={work.issues[0].seriesName} workId={workId} queryToken={queryToken} />
+          )}
+        </FormFields>
       )}
       preview={({ onEdit }) => (
         <Preview label={WORK_SERIES.label} value={placeholder} onEdit={onEdit}>
           {work.issues.length > 0 && (
-            <div className="flex w-full flex-col gap-2 lg:ml-2">
-              <div className="flex items-center justify-between gap-2">
-                <Typography className="self-start">{placeholder}</Typography>
-                <DeleteButton
-                  disabled={isNew}
-                  onClick={deleteExistingIssue}
-                  className="opacity-0 group-hover:opacity-100"
-                />
-              </div>
-              <IssuesList seriesName={work.issues[0].seriesName ?? ''} workId={workId} queryToken={queryToken} />
+            <div className="flex w-full items-center justify-between gap-2 lg:ml-2">
+              <Typography className="self-start">{placeholder}</Typography>
+              <DeleteButton
+                disabled={isNew}
+                onClick={deleteExistingIssue}
+                className="self-end opacity-0 group-hover:opacity-100"
+              />
             </div>
           )}
         </Preview>

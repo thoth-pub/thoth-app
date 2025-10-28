@@ -20,16 +20,19 @@ import {
 
 import useSeries from '../../api/hooks/useSeries';
 import useSeriesCount from '../../api/hooks/useSeriesCount';
+import useSeriesStateMachine from '../../store/hooks/useSeriesStateMachine';
 
 const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 
 type SeriesTableProps = {
+  seriesForm: Readonly<React.ReactNode>;
   footerContent?: Readonly<React.ReactNode>;
 };
 
 const SeriesTable = (props: SeriesTableProps) => {
-  const { footerContent } = props;
+  const { footerContent, seriesForm } = props;
 
+  const { activeSeries, edit } = useSeriesStateMachine();
   const { activePublisher } = usePublisherStateMachine();
   const publishers = activePublisher ? [activePublisher] : [];
 
@@ -46,10 +49,6 @@ const SeriesTable = (props: SeriesTableProps) => {
   const changePage = (value: number) => {
     setActivePage(value);
   };
-
-  function addPublication(): void {
-    throw new Error('Function not implemented.');
-  }
 
   return (
     <div className="overflow-auto">
@@ -76,31 +75,68 @@ const SeriesTable = (props: SeriesTableProps) => {
             </TableRow>
           ) : (
             <>
-              {series.map(({ id, name, type, issnPrint, issnDigital, description }) => (
-                <TableRow key={id} className="group">
-                  <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
-                    {name}
-                  </TableCell>
-                  <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-                    {description}
-                  </TableCell>
-                  <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-                    {convertOptionToString(type)}
-                  </TableCell>
-                  <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-                    <div className="flex justify-between">
-                      <Typography>{issnPrint ? issnPrint : issnDigital}</Typography>
-                      <ButtonGroup>
-                        <DeleteButton
-                          onClick={() => console.log('delete')}
-                          className="opacity-0 group-hover:opacity-100"
-                        />
-                        <EditButton onClick={() => console.log('edit')} className="opacity-0 group-hover:opacity-100" />
-                      </ButtonGroup>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
+              {series.map(
+                ({
+                  id,
+                  name,
+                  type,
+                  issnPrint,
+                  issnDigital,
+                  description,
+                  updatedAt,
+                  imprintId,
+                  imprintName,
+                  url,
+                  issues,
+                }) => (
+                  <TableRow key={id} className="group">
+                    {activeSeries && activeSeries.id === id ? (
+                      <>{seriesForm}</>
+                    ) : (
+                      <>
+                        <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
+                          {name}
+                        </TableCell>
+                        <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                          {description}
+                        </TableCell>
+                        <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                          {convertOptionToString(type)}
+                        </TableCell>
+                        <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                          <div className="flex justify-between">
+                            <Typography>{issnPrint ? issnPrint : issnDigital}</Typography>
+                            <ButtonGroup>
+                              <DeleteButton
+                                onClick={() => console.log('delete')}
+                                className="opacity-0 group-hover:opacity-100"
+                              />
+                              <EditButton
+                                onClick={() =>
+                                  edit({
+                                    id,
+                                    name,
+                                    type,
+                                    issnPrint,
+                                    issnDigital,
+                                    description,
+                                    updatedAt,
+                                    imprintId,
+                                    imprintName,
+                                    url,
+                                    issues,
+                                  })
+                                }
+                                className="opacity-0 group-hover:opacity-100"
+                              />
+                            </ButtonGroup>
+                          </div>
+                        </TableCell>
+                      </>
+                    )}
+                  </TableRow>
+                ),
+              )}
             </>
           )}
         </TableBody>

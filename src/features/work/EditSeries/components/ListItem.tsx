@@ -8,11 +8,12 @@ import { Typography } from '@mui/material';
 type ListItemProps = {
   id: string;
   name: string;
+  orderNumber: number;
   isDisabled?: boolean;
 };
 
 export const ListItem = (props: ListItemProps) => {
-  const { id, name, isDisabled = false } = props;
+  const { id, name, orderNumber, isDisabled = false } = props;
 
   const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
 
@@ -35,7 +36,7 @@ export const ListItem = (props: ListItemProps) => {
         fontSize="small"
         {...listeners}
       />
-      {name}
+      {orderNumber}. {name}
     </Typography>
   );
 };
