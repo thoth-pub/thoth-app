@@ -15,7 +15,7 @@ const Series = ({ imprintOptions, queryToken }: SeriesProps) => {
     <ContentSection title="Series">
       <SeriesTable
         queryToken={queryToken}
-        seriesForm={<EditSeries />}
+        seriesForm={<EditSeries queryToken={queryToken} imprintOptions={imprintOptions} />}
         footerContent={<AddSeries imprintOptions={imprintOptions} queryToken={queryToken} />}
       />
     </ContentSection>

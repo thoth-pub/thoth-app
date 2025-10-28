@@ -1,7 +1,8 @@
 import { ServerError } from '@apollo/client';
 
 import { CreateAffiliationMutation } from '@/gql/graphql';
-import { NOTIFICATIONS, QueryToken, serverErrorParser } from '@/src/shared';
+import { usePublisherStateMachine } from '@/src/entities/publisher';
+import { appConfig, NOTIFICATIONS, QueryToken, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { SeriesDtoMapper } from '../../model/series.mapper';
@@ -15,7 +16,9 @@ const mapper = new SeriesDtoMapper();
 const useUpdateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
+  const { activePublisher } = usePublisherStateMachine();
+
+  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
     queryToken,
     mutation: UPDATE_SERIES,
     options: {
@@ -30,12 +33,23 @@ const useUpdateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
 
         sendErrorNotification(SERIES_UPDATE_FAILED);
       },
-      refetchQueries: [{ query: GET_SERIES }],
+      refetchQueries: [
+        { query: GET_SERIES },
+        {
+          query: GET_SERIES,
+          variables: {
+            publisherId: [activePublisher],
+            offset: 0,
+            limit: appConfig.data.itemsPerRequestLimit,
+            filter: '',
+          },
+        },
+      ],
     },
   });
 
   const updateSeries = (data: SeriesEntity) => {
-    const dto = mapper.toDto(data);
+    const { updatedAt, ...dto } = mapper.toDto(data);
 
     mutate({
       variables: { data: dto },
@@ -44,6 +58,7 @@ const useUpdateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
 
   return {
     updateSeries,
+    client,
     loading,
   };
 };

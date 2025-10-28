@@ -22,7 +22,7 @@ const Navigation = () => {
     <Paper
       component="aside"
       elevation={1}
-      className="sticky top-2 max-h-[40rem] shrink-0 rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)] bg-[var(--color-nav-background)] p-3 lg:top-3"
+      className="sticky top-2 max-h-[calc(100dvh-2rem)] shrink-0 rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)] bg-[var(--color-nav-background)] p-3 lg:top-3"
     >
       <motion.div
         initial={false}
