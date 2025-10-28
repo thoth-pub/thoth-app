@@ -24,7 +24,7 @@ export const IssuesList = (props: IssuesListProps) => {
   const { activePublisher } = usePublisherStateMachine();
   const publishersIds = activePublisher ? [activePublisher] : [];
 
-  const { series, loading } = useSeries(publishersIds, seriesName);
+  const { series, loading } = useSeries({ publishersIds, filter: seriesName });
   const { updateIssue } = useUpdateIssue({ workId, queryToken });
 
   const sensors = useSensors(useSensor(PointerSensor));

@@ -1,8 +1,8 @@
 import { graphql } from '@/gql';
 
 export const GET_SERIES = graphql(`
-  query GetSeries($publishers: [Uuid!]!, $filter: String) {
-    serieses(publishers: $publishers, filter: $filter) {
+  query GetSeries($publishers: [Uuid!]!, $filter: String, $offset: Int, $limit: Int) {
+    serieses(publishers: $publishers, filter: $filter, offset: $offset, limit: $limit) {
       seriesId
       seriesName
       seriesType

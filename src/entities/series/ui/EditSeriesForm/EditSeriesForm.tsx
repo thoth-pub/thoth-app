@@ -7,8 +7,8 @@ import { FormFieldOption, QueryToken } from '@/src/shared';
 import { FORM_FIELDS, seriesTypeOptions } from '@/src/shared/constants/formFields';
 import { Button, FormFieldLabel, FormTextField } from '@/src/shared/ui';
 
-import useCreateSeries from '../api/hooks/useCreateSeries';
-import { seriesValidationSchema } from '../model/series.validation';
+import useCreateSeries from '../../api/hooks/useCreateSeries';
+import { seriesValidationSchema } from '../../model/series.validation';
 
 const {
   SERIES_TYPE,
@@ -25,7 +25,7 @@ type EditSeriesFormProps = {
   imprintOptions: FormFieldOption[];
 };
 
-export const EditSeriesForm = ({ queryToken, imprintOptions }: EditSeriesFormProps) => {
+const EditSeriesForm = ({ queryToken, imprintOptions }: EditSeriesFormProps) => {
   const { createSeries } = useCreateSeries({ queryToken });
 
   const { control, handleSubmit } = useForm({
@@ -87,3 +87,5 @@ export const EditSeriesForm = ({ queryToken, imprintOptions }: EditSeriesFormPro
     </form>
   );
 };
+
+export default EditSeriesForm;

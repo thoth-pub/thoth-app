@@ -30,7 +30,7 @@ const EditSeries = (props: BaseEditSectionProps) => {
   const publishersIds = activePublisher ? [activePublisher] : [];
 
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
-  const { series, loading, client } = useSeries(publishersIds, debouncedValue);
+  const { series, loading, client } = useSeries({ publishersIds, filter: debouncedValue });
 
   const options = convertEntityToSelectFieldOptions(series, 'name');
 

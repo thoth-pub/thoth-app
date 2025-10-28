@@ -1,0 +1,124 @@
+'use client';
+
+import { useState } from 'react';
+
+import { usePublisherStateMachine } from '@/src/entities/publisher';
+import { appConfig, convertOptionToString } from '@/src/shared';
+import {
+  ButtonGroup,
+  CircularProgress,
+  DeleteButton,
+  EditButton,
+  Pagination,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+  Typography,
+} from '@/src/shared/ui';
+
+import useSeries from '../../api/hooks/useSeries';
+import useSeriesCount from '../../api/hooks/useSeriesCount';
+
+const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
+
+type SeriesTableProps = {
+  footerContent?: Readonly<React.ReactNode>;
+};
+
+const SeriesTable = (props: SeriesTableProps) => {
+  const { footerContent } = props;
+
+  const { activePublisher } = usePublisherStateMachine();
+  const publishers = activePublisher ? [activePublisher] : [];
+
+  const [activePage, setActivePage] = useState(1);
+  const { seriesCount } = useSeriesCount(publishers);
+  const { series, loading } = useSeries({
+    publishersIds: publishers,
+    offset: (activePage - 1) * ITEMS_PER_PAGE,
+    limit: ITEMS_PER_PAGE,
+  });
+
+  const totalPagesCount = Math.ceil(seriesCount / ITEMS_PER_PAGE);
+
+  const changePage = (value: number) => {
+    setActivePage(value);
+  };
+
+  function addPublication(): void {
+    throw new Error('Function not implemented.');
+  }
+
+  return (
+    <div className="overflow-auto">
+      <Table className="border-separate">
+        <TableHeader
+          cells={['Name', 'Description', 'Type', 'ISSN']}
+          cellStyles={['w-[210px]', 'w-[210px]', 'w-[210px]', 'w-[210px]']}
+        />
+        <TableBody>
+          {!loading && series.length === 0 && (
+            <TableRow className="!cursor-auto hover:!bg-transparent">
+              <TableCell colSpan={3} className="text-center">
+                <Typography variant="body1" component="span">
+                  No series found
+                </Typography>
+              </TableCell>
+            </TableRow>
+          )}
+          {loading ? (
+            <TableRow className="!cursor-auto hover:!bg-transparent">
+              <TableCell colSpan={3} className="text-center">
+                <CircularProgress className="my-[10rem]" />
+              </TableCell>
+            </TableRow>
+          ) : (
+            <>
+              {series.map(({ id, name, type, issnPrint, issnDigital, description }) => (
+                <TableRow key={id} className="group">
+                  <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
+                    {name}
+                  </TableCell>
+                  <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                    {description}
+                  </TableCell>
+                  <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                    {convertOptionToString(type)}
+                  </TableCell>
+                  <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                    <div className="flex justify-between">
+                      <Typography>{issnPrint ? issnPrint : issnDigital}</Typography>
+                      <ButtonGroup>
+                        <DeleteButton
+                          onClick={() => console.log('delete')}
+                          className="opacity-0 group-hover:opacity-100"
+                        />
+                        <EditButton onClick={() => console.log('edit')} className="opacity-0 group-hover:opacity-100" />
+                      </ButtonGroup>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </>
+          )}
+        </TableBody>
+      </Table>
+      <div className="flex items-center justify-between">
+        {footerContent}
+        <Pagination
+          page={activePage}
+          count={totalPagesCount}
+          color="primary"
+          showFirstButton
+          showLastButton
+          onChange={(_, value) => changePage(value)}
+          disabled={loading}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default SeriesTable;
