@@ -8,8 +8,8 @@ import { useForm } from 'react-hook-form';
 
 import { useBooks } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { useCreateIssue, useSeries } from '@/src/entities/series';
-import type { IssueValidationSchema, SeriesId } from '@/src/entities/series/model/series.types';
+import { useCreateIssue } from '@/src/entities/series';
+import type { IssueValidationSchema, SeriesEntity } from '@/src/entities/series/model/series.types';
 import { issueValidationSchema } from '@/src/entities/series/model/series.validation';
 import { appConfig, convertEntityToSelectFieldOptions, QueryToken } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
@@ -21,18 +21,15 @@ const { WORK_SERIES } = FORM_FIELDS;
 
 type AddBookModalProps = {
   queryToken: QueryToken;
-  seriesId: SeriesId;
+  series: SeriesEntity;
 };
 
 export const AddBookModal = (props: AddBookModalProps) => {
-  const { queryToken, seriesId } = props;
+  const { queryToken, series } = props;
 
   const [open, setOpen] = useState(false);
 
   const { activePublisher } = usePublisherStateMachine();
-
-  const { series } = useSeries({ seriesId });
-
   const {
     control,
     formState: { isValid, isDirty },
@@ -61,8 +58,8 @@ export const AddBookModal = (props: AddBookModalProps) => {
 
   const onSubmit = (data: IssueValidationSchema) => {
     createIssue({
-      orderNumber: (series?.issues.length ?? 0) + 1,
-      seriesId,
+      orderNumber: series.issues.length + 1,
+      seriesId: series.id,
       workId: data.series.value,
     });
     setOpen(false);

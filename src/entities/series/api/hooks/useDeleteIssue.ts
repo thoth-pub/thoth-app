@@ -33,7 +33,7 @@ const useDeleteIssue = (props: UseDeleteIssueProps) => {
       variables: { issueId },
     });
 
-    await client.refetchQueries({ include: 'active' });
+    await client.refetchQueries({ include: 'all' });
   };
 
   return {

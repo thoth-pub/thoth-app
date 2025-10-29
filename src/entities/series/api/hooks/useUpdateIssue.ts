@@ -46,7 +46,7 @@ const useUpdateIssue = (props: UseUpdateIssueProps) => {
       variables: { data: { issueId, issueOrdinal: orderNumber, seriesId, workId } },
     });
 
-    await client.refetchQueries({ include: 'active' });
+    await client.refetchQueries({ include: 'all' });
   };
 
   return {

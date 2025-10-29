@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { useCreateIssue, useDeleteIssue, useSerieses } from '@/src/entities/series';
+import { useCreateIssue, useDeleteIssue, useSeries, useSerieses } from '@/src/entities/series';
 import type { IssueValidationSchema } from '@/src/entities/series/model/series.types';
 import { issueValidationSchema } from '@/src/entities/series/model/series.validation';
 import { useWork } from '@/src/entities/work';
@@ -27,13 +27,21 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
   const { activePublisher } = usePublisherStateMachine();
 
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
-  const { series, loading } = useSerieses({ filter: debouncedValue });
+  const { serieses, loading } = useSerieses({ filter: debouncedValue });
 
-  const options = convertEntityToSelectFieldOptions(series, 'name');
+  const options = convertEntityToSelectFieldOptions(serieses, 'name');
 
   const isNew = work.issues.length === 0;
 
   const seriesId = work.issues.length > 0 ? work.issues[0].seriesId : '';
+
+  const { series, refetch } = useSeries({ seriesId });
+
+  useEffect(() => {
+    if (work.issues.length === 0) return;
+
+    refetch();
+  }, [work.issues.length]);
 
   const { createIssue } = useCreateIssue({ queryToken });
   const { deleteIssue } = useDeleteIssue({ queryToken });
@@ -44,7 +52,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
   const createNewIssue = (data: IssueValidationSchema) => {
     if (!activePublisher) return;
 
-    const selectedSeries = series.find((series) => series.id === data.series.value);
+    const selectedSeries = serieses.find((series) => series.id === data.series.value);
 
     if (!selectedSeries) return;
 
@@ -94,7 +102,9 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
           onDelete={deleteExistingIssue}
           isDeleteDisabled={isNew}
         >
-          {work.issues.length > 0 && <IssuesList seriesId={seriesId} workId={workId} queryToken={queryToken} />}
+          {work.issues.length > 0 && (
+            <IssuesList workId={workId} queryToken={queryToken} issues={series?.issues ?? []} />
+          )}
         </FormFields>
       )}
       preview={({ onEdit }) => (

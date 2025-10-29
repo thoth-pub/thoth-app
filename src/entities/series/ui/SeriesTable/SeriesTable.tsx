@@ -41,7 +41,7 @@ const SeriesTable = (props: SeriesTableProps) => {
 
   const [activePage, setActivePage] = useState(1);
   const { seriesCount } = useSeriesesCount(publishers);
-  const { series, loading } = useSerieses({
+  const { serieses, loading } = useSerieses({
     offset: (activePage - 1) * ITEMS_PER_PAGE,
     limit: ITEMS_PER_PAGE,
   });
@@ -61,7 +61,7 @@ const SeriesTable = (props: SeriesTableProps) => {
           cellStyles={['w-[210px]', 'w-[210px]', 'w-[210px]', 'w-[210px]']}
         />
         <TableBody>
-          {!loading && series.length === 0 && (
+          {!loading && serieses.length === 0 && (
             <TableRow className="!cursor-auto hover:!bg-transparent">
               <TableCell colSpan={3} className="text-center">
                 <Typography variant="body1" component="span">
@@ -78,7 +78,7 @@ const SeriesTable = (props: SeriesTableProps) => {
             </TableRow>
           ) : (
             <>
-              {series.map(
+              {serieses.map(
                 ({
                   id,
                   name,

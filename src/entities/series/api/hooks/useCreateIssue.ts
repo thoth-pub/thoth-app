@@ -44,7 +44,7 @@ const useCreateIssue = ({ queryToken }: UseCreateIssueProps) => {
       variables: { data: { issueOrdinal: orderNumber, seriesId, workId } },
     });
 
-    await client.refetchQueries({ include: 'active' });
+    await client.refetchQueries({ include: 'all' });
   };
 
   return {

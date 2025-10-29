@@ -34,7 +34,7 @@ const useSerieses = (props: UseSeriesProps) => {
 
   const data = serieses.map(mapper.toEntity);
 
-  return { series: data, error, loading, client, refetch };
+  return { serieses: data, error, loading, client, refetch };
 };
 
 export default useSerieses;

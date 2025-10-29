@@ -1,9 +1,8 @@
 'use client';
 
 import { Typography } from '@mui/material';
-import { useState } from 'react';
 
-import { EditSeriesForm, useSeriesesStateMachine, useUpdateSeries } from '@/src/entities/series';
+import { EditSeriesForm, useSeries, useSeriesesStateMachine, useUpdateSeries } from '@/src/entities/series';
 import { GET_SERIESES } from '@/src/entities/series/model/series.schema';
 import {
   SeriesDescriptionFormType,
@@ -27,7 +26,7 @@ type EditSeriesProps = {
 const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
   const { activeSeries, close } = useSeriesesStateMachine();
 
-  const [series, setSeries] = useState(activeSeries);
+  const { series } = useSeries({ seriesId: activeSeries?.id ?? '' });
   const { updateSeries, client } = useUpdateSeries({ queryToken });
 
   const done = () => {
@@ -41,7 +40,6 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
     const newData = { ...series, type: data.seriesType };
 
     updateSeries(newData);
-    setSeries(newData);
   };
 
   const updateName = (data: SeriesNameFormType) => {
@@ -50,7 +48,6 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
     const newData = { ...series, name: data.seriesName };
 
     updateSeries(newData);
-    setSeries(newData);
   };
 
   const updateIssn = (data: SeriesIssnFormType) => {
@@ -59,7 +56,6 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
     const newData = { ...series, issnPrint: data.issnPrint ?? '', issnDigital: data.issnDigital ?? '' };
 
     updateSeries(newData);
-    setSeries(newData);
   };
 
   const updateImprint = (data: SeriesImprintFormType) => {
@@ -72,7 +68,6 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
     const newData = { ...series, imprintId: data.imprintId, imprintName: imprintOption.label };
 
     updateSeries(newData);
-    setSeries(newData);
   };
 
   const updateUrl = (data: SeriesUrlFormType) => {
@@ -81,7 +76,6 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
     const newData = { ...series, url: data.url ?? '' };
 
     updateSeries(newData);
-    setSeries(newData);
   };
 
   const updateDescription = (data: SeriesDescriptionFormType) => {
@@ -90,7 +84,6 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
     const newData = { ...series, description: data.description ?? '' };
 
     updateSeries(newData);
-    setSeries(newData);
   };
 
   if (!series) return null;
@@ -126,8 +119,8 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
             onUrlChange={updateUrl}
             onDescriptionChange={updateDescription}
           />
-          <IssuesList seriesId={series.id} queryToken={queryToken} withDelete />
-          <AddBookModal queryToken={queryToken} seriesId={series.id} />
+          {series.issues.length > 0 && <IssuesList queryToken={queryToken} withDelete issues={series.issues} />}
+          <AddBookModal queryToken={queryToken} series={series} />
         </>
       )}
     </MultipleContentWrapper>
