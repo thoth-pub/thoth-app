@@ -19,9 +19,9 @@ import {
 } from '@/src/shared/ui';
 
 import useDeleteSeries from '../../api/hooks/useDeleteSeries';
-import useSeries from '../../api/hooks/useSeries';
-import useSeriesCount from '../../api/hooks/useSeriesCount';
-import useSeriesStateMachine from '../../store/hooks/useSeriesStateMachine';
+import useSerieses from '../../api/hooks/useSerieses';
+import useSeriesesCount from '../../api/hooks/useSeriesesCount';
+import useSeriesesStateMachine from '../../store/hooks/useSeriesesStateMachine';
 
 const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 
@@ -34,14 +34,13 @@ type SeriesTableProps = {
 const SeriesTable = (props: SeriesTableProps) => {
   const { footerContent, seriesForm, queryToken } = props;
 
-  const { activeSeries, edit, close } = useSeriesStateMachine();
+  const { activeSeries, edit, close } = useSeriesesStateMachine();
   const { activePublisher } = usePublisherStateMachine();
   const publishers = activePublisher ? [activePublisher] : [];
 
   const [activePage, setActivePage] = useState(1);
-  const { seriesCount } = useSeriesCount(publishers);
-  const { series, loading } = useSeries({
-    publishersIds: publishers,
+  const { seriesCount } = useSeriesesCount(publishers);
+  const { series, loading } = useSerieses({
     offset: (activePage - 1) * ITEMS_PER_PAGE,
     limit: ITEMS_PER_PAGE,
   });

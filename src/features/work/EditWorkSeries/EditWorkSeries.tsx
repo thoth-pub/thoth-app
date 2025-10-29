@@ -3,8 +3,7 @@
 import { useState } from 'react';
 
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { useCreateIssue, useDeleteIssue, useSeries } from '@/src/entities/series';
-import { GET_SERIES } from '@/src/entities/series/model/series.schema';
+import { useCreateIssue, useDeleteIssue, useSerieses } from '@/src/entities/series';
 import type { IssueValidationSchema } from '@/src/entities/series/model/series.types';
 import { issueValidationSchema } from '@/src/entities/series/model/series.validation';
 import { useWork } from '@/src/entities/work';
@@ -27,17 +26,17 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
   const [searchValue, setSearchValue] = useState(work.issues[0]?.seriesName ?? '');
   const { activePublisher } = usePublisherStateMachine();
 
-  const publishersIds = activePublisher ? [activePublisher] : [];
-
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
-  const { series, loading, client } = useSeries({ publishersIds, filter: debouncedValue });
+  const { series, loading } = useSerieses({ filter: debouncedValue });
 
   const options = convertEntityToSelectFieldOptions(series, 'name');
 
   const isNew = work.issues.length === 0;
 
-  const { createIssue } = useCreateIssue({ workId, queryToken });
-  const { deleteIssue } = useDeleteIssue({ queryToken, workId });
+  const seriesId = work.issues.length > 0 ? work.issues[0].seriesId : '';
+
+  const { createIssue } = useCreateIssue({ queryToken });
+  const { deleteIssue } = useDeleteIssue({ queryToken });
   const { close } = useFormStateMachine();
 
   const placeholder = work.issues.length > 0 ? `vol. ${work.issues[0].ordinal} of ${work.issues[0].seriesName}` : '';
@@ -58,15 +57,10 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
 
   const editIssue = async (data: IssueValidationSchema) => {
     if (!isNew) {
-      deleteIssue(work.issues[0].id);
+      await deleteIssue(work.issues[0].id);
     }
 
     createNewIssue(data);
-
-    // series data is not updated immediately, so we need to wait for it to be updated
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    client.refetchQueries({ include: [GET_SERIES] });
   };
 
   const deleteExistingIssue = () => {
@@ -100,9 +94,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
           onDelete={deleteExistingIssue}
           isDeleteDisabled={isNew}
         >
-          {work.issues.length > 0 && (
-            <IssuesList seriesName={work.issues[0].seriesName} workId={workId} queryToken={queryToken} />
-          )}
+          {work.issues.length > 0 && <IssuesList seriesId={seriesId} workId={workId} queryToken={queryToken} />}
         </FormFields>
       )}
       preview={({ onEdit }) => (

@@ -1,29 +1,27 @@
+'use client';
+
 import { ServerError } from '@apollo/client';
 
 import { CreateAffiliationMutation } from '@/gql/graphql';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
-import { GET_SERIES, UPDATE_ISSUE } from '../../model/series.schema';
+import { UPDATE_ISSUE } from '../../model/series.schema';
 import type { SeriesId } from '../../model/series.types';
 
 const { ISSUE_UPDATE_FAILED } = NOTIFICATIONS;
 
 type UseUpdateIssueProps = {
   queryToken: QueryToken;
-  workId: WorkId;
 };
 
 const useUpdateIssue = (props: UseUpdateIssueProps) => {
-  const { queryToken, workId } = props;
+  const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
-  const { activePublisher } = usePublisherStateMachine();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
+  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
     queryToken,
     mutation: UPDATE_ISSUE,
     options: {
@@ -38,16 +36,17 @@ const useUpdateIssue = (props: UseUpdateIssueProps) => {
 
         sendErrorNotification(ISSUE_UPDATE_FAILED);
       },
-      refetchQueries: [{ query: GET_SERIES }, { query: GET_WORK, variables: { workId } }],
     },
   });
 
-  const updateIssue = (data: { issueId: string; orderNumber: number; seriesId: SeriesId; workId: WorkId }) => {
+  const updateIssue = async (data: { issueId: string; orderNumber: number; seriesId: SeriesId; workId: WorkId }) => {
     const { issueId, orderNumber, seriesId, workId } = data;
 
     mutate({
       variables: { data: { issueId, issueOrdinal: orderNumber, seriesId, workId } },
     });
+
+    await client.refetchQueries({ include: 'active' });
   };
 
   return {

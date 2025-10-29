@@ -4,8 +4,7 @@ import { closestCenter, DndContext, DragEndEvent, PointerSensor, useSensor, useS
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useEffect, useState } from 'react';
 
-import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { useSeries, useUpdateIssue } from '@/src/entities/series';
+import { useDeleteIssue, useSeries, useUpdateIssue } from '@/src/entities/series';
 import type { SeriesId } from '@/src/entities/series/model/series.types';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { QueryToken } from '@/src/shared/interfaces';
@@ -13,31 +12,28 @@ import { QueryToken } from '@/src/shared/interfaces';
 import { ListItem } from './ListItem';
 
 type IssuesListProps = {
-  seriesName: string;
-  workId: WorkId;
+  seriesId: SeriesId;
+  workId?: WorkId;
   queryToken: QueryToken;
+  withDelete?: boolean;
 };
 
 export const IssuesList = (props: IssuesListProps) => {
-  const { seriesName, workId, queryToken } = props;
+  const { seriesId, workId = '', queryToken, withDelete = false } = props;
 
-  const { activePublisher } = usePublisherStateMachine();
-  const publishersIds = activePublisher ? [activePublisher] : [];
-
-  const { series, loading } = useSeries({ publishersIds, filter: seriesName });
-  const { updateIssue } = useUpdateIssue({ workId, queryToken });
+  const { series } = useSeries({ seriesId });
+  const { updateIssue } = useUpdateIssue({ queryToken });
+  const { deleteIssue } = useDeleteIssue({ queryToken });
 
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const selectedSeries = series.find((series) => series.name === seriesName);
-
-  const [issues, setIssues] = useState(selectedSeries?.issues ?? []);
+  const [issues, setIssues] = useState(series?.issues ?? []);
 
   useEffect(() => {
-    if (selectedSeries) {
-      setIssues(selectedSeries.issues);
+    if (series && series.issues.length !== issues.length) {
+      setIssues(series.issues);
     }
-  }, [seriesName, loading]);
+  }, [series]);
 
   const updateSeriesIssues = (issues: { id: string }[], seriesId: SeriesId) => {
     issues.forEach(({ id }, index) => {
@@ -69,6 +65,14 @@ export const IssuesList = (props: IssuesListProps) => {
     }
   };
 
+  const handleDelete = (id: string) => {
+    const filteredIssues = issues.filter((issue) => issue.id !== id);
+
+    setIssues(filteredIssues);
+
+    deleteIssue(id);
+  };
+
   if (issues.length === 0) return null;
 
   return (
@@ -76,7 +80,15 @@ export const IssuesList = (props: IssuesListProps) => {
       <SortableContext items={issues} strategy={verticalListSortingStrategy}>
         <ul className="group flex w-full flex-col gap-2">
           {issues.map(({ id, title, ordinal }) => (
-            <ListItem key={id} id={id} name={title} orderNumber={ordinal} isDisabled={issues.length < 2} />
+            <ListItem
+              key={id}
+              id={id}
+              name={title}
+              orderNumber={ordinal}
+              isDisabled={issues.length < 2}
+              withDelete={withDelete}
+              onDelete={handleDelete}
+            />
           ))}
         </ul>
       </SortableContext>

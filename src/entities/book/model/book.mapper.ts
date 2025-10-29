@@ -35,6 +35,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
       contributions = [],
       languages = [],
       publications = [],
+      issues = [],
     } = dto;
 
     const frontmatterCount = pageBreakdown?.split(pageBreakdownSeparator)[0] ?? '';
@@ -165,6 +166,12 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
           })),
         }),
       ),
+      issues: issues.map(({ issueId, issueOrdinal, series }) => ({
+        id: issueId,
+        ordinal: issueOrdinal,
+        seriesId: series.seriesId,
+        seriesName: series.seriesName,
+      })),
     };
   }
 }

@@ -1,17 +1,22 @@
+'use client';
+
 import { ServerError } from '@apollo/client';
 
 import { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
-import { CREATE_ISSUE, GET_SERIES } from '../../model/series.schema';
+import { CREATE_ISSUE } from '../../model/series.schema';
 import type { SeriesId } from '../../model/series.types';
 
 const { ISSUE_CREATION_FAILED } = NOTIFICATIONS;
 
-const useCreateIssue = ({ queryToken, workId }: { queryToken: QueryToken; workId: WorkId }) => {
+type UseCreateIssueProps = {
+  queryToken: QueryToken;
+};
+
+const useCreateIssue = ({ queryToken }: UseCreateIssueProps) => {
   const { sendErrorNotification } = useNotifications();
 
   const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
@@ -29,17 +34,17 @@ const useCreateIssue = ({ queryToken, workId }: { queryToken: QueryToken; workId
 
         sendErrorNotification(ISSUE_CREATION_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
     },
   });
 
-  const createIssue = (data: { orderNumber: number; seriesId: SeriesId; workId: WorkId }) => {
+  const createIssue = async (data: { orderNumber: number; seriesId: SeriesId; workId: WorkId }) => {
     const { orderNumber, seriesId, workId } = data;
 
     mutate({
       variables: { data: { issueOrdinal: orderNumber, seriesId, workId } },
     });
-    client.refetchQueries({ include: [GET_SERIES] });
+
+    await client.refetchQueries({ include: 'active' });
   };
 
   return {

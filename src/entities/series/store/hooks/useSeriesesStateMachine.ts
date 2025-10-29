@@ -1,9 +1,9 @@
 import { useCallback } from 'react';
 
 import { SeriesEntity } from '../../model/series.types';
-import { SeriesStateMachineContext } from '../series.provider';
+import { SeriesStateMachineContext } from '../serieses.provider';
 
-const useSeriesStateMachine = () => {
+const useSeriesesStateMachine = () => {
   const activeSeries: SeriesEntity | null = SeriesStateMachineContext.useSelector(
     (state) => state.context.activeSeries,
   );
@@ -23,4 +23,4 @@ const useSeriesStateMachine = () => {
   return { activeSeries, edit, close };
 };
 
-export default useSeriesStateMachine;
+export default useSeriesesStateMachine;

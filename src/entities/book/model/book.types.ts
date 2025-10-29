@@ -2,7 +2,7 @@ import type { WorkFragmentFragment } from '@/gql/graphql';
 
 import type { LanguageEntity } from '../../language/model/language.types';
 import { PublicationEntity } from '../../publication/model/publication.types';
-import type { WorkContribution, WorkStatus, WorkType } from '../../work/model/work.types';
+import type { WorkContribution, WorkIssue, WorkStatus, WorkType } from '../../work/model/work.types';
 
 export type BookDto = WorkFragmentFragment;
 
@@ -36,4 +36,5 @@ export type BookEntity = {
   backmatterCount: number;
   languages: LanguageEntity[];
   publications: PublicationEntity[];
+  issues: WorkIssue[];
 };

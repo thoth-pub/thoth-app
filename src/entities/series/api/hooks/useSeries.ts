@@ -1,37 +1,32 @@
 import { useQuery } from '@apollo/client/react';
 
-import type { PublisherId } from '@/src/entities/publisher';
-import { appConfig } from '@/src/shared';
-
 import { SeriesDtoMapper } from '../../model/series.mapper';
 import { GET_SERIES } from '../../model/series.schema';
+import type { SeriesId } from '../../model/series.types';
 
 const mapper = new SeriesDtoMapper();
 
 type UseSeriesProps = {
-  publishersIds: PublisherId[];
-  offset?: number;
-  limit?: number;
-  filter?: string;
+  seriesId: SeriesId;
 };
 
 const useSeries = (props: UseSeriesProps) => {
-  const { publishersIds, offset = 0, limit = appConfig.data.itemsPerRequestLimit, filter = '' } = props;
+  const { seriesId } = props;
 
   const {
-    data: { serieses } = { serieses: [] },
+    data: { series } = { series: null },
     error,
     loading,
     refetch,
     client,
   } = useQuery(GET_SERIES, {
-    variables: { publishers: publishersIds, filter, offset, limit },
-    skip: publishersIds.length === 0,
+    variables: { seriesId },
+    skip: seriesId.length === 0,
   });
 
-  const data = serieses.map(mapper.toEntity);
+  const data = series ? mapper.toEntity(series) : null;
 
-  return { series: data, error, loading, refetch, client };
+  return { series: data, error, loading, client, refetch };
 };
 
 export default useSeries;

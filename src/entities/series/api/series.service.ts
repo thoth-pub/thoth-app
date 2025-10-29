@@ -2,13 +2,13 @@ import { PublisherId } from '@/src/entities/publisher';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { SeriesDtoMapper } from '../model/series.mapper';
-import { GET_SERIES } from '../model/series.schema';
+import { GET_SERIESES } from '../model/series.schema';
 import type { SeriesEntity } from '../model/series.types';
 
 export class SeriesService extends BaseService {
   async getSeries(publishersIds: PublisherId[]): Promise<SeriesEntity[]> {
     const { data } = await this.queryClient({
-      query: GET_SERIES,
+      query: GET_SERIESES,
       variables: { publishers: publishersIds },
     });
 

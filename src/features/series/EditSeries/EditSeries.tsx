@@ -3,8 +3,8 @@
 import { Typography } from '@mui/material';
 import { useState } from 'react';
 
-import { EditSeriesForm, useSeriesStateMachine, useUpdateSeries } from '@/src/entities/series';
-import { GET_SERIES } from '@/src/entities/series/model/series.schema';
+import { EditSeriesForm, useSeriesesStateMachine, useUpdateSeries } from '@/src/entities/series';
+import { GET_SERIESES } from '@/src/entities/series/model/series.schema';
 import {
   SeriesDescriptionFormType,
   SeriesImprintFormType,
@@ -16,19 +16,22 @@ import {
 import type { FormFieldOption, QueryToken } from '@/src/shared';
 import { CloseButton, MultipleContentWrapper, SubmitButton } from '@/src/shared/ui';
 
+import { IssuesList } from '../../work/EditWorkSeries/components/IssuesList';
+import { AddBookModal } from './components/AddBookModal';
+
 type EditSeriesProps = {
   queryToken: QueryToken;
   imprintOptions: FormFieldOption[];
 };
 
 const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
-  const { activeSeries, close } = useSeriesStateMachine();
+  const { activeSeries, close } = useSeriesesStateMachine();
 
   const [series, setSeries] = useState(activeSeries);
   const { updateSeries, client } = useUpdateSeries({ queryToken });
 
   const done = () => {
-    client.refetchQueries({ include: [GET_SERIES] });
+    client.refetchQueries({ include: [GET_SERIESES] });
     close();
   };
 
@@ -104,24 +107,28 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
         </div>
       </div>
       {series && (
-        <EditSeriesForm
-          isTableVariant
-          borderTransparent
-          imprintOptions={imprintOptions}
-          type={series.type}
-          name={series.name}
-          issnPrint={series.issnPrint}
-          issnDigital={series.issnDigital}
-          imprint={series.imprintName}
-          url={series.url}
-          description={series.description}
-          onTypeChange={updateType}
-          onNameChange={updateName}
-          onIssnChange={updateIssn}
-          onImprintChange={updateImprint}
-          onUrlChange={updateUrl}
-          onDescriptionChange={updateDescription}
-        />
+        <>
+          <EditSeriesForm
+            isTableVariant
+            borderTransparent
+            imprintOptions={imprintOptions}
+            type={series.type}
+            name={series.name}
+            issnPrint={series.issnPrint}
+            issnDigital={series.issnDigital}
+            imprint={series.imprintName}
+            url={series.url}
+            description={series.description}
+            onTypeChange={updateType}
+            onNameChange={updateName}
+            onIssnChange={updateIssn}
+            onImprintChange={updateImprint}
+            onUrlChange={updateUrl}
+            onDescriptionChange={updateDescription}
+          />
+          <IssuesList seriesId={series.id} queryToken={queryToken} withDelete />
+          <AddBookModal queryToken={queryToken} seriesId={series.id} />
+        </>
       )}
     </MultipleContentWrapper>
   );

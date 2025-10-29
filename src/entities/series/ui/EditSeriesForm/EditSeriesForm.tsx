@@ -154,16 +154,16 @@ const EditSeriesForm = ({
             <div className="flex flex-col gap-2 lg:flex-row">
               <FormTextField
                 control={control as unknown as Control<SeriesIssnFormType>}
-                name={SERIES_ISSN_PRINT.name}
-                id={SERIES_ISSN_PRINT.name}
-                placeholder={SERIES_ISSN_PRINT.placeholder}
+                name={SERIES_ISSN_DIGITAL.name}
+                id={SERIES_ISSN_DIGITAL.name}
+                placeholder={SERIES_ISSN_DIGITAL.placeholder}
                 fullWidth
               />
               <FormTextField
                 control={control as unknown as Control<SeriesIssnFormType>}
-                name={SERIES_ISSN_DIGITAL.name}
-                id={SERIES_ISSN_DIGITAL.name}
-                placeholder={SERIES_ISSN_DIGITAL.placeholder}
+                name={SERIES_ISSN_PRINT.name}
+                id={SERIES_ISSN_PRINT.name}
+                placeholder={SERIES_ISSN_PRINT.placeholder}
                 fullWidth
               />
             </div>

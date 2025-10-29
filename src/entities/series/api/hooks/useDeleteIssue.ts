@@ -1,14 +1,20 @@
+'use client';
+
 import { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import type { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
-import { DELETE_ISSUE, GET_SERIES } from '../../model/series.schema';
+import { DELETE_ISSUE } from '../../model/series.schema';
 
 const { ISSUE_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteIssue = ({ queryToken, workId }: { queryToken: QueryToken; workId: WorkId }) => {
+type UseDeleteIssueProps = {
+  queryToken: QueryToken;
+};
+
+const useDeleteIssue = (props: UseDeleteIssueProps) => {
+  const { queryToken } = props;
+
   const { sendErrorNotification } = useNotifications();
 
   const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
@@ -19,15 +25,15 @@ const useDeleteIssue = ({ queryToken, workId }: { queryToken: QueryToken; workId
         console.error(error);
         sendErrorNotification(ISSUE_DELETE_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
     },
   });
 
-  const deleteIssue = (issueId: string) => {
+  const deleteIssue = async (issueId: string) => {
     mutate({
       variables: { issueId },
     });
-    client.refetchQueries({ include: [GET_SERIES] });
+
+    await client.refetchQueries({ include: 'active' });
   };
 
   return {

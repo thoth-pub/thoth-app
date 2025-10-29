@@ -2,6 +2,6 @@
 
 import { createActorContext } from '@xstate/react';
 
-import { seriesStateMachine } from './series.state-machine';
+import { seriesStateMachine } from './serieses.state-machine';
 
 export const SeriesStateMachineContext = createActorContext(seriesStateMachine);

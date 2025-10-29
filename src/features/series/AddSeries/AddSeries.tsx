@@ -3,7 +3,7 @@
 import AddIcon from '@mui/icons-material/Add';
 import { useState } from 'react';
 
-import { EditSeriesForm, useCreateSeries, useSeriesStateMachine } from '@/src/entities/series';
+import { EditSeriesForm, useCreateSeries, useSeriesesStateMachine } from '@/src/entities/series';
 import type {
   SeriesDescriptionFormType,
   SeriesEntity,
@@ -22,7 +22,7 @@ type AddSeriesProps = {
 };
 
 const AddSeries = ({ imprintOptions, queryToken }: AddSeriesProps) => {
-  const { activeSeries, edit, close } = useSeriesStateMachine();
+  const { activeSeries, edit, close } = useSeriesesStateMachine();
 
   const [series, setSeries] = useState(activeSeries);
   const { createSeries } = useCreateSeries({ queryToken });

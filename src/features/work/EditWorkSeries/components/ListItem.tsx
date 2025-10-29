@@ -5,15 +5,19 @@ import { CSS } from '@dnd-kit/utilities';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { Typography } from '@mui/material';
 
+import { DeleteButton } from '@/src/shared/ui';
+
 type ListItemProps = {
   id: string;
   name: string;
   orderNumber: number;
   isDisabled?: boolean;
+  withDelete?: boolean;
+  onDelete?: (id: string) => void;
 };
 
 export const ListItem = (props: ListItemProps) => {
-  const { id, name, orderNumber, isDisabled = false } = props;
+  const { id, name, orderNumber, isDisabled = false, withDelete = false, onDelete } = props;
 
   const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
 
@@ -37,6 +41,9 @@ export const ListItem = (props: ListItemProps) => {
         {...listeners}
       />
       {orderNumber}. {name}
+      {withDelete && (
+        <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
+      )}
     </Typography>
   );
 };

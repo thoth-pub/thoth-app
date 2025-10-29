@@ -1,7 +1,7 @@
 import { graphql } from '@/gql';
 
-export const GET_SERIES = graphql(`
-  query GetSeries($publishers: [Uuid!]!, $filter: String, $offset: Int, $limit: Int) {
+export const GET_SERIESES = graphql(`
+  query GetSerieses($publishers: [Uuid!]!, $filter: String, $offset: Int, $limit: Int) {
     serieses(publishers: $publishers, filter: $filter, offset: $offset, limit: $limit) {
       seriesId
       seriesName
@@ -27,9 +27,36 @@ export const GET_SERIES = graphql(`
   }
 `);
 
-export const GET_SERIES_COUNT = graphql(`
+export const GET_SERIESES_COUNT = graphql(`
   query GetSeriesCount($publishers: [Uuid!]!) {
     seriesCount(publishers: $publishers)
+  }
+`);
+
+export const GET_SERIES = graphql(`
+  query GetSeries($seriesId: Uuid!) {
+    series(seriesId: $seriesId) {
+      seriesId
+      seriesName
+      seriesType
+      issnPrint
+      issnDigital
+      updatedAt
+      imprintId
+      imprint {
+        imprintName
+      }
+      seriesUrl
+      seriesDescription
+      issues {
+        issueId
+        issueOrdinal
+        work {
+          workId
+          title
+        }
+      }
+    }
   }
 `);
 
