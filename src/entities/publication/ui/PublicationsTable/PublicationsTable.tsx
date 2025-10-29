@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 
-import { Chip, Table, TableBody, TableCell, TableHeader, TableRow } from '@/src/shared/ui';
+import { Chip, Table, TableBody, TableCell, TableFormWrapper, TableHeader, TableRow } from '@/src/shared/ui';
 
 import type { PublicationEntity } from '../../model/publication.types';
 import { RowButtonGroup } from './components/RowButtonGroup';
@@ -25,14 +25,7 @@ const PublicationsTable = (props: PublicationsTableProps) => {
             ({ id, type, isbn, width, widthIn, height, heightIn, depth, depthIn, weight, weightOz, prices }) => (
               <Fragment key={id}>
                 {activePublication?.id === id ? (
-                  <TableRow>
-                    <TableCell
-                      colSpan={3}
-                      className="rounded-2xl border-1 border-[var(--color-form-border)] bg-[var(--color-form-background)] p-0"
-                    >
-                      {form}
-                    </TableCell>
-                  </TableRow>
+                  <TableFormWrapper colSpan={3}>{form}</TableFormWrapper>
                 ) : (
                   <TableRow className="group">
                     <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-7 capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">

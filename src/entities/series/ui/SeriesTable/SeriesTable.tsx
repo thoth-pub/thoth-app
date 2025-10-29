@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { appConfig, convertOptionToString, QueryToken } from '@/src/shared';
@@ -13,6 +13,7 @@ import {
   Table,
   TableBody,
   TableCell,
+  TableFormWrapper,
   TableHeader,
   TableRow,
   Typography,
@@ -91,16 +92,11 @@ const SeriesTable = (props: SeriesTableProps) => {
                   url,
                   issues,
                 }) => (
-                  <TableRow key={id} className="group">
+                  <Fragment key={id}>
                     {activeSeries && activeSeries.id === id ? (
-                      <TableCell
-                        colSpan={4}
-                        className="rounded-2xl border-1 border-[var(--color-form-border)] bg-[var(--color-form-background)]"
-                      >
-                        {seriesForm}
-                      </TableCell>
+                      <TableFormWrapper colSpan={4}>{seriesForm}</TableFormWrapper>
                     ) : (
-                      <>
+                      <TableRow key={id} className="group">
                         <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
                           {name}
                         </TableCell>
@@ -140,9 +136,9 @@ const SeriesTable = (props: SeriesTableProps) => {
                             </ButtonGroup>
                           </div>
                         </TableCell>
-                      </>
+                      </TableRow>
                     )}
-                  </TableRow>
+                  </Fragment>
                 ),
               )}
             </>

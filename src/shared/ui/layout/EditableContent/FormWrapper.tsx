@@ -1,4 +1,5 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import { Modal } from '@mui/material';
 import {
   type Control,
   type DefaultValues,
@@ -13,7 +14,9 @@ import { useUnmount } from 'react-use';
 import type { ZodType } from 'zod';
 
 import { mergeStyles } from '@/src/shared';
+import { useIsDesktop } from '@/src/shared/hooks';
 
+import ModalWrapper from '../../core/ModalWrapper/ModalWrapper';
 import FormControlGroup from '../../forms/FormControlGroup/FormControlGroup';
 
 export type FormProps<T extends FieldValues> = {
@@ -64,6 +67,8 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     defaultValues,
   });
 
+  const isDesktop = useIsDesktop();
+
   const isSubmitDisabled = !isValid || !isDirty;
   const shouldSubmitAutomatically = isDirty && isValid && !isSubmitSuccessful;
 
@@ -80,20 +85,41 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
   });
 
   return (
-    <form
-      onSubmit={handleSubmitForm}
-      className={mergeStyles(
-        `flex gap-1 ${borderTransparent ? '' : 'border-1 border-[var(--color-hover-border)]'} bg-[var(--color-form-background)] ${isTableVariant ? '' : 'rounded-xl p-4'} `,
-        className,
+    <>
+      {isDesktop || (!isDesktop && isTableVariant) ? (
+        <form
+          onSubmit={handleSubmitForm}
+          className={mergeStyles(
+            `flex gap-1 ${borderTransparent ? '' : 'border-1 border-[var(--color-hover-border)]'} bg-[var(--color-form-background)] ${isTableVariant ? '' : 'rounded-xl p-4'} `,
+            className,
+          )}
+        >
+          <div className="grow">{children({ control: control as Control<FieldValues>, reset, setValue })}</div>
+          <FormControlGroup
+            isDisabled={isSubmitDisabled}
+            onClose={onClose}
+            onInfo={onInfo}
+            className={controlsClassName}
+          />
+        </form>
+      ) : (
+        <Modal open>
+          <ModalWrapper>
+            <form
+              onSubmit={handleSubmitForm}
+              className={mergeStyles('flex gap-1 rounded-xl bg-[var(--color-form-background)] p-4', className)}
+            >
+              <div className="grow">{children({ control: control as Control<FieldValues>, reset, setValue })}</div>
+              <FormControlGroup
+                isDisabled={isSubmitDisabled}
+                onClose={onClose}
+                onInfo={onInfo}
+                className={controlsClassName}
+              />
+            </form>
+          </ModalWrapper>
+        </Modal>
       )}
-    >
-      <div className="grow">{children({ control: control as Control<FieldValues>, reset, setValue })}</div>
-      <FormControlGroup
-        isDisabled={isSubmitDisabled}
-        onClose={onClose}
-        onInfo={onInfo}
-        className={controlsClassName}
-      />
-    </form>
+    </>
   );
 };

@@ -70,3 +70,5 @@ export { default as Footer } from './layout/Footer/Footer';
 export { default as MultipleContentWrapper } from './layout/MultipleContentWrapper/MultipleContentWrapper';
 export { default as PageHeader } from './layout/PageHeader/PageHeader';
 export { default as RecommendedSection } from './layout/RecommendedSection/RecommendedSection';
+// Tables
+export { default as TableFormWrapper } from './tables/TableFormWrapper/TableFormWrapper';

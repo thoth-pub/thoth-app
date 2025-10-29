@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 
-import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/src/shared/ui';
+import { Table, TableBody, TableCell, TableFormWrapper, TableHeader, TableRow } from '@/src/shared/ui';
 
 import type { ReferenceEntity } from '../../model/reference.types';
 import { RowButtonGroup } from './components/RowButtonGroup';
@@ -27,14 +27,7 @@ const ReferencesTable = (props: ReferencesTableProps) => {
           {references.map(({ id, doi, unstructuredCitation, orderNumber }) => (
             <Fragment key={id}>
               {activeReference?.id === id ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={3}
-                    className="rounded-2xl border-1 border-[var(--color-form-border)] bg-[var(--color-form-background)]"
-                  >
-                    {form}
-                  </TableCell>
-                </TableRow>
+                <TableFormWrapper colSpan={3}>{form}</TableFormWrapper>
               ) : (
                 <TableRow className="group">
                   <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-7 capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">

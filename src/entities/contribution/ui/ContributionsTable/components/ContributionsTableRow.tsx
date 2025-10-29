@@ -9,7 +9,16 @@ import removeMd from 'remove-markdown';
 
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
 import { appConfig, convertOrchidIdToText, convertRorIdToText, truncateString } from '@/src/shared';
-import { Indicator, LinkTooltip, OrchidLogo, RorLogo, TableCell, TableRow, Typography } from '@/src/shared/ui';
+import {
+  Indicator,
+  LinkTooltip,
+  OrchidLogo,
+  RorLogo,
+  TableCell,
+  TableFormWrapper,
+  TableRow,
+  Typography,
+} from '@/src/shared/ui';
 
 import { RowButtonGroup } from './RowButtonGroup';
 
@@ -51,11 +60,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
   return (
     <AnimatePresence mode="wait">
       {isEditing ? (
-        <TableRow className="w-full bg-[var(--color-table-edit-row-form-background)]">
-          <TableCell colSpan={4} className="rounded-2xl border-1 border-[var(--color-form-border)]">
-            {form}
-          </TableCell>
-        </TableRow>
+        <TableFormWrapper colSpan={4}>{form}</TableFormWrapper>
       ) : (
         <TableRow ref={setNodeRef} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
           <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-1 group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
