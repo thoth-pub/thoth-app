@@ -3,7 +3,6 @@
 import { Typography } from '@mui/material';
 
 import { EditSeriesForm, useSeries, useSeriesesStateMachine, useUpdateSeries } from '@/src/entities/series';
-import { GET_SERIESES } from '@/src/entities/series/model/series.schema';
 import {
   SeriesDescriptionFormType,
   SeriesImprintFormType,
@@ -27,10 +26,9 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
   const { activeSeries, close } = useSeriesesStateMachine();
 
   const { series } = useSeries({ seriesId: activeSeries?.id ?? '' });
-  const { updateSeries, client } = useUpdateSeries({ queryToken });
+  const { updateSeries } = useUpdateSeries({ queryToken });
 
   const done = () => {
-    client.refetchQueries({ include: [GET_SERIESES] });
     close();
   };
 

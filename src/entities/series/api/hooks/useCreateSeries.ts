@@ -35,6 +35,9 @@ const useCreateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
 
         sendErrorNotification(SERIES_CREATION_FAILED);
       },
+      onCompleted: async () => {
+        await client.refetchQueries({ include: 'all' });
+      },
     },
   });
 
@@ -50,8 +53,6 @@ const useCreateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
     mutate({
       variables: { data: { ...dto } },
     });
-
-    await client.refetchQueries({ include: 'all' });
   };
 
   return {

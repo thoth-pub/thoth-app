@@ -36,6 +36,9 @@ const useUpdateIssue = (props: UseUpdateIssueProps) => {
 
         sendErrorNotification(ISSUE_UPDATE_FAILED);
       },
+      onCompleted: async () => {
+        await client.refetchQueries({ include: 'all' });
+      },
     },
   });
 
@@ -45,8 +48,6 @@ const useUpdateIssue = (props: UseUpdateIssueProps) => {
     mutate({
       variables: { data: { issueId, issueOrdinal: orderNumber, seriesId, workId } },
     });
-
-    await client.refetchQueries({ include: 'all' });
   };
 
   return {

@@ -34,6 +34,9 @@ const useCreateIssue = ({ queryToken }: UseCreateIssueProps) => {
 
         sendErrorNotification(ISSUE_CREATION_FAILED);
       },
+      onCompleted: async () => {
+        await client.refetchQueries({ include: 'all' });
+      },
     },
   });
 
@@ -43,8 +46,6 @@ const useCreateIssue = ({ queryToken }: UseCreateIssueProps) => {
     mutate({
       variables: { data: { issueOrdinal: orderNumber, seriesId, workId } },
     });
-
-    await client.refetchQueries({ include: 'all' });
   };
 
   return {

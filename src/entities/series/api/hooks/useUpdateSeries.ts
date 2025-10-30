@@ -30,6 +30,9 @@ const useUpdateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
 
         sendErrorNotification(SERIES_UPDATE_FAILED);
       },
+      onCompleted: async () => {
+        await client.refetchQueries({ include: 'all' });
+      },
     },
   });
 
@@ -39,13 +42,10 @@ const useUpdateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
     mutate({
       variables: { data: dto },
     });
-
-    await client.refetchQueries({ include: 'all' });
   };
 
   return {
     updateSeries,
-    client,
     loading,
   };
 };

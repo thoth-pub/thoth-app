@@ -25,6 +25,9 @@ const useDeleteIssue = (props: UseDeleteIssueProps) => {
         console.error(error);
         sendErrorNotification(ISSUE_DELETE_FAILED);
       },
+      onCompleted: async () => {
+        await client.refetchQueries({ include: 'all' });
+      },
     },
   });
 
@@ -32,8 +35,6 @@ const useDeleteIssue = (props: UseDeleteIssueProps) => {
     mutate({
       variables: { issueId },
     });
-
-    await client.refetchQueries({ include: 'all' });
   };
 
   return {
