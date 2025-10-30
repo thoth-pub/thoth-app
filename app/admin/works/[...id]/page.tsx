@@ -1,3 +1,4 @@
+import { ServerError } from '@apollo/client';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 
@@ -26,10 +27,18 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
     redirect(ROUTES.LOGIN);
   }
 
-  const { data } = await getClient().query({ query: GET_WORK, variables: { workId: id } });
+  try {
+    const { data } = await getClient().query({ query: GET_WORK, variables: { workId: id } });
 
-  if (!data) {
-    redirect(ROUTES.NOT_FOUND);
+    if (!data) {
+      redirect(ROUTES.NOT_FOUND);
+    }
+  } catch (error: unknown) {
+    if (ServerError.is(error) && error.statusCode === 400) {
+      redirect(ROUTES.NOT_FOUND);
+    }
+
+    throw error;
   }
 
   const linkedPublishers = session.user.linkedPublishers ? session.user.linkedPublishers : [];

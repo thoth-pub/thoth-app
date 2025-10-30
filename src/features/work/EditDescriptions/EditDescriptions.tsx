@@ -2,7 +2,7 @@
 
 import { EditSubjects } from '@/src/entities/subject';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
-import type { BaseEditSectionProps } from '@/src/shared';
+import { ANCHORS, type BaseEditSectionProps } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
 
 import { EditLanguages } from './components/EditLanguages';
@@ -20,7 +20,7 @@ const EditDescriptions = (props: BaseEditSectionProps) => {
   const isEmpty = work.languages.length === 0 && work.pageCount === 0;
 
   return (
-    <RecommendedSection title="Descriptions" isEmpty={isEmpty} isValid={isValid}>
+    <RecommendedSection title="Descriptions" isEmpty={isEmpty} isValid={isValid} id={ANCHORS.DESCRIPTIONS}>
       {({ showRecommendations }) => (
         <>
           <EditPagesCount

@@ -10,11 +10,12 @@ type RecommendedSectionProps = {
   title: string;
   isEmpty?: boolean;
   isValid?: boolean;
+  id?: string;
   children?: ({ showRecommendations }: { showRecommendations: boolean }) => React.ReactNode;
 };
 
 const RecommendedSection = (props: RecommendedSectionProps) => {
-  const { title, isEmpty, isValid, children } = props;
+  const { title, isEmpty, isValid, id, children } = props;
 
   const [showRecommendations, setShowRecommendations] = useState(false);
   const { t } = useTranslation();
@@ -26,6 +27,7 @@ const RecommendedSection = (props: RecommendedSectionProps) => {
   return (
     <ContentSection
       title={t(title)}
+      id={id}
       headerContent={
         <DataIndicator
           isActive={showRecommendations}

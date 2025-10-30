@@ -37,7 +37,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
       <EditPublications workId={workId} queryToken={queryToken} />
       <EditFundings workId={workId} queryToken={queryToken} />
       <EditReferences workId={workId} queryToken={queryToken} />
-      <WorkSpeedDial />
+      <WorkSpeedDial workId={workId} queryToken={queryToken} />
     </div>
   );
 };

@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { FundingsTable, useDeleteFunding, useFundingsStateMachine } from '@/src/entities/funding';
 import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
-import { isDefaultId } from '@/src/shared';
+import { ANCHORS, isDefaultId } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import { BaseEditSectionProps } from '@/src/shared/types';
 import { AddButton, RecommendedSection } from '@/src/shared/ui';
@@ -53,7 +53,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
   };
 
   return (
-    <RecommendedSection title="Fundings" isEmpty={false} isValid={!isFundingsRequired}>
+    <RecommendedSection title="Fundings" isEmpty={false} isValid={!isFundingsRequired} id={ANCHORS.FUNDINGS}>
       {({ showRecommendations }) => (
         <>
           <FundingsTable

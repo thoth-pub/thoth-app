@@ -1,7 +1,7 @@
 'use client';
 
 import { useWorkRecommendations } from '@/src/entities/work';
-import type { BaseEditSectionProps } from '@/src/shared';
+import { ANCHORS, type BaseEditSectionProps } from '@/src/shared';
 import type { FormFieldOption } from '@/src/shared/interfaces';
 import { RecommendedSection } from '@/src/shared/ui';
 
@@ -22,7 +22,12 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
   const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
 
   return (
-    <RecommendedSection title="Basic details" isEmpty={false} isValid={!isDoiRequired && !isLandingPageRequired}>
+    <RecommendedSection
+      title="Basic details"
+      isEmpty={false}
+      isValid={!isDoiRequired && !isLandingPageRequired}
+      id={ANCHORS.BASIC_DETAILS}
+    >
       {({ showRecommendations }) => (
         <div className="grid grid-cols-[1fr_200px] gap-2 lg:grid-cols-[1fr_300px]">
           <div>

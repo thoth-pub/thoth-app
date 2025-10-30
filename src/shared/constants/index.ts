@@ -1,3 +1,4 @@
+export * from './anchors';
 export * from './contributors';
 export * from './countries';
 export * from './currencies';

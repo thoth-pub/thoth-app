@@ -10,14 +10,16 @@ type ContentSectionProps = Partial<{
   children: Readonly<ReactNode>;
   className: string;
   headerContent: Readonly<ReactNode>;
+  id: string;
 }>;
 
-const ContentSection = ({ children, title, headerContent, className }: ContentSectionProps) => {
+const ContentSection = ({ children, title, headerContent, className, id }: ContentSectionProps) => {
   return (
     <Paper
       elevation={3}
       component="section"
       className={mergeStyles('rounded-2xl bg-[var(--color-background-alt)] p-4 lg:p-7', className)}
+      id={id}
     >
       {title && (
         <div className="mb-9 flex items-center justify-between pl-4">

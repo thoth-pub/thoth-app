@@ -47,7 +47,7 @@ const DataIndicator = (props: DataIndicatorProps) => {
     >
       <div
         className={mergeStyles(
-          `flex h-4 w-4 overflow-clip rounded-full border-1 opacity-100 lg:h-5 lg:w-5 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`,
+          `flex h-4 w-4 shrink-0 overflow-clip rounded-full border-1 opacity-100 lg:h-5 lg:w-5 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`,
           indicatorClassName,
         )}
       >

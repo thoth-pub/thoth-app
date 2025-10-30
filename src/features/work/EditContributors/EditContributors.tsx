@@ -3,7 +3,7 @@
 import { ContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
-import { type BaseEditSectionProps, isDefaultId } from '@/src/shared';
+import { ANCHORS, type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
 
 type EditContributorsProps = BaseEditSectionProps & {
@@ -22,7 +22,12 @@ const EditContributors = (props: EditContributorsProps) => {
   const isEmpty = work.contributions.length === 0;
 
   return (
-    <RecommendedSection title="Contributors" isEmpty={isEmpty} isValid={!isContributionsRequired}>
+    <RecommendedSection
+      title="Contributors"
+      isEmpty={isEmpty}
+      isValid={!isContributionsRequired}
+      id={ANCHORS.CONTRIBUTIONS}
+    >
       {({ showRecommendations }) => (
         <>
           <ContributionsTable

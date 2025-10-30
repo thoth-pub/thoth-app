@@ -23,9 +23,6 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
 
   const isCoverUrlRequired = work && (!work.coverUrl || work.coverUrl.length === 0);
 
-  // issue ordinal req
-  // const isIssueOrdinalRequired = work && work.issueOrdinal === null;
-
   const isPageCountRequired = work && work.pageCount === 0;
 
   const isLanguagesRequired = work && work.languages.length === 0;
@@ -33,12 +30,14 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
   const isSubjectsRequired =
     (work && work.subjects.length === 0) || work.subjects.some((subject) => subject.type !== SubjectTypes.enum.Thema);
 
-  const isFundingsRequired =
-    work && work.fundings.length > 0 && work.fundings.some((funding) => funding.grantNumber.length === 0);
+  const isFundingsEmpty = work && work.fundings.length === 0;
 
-  // contributions rec
+  const isFundingsRequired = isFundingsEmpty || work.fundings.some((funding) => funding.grantNumber.length === 0);
+
+  const isContributionsEmpty = work && work.contributions.length === 0;
+
   const isContributionsRequired =
-    (work && work.contributions.length === 0) ||
+    isContributionsEmpty ||
     work.contributions.some(
       (contribution) =>
         !contribution.biography ||
@@ -51,13 +50,10 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
   const informationForCheck = [
     isTitleRequired,
     isEditionRequired,
-    // isWorkTypeRequired,
     isImprintRequired,
-    // isLicenseRequired,
     isDoiRequired,
     isLandingPageRequired,
     isCoverUrlRequired,
-    // isIssueOrdinalRequired,
     isPageCountRequired,
     isLanguagesRequired,
     isContributionsRequired,
@@ -69,6 +65,25 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
 
   const isEmpty = informationForCheck.every((value) => value === false);
 
+  const basicDetailsSection = [
+    isTitleRequired,
+    isEditionRequired,
+    isImprintRequired,
+    isDoiRequired,
+    isLandingPageRequired,
+    isCoverUrlRequired,
+  ];
+
+  const isBasicDetailsSectionEmpty = basicDetailsSection.every((value) => value === false);
+
+  const isBasicDetailsSectionFilled = basicDetailsSection.every(Boolean);
+
+  const descriptionsSection = [isPageCountRequired, isLanguagesRequired, isSubjectsRequired];
+
+  const isDescriptionsSectionEmpty = descriptionsSection.every((value) => value === false);
+
+  const isDescriptionsSectionFilled = descriptionsSection.every(Boolean);
+
   return {
     isAllInformationFilled,
     isEmpty,
@@ -78,11 +93,16 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
     isDoiRequired,
     isLandingPageRequired,
     isCoverUrlRequired,
-    // isIssueOrdinalRequired,
+    isBasicDetailsSectionEmpty,
+    isBasicDetailsSectionFilled,
+    isDescriptionsSectionEmpty,
+    isDescriptionsSectionFilled,
     isPageCountRequired,
     isLanguagesRequired,
+    isContributionsEmpty,
     isContributionsRequired,
     isSubjectsRequired,
+    isFundingsEmpty,
     isFundingsRequired,
   };
 };
