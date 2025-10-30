@@ -1,5 +1,6 @@
 import { useQuery } from '@apollo/client/react';
 
+import { Direction, SeriesField, SeriesType } from '@/gql/graphql';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { appConfig } from '@/src/shared';
 
@@ -11,11 +12,14 @@ const mapper = new SeriesDtoMapper();
 type UseSeriesProps = {
   offset?: number;
   limit?: number;
+  direction?: Direction;
   filter?: string;
+  seriesType?: SeriesType;
+  field?: SeriesField;
 };
 
 const useSerieses = (props: UseSeriesProps) => {
-  const { offset = 0, limit = appConfig.data.itemsPerRequestLimit, filter = '' } = props;
+  const { offset = 0, limit = appConfig.data.itemsPerRequestLimit, filter = '', seriesType, field, direction } = props;
 
   const { activePublisher } = usePublisherStateMachine();
 
@@ -28,7 +32,15 @@ const useSerieses = (props: UseSeriesProps) => {
     refetch,
     client,
   } = useQuery(GET_SERIESES, {
-    variables: { publishers: publisherId, filter, offset, limit },
+    variables: {
+      publishers: publisherId,
+      filter,
+      offset,
+      limit,
+      direction,
+      field,
+      seriesTypes: seriesType ? [seriesType] : undefined,
+    },
     skip: publisherId.length === 0,
   });
 

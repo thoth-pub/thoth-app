@@ -3,11 +3,11 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { Direction } from '@/gql/graphql';
+import { Direction, WorkField } from '@/gql/graphql';
 import useBooks from '@/src/entities/book/api/hooks/useBooks';
 import useBooksCount from '@/src/entities/book/api/hooks/useBooksCount';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
-import type { WorkStatus } from '@/src/entities/work/model/work.types';
+import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
 import { appConfig, ROUTES } from '@/src/shared';
 import { useDebouncedValue } from '@/src/shared/hooks';
 
@@ -20,6 +20,8 @@ export const useAllBooks = () => {
   const publishers = activePublisher ? [activePublisher] : [];
 
   const [workStatus, setWorkStatus] = useState<WorkStatus | 'All'>('All');
+  const [workType, setWorkType] = useState<WorkType | 'All'>('All');
+  const [orderBy, setOrderBy] = useState(WorkField.UpdatedAtWithRelations);
   const [activePage, setActivePage] = useState(1);
   const [direction, setDirection] = useState<Direction>(Direction.Asc);
   const [searchValue, setSearchValue] = useState('');
@@ -34,6 +36,7 @@ export const useAllBooks = () => {
     direction,
     filter: debouncedValue,
     workStatus: workStatus === 'All' ? undefined : workStatus,
+    field: orderBy,
   });
 
   const totalPagesCount = Math.ceil(bookCount / ITEMS_PER_PAGE);
@@ -50,8 +53,16 @@ export const useAllBooks = () => {
     router.push(ROUTES.WORK_PAGE(id));
   };
 
-  const changeWorkStatus = (value: WorkStatus) => {
+  const changeWorkStatus = (value: WorkStatus | 'All') => {
     setWorkStatus(value);
+  };
+
+  const changeWorkType = (value: WorkType | 'All') => {
+    setWorkType(value);
+  };
+
+  const changeOrderBy = (value: WorkField) => {
+    setOrderBy(value);
   };
 
   return {
@@ -74,5 +85,9 @@ export const useAllBooks = () => {
     changeDirection,
     workStatus,
     changeWorkStatus,
+    workType,
+    changeWorkType,
+    orderBy,
+    changeOrderBy,
   };
 };

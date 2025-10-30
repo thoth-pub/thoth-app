@@ -107,8 +107,8 @@ const AddSeries = ({ imprintOptions, queryToken }: AddSeriesProps) => {
 
   return (
     <>
-      <Button startIcon={<AddIcon />} onClick={editSeries}>
-        Create New Series
+      <Button startIcon={<AddIcon />} variant="contained" onClick={editSeries}>
+        New
       </Button>
       <Modal open={open} onClose={close}>
         <ModalWrapper>

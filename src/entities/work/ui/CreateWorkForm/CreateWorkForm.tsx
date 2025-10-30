@@ -1,13 +1,11 @@
 'use client';
 
-import { useTranslation } from 'react-i18next';
-
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { useWorkTypeOptions } from '@/src/shared/hooks';
 import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
 import { AutocompleteGroup, Button, CircularProgress, PageHeader } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
-import { getWorkTypeOptions } from '@/src/shared/utils';
 
 import CreateWorkFormAutocompleteField from './components/CreateWorkFormAutocompleteField';
 import CreateWorkFormField from './components/CreateWorkFormField';
@@ -23,9 +21,7 @@ type CreateWorkFormProps = {
 };
 
 const CreateWorkForm = ({ imprintOptions, licenseOptions, queryToken }: CreateWorkFormProps) => {
-  const { i18n } = useTranslation();
-
-  const workTypeOptions = getWorkTypeOptions(i18n.language);
+  const workTypeOptions = useWorkTypeOptions();
 
   const { control, isImprintVisible, isSubmitDisabled, isLoading, availableNewWorkOptions, submit } = useCreateWorkForm(
     {

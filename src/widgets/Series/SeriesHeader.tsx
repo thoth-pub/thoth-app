@@ -4,43 +4,39 @@ import SearchIcon from '@mui/icons-material/Search';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 
-import { WorkField } from '@/gql/graphql';
-import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
-import { CreateNewWorkLink } from '@/src/features';
-import type { Direction } from '@/src/shared';
-import { directionOptions, workOrderByOptions, workStatusOptionsAlt } from '@/src/shared/constants/formFields';
-import { useWorkTypeOptions } from '@/src/shared/hooks';
+import type { SeriesField, SeriesType } from '@/gql/graphql';
+import { AddSeries } from '@/src/features';
+import type { Direction, FormFieldOption, QueryToken } from '@/src/shared';
+import { directionOptions, seriesOrderByOptions, seriesTypeOptions } from '@/src/shared/constants/formFields';
 import { Button, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
-type HeaderProps = {
-  workStatus: string;
-  workType: string;
+type SeriesHeaderProps = {
+  imprintOptions: FormFieldOption[];
+  queryToken: QueryToken;
+  seriesType: string;
   searchValue: string;
   direction: Direction;
   orderBy: string;
   onSearch: (value: string) => void;
-  changeWorkStatus: (value: WorkStatus | 'All') => void;
-  changeWorkType: (value: WorkType | 'All') => void;
+  changeSeriesType: (value: SeriesType | 'All') => void;
   changeDirection: (value: Direction) => void;
-  changeOrderBy: (value: WorkField) => void;
+  changeOrderBy: (value: SeriesField) => void;
 };
 
-export const Header = (props: HeaderProps) => {
+export const SeriesHeader = (props: SeriesHeaderProps) => {
   const {
-    workStatus,
-    workType,
+    imprintOptions,
+    queryToken,
+    seriesType,
     searchValue,
     direction,
     orderBy,
     onSearch,
-    changeWorkStatus,
-    changeWorkType,
+    changeSeriesType,
     changeDirection,
     changeOrderBy,
   } = props;
-
-  const workTypeOptions = useWorkTypeOptions();
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -51,7 +47,7 @@ export const Header = (props: HeaderProps) => {
   return (
     <ContentSection>
       <div className="flex items-center justify-between gap-2">
-        <Typography variant="h1">Books</Typography>
+        <Typography variant="h1">Series</Typography>
         <TextField
           slotProps={{
             input: {
@@ -64,13 +60,13 @@ export const Header = (props: HeaderProps) => {
           }}
           value={searchValue}
           className="max-w-[800px]"
-          placeholder="Search by title, DOI, internal reference"
+          placeholder="Search by name"
           fullWidth
           onChange={(e) => onSearch(e.target.value)}
         />
         <div className="flex items-center gap-2">
           <Button onClick={handleFilterOpen}>Filters</Button>
-          <CreateNewWorkLink />
+          <AddSeries imprintOptions={imprintOptions} queryToken={queryToken} />
         </div>
       </div>
 
@@ -84,32 +80,25 @@ export const Header = (props: HeaderProps) => {
             className="grid grid-cols-2 gap-2 transition-all duration-1000 lg:grid-cols-4"
           >
             <div className="flex flex-col gap-2">
-              <InputLabel>Status</InputLabel>
-              <TextField
-                select
-                options={[...workStatusOptionsAlt, { value: 'All', label: 'All' }]}
-                value={workStatus}
-                onChange={(e) => changeWorkStatus(e.target.value as WorkStatus | 'All')}
-              />
-            </div>
-            <div className="flex flex-col gap-2">
               <InputLabel>Type</InputLabel>
               <TextField
                 select
-                options={[...workTypeOptions, { value: 'All', label: 'All' }]}
-                value={workType}
-                onChange={(e) => changeWorkType(e.target.value as WorkType | 'All')}
+                options={[...seriesTypeOptions, { value: 'All', label: 'All' }]}
+                value={seriesType}
+                onChange={(e) => changeSeriesType(e.target.value as SeriesType | 'All')}
               />
             </div>
+
             <div className="flex flex-col gap-2">
               <InputLabel>Order by</InputLabel>
               <TextField
                 select
-                options={workOrderByOptions}
+                options={seriesOrderByOptions}
                 value={orderBy}
-                onChange={(e) => changeOrderBy(e.target.value as WorkField)}
+                onChange={(e) => changeOrderBy(e.target.value as SeriesField)}
               />
             </div>
+
             <div className="flex flex-col gap-2">
               <InputLabel>Direction</InputLabel>
               <TextField

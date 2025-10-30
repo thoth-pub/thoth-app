@@ -5,3 +5,4 @@ export { default as useFilter } from './useFilter';
 export { default as useIsDesktop } from './useIsDesktop';
 export { default as useMutationWithAuth } from './useMutationWithAuth';
 export { default as useNotifications } from './useNotifications';
+export { default as useWorkTypeOptions } from './useWorkTypeOptions';

@@ -1,9 +1,12 @@
 'use client';
 
 import { SeriesTable } from '@/src/entities/series';
-import { AddSeries, EditSeries } from '@/src/features';
+import { EditSeries } from '@/src/features';
 import { FormFieldOption, type QueryToken } from '@/src/shared';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+
+import { SeriesHeader } from './SeriesHeader';
+import { useSeriesTable } from './useSeriesTable';
 
 type SeriesProps = {
   imprintOptions: FormFieldOption[];
@@ -11,14 +14,48 @@ type SeriesProps = {
 };
 
 const Series = ({ imprintOptions, queryToken }: SeriesProps) => {
+  const {
+    loading,
+    serieses,
+    activePage,
+    totalPagesCount,
+    direction,
+    orderBy,
+    seriesType,
+    searchValue,
+    changePage,
+    setSearchValue,
+    changeSeriesType,
+    changeDirection,
+    changeOrderBy,
+  } = useSeriesTable();
+
   return (
-    <ContentSection title="Series">
-      <SeriesTable
+    <>
+      <SeriesHeader
+        imprintOptions={imprintOptions}
         queryToken={queryToken}
-        seriesForm={<EditSeries queryToken={queryToken} imprintOptions={imprintOptions} />}
-        footerContent={<AddSeries imprintOptions={imprintOptions} queryToken={queryToken} />}
+        seriesType={seriesType}
+        searchValue={searchValue}
+        direction={direction}
+        orderBy={orderBy}
+        onSearch={setSearchValue}
+        changeSeriesType={changeSeriesType}
+        changeDirection={changeDirection}
+        changeOrderBy={changeOrderBy}
       />
-    </ContentSection>
+      <ContentSection title="Series">
+        <SeriesTable
+          loading={loading}
+          serieses={serieses}
+          page={activePage}
+          pagesCount={totalPagesCount}
+          onPageChange={changePage}
+          queryToken={queryToken}
+          seriesForm={<EditSeries queryToken={queryToken} imprintOptions={imprintOptions} />}
+        />
+      </ContentSection>
+    </>
   );
 };
 

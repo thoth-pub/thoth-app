@@ -4,7 +4,6 @@ import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection
 
 import { BooksTable } from './components/BooksTable';
 import { Header } from './components/Header';
-import { TableFooter } from './components/TableFooter';
 import { useAllBooks } from './useAllBooks';
 
 const AllBooks = () => {
@@ -21,22 +20,34 @@ const AllBooks = () => {
     changeDirection,
     workStatus,
     changeWorkStatus,
+    workType,
+    changeWorkType,
+    orderBy,
+    changeOrderBy,
   } = useAllBooks();
 
   return (
     <>
-      <Header searchValue={searchValue} onSearch={setSearchValue} />
+      <Header
+        searchValue={searchValue}
+        onSearch={setSearchValue}
+        workStatus={workStatus}
+        changeWorkStatus={changeWorkStatus}
+        workType={workType}
+        changeWorkType={changeWorkType}
+        direction={direction}
+        changeDirection={changeDirection}
+        orderBy={orderBy}
+        changeOrderBy={changeOrderBy}
+      />
       <ContentSection>
-        <BooksTable loading={loading} books={books} navigateToWork={navigateToWork} />
-        <TableFooter
-          direction={direction}
+        <BooksTable
+          loading={loading}
+          books={books}
           page={activePage}
           pagesCount={totalPagesCount}
-          workStatus={workStatus}
-          loading={loading}
-          onDirectionChange={changeDirection}
           onPageChange={changePage}
-          onWorkStatusChange={changeWorkStatus}
+          navigateToWork={navigateToWork}
         />
       </ContentSection>
     </>

@@ -9,7 +9,7 @@ import {
 } from '@/src/shared/constants';
 
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
-import { FILTER_OPTIONS } from './filter';
+import { FILTER_DIRECTION_OPTIONS, FILTER_SERIES_ORDER_BY_OPTIONS, FILTER_WORK_ORDER_BY_OPTIONS } from './filter';
 import { LanguageTypeAlt } from './languages';
 import { LOCALES } from './locales';
 
@@ -476,6 +476,15 @@ export const workStatusOptions = [
   { value: WorkStatuses.enum.PostponedIndefinitely, label: 'Postpone' },
   { value: WorkStatuses.enum.Superseded, label: 'New edition' },
   { value: WorkStatuses.enum.Withdrawn, label: 'Require Remove' },
+];
+
+export const workStatusOptionsAlt = [
+  { value: WorkStatuses.enum.Forthcoming, label: 'Forthcoming' },
+  { value: WorkStatuses.enum.Active, label: 'Active' },
+  { value: WorkStatuses.enum.Cancelled, label: 'Cancelled' },
+  { value: WorkStatuses.enum.PostponedIndefinitely, label: 'Postponed Indefinitely' },
+  { value: WorkStatuses.enum.Superseded, label: 'Superseded' },
+  { value: WorkStatuses.enum.Withdrawn, label: 'Withdrawn' },
 ];
 
 export const seriesTypeOptions = convertFormFieldsToSelectFieldOptions(SeriesType.options);
@@ -2426,6 +2435,17 @@ export const contentLanguageOptions = [
 ];
 
 export const directionOptions = [
-  { value: FILTER_OPTIONS.enum.Asc, label: 'Ascending' },
-  { value: FILTER_OPTIONS.enum.Desc, label: 'Descending' },
+  { value: FILTER_DIRECTION_OPTIONS.enum.Asc, label: 'Ascending' },
+  { value: FILTER_DIRECTION_OPTIONS.enum.Desc, label: 'Descending' },
+];
+
+export const workOrderByOptions = [
+  { value: FILTER_WORK_ORDER_BY_OPTIONS.enum.UPDATED_AT_WITH_RELATIONS, label: 'Updated At' },
+  { value: FILTER_WORK_ORDER_BY_OPTIONS.enum.CREATED_AT, label: 'Created At' },
+  { value: FILTER_WORK_ORDER_BY_OPTIONS.enum.PUBLICATION_DATE, label: 'Publication Date' },
+];
+
+export const seriesOrderByOptions = [
+  { value: FILTER_SERIES_ORDER_BY_OPTIONS.enum.UPDATED_AT, label: 'Updated At' },
+  { value: FILTER_SERIES_ORDER_BY_OPTIONS.enum.CREATED_AT, label: 'Created At' },
 ];

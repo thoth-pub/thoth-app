@@ -1,9 +1,8 @@
 'use client';
 
-import { Fragment, useState } from 'react';
+import { Fragment } from 'react';
 
-import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { appConfig, convertOptionToString, QueryToken } from '@/src/shared';
+import { convertOptionToString, convertUpdatedAtToFormattedDate, QueryToken } from '@/src/shared';
 import {
   ButtonGroup,
   CircularProgress,
@@ -20,45 +19,33 @@ import {
 } from '@/src/shared/ui';
 
 import useDeleteSeries from '../../api/hooks/useDeleteSeries';
-import useSerieses from '../../api/hooks/useSerieses';
-import useSeriesesCount from '../../api/hooks/useSeriesesCount';
+import { SeriesEntity } from '../../model/series.types';
 import useSeriesesStateMachine from '../../store/hooks/useSeriesesStateMachine';
-
-const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 
 type SeriesTableProps = {
   seriesForm: Readonly<React.ReactNode>;
   queryToken: QueryToken;
-  footerContent?: Readonly<React.ReactNode>;
+
+  loading: boolean;
+  serieses: SeriesEntity[];
+  page: number;
+  pagesCount: number;
+  onPageChange: (value: number) => void;
 };
 
 const SeriesTable = (props: SeriesTableProps) => {
-  const { footerContent, seriesForm, queryToken } = props;
+  const { seriesForm, queryToken, loading, serieses, page, pagesCount, onPageChange } = props;
 
   const { activeSeries, edit, close } = useSeriesesStateMachine();
-  const { activePublisher } = usePublisherStateMachine();
-  const publishers = activePublisher ? [activePublisher] : [];
 
-  const [activePage, setActivePage] = useState(1);
-  const { seriesCount } = useSeriesesCount(publishers);
-  const { serieses, loading } = useSerieses({
-    offset: (activePage - 1) * ITEMS_PER_PAGE,
-    limit: ITEMS_PER_PAGE,
-  });
   const { deleteSeries } = useDeleteSeries({ queryToken });
 
-  const totalPagesCount = Math.ceil(seriesCount / ITEMS_PER_PAGE);
-
-  const changePage = (value: number) => {
-    setActivePage(value);
-  };
-
   return (
-    <div className="overflow-auto">
+    <div className="flex flex-col overflow-auto">
       <Table className="border-separate">
         <TableHeader
-          cells={['Name', 'Description', 'Type', 'ISSN']}
-          cellStyles={['w-[210px]', 'w-[210px]', 'w-[210px]', 'w-[210px]']}
+          cells={['Name', 'Description', 'Type', 'ISSN', 'Updated At']}
+          cellStyles={['w-[210px]', 'w-[210px]', 'w-[210px]', 'w-[110px]', 'w-[110px]']}
         />
         <TableBody>
           {!loading && serieses.length === 0 && (
@@ -94,7 +81,7 @@ const SeriesTable = (props: SeriesTableProps) => {
                 }) => (
                   <Fragment key={id}>
                     {activeSeries && activeSeries.id === id ? (
-                      <TableFormWrapper colSpan={4}>{seriesForm}</TableFormWrapper>
+                      <TableFormWrapper colSpan={5}>{seriesForm}</TableFormWrapper>
                     ) : (
                       <TableRow key={id} className="group">
                         <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
@@ -106,9 +93,12 @@ const SeriesTable = (props: SeriesTableProps) => {
                         <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
                           {convertOptionToString(type)}
                         </TableCell>
+                        <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                          <Typography>{issnPrint && issnPrint.length > 0 ? issnPrint : issnDigital}</Typography>
+                        </TableCell>
                         <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
                           <div className="flex justify-between">
-                            <Typography>{issnPrint ? issnPrint : issnDigital}</Typography>
+                            <Typography>{convertUpdatedAtToFormattedDate(updatedAt)}</Typography>
                             <ButtonGroup>
                               <DeleteButton
                                 onClick={() => deleteSeries(id)}
@@ -145,18 +135,16 @@ const SeriesTable = (props: SeriesTableProps) => {
           )}
         </TableBody>
       </Table>
-      <div className="flex items-center justify-between">
-        {footerContent}
-        <Pagination
-          page={activePage}
-          count={totalPagesCount}
-          color="primary"
-          showFirstButton
-          showLastButton
-          onChange={(_, value) => changePage(value)}
-          disabled={loading}
-        />
-      </div>
+      <Pagination
+        page={page}
+        count={pagesCount}
+        color="primary"
+        className="ml-auto"
+        showFirstButton
+        showLastButton
+        onChange={(_, value) => onPageChange(value)}
+        disabled={loading}
+      />
     </div>
   );
 };

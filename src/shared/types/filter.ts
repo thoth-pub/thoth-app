@@ -1,5 +1,5 @@
 import z from 'zod';
 
-import { FILTER_OPTIONS } from '../constants/filter';
+import { FILTER_DIRECTION_OPTIONS } from '../constants/filter';
 
-export type Direction = z.infer<typeof FILTER_OPTIONS>;
+export type Direction = z.infer<typeof FILTER_DIRECTION_OPTIONS>;

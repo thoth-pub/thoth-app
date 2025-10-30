@@ -8,7 +8,7 @@ export const GET_BOOKS = graphql(`
     $direction: Direction = ASC
     $filter: String
     $workStatus: WorkStatus
-    $field: WorkField = UPDATED_AT
+    $field: WorkField = UPDATED_AT_WITH_RELATIONS
     $updatedAtWithRelations: TimeExpression
   ) {
     books(
