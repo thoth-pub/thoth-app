@@ -57,7 +57,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
     if (!selectedSeries) return;
 
     createIssue({
-      orderNumber: selectedSeries.issues.length + 1,
+      orderNumber: data.ordinal,
       seriesId: selectedSeries.id,
       workId,
     });
@@ -93,14 +93,15 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
       validationSchema={issueValidationSchema}
       skipAutoSubmit
       onSubmit={editIssue}
-      formFields={({ control }) => (
+      formFields={({ control, setValue }) => (
         <FormFields
           control={control}
           options={options}
           isLoading={loading}
+          isDeleteDisabled={isNew}
           onChange={setSearchValue}
           onDelete={deleteExistingIssue}
-          isDeleteDisabled={isNew}
+          setValue={setValue}
         >
           {work.issues.length > 0 && (
             <IssuesList workId={workId} queryToken={queryToken} issues={series?.issues ?? []} />

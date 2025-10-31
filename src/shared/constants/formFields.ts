@@ -467,6 +467,12 @@ export const FORM_FIELDS = {
     name: 'imprintId',
     placeholder: 'Imprint',
   },
+  ISSUE_ORDINAL: {
+    label: 'Ordinal',
+    name: 'ordinal',
+    placeholder: 'Ordinal',
+    type: InputTypes.NUMBER,
+  },
 } as const;
 
 export const workStatusOptions = [

@@ -1,8 +1,10 @@
 'use client';
 
 import SearchIcon from '@mui/icons-material/Search';
-import { type Control, type FieldValues } from 'react-hook-form';
+import { useEffect } from 'react';
+import { type Control, type FieldValues, UseFormSetValue, useWatch } from 'react-hook-form';
 
+import { useSeries } from '@/src/entities/series';
 import { FormFieldOption } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import {
@@ -11,11 +13,12 @@ import {
   DeleteButton,
   FormFieldLabel,
   FormFieldWithControlsWrapper,
+  FormTextField,
   InputAdornment,
   MultipleContentWrapper,
 } from '@/src/shared/ui';
 
-const { WORK_SERIES } = FORM_FIELDS;
+const { WORK_SERIES, ISSUE_ORDINAL } = FORM_FIELDS;
 
 type FormFieldsProps = {
   control: Control<FieldValues>;
@@ -25,10 +28,31 @@ type FormFieldsProps = {
   children?: Readonly<React.ReactNode>;
   onChange: (value: string) => void;
   onDelete: () => void;
+  setValue: UseFormSetValue<FieldValues>;
 };
 
 export const FormFields = (props: FormFieldsProps) => {
-  const { control, options, isLoading = false, isDeleteDisabled = true, children, onChange, onDelete } = props;
+  const {
+    control,
+    options,
+    isLoading = false,
+    isDeleteDisabled = true,
+    children,
+    onChange,
+    onDelete,
+    setValue,
+  } = props;
+
+  const { value: selectedSeries } = useWatch({ control, name: WORK_SERIES.name });
+  const { series } = useSeries({ seriesId: selectedSeries });
+
+  const lastIssueOrdinal = series?.issues.sort((a, b) => a.ordinal - b.ordinal).at(-1)?.ordinal ?? 1;
+
+  const defaultValue = lastIssueOrdinal > 1 ? lastIssueOrdinal + 1 : 1;
+
+  useEffect(() => {
+    setValue(ISSUE_ORDINAL.name, defaultValue);
+  }, [defaultValue]);
 
   return (
     <MultipleContentWrapper>
@@ -52,6 +76,15 @@ export const FormFields = (props: FormFieldsProps) => {
           />
           <DeleteButton disabled={isDeleteDisabled} onClick={onDelete} />
         </FormFieldWithControlsWrapper>
+      </ContentWrapper>
+      <ContentWrapper>
+        <FormFieldLabel label={ISSUE_ORDINAL.label} id={ISSUE_ORDINAL.name} />
+        <FormTextField
+          name={ISSUE_ORDINAL.name}
+          control={control}
+          id={ISSUE_ORDINAL.name}
+          defaultValue={defaultValue}
+        />
       </ContentWrapper>
       {children}
     </MultipleContentWrapper>

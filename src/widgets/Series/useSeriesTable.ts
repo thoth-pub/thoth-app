@@ -43,7 +43,6 @@ export const useSeriesTable = () => {
   };
 
   const changeSeriesType = (value: SeriesType | 'All') => {
-    console.log(value);
     setSeriesType(value);
   };
 

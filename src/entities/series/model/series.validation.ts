@@ -5,6 +5,7 @@ import {
   getRequiredStringValidation,
   optionalStringValidation,
   optionalUrlValidation,
+  positiveIntValidation,
   seriesTypeValidation,
 } from '@/src/shared/utils/validations';
 
@@ -17,6 +18,7 @@ const {
   SERIES_URL,
   SERIES_DESCRIPTION,
   WORK_SERIES,
+  ISSUE_ORDINAL,
 } = FORM_FIELDS;
 
 export const seriesTypeValidationSchema = z.object({
@@ -51,4 +53,5 @@ const workSeriesValidationSchema = z.object({
 
 export const issueValidationSchema = z.object({
   [WORK_SERIES.name]: workSeriesValidationSchema,
+  [ISSUE_ORDINAL.name]: positiveIntValidation,
 });

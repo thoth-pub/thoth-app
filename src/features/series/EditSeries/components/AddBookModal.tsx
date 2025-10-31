@@ -14,10 +14,18 @@ import { issueValidationSchema } from '@/src/entities/series/model/series.valida
 import { appConfig, convertEntityToSelectFieldOptions, QueryToken } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useDebouncedValue } from '@/src/shared/hooks';
-import { AutocompleteField, Button, CloseButton, InputAdornment, ModalWrapper, Typography } from '@/src/shared/ui';
+import {
+  AutocompleteField,
+  Button,
+  CloseButton,
+  FormTextField,
+  InputAdornment,
+  ModalWrapper,
+  Typography,
+} from '@/src/shared/ui';
 import { Modal } from '@/src/shared/ui';
 
-const { WORK_SERIES } = FORM_FIELDS;
+const { WORK_SERIES, ISSUE_ORDINAL } = FORM_FIELDS;
 
 type AddBookModalProps = {
   queryToken: QueryToken;
@@ -29,13 +37,18 @@ export const AddBookModal = (props: AddBookModalProps) => {
 
   const [open, setOpen] = useState(false);
 
+  const lastIssueOrdinal = series.issues.sort((a, b) => a.ordinal - b.ordinal).at(-1)?.ordinal ?? 1;
+
   const { activePublisher } = usePublisherStateMachine();
   const {
     control,
     formState: { isValid, isDirty },
     handleSubmit,
     reset,
-  } = useForm<IssueValidationSchema>({
+  } = useForm({
+    defaultValues: {
+      [ISSUE_ORDINAL.name]: lastIssueOrdinal ? `${lastIssueOrdinal + 1}` : '1',
+    },
     resolver: zodResolver(issueValidationSchema),
   });
 
@@ -58,7 +71,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
 
   const onSubmit = (data: IssueValidationSchema) => {
     createIssue({
-      orderNumber: series.issues.length + 1,
+      orderNumber: data.ordinal,
       seriesId: series.id,
       workId: data.series.value,
     });
@@ -80,20 +93,32 @@ export const AddBookModal = (props: AddBookModalProps) => {
               <CloseButton onClose={() => setOpen(false)} />
             </div>
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-[var(--default-gap)]">
-              <AutocompleteField
-                freeSolo
-                disableClearable
-                name={WORK_SERIES.name}
-                control={control}
-                options={options}
-                onInputChange={(_, value) => setSearchValue(value)}
-                loading={loading}
-                icon={
-                  <InputAdornment position="start">
-                    <SearchIcon color="primary" />
-                  </InputAdornment>
-                }
-              />
+              <div className="flex gap-1">
+                <AutocompleteField
+                  freeSolo
+                  disableClearable
+                  name={WORK_SERIES.name}
+                  control={control}
+                  options={options}
+                  onInputChange={(_, value) => setSearchValue(value)}
+                  loading={loading}
+                  icon={
+                    <InputAdornment position="start">
+                      <SearchIcon color="primary" />
+                    </InputAdornment>
+                  }
+                />
+                <FormTextField
+                  control={control}
+                  name={ISSUE_ORDINAL.name}
+                  label={ISSUE_ORDINAL.label}
+                  placeholder={ISSUE_ORDINAL.placeholder}
+                  type={ISSUE_ORDINAL.type}
+                  min={1}
+                  step="1"
+                />
+              </div>
+
               <Button startIcon={<AddIcon />} className="max-w-fit" disabled={!isValid || !isDirty} type="submit">
                 Add Book
               </Button>
