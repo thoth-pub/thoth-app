@@ -8,3 +8,7 @@ export default auth((req) => {
     return Response.redirect(newUrl);
   }
 });
+
+export const config = {
+  matcher: ['/'],
+};

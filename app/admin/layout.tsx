@@ -15,9 +15,11 @@ const AdminLayout = async ({
     redirect(ROUTES.LOGIN);
   }
 
+  const linkedPublishersId = session.user.linkedPublishers.map((publisher) => publisher.publisherId);
+
   return (
     <>
-      <Navigation />
+      <Navigation linkedPublishers={linkedPublishersId} />
       <div className="scrollbar-hidden flex-1 overflow-scroll">{children}</div>
     </>
   );

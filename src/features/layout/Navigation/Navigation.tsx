@@ -8,6 +8,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 
+import type { PublisherId } from '@/src/entities/publisher';
 import { PAGES, ROUTES } from '@/src/shared/constants';
 import { IconButton, Paper, Typography } from '@/src/shared/ui';
 
@@ -15,7 +16,7 @@ import { SignOutButton } from '../../auth';
 import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
 
-const Navigation = () => {
+const Navigation = ({ linkedPublishers }: { linkedPublishers: PublisherId[] }) => {
   const [isExpanded, setIsExpanded] = useState(false);
 
   return (
@@ -56,7 +57,7 @@ const Navigation = () => {
             {!isExpanded ? <ArrowForwardIosRoundedIcon /> : <ArrowBackIosNewRoundedIcon />}
           </IconButton>
         </Link>
-        <ChangeActivePublisher />
+        <ChangeActivePublisher linkedPublishers={linkedPublishers} />
         <ContentLanguage />
         <SignOutButton />
         <nav>
