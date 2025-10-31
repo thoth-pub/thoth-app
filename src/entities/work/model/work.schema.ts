@@ -119,8 +119,25 @@ export const GET_CHAPTERS = graphql(`
 `);
 
 export const GET_WORKS = graphql(`
-  query GetWorks($offset: Int!, $limit: Int, $publishers: [Uuid!]!) {
-    works(offset: $offset, limit: $limit, publishers: $publishers) {
+  query GetWorks(
+    $offset: Int!
+    $limit: Int
+    $publishers: [Uuid!]!
+    $direction: Direction = ASC
+    $field: WorkField = UPDATED_AT_WITH_RELATIONS
+    $workStatus: WorkStatus
+    $filter: String
+    $workTypes: [WorkType!]
+  ) {
+    works(
+      offset: $offset
+      limit: $limit
+      publishers: $publishers
+      order: { direction: $direction, field: $field }
+      workStatus: $workStatus
+      filter: $filter
+      workTypes: $workTypes
+    ) {
       ...WorkFragment
     }
   }
@@ -151,7 +168,7 @@ export const DELETE_WORK = graphql(`
 `);
 
 export const GET_WORKS_COUNT = graphql(`
-  query GetWorksCount($publishers: [Uuid!]!) {
-    workCount(publishers: $publishers)
+  query GetWorksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus, $workTypes: [WorkType!]) {
+    workCount(publishers: $publishers, filter: $filter, workStatus: $workStatus, workTypes: $workTypes)
   }
 `);

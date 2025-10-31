@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
 import { ROUTES } from '@/src/shared/constants';
-import AllBooks from '@/src/widgets/AllBooks/AllBooks';
+import AllWorks from '@/src/widgets/AllWorks/AllWorks';
 
 export default async function WorksPage() {
   const session = await auth();
@@ -11,5 +11,5 @@ export default async function WorksPage() {
     redirect(ROUTES.LOGIN);
   }
 
-  return <AllBooks />;
+  return <AllWorks />;
 }

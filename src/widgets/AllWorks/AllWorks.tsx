@@ -2,14 +2,14 @@
 
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
-import { BooksTable } from './components/BooksTable';
 import { Header } from './components/Header';
-import { useAllBooks } from './useAllBooks';
+import { WorksTable } from './components/WorksTable';
+import { useAllWorks } from './useAllWorks';
 
-const AllBooks = () => {
+const AllWorks = () => {
   const {
     loading,
-    books,
+    works,
     navigateToWork,
     searchValue,
     setSearchValue,
@@ -24,7 +24,7 @@ const AllBooks = () => {
     changeWorkType,
     orderBy,
     changeOrderBy,
-  } = useAllBooks();
+  } = useAllWorks();
 
   return (
     <>
@@ -41,9 +41,9 @@ const AllBooks = () => {
         changeOrderBy={changeOrderBy}
       />
       <ContentSection>
-        <BooksTable
+        <WorksTable
           loading={loading}
-          books={books}
+          works={works}
           page={activePage}
           pagesCount={totalPagesCount}
           onPageChange={changePage}
@@ -54,4 +54,4 @@ const AllBooks = () => {
   );
 };
 
-export default AllBooks;
+export default AllWorks;

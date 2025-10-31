@@ -4,16 +4,15 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { Direction, WorkField } from '@/gql/graphql';
-import useBooks from '@/src/entities/book/api/hooks/useBooks';
-import useBooksCount from '@/src/entities/book/api/hooks/useBooksCount';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
+import { useWorks, useWorksCount } from '@/src/entities/work';
 import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
-import { appConfig, ROUTES } from '@/src/shared';
+import { appConfig, ROUTES, WorkTypes } from '@/src/shared';
 import { useDebouncedValue } from '@/src/shared/hooks';
 
 const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 
-export const useAllBooks = () => {
+export const useAllWorks = () => {
   const router = useRouter();
 
   const { activePublisher } = usePublisherStateMachine();
@@ -28,18 +27,26 @@ export const useAllBooks = () => {
 
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
 
-  const { bookCount } = useBooksCount(publishers, debouncedValue);
-  const { books, loading } = useBooks({
+  const baseProps = {
     publishersIds: publishers,
+    filter: debouncedValue,
+    workStatus: workStatus === 'All' ? undefined : workStatus,
+    workTypes:
+      workType === 'All'
+        ? [WorkTypes.enum.EditedBook, WorkTypes.enum.JournalIssue, WorkTypes.enum.Monograph, WorkTypes.enum.Textbook]
+        : [workType],
+  };
+
+  const { workCount } = useWorksCount(baseProps);
+  const { works, loading } = useWorks({
     offset: (activePage - 1) * ITEMS_PER_PAGE,
     limit: ITEMS_PER_PAGE,
     direction,
-    filter: debouncedValue,
-    workStatus: workStatus === 'All' ? undefined : workStatus,
     field: orderBy,
+    ...baseProps,
   });
 
-  const totalPagesCount = Math.ceil(bookCount / ITEMS_PER_PAGE);
+  const totalPagesCount = Math.ceil(workCount / ITEMS_PER_PAGE);
 
   const changePage = (value: number) => {
     setActivePage(value);
@@ -68,7 +75,7 @@ export const useAllBooks = () => {
   return {
     // Data
     loading,
-    books,
+    works,
     navigateToWork,
 
     // Search

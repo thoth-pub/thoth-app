@@ -2,7 +2,7 @@
 
 import FileOpenIcon from '@mui/icons-material/FileOpen';
 
-import type { BookEntity } from '@/src/entities/book/model/book.types';
+import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, convertUpdatedAtToFormattedDate } from '@/src/shared';
 import {
   ButtonGroup,
@@ -18,9 +18,9 @@ import {
 } from '@/src/shared/ui';
 import { CircularProgress } from '@/src/shared/ui';
 
-type BooksTableProps = {
+type WorksTableProps = {
   loading: boolean;
-  books: BookEntity[];
+  works: WorkEntity[];
   page: number;
   pagesCount: number;
   onPageChange: (value: number) => void;
@@ -29,8 +29,8 @@ type BooksTableProps = {
 
 const cellStyles = 'border-t-1 border-b-1 border-transparent group-hover:border-[var(--color-table-border-alt)]';
 
-export const BooksTable = (props: BooksTableProps) => {
-  const { loading, books, page, pagesCount, onPageChange, navigateToWork } = props;
+export const WorksTable = (props: WorksTableProps) => {
+  const { loading, works, page, pagesCount, onPageChange, navigateToWork } = props;
 
   return (
     <>
@@ -48,7 +48,7 @@ export const BooksTable = (props: BooksTableProps) => {
             ]}
           />
           <TableBody>
-            {!loading && books.length === 0 && (
+            {!loading && works.length === 0 && (
               <TableRow className="!cursor-auto hover:!bg-transparent">
                 <TableCell colSpan={5} className="text-center">
                   <Typography variant="body1" component="span">
@@ -65,7 +65,7 @@ export const BooksTable = (props: BooksTableProps) => {
               </TableRow>
             ) : (
               <>
-                {books.map(({ id, reference, title, type, updatedAt, contributorsNames, status }) => (
+                {works.map(({ id, reference, title, type, updatedAt, contributorsNames, status }) => (
                   <TableRow key={id} className="group" onDoubleClick={() => navigateToWork(id)}>
                     <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-7 capitalize group-hover:border-t-[var(--color-table-border-alt)] group-hover:border-b-[var(--color-table-border-alt)] group-hover:border-l-[var(--color-table-border-alt)]">
                       {reference}
