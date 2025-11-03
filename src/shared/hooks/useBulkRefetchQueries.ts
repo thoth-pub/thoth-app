@@ -7,6 +7,8 @@ import { GET_WORKS } from '@/src/entities/work/model/work.schema';
 
 import { getSameDayAndMonthDateInPast } from '../utils';
 
+// TODO replace with client refetch
+
 const useBulkRefetchQueries = () => {
   const { activePublisher } = usePublisherStateMachine();
   const startDate = getSameDayAndMonthDateInPast(1);

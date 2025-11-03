@@ -3,7 +3,7 @@
 import { useWork } from '@/src/entities/work';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { licenseAndCopyrightHolderValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseEditSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
+import { type BaseRecommendedSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS, licenseOptions } from '@/src/shared/constants/formFields';
 import {
   AutocompleteField,
@@ -18,7 +18,13 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 
 const { LICENSE, COPYRIGHT_HOLDER } = FORM_FIELDS;
 
-export const EditLicense = ({ workId, queryToken }: BaseEditSectionProps) => {
+type EditLicenseProps = BaseRecommendedSectionProps & {
+  onUpdate?: (data: LicenseAndCopyrightHolderForm) => void;
+};
+
+const EditLicense = (props: EditLicenseProps) => {
+  const { onUpdate, workId, queryToken, recommended = false } = props;
+
   const { work, updateWork } = useWork(workId, queryToken);
 
   const licenseValue = licenseOptions.find((option) => option.value === work.license) ?? licenseOptions[0];
@@ -27,6 +33,11 @@ export const EditLicense = ({ workId, queryToken }: BaseEditSectionProps) => {
   const placeholderValue = licenseValue.label + `${copyrightHolderValue ? ` © ${copyrightHolderValue}` : ''}`;
 
   const updateImprint = ({ license, copyrightHolder }: LicenseAndCopyrightHolderForm) => {
+    if (onUpdate) {
+      onUpdate({ license, copyrightHolder });
+      return;
+    }
+
     updateWork({ ...work, license: license.value, copyrightHolder });
   };
 

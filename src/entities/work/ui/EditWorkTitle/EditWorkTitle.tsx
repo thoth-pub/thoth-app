@@ -16,12 +16,18 @@ import {
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import { TitlesFormFields } from './TitlesFormFields';
+import { TitlesFormFields } from './components/TitlesFormFields';
 
 const { WORK_TITLE, EDITION, TITLES, SUBTITLE, LANGUAGE } = FORM_FIELDS;
 const { EDITION: EDITION_HELPER_TEXT } = HELPER_TEXT;
 
-const EditWorkTitle = ({ workId, queryToken, recommended = false }: BaseRecommendedSectionProps) => {
+type EditWorkTitleProps = BaseRecommendedSectionProps & {
+  onUpdate?: (data: WorkTitlesForm) => void;
+};
+
+const EditWorkTitle = (props: EditWorkTitleProps) => {
+  const { workId, queryToken, recommended = false, onUpdate } = props;
+
   const { work, updateWork } = useWork(workId, queryToken);
 
   const placeholder = work?.title;
@@ -32,6 +38,11 @@ const EditWorkTitle = ({ workId, queryToken, recommended = false }: BaseRecommen
 
     const title = titles.length > 0 ? titles[0][WORK_TITLE.name] : work?.title;
     const subtitle = titles.length > 0 ? titles[0][SUBTITLE.name] : work?.subtitle;
+
+    if (onUpdate) {
+      onUpdate({ [TITLES.name]: titles, [EDITION.name]: edition });
+      return;
+    }
 
     updateWork({ ...work, title: title ?? '', subtitle: subtitle ?? '', edition: edition ?? 1 });
   };

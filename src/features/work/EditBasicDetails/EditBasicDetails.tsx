@@ -1,16 +1,18 @@
 'use client';
 
-import { useWorkRecommendations } from '@/src/entities/work';
+import {
+  EditDoi,
+  EditImprint,
+  EditLicense,
+  EditWorkTitle,
+  EditWorkType,
+  useWorkRecommendations,
+} from '@/src/entities/work';
 import { ANCHORS, type BaseEditSectionProps } from '@/src/shared';
 import type { FormFieldOption } from '@/src/shared/interfaces';
 import { RecommendedSection } from '@/src/shared/ui';
 
 import EditWorkCover from '../EditWorkCover/EditWorkCover';
-import EditDoi from './components/EditDoi';
-import EditImprint from './components/EditImprint';
-import EditLicense from './components/EditLicense';
-import EditWorkTitle from './components/EditWorkTitle';
-import EditWorkType from './components/EditWorkType';
 
 type EditWorkBasicDetailsProps = BaseEditSectionProps & {
   imprintOptions: FormFieldOption[];

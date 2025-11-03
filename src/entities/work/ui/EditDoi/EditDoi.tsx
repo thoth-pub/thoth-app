@@ -11,7 +11,13 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 
 const { DOI, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
-export const EditDoi = ({ workId, queryToken, recommended = false }: BaseRecommendedSectionProps) => {
+type EditDoiProps = BaseRecommendedSectionProps & {
+  onUpdate?: (data: DoiAndCoversForm) => void;
+};
+
+const EditDoi = (props: EditDoiProps) => {
+  const { onUpdate, workId, queryToken, recommended = false } = props;
+
   const { work, updateWork } = useWork(workId, queryToken);
   const { isDoiRequired, isLandingPageRequired, isCoverUrlRequired } = useWorkRecommendations({ workId });
 
@@ -26,6 +32,11 @@ export const EditDoi = ({ workId, queryToken, recommended = false }: BaseRecomme
   const placeholderValue = [doiValue, landingPageValue, coverUrlValue].filter((value) => value.length > 0).join(', ');
 
   const updateImprint = ({ doi, landingPage, coverUrl }: DoiAndCoversForm) => {
+    if (onUpdate) {
+      onUpdate({ doi, landingPage, coverUrl });
+      return;
+    }
+
     updateWork({ ...work, doi: doi ?? '', landingPage, coverUrl });
   };
 

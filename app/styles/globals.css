@@ -186,6 +186,8 @@
   --color-chart-5: #ffdd75;
 
   --color-image-placeholder: var(--purple-opacity-16);
+
+  --color-modal-content-background: var(--yellow);
 }
 
 @theme inline {

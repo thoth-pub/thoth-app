@@ -1,4 +1,5 @@
 export * from './auth';
+
 export { default as EditWorkSkeleton } from './books/EditBookLink/components/EditWorkSkeleton';
 export { default as EditBookLink } from './books/EditBookLink/EditBookLink';
 export { default as AddNewContribution } from './contribution/AddNewContribution/AddNewContribution';
@@ -17,3 +18,7 @@ export { default as EditContributors } from './work/EditContributors/EditContrib
 export { default as EditDescriptions } from './work/EditDescriptions/EditDescriptions';
 export { default as EditFundings } from './work/EditFundings/EditFundings';
 export { default as WorkSpeedDial } from './work/WorkSpeedDial/WorkSpeedDial';
+export { default as AddChapterModal } from './work/AddChapterModal/AddChapterModal';
+export { default as EditChaptersModal } from './work/EditChaptersModal/EditChaptersModal';
+export { default as EditChapterModal } from './work/EditChapterModal/EditChapterModal';
+export { default as EditChapterBasicDetails } from './chapters/EditChapterBasicDetails/EditChapterBasicDetails';

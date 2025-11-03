@@ -10,6 +10,8 @@ import EditWorkSeries from '@/src/features/work/EditWorkSeries/EditWorkSeries';
 import type { BaseEditSectionProps, FormFieldOption } from '@/src/shared';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
+import { EditWorkChapters } from '../EditWorkChapters/EditWorkChapters';
+
 type EditWorkWidgetProps = BaseEditSectionProps & {
   imprintOptions: FormFieldOption[];
   isAdmin?: boolean;
@@ -34,6 +36,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
       </EditBasicDetails>
       <EditContributors workId={workId} queryToken={queryToken} isAdmin={isAdmin} />
       <EditDescriptions workId={workId} queryToken={queryToken} />
+      <EditWorkChapters workId={workId} queryToken={queryToken} />
       <EditPublications workId={workId} queryToken={queryToken} />
       <EditFundings workId={workId} queryToken={queryToken} />
       <EditReferences workId={workId} queryToken={queryToken} />

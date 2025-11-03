@@ -16,7 +16,7 @@ import {
   MarkdownField,
 } from '@/src/shared/ui';
 
-import { LanguageField } from './LanguageField';
+import { LanguageField } from '../components/LanguageField';
 
 const { TITLES, WORK_TITLE, SUBTITLE, LANGUAGE } = FORM_FIELDS;
 const { WORK_TITLE: WORK_TITLE_HELPER_TEXT, SUBTITLE: SUBTITLE_HELPER_TEXT } = HELPER_TEXT;

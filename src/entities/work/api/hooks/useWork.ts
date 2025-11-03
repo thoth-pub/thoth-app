@@ -2,7 +2,7 @@
 
 import { useSuspenseQuery } from '@apollo/client/react';
 
-import { QueryToken, WorkTypes } from '@/src/shared';
+import { isDefaultId, QueryToken, WorkTypes } from '@/src/shared';
 
 import { WorkDtoMapper } from '../../model/work.mapper';
 import { GET_WORK } from '../../model/work.schema';
@@ -25,9 +25,12 @@ const useWork = (id: WorkId, queryToken: QueryToken, onCreateCompleted?: (data: 
     data = {
       work: defaultValues,
     },
-  } = useSuspenseQuery(GET_WORK, { variables: { workId: id } });
+  } = useSuspenseQuery(GET_WORK, { variables: { workId: id }, skip: id.length === 0 || isDefaultId(id) });
   const { deleteWork } = useDeleteWork({ queryToken });
-  const { updateWork: updateWorkMutation } = useUpdateWork({ workId: id, queryToken });
+  const { updateWork: updateWorkMutation } = useUpdateWork({
+    workId: id,
+    queryToken,
+  });
   const {
     createContribution: createContributionMutation,
     deleteContribution,

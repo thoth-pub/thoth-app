@@ -1,6 +1,5 @@
 import { ServerError } from '@apollo/client';
 import { redirect } from 'next/navigation';
-import { Suspense } from 'react';
 
 import { auth } from '@/auth';
 import { ImprintService } from '@/src/entities/imprint';
@@ -51,14 +50,12 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
 
   return (
     <PreloadQuery query={GET_WORK} variables={{ workId: id }}>
-      <Suspense fallback={<p>loading...</p>}>
-        <EditWorkWidget
-          workId={id}
-          queryToken={session.user.queryToken}
-          imprintOptions={imprintOptions}
-          isAdmin={isUserAdmin}
-        />
-      </Suspense>
+      <EditWorkWidget
+        workId={id}
+        queryToken={session.user.queryToken}
+        imprintOptions={imprintOptions}
+        isAdmin={isUserAdmin}
+      />
     </PreloadQuery>
   );
 }

@@ -1,123 +1,5 @@
 import { graphql } from '@/gql';
 
-export const GET_CHAPTERS = graphql(`
-  query GetChapters($publishers: [Uuid!]!) {
-    chapters(publishers: $publishers) {
-      doi
-      workId
-      title
-      fullTitle
-      workType
-      updatedAt
-      publicationDate
-      withdrawnDate
-      imprint {
-        publisher {
-          publisherName
-        }
-      }
-      imprintId
-      workStatus
-      edition
-      reference
-      contributions {
-        fullName
-        lastName
-        contributionId
-        contributorId
-        contributionType
-        mainContribution
-        contributionOrdinal
-        biography
-        contributor {
-          orcid
-        }
-        affiliations {
-          position
-          affiliationId
-          affiliationOrdinal
-          institution {
-            ror
-            institutionName
-            institutionId
-          }
-        }
-      }
-      languages {
-        languageId
-        languageCode
-        languageRelation
-        mainLanguage
-      }
-      fundings {
-        fundingId
-        grantNumber
-        institutionId
-        jurisdiction
-        program
-        projectName
-        projectShortname
-        institution {
-          institutionName
-          ror
-        }
-      }
-      publications {
-        publicationId
-        isbn
-        publicationType
-        updatedAt
-        weightG: weight(units: G)
-        weightOz: weight(units: OZ)
-        widthMm: width(units: MM)
-        widthIn: width(units: IN)
-        heightMm: height(units: MM)
-        heightIn: height(units: IN)
-        depthMm: depth(units: MM)
-        depthIn: depth(units: IN)
-        work {
-          doi
-          title
-          imprint {
-            publisher {
-              publisherName
-            }
-          }
-        }
-        prices {
-          unitPrice
-          priceId
-          currencyCode
-        }
-        locations {
-          canonical
-          fullTextUrl
-          landingPage
-          locationPlatform
-          locationId
-        }
-      }
-      references {
-        doi
-        referenceId
-        referenceOrdinal
-        unstructuredCitation
-        journalTitle
-        articleTitle
-        seriesTitle
-        volumeTitle
-        url
-      }
-      subjects {
-        subjectId
-        subjectCode
-        subjectType
-        subjectOrdinal
-      }
-    }
-  }
-`);
-
 export const GET_WORKS = graphql(`
   query GetWorks(
     $offset: Int!
@@ -170,5 +52,17 @@ export const DELETE_WORK = graphql(`
 export const GET_WORKS_COUNT = graphql(`
   query GetWorksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus, $workTypes: [WorkType!]) {
     workCount(publishers: $publishers, filter: $filter, workStatus: $workStatus, workTypes: $workTypes)
+  }
+`);
+
+export const GET_WORK_CHAPTERS = graphql(`
+  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {
+    work(workId: $workId) {
+      relations(relationTypes: HAS_CHILD, limit: $limit, offset: $offset) {
+        relatedWork {
+          ...WorkFragment
+        }
+      }
+    }
   }
 `);

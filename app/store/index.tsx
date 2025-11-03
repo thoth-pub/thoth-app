@@ -1,5 +1,6 @@
 'use client';
 
+import { WorkChaptersStateMachineContext } from '@/src/entities/work';
 import { ContributionStateMachineContext } from '@/src/entities/contribution';
 import { FundingStateMachineContext } from '@/src/entities/funding';
 import { PublicationsStateMachineContext } from '@/src/entities/publication';
@@ -16,7 +17,9 @@ const StoreProvider = ({ children }: Readonly<{ children: React.ReactNode }>) =>
           <PublicationsStateMachineContext.Provider>
             <FundingStateMachineContext.Provider>
               <ReferenceStateMachineContext.Provider>
-                <SeriesStateMachineContext.Provider>{children}</SeriesStateMachineContext.Provider>
+                <SeriesStateMachineContext.Provider>
+                  <WorkChaptersStateMachineContext.Provider>{children}</WorkChaptersStateMachineContext.Provider>
+                </SeriesStateMachineContext.Provider>
               </ReferenceStateMachineContext.Provider>
             </FundingStateMachineContext.Provider>
           </PublicationsStateMachineContext.Provider>
