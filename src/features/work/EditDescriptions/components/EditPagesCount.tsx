@@ -25,8 +25,12 @@ const {
   WORK_BACKMATTER_COUNT: WORK_BACKMATTER_COUNT_HELPER_TEXT,
 } = HELPER_TEXT;
 
-export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
-  const { workId, queryToken, recommended = false } = props;
+type EditPagesCountProps = BaseRecommendedSectionProps & {
+  onUpdate?: (data: PagesCountForm) => void;
+};
+
+export const EditPagesCount = (props: EditPagesCountProps) => {
+  const { workId, queryToken, recommended = false, onUpdate } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
 
@@ -57,6 +61,11 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
   const placeholder = pageCount ? `${pageCount} ${pageCount > 1 ? 'pages' : 'page'} (${pageBreakdownValue})` : '';
 
   const handleSubmit = ({ pageCount, frontmatterCount, backmatterCount }: PagesCountForm) => {
+    if (onUpdate) {
+      onUpdate({ pageCount, frontmatterCount, backmatterCount });
+      return;
+    }
+
     updateWork({
       ...work,
       pageCount: pageCount ?? 0,

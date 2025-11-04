@@ -11,6 +11,7 @@ import { ChapterTableRow } from './components/TableRow';
 import { useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
 import AddChapterModal from '@/src/features/work/AddChapterModal/AddChapterModal';
 import { EditChapterModal, EditChaptersModal } from '@/src/features';
+import useDeleteWork from '@/src/entities/work/api/hooks/useDeleteWork';
 
 export const EditWorkChapters = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
@@ -21,6 +22,10 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   const [items, setItems] = useState(chapters);
   const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
   const [isDragStarted, setIsDragStarted] = useState(false);
+  const { deleteWork } = useDeleteWork({
+    queryToken,
+    redirect: false,
+  });
 
   const sensors = useSensors(useSensor(PointerSensor));
 
@@ -98,6 +103,11 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
     edit([{ ...chapter, id: appConfig.defaultId }]);
   };
 
+  const handleDeleteChapter = (id: string) => {
+    setItems((items) => items.filter((chapter) => chapter.id !== id));
+    deleteWork(id);
+  };
+
   return (
     <ContentSection
       title="Chapters"
@@ -144,7 +154,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                     <Checkbox
                       size="small"
                       className="mr-2"
-                      checked={selectedChapters.length === items.length}
+                      checked={selectedChapters.length > 0 && selectedChapters.length === items.length}
                       onChange={handleSelectAllChapters}
                     />
                   </div>,
@@ -161,6 +171,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                     onCopy={handleCopyChapter}
                     onSelect={handleSelectChapter}
                     onDeselect={handleDeselectChapter}
+                    onDelete={handleDeleteChapter}
                   />
                 ))}
               </TableBody>
@@ -170,7 +181,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
       </DndContext>
       <EditChapterModal queryToken={queryToken} />
       <EditChaptersModal queryToken={queryToken} />
-      <AddChapterModal queryToken={queryToken} />
+      <AddChapterModal workId={workId} queryToken={queryToken} />
     </ContentSection>
   );
 };

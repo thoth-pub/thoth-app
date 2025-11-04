@@ -18,6 +18,7 @@ const useCreateWork = (props: UseCreateWorkProps) => {
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
   const queriesToRefetch = useBulkRefetchQueries();
+
   const [mutate, { loading }] = useMutationWithAuth<CreateWorkMutation>({
     queryToken,
     mutation: CREATE_WORK,

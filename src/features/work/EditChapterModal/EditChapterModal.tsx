@@ -1,9 +1,12 @@
 'use client';
 
 import { useWorkChaptersStateMachine } from '@/src/entities/work';
-import { CloseButton, Modal, Typography } from '@/src/shared/ui';
 import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
 import type { BaseEditSectionProps } from '@/src/shared';
+import EditDescriptions from '../EditDescriptions/EditDescriptions';
+import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
+
+// TODO WIP
 
 type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'>;
 
@@ -17,19 +20,15 @@ const EditChapterModal = (props: EditChapterModalProps) => {
   const chapter = activeWorkChapters[0];
 
   return (
-    <Modal open={isSingleExistingChapterSelected} onClose={close}>
-      <div className="flex h-dvh w-dvw flex-col gap-[var(--default-gap)] bg-[var(--color-modal-background)] p-2 lg:p-4">
-        <div className="flex justify-between">
-          <Typography variant="h2" component="h3" className="text-[var(--color-typography)] capitalize">
-            {chapter.title}
-          </Typography>
-          <CloseButton onClose={close} />
-        </div>
-        <div>
-          <EditChapterBasicDetails workId={chapter.id} queryToken={queryToken} />
-        </div>
-      </div>
-    </Modal>
+    <ChaptersModal
+      title={chapter.title}
+      isOpen={isSingleExistingChapterSelected}
+      onClose={close}
+      onDone={() => console.log(chapter)}
+    >
+      <EditChapterBasicDetails workId={chapter.id} queryToken={queryToken} />
+      <EditDescriptions workId={chapter.id} queryToken={queryToken} />
+    </ChaptersModal>
   );
 };
 

@@ -19,18 +19,25 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 const { LICENSE, COPYRIGHT_HOLDER } = FORM_FIELDS;
 
 type EditLicenseProps = BaseRecommendedSectionProps & {
+  license?: string;
+  copyrightHolder?: string;
   onUpdate?: (data: LicenseAndCopyrightHolderForm) => void;
 };
 
 const EditLicense = (props: EditLicenseProps) => {
-  const { onUpdate, workId, queryToken, recommended = false } = props;
+  const { onUpdate, workId, queryToken, license, copyrightHolder } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
 
   const licenseValue = licenseOptions.find((option) => option.value === work.license) ?? licenseOptions[0];
-  const copyrightHolderValue = work?.copyrightHolder ?? '';
+  const defaultLicenseValue = licenseOptions.find((option) => option.value === license) ?? licenseOptions[0];
+  const appliedLicenseValue = license ? defaultLicenseValue : licenseValue;
 
-  const placeholderValue = licenseValue.label + `${copyrightHolderValue ? ` © ${copyrightHolderValue}` : ''}`;
+  const copyrightHolderValue = work?.copyrightHolder ?? '';
+  const appliedCopyrightHolderValue = copyrightHolder ?? copyrightHolderValue;
+
+  const placeholderValue =
+    appliedLicenseValue.label + `${appliedCopyrightHolderValue ? ` © ${appliedCopyrightHolderValue}` : ''}`;
 
   const updateImprint = ({ license, copyrightHolder }: LicenseAndCopyrightHolderForm) => {
     if (onUpdate) {
@@ -44,10 +51,7 @@ const EditLicense = (props: EditLicenseProps) => {
   return (
     <EditableContent
       formId={IDs.WORK_LICENSE_AND_COPYRIGHT_HOLDER}
-      defaultValues={{
-        [LICENSE.name]: licenseValue,
-        [COPYRIGHT_HOLDER.name]: copyrightHolderValue,
-      }}
+      defaultValues={{ [LICENSE.name]: appliedLicenseValue, [COPYRIGHT_HOLDER.name]: appliedCopyrightHolderValue }}
       validationSchema={licenseAndCopyrightHolderValidationSchema}
       onSubmit={updateImprint}
       formFields={({ control, isHelperTextVisible }) => (

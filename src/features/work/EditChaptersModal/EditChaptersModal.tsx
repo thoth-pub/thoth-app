@@ -1,10 +1,11 @@
 'use client';
 
 import { useWorkChaptersStateMachine } from '@/src/entities/work';
-import { CloseButton, Modal, Typography } from '@/src/shared/ui';
-import { useTranslation } from 'react-i18next';
 import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
 import type { BaseEditSectionProps } from '@/src/shared';
+import { useState } from 'react';
+import EditDescriptions from '../EditDescriptions/EditDescriptions';
+import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
 
 // TODO WIP
 
@@ -15,22 +16,33 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   const { activeWorkChapters, isMultipleChaptersSelected, edit, close } = useWorkChaptersStateMachine();
 
-  const { t } = useTranslation();
+  const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
+  const [chapters, setChapters] = useState(initValue);
 
   return (
-    <Modal open={isMultipleChaptersSelected} onClose={close}>
-      <div className="flex h-dvh w-dvw flex-col gap-[var(--default-gap)] bg-[var(--color-modal-background)] p-2 lg:p-4">
-        <div className="flex justify-between">
-          <Typography variant="h2" component="h3" className="text-[var(--color-typography)] capitalize">
-            {t('edit multiple chapters')}
-          </Typography>
-          <CloseButton onClose={close} />
-        </div>
-        <div>
-          <EditChapterBasicDetails workId={''} queryToken={queryToken} isMultipleChaptersEdit />
-        </div>
-      </div>
-    </Modal>
+    <ChaptersModal
+      title="edit multiple chapters"
+      isOpen={isMultipleChaptersSelected}
+      onClose={close}
+      onDone={() => console.log(chapters)}
+    >
+      <EditChapterBasicDetails
+        workId={''}
+        queryToken={queryToken}
+        isMultipleChaptersEdit
+        onTitleUpdate={(data) => console.log(data)}
+        onLicenseUpdate={(data) => console.log(data)}
+      />
+      <EditDescriptions
+        workId={''}
+        queryToken={queryToken}
+        isMultipleChaptersEdit
+        onPageCountUpdate={(data) => console.log(data)}
+        onMediaUpdate={(data) => console.log(data)}
+        onLanguagesUpdate={(data) => console.log(data)}
+        onSubjectsUpdate={(data) => console.log(data)}
+      />
+    </ChaptersModal>
   );
 };
 

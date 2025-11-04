@@ -25,10 +25,11 @@ type TableRowProps = {
   onCopy?: (id: string) => void;
   onSelect?: (id: string) => void;
   onDeselect?: (id: string) => void;
+  onDelete?: (id: string) => void;
 };
 
 export const ChapterTableRow = (props: TableRowProps) => {
-  const { chapter, selected, onEdit, onCopy, onSelect, onDeselect } = props;
+  const { chapter, selected, onEdit, onCopy, onSelect, onDeselect, onDelete } = props;
 
   const { id, title, pageCount, contributions } = chapter;
 
@@ -69,7 +70,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
         <div className="flex justify-between">
           <Typography>{pageCount}</Typography>
           <ButtonGroup className="mb-auto ml-auto">
-            <DeleteButton className="opacity-0 group-hover:opacity-100" />
+            <DeleteButton className="opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
             <EditButton className="opacity-0 group-hover:opacity-100" onClick={() => onEdit?.(id)} />
             <IconButton className="opacity-0 group-hover:opacity-100" onClick={() => onCopy?.(id)}>
               <ContentCopyIcon />

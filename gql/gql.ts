@@ -70,6 +70,7 @@ type Documents = {
     "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n": typeof types.DeleteWorkDocument,
     "\n  query GetWorksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus, $workTypes: [WorkType!]) {\n    workCount(publishers: $publishers, filter: $filter, workStatus: $workStatus, workTypes: $workTypes)\n  }\n": typeof types.GetWorksCountDocument,
     "\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(relationTypes: HAS_CHILD, limit: $limit, offset: $offset) {\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n": typeof types.GetWorkChaptersDocument,
+    "\n  mutation CreateWorkRelation($data: NewWorkRelation!) {\n    createWorkRelation(data: $data) {\n      workRelationId\n    }\n  }\n": typeof types.CreateWorkRelationDocument,
     "\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    institution {\n      institutionName\n      ror\n    }\n    affiliationOrdinal\n    position\n  }\n": typeof types.AffiliationFragmentFragmentDoc,
     "\n  fragment ContributorFragment on Contributor {\n    contributorId\n    firstName\n    fullName\n    lastName\n    updatedAt\n    orcid\n    website\n  }\n": typeof types.ContributorFragmentFragmentDoc,
     "\n  fragment FundingFragment on Funding {\n    fundingId\n    grantNumber\n    institutionId\n    jurisdiction\n    program\n    projectName\n    projectShortname\n    institution {\n      institutionName\n      ror\n    }\n  }\n": typeof types.FundingFragmentFragmentDoc,
@@ -138,6 +139,7 @@ const documents: Documents = {
     "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n": types.DeleteWorkDocument,
     "\n  query GetWorksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus, $workTypes: [WorkType!]) {\n    workCount(publishers: $publishers, filter: $filter, workStatus: $workStatus, workTypes: $workTypes)\n  }\n": types.GetWorksCountDocument,
     "\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(relationTypes: HAS_CHILD, limit: $limit, offset: $offset) {\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n": types.GetWorkChaptersDocument,
+    "\n  mutation CreateWorkRelation($data: NewWorkRelation!) {\n    createWorkRelation(data: $data) {\n      workRelationId\n    }\n  }\n": types.CreateWorkRelationDocument,
     "\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    institution {\n      institutionName\n      ror\n    }\n    affiliationOrdinal\n    position\n  }\n": types.AffiliationFragmentFragmentDoc,
     "\n  fragment ContributorFragment on Contributor {\n    contributorId\n    firstName\n    fullName\n    lastName\n    updatedAt\n    orcid\n    website\n  }\n": types.ContributorFragmentFragmentDoc,
     "\n  fragment FundingFragment on Funding {\n    fundingId\n    grantNumber\n    institutionId\n    jurisdiction\n    program\n    projectName\n    projectShortname\n    institution {\n      institutionName\n      ror\n    }\n  }\n": types.FundingFragmentFragmentDoc,
@@ -388,6 +390,10 @@ export function graphql(source: "\n  query GetWorksCount($publishers: [Uuid!]!, 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(relationTypes: HAS_CHILD, limit: $limit, offset: $offset) {\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(relationTypes: HAS_CHILD, limit: $limit, offset: $offset) {\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateWorkRelation($data: NewWorkRelation!) {\n    createWorkRelation(data: $data) {\n      workRelationId\n    }\n  }\n"): (typeof documents)["\n  mutation CreateWorkRelation($data: NewWorkRelation!) {\n    createWorkRelation(data: $data) {\n      workRelationId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

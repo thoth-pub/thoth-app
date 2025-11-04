@@ -1,5 +1,6 @@
-import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
+import type { WorkEntity, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
+import { appConfig } from '../../config';
 
 export const isBookChapter = (workType: WorkType) => workType === WorkTypes.enum.BookChapter;
 
@@ -26,3 +27,40 @@ export const isPublicationDateRequired = (workStatus: WorkStatus) => {
 };
 
 export const isPublicationDateShouldBeInFuture = (workStatus: WorkStatus) => isWorkForthcoming(workStatus);
+
+export const getDefaultChapter = (data?: Partial<Omit<WorkEntity, 'type'>>): WorkEntity => {
+  return {
+    id: appConfig.defaultId,
+    title: '',
+    subtitle: '',
+    fullTitle: '',
+    type: WorkTypes.enum.BookChapter,
+    updatedAt: '',
+    contributorsNames: [],
+    doi: '',
+    publisherName: '',
+    imprintId: '',
+    status: WorkStatuses.enum.Forthcoming,
+    edition: 0,
+    license: '',
+    copyrightHolder: '',
+    landingPage: '',
+    publicationDate: '',
+    withdrawnDate: '',
+    contributions: [],
+    imageCount: 0,
+    tableCount: 0,
+    audioCount: 0,
+    videoCount: 0,
+    pageCount: 0,
+    frontmatterCount: 0,
+    backmatterCount: 0,
+    languages: [],
+    publications: [],
+    fundings: [],
+    references: [],
+    subjects: [],
+    issues: [],
+    ...data,
+  };
+};

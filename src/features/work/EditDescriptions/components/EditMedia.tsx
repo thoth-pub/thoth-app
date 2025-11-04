@@ -19,8 +19,12 @@ const {
   WORK_VIDEO_COUNT: WORK_VIDEO_COUNT_HELPER_TEXT,
 } = HELPER_TEXT;
 
-export const EditMedia = (props: BaseRecommendedSectionProps) => {
-  const { workId, queryToken } = props;
+type EditMediaProps = BaseRecommendedSectionProps & {
+  onUpdate?: (data: MediaForm) => void;
+};
+
+export const EditMedia = (props: EditMediaProps) => {
+  const { workId, queryToken, onUpdate } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
 
@@ -49,6 +53,11 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
   }, [imageCount, tableCount, audioCount, videoCount]);
 
   const handleSubmit = (data: MediaForm) => {
+    if (onUpdate) {
+      onUpdate(data);
+      return;
+    }
+
     updateWork({ ...work, ...data });
   };
 

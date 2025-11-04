@@ -13,10 +13,14 @@ import { useEditSubjects } from './useEditSubjects';
 
 const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
 
-const EditSubjects = (props: BaseRecommendedSectionProps) => {
-  const { workId, queryToken, recommended = false } = props;
+type EditSubjectsProps = BaseRecommendedSectionProps & {
+  onUpdate?: (data: SubjectsFormType) => void;
+};
 
-  const { subjects, update, deleteSubject, close } = useEditSubjects({ workId, queryToken });
+const EditSubjects = (props: EditSubjectsProps) => {
+  const { workId, queryToken, recommended = false, onUpdate } = props;
+
+  const { subjects, update, deleteSubject, close } = useEditSubjects({ workId, queryToken, onUpdate });
 
   const defaultValues = subjects.map((subject) => ({
     subjectId: subject.id,
@@ -63,7 +67,7 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
           value={placeholder}
           recommended={recommended}
           tooltip="Theme subject is recommended"
-          editButtonClassName='mt-3.5 lg:mt-2'
+          editButtonClassName="mt-3.5 lg:mt-2"
         >
           {placeholder && (
             <ul className="flex w-full flex-col gap-[var(--default-gap)]">

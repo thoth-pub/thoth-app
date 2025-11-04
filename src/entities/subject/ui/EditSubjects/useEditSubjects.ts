@@ -10,8 +10,8 @@ import type { SubjectsFormType, SubjectType } from '../../model/subject.types';
 
 const { SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
 
-export const useEditSubjects = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data: SubjectsFormType) => void }) => {
+  const { workId, queryToken, onUpdate } = props;
 
   const { work } = useWork(workId, queryToken);
   const { close } = useFormStateMachine();
@@ -23,6 +23,11 @@ export const useEditSubjects = (props: BaseEditSectionProps) => {
   const update = (data: SubjectsFormType) => {
     const newSubjects = data.subjects.filter((subject) => isDefaultId(subject.subjectId));
     const existingSubjects = data.subjects.filter((subject) => !isDefaultId(subject.subjectId));
+
+    if (onUpdate) {
+      onUpdate(data);
+      return;
+    }
 
     const updatedSubjects = existingSubjects.filter((subject) => {
       const existingSubject = work.subjects.find((workSubject) => workSubject.id === subject.subjectId);

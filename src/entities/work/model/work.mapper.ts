@@ -237,7 +237,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       workId: id,
       workStatus: status,
       title,
-      subtitle: subtitle ?? '',
+      subtitle: subtitle && subtitle.length > 0 ? subtitle : null,
       fullTitle,
       imprintId,
       workType: type,

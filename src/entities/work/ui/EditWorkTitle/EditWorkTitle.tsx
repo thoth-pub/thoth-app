@@ -21,17 +21,33 @@ import { TitlesFormFields } from './components/TitlesFormFields';
 const { WORK_TITLE, EDITION, TITLES, SUBTITLE, LANGUAGE } = FORM_FIELDS;
 const { EDITION: EDITION_HELPER_TEXT } = HELPER_TEXT;
 
-type EditWorkTitleProps = BaseRecommendedSectionProps & {
-  onUpdate?: (data: WorkTitlesForm) => void;
-};
+type EditWorkTitleProps = BaseRecommendedSectionProps &
+  Partial<{
+    title: string;
+    subtitle: string;
+    withEdition: boolean;
+    onUpdate: (data: WorkTitlesForm) => void;
+  }>;
 
 const EditWorkTitle = (props: EditWorkTitleProps) => {
-  const { workId, queryToken, recommended = false, onUpdate } = props;
+  const { workId, queryToken, recommended = false, withEdition = true, title, subtitle, onUpdate } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
 
-  const placeholder = work?.title;
+  const placeholder = title ?? work?.title;
   const showIndicator = recommended && !placeholder;
+
+  const defaultValues = {
+    [TITLES.name]: [
+      {
+        titleId: appConfig.defaultId,
+        [WORK_TITLE.name]: title ?? work?.title,
+        [SUBTITLE.name]: subtitle ?? work?.subtitle,
+        [LANGUAGE.name]: languageOptionsAlt[0],
+      },
+    ],
+    [EDITION.name]: work?.edition ?? 1,
+  };
 
   const updateTitles = (data: WorkTitlesForm) => {
     const { [TITLES.name]: titles, [EDITION.name]: edition } = data;
@@ -50,17 +66,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
   return (
     <EditableContent
       formId={IDs.WORK_TITLE}
-      defaultValues={{
-        [TITLES.name]: [
-          {
-            titleId: appConfig.defaultId,
-            [WORK_TITLE.name]: work?.title,
-            [SUBTITLE.name]: work?.subtitle,
-            [LANGUAGE.name]: languageOptionsAlt[0],
-          },
-        ],
-        [EDITION.name]: work?.edition ?? 1,
-      }}
+      defaultValues={defaultValues}
       validationSchema={workTitlesValidationSchema}
       onSubmit={updateTitles}
       formFields={({ control, isHelperTextVisible }) => (
@@ -70,26 +76,26 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
             recommended={showIndicator}
             isHelperTextVisible={isHelperTextVisible}
           />
-          <ContentWrapper>
-            <FormFieldLabel label={EDITION.label} id={EDITION.name} />
-            <FormTextField
-              control={control}
-              name={EDITION.name}
-              id={EDITION.name}
-              type={EDITION.type}
-              helperText={EDITION_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
-            />
-          </ContentWrapper>
+          {withEdition && (
+            <ContentWrapper>
+              <FormFieldLabel label={EDITION.label} id={EDITION.name} />
+              <FormTextField
+                control={control}
+                name={EDITION.name}
+                id={EDITION.name}
+                type={EDITION.type}
+                helperText={EDITION_HELPER_TEXT}
+                isHelperTextVisible={isHelperTextVisible}
+              />
+            </ContentWrapper>
+          )}
         </MultipleContentWrapper>
       )}
       preview={({ onEdit }) => (
         <Preview label={WORK_TITLE.label} value={placeholder ?? ''} onEdit={onEdit} recommended={showIndicator}>
-          <div className="lg:ml-2">
-            <Typography>
-              <MarkdownPreview source={placeholder} />
-            </Typography>
-          </div>
+          <Typography className={placeholder.length > 0 ? 'lg:ml-2' : ''}>
+            <MarkdownPreview source={placeholder} />
+          </Typography>
         </Preview>
       )}
     />

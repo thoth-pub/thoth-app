@@ -7,10 +7,12 @@ import { useWork } from '@/src/entities/work';
 import { type BaseRecommendedSectionProps, isDefaultId } from '@/src/shared';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
-type useEditLanguagesProps = BaseRecommendedSectionProps;
+type useEditLanguagesProps = BaseRecommendedSectionProps & {
+  onUpdate?: (data: LanguagesFormType) => void;
+};
 
 export const useEditLanguages = (props: useEditLanguagesProps) => {
-  const { workId, queryToken, recommended } = props;
+  const { workId, queryToken, recommended, onUpdate } = props;
 
   const { work } = useWork(workId, queryToken);
   const { close } = useFormStateMachine();
@@ -23,6 +25,11 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
   const showIndicator = recommended && work.languages.length === 0;
 
   const update = (data: LanguagesFormType) => {
+    if (onUpdate) {
+      onUpdate(data);
+      return;
+    }
+
     const newLanguages: LanguagesFormType['languages'] = [];
     const existingLanguages: LanguagesFormType['languages'] = [];
 

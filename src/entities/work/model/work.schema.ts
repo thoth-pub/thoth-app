@@ -66,3 +66,11 @@ export const GET_WORK_CHAPTERS = graphql(`
     }
   }
 `);
+
+export const CREATE_WORK_RELATION = graphql(`
+  mutation CreateWorkRelation($data: NewWorkRelation!) {
+    createWorkRelation(data: $data) {
+      workRelationId
+    }
+  }
+`);

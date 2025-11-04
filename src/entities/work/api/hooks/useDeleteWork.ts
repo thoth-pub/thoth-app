@@ -2,15 +2,20 @@
 
 import { useRouter } from 'next/navigation';
 
-import { type BaseEditSectionProps, NOTIFICATIONS, ROUTES } from '@/src/shared';
+import { appConfig, type BaseEditSectionProps, NOTIFICATIONS, ROUTES } from '@/src/shared';
 import { useBulkRefetchQueries, useNotifications } from '@/src/shared/hooks';
 import { useMutationWithAuth } from '@/src/shared/hooks';
 
-import { DELETE_WORK } from '../../model/work.schema';
+import { DELETE_WORK, GET_WORK, GET_WORK_CHAPTERS } from '../../model/work.schema';
+import { useMemo } from 'react';
 
 const { WORK_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteWork = ({ queryToken }: Omit<BaseEditSectionProps, 'workId'>) => {
+type UseDeleteWorkProps = Omit<BaseEditSectionProps, 'workId'> & {
+  redirect?: boolean;
+};
+
+const useDeleteWork = ({ queryToken, redirect = true }: UseDeleteWorkProps) => {
   const router = useRouter();
   const { sendErrorNotification } = useNotifications();
   const queriesToRefetch = useBulkRefetchQueries();
@@ -20,7 +25,9 @@ const useDeleteWork = ({ queryToken }: Omit<BaseEditSectionProps, 'workId'>) => 
     mutation: DELETE_WORK,
     options: {
       onCompleted: () => {
-        router.replace(ROUTES.WORKS);
+        if (redirect) {
+          router.replace(ROUTES.WORKS);
+        }
       },
       onError: () => {
         sendErrorNotification(WORK_DELETE_FAILED);

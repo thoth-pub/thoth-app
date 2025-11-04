@@ -1,42 +1,71 @@
 'use client';
 
 import { EditDoi, EditLicense, EditWorkTitle, useWorkRecommendations } from '@/src/entities/work';
+import type {
+  DoiAndCoversForm,
+  LicenseAndCopyrightHolderForm,
+  WorkTitlesForm,
+} from '@/src/entities/work/model/work.types';
 import { type BaseEditSectionProps } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
 
-type EditChapterBasicDetailsProps = BaseEditSectionProps & {
-  isMultipleChaptersEdit?: boolean;
-};
+type EditChapterBasicDetailsProps = BaseEditSectionProps &
+  Partial<{
+    title: string;
+    subtitle: string;
+    license?: string;
+    copyrightHolder?: string;
+    isMultipleChaptersEdit: boolean;
+    onTitleUpdate?: (data: WorkTitlesForm) => void;
+    onLicenseUpdate?: (data: LicenseAndCopyrightHolderForm) => void;
+    onDoiUpdate?: (data: DoiAndCoversForm) => void;
+  }>;
 
 const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
-  const { workId, queryToken, isMultipleChaptersEdit = false } = props;
+  const {
+    workId,
+    queryToken,
+    title,
+    subtitle,
+    license,
+    copyrightHolder,
+    isMultipleChaptersEdit = false,
+    onTitleUpdate,
+    onLicenseUpdate,
+    onDoiUpdate,
+  } = props;
 
   const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
 
   return (
-    <RecommendedSection
-      title="Basic details"
-      isEmpty={false}
-      isValid={!isDoiRequired && !isLandingPageRequired}
-      className="bg-[var(--color-modal-content-background)]"
-    >
+    <RecommendedSection title="Basic details" isEmpty={false} isValid={!isDoiRequired && !isLandingPageRequired}>
       {({ showRecommendations }) => (
         <div>
           {!isMultipleChaptersEdit && (
             <EditWorkTitle
+              title={title}
+              subtitle={subtitle}
               workId={workId}
               queryToken={queryToken}
               recommended={showRecommendations}
-              onUpdate={(data) => console.log(data)}
+              onUpdate={onTitleUpdate}
+              withEdition={false}
             />
           )}
-          <EditLicense workId={workId} queryToken={queryToken} onUpdate={(data) => console.log(data)} />
+          <EditLicense
+            workId={workId}
+            queryToken={queryToken}
+            license={license}
+            copyrightHolder={copyrightHolder}
+            onUpdate={onLicenseUpdate}
+          />
           {!isMultipleChaptersEdit && (
             <EditDoi
               workId={workId}
               queryToken={queryToken}
               recommended={showRecommendations}
-              onUpdate={(data) => console.log(data)}
+              isChapter
+              onUpdate={onDoiUpdate}
             />
           )}
         </div>

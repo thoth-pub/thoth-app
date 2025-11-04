@@ -12,11 +12,12 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 const { DOI, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
 type EditDoiProps = BaseRecommendedSectionProps & {
+  isChapter?: boolean;
   onUpdate?: (data: DoiAndCoversForm) => void;
 };
 
 const EditDoi = (props: EditDoiProps) => {
-  const { onUpdate, workId, queryToken, recommended = false } = props;
+  const { onUpdate, workId, queryToken, recommended = false, isChapter = false } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
   const { isDoiRequired, isLandingPageRequired, isCoverUrlRequired } = useWorkRecommendations({ workId });
@@ -29,7 +30,10 @@ const EditDoi = (props: EditDoiProps) => {
   const showLandingPageIndicator = recommended && isLandingPageRequired;
   const showCoverUrlIndicator = recommended && isCoverUrlRequired;
 
-  const placeholderValue = [doiValue, landingPageValue, coverUrlValue].filter((value) => value.length > 0).join(', ');
+  const workPlaceholderValue = [doiValue, landingPageValue, coverUrlValue]
+    .filter((value) => value.length > 0)
+    .join(', ');
+  const chapterPlaceholderValue = [doiValue].filter((value) => value.length > 0).join(', ');
 
   const updateImprint = ({ doi, landingPage, coverUrl }: DoiAndCoversForm) => {
     if (onUpdate) {
@@ -63,36 +67,44 @@ const EditDoi = (props: EditDoiProps) => {
               isDoiField
             />
           </ContentWrapper>
-          <ContentWrapper>
-            <FormFieldLabel label={LANDING_PAGE.label} id={LANDING_PAGE.name} recommended={showLandingPageIndicator} />
-            <FormTextField
-              control={control}
-              name={LANDING_PAGE.name}
-              id={LANDING_PAGE.name}
-              helperText={HELPER_TEXT.LANDING_PAGE}
-              isHelperTextVisible={isHelperTextVisible}
-              isUrlField
-              predefinedPrefix={getProtocolPrefix(landingPageValue ?? '')}
-            />
-          </ContentWrapper>
-          <ContentWrapper>
-            <FormFieldLabel label={COVER_URL.label} id={COVER_URL.name} recommended={showCoverUrlIndicator} />
-            <FormTextField
-              control={control}
-              name={COVER_URL.name}
-              id={COVER_URL.name}
-              helperText={HELPER_TEXT.COVER_URL}
-              isHelperTextVisible={isHelperTextVisible}
-              isUrlField
-              predefinedPrefix={getProtocolPrefix(coverUrlValue ?? '')}
-            />
-          </ContentWrapper>
+          {!isChapter && (
+            <ContentWrapper>
+              <FormFieldLabel
+                label={LANDING_PAGE.label}
+                id={LANDING_PAGE.name}
+                recommended={showLandingPageIndicator}
+              />
+              <FormTextField
+                control={control}
+                name={LANDING_PAGE.name}
+                id={LANDING_PAGE.name}
+                helperText={HELPER_TEXT.LANDING_PAGE}
+                isHelperTextVisible={isHelperTextVisible}
+                isUrlField
+                predefinedPrefix={getProtocolPrefix(landingPageValue ?? '')}
+              />
+            </ContentWrapper>
+          )}
+          {!isChapter && (
+            <ContentWrapper>
+              <FormFieldLabel label={COVER_URL.label} id={COVER_URL.name} recommended={showCoverUrlIndicator} />
+              <FormTextField
+                control={control}
+                name={COVER_URL.name}
+                id={COVER_URL.name}
+                helperText={HELPER_TEXT.COVER_URL}
+                isHelperTextVisible={isHelperTextVisible}
+                isUrlField
+                predefinedPrefix={getProtocolPrefix(coverUrlValue ?? '')}
+              />
+            </ContentWrapper>
+          )}
         </MultipleContentWrapper>
       )}
       preview={({ onEdit }) => (
         <Preview
           label={DOI.label}
-          value={placeholderValue}
+          value={isChapter ? chapterPlaceholderValue : workPlaceholderValue}
           recommended={showDoiIndicator || showLandingPageIndicator || showCoverUrlIndicator}
           onEdit={onEdit}
         />

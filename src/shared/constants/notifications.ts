@@ -9,6 +9,11 @@ export const NOTIFICATIONS = {
   WORK_CONTRIBUTION_CREATION_FAILED: 'Failed to create work contribution',
   WORK_CONTRIBUTION_DELETION_FAILED: 'Failed to delete work contribution',
   WORK_CONTRIBUTION_UPDATE_FAILED: 'Failed to update work contribution',
+  // Chapters
+  CHAPTER_CREATION_SUCCESS: 'Chapter created successfully',
+  CHAPTER_CREATION_FAILED: 'Failed to create chapter',
+  CHAPTER_UPDATE_FAILED: 'Failed to update chapter',
+  CHAPTER_DELETE_FAILED: 'Failed to delete chapter',
   // Contributors
   CONTRIBUTOR_CREATION_SUCCESS: 'Contributor created successfully',
   CONTRIBUTOR_CREATION_FAILED: 'Failed to create contributor',

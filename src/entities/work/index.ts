@@ -6,6 +6,8 @@ export { default as useWorkRecommendations } from './api/hooks/useWorkRecommenda
 export { default as useWorks } from './api/hooks/useWorks';
 export { default as useWorksCount } from './api/hooks/useWorksCount';
 export { default as useWorkChapters } from './api/hooks/useWorkChapters';
+export { default as useCreateWorkRelation } from './api/hooks/useCreateWorkRelation';
+
 // UI
 export { default as CreateWorkForm } from './ui/CreateWorkForm/CreateWorkForm';
 export { default as EditPublicationDate } from './ui/EditPublicationDate/EditPublicationDate';

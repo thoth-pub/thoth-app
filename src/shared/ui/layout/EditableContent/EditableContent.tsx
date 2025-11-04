@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type {
   Control,
   DefaultValues,
@@ -58,6 +58,10 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
   const [formData, setFormData] = useState(defaultValues);
   const [showInfo, setShowInfo] = useState(false);
   const isActive = activeFormId === formId;
+
+  useEffect(() => {
+    setFormData(defaultValues);
+  }, [defaultValues]);
 
   const handleEdit = () => {
     if (!isActive && activeFormId) {
