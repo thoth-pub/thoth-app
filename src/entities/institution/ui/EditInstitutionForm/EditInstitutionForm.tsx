@@ -26,6 +26,8 @@ const EditInstitutionForm = (props: InstitutionFormProps) => {
   const { institutions, loading } = useInstitutions({ filter: debouncedSearchValue });
   const options = convertEntityToSelectFieldOptions(institutions, 'name');
 
+  const value = institutions.find((institution) => institution.id === defaultValue.value);
+
   return (
     <EditableContent
       formId={IDs.INSTITUTION}
@@ -45,7 +47,6 @@ const EditInstitutionForm = (props: InstitutionFormProps) => {
             id={INSTITUTION.name}
             control={control}
             options={options}
-            defaultValue={[defaultValue]}
             onInputChange={(_, value) => setSearchValue(value)}
             loading={loading}
             icon={
@@ -56,9 +57,7 @@ const EditInstitutionForm = (props: InstitutionFormProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
-        <Preview label={INSTITUTION.label} value={data?.institution?.label} onEdit={onEdit} />
-      )}
+      preview={({ onEdit }) => <Preview label={INSTITUTION.label} value={value?.name} onEdit={onEdit} />}
     />
   );
 };
