@@ -21,6 +21,7 @@ import {
 type TableRowProps = {
   chapter: WorkEntity;
   selected: boolean;
+  isButtonsDisabled: boolean;
   onEdit?: (id: string) => void;
   onCopy?: (id: string) => void;
   onSelect?: (id: string) => void;
@@ -29,7 +30,7 @@ type TableRowProps = {
 };
 
 export const ChapterTableRow = (props: TableRowProps) => {
-  const { chapter, selected, onEdit, onCopy, onSelect, onDeselect, onDelete } = props;
+  const { chapter, selected, isButtonsDisabled = false, onEdit, onCopy, onSelect, onDeselect, onDelete } = props;
 
   const { id, title, pageCount, contributions } = chapter;
 
@@ -69,13 +70,15 @@ export const ChapterTableRow = (props: TableRowProps) => {
       <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
         <div className="flex justify-between">
           <Typography>{pageCount}</Typography>
-          <ButtonGroup className="mb-auto ml-auto">
-            <DeleteButton className="opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
-            <EditButton className="opacity-0 group-hover:opacity-100" onClick={() => onEdit?.(id)} />
-            <IconButton className="opacity-0 group-hover:opacity-100" onClick={() => onCopy?.(id)}>
-              <ContentCopyIcon />
-            </IconButton>
-          </ButtonGroup>
+          {!isButtonsDisabled && (
+            <ButtonGroup className="mb-auto ml-auto">
+              <DeleteButton className="opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
+              <EditButton className="opacity-0 group-hover:opacity-100" onClick={() => onEdit?.(id)} />
+              <IconButton className="opacity-0 group-hover:opacity-100" onClick={() => onCopy?.(id)}>
+                <ContentCopyIcon />
+              </IconButton>
+            </ButtonGroup>
+          )}
           <Checkbox size="small" sx={{ paddingTop: '6px' }} checked={selected} onChange={handleSelect} />
         </div>
       </TableCell>

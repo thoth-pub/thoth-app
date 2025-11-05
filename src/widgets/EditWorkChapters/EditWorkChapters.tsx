@@ -41,6 +41,8 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
 
   const sensors = useSensors(useSensor(PointerSensor));
 
+  const isMultipleChaptersSelected = selectedChapters.length > 1;
+
   useEffect(() => {
     if (chapters.length === 0 || chapters.length === items.length) return;
 
@@ -133,7 +135,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
       title="Chapters"
       headerContent={
         <div className="flex min-h-10 items-center gap-2 pr-5">
-          {selectedChapters.length > 1 && (
+          {isMultipleChaptersSelected && (
             <>
               <Typography
                 component="span"
@@ -193,6 +195,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                     onSelect={handleSelectChapter}
                     onDeselect={handleDeselectChapter}
                     onDelete={handleDeleteChapter}
+                    isButtonsDisabled={isMultipleChaptersSelected}
                   />
                 ))}
               </TableBody>
