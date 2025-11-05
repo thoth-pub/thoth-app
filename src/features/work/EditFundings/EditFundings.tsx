@@ -31,7 +31,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
   const { t } = useTranslation();
   const { work } = useWork(workId, queryToken);
   const { activeFunding, close, edit } = useFundingsStateMachine();
-  const { isFundingsRequired } = useWorkRecommendations({ workId });
+  const { isFundingsRequired, isFundingsEmpty } = useWorkRecommendations({ workId });
   const { deleteFunding } = useDeleteFunding({ workId, queryToken });
 
   const isNewFunding = activeFunding && isDefaultId(activeFunding.id);
@@ -53,7 +53,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
   };
 
   return (
-    <RecommendedSection title="Fundings" isEmpty={false} isValid={!isFundingsRequired} id={ANCHORS.FUNDINGS}>
+    <RecommendedSection title="Fundings" isEmpty={isFundingsEmpty} isValid={!isFundingsRequired} id={ANCHORS.FUNDINGS}>
       {({ showRecommendations }) => (
         <>
           <FundingsTable

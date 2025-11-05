@@ -22,7 +22,7 @@ export const useAllWorks = () => {
   const [workType, setWorkType] = useState<WorkType | 'All'>('All');
   const [orderBy, setOrderBy] = useState(WorkField.UpdatedAtWithRelations);
   const [activePage, setActivePage] = useState(1);
-  const [direction, setDirection] = useState<Direction>(Direction.Asc);
+  const [direction, setDirection] = useState<Direction>(Direction.Desc);
   const [searchValue, setSearchValue] = useState('');
 
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);

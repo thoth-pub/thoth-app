@@ -66,7 +66,6 @@ export { default as RorLogo } from './icons/RorLogo/RorLogo';
 // Layout
 export { default as ContentWrapper } from './layout/ContentWrapper/ContentWrapper';
 export { default as DashboardContentWrapper } from './layout/DashboardContentWrapper/DashboardContentWrapper';
-export { default as Footer } from './layout/Footer/Footer';
 export { default as MultipleContentWrapper } from './layout/MultipleContentWrapper/MultipleContentWrapper';
 export { default as PageHeader } from './layout/PageHeader/PageHeader';
 export { default as RecommendedSection } from './layout/RecommendedSection/RecommendedSection';

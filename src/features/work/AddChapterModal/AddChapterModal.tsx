@@ -43,6 +43,10 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   const { createWork } = useCreateWork({
     queryToken,
     onCompleted: (work) => {
+
+      closeModal();
+      edit([work]);
+  
       createWorkRelation({
         variables: {
           data: {
@@ -53,9 +57,6 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
           },
         },
       });
-
-      closeModal();
-      edit([work]);
     },
   });
 

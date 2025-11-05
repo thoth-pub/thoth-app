@@ -101,6 +101,16 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
                           </a>
                         </Typography>
                         <Typography variant="body2" component="li">
+                          <a href={`#${CONTRIBUTIONS}`}>
+                            <DataIndicator
+                              isEmpty={isContributionsEmpty}
+                              isValid={!isContributionsRequired}
+                              sx={{ ...buttonItemStyle }}
+                            />
+                            Contributions
+                          </a>
+                        </Typography>
+                        <Typography variant="body2" component="li">
                           <a href={`#${DESCRIPTIONS}`}>
                             <DataIndicator
                               isEmpty={isDescriptionsSectionEmpty}
@@ -111,20 +121,10 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
                           </a>
                         </Typography>
                         <Typography variant="body2" component="li">
-                          <a href={`#${CONTRIBUTIONS}`}>
-                            <DataIndicator
-                              isEmpty={isContributionsEmpty}
-                              isValid={isContributionsRequired}
-                              sx={{ ...buttonItemStyle }}
-                            />
-                            Contributions
-                          </a>
-                        </Typography>
-                        <Typography variant="body2" component="li">
                           <a href={`#${FUNDINGS}`}>
                             <DataIndicator
                               isEmpty={isFundingsEmpty}
-                              isValid={isFundingsRequired}
+                              isValid={!isFundingsRequired}
                               sx={{ ...buttonItemStyle }}
                             />
                             Fundings

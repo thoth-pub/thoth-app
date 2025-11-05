@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { HELPER_TEXT, IDs, WorkStatuses } from '@/src/shared';
-import { FORM_FIELDS, workStatusOptions } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, workStatusOptions, workStatusOptionsAlt } from '@/src/shared/constants/formFields';
 import { EditButton, FormFieldLabel, FormTextField, InputLabel, Typography } from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
 
@@ -73,7 +73,7 @@ const EditStatus = (props: EditStatusProps) => {
         </div>
       )}
       preview={({ onEdit }) => {
-        const option = workStatusOptions.find((option) => option.value === defaultValue);
+        const option = workStatusOptionsAlt.find((option) => option.value === defaultValue);
 
         if (!option) {
           return null;

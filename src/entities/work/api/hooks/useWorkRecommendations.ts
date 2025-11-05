@@ -13,28 +13,24 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
 
   const isTitleRequired = work && work.title.length === 0;
 
-  const isEditionRequired = work && (!work.edition || work.edition === 0);
+  const isDoiRequired = !work.doi || work.doi.length === 0;
 
-  const isImprintRequired = work && work.imprintId === null;
+  const isLandingPageRequired = !work.landingPage || work.landingPage.length === 0;
 
-  const isDoiRequired = work && (!work.doi || work.doi.length === 0);
+  const isCoverUrlRequired = !work.coverUrl || work.coverUrl.length === 0;
 
-  const isLandingPageRequired = work && (!work.landingPage || work.landingPage.length === 0);
+  const isPageCountRequired = work.pageCount === 0;
 
-  const isCoverUrlRequired = work && (!work.coverUrl || work.coverUrl.length === 0);
-
-  const isPageCountRequired = work && work.pageCount === 0;
-
-  const isLanguagesRequired = work && work.languages.length === 0;
+  const isLanguagesRequired = work.languages.length === 0;
 
   const isSubjectsRequired =
-    (work && work.subjects.length === 0) || work.subjects.some((subject) => subject.type !== SubjectTypes.enum.Thema);
+    work.subjects.length === 0 || work.subjects.some((subject) => subject.type !== SubjectTypes.enum.Thema);
 
-  const isFundingsEmpty = work && work.fundings.length === 0;
+  const isFundingsEmpty = work.fundings.length === 0;
 
   const isFundingsRequired = isFundingsEmpty || work.fundings.some((funding) => funding.grantNumber.length === 0);
 
-  const isContributionsEmpty = work && work.contributions.length === 0;
+  const isContributionsEmpty = work.contributions.length === 0;
 
   const isContributionsRequired =
     isContributionsEmpty ||
@@ -47,49 +43,40 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
         contribution.affiliations.length === 0,
     );
 
-  const informationForCheck = [
-    isTitleRequired,
-    isEditionRequired,
-    isImprintRequired,
-    isDoiRequired,
-    isLandingPageRequired,
-    isCoverUrlRequired,
-    isPageCountRequired,
-    isLanguagesRequired,
-    isContributionsRequired,
-    isSubjectsRequired,
-    isFundingsRequired,
-  ];
+  const isEmpty =
+    isTitleRequired &&
+    isDoiRequired &&
+    isLandingPageRequired &&
+    isCoverUrlRequired &&
+    isPageCountRequired &&
+    isLanguagesRequired &&
+    isContributionsRequired &&
+    isSubjectsRequired &&
+    isFundingsRequired;
 
-  const isAllInformationFilled = informationForCheck.every(Boolean);
+  const isAllInformationFilled =
+    !isTitleRequired &&
+    !isDoiRequired &&
+    !isLandingPageRequired &&
+    !isCoverUrlRequired &&
+    !isPageCountRequired &&
+    !isLanguagesRequired &&
+    !isContributionsRequired &&
+    !isSubjectsRequired &&
+    !isFundingsRequired;
 
-  const isEmpty = informationForCheck.every((value) => value === false);
+  const isBasicDetailsSectionEmpty = isTitleRequired && isDoiRequired && isLandingPageRequired && isCoverUrlRequired;
 
-  const basicDetailsSection = [
-    isTitleRequired,
-    isEditionRequired,
-    isImprintRequired,
-    isDoiRequired,
-    isLandingPageRequired,
-    isCoverUrlRequired,
-  ];
+  const isBasicDetailsSectionFilled =
+    !isTitleRequired && !isDoiRequired && !isLandingPageRequired && !isCoverUrlRequired;
 
-  const isBasicDetailsSectionEmpty = basicDetailsSection.every((value) => value === false);
+  const isDescriptionsSectionEmpty = isPageCountRequired && isLanguagesRequired && isSubjectsRequired;
 
-  const isBasicDetailsSectionFilled = basicDetailsSection.every(Boolean);
-
-  const descriptionsSection = [isPageCountRequired, isLanguagesRequired, isSubjectsRequired];
-
-  const isDescriptionsSectionEmpty = descriptionsSection.every((value) => value === false);
-
-  const isDescriptionsSectionFilled = descriptionsSection.every(Boolean);
+  const isDescriptionsSectionFilled = !isPageCountRequired && !isLanguagesRequired && !isSubjectsRequired;
 
   return {
     isAllInformationFilled,
     isEmpty,
-    isTitleRequired,
-    isEditionRequired,
-    isImprintRequired,
     isDoiRequired,
     isLandingPageRequired,
     isCoverUrlRequired,

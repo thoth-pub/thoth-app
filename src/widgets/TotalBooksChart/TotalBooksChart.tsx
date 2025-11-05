@@ -20,7 +20,7 @@ const TotalBooksChart = () => {
   const chartData: { label: string; value: number; color: string }[] = [];
 
   if (publishedBookCount > 0) {
-    chartData.push({ label: 'Published', value: publishedBookCount, color: 'var(--color-chart-4)' });
+    chartData.push({ label: 'Active', value: publishedBookCount, color: 'var(--color-chart-4)' });
   }
 
   if (forthcomingBookCount > 0) {
@@ -46,13 +46,13 @@ const TotalBooksChart = () => {
     <DashboardContentWrapper>
       <ChartWrapper>
         <div className="flex flex-col justify-between">
-          <Typography component="h2" variant="h2" color="primary" className="mb-2">
-            Statuses
+          <Typography component="h2" variant="h2" className="mb-2">
+            Catalogue Breakdown
           </Typography>
           <ul className="flex list-disc flex-col gap-1 pl-4 lg:pl-8">
             {publishedBookCount > 0 && (
               <Typography component="li" className="list-item marker:text-[var(--color-chart-4)]">
-                {publishedBookCount} Published
+                {publishedBookCount} Active
               </Typography>
             )}
             {forthcomingBookCount > 0 && (

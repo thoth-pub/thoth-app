@@ -51,7 +51,7 @@ const PublishedBooksChart = () => {
     <DashboardContentWrapper>
       <ChartWrapper>
         <div className="flex flex-col justify-between">
-          <Typography component="h2" variant="h2" color="primary" className="mb-2">
+          <Typography component="h2" variant="h2" className="mb-2">
             Published
           </Typography>
           <ul className="flex flex-col gap-1">

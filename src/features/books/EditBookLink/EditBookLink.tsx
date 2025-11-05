@@ -51,7 +51,7 @@ const EditBookLink = ({ title, id, status, type, image = '', contributions }: Ed
 
           <div className="flex max-w-[227px] grow flex-col justify-between pl-2 lg:max-w-[410px]">
             <div className="flex items-center justify-between">
-              <Typography variant="h2" component="h3" color="primary" className="grow truncate">
+              <Typography variant="h2" component="h3" className="grow truncate">
                 {title}
               </Typography>
               <DataIndicator

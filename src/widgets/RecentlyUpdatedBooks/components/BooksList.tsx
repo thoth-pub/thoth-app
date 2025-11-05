@@ -1,6 +1,6 @@
 'use client';
 
-import { Direction } from '@/gql/graphql';
+import { Direction, WorkField } from '@/gql/graphql';
 import { useSuspenseBooks } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { EditBookLink } from '@/src/features';

@@ -21,28 +21,38 @@ type EditWorkBasicDetailsProps = BaseEditSectionProps & {
 
 const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
   const { workId, imprintOptions, queryToken, children } = props;
-  const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
+  const {
+    isDoiRequired,
+    isLandingPageRequired,
+    isCoverUrlRequired,
+    isBasicDetailsSectionFilled,
+    isBasicDetailsSectionEmpty,
+  } = useWorkRecommendations({ workId });
 
   return (
     <RecommendedSection
       title="Basic details"
-      isEmpty={false}
-      isValid={!isDoiRequired && !isLandingPageRequired}
+      isEmpty={isBasicDetailsSectionEmpty}
+      isValid={isBasicDetailsSectionFilled}
       id={ANCHORS.BASIC_DETAILS}
     >
       {({ showRecommendations }) => (
         <div className="grid grid-cols-[1fr_200px] gap-2 lg:grid-cols-[1fr_300px]">
           <div>
-            <EditWorkTitle workId={workId} queryToken={queryToken} recommended={showRecommendations} />
+            <EditWorkTitle workId={workId} queryToken={queryToken} />
             <EditWorkType workId={workId} queryToken={queryToken} />
             <EditImprint
               workId={workId}
               queryToken={queryToken}
               imprintOptions={imprintOptions}
-              recommended={showRecommendations}
+              recommended={showRecommendations && isLandingPageRequired}
             />
             <EditLicense workId={workId} queryToken={queryToken} />
-            <EditDoi workId={workId} queryToken={queryToken} recommended={showRecommendations} />
+            <EditDoi
+              workId={workId}
+              queryToken={queryToken}
+              recommended={showRecommendations && (isDoiRequired || isLandingPageRequired || isCoverUrlRequired)}
+            />
           </div>
           <EditWorkCover workId={workId} queryToken={queryToken} />
           {children}

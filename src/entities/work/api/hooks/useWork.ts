@@ -2,7 +2,7 @@
 
 import { useSuspenseQuery } from '@apollo/client/react';
 
-import { isDefaultId, QueryToken, WorkTypes } from '@/src/shared';
+import { getDefaultWork, isDefaultId, QueryToken } from '@/src/shared';
 
 import { WorkDtoMapper } from '../../model/work.mapper';
 import { GET_WORK } from '../../model/work.schema';
@@ -13,14 +13,9 @@ import { useWorkContribution } from './useWorkContribution';
 
 const mapper = new WorkDtoMapper();
 
+const defaultValues = getDefaultWork();
+
 const useWork = (id: WorkId, queryToken: QueryToken, onCreateCompleted?: (data: WorkContributionDto) => void) => {
-  const defaultValues = {
-    workId: id,
-    title: '',
-    fullTitle: '',
-    imprintId: '',
-    workType: WorkTypes.enum.BookChapter,
-  };
   const {
     data = {
       work: defaultValues,

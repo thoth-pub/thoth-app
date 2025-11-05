@@ -1,6 +1,6 @@
 'use client';
 
-import { Direction, WorkStatus } from '@/gql/graphql';
+import { Direction, WorkField, WorkStatus } from '@/gql/graphql';
 import { useSuspenseBooks } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { EditBookLink } from '@/src/features';
@@ -14,6 +14,7 @@ export const BooksList = () => {
     workStatus: WorkStatus.Active,
     limit: 3,
     direction: Direction.Desc,
+    field: WorkField.UpdatedAt,
   });
 
   return (

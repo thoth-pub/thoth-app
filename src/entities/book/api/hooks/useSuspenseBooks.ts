@@ -1,6 +1,6 @@
 import { useSuspenseQuery } from '@apollo/client/react';
 
-import type { Expression, WorkFragmentFragment, WorkStatus } from '@/gql/graphql';
+import { Expression, WorkField, WorkFragmentFragment, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
 import { appConfig, type Direction } from '@/src/shared';
 
@@ -18,6 +18,7 @@ type UseBooksProps = {
   workStatus?: WorkStatus;
   startedAt?: string;
   expression?: Expression;
+  field?: WorkField;
 };
 
 const useSuspenseBooks = (props: UseBooksProps) => {
@@ -30,6 +31,7 @@ const useSuspenseBooks = (props: UseBooksProps) => {
     workStatus,
     startedAt,
     expression,
+    field = WorkField.UpdatedAtWithRelations,
   } = props;
 
   const { data: { books } = { books: [] }, error } = useSuspenseQuery(GET_BOOKS, {
@@ -40,6 +42,7 @@ const useSuspenseBooks = (props: UseBooksProps) => {
       direction,
       filter,
       workStatus,
+      field,
       ...(startedAt && expression ? { startedAt, expression } : {}),
     },
     skip: publishersIds.length === 0,

@@ -5,7 +5,6 @@ import { Economica, Open_Sans } from 'next/font/google';
 
 import { auth } from '@/auth';
 import { appConfig } from '@/src/shared/config';
-import { Footer } from '@/src/shared/ui';
 
 import Providers from './providers';
 
@@ -46,7 +45,6 @@ export default async function RootLayout({
           className={`${economica.variable} ${openSans.variable} m-auto flex h-dvh min-h-dvh max-w-[var(--max-width)] flex-col px-3 py-2 antialiased lg:px-5 lg:py-3`}
         >
           <main className="flex flex-1">{children}</main>
-          <Footer />
         </body>
       </Providers>
     </html>
