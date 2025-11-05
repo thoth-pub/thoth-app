@@ -1,4 +1,4 @@
-import { Button, CheckboxFormField, ContentWrapper, FormFieldLabel, Typography } from '@/src/shared/ui';
+import { Button, CheckboxFormField, FormFieldLabel } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { useForm } from 'react-hook-form';
 
@@ -23,20 +23,20 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
       title="Inherited work data"
       headerContent={
         <Button variant="contained" className="mt-4 capitalize" onClick={handleSubmit(onSubmit)}>
-          Continue
+          create
         </Button>
       }
     >
       <form className="pl-4">
         <ul className="flex flex-col gap-2">
-          <ContentWrapper>
-            <FormFieldLabel label="License" />
+          <div className="flex items-center gap-2">
+            <FormFieldLabel label="License" className="min-w-30 lg:min-w-40" />
             <CheckboxFormField control={control} name="license" className={itemStyles} />
-          </ContentWrapper>
-          <ContentWrapper>
-            <FormFieldLabel label="Copyright holder" />
+          </div>
+          <div className="flex items-center gap-2">
+            <FormFieldLabel label="Copyright holder" className="min-w-30 lg:min-w-40" />
             <CheckboxFormField control={control} name="copyrightHolder" className={itemStyles} />
-          </ContentWrapper>
+          </div>
         </ul>
       </form>
     </ContentSection>

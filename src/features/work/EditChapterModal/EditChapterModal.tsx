@@ -5,8 +5,8 @@ import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/Edit
 import type { BaseEditSectionProps } from '@/src/shared';
 import EditDescriptions from '../EditDescriptions/EditDescriptions';
 import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
-
-// TODO WIP
+import EditFundings from '../EditFundings/EditFundings';
+import EditContributors from '../EditContributors/EditContributors';
 
 type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'>;
 
@@ -20,14 +20,11 @@ const EditChapterModal = (props: EditChapterModalProps) => {
   const chapter = activeWorkChapters[0];
 
   return (
-    <ChaptersModal
-      title={chapter.title}
-      isOpen={isSingleExistingChapterSelected}
-      onClose={close}
-      onDone={() => console.log(chapter)}
-    >
+    <ChaptersModal title={chapter.title} isOpen={isSingleExistingChapterSelected} onClose={close} onDone={close}>
       <EditChapterBasicDetails workId={chapter.id} queryToken={queryToken} />
       <EditDescriptions workId={chapter.id} queryToken={queryToken} />
+      <EditContributors workId={chapter.id} queryToken={queryToken} />
+      <EditFundings workId={chapter.id} queryToken={queryToken} />
     </ChaptersModal>
   );
 };

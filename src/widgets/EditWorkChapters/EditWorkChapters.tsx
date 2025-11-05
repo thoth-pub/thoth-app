@@ -1,10 +1,22 @@
 'use client';
 
+import DeselectIcon from '@mui/icons-material/Deselect';
 import { DndContext, useSensor, PointerSensor, useSensors, closestCenter, DragEndEvent } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 import { appConfig, BaseEditSectionProps } from '@/src/shared';
-import { Button, Checkbox, Table, TableBody, TableHeader, Typography } from '@/src/shared/ui';
+import {
+  Button,
+  Checkbox,
+  CloseButton,
+  DeleteButton,
+  EditButton,
+  IconButton,
+  Table,
+  TableBody,
+  TableHeader,
+  Typography,
+} from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { useEffect, useState } from 'react';
 import { ChapterTableRow } from './components/TableRow';
@@ -108,23 +120,32 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
     deleteWork(id);
   };
 
+  const handleBulkDelete = () => {
+    const selected = [...selectedChapters];
+
+    setItems((items) => items.filter((chapter) => !selected.includes(chapter.id)));
+
+    selected.forEach((id) => deleteWork(id));
+  };
+
   return (
     <ContentSection
       title="Chapters"
       headerContent={
-        <div className="flex items-center gap-2">
-          <Button size="small" className="capitalize" onClick={handleClearSelection}>
-            Clear
-          </Button>
-          <Button
-            variant="contained"
-            size="small"
-            className="capitalize"
-            disabled={selectedChapters.length < 2}
-            onClick={handleEditChapters}
-          >
-            Edit multiple
-          </Button>
+        <div className="flex min-h-10 items-center gap-2 pr-5">
+          {selectedChapters.length > 1 && (
+            <>
+              <Typography
+                component="span"
+                className="max-w-[300px]"
+              >{`${selectedChapters.length} chapters selected`}</Typography>
+              <DeleteButton onClick={handleBulkDelete} />
+              <EditButton onClick={handleEditChapters} />
+              <IconButton onClick={handleClearSelection}>
+                <DeselectIcon fontSize="large" />
+              </IconButton>
+            </>
+          )}
         </div>
       }
     >

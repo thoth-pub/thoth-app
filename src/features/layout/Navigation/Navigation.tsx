@@ -30,33 +30,33 @@ const Navigation = ({ linkedPublishers }: { linkedPublishers: PublisherId[] }) =
         animate={{ width: isExpanded ? '15rem' : '2.5rem' }}
         className="flex h-full max-w-[15rem] flex-col gap-2 overflow-hidden duration-300"
       >
-        <Link
-          className={`flex cursor-pointer items-center justify-between gap-4 ${isExpanded ? 'flex-row' : 'flex-col'}`}
-          href={ROUTES.DASHBOARD}
-        >
-          {isExpanded ? (
-            <Image
-              src="/logo.png"
-              alt="Thoth Open Metadata logo"
-              className="block min-h-[97px] min-w-[170px] shrink-0"
-              width={170}
-              height={97}
-              priority
-            />
-          ) : (
-            <Image
-              src="/logo_small.png"
-              alt="Thoth Open Metadata logo"
-              className="block min-h-[42px] min-w-[40px] shrink-0"
-              width={40}
-              height={42}
-              priority
-            />
-          )}
+        <div className={`flex items-center justify-between gap-4 ${isExpanded ? 'flex-row' : 'flex-col'}`}>
+          <Link className="cursor-pointer" href={ROUTES.DASHBOARD}>
+            {isExpanded ? (
+              <Image
+                src="/logo.png"
+                alt="Thoth Open Metadata logo"
+                className="block min-h-[97px] min-w-[170px] shrink-0"
+                width={170}
+                height={97}
+                priority
+              />
+            ) : (
+              <Image
+                src="/logo_small.png"
+                alt="Thoth Open Metadata logo"
+                className="block min-h-[42px] min-w-[40px] shrink-0"
+                width={40}
+                height={42}
+                priority
+              />
+            )}
+          </Link>
           <IconButton onClick={() => setIsExpanded(!isExpanded)} className={`${isExpanded && 'self-start'}`}>
             {!isExpanded ? <ArrowForwardIosRoundedIcon /> : <ArrowBackIosNewRoundedIcon />}
           </IconButton>
-        </Link>
+        </div>
+
         <ChangeActivePublisher linkedPublishers={linkedPublishers} />
         <ContentLanguage />
         <SignOutButton />

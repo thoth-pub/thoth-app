@@ -5,13 +5,17 @@ import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared'
 import { useBulkRefetchQueries, useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { CREATE_WORK } from '../../model/work.mutations';
+import { WorkDto, WorkEntity } from '../../model/work.types';
+import { WorkDtoMapper } from '../../model/work.mapper';
 
 type UseCreateWorkProps = {
   queryToken: QueryToken;
-  onCompleted: (data: CreateWorkMutation) => void;
+  onCompleted: (data: WorkEntity) => void;
 };
 
 const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
+
+const workDtoMapper = new WorkDtoMapper();
 
 const useCreateWork = (props: UseCreateWorkProps) => {
   const { queryToken, onCompleted } = props;
@@ -25,7 +29,10 @@ const useCreateWork = (props: UseCreateWorkProps) => {
     options: {
       onCompleted: (data) => {
         sendSuccessNotification(WORK_CREATION_SUCCESS);
-        onCompleted(data);
+
+        const work = workDtoMapper.toEntity(data.createWork as WorkDto);
+
+        onCompleted(work);
       },
       onError: (error) => {
         if (ServerError.is(error)) {
@@ -41,8 +48,14 @@ const useCreateWork = (props: UseCreateWorkProps) => {
     },
   });
 
+  const createWork = (data: WorkEntity) => {
+    const { workId, ...work } = workDtoMapper.toDto(data) as WorkDto;
+
+    mutate({ variables: { data: work } });
+  };
+
   return {
-    createWork: mutate,
+    createWork,
     loading,
   };
 };

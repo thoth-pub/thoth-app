@@ -64,3 +64,38 @@ export const getDefaultChapter = (data?: Partial<Omit<WorkEntity, 'type'>>): Wor
     ...data,
   };
 };
+
+export const getDefaultWork = (data?: Partial<WorkEntity>): WorkEntity => {
+  return {
+    title: '',
+    fullTitle: '',
+    status: WorkStatuses.enum.Forthcoming,
+    type: WorkTypes.enum.BookChapter,
+    imprintId: '',
+    license: '',
+    edition: 1,
+    id: '',
+    subtitle: '',
+    updatedAt: '',
+    contributorsNames: [],
+    doi: '',
+    publisherName: '',
+    publicationDate: null,
+    withdrawnDate: null,
+    contributions: [],
+    imageCount: 0,
+    tableCount: 0,
+    audioCount: 0,
+    videoCount: 0,
+    pageCount: 0,
+    frontmatterCount: 0,
+    backmatterCount: 0,
+    languages: [],
+    publications: [],
+    fundings: [],
+    references: [],
+    subjects: [],
+    issues: [],
+    ...data,
+  };
+};

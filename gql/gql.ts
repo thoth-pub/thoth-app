@@ -60,7 +60,7 @@ type Documents = {
     "\n  mutation CreateSubject($data: NewSubject!) {\n    createSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.CreateSubjectDocument,
     "\n  mutation UpdateSubject($data: PatchSubject!) {\n    updateSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.UpdateSubjectDocument,
     "\n  mutation DeleteSubject($subjectId: Uuid!) {\n    deleteSubject(subjectId: $subjectId) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.DeleteSubjectDocument,
-    "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n": typeof types.CreateWorkDocument,
+    "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": typeof types.CreateWorkDocument,
     "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n      contributionId\n    }\n  }\n": typeof types.CreateContributionDocument,
     "\n  mutation DeleteContribution($contributionId: Uuid!) {\n    deleteContribution(contributionId: $contributionId) {\n      workId\n    }\n  }\n": typeof types.DeleteContributionDocument,
     "\n  mutation UpdateContribution($data: PatchContribution!) {\n    updateContribution(data: $data) {\n      workId\n    }\n  }\n": typeof types.UpdateContributionDocument,
@@ -129,7 +129,7 @@ const documents: Documents = {
     "\n  mutation CreateSubject($data: NewSubject!) {\n    createSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": types.CreateSubjectDocument,
     "\n  mutation UpdateSubject($data: PatchSubject!) {\n    updateSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": types.UpdateSubjectDocument,
     "\n  mutation DeleteSubject($subjectId: Uuid!) {\n    deleteSubject(subjectId: $subjectId) {\n      ...SubjectFragment\n    }\n  }\n": types.DeleteSubjectDocument,
-    "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n": types.CreateWorkDocument,
+    "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": types.CreateWorkDocument,
     "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n      contributionId\n    }\n  }\n": types.CreateContributionDocument,
     "\n  mutation DeleteContribution($contributionId: Uuid!) {\n    deleteContribution(contributionId: $contributionId) {\n      workId\n    }\n  }\n": types.DeleteContributionDocument,
     "\n  mutation UpdateContribution($data: PatchContribution!) {\n    updateContribution(data: $data) {\n      workId\n    }\n  }\n": types.UpdateContributionDocument,
@@ -353,7 +353,7 @@ export function graphql(source: "\n  mutation DeleteSubject($subjectId: Uuid!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n"): (typeof documents)["\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      workId\n    }\n  }\n"];
+export function graphql(source: "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

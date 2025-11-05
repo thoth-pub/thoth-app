@@ -5,10 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { FormFieldOption } from '@/src/shared';
+import { FormFieldOption, getDefaultWork } from '@/src/shared';
 import { ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { isBookChapter } from '@/src/shared/utils';
 
 import useCreateWork from '../../api/hooks/useCreateWork';
 import type { CreateWorkForm as CreateWorkFormType, WorkType } from '../../model/work.types';
@@ -51,7 +50,7 @@ const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licens
   const { createWork, loading } = useCreateWork({
     queryToken,
     onCompleted: (data) => {
-      router.push(ROUTES.WORK_PAGE(data.createWork.workId));
+      router.push(ROUTES.WORK_PAGE(data.id));
     },
   });
 
@@ -61,19 +60,17 @@ const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licens
   const submit = handleSubmit((data) => {
     const { title, workType, imprintId, license } = data;
 
-    createWork({
-      variables: {
-        data: {
-          title,
-          fullTitle: title,
-          workStatus: WorkStatuses.enum.Forthcoming,
-          workType: workType as WorkType,
-          imprintId,
-          license: license.value,
-          edition: isBookChapter(workType as WorkType) ? null : 1,
-        },
-      },
+    const defaultWork = getDefaultWork({
+      title,
+      fullTitle: title,
+      status: WorkStatuses.enum.Forthcoming,
+      type: workType as WorkType,
+      imprintId,
+      license: license.value,
+      edition: 1,
     });
+
+    createWork(defaultWork);
   });
 
   return { control, isImprintVisible, isSubmitDisabled, availableNewWorkOptions, isLoading: loading, submit };
