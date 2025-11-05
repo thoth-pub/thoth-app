@@ -75,7 +75,7 @@ const EditWorkCover = ({ workId, queryToken }: BaseEditSectionProps) => {
   return (
     <form
       onDrop={handleDrop}
-      className="relative flex h-full max-h-[300px] w-full flex-col items-center justify-center gap-1 rounded bg-[var(--color-image-placeholder)] lg:max-h-[450px]"
+      className="relative flex aspect-[1/1.5] h-auto max-h-[300px] w-full flex-col items-center justify-center gap-1 rounded bg-[var(--color-image-placeholder)] lg:max-h-[450px]"
     >
       <Image
         src="/bird.png"

@@ -27,7 +27,7 @@ const EditBookLink = ({ title, id, status, type, image = '', contributions }: Ed
   const mainContributor = contributions.find(({ isMain }) => isMain)?.fullName ?? '';
 
   return (
-    <NextLink href={ROUTES.WORK_PAGE(id)} className="w-full max-w-[330px] shrink-0 lg:max-w-[520px]">
+    <NextLink href={ROUTES.WORK_PAGE(id)} className="w-full max-w-[270px] lg:max-w-[520px]">
       <DashboardContentWrapper className="shrink-0">
         <div className="flex h-full w-full">
           <div className="cover relative h-full shrink-0">
@@ -49,7 +49,7 @@ const EditBookLink = ({ title, id, status, type, image = '', contributions }: Ed
             )}
           </div>
 
-          <div className="flex max-w-[227px] grow flex-col justify-between pl-2 lg:max-w-[410px]">
+          <div className="flex max-w-[190px] grow flex-col justify-between pl-2 lg:max-w-[410px]">
             <div className="flex items-center justify-between">
               <Typography variant="h2" component="h3" className="grow truncate">
                 {title}
