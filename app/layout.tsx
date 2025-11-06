@@ -1,4 +1,5 @@
 import './styles/globals.css';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 import type { Metadata } from 'next';
 import { Economica, Open_Sans } from 'next/font/google';
@@ -45,6 +46,7 @@ export default async function RootLayout({
           className={`${economica.variable} ${openSans.variable} m-auto flex h-dvh min-h-dvh max-w-[var(--max-width)] flex-col px-3 py-2 antialiased lg:px-5 lg:py-3`}
         >
           <main className="flex flex-1">{children}</main>
+          <SpeedInsights />
         </body>
       </Providers>
     </html>
