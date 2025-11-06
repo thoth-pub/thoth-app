@@ -1,11 +1,7 @@
 'use client';
 
 import { EditDoi, EditLicense, EditWorkTitle, useWorkRecommendations } from '@/src/entities/work';
-import type {
-  DoiAndCoversForm,
-  LicenseAndCopyrightHolderForm,
-  WorkTitlesForm,
-} from '@/src/entities/work/model/work.types';
+import type { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { type BaseEditSectionProps } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
 
@@ -16,9 +12,7 @@ type EditChapterBasicDetailsProps = BaseEditSectionProps &
     license?: string;
     copyrightHolder?: string;
     isMultipleChaptersEdit: boolean;
-    onTitleUpdate?: (data: WorkTitlesForm) => void;
     onLicenseUpdate?: (data: LicenseAndCopyrightHolderForm) => void;
-    onDoiUpdate?: (data: DoiAndCoversForm) => void;
   }>;
 
 const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
@@ -30,9 +24,7 @@ const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
     license,
     copyrightHolder,
     isMultipleChaptersEdit = false,
-    onTitleUpdate,
     onLicenseUpdate,
-    onDoiUpdate,
   } = props;
 
   const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
@@ -48,7 +40,6 @@ const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
               workId={workId}
               queryToken={queryToken}
               recommended={showRecommendations}
-              onUpdate={onTitleUpdate}
               withEdition={false}
             />
           )}
@@ -60,13 +51,7 @@ const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
             onUpdate={onLicenseUpdate}
           />
           {!isMultipleChaptersEdit && (
-            <EditDoi
-              workId={workId}
-              queryToken={queryToken}
-              recommended={showRecommendations}
-              isChapter
-              onUpdate={onDoiUpdate}
-            />
+            <EditDoi workId={workId} queryToken={queryToken} recommended={showRecommendations} isChapter />
           )}
         </div>
       )}

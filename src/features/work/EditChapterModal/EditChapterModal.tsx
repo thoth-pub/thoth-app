@@ -15,7 +15,7 @@ type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'> & {
 const EditChapterModal = (props: EditChapterModalProps) => {
   const { queryToken, onDone } = props;
 
-  const { activeWorkChapters, isSingleExistingChapterSelected, close } = useWorkChaptersStateMachine();
+  const { activeWorkChapters, isSingleChapterSelected, close } = useWorkChaptersStateMachine();
 
   if (!activeWorkChapters || activeWorkChapters.length === 0) return null;
 
@@ -27,7 +27,7 @@ const EditChapterModal = (props: EditChapterModalProps) => {
   };
 
   return (
-    <ChaptersModal title="edit chapter" isOpen={isSingleExistingChapterSelected} onClose={close} onDone={handleDone}>
+    <ChaptersModal title="edit chapter" isOpen={isSingleChapterSelected} onClose={close} onDone={handleDone}>
       <EditChapterBasicDetails workId={chapter.id} queryToken={queryToken} />
       <EditDescriptions workId={chapter.id} queryToken={queryToken} />
       <EditContributors workId={chapter.id} queryToken={queryToken} />

@@ -13,14 +13,10 @@ import { useEditSubjects } from './useEditSubjects';
 
 const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
 
-type EditSubjectsProps = BaseRecommendedSectionProps & {
-  onUpdate?: (data: SubjectsFormType) => void;
-};
+const EditSubjects = (props: BaseRecommendedSectionProps) => {
+  const { workId, queryToken, recommended = false } = props;
 
-const EditSubjects = (props: EditSubjectsProps) => {
-  const { workId, queryToken, recommended = false, onUpdate } = props;
-
-  const { subjects, update, deleteSubject, close } = useEditSubjects({ workId, queryToken, onUpdate });
+  const { subjects, update, deleteSubject, close } = useEditSubjects({ workId, queryToken });
 
   const defaultValues = subjects.map((subject) => ({
     subjectId: subject.id,

@@ -9,38 +9,36 @@ import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
 
 // TODO WIP
 
-type EditChaptersModalProps = Omit<BaseEditSectionProps, 'workId'>;
+type EditChaptersModalProps = Omit<BaseEditSectionProps, 'workId'> & {
+  onDone?: () => void;
+};
 
 const EditChaptersModal = (props: EditChaptersModalProps) => {
-  const { queryToken } = props;
+  const { queryToken, onDone } = props;
 
   const { activeWorkChapters, isMultipleChaptersSelected, edit, close } = useWorkChaptersStateMachine();
 
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
   const [chapters, setChapters] = useState(initValue);
 
+  const handleDone = () => {
+    onDone?.();
+    close();
+  };
+
   return (
-    <ChaptersModal
-      title="edit chapters"
-      isOpen={isMultipleChaptersSelected}
-      onClose={close}
-      onDone={() => console.log(chapters)}
-    >
+    <ChaptersModal title="edit chapters" isOpen={isMultipleChaptersSelected} onClose={close} onDone={handleDone}>
       <EditChapterBasicDetails
         workId={''}
         queryToken={queryToken}
         isMultipleChaptersEdit
-        onTitleUpdate={(data) => console.log(data)}
         onLicenseUpdate={(data) => console.log(data)}
       />
       <EditDescriptions
         workId={''}
         queryToken={queryToken}
         isMultipleChaptersEdit
-        onPageCountUpdate={(data) => console.log(data)}
-        onMediaUpdate={(data) => console.log(data)}
         onLanguagesUpdate={(data) => console.log(data)}
-        onSubjectsUpdate={(data) => console.log(data)}
       />
     </ChaptersModal>
   );

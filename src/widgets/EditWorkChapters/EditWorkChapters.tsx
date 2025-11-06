@@ -272,7 +272,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
         </SortableContext>
       </DndContext>
       <EditChapterModal queryToken={queryToken} onDone={refetchChapters} />
-      <EditChaptersModal queryToken={queryToken} />
+      <EditChaptersModal queryToken={queryToken} onDone={refetchChapters} />
       <AddChapterModal workId={workId} queryToken={queryToken} />
     </ContentSection>
   );

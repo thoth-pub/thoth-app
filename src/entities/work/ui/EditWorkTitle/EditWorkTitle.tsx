@@ -26,11 +26,10 @@ type EditWorkTitleProps = BaseRecommendedSectionProps &
     title: string;
     subtitle: string;
     withEdition: boolean;
-    onUpdate: (data: WorkTitlesForm) => void;
   }>;
 
 const EditWorkTitle = (props: EditWorkTitleProps) => {
-  const { workId, queryToken, recommended = false, withEdition = true, title, subtitle, onUpdate } = props;
+  const { workId, queryToken, recommended = false, withEdition = true, title, subtitle } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
 
@@ -54,11 +53,6 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
 
     const title = titles.length > 0 ? titles[0][WORK_TITLE.name] : work?.title;
     const subtitle = titles.length > 0 ? titles[0][SUBTITLE.name] : work?.subtitle;
-
-    if (onUpdate) {
-      onUpdate({ [TITLES.name]: titles, [EDITION.name]: edition });
-      return;
-    }
 
     updateWork({ ...work, title: title ?? '', subtitle: subtitle ?? '', edition: edition ?? 1 });
   };

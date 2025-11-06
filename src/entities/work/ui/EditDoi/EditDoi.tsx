@@ -13,11 +13,10 @@ const { DOI, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
 
 type EditDoiProps = BaseRecommendedSectionProps & {
   isChapter?: boolean;
-  onUpdate?: (data: DoiAndCoversForm) => void;
 };
 
 const EditDoi = (props: EditDoiProps) => {
-  const { onUpdate, workId, queryToken, recommended = false, isChapter = false } = props;
+  const { workId, queryToken, recommended = false, isChapter = false } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
   const { isDoiRequired, isLandingPageRequired, isCoverUrlRequired } = useWorkRecommendations({ workId });
@@ -36,11 +35,6 @@ const EditDoi = (props: EditDoiProps) => {
   const chapterPlaceholderValue = [doiValue].filter((value) => value.length > 0).join(', ');
 
   const updateImprint = ({ doi, landingPage, coverUrl }: DoiAndCoversForm) => {
-    if (onUpdate) {
-      onUpdate({ doi, landingPage, coverUrl });
-      return;
-    }
-
     updateWork({ ...work, doi: doi ?? '', landingPage, coverUrl });
   };
 

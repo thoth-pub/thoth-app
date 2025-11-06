@@ -10,17 +10,9 @@ const useWorkChaptersStateMachine = () => {
   );
   const actorRef = WorkChaptersStateMachineContext.useActorRef();
 
-  const isChapterSelected = activeWorkChapters ? activeWorkChapters.length > 0 : false;
-
-  const isSingleExistingChapterSelected = activeWorkChapters
-    ? activeWorkChapters.length === 1 && !isDefaultId(activeWorkChapters[0].id)
-    : false;
+  const isSingleChapterSelected = activeWorkChapters ? activeWorkChapters.length === 1 : false;
 
   const isMultipleChaptersSelected = activeWorkChapters ? activeWorkChapters.length > 1 : false;
-
-  const isNewChapterSelected = activeWorkChapters
-    ? activeWorkChapters.length === 1 && isDefaultId(activeWorkChapters[0].id)
-    : false;
 
   const close = useCallback(() => {
     actorRef.send({ type: 'close' });
@@ -36,10 +28,8 @@ const useWorkChaptersStateMachine = () => {
 
   return {
     activeWorkChapters,
-    isChapterSelected,
     isMultipleChaptersSelected,
-    isNewChapterSelected,
-    isSingleExistingChapterSelected,
+    isSingleChapterSelected,
     edit,
     close,
   };
