@@ -67,7 +67,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     defaultValues,
   });
 
-  const isDesktop = useIsDesktop();
+  const isDesktop = useIsDesktop(980);
 
   const isSubmitDisabled = !isValid || !isDirty;
   const shouldSubmitAutomatically = isDirty && isValid && !isSubmitSuccessful;

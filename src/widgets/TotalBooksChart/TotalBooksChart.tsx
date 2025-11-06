@@ -9,7 +9,7 @@ import { DashboardContentWrapper, Typography } from '@/src/shared/ui';
 
 const TotalBooksChart = () => {
   const { activePublisher } = usePublisherStateMachine();
-  const isDesktop = useIsDesktop();
+  const isDesktop = useIsDesktop(1280);
 
   const { bookCount } = useBooksCount(activePublisher ? [activePublisher] : []);
   const { bookCount: publishedBookCount } = usePublishedBooksCount(activePublisher ? [activePublisher] : []);
@@ -49,7 +49,7 @@ const TotalBooksChart = () => {
           <Typography component="h2" variant="h2" className="mb-2">
             Catalogue Breakdown
           </Typography>
-          <ul className="flex list-disc flex-col gap-1 pl-4 lg:pl-8">
+          <ul className="flex list-disc flex-col gap-1 pl-4 xl:pl-8">
             {publishedBookCount > 0 && (
               <Typography component="li" className="list-item marker:text-[var(--color-chart-4)]">
                 {publishedBookCount} Active

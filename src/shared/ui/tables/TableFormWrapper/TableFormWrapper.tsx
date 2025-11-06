@@ -6,7 +6,7 @@ import { useIsDesktop } from '@/src/shared/hooks';
 import ModalWrapper from '../../core/ModalWrapper/ModalWrapper';
 
 const TableFormWrapper = ({ children, colSpan }: { children: React.ReactNode; colSpan: number }) => {
-  const isDesktop = useIsDesktop();
+  const isDesktop = useIsDesktop(980);
 
   return (
     <>

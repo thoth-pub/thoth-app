@@ -6,7 +6,7 @@ const DashboardChartSkeleton = () => {
       variant="rounded"
       height={160}
       width="100%"
-      className="max-h-[7.5rem] max-w-[270px] lg:max-h-[10rem] lg:max-w-[520px]"
+      className="max-h-[7.5rem] max-w-[270px] xl:max-h-[10rem] xl:max-w-[520px]"
     />
   );
 };

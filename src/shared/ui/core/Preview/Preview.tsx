@@ -66,7 +66,7 @@ const Preview = (props: PreviewProps) => {
               height: '20px',
               width: '2rem',
 
-              '@media (min-width: 1024px) ': { height: '2rem' },
+              '@media (min-width: 1280px) ': { height: '2rem' },
             }}
           />
         )}

@@ -13,7 +13,7 @@ export const theme = createTheme({
       verticalAlign: 'middle',
       textTransform: 'uppercase',
 
-      '@media (min-width: 1024px)': {
+      '@media (min-width: 1280px)': {
         fontSize: '2rem',
       },
     },
@@ -25,7 +25,7 @@ export const theme = createTheme({
       letterSpacing: 'var(--default-letter-spacing)',
       textTransform: 'uppercase',
 
-      '@media (min-width: 1024px)': {
+      '@media (min-width: 1280px)': {
         fontSize: '1.375rem',
       },
     },
@@ -36,7 +36,7 @@ export const theme = createTheme({
       letterSpacing: 'var(--default-letter-spacing)',
       color: 'var(--color-typography)',
 
-      '@media (min-width: 1024px)': {
+      '@media (min-width: 1280px)': {
         fontSize: '1rem',
       },
     },
@@ -47,7 +47,7 @@ export const theme = createTheme({
       letterSpacing: 'var(--default-letter-spacing)',
       color: 'var(--color-typography)',
 
-      '@media (min-width: 1024px)': {
+      '@media (min-width: 1280px)': {
         fontSize: '0.875rem',
       },
     },
@@ -58,7 +58,7 @@ export const theme = createTheme({
       letterSpacing: 'var(--default-letter-spacing)',
       color: 'var(--color-typography)',
 
-      '@media (min-width: 1024px)': {
+      '@media (min-width: 1280px)': {
         fontSize: '1rem',
       },
     },
@@ -104,7 +104,7 @@ export const theme = createTheme({
             cursor: 'not-allowed',
           },
 
-          '@media (min-width: 1024px)': {
+          '@media (min-width: 1280px)': {
             padding: '0.625rem 1.25rem',
             fontSize: '1rem',
           },
@@ -124,7 +124,7 @@ export const theme = createTheme({
           lineHeight: '1.5rem',
           fontWeight: 400,
 
-          '@media (min-width: 1024px)': {
+          '@media (min-width: 1280px)': {
             fontSize: '1rem',
           },
         },
@@ -142,7 +142,7 @@ export const theme = createTheme({
           letterSpacing: '0.025rem',
           color: 'var(--color-text-field-text)',
 
-          '@media (min-width: 1024px)': {
+          '@media (min-width: 1280px)': {
             fontSize: '1rem',
           },
 
@@ -153,7 +153,7 @@ export const theme = createTheme({
               border: '1px solid var(--color-text-field-border)',
             },
 
-            '@media (min-width: 1024px)': {
+            '@media (min-width: 1280px)': {
               height: '2.75rem',
             },
           },
@@ -174,7 +174,7 @@ export const theme = createTheme({
             height: '2rem',
             padding: '0 0.625rem',
 
-            '@media (min-width: 1024px)': {
+            '@media (min-width: 1280px)': {
               height: '2.75rem',
             },
           },
@@ -210,7 +210,7 @@ export const theme = createTheme({
           letterSpacing: 'var(--default-letter-spacing)',
           color: 'var(--color-form-field-label)',
 
-          '@media (min-width: 1024px)': {
+          '@media (min-width: 1280px)': {
             fontSize: '1rem',
           },
         },
@@ -226,7 +226,7 @@ export const theme = createTheme({
           color: 'var(--color-text-field-text)',
           backgroundColor: 'var(--color-text-field-background)',
 
-          '@media (min-width: 1024px)': {
+          '@media (min-width: 1280px)': {
             fontSize: '1rem',
           },
 
@@ -235,7 +235,7 @@ export const theme = createTheme({
             padding: '0.5rem 0',
             opacity: 1,
 
-            '@media (min-width: 1024px)': {
+            '@media (min-width: 1280px)': {
               height: '2.75rem',
               padding: '0.625rem 0',
             },
@@ -299,7 +299,7 @@ export const theme = createTheme({
           borderRadius: '0.5rem',
           height: '1rem',
 
-          '@media (min-width: 1024px)': {
+          '@media (min-width: 1280px)': {
             padding: '0.25rem 0.75rem',
             fontSize: '0.875rem',
             borderRadius: '1rem',
@@ -309,7 +309,7 @@ export const theme = createTheme({
           '& .MuiChip-label': {
             padding: '0',
 
-            '@media (min-width: 1024px)': {
+            '@media (min-width: 1280px)': {
               padding: '0 0.75rem',
             },
           },
@@ -326,14 +326,14 @@ export const theme = createTheme({
             fontSize: '0.75rem',
             lineHeight: '1.5rem',
 
-            '@media (min-width: 1024px)': {
+            '@media (min-width: 1280px)': {
               fontSize: '1rem',
             },
           },
           '& .MuiTableHead-root .MuiTableCell-root': {
             padding: '8px',
 
-            '@media (min-width: 1024px)': {
+            '@media (min-width: 1280px)': {
               padding: '10px',
             },
           },
@@ -381,7 +381,7 @@ export const theme = createTheme({
           fontSize: '0.75rem',
           color: 'var(--color-breadcrumb-text)',
 
-          '@media (min-width: 1024px)': {
+          '@media (min-width: 1280px)': {
             fontSize: '1rem',
           },
         },

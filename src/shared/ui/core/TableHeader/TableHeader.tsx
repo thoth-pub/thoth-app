@@ -21,7 +21,7 @@ const TableHeader = ({ cells, cellStyles = [] }: TableHeaderProps) => {
                     fontWeight: 'unset',
                     textTransform: 'unset',
                     fontSize: '1rem',
-                    '@media (min-width: 1024px)': { fontSize: '1.375rem' },
+                    '@media (min-width: 1280px)': { fontSize: '1.375rem' },
                   }}
                 >
                   {cell}

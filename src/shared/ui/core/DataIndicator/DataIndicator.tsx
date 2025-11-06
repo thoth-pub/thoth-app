@@ -32,7 +32,7 @@ const DataIndicator = (props: DataIndicatorProps) => {
         padding: '10px',
         minWidth: '30px',
 
-        '@media (min-width: 1024px)': {
+        '@media (min-width: 1280px)': {
           minWidth: '40px',
         },
 
@@ -47,7 +47,7 @@ const DataIndicator = (props: DataIndicatorProps) => {
     >
       <div
         className={mergeStyles(
-          `flex h-4 w-4 shrink-0 overflow-clip rounded-full border-1 opacity-100 lg:h-5 lg:w-5 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`,
+          `flex h-4 w-4 shrink-0 overflow-clip rounded-full border-1 opacity-100 xl:h-5 xl:w-5 ${isActive ? 'border-[var(--color-yellow)]' : 'border-[var(--color-success)]'}`,
           indicatorClassName,
         )}
       >

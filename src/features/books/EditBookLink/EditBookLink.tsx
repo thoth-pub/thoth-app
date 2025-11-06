@@ -27,7 +27,7 @@ const EditBookLink = ({ title, id, status, type, image = '', contributions }: Ed
   const mainContributor = contributions.find(({ isMain }) => isMain)?.fullName ?? '';
 
   return (
-    <NextLink href={ROUTES.WORK_PAGE(id)} className="w-full max-w-[270px] lg:max-w-[520px]">
+    <NextLink href={ROUTES.WORK_PAGE(id)} className="w-full max-w-[270px] xl:max-w-[520px]">
       <DashboardContentWrapper className="shrink-0">
         <div className="flex h-full w-full">
           <div className="cover relative h-full shrink-0">
@@ -49,7 +49,7 @@ const EditBookLink = ({ title, id, status, type, image = '', contributions }: Ed
             )}
           </div>
 
-          <div className="flex max-w-[190px] grow flex-col justify-between pl-2 lg:max-w-[410px]">
+          <div className="flex max-w-[190px] grow flex-col justify-between pl-2 xl:max-w-[410px]">
             <div className="flex items-center justify-between">
               <Typography variant="h2" component="h3" className="grow truncate">
                 {title}
@@ -58,7 +58,7 @@ const EditBookLink = ({ title, id, status, type, image = '', contributions }: Ed
                 isEmpty={isEmpty}
                 isValid={isAllInformationFilled}
                 component="div"
-                indicatorClassName="h-[10px] w-[10px] lg:h-5 lg:w-5"
+                indicatorClassName="h-[10px] w-[10px] xl:h-5 xl:w-5"
                 className="shrink-0 p-0"
                 sx={{
                   minWidth: '20px',
@@ -71,7 +71,7 @@ const EditBookLink = ({ title, id, status, type, image = '', contributions }: Ed
               />
             </div>
             <div className="mt-auto flex flex-col gap-1">
-              <Typography className="max-w-[240px] truncate lg:max-w-[360px]">{mainContributor}</Typography>
+              <Typography className="max-w-[240px] truncate xl:max-w-[360px]">{mainContributor}</Typography>
               <div className="flex items-center gap-4">
                 <Typography className="truncate">{convertOptionToString(convertedType)}</Typography>
                 <Chip label={convertOptionToString(status)} size="small" component="span" />

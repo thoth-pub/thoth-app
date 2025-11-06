@@ -2,8 +2,8 @@
 
 import { useMedia } from 'react-use';
 
-const useIsDesktop = () => {
-  const isDesktop = useMedia('(min-width: 1024px)', true);
+const useIsDesktop = (width = 1024) => {
+  const isDesktop = useMedia(`(min-width: ${width}px)`, true);
 
   return isDesktop;
 };

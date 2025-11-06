@@ -13,7 +13,7 @@ import { useCurrentYearBooks } from './useCurrentYearBooks';
 import { usePrevYearBooksCount } from './usePrevYearBooksCount';
 
 const PublishedBooksChart = () => {
-  const isDesktop = useIsDesktop();
+  const isDesktop = useIsDesktop(1280);
   const { activePublisher } = usePublisherStateMachine();
   const publishersIds = activePublisher ? [activePublisher] : [];
 
