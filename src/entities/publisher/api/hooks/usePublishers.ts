@@ -8,10 +8,10 @@ import type { PublisherId } from '../../model/publisher.types';
 
 const mapper = new PublisherDtoMapper();
 
-const usePublishers = (publisherIds: PublisherId[]) => {
+const usePublishers = (publisherIds: PublisherId[], isAdmin: boolean) => {
   const { data: { publishers } = { publishers: [] }, error } = useQuery(GET_PUBLISHERS, {
     variables: { publishers: publisherIds, offset: 0 },
-    skip: publisherIds.length === 0,
+    skip: publisherIds.length === 0 && !isAdmin,
   });
 
   const data = publishers.map(mapper.toEntity);

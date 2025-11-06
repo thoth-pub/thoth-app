@@ -8,11 +8,14 @@ import { convertEntityToSelectFieldOptions } from '@/src/shared';
 import { TextField } from '@/src/shared/ui';
 
 type ChangeActivePublisherProps = {
-  linkedPublishers: PublisherId[];
+  linkedPublishers: { publisherId: string; isAdmin: boolean }[];
+  isSuperAdmin: boolean;
 };
 
-const ChangeActivePublisher = ({ linkedPublishers }: ChangeActivePublisherProps) => {
-  const { publishers } = usePublishers(linkedPublishers);
+const ChangeActivePublisher = ({ linkedPublishers, isSuperAdmin = false }: ChangeActivePublisherProps) => {
+  const ids = linkedPublishers.map((publisher) => publisher.publisherId);
+
+  const { publishers } = usePublishers(ids, true);
 
   const { activePublisher, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
 
@@ -21,7 +24,12 @@ const ChangeActivePublisher = ({ linkedPublishers }: ChangeActivePublisherProps)
   useEffect(() => {
     if (publishers.length === 0 || activePublisher) return;
 
-    setLinkedPublishers(publishers);
+    const authorizedPublishers = publishers.map((publisher) => ({
+      ...publisher,
+      isAdmin: linkedPublishers.find((p) => p.publisherId === publisher.id)?.isAdmin ?? false,
+    }));
+
+    setLinkedPublishers(authorizedPublishers, isSuperAdmin);
   }, [publishers]);
 
   const handleUpdatePublisher = (publisher: PublisherId) => {

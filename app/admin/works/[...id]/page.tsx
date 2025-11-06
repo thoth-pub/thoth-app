@@ -42,7 +42,7 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
 
   const linkedPublishers = session.user.linkedPublishers ? session.user.linkedPublishers : [];
   const isUserAdmin = isAdmin(session);
-  const activePublisher = linkedPublishers.slice(0, 1);
+  const activePublisher = linkedPublishers.slice(0, 1).map((publisher) => publisher.publisherId);
 
   const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : activePublisher });
 

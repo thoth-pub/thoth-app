@@ -7,17 +7,18 @@ import { WorkStatus, WorkType } from '../../model/work.types';
 
 type UseWorksCountProps = {
   publishersIds: PublisherId[];
+  isAdmin: boolean;
   filter?: string;
   workStatus?: WorkStatus;
   workTypes?: WorkType[];
 };
 
 const useWorksCount = (props: UseWorksCountProps) => {
-  const { publishersIds, filter, workStatus, workTypes } = props;
+  const { publishersIds, isAdmin = false, filter, workStatus, workTypes } = props;
 
   const { data: { workCount } = { workCount: 0 }, error } = useSuspenseQuery(GET_WORKS_COUNT, {
     variables: { publishers: publishersIds, filter, workStatus, workTypes },
-    skip: publishersIds.length === 0,
+    skip: publishersIds.length === 0 && !isAdmin,
   });
 
   return { workCount, error };

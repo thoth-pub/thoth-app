@@ -8,7 +8,6 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import type { PublisherId } from '@/src/entities/publisher';
 import { PAGES, ROUTES } from '@/src/shared/constants';
 import { IconButton, Paper, Typography } from '@/src/shared/ui';
 
@@ -17,7 +16,12 @@ import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
 import { useIsDesktop } from '@/src/shared/hooks';
 
-const Navigation = ({ linkedPublishers }: { linkedPublishers: PublisherId[] }) => {
+type NavigationProps = {
+  linkedPublishers?: { publisherId: string; isAdmin: boolean }[];
+  isSuperAdmin?: boolean;
+};
+
+const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationProps) => {
   const isDesktop = useIsDesktop();
 
   const [isExpanded, setIsExpanded] = useState(isDesktop);
@@ -64,7 +68,7 @@ const Navigation = ({ linkedPublishers }: { linkedPublishers: PublisherId[] }) =
           </IconButton>
         </div>
 
-        <ChangeActivePublisher linkedPublishers={linkedPublishers} />
+        <ChangeActivePublisher linkedPublishers={linkedPublishers} isSuperAdmin={isSuperAdmin} />
         <ContentLanguage />
         <SignOutButton />
         <nav>

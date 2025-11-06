@@ -4,10 +4,10 @@ import { WorkStatus } from '@/gql/graphql';
 import { GET_BOOKS_COUNT } from '@/src/entities/book/model/book.schema';
 import type { PublisherId } from '@/src/entities/publisher';
 
-const useForthcomingBooksCount = (publishersIds: PublisherId[]) => {
+const useForthcomingBooksCount = (publishersIds: PublisherId[], isAdmin: boolean) => {
   const { data: { bookCount } = { bookCount: 0 }, error } = useSuspenseQuery(GET_BOOKS_COUNT, {
     variables: { publishers: publishersIds, workStatus: WorkStatus.Forthcoming },
-    skip: publishersIds.length === 0,
+    skip: publishersIds.length === 0 && !isAdmin,
   });
 
   return { bookCount, error };

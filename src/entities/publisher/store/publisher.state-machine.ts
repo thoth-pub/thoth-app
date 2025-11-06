@@ -1,10 +1,11 @@
 import { assign, setup } from 'xstate';
 
-import type { PublisherEntity, PublisherId } from '../model/publisher.types';
+import type { AuthorizedPublisher, PublisherId } from '../model/publisher.types';
 
 export type PublisherContext = {
   activePublisher: PublisherId | null;
-  linkedPublishers: PublisherEntity[];
+  linkedPublishers: AuthorizedPublisher[];
+  isSuperAdmin: boolean;
 };
 
 export const publisherStateMachine = setup({
@@ -13,6 +14,7 @@ export const publisherStateMachine = setup({
       | {
           type: 'setLinkedPublishers';
           linkedPublishers: PublisherContext['linkedPublishers'];
+          isSuperAdmin: boolean;
         }
       | {
           type: 'activePublisher.update';
@@ -26,6 +28,7 @@ export const publisherStateMachine = setup({
   context: {
     activePublisher: null,
     linkedPublishers: [],
+    isSuperAdmin: false,
   } as PublisherContext,
   states: {
     init: {
@@ -44,7 +47,7 @@ export const publisherStateMachine = setup({
       on: {
         resetLinkedPublishers: {
           target: 'init',
-          actions: assign({ activePublisher: () => null, linkedPublishers: () => [] }),
+          actions: assign({ activePublisher: () => null, linkedPublishers: () => [], isSuperAdmin: false }),
         },
         'activePublisher.update': {
           actions: assign({

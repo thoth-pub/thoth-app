@@ -14,11 +14,11 @@ import { usePrevYearBooksCount } from './usePrevYearBooksCount';
 
 const PublishedBooksChart = () => {
   const isDesktop = useIsDesktop(1280);
-  const { activePublisher } = usePublisherStateMachine();
+  const { activePublisher, isAdmin } = usePublisherStateMachine();
   const publishersIds = activePublisher ? [activePublisher] : [];
 
-  const { bookCount, books } = useCurrentYearBooks(publishersIds);
-  const { bookCount: prevYearBooksCount } = usePrevYearBooksCount(publishersIds);
+  const { bookCount, books } = useCurrentYearBooks(publishersIds, isAdmin);
+  const { bookCount: prevYearBooksCount } = usePrevYearBooksCount(publishersIds, isAdmin);
 
   const diff = prevYearBooksCount - bookCount;
 

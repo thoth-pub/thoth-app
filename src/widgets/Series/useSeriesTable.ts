@@ -11,7 +11,7 @@ import { useDebouncedValue } from '@/src/shared/hooks';
 const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 
 export const useSeriesTable = () => {
-  const { activePublisher } = usePublisherStateMachine();
+  const { activePublisher, isAdmin } = usePublisherStateMachine();
   const publishers = activePublisher ? [activePublisher] : [];
 
   const [seriesType, setSeriesType] = useState<SeriesType | 'All'>('All');
@@ -22,7 +22,7 @@ export const useSeriesTable = () => {
 
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
 
-  const { seriesCount } = useSeriesesCount(publishers);
+  const { seriesCount } = useSeriesesCount(publishers, isAdmin);
   const { serieses, loading } = useSerieses({
     offset: (activePage - 1) * ITEMS_PER_PAGE,
     limit: ITEMS_PER_PAGE,

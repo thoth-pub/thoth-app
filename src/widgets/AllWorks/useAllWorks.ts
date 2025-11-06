@@ -15,7 +15,7 @@ const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 export const useAllWorks = () => {
   const router = useRouter();
 
-  const { activePublisher } = usePublisherStateMachine();
+  const { activePublisher, isAdmin } = usePublisherStateMachine();
   const publishers = activePublisher ? [activePublisher] : [];
 
   const [workStatus, setWorkStatus] = useState<WorkStatus | 'All'>('All');
@@ -29,6 +29,7 @@ export const useAllWorks = () => {
 
   const baseProps = {
     publishersIds: publishers,
+    isAdmin,
     filter: debouncedValue,
     workStatus: workStatus === 'All' ? undefined : workStatus,
     workTypes:

@@ -11,6 +11,7 @@ const mapper = new BookDtoMapper();
 
 type UseBooksProps = {
   publishersIds: PublisherId[];
+  isAdmin: boolean;
   offset?: number;
   limit?: number;
   direction?: Direction;
@@ -32,6 +33,7 @@ const useSuspenseBooks = (props: UseBooksProps) => {
     startedAt,
     expression,
     field = WorkField.UpdatedAtWithRelations,
+    isAdmin = false,
   } = props;
 
   const { data: { books } = { books: [] }, error } = useSuspenseQuery(GET_BOOKS, {
@@ -45,7 +47,7 @@ const useSuspenseBooks = (props: UseBooksProps) => {
       field,
       ...(startedAt && expression ? { startedAt, expression } : {}),
     },
-    skip: publishersIds.length === 0,
+    skip: publishersIds.length === 0 && !isAdmin,
   });
 
   const data = books.map((book) => mapper.toEntity(book as WorkFragmentFragment));

@@ -11,6 +11,7 @@ const mapper = new BookDtoMapper();
 
 type UseBooksProps = {
   publishersIds: PublisherId[];
+  isAdmin: boolean;
   offset?: number;
   limit?: number;
   direction?: Direction;
@@ -32,6 +33,7 @@ const useBooks = (props: UseBooksProps) => {
     startedAt,
     expression,
     field,
+    isAdmin = false,
   } = props;
 
   const {
@@ -49,7 +51,7 @@ const useBooks = (props: UseBooksProps) => {
       field,
       ...(startedAt && expression ? { startedAt, expression } : {}),
     },
-    skip: publishersIds.length === 0,
+    skip: publishersIds.length === 0 && !isAdmin,
   });
 
   const data = books.map((book) => mapper.toEntity(book as WorkFragmentFragment));

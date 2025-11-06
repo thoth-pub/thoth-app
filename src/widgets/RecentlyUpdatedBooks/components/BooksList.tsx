@@ -1,18 +1,19 @@
 'use client';
 
-import { Direction, WorkField } from '@/gql/graphql';
+import { Direction } from '@/gql/graphql';
 import { useSuspenseBooks } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { EditBookLink } from '@/src/features';
 
 export const BooksList = () => {
-  const { activePublisher } = usePublisherStateMachine();
+  const { activePublisher, isAdmin } = usePublisherStateMachine();
   const publishersIds = activePublisher ? [activePublisher] : [];
 
   const { books } = useSuspenseBooks({
     publishersIds,
     limit: 3,
     direction: Direction.Desc,
+    isAdmin,
   });
 
   return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 
 import { PublisherId } from '@/src/entities/publisher';
 
@@ -14,11 +14,14 @@ const usePublisherStateMachine = () => {
   const activePublisher: PublisherContext['activePublisher'] = PublisherStateMachineContext.useSelector(
     (state) => state.context.activePublisher,
   );
+  const isSuperAdmin: PublisherContext['isSuperAdmin'] = PublisherStateMachineContext.useSelector(
+    (state) => state.context.isAdmin,
+  );
   const actorRef = PublisherStateMachineContext.useActorRef();
 
   const setLinkedPublishers = useCallback(
-    (publishers: PublisherContext['linkedPublishers']) => {
-      actorRef.send({ type: 'setLinkedPublishers', linkedPublishers: publishers });
+    (publishers: PublisherContext['linkedPublishers'], isSuperAdmin: boolean) => {
+      actorRef.send({ type: 'setLinkedPublishers', linkedPublishers: publishers, isSuperAdmin });
     },
     [actorRef],
   );
@@ -34,7 +37,19 @@ const usePublisherStateMachine = () => {
     [actorRef],
   );
 
-  return { linkedPublishers, activePublisher, resetLinkedPublishers, changeActivePublisher, setLinkedPublishers };
+  const isAdmin = useMemo(() => {
+    return (isSuperAdmin || linkedPublishers.find((publisher) => publisher.id === activePublisher)?.isAdmin) ?? false;
+  }, [linkedPublishers, isSuperAdmin, activePublisher]);
+
+  return {
+    linkedPublishers,
+    activePublisher,
+    isAdmin,
+    isSuperAdmin,
+    resetLinkedPublishers,
+    changeActivePublisher,
+    setLinkedPublishers,
+  };
 };
 
 export default usePublisherStateMachine;

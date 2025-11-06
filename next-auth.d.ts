@@ -6,7 +6,7 @@ interface AuthUser {
   name?: string | null;
   email?: string | null;
   image?: string | null;
-  linkedPublishers: LinkedPublisher[];
+  linkedPublishers: { publisherId: string; isAdmin: boolean }[];
   isSuperAdmin: boolean;
   queryToken: string;
 }

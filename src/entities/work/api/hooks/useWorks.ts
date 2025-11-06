@@ -12,6 +12,7 @@ const mapper = new WorkDtoMapper();
 
 type UseWorksProps = {
   publishersIds: PublisherId[];
+  isAdmin: boolean;
   offset?: number;
   limit?: number;
   direction?: Direction;
@@ -31,14 +32,16 @@ const useWorks = (props: UseWorksProps) => {
     workStatus,
     workTypes,
     field,
+    isAdmin = false,
   } = props;
+
   const {
     data: { works } = { works: [] },
     error,
     loading,
   } = useQuery(GET_WORKS, {
     variables: { offset, limit, publishers: publishersIds, direction, filter, workStatus, workTypes, field },
-    skip: publishersIds.length === 0,
+    skip: publishersIds.length === 0 && !isAdmin,
   });
 
   const data = works.map((work) => mapper.toEntity(work as WorkFragmentFragment));

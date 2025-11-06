@@ -7,6 +7,8 @@ export type PublisherDto = Pick<
 
 export type PublisherId = string;
 
+export type AuthorizedPublisher = PublisherEntity & { isAdmin: boolean };
+
 export type PublisherEntity = {
   id: PublisherId;
   name: string;

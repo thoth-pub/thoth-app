@@ -198,6 +198,16 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
     selected.forEach((id) => deleteWork(id));
   };
 
+  const handleCloseMultipleChaptersEdit = () => {
+    setSelectedChapters([]);
+    close();
+  };
+
+  const handleDoneMultipleChaptersEdit = () => {
+    refetchChapters();
+    handleCloseMultipleChaptersEdit();
+  };
+
   return (
     <ContentSection
       title="Chapters"
@@ -272,7 +282,11 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
         </SortableContext>
       </DndContext>
       <EditChapterModal queryToken={queryToken} onDone={refetchChapters} />
-      <EditChaptersModal queryToken={queryToken} onDone={refetchChapters} />
+      <EditChaptersModal
+        queryToken={queryToken}
+        onClose={handleCloseMultipleChaptersEdit}
+        onDone={handleDoneMultipleChaptersEdit}
+      />
       <AddChapterModal workId={workId} queryToken={queryToken} />
     </ContentSection>
   );

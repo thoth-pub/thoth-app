@@ -5,10 +5,20 @@ import type { PublisherId } from '@/src/entities/publisher';
 
 import { GET_BOOKS_COUNT } from '../../model/book.schema';
 
-const useBooksCount = (publishersIds: PublisherId[], filter = '', startedAt?: string, expression?: Expression) => {
+type UseBooksCountProps = {
+  publishersIds: PublisherId[];
+  isAdmin: boolean;
+  filter?: string;
+  startedAt?: string;
+  expression?: Expression;
+};
+
+const useBooksCount = (props: UseBooksCountProps) => {
+  const { publishersIds, isAdmin = false, filter, startedAt, expression } = props;
+
   const { data: { bookCount } = { bookCount: 0 }, error } = useSuspenseQuery(GET_BOOKS_COUNT, {
     variables: { publishers: publishersIds, filter, ...(startedAt && expression ? { startedAt, expression } : {}) },
-    skip: publishersIds.length === 0,
+    skip: publishersIds.length === 0 && !isAdmin,
   });
 
   return { bookCount, error };

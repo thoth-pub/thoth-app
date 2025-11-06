@@ -8,12 +8,15 @@ import { useIsDesktop } from '@/src/shared/hooks';
 import { DashboardContentWrapper, Typography } from '@/src/shared/ui';
 
 const TotalBooksChart = () => {
-  const { activePublisher } = usePublisherStateMachine();
+  const { activePublisher, isAdmin } = usePublisherStateMachine();
   const isDesktop = useIsDesktop(1280);
 
-  const { bookCount } = useBooksCount(activePublisher ? [activePublisher] : []);
-  const { bookCount: publishedBookCount } = usePublishedBooksCount(activePublisher ? [activePublisher] : []);
-  const { bookCount: forthcomingBookCount } = useForthcomingBooksCount(activePublisher ? [activePublisher] : []);
+  const { bookCount } = useBooksCount({ publishersIds: activePublisher ? [activePublisher] : [], isAdmin });
+  const { bookCount: publishedBookCount } = usePublishedBooksCount(activePublisher ? [activePublisher] : [], isAdmin);
+  const { bookCount: forthcomingBookCount } = useForthcomingBooksCount(
+    activePublisher ? [activePublisher] : [],
+    isAdmin,
+  );
 
   const otherBooksCount = bookCount - publishedBookCount - forthcomingBookCount;
 

@@ -39,7 +39,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
 
   const lastIssueOrdinal = series.issues.sort((a, b) => a.ordinal - b.ordinal).at(-1)?.ordinal ?? 1;
 
-  const { activePublisher } = usePublisherStateMachine();
+  const { activePublisher, isAdmin } = usePublisherStateMachine();
   const {
     control,
     formState: { isValid, isDirty },
@@ -56,7 +56,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
 
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
-  const { books, loading } = useBooks({ publishersIds, filter: debouncedValue });
+  const { books, loading } = useBooks({ publishersIds, filter: debouncedValue, isAdmin });
   const { createIssue } = useCreateIssue({ queryToken });
 
   const filteredBooks = books.filter((book) => book.issues.length === 0);

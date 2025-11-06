@@ -21,7 +21,7 @@ type UseSeriesProps = {
 const useSerieses = (props: UseSeriesProps) => {
   const { offset = 0, limit = appConfig.data.itemsPerRequestLimit, filter = '', seriesType, field, direction } = props;
 
-  const { activePublisher } = usePublisherStateMachine();
+  const { activePublisher, isAdmin } = usePublisherStateMachine();
 
   const publisherId = activePublisher ? [activePublisher] : [];
 
@@ -41,7 +41,7 @@ const useSerieses = (props: UseSeriesProps) => {
       field,
       seriesTypes: seriesType ? [seriesType] : undefined,
     },
-    skip: publisherId.length === 0,
+    skip: publisherId.length === 0 && !isAdmin,
   });
 
   const data = serieses.map(mapper.toEntity);

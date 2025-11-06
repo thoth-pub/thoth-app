@@ -6,7 +6,7 @@ import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { EditBookLink } from '@/src/features';
 
 export const BooksList = () => {
-  const { activePublisher } = usePublisherStateMachine();
+  const { activePublisher, isAdmin } = usePublisherStateMachine();
   const publishersIds = activePublisher ? [activePublisher] : [];
 
   const { books } = useSuspenseBooks({
@@ -15,6 +15,7 @@ export const BooksList = () => {
     limit: 3,
     direction: Direction.Desc,
     field: WorkField.UpdatedAt,
+    isAdmin,
   });
 
   return (
