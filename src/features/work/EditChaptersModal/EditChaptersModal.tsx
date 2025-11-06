@@ -21,7 +21,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   return (
     <ChaptersModal
-      title="edit multiple chapters"
+      title="edit chapters"
       isOpen={isMultipleChaptersSelected}
       onClose={close}
       onDone={() => console.log(chapters)}

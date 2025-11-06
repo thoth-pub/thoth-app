@@ -26,6 +26,7 @@ const useWorkChapters = (props: UseChaptersProps) => {
     data: { work: { relations } = { relations: [] } } = { work: { relations: [] } },
     error,
     loading,
+    refetch,
   } = useQuery(GET_WORK_CHAPTERS, {
     variables: { workId, limit: LIMIT, offset },
     skip: workId.length === 0,
@@ -55,7 +56,14 @@ const useWorkChapters = (props: UseChaptersProps) => {
     }
   }, [loading]);
 
-  return { chapters, error, loading };
+  const refetchChapters = () => {
+    refetch();
+    setChapters([]);
+    setOffset(0);
+    uniqueChapters.current = [];
+  };
+
+  return { chapters, error, loading, refetchChapters };
 };
 
 export default useWorkChapters;

@@ -1,19 +1,17 @@
 import { ServerError } from '@apollo/client';
 
 import { type CreateWorkMutation } from '@/gql/graphql';
-import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { CREATE_WORK_RELATION, GET_WORK, GET_WORK_CHAPTERS } from '../../model/work.schema';
 
-type UseCreateWorkRelationProps = {
-  queryToken: QueryToken;
-};
+type UseCreateWorkRelationProps = BaseEditSectionProps;
 
 const { CHAPTER_CREATION_SUCCESS, CHAPTER_CREATION_FAILED } = NOTIFICATIONS;
 
 const useCreateWorkRelation = (props: UseCreateWorkRelationProps) => {
-  const { queryToken } = props;
+  const { queryToken, workId } = props;
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
 
@@ -35,6 +33,10 @@ const useCreateWorkRelation = (props: UseCreateWorkRelationProps) => {
 
         sendErrorNotification(CHAPTER_CREATION_FAILED);
       },
+      refetchQueries: [
+        { query: GET_WORK_CHAPTERS, variables: { workId } },
+        { query: GET_WORK, variables: { workId } },
+      ],
     },
   });
 

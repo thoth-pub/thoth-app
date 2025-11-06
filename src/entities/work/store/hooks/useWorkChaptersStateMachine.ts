@@ -22,16 +22,17 @@ const useWorkChaptersStateMachine = () => {
     ? activeWorkChapters.length === 1 && isDefaultId(activeWorkChapters[0].id)
     : false;
 
+  const close = useCallback(() => {
+    actorRef.send({ type: 'close' });
+  }, [actorRef]);
+
   const edit = useCallback(
     (workChapters: WorkEntity[]) => {
+      close();
       actorRef.send({ type: 'setActiveWorkChapters', chapters: workChapters });
     },
     [actorRef],
   );
-
-  const close = useCallback(() => {
-    actorRef.send({ type: 'close' });
-  }, [actorRef]);
 
   return {
     activeWorkChapters,

@@ -8,19 +8,26 @@ import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
 import EditFundings from '../EditFundings/EditFundings';
 import EditContributors from '../EditContributors/EditContributors';
 
-type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'>;
+type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'> & {
+  onDone?: () => void;
+};
 
 const EditChapterModal = (props: EditChapterModalProps) => {
-  const { queryToken } = props;
+  const { queryToken, onDone } = props;
 
-  const { activeWorkChapters, isSingleExistingChapterSelected, edit, close } = useWorkChaptersStateMachine();
+  const { activeWorkChapters, isSingleExistingChapterSelected, close } = useWorkChaptersStateMachine();
 
   if (!activeWorkChapters || activeWorkChapters.length === 0) return null;
 
   const chapter = activeWorkChapters[0];
 
+  const handleDone = () => {
+    onDone?.();
+    close();
+  };
+
   return (
-    <ChaptersModal title={chapter.title} isOpen={isSingleExistingChapterSelected} onClose={close} onDone={close}>
+    <ChaptersModal title="edit chapter" isOpen={isSingleExistingChapterSelected} onClose={close} onDone={handleDone}>
       <EditChapterBasicDetails workId={chapter.id} queryToken={queryToken} />
       <EditDescriptions workId={chapter.id} queryToken={queryToken} />
       <EditContributors workId={chapter.id} queryToken={queryToken} />

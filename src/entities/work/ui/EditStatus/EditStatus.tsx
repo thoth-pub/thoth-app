@@ -44,14 +44,11 @@ const EditStatus = (props: EditStatusProps) => {
 
   const isFieldDisable = availableNewStatusOptions.length < 1;
 
-  const defaultValues = availableNewStatusOptions.length > 0 ? availableNewStatusOptions[0].value : undefined;
-
   return (
     <EditableContentAlt
       formId={IDs.WORK_STATUS}
       borderTransparent
       isTableVariant
-      defaultValues={{ [WORK_STATUS.name]: defaultValues }}
       validationSchema={workStatusValidationSchema}
       onSubmit={(data) => onUpdate?.(data.workStatus as WorkStatus)}
       isDisabled={isFieldDisable}

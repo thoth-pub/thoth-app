@@ -58,7 +58,12 @@ export const GET_WORKS_COUNT = graphql(`
 export const GET_WORK_CHAPTERS = graphql(`
   query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {
     work(workId: $workId) {
-      relations(relationTypes: HAS_CHILD, limit: $limit, offset: $offset) {
+      relations(
+        relationTypes: HAS_CHILD
+        limit: $limit
+        offset: $offset
+        order: { direction: ASC, field: RELATION_ORDINAL }
+      ) {
         relatedWork {
           ...WorkFragment
         }
