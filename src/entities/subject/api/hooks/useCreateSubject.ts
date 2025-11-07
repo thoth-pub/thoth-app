@@ -38,11 +38,11 @@ const useCreateSubject = (props: BaseEditSectionProps) => {
     },
   });
 
-  const createSubject = (data: Omit<SubjectEntity, 'id'>) => {
+  const createSubject = async (data: Omit<SubjectEntity, 'id'>, relatedWorkId = workId) => {
     const { subjectId, ...dto } = mapper.toDto({ ...data, id: '' });
 
-    mutate({
-      variables: { data: { ...dto, workId } },
+    await mutate({
+      variables: { data: { ...dto, workId: relatedWorkId } },
     });
   };
 

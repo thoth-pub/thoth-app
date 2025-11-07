@@ -32,6 +32,7 @@ import { useWorkContribution } from '@/src/entities/work/api/hooks/useWorkContri
 import { WorkContribution } from '@/src/entities/work/model/work.types';
 import { WorkDtoMapper } from '@/src/entities/work/model/work.mapper';
 import { useCreateFunding } from '@/src/entities/funding';
+import { useCreateSubject } from '@/src/entities/subject';
 
 const NEW_CHAPTER_PREFIX = 'New Copy of ';
 
@@ -61,6 +62,11 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
     workId,
   });
 
+  const { createSubject } = useCreateSubject({
+    queryToken,
+    workId,
+  });
+
   const createContribution = async (data: WorkContribution, workId: string) => {
     const dto = mapper.toDtoContribution(data);
 
@@ -79,10 +85,12 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
       });
 
       existingChapter?.fundings.forEach(async (funding) => {
-        createFunding(funding, work.id);
+        await createFunding(funding, work.id);
       });
 
-      // TODO: subjects
+      existingChapter?.subjects.forEach(async (subject) => {
+        await createSubject(subject, work.id);
+      });
 
       createWorkRelation({
         variables: {
@@ -114,7 +122,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   const selectedChaptersTitle = `${selectedChapters.length} of ${items.length}`;
 
   useEffect(() => {
-    if (chapters.length === 0 || chapters.length === items.length) return;
+    if (chapters.length === 0) return;
 
     setItems(chapters);
   }, [chapters]);

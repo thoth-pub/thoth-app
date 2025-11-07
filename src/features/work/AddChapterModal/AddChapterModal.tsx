@@ -19,6 +19,7 @@ import { useWorkContribution } from '@/src/entities/work/api/hooks/useWorkContri
 import { useCreateFunding } from '@/src/entities/funding';
 import { WorkContribution } from '@/src/entities/work/model/work.types';
 import { WorkDtoMapper } from '@/src/entities/work/model/work.mapper';
+import { useCreateSubject } from '@/src/entities/subject';
 
 const mapper = new WorkDtoMapper();
 
@@ -35,6 +36,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [inheritContributors, setInheritContributors] = useState(false);
   const [inheritFundings, setInheritFundings] = useState(false);
+  const [inheritSubjects, setInheritSubjects] = useState(false);
 
   const openModal = () => {
     setIsOpen(true);
@@ -55,6 +57,11 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   });
 
   const { createFunding } = useCreateFunding({
+    queryToken,
+    workId,
+  });
+
+  const { createSubject } = useCreateSubject({
     queryToken,
     workId,
   });
@@ -80,12 +87,16 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
       }
 
       if (inheritFundings) {
-        work.fundings.forEach((funding) => {
-          createFunding(funding, newWork.id);
+        work.fundings.forEach(async (funding) => {
+          await createFunding(funding, newWork.id);
         });
       }
 
-      // TODO: subjects
+      if (inheritSubjects) {
+        work.subjects.forEach(async (subject) => {
+          await createSubject(subject, newWork.id);
+        });
+      }
 
       createWorkRelation({
         variables: {
@@ -97,9 +108,6 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
           },
         },
       });
-
-      setInheritContributors(false);
-      setInheritFundings(false);
     },
   });
 
@@ -108,8 +116,9 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
     copyrightHolder: boolean;
     contributors: boolean;
     fundings: boolean;
+    subjects: boolean;
   }) => {
-    const { license, copyrightHolder, contributors, fundings } = data;
+    const { license, copyrightHolder, contributors, fundings, subjects } = data;
 
     const defaultChapter = getDefaultChapter({
       title: 'New Chapter',
@@ -125,6 +134,8 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
     setInheritContributors(contributors);
 
     setInheritFundings(fundings);
+
+    setInheritSubjects(subjects);
 
     createWork(defaultChapter);
   };

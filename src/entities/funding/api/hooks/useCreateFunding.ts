@@ -40,13 +40,13 @@ const useCreateFunding = (props: UseCreateFundingProps) => {
     },
   });
 
-  const createFunding = (
+  const createFunding = async (
     data: Omit<FundingEntity, 'id' | 'institutionName' | 'institutionRor'>,
     relatedWorkId = workId,
   ) => {
     const { fundingId, ...dto } = mapper.toDto({ ...data, id: '', institutionName: '', institutionRor: '' });
 
-    mutate({
+    await mutate({
       variables: { data: { ...dto, workId: relatedWorkId } },
     });
   };

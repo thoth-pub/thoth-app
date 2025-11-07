@@ -5,7 +5,13 @@ import { useForm } from 'react-hook-form';
 const itemStyles = 'max-w-fit p-0';
 
 type InheritedDataFormProps = {
-  onSubmit: (data: { license: boolean; copyrightHolder: boolean; contributors: boolean; fundings: boolean }) => void;
+  onSubmit: (data: {
+    license: boolean;
+    copyrightHolder: boolean;
+    contributors: boolean;
+    fundings: boolean;
+    subjects: boolean;
+  }) => void;
 };
 
 export const InheritedDataForm = (props: InheritedDataFormProps) => {
@@ -17,6 +23,7 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
       copyrightHolder: false,
       contributors: false,
       fundings: false,
+      subjects: false,
     },
   });
 
@@ -54,6 +61,10 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
           <div className="flex items-center gap-2">
             <FormFieldLabel label="Copyright holder" className="min-w-30 lg:min-w-40" />
             <CheckboxFormField control={control} name="copyrightHolder" className={itemStyles} />
+          </div>
+          <div className="flex items-center gap-2">
+            <FormFieldLabel label="Subjects" className="min-w-30 lg:min-w-40" />
+            <CheckboxFormField control={control} name="subjects" className={itemStyles} />
           </div>
           <div className="flex items-center gap-2">
             <FormFieldLabel label="Contributors" className="min-w-30 lg:min-w-40" />
