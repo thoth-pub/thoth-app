@@ -43,6 +43,22 @@ const ChangeActivePublisher = ({ linkedPublishers, isSuperAdmin = false }: Chang
       fullWidth
       select
       className="w-[240px] shrink-0"
+      slotProps={{
+        select: {
+          MenuProps: {
+            sx: {
+              '& .MuiMenuItem-root': {
+                textTransform: 'none',
+              },
+            },
+          },
+        },
+      }}
+      sx={{
+        '& .MuiSelect-select': {
+          textTransform: 'none',
+        },
+      }}
       onChange={(e) => handleUpdatePublisher(e.target.value)}
       disabled={publishers.length === 1}
     />

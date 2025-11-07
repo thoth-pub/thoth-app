@@ -1,13 +1,12 @@
 import z from 'zod';
 
-import { ERRORS } from '@/src/shared';
+import { ERRORS, getStringValidation } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import {
   doiValidation,
   getFileValidation,
   getRequiredStringValidation,
-  getRequiredUrlValidation,
   languageValidation,
   optionalDateValidation,
   optionalPositiveIntValidation,
@@ -62,7 +61,7 @@ const audioCountValidation = optionalPositiveIntValidation;
 const videoCountValidation = optionalPositiveIntValidation;
 
 const licenseValidation = z.object({
-  value: getRequiredUrlValidation(),
+  value: getStringValidation(),
 });
 
 const copyrightHolderValidation = optionalStringValidation;

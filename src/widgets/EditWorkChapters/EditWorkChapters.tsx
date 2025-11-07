@@ -111,6 +111,8 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
 
   const isMultipleChaptersSelected = selectedChapters.length > 1;
 
+  const selectedChaptersTitle = `${selectedChapters.length} of ${items.length}`;
+
   useEffect(() => {
     if (chapters.length === 0 || chapters.length === items.length) return;
 
@@ -218,7 +220,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
               <Typography
                 component="span"
                 className="max-w-[300px]"
-              >{`${selectedChapters.length} chapters selected`}</Typography>
+              >{`${selectedChaptersTitle} chapters selected`}</Typography>
               <DeleteButton onClick={handleBulkDelete} />
               <EditButton onClick={handleEditChapters} />
               <IconButton onClick={handleClearSelection}>
@@ -284,6 +286,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
       <EditChapterModal queryToken={queryToken} onDone={refetchChapters} />
       <EditChaptersModal
         queryToken={queryToken}
+        title={`Editing ${selectedChaptersTitle} Chapters`}
         onClose={handleCloseMultipleChaptersEdit}
         onDone={handleDoneMultipleChaptersEdit}
       />

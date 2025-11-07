@@ -11,12 +11,13 @@ type ChaptersModalProps = {
   isOpen: boolean;
   children?: Readonly<React.ReactNode>;
   isSubmitHidden?: boolean;
+  capitalizeTitle?: boolean;
   onClose?: () => void;
   onDone?: () => void;
 };
 
 const ChaptersModal = (props: ChaptersModalProps) => {
-  const { title, isOpen, children, isSubmitHidden = false, onClose, onDone } = props;
+  const { title, isOpen, children, isSubmitHidden = false, capitalizeTitle = true, onClose, onDone } = props;
 
   const { t } = useTranslation();
 
@@ -35,7 +36,11 @@ const ChaptersModal = (props: ChaptersModalProps) => {
           <div className="flex grow flex-col gap-[var(--default-gap)] px-3 py-[12px]">
             <ContentSection>
               <div className="flex justify-between">
-                <Typography variant="h1" component="h3" className="text-[var(--color-typography)] capitalize">
+                <Typography
+                  variant="h1"
+                  component="h3"
+                  className={`text-[var(--color-typography)] ${capitalizeTitle ? 'capitalize' : 'normal-case'}`}
+                >
                   {t(title)}
                 </Typography>
                 <div className="flex gap-2">

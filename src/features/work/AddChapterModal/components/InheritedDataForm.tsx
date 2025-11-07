@@ -1,4 +1,4 @@
-import { Button, CheckboxFormField, FormFieldLabel } from '@/src/shared/ui';
+import { Button, Checkbox, CheckboxFormField, FormFieldLabel } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { useForm } from 'react-hook-form';
 
@@ -31,6 +31,22 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
     >
       <form className="pl-4">
         <ul className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            <FormFieldLabel label="Status" className="min-w-30 lg:min-w-40" />
+            <Checkbox className={itemStyles} checked disabled />
+          </div>
+          <div className="flex items-center gap-2">
+            <FormFieldLabel label="Cover" className="min-w-30 lg:min-w-40" />
+            <Checkbox className={itemStyles} checked disabled />
+          </div>
+          <div className="flex items-center gap-2">
+            <FormFieldLabel label="Landing page" className="min-w-30 lg:min-w-40" />
+            <Checkbox className={itemStyles} checked disabled />
+          </div>
+          <div className="flex items-center gap-2">
+            <FormFieldLabel label="Imprint" className="min-w-30 lg:min-w-40" />
+            <Checkbox className={itemStyles} checked disabled />
+          </div>
           <div className="flex items-center gap-2">
             <FormFieldLabel label="License" className="min-w-30 lg:min-w-40" />
             <CheckboxFormField control={control} name="license" className={itemStyles} />

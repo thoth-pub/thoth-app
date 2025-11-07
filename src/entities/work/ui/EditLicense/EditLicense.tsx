@@ -30,8 +30,10 @@ const EditLicense = (props: EditLicenseProps) => {
 
   const { work, updateWork } = useWork(workId, queryToken);
 
-  const licenseValue = licenseOptions.find((option) => option.value === work.license) ?? licenseOptions[0];
-  const defaultLicenseValue = licenseOptions.find((option) => option.value === license) ?? licenseOptions[0];
+  const nullableLicense = { label: 'All Rights Reserved', value: '' };
+
+  const licenseValue = licenseOptions.find((option) => option.value === work.license) ?? nullableLicense;
+  const defaultLicenseValue = licenseOptions.find((option) => option.value === license) ?? nullableLicense;
   const appliedLicenseValue = license ? defaultLicenseValue : licenseValue;
 
   const copyrightHolderValue = work?.copyrightHolder ?? '';

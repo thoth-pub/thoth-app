@@ -5,7 +5,7 @@ import { Suspense } from 'react';
 import { ROUTES } from '@/src/shared/constants';
 import { Button, DashboardChartSkeleton, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
-import { PublishedBooksChart, TotalBooksChart } from '@/src/widgets';
+import { TotalBooksChart } from '@/src/widgets';
 
 import RecentlyPublishedBooks from '../RecentlyPublishedBooks/RecentlyPublishedBooks';
 import RecentlyUpdatedBooks from '../RecentlyUpdatedBooks/RecentlyUpdatedBooks';
@@ -30,9 +30,7 @@ const Dashboard = () => {
         <Suspense fallback={<DashboardChartSkeleton />}>
           <TotalBooksChart />
         </Suspense>
-        <Suspense fallback={<DashboardChartSkeleton />}>
-          <PublishedBooksChart />
-        </Suspense>
+        {/* <PublishedBooksChart /> */}
       </div>
 
       <RecentlyUpdatedBooks />

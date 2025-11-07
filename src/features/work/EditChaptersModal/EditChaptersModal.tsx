@@ -6,19 +6,19 @@ import type { BaseEditSectionProps } from '@/src/shared';
 import { useEffect, useState } from 'react';
 import EditDescriptions from '../EditDescriptions/EditDescriptions';
 import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
-import { useUpdateWork } from '@/src/entities/work/api/hooks/useUpdateWork';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { licenseOptions } from '@/src/shared/constants/formFields';
 
 // TODO WIP
 
 type EditChaptersModalProps = Omit<BaseEditSectionProps, 'workId'> & {
+  title: string;
   onClose?: () => void;
   onDone?: () => void;
 };
 
 const EditChaptersModal = (props: EditChaptersModalProps) => {
-  const { queryToken, onClose, onDone } = props;
+  const { queryToken, title, onClose, onDone } = props;
 
   const { activeWorkChapters, isMultipleChaptersSelected, edit, close } = useWorkChaptersStateMachine();
 
@@ -60,7 +60,13 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
   const license = chapters[0].license ? chapters[0].license : licenseOptions[0].value;
 
   return (
-    <ChaptersModal title="edit chapters" isOpen={isMultipleChaptersSelected} onClose={handleClose} onDone={handleDone}>
+    <ChaptersModal
+      title={title}
+      capitalizeTitle={false}
+      isOpen={isMultipleChaptersSelected}
+      onClose={handleClose}
+      onDone={handleDone}
+    >
       <EditChapterBasicDetails
         workId={''}
         queryToken={queryToken}

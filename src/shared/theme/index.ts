@@ -372,6 +372,11 @@ export const theme = createTheme({
           '& .MuiSvgIcon-root': {
             fill: 'var(--color-checkbox-border)',
           },
+          '&.Mui-disabled': {
+            '& .MuiSvgIcon-root': {
+              fill: 'gray',
+            },
+          },
         },
       },
     },

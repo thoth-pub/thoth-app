@@ -242,7 +242,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       imprintId,
       workType: type,
       edition: isBookChapter(type) ? null : defaultEdition,
-      license: license ?? null,
+      license: license && license.length > 0 ? license : null,
       copyrightHolder: copyrightHolder && copyrightHolder.length > 0 ? copyrightHolder : null,
       doi: doi && doi.length > 0 ? doi : null,
       landingPage: landingPage && landingPage.length > 0 ? landingPage : null,
