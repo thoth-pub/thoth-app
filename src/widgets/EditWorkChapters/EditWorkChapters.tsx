@@ -21,12 +21,12 @@ import { ChapterTableRow } from './components/ChapterTableRow';
 import {
   useCreateWork,
   useCreateWorkRelation,
+  useDeleteChapter,
   useWorkChapters,
   useWorkChaptersStateMachine,
 } from '@/src/entities/work';
 import AddChapterModal from '@/src/features/work/AddChapterModal/AddChapterModal';
 import { EditChapterModal, EditChaptersModal } from '@/src/features';
-import useDeleteWork from '@/src/entities/work/api/hooks/useDeleteWork';
 import { RelationType } from '@/gql/graphql';
 import { useWorkContribution } from '@/src/entities/work/api/hooks/useWorkContribution';
 import { WorkContribution } from '@/src/entities/work/model/work.types';
@@ -82,6 +82,8 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
         createFunding(funding, work.id);
       });
 
+      // TODO: subjects
+
       createWorkRelation({
         variables: {
           data: {
@@ -92,11 +94,17 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
           },
         },
       });
+
+      const isCopied = work.title.startsWith(NEW_CHAPTER_PREFIX);
+
+      if (isCopied) {
+        edit([work]);
+      }
     },
   });
-  const { deleteWork } = useDeleteWork({
+  const { deleteChapter, deleteChapters } = useDeleteChapter({
     queryToken,
-    redirect: false,
+    workId,
   });
 
   const sensors = useSensors(useSensor(PointerSensor));
@@ -104,19 +112,9 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   const isMultipleChaptersSelected = selectedChapters.length > 1;
 
   useEffect(() => {
-    if (chapters.length === 0) return;
+    if (chapters.length === 0 || chapters.length === items.length) return;
 
     setItems(chapters);
-  }, [chapters]);
-
-  useEffect(() => {
-    if (items.length === 0) return;
-
-    const newChapters = chapters.filter((chapter) => chapter.title.startsWith(NEW_CHAPTER_PREFIX));
-
-    if (newChapters.length > 0) {
-      edit(newChapters.slice(-1));
-    }
   }, [chapters]);
 
   const dragEnd = (event: DragEndEvent) => {
@@ -185,17 +183,19 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
     createWork(newChapter);
   };
 
-  const handleDeleteChapter = (id: string) => {
+  const handleDeleteChapter = async (id: string) => {
     setItems((items) => items.filter((chapter) => chapter.id !== id));
-    deleteWork(id);
+    await deleteChapter(id);
+    refetchChapters();
   };
 
-  const handleBulkDelete = () => {
+  const handleBulkDelete = async () => {
     const selected = [...selectedChapters];
 
     setItems((items) => items.filter((chapter) => !selected.includes(chapter.id)));
 
-    selected.forEach((id) => deleteWork(id));
+    await deleteChapters(selected);
+    refetchChapters();
   };
 
   const handleCloseMultipleChaptersEdit = () => {

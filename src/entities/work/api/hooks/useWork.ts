@@ -39,13 +39,7 @@ const useWork = (id: WorkId, queryToken: QueryToken, onCreateCompleted?: (data: 
   const work = mapper.toEntity(data.work as WorkDto);
 
   const updateWork = (data: WorkEntity) => {
-    const dto = mapper.toDto(data);
-
-    updateWorkMutation({
-      variables: {
-        data: dto,
-      },
-    });
+    updateWorkMutation(data);
   };
 
   const updateContribution = (data: WorkContribution) => {

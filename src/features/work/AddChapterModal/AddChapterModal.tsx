@@ -7,7 +7,7 @@ import {
   useWorkChapters,
   useWorkChaptersStateMachine,
 } from '@/src/entities/work';
-import { BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
+import { appConfig, BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
 import { AddButton } from '@/src/shared/ui';
 import { useTranslation } from 'react-i18next';
 import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
@@ -15,6 +15,12 @@ import { InheritedDataForm } from './components/InheritedDataForm';
 import { RelationType } from '@/gql/graphql';
 import { useState } from 'react';
 import { licenseOptions } from '@/src/shared/constants/formFields';
+import { useWorkContribution } from '@/src/entities/work/api/hooks/useWorkContribution';
+import { useCreateFunding } from '@/src/entities/funding';
+import { WorkContribution } from '@/src/entities/work/model/work.types';
+import { WorkDtoMapper } from '@/src/entities/work/model/work.mapper';
+
+const mapper = new WorkDtoMapper();
 
 const AddChapterModal = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
@@ -27,6 +33,8 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   const { edit } = useWorkChaptersStateMachine();
 
   const [isOpen, setIsOpen] = useState(false);
+  const [inheritContributors, setInheritContributors] = useState(false);
+  const [inheritFundings, setInheritFundings] = useState(false);
 
   const openModal = () => {
     setIsOpen(true);
@@ -41,27 +49,67 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
     workId,
   });
 
+  const { createContribution: createContributionMutation } = useWorkContribution({
+    workId,
+    queryToken,
+  });
+
+  const { createFunding } = useCreateFunding({
+    queryToken,
+    workId,
+  });
+
+  const createContribution = async (data: WorkContribution, workId: string) => {
+    const dto = mapper.toDtoContribution(data);
+
+    await createContributionMutation({
+      variables: { data: { workId, ...dto } },
+    });
+  };
+
   const { createWork } = useCreateWork({
     queryToken,
-    onCompleted: (work) => {
+    onCompleted: (newWork) => {
       closeModal();
-      edit([work]);
+      edit([newWork]);
+
+      if (inheritContributors) {
+        work.contributions.forEach(async ({ id, ...contribution }) => {
+          await createContribution({ ...contribution, id: appConfig.defaultId }, newWork.id);
+        });
+      }
+
+      if (inheritFundings) {
+        work.fundings.forEach((funding) => {
+          createFunding(funding, newWork.id);
+        });
+      }
+
+      // TODO: subjects
 
       createWorkRelation({
         variables: {
           data: {
-            relatorWorkId: work.id,
+            relatorWorkId: newWork.id,
             relatedWorkId: workId,
             relationOrdinal: chapters.length + 1,
             relationType: RelationType.IsChildOf,
           },
         },
       });
+
+      setInheritContributors(false);
+      setInheritFundings(false);
     },
   });
 
-  const handleInheritedDataSubmit = (data: { license: boolean; copyrightHolder: boolean }) => {
-    const { license, copyrightHolder } = data;
+  const handleInheritedDataSubmit = (data: {
+    license: boolean;
+    copyrightHolder: boolean;
+    contributors: boolean;
+    fundings: boolean;
+  }) => {
+    const { license, copyrightHolder, contributors, fundings } = data;
 
     const defaultChapter = getDefaultChapter({
       title: 'New Chapter',
@@ -73,6 +121,10 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
       license: license ? work.license : licenseOptions[0].value,
       copyrightHolder: copyrightHolder ? work.copyrightHolder : '',
     });
+
+    setInheritContributors(contributors);
+
+    setInheritFundings(fundings);
 
     createWork(defaultChapter);
   };

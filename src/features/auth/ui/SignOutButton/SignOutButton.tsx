@@ -9,7 +9,7 @@ import { useApolloClient } from '@apollo/client/react';
 import { useEffect } from 'react';
 
 const SignOutButton = () => {
-  const { resetLinkedPublishers } = usePublisherStateMachine();
+  const { resetLinkedPublishers, activePublisher } = usePublisherStateMachine();
   const client = useApolloClient();
 
   const signOut = async () => {
@@ -17,6 +17,8 @@ const SignOutButton = () => {
   };
 
   useEffect(() => {
+    if (activePublisher) return;
+
     return () => {
       resetLinkedPublishers();
       client.clearStore();

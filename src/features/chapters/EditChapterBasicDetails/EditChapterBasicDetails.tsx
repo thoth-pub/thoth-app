@@ -49,6 +49,7 @@ const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
             license={license}
             copyrightHolder={copyrightHolder}
             onUpdate={onLicenseUpdate}
+            skipAutoSubmit={isMultipleChaptersEdit}
           />
           {!isMultipleChaptersEdit && (
             <EditDoi workId={workId} queryToken={queryToken} recommended={showRecommendations} isChapter />

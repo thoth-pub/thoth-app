@@ -21,11 +21,12 @@ const { LICENSE, COPYRIGHT_HOLDER } = FORM_FIELDS;
 type EditLicenseProps = BaseRecommendedSectionProps & {
   license?: string;
   copyrightHolder?: string;
+  skipAutoSubmit?: boolean;
   onUpdate?: (data: LicenseAndCopyrightHolderForm) => void;
 };
 
 const EditLicense = (props: EditLicenseProps) => {
-  const { onUpdate, workId, queryToken, license, copyrightHolder } = props;
+  const { onUpdate, workId, queryToken, license, copyrightHolder, skipAutoSubmit = false } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
 
@@ -45,6 +46,8 @@ const EditLicense = (props: EditLicenseProps) => {
       return;
     }
 
+    if (workId.length === 0) return;
+
     updateWork({ ...work, license: license.value, copyrightHolder });
   };
 
@@ -54,6 +57,7 @@ const EditLicense = (props: EditLicenseProps) => {
       defaultValues={{ [LICENSE.name]: appliedLicenseValue, [COPYRIGHT_HOLDER.name]: appliedCopyrightHolderValue }}
       validationSchema={licenseAndCopyrightHolderValidationSchema}
       onSubmit={updateImprint}
+      skipAutoSubmit={skipAutoSubmit}
       formFields={({ control, isHelperTextVisible }) => (
         <MultipleContentWrapper>
           <ContentWrapper>

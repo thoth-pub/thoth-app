@@ -14,7 +14,7 @@ const usePublisherStateMachine = () => {
   const activePublisher: PublisherContext['activePublisher'] = PublisherStateMachineContext.useSelector(
     (state) => state.context.activePublisher,
   );
-  const isSuperAdmin: PublisherContext['isSuperAdmin'] = PublisherStateMachineContext.useSelector(
+  const isAdmin: PublisherContext['isSuperAdmin'] = PublisherStateMachineContext.useSelector(
     (state) => state.context.isAdmin,
   );
   const actorRef = PublisherStateMachineContext.useActorRef();
@@ -36,16 +36,10 @@ const usePublisherStateMachine = () => {
     },
     [actorRef],
   );
-
-  const isAdmin = useMemo(() => {
-    return (isSuperAdmin || linkedPublishers.find((publisher) => publisher.id === activePublisher)?.isAdmin) ?? false;
-  }, [linkedPublishers, isSuperAdmin, activePublisher]);
-
   return {
     linkedPublishers,
     activePublisher,
     isAdmin,
-    isSuperAdmin,
     resetLinkedPublishers,
     changeActivePublisher,
     setLinkedPublishers,

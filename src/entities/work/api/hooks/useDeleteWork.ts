@@ -2,12 +2,11 @@
 
 import { useRouter } from 'next/navigation';
 
-import { appConfig, type BaseEditSectionProps, NOTIFICATIONS, ROUTES } from '@/src/shared';
-import { useBulkRefetchQueries, useNotifications } from '@/src/shared/hooks';
+import { type BaseEditSectionProps, NOTIFICATIONS, ROUTES } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 import { useMutationWithAuth } from '@/src/shared/hooks';
 
-import { DELETE_WORK, GET_WORK, GET_WORK_CHAPTERS } from '../../model/work.schema';
-import { useMemo } from 'react';
+import { DELETE_WORK } from '../../model/work.schema';
 
 const { WORK_DELETE_FAILED } = NOTIFICATIONS;
 
@@ -18,13 +17,14 @@ type UseDeleteWorkProps = Omit<BaseEditSectionProps, 'workId'> & {
 const useDeleteWork = ({ queryToken, redirect = true }: UseDeleteWorkProps) => {
   const router = useRouter();
   const { sendErrorNotification } = useNotifications();
-  const queriesToRefetch = useBulkRefetchQueries();
 
-  const [mutate] = useMutationWithAuth({
+  const [mutate, { client }] = useMutationWithAuth({
     queryToken,
     mutation: DELETE_WORK,
     options: {
       onCompleted: () => {
+        client.refetchQueries({ include: 'active' });
+
         if (redirect) {
           router.replace(ROUTES.WORKS);
         }
@@ -32,7 +32,6 @@ const useDeleteWork = ({ queryToken, redirect = true }: UseDeleteWorkProps) => {
       onError: () => {
         sendErrorNotification(WORK_DELETE_FAILED);
       },
-      refetchQueries: queriesToRefetch,
     },
   });
 

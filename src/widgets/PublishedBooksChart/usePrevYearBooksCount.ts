@@ -1,14 +1,20 @@
 'use client';
 
 import { Expression } from '@/gql/graphql';
-import { useBooksCount } from '@/src/entities/book';
+import { useBooks } from '@/src/entities/book';
 import { PublisherId } from '@/src/entities/publisher';
 import { getSameDayAndMonthDateInPast } from '@/src/shared';
 
-export const usePrevYearBooksCount = (publishersIds: PublisherId[]) => {
+export const usePrevYearBooksCount = (publishersIds: PublisherId[], isAdmin: boolean) => {
   const startDate = getSameDayAndMonthDateInPast(2);
 
-  const { bookCount } = useBooksCount(publishersIds, '', startDate, Expression.GreaterThan);
+  const { books } = useBooks({
+    publishersIds,
+    startedAt: startDate,
+    expression: Expression.GreaterThan,
+    limit: 1000,
+    isAdmin,
+  });
 
-  return { bookCount };
+  return { bookCount: books.length };
 };

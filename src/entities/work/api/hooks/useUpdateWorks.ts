@@ -1,6 +1,6 @@
 import { ServerError } from '@apollo/client';
 
-import { BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
+import { NOTIFICATIONS, QueryToken, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { UPDATE_WORK } from '../../model/work.schema';
@@ -11,16 +11,13 @@ const { WORK_UPDATE_FAILED } = NOTIFICATIONS;
 
 const mapper = new WorkDtoMapper();
 
-export const useUpdateWork = ({ queryToken }: BaseEditSectionProps) => {
+const useUpdateWorks = (queryToken: QueryToken) => {
   const { sendErrorNotification } = useNotifications();
 
   const [mutate, { loading, client }] = useMutationWithAuth({
     queryToken,
     mutation: UPDATE_WORK,
     options: {
-      onCompleted: () => {
-        client.refetchQueries({ include: 'active' });
-      },
       onError: (error) => {
         if (ServerError.is(error)) {
           const errorMessage = serverErrorParser(error.bodyText, WORK_UPDATE_FAILED);
@@ -35,14 +32,18 @@ export const useUpdateWork = ({ queryToken }: BaseEditSectionProps) => {
     },
   });
 
-  const updateWork = (data: WorkEntity) => {
-    const dto = mapper.toDto(data);
+  const updateWorks = async (data: WorkEntity[]) => {
+    const dto = data.map(mapper.toDto);
 
-    mutate({ variables: { data: dto } });
+    await Promise.all(dto.map((dto) => mutate({ variables: { data: dto } })));
+
+    await client.refetchQueries({ include: 'active' });
   };
 
   return {
-    updateWork,
+    updateWorks,
     loading,
   };
 };
+
+export default useUpdateWorks;

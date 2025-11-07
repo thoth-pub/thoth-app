@@ -2,7 +2,7 @@ import { ServerError } from '@apollo/client';
 
 import { type CreateWorkMutation } from '@/gql/graphql';
 import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
-import { useBulkRefetchQueries, useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { CREATE_WORK } from '../../model/work.mutations';
 import { WorkDto, WorkEntity } from '../../model/work.types';
@@ -21,14 +21,15 @@ const useCreateWork = (props: UseCreateWorkProps) => {
   const { queryToken, onCompleted } = props;
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
-  const queriesToRefetch = useBulkRefetchQueries();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateWorkMutation>({
+  const [mutate, { loading, client }] = useMutationWithAuth<CreateWorkMutation>({
     queryToken,
     mutation: CREATE_WORK,
     options: {
       onCompleted: (data) => {
         sendSuccessNotification(WORK_CREATION_SUCCESS);
+
+        client.refetchQueries({ include: 'active' });
 
         const work = workDtoMapper.toEntity(data.createWork as WorkDto);
 
@@ -44,7 +45,6 @@ const useCreateWork = (props: UseCreateWorkProps) => {
 
         sendErrorNotification(WORK_CREATION_FAILED);
       },
-      refetchQueries: queriesToRefetch,
     },
   });
 
