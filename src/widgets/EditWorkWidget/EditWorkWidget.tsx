@@ -34,8 +34,8 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
       <EditBasicDetails workId={workId} queryToken={queryToken} imprintOptions={imprintOptions}>
         <EditWorkSeries workId={workId} queryToken={queryToken} />
       </EditBasicDetails>
-      <EditContributors workId={workId} queryToken={queryToken} isAdmin={isAdmin} />
       <EditDescriptions workId={workId} queryToken={queryToken} />
+      <EditContributors workId={workId} queryToken={queryToken} isAdmin={isAdmin} />
       <EditWorkChapters workId={workId} queryToken={queryToken} />
       <EditPublications workId={workId} queryToken={queryToken} />
       <EditFundings workId={workId} queryToken={queryToken} />

@@ -8,6 +8,8 @@ import EditDescriptions from '../EditDescriptions/EditDescriptions';
 import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { licenseOptions } from '@/src/shared/constants/formFields';
+import EditChaptersContributors from '../../chapters/EditChaptersContributors/EditChaptersContributors';
+import EditChaptersFundings from '../../chapters/EditChaptersFundings/EditChaptersFundings';
 
 // TODO WIP
 
@@ -80,6 +82,8 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
         isMultipleChaptersEdit
         onLanguagesUpdate={(data) => console.log(data)}
       />
+      <EditChaptersContributors queryToken={queryToken} chapters={chapters} />
+      <EditChaptersFundings queryToken={queryToken} chapters={chapters} />
     </ChaptersModal>
   );
 };

@@ -22,4 +22,6 @@ export { default as AddChapterModal } from './work/AddChapterModal/AddChapterMod
 export { default as EditChaptersModal } from './work/EditChaptersModal/EditChaptersModal';
 export { default as EditChapterModal } from './work/EditChapterModal/EditChapterModal';
 export { default as EditChapterBasicDetails } from './chapters/EditChapterBasicDetails/EditChapterBasicDetails';
+export { default as EditChaptersFundings } from './chapters/EditChaptersFundings/EditChaptersFundings';
+export { default as EditChaptersContributors } from './chapters/EditChaptersContributors/EditChaptersContributors';
 export { default as ChaptersModal } from './layout/ChaptersModal/ChaptersModal';
