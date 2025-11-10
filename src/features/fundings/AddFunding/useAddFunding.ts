@@ -14,8 +14,12 @@ import type {
 import { InstitutionFormType } from '@/src/entities/institution/model/institution.types';
 import { type BaseEditSectionProps } from '@/src/shared';
 
-export const useAddFunding = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+type UseAddFundingProps = BaseEditSectionProps & {
+  onCreate?: (funding: FundingEntity) => void;
+};
+
+export const useAddFunding = (props: UseAddFundingProps) => {
+  const { workId, queryToken, onCreate } = props;
 
   const { activeFunding, close } = useFundingsStateMachine();
   const { createFunding } = useCreateFunding({
@@ -28,9 +32,13 @@ export const useAddFunding = (props: BaseEditSectionProps) => {
   const create = () => {
     if (!funding) return;
 
-    createFunding({
-      ...funding,
-    });
+    if (onCreate) {
+      onCreate(funding);
+      close();
+      return;
+    }
+
+    createFunding(funding);
     close();
   };
 

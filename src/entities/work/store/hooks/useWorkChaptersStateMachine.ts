@@ -26,11 +26,19 @@ const useWorkChaptersStateMachine = () => {
     [actorRef],
   );
 
+  const update = useCallback(
+    (workChapters: WorkEntity[]) => {
+      actorRef.send({ type: 'activeChapters.update', chapters: workChapters });
+    },
+    [actorRef],
+  );
+
   return {
     activeWorkChapters,
     isMultipleChaptersSelected,
     isSingleChapterSelected,
     edit,
+    update,
     close,
   };
 };

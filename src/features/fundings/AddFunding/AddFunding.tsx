@@ -4,9 +4,14 @@ import { type BaseEditSectionProps } from '@/src/shared';
 
 import EditFundingForm from '../EditFundingForm/EditFundingForm';
 import { useAddFunding } from './useAddFunding';
+import { FundingEntity } from '@/src/entities/funding/model/funding.types';
 
-const AddFunding = (props: BaseEditSectionProps) => {
-  const { queryToken, workId } = props;
+type AddFundingProps = BaseEditSectionProps & {
+  onCreate?: (funding: FundingEntity) => void;
+};
+
+const AddFunding = (props: AddFundingProps) => {
+  const { queryToken, workId, onCreate } = props;
 
   const {
     funding,
@@ -18,7 +23,7 @@ const AddFunding = (props: BaseEditSectionProps) => {
     updateProgram,
     updateGrantNumber,
     updateInstitution,
-  } = useAddFunding({ workId, queryToken });
+  } = useAddFunding({ workId, queryToken, onCreate });
 
   if (!funding) return null;
 

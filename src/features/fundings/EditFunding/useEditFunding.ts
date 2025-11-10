@@ -2,6 +2,7 @@
 
 import { useFundingsStateMachine, useUpdateFunding } from '@/src/entities/funding';
 import type {
+  FundingEntity,
   FundingGrantNumberFormType,
   FundingJurisdictionFormType,
   FundingProgramFormType,
@@ -11,8 +12,26 @@ import type {
 import { InstitutionFormType } from '@/src/entities/institution/model/institution.types';
 import { type BaseEditSectionProps } from '@/src/shared';
 
-export const useEditFunding = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+type UseEditFundingProps = BaseEditSectionProps & {
+  onProjectUpdate?: (funding: FundingEntity) => void;
+  onProjectShortNameUpdate?: (funding: FundingEntity) => void;
+  onJurisdictionUpdate?: (funding: FundingEntity) => void;
+  onProgramUpdate?: (funding: FundingEntity) => void;
+  onGrantNumberUpdate?: (funding: FundingEntity) => void;
+  onInstitutionUpdate?: (funding: FundingEntity) => void;
+};
+
+export const useEditFunding = (props: UseEditFundingProps) => {
+  const {
+    workId,
+    queryToken,
+    onProjectUpdate,
+    onProjectShortNameUpdate,
+    onJurisdictionUpdate,
+    onProgramUpdate,
+    onGrantNumberUpdate,
+    onInstitutionUpdate,
+  } = props;
 
   const { activeFunding, close } = useFundingsStateMachine();
   const { updateFunding } = useUpdateFunding({ workId, queryToken });
@@ -20,17 +39,38 @@ export const useEditFunding = (props: BaseEditSectionProps) => {
   const updateProject = ({ projectName }: FundingProjectNameFormType) => {
     if (!activeFunding || !projectName) return;
 
-    updateFunding({ ...activeFunding, projectName });
+    const updatedFunding = { ...activeFunding, projectName };
+
+    if (onProjectUpdate) {
+      onProjectUpdate(updatedFunding);
+      return;
+    }
+
+    updateFunding(updatedFunding);
   };
 
   const updateProjectShortName = ({ projectShortname }: FundingProjectShortNameFormType) => {
     if (!activeFunding || !projectShortname) return;
 
-    updateFunding({ ...activeFunding, projectShortname });
+    const updatedFunding = { ...activeFunding, projectShortname };
+
+    if (onProjectShortNameUpdate) {
+      onProjectShortNameUpdate(updatedFunding);
+      return;
+    }
+
+    updateFunding(updatedFunding);
   };
 
   const updateJurisdiction = ({ jurisdiction }: FundingJurisdictionFormType) => {
     if (!activeFunding || !jurisdiction) return;
+
+    const updatedFunding = { ...activeFunding, jurisdiction };
+
+    if (onJurisdictionUpdate) {
+      onJurisdictionUpdate(updatedFunding);
+      return;
+    }
 
     updateFunding({ ...activeFunding, jurisdiction });
   };
@@ -38,11 +78,25 @@ export const useEditFunding = (props: BaseEditSectionProps) => {
   const updateProgram = ({ program }: FundingProgramFormType) => {
     if (!activeFunding || !program) return;
 
-    updateFunding({ ...activeFunding, program });
+    const updatedFunding = { ...activeFunding, program };
+
+    if (onProgramUpdate) {
+      onProgramUpdate(updatedFunding);
+      return;
+    }
+
+    updateFunding(updatedFunding);
   };
 
   const updateGrantNumber = ({ grantNumber }: FundingGrantNumberFormType) => {
     if (!activeFunding || !grantNumber) return;
+
+    const updatedFunding = { ...activeFunding, grantNumber };
+
+    if (onGrantNumberUpdate) {
+      onGrantNumberUpdate(updatedFunding);
+      return;
+    }
 
     updateFunding({ ...activeFunding, grantNumber });
   };
@@ -50,7 +104,14 @@ export const useEditFunding = (props: BaseEditSectionProps) => {
   const updateInstitution = (data: InstitutionFormType) => {
     if (!activeFunding) return;
 
-    updateFunding({ ...activeFunding, institutionId: data.institution.value });
+    const updatedFunding = { ...activeFunding, institutionId: data.institution.value };
+
+    if (onInstitutionUpdate) {
+      onInstitutionUpdate(updatedFunding);
+      return;
+    }
+
+    updateFunding(updatedFunding);
   };
 
   return {

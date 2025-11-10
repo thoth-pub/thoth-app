@@ -10,6 +10,7 @@ export const workChaptersStateMachine = setup({
   types: {
     events: {} as
       | { type: 'setActiveWorkChapters'; chapters: WorkChaptersContext['activeChapters'] }
+      | { type: 'activeChapters.update'; chapters: WorkChaptersContext['activeChapters'] }
       | { type: 'close' },
   },
 }).createMachine({
@@ -30,7 +31,14 @@ export const workChaptersStateMachine = setup({
       },
     },
     editing: {
-      on: { close: { target: 'init', actions: assign({ activeChapters: () => null }) } },
+      on: {
+        close: { target: 'init', actions: assign({ activeChapters: () => null }) },
+        'activeChapters.update': {
+          actions: assign({
+            activeChapters: ({ event }) => event?.chapters ?? null,
+          }),
+        },
+      },
     },
   },
 });

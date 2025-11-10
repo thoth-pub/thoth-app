@@ -18,3 +18,4 @@ export * from './publishers';
 export * from './styles';
 export * from './validations';
 export * from './work';
+export * from './fundings';

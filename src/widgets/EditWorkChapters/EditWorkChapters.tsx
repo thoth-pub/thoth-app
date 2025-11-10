@@ -293,6 +293,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
       </DndContext>
       <EditChapterModal queryToken={queryToken} onDone={refetchChapters} />
       <EditChaptersModal
+        workId={workId}
         queryToken={queryToken}
         title={`Editing ${selectedChaptersTitle} Chapters`}
         onClose={handleCloseMultipleChaptersEdit}

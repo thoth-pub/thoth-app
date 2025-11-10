@@ -1,6 +1,6 @@
 'use client';
 
-import { useUpdateWorks, useWorkChaptersStateMachine } from '@/src/entities/work';
+import { useUpdateWorks, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
 import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
 import type { BaseEditSectionProps } from '@/src/shared';
 import { useEffect, useState } from 'react';
@@ -13,19 +13,33 @@ import EditChaptersFundings from '../../chapters/EditChaptersFundings/EditChapte
 
 // TODO WIP
 
-type EditChaptersModalProps = Omit<BaseEditSectionProps, 'workId'> & {
+type EditChaptersModalProps = BaseEditSectionProps & {
   title: string;
   onClose?: () => void;
   onDone?: () => void;
 };
 
 const EditChaptersModal = (props: EditChaptersModalProps) => {
-  const { queryToken, title, onClose, onDone } = props;
+  const { workId, queryToken, title, onClose, onDone } = props;
 
-  const { activeWorkChapters, isMultipleChaptersSelected, edit, close } = useWorkChaptersStateMachine();
+  const { activeWorkChapters, isMultipleChaptersSelected, edit, update, close } = useWorkChaptersStateMachine();
 
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
   const [chapters, setChapters] = useState(initValue);
+
+  const { chapters: currentWorkChapters } = useWorkChapters({ workId });
+
+  // useEffect(() => {
+  //   if (!activeWorkChapters) return;
+
+  //   const chaptersIds = activeWorkChapters.map((chapter) => chapter.id);
+
+  //   const activeChapters = currentWorkChapters.filter((chapter) => chaptersIds.includes(chapter.id));
+
+  //   if (activeChapters.length !== chaptersIds.length) return;
+
+  //   update(activeChapters);
+  // }, [currentWorkChapters]);
 
   useEffect(() => {
     return () => {
@@ -76,14 +90,14 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
       onDone={handleDone}
     >
       <EditChapterBasicDetails
-        workId={''}
+        workId=""
         queryToken={queryToken}
         isMultipleChaptersEdit
         license={license}
         onLicenseUpdate={onLicenseUpdate}
       />
       <EditDescriptions
-        workId={''}
+        workId=""
         queryToken={queryToken}
         isMultipleChaptersEdit
         onLanguagesUpdate={(data) => console.log(data)}
