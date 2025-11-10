@@ -13,7 +13,7 @@ import { useTranslation } from 'react-i18next';
 import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
 import { InheritedDataForm } from './components/InheritedDataForm';
 import { RelationType } from '@/gql/graphql';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { licenseOptions } from '@/src/shared/constants/formFields';
 import { useWorkContribution } from '@/src/entities/work/api/hooks/useWorkContribution';
 import { useCreateFunding } from '@/src/entities/funding';
@@ -37,6 +37,12 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   const [inheritContributors, setInheritContributors] = useState(false);
   const [inheritFundings, setInheritFundings] = useState(false);
   const [inheritSubjects, setInheritSubjects] = useState(false);
+
+  useEffect(() => {
+    return () => {
+      close();
+    };
+  }, []);
 
   const openModal = () => {
     setIsOpen(true);

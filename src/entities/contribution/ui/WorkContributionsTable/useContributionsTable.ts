@@ -16,7 +16,6 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
 
   const { activeContribution, edit } = useContributionStateMachine();
   const [items, setItems] = useState(work.contributions);
-  const sensors = useSensors(useSensor(PointerSensor));
 
   const isEqual = work.contributions.every((contribution, index) => {
     const item = items[index];
@@ -93,7 +92,6 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
   return {
     contributions: items,
     activeContribution,
-    sensors,
     dragEnd,
     editContribution,
     deleteContribution: deleteWorkContribution,

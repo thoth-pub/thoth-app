@@ -1,7 +1,11 @@
+'use client';
+
+import { ChaptersContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
 import type { ContributionType, ContributorId } from '@/src/entities/contributor/model/contributor.types';
-import { WorkEntity } from '@/src/entities/work/model/work.types';
+import { WorkContribution, WorkEntity } from '@/src/entities/work/model/work.types';
 import type { BaseEditSectionProps } from '@/src/shared';
 import { RecommendedSection, Typography } from '@/src/shared/ui';
+import { useMemo } from 'react';
 
 type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
   chapters: WorkEntity[];
@@ -9,6 +13,8 @@ type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
 
 const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const { queryToken, chapters } = props;
+
+  const { activeContribution } = useContributionStateMachine();
 
   const contributorsIds = chapters.flatMap((chapter) =>
     chapter.contributions.map((contribution) => contribution.contributorId),
@@ -41,9 +47,55 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
   const isSectionEnabled = isContributorsRolesSame && isSameContributors;
 
+  const uniqueContributors = useMemo(() => {
+    const uniqueContributors: WorkContribution[] = [];
+
+    chapters.forEach(({ contributions }) => {
+      contributions.forEach((contribution) => {
+        const existingContributor = uniqueContributors.find(
+          (contributor) =>
+            contributor.contributorId === contribution.contributorId &&
+            contributor.fullName === contribution.fullName &&
+            contributor.lastName === contribution.lastName &&
+            contributor.firstName === contribution.firstName &&
+            contributor.type === contribution.type &&
+            contributor.isMain === contribution.isMain &&
+            contributor.biography === contribution.biography &&
+            contributor.website === contribution.website,
+        );
+
+        if (existingContributor) return;
+
+        uniqueContributors.push(contribution);
+      });
+    });
+
+    return uniqueContributors;
+  }, [chapters]);
+
   return (
     <RecommendedSection title="Contributors" isEmpty={true} isValid={false}>
-      {({ showRecommendations }) => <Typography>Is section enabled: {isSectionEnabled ? 'Yes' : 'No'}</Typography>}
+      {({ showRecommendations }) => (
+        <>
+          {isSectionEnabled ? (
+            <ChaptersContributionsTable
+              contributions={uniqueContributors}
+              activeContribution={activeContribution}
+              onEdit={(id) => console.log('select as main', id)}
+              onDelete={(id) => console.log('select as main', id)}
+              onSelectAsMain={(id) => console.log('select as main', id)}
+              onDragEnd={(id) => console.log('select as main', id)}
+              form={<>form</>}
+              showRecommendations={false}
+            />
+          ) : (
+            <Typography className="pl-4">
+              This section is unavailable because the contributors in selected chapters are not the same. Please check
+              the contributors and try again.
+            </Typography>
+          )}
+        </>
+      )}
     </RecommendedSection>
   );
 };

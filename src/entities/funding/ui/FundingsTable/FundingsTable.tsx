@@ -20,7 +20,7 @@ type FundingsTableProps = {
   activeFunding: FundingEntity | null;
   fundings: FundingEntity[];
   showRecommendations: boolean;
-  form: Readonly<React.ReactNode>;
+  form?: Readonly<React.ReactNode>;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 };

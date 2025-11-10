@@ -8,11 +8,16 @@ import { convertEntityToSelectFieldOptions } from '@/src/shared';
 import { TextField } from '@/src/shared/ui';
 
 type ChangeActivePublisherProps = {
+  isHidden?: boolean;
   linkedPublishers: { publisherId: string; isAdmin: boolean }[];
   isSuperAdmin: boolean;
 };
 
-const ChangeActivePublisher = ({ linkedPublishers, isSuperAdmin = false }: ChangeActivePublisherProps) => {
+const ChangeActivePublisher = ({
+  linkedPublishers,
+  isSuperAdmin = false,
+  isHidden = false,
+}: ChangeActivePublisherProps) => {
   const ids = linkedPublishers.map((publisher) => publisher.publisherId);
 
   const { publishers } = usePublishers(ids, true);
@@ -42,7 +47,7 @@ const ChangeActivePublisher = ({ linkedPublishers, isSuperAdmin = false }: Chang
       value={activePublisher}
       fullWidth
       select
-      className="w-[240px] shrink-0"
+      className={`w-[240px] shrink-0 ${isHidden ? 'opacity-0' : 'opacity-100'}`}
       slotProps={{
         select: {
           MenuProps: {

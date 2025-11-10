@@ -7,6 +7,7 @@ import EditDescriptions from '../EditDescriptions/EditDescriptions';
 import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
 import EditFundings from '../EditFundings/EditFundings';
 import EditContributors from '../EditContributors/EditContributors';
+import { useEffect } from 'react';
 
 type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'> & {
   onDone?: () => void;
@@ -16,6 +17,12 @@ const EditChapterModal = (props: EditChapterModalProps) => {
   const { queryToken, onDone } = props;
 
   const { activeWorkChapters, isSingleChapterSelected, close } = useWorkChaptersStateMachine();
+
+  useEffect(() => {
+    return () => {
+      close();
+    };
+  }, []);
 
   if (!activeWorkChapters || activeWorkChapters.length === 0) return null;
 

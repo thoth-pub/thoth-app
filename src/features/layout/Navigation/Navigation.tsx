@@ -68,7 +68,7 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
           </IconButton>
         </div>
 
-        <ChangeActivePublisher linkedPublishers={linkedPublishers} isSuperAdmin={isSuperAdmin} />
+        <ChangeActivePublisher linkedPublishers={linkedPublishers} isSuperAdmin={isSuperAdmin} isHidden={!isExpanded} />
         <ContentLanguage />
         <SignOutButton />
         <nav>

@@ -75,7 +75,7 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
           {placeholder && (
             <div className="flex flex-col gap-[var(--default-gap)]">
               <ul className="flex w-full flex-col gap-[var(--default-gap)]">
-                <Activity mode={isExpanded ? 'visible' : 'hidden'}>
+                <Activity mode={isExpanded || subjects.length < 10 ? 'visible' : 'hidden'}>
                   {bicubSubjects.length > 0 && <PreviewList subjects={bicubSubjects} onDelete={deleteSubject} />}
                   {bisacSubjects.length > 0 && <PreviewList subjects={bisacSubjects} onDelete={deleteSubject} />}
                   {customSubjects.length > 0 && <PreviewList subjects={customSubjects} onDelete={deleteSubject} />}
@@ -83,8 +83,7 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
                   {lccSubjects.length > 0 && <PreviewList subjects={lccSubjects} onDelete={deleteSubject} />}
                   {themaSubjects.length > 0 && <PreviewList subjects={themaSubjects} onDelete={deleteSubject} />}
                 </Activity>
-                <Activity mode={!isExpanded ? 'visible' : 'hidden'}>
-                  {' '}
+                <Activity mode={!isExpanded && subjects.length > 10 ? 'visible' : 'hidden'}>
                   {bicubSubjects.length > 0 && (
                     <ShrinkedListItem subjects={bicubSubjects} type={SubjectTypes.enum.Bic} />
                   )}
@@ -104,9 +103,11 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
                 </Activity>
               </ul>
 
-              <IconButton onClick={() => setIsExpanded(!isExpanded)} className="m-auto mt-4">
-                {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-              </IconButton>
+              {subjects.length > 10 && (
+                <IconButton onClick={() => setIsExpanded(!isExpanded)} className="m-auto mt-4">
+                  {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                </IconButton>
+              )}
             </div>
           )}
         </Preview>

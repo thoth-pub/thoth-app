@@ -1,6 +1,6 @@
 'use client';
 
-import { ContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
+import { WorkContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
 import { ANCHORS, type BaseEditSectionProps, isDefaultId } from '@/src/shared';
@@ -30,7 +30,7 @@ const EditContributors = (props: EditContributorsProps) => {
     >
       {({ showRecommendations }) => (
         <>
-          <ContributionsTable
+          <WorkContributionsTable
             workId={workId}
             queryToken={queryToken}
             form={

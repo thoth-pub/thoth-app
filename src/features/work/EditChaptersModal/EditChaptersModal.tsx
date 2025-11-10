@@ -28,6 +28,12 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
   const [chapters, setChapters] = useState(initValue);
 
   useEffect(() => {
+    return () => {
+      close();
+    };
+  }, []);
+
+  useEffect(() => {
     setChapters(activeWorkChapters);
   }, [activeWorkChapters]);
 

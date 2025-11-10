@@ -57,7 +57,9 @@ const EditInstitutionForm = (props: InstitutionFormProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => <Preview label={INSTITUTION.label} value={value?.name} onEdit={onEdit} />}
+      preview={({ data, onEdit }) => (
+        <Preview label={INSTITUTION.label} value={value?.name ?? data?.institution.label} onEdit={onEdit} />
+      )}
     />
   );
 };
