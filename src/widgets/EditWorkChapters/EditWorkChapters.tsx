@@ -53,7 +53,6 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   });
 
   const { createContribution: createContributionMutation } = useWorkContribution({
-    workId,
     queryToken,
   });
 

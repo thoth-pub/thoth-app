@@ -15,7 +15,11 @@ const mapper = new WorkDtoMapper();
 
 const defaultValues = getDefaultWork();
 
-const useWork = (id: WorkId, queryToken: QueryToken, onCreateCompleted?: (data: WorkContributionDto) => void) => {
+const useWork = (
+  id: WorkId,
+  queryToken: QueryToken,
+  onCreateContributionCompleted?: (data: WorkContributionDto) => void,
+) => {
   const {
     data = {
       work: defaultValues,
@@ -31,9 +35,8 @@ const useWork = (id: WorkId, queryToken: QueryToken, onCreateCompleted?: (data: 
     deleteContribution,
     updateContribution: updateContributionMutation,
   } = useWorkContribution({
-    workId: id,
     queryToken,
-    onCreateComplete: onCreateCompleted,
+    onCreateComplete: onCreateContributionCompleted,
   });
 
   const work = mapper.toEntity(data.work as WorkDto);
@@ -52,11 +55,11 @@ const useWork = (id: WorkId, queryToken: QueryToken, onCreateCompleted?: (data: 
     });
   };
 
-  const createContribution = (data: WorkContribution) => {
+  const createContribution = (data: WorkContribution, workId = id) => {
     const dto = mapper.toDtoContribution(data);
 
     createContributionMutation({
-      variables: { data: { workId: id, ...dto } },
+      variables: { data: { workId, ...dto } },
     });
   };
 

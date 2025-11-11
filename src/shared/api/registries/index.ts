@@ -8,6 +8,7 @@ import {
   REFERENCE_FRAGMENT,
   SUBJECT_FRAGMENT,
   WORK_FRAGMENT,
+  CONTRIBUTION_FRAGMENT,
 } from '../fragments';
 
 export const fragmentRegistry = createFragmentRegistry();
@@ -20,4 +21,5 @@ fragmentRegistry.register(
   REFERENCE_FRAGMENT,
   SUBJECT_FRAGMENT,
   WORK_FRAGMENT,
+  CONTRIBUTION_FRAGMENT,
 );

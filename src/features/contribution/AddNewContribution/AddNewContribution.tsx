@@ -5,9 +5,14 @@ import type { BaseRecommendedSectionProps } from '@/src/shared';
 import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
 import { useAddNewContribution } from './useAddNewContribution';
+import type { WorkContribution } from '@/src/entities/work/model/work.types';
 
-const AddNewContribution = (props: BaseRecommendedSectionProps) => {
-  const { recommended = false, workId, queryToken } = props;
+type AddNewContributionProps = BaseRecommendedSectionProps & {
+  onCreate?: (contribution: WorkContribution) => void;
+};
+
+const AddNewContribution = (props: AddNewContributionProps) => {
+  const { recommended = false, workId, queryToken, onCreate } = props;
 
   const {
     contribution,
@@ -20,7 +25,7 @@ const AddNewContribution = (props: BaseRecommendedSectionProps) => {
     updateWebsiteUrl,
     updateAffiliations,
     deleteAffiliation,
-  } = useAddNewContribution({ workId, queryToken });
+  } = useAddNewContribution({ workId, queryToken, onCreate });
 
   if (!contribution) return null;
 

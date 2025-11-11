@@ -8,7 +8,7 @@ import { ContributionsTableRow } from './ContributionsTableRow';
 
 type ContributionsTableProps = {
   contributions: WorkContribution[];
-  activeContribution?: WorkContribution;
+  activeContribution: WorkContribution | null;
   form?: React.ReactNode;
   showRecommendations?: boolean;
   onEdit: (id: string) => void;

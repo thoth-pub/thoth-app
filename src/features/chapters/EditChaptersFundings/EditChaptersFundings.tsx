@@ -436,35 +436,37 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
       {({ showRecommendations }) => (
         <>
           {isSectionEnabled ? (
-            <FundingsTable
-              activeFunding={activeFunding}
-              fundings={fundings}
-              showRecommendations={showRecommendations}
-              onEdit={editFunding}
-              onDelete={deleteChapterFundings}
-              form={
-                <EditFunding
-                  workId=""
-                  queryToken={queryToken}
-                  onProjectUpdate={updateProject}
-                  onProjectShortNameUpdate={updateProjectShortName}
-                  onJurisdictionUpdate={updateJurisdiction}
-                  onProgramUpdate={updateProgram}
-                  onGrantNumberUpdate={updateGrantNumber}
-                  onInstitutionUpdate={updateInstitution}
-                />
-              }
-            />
+            <>
+              <FundingsTable
+                activeFunding={activeFunding}
+                fundings={fundings}
+                showRecommendations={showRecommendations}
+                onEdit={editFunding}
+                onDelete={deleteChapterFundings}
+                form={
+                  <EditFunding
+                    workId=""
+                    queryToken={queryToken}
+                    onProjectUpdate={updateProject}
+                    onProjectShortNameUpdate={updateProjectShortName}
+                    onJurisdictionUpdate={updateJurisdiction}
+                    onProgramUpdate={updateProgram}
+                    onGrantNumberUpdate={updateGrantNumber}
+                    onInstitutionUpdate={updateInstitution}
+                  />
+                }
+              />
+              {isNewFunding && <AddFunding workId="" queryToken={queryToken} onCreate={createFunding} />}
+              <AddButton className="px-7 capitalize" onAdd={addFunding} disabled={isNewFunding}>
+                {t('add funding')}
+              </AddButton>
+            </>
           ) : (
             <Typography className="pl-4">
               This section is unavailable because the fundings in selected chapters are not the same. Please check the
               fundings and try again.
             </Typography>
           )}
-          {isNewFunding && <AddFunding workId="" queryToken={queryToken} onCreate={createFunding} />}
-          <AddButton className="px-7 capitalize" onAdd={addFunding} disabled={isNewFunding}>
-            {t('add funding')}
-          </AddButton>
         </>
       )}
     </RecommendedSection>

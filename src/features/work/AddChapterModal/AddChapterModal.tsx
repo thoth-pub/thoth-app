@@ -58,7 +58,6 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   });
 
   const { createContribution: createContributionMutation } = useWorkContribution({
-    workId,
     queryToken,
   });
 

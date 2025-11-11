@@ -29,17 +29,17 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   const { chapters: currentWorkChapters } = useWorkChapters({ workId });
 
-  // useEffect(() => {
-  //   if (!activeWorkChapters) return;
+  useEffect(() => {
+    if (!activeWorkChapters) return;
 
-  //   const chaptersIds = activeWorkChapters.map((chapter) => chapter.id);
+    const chaptersIds = activeWorkChapters.map((chapter) => chapter.id);
 
-  //   const activeChapters = currentWorkChapters.filter((chapter) => chaptersIds.includes(chapter.id));
+    const activeChapters = currentWorkChapters.filter((chapter) => chaptersIds.includes(chapter.id));
 
-  //   if (activeChapters.length !== chaptersIds.length) return;
+    if (activeChapters.length !== chaptersIds.length) return;
 
-  //   update(activeChapters);
-  // }, [currentWorkChapters]);
+    update(activeChapters);
+  }, [currentWorkChapters]);
 
   useEffect(() => {
     return () => {

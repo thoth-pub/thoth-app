@@ -1,7 +1,5 @@
 'use client';
 
-import { useState } from 'react';
-
 import { useCreateAffiliation } from '@/src/entities/affiliation';
 import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import { useContributionStateMachine } from '@/src/entities/contribution';
@@ -16,17 +14,22 @@ import { useWork } from '@/src/entities/work';
 import type { WorkContribution } from '@/src/entities/work/model/work.types';
 import { type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 
-export const useAddNewContribution = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+type UseAddNewContributionProps = BaseEditSectionProps & {
+  onCreate?: (contribution: WorkContribution) => void;
+};
 
-  const { activeContribution, close } = useContributionStateMachine();
-  const [contribution, setContribution] = useState<WorkContribution | null>(activeContribution);
+export const useAddNewContribution = (props: UseAddNewContributionProps) => {
+  const { workId, queryToken, onCreate } = props;
+
+  const { activeContribution, update, close } = useContributionStateMachine();
   const { createAffiliation } = useCreateAffiliation({
     queryToken,
     workId,
   });
   const { work, createContribution } = useWork(workId, queryToken, (data) => {
-    contribution?.affiliations.forEach(async ({ institutionId, position }, index) => {
+    if (!activeContribution) return;
+
+    activeContribution.affiliations.forEach(async ({ institutionId, position }, index) => {
       await createAffiliation({
         variables: {
           data: {
@@ -40,14 +43,14 @@ export const useAddNewContribution = (props: BaseEditSectionProps) => {
     });
   });
 
-  const { contributor } = useContributor({ contributorId: contribution?.contributorId });
+  const { contributor } = useContributor({ contributorId: activeContribution?.contributorId });
   const { createContributor } = useCreateContributor({
     queryToken,
     onCompleted: (data) => {
-      if (!contribution) return;
+      if (!activeContribution) return;
 
       createContribution({
-        ...contribution,
+        ...activeContribution,
         isMain: true,
         orderNumber: work.contributions.length + 1,
         contributorId: data.contributorId,
@@ -58,19 +61,19 @@ export const useAddNewContribution = (props: BaseEditSectionProps) => {
   const { updateContributor } = useUpdateContributor({
     queryToken,
     workId,
-    contributorId: contribution?.contributorId,
+    contributorId: activeContribution?.contributorId,
     onError: () => close(),
   });
 
   const updateContribution = (data: WorkContribution) => {
-    setContribution(data);
+    update(data);
   };
 
   const updateNames = ({ fullName, firstName = '', lastName }: ContributionNamesForm) => {
-    if (!contribution) return;
+    if (!activeContribution) return;
 
     updateContribution({
-      ...contribution,
+      ...activeContribution,
       fullName,
       firstName,
       lastName,
@@ -78,74 +81,74 @@ export const useAddNewContribution = (props: BaseEditSectionProps) => {
   };
 
   const updateContributorType = ({ contributorType }: ContributionTypeForm) => {
-    if (!contribution) return;
+    if (!activeContribution) return;
 
     updateContribution({
-      ...contribution,
+      ...activeContribution,
       type: contributorType,
     });
   };
 
   const updateBiography = ({ contributorBiography = '' }: ContributionBiographyForm) => {
-    if (!contribution) return;
+    if (!activeContribution) return;
 
     updateContribution({
-      ...contribution,
+      ...activeContribution,
       biography: contributorBiography,
     });
   };
 
   const updateOrcid = ({ orcid = '' }: OrcidForm) => {
-    if (!contribution) return;
+    if (!activeContribution) return;
 
     updateContribution({
-      ...contribution,
+      ...activeContribution,
       orcidId: orcid,
     });
   };
 
   const updateWebsiteUrl = ({ websiteUrl = '' }: WebsiteUrlForm) => {
-    if (!contribution) return;
+    if (!activeContribution) return;
 
     updateContribution({
-      ...contribution,
+      ...activeContribution,
       website: websiteUrl,
     });
   };
 
   const createWithNewContributor = () => {
-    if (!contribution) return;
+    if (!activeContribution) return;
 
     createContributor({
-      fullName: contribution.fullName,
-      lastName: contribution.lastName,
-      firstName: contribution.firstName,
-      orcid: contribution.orcidId,
-      website: contribution.website,
+      fullName: activeContribution.fullName,
+      lastName: activeContribution.lastName,
+      firstName: activeContribution.firstName,
+      orcid: activeContribution.orcidId,
+      website: activeContribution.website,
     });
 
     close();
   };
 
   const createWithExistingContributor = () => {
-    if (!contribution) return;
+    if (!activeContribution) return;
 
-    const isOrchidEdit = contribution.orcidId && contribution.orcidId !== '';
-    const isWebsiteEdit = contribution.website && contribution.website !== '';
+    const isOrchidEdit = activeContribution.orcidId && activeContribution.orcidId !== '';
+    const isWebsiteEdit = activeContribution.website && activeContribution.website !== '';
 
     if ((isOrchidEdit || isWebsiteEdit) && contributor) {
       updateContributor({
         firstName: contributor.firstName,
         lastName: contributor.lastName,
         fullName: contributor.fullName,
-        orcid: contribution.orcidId,
-        website: contribution.website,
+        orcid: activeContribution.orcidId,
+        website: activeContribution.website,
         id: contributor.id,
       });
     }
 
     createContribution({
-      ...contribution,
+      ...activeContribution,
       isMain: true,
       orderNumber: work.contributions.length + 1,
     });
@@ -154,9 +157,14 @@ export const useAddNewContribution = (props: BaseEditSectionProps) => {
   };
 
   const create = () => {
-    if (!contribution) return;
+    if (!activeContribution) return;
 
-    const isNewContributor = isDefaultId(contribution.contributorId);
+    if (onCreate) {
+      onCreate(activeContribution);
+      return;
+    }
+
+    const isNewContributor = isDefaultId(activeContribution.contributorId);
 
     if (isNewContributor) {
       createWithNewContributor();
@@ -167,26 +175,26 @@ export const useAddNewContribution = (props: BaseEditSectionProps) => {
   };
 
   const updateContributionAffiliations = (data: AffiliationsForm) => {
-    if (!contribution) return;
+    if (!activeContribution) return;
 
     updateContribution({
-      ...contribution,
+      ...activeContribution,
       affiliations: data.affiliations.map((affiliation) => ({
         id: affiliation.id || '',
-        contributionId: contribution.id || '',
+        contributionId: activeContribution.id || '',
         institutionId: affiliation.affiliation.value || '',
         institutionName: affiliation.affiliation.label || '',
         rorId: affiliation.affiliation.value || '',
-        orderNumber: contribution.affiliations.length + 1,
+        orderNumber: activeContribution.affiliations.length + 1,
         position: affiliation.position || '',
       })),
     });
   };
 
   const deleteAffiliation = (_id: string, index: number) => {
-    if (!contribution) return;
+    if (!activeContribution) return;
 
-    const updatedAffiliations = contribution.affiliations
+    const updatedAffiliations = activeContribution.affiliations
       .filter((_affiliation, i) => i !== index)
       .map((affiliation, affiliationIndex) => ({
         ...affiliation,
@@ -194,13 +202,13 @@ export const useAddNewContribution = (props: BaseEditSectionProps) => {
       }));
 
     updateContribution({
-      ...contribution,
+      ...activeContribution,
       affiliations: updatedAffiliations,
     });
   };
 
   return {
-    contribution,
+    contribution: activeContribution,
     close,
     create,
     updateWebsiteUrl,

@@ -1,38 +1,29 @@
 import { ServerError } from '@apollo/client';
 
-import { type CreateContributionMutation, Direction, Expression, WorkStatus } from '@/gql/graphql';
-import { GET_BOOKS } from '@/src/entities/book/model/book.schema';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
-import {
-  type BaseEditSectionProps,
-  getSameDayAndMonthDateInPast,
-  NOTIFICATIONS,
-  serverErrorParser,
-} from '@/src/shared';
+import { type CreateContributionMutation } from '@/gql/graphql';
+import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { CREATE_CONTRIBUTION, DELETE_CONTRIBUTION, UPDATE_CONTRIBUTION } from '../../model/work.mutations';
-import { GET_WORK } from '../../model/work.schema';
 import type { WorkContributionDto } from '../../model/work.types';
 
 const { WORK_CONTRIBUTION_CREATION_FAILED, WORK_CONTRIBUTION_DELETION_FAILED, WORK_CONTRIBUTION_UPDATE_FAILED } =
   NOTIFICATIONS;
 
-type UseCWorkContributionProps = BaseEditSectionProps & {
+type UseCWorkContributionProps = Omit<BaseEditSectionProps, 'workId'> & {
   onCreateComplete?: (data: WorkContributionDto) => void;
 };
 
-export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: UseCWorkContributionProps) => {
-  const { activePublisher } = usePublisherStateMachine();
+export const useWorkContribution = ({ queryToken, onCreateComplete }: UseCWorkContributionProps) => {
   const { sendErrorNotification } = useNotifications();
-  const startDate = getSameDayAndMonthDateInPast(1);
 
-  const [createContribution, { loading }] = useMutationWithAuth({
+  const [createContribution, { loading, client }] = useMutationWithAuth({
     queryToken,
     mutation: CREATE_CONTRIBUTION,
     options: {
-      onCompleted: (data: CreateContributionMutation) => {
-        onCreateComplete?.(data.createContribution);
+      onCompleted: async (data: CreateContributionMutation) => {
+        onCreateComplete?.(data.createContribution as WorkContributionDto);
+        await client.refetchQueries({ include: 'all' });
       },
       onError: (error) => {
         if (ServerError.is(error)) {
@@ -45,24 +36,6 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
 
         sendErrorNotification(WORK_CONTRIBUTION_CREATION_FAILED);
       },
-      refetchQueries: [
-        { query: GET_WORK, variables: { workId } },
-        { query: GET_BOOKS, variables: { publishers: [activePublisher] } },
-        {
-          query: GET_BOOKS,
-          variables: { publishers: [activePublisher], startedAt: startDate, expression: Expression.GreaterThan },
-        },
-        { query: GET_BOOKS, variables: { publishers: [activePublisher], limit: 3, direction: Direction.Desc } },
-        {
-          query: GET_BOOKS,
-          variables: {
-            publishers: [activePublisher],
-            workStatus: WorkStatus.Active,
-            limit: 3,
-            direction: Direction.Desc,
-          },
-        },
-      ],
     },
   });
 
@@ -70,6 +43,9 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
     queryToken,
     mutation: DELETE_CONTRIBUTION,
     options: {
+      onCompleted: async () => {
+        await client.refetchQueries({ include: 'all' });
+      },
       onError: (error) => {
         if (ServerError.is(error)) {
           const errorMessage = serverErrorParser(error.bodyText, WORK_CONTRIBUTION_DELETION_FAILED);
@@ -80,24 +56,6 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
 
         sendErrorNotification(WORK_CONTRIBUTION_DELETION_FAILED);
       },
-      refetchQueries: [
-        { query: GET_WORK, variables: { workId } },
-        { query: GET_BOOKS, variables: { publishers: [activePublisher] } },
-        {
-          query: GET_BOOKS,
-          variables: { publishers: [activePublisher], startedAt: startDate, expression: Expression.GreaterThan },
-        },
-        { query: GET_BOOKS, variables: { publishers: [activePublisher], limit: 3, direction: Direction.Desc } },
-        {
-          query: GET_BOOKS,
-          variables: {
-            publishers: [activePublisher],
-            workStatus: WorkStatus.Active,
-            limit: 3,
-            direction: Direction.Desc,
-          },
-        },
-      ],
     },
   });
 
@@ -105,6 +63,9 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
     queryToken,
     mutation: UPDATE_CONTRIBUTION,
     options: {
+      onCompleted: async () => {
+        await client.refetchQueries({ include: 'all' });
+      },
       onError: (error) => {
         if (ServerError.is(error)) {
           const errorMessage = serverErrorParser(error.bodyText, WORK_CONTRIBUTION_UPDATE_FAILED);
@@ -115,24 +76,6 @@ export const useWorkContribution = ({ workId, queryToken, onCreateComplete }: Us
 
         sendErrorNotification(WORK_CONTRIBUTION_UPDATE_FAILED);
       },
-      refetchQueries: [
-        { query: GET_WORK, variables: { workId } },
-        { query: GET_BOOKS, variables: { publishers: [activePublisher] } },
-        {
-          query: GET_BOOKS,
-          variables: { publishers: [activePublisher], startedAt: startDate, expression: Expression.GreaterThan },
-        },
-        { query: GET_BOOKS, variables: { publishers: [activePublisher], limit: 3, direction: Direction.Desc } },
-        {
-          query: GET_BOOKS,
-          variables: {
-            publishers: [activePublisher],
-            workStatus: WorkStatus.Active,
-            limit: 3,
-            direction: Direction.Desc,
-          },
-        },
-      ],
     },
   });
 

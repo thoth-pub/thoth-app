@@ -258,7 +258,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     };
   }
 
-  toDtoContribution(entity: WorkContribution): WorkContributionDto {
+  toDtoContribution(entity: WorkContribution): Omit<WorkContributionDto, 'workId'> {
     const { fullName, lastName, id, contributorId, type, isMain, orderNumber, firstName, biography } = entity;
 
     return {

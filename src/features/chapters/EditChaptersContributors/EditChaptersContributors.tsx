@@ -3,9 +3,11 @@
 import { ChaptersContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
 import type { ContributionType, ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkContribution, WorkEntity } from '@/src/entities/work/model/work.types';
-import type { BaseEditSectionProps } from '@/src/shared';
+import { isDefaultId, type BaseEditSectionProps } from '@/src/shared';
 import { RecommendedSection, Typography } from '@/src/shared/ui';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
+import AddContributionModal from '../../work/AddContributionModal/AddContributionModal';
+import { AddNewChaptersContribution } from './components/AddNewChaptersContribution';
 
 type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
   chapters: WorkEntity[];
@@ -47,6 +49,8 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
   const isSectionEnabled = isContributorsRolesSame && isSameContributors;
 
+  const isNewContribution = activeContribution && isDefaultId(activeContribution.id);
+
   const uniqueContributors = useMemo(() => {
     const uniqueContributors: WorkContribution[] = [];
 
@@ -73,21 +77,40 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     return uniqueContributors;
   }, [chapters]);
 
+  const [contributions, setContributions] = useState(uniqueContributors);
+
+  const handleNewContribution = (contribution: WorkContribution) => {
+    setContributions((prev) => [...prev, { ...contribution, isMain: true }]);
+    close();
+  };
+
   return (
     <RecommendedSection title="Contributors" isEmpty={true} isValid={false}>
       {({ showRecommendations }) => (
         <>
           {isSectionEnabled ? (
-            <ChaptersContributionsTable
-              contributions={uniqueContributors}
-              activeContribution={activeContribution}
-              onEdit={(id) => console.log('select as main', id)}
-              onDelete={(id) => console.log('select as main', id)}
-              onSelectAsMain={(id) => console.log('select as main', id)}
-              onDragEnd={(id) => console.log('select as main', id)}
-              form={<>form</>}
-              showRecommendations={false}
-            />
+            <>
+              <ChaptersContributionsTable
+                contributions={contributions}
+                activeContribution={activeContribution}
+                onEdit={(id) => console.log('select as main', id)}
+                onDelete={(id) => console.log('select as main', id)}
+                onSelectAsMain={(id) => console.log('select as main', id)}
+                onDragEnd={(id) => console.log('select as main', id)}
+                form={<>form</>}
+                showRecommendations={false}
+              />
+              {isNewContribution && (
+                <AddNewChaptersContribution
+                  recommended={showRecommendations}
+                  workId=""
+                  queryToken={queryToken}
+                  chapters={chapters}
+                  onCreate={handleNewContribution}
+                />
+              )}
+              <AddContributionModal />
+            </>
           ) : (
             <Typography className="pl-4">
               This section is unavailable because the contributors in selected chapters are not the same. Please check

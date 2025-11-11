@@ -5,7 +5,7 @@ import { ContributionsTable } from '../components/Table';
 
 type ChaptersContributionsTableProps = {
   contributions: WorkContribution[];
-  activeContribution?: WorkContribution;
+  activeContribution: WorkContribution | null;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onSelectAsMain: (id: string) => void;

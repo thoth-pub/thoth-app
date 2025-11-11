@@ -10,6 +10,7 @@ export const contributionStateMachine = setup({
   types: {
     events: {} as
       | { type: 'setActiveContribution'; contribution: ContributionContext['activeContribution'] }
+      | { type: 'activeContribution.update'; contribution: ContributionContext['activeContribution'] }
       | { type: 'close' },
   },
 }).createMachine({
@@ -30,7 +31,14 @@ export const contributionStateMachine = setup({
       },
     },
     editing: {
-      on: { close: { target: 'init', actions: assign({ activeContribution: () => null }) } },
+      on: {
+        close: { target: 'init', actions: assign({ activeContribution: () => null }) },
+        'activeContribution.update': {
+          actions: assign({
+            activeContribution: ({ event }) => event?.contribution ?? null,
+          }),
+        },
+      },
     },
   },
 });

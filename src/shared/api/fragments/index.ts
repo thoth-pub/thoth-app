@@ -7,3 +7,4 @@ export * from './publications';
 export * from './references';
 export * from './subject';
 export * from './works';
+export * from './contributions';
