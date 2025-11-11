@@ -1,14 +1,14 @@
 'use client';
 
 import { Expression } from '@/gql/graphql';
-import { useBooks } from '@/src/entities/book';
+import { useBooks, useSuspenseBooks } from '@/src/entities/book';
 import type { PublisherId } from '@/src/entities/publisher';
 import { getSameDayAndMonthDateInPast } from '@/src/shared';
 
 export const useCurrentYearBooks = (publishersIds: PublisherId[], isAdmin: boolean) => {
   const startDate = getSameDayAndMonthDateInPast(1);
 
-  const { books } = useBooks({
+  const { books } = useSuspenseBooks({
     publishersIds,
     startedAt: startDate,
     expression: Expression.GreaterThan,
