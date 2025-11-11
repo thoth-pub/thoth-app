@@ -31,12 +31,14 @@ export const GET_BOOKS_COUNT = graphql(`
     $filter: String
     $workStatus: WorkStatus
     $updatedAtWithRelations: TimeExpression
+    $publicationDate: TimeExpression
   ) {
     bookCount(
       publishers: $publishers
       filter: $filter
       workStatus: $workStatus
       updatedAtWithRelations: $updatedAtWithRelations
+      publicationDate: $publicationDate
     )
   }
 `);

@@ -2,48 +2,87 @@
 
 import ArrowDropUpRoundedIcon from '@mui/icons-material/ArrowDropUpRounded';
 import { BarChart } from '@mui/x-charts';
-import dayjs from 'dayjs';
 
 import { ChartWrapper } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useIsDesktop } from '@/src/shared/hooks';
 import { DashboardContentWrapper, Typography } from '@/src/shared/ui';
 
-import { useCurrentYearBooks } from './useCurrentYearBooks';
-import { usePrevYearBooksCount } from './usePrevYearBooksCount';
+import { getMonthName, getStartOfTheCurrentMonthDate, substractMonthesFromDate } from '@/src/shared';
+import { useBooksCountByMonth } from './useBooksCountByMonth';
+import { useMemo } from 'react';
 
 const PublishedBooksChart = () => {
   const isDesktop = useIsDesktop(1280);
+
   const { activePublisher, isAdmin } = usePublisherStateMachine();
-  const publishersIds = activePublisher ? [activePublisher] : [];
+  const publishersIds = useMemo(() => (activePublisher ? [activePublisher] : []), [activePublisher]);
 
-  const { bookCount, books } = useCurrentYearBooks(publishersIds, isAdmin);
-  const { bookCount: prevYearBooksCount } = usePrevYearBooksCount(publishersIds, isAdmin);
+  const firstMonthDate = getStartOfTheCurrentMonthDate();
+  const secondMonthDate = substractMonthesFromDate(firstMonthDate, 1);
+  const thirdMonthDate = substractMonthesFromDate(secondMonthDate, 1);
+  const fourthMonthDate = substractMonthesFromDate(thirdMonthDate, 1);
+  const fifthMonthDate = substractMonthesFromDate(fourthMonthDate, 1);
+  const sixthMonthDate = substractMonthesFromDate(fifthMonthDate, 1);
+  const seventhMonthDate = substractMonthesFromDate(sixthMonthDate, 1);
+  const eighthMonthDate = substractMonthesFromDate(seventhMonthDate, 1);
+  const ninthMonthDate = substractMonthesFromDate(eighthMonthDate, 1);
+  const tenthMonthDate = substractMonthesFromDate(ninthMonthDate, 1);
+  const eleventhMonthDate = substractMonthesFromDate(tenthMonthDate, 1);
+  const twelfthMonthDate = substractMonthesFromDate(eleventhMonthDate, 1);
+  const prevYearBooksDate = substractMonthesFromDate(firstMonthDate, 24);
 
-  const diff = prevYearBooksCount - bookCount;
+  const { bookCount: firstMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, firstMonthDate);
+  const { bookCount: secondMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, secondMonthDate);
+  const { bookCount: thirdMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, thirdMonthDate);
+  const { bookCount: fourthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, fourthMonthDate);
+  const { bookCount: fifthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, fifthMonthDate);
+  const { bookCount: sixthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, sixthMonthDate);
+  const { bookCount: seventhMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, seventhMonthDate);
+  const { bookCount: eighthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, eighthMonthDate);
+  const { bookCount: ninthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, ninthMonthDate);
+  const { bookCount: tenthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, tenthMonthDate);
+  const { bookCount: eleventhMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, eleventhMonthDate);
+  const { bookCount: twelfthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, twelfthMonthDate);
+  const { bookCount: prevYearBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, prevYearBooksDate);
 
-  const chartData: Record<string, { value: number; month: string }> = {};
+  const substractedSecondMonthBooksCount = secondMonthBooksCount - firstMonthBooksCount;
+  const substractedThirdMonthBooksCount = thirdMonthBooksCount - secondMonthBooksCount;
+  const substractedFourthMonthBooksCount = fourthMonthBooksCount - thirdMonthBooksCount;
+  const substractedFifthMonthBooksCount = fifthMonthBooksCount - fourthMonthBooksCount;
+  const substractedSixthMonthBooksCount = sixthMonthBooksCount - fifthMonthBooksCount;
+  const substractedSeventhMonthBooksCount = seventhMonthBooksCount - sixthMonthBooksCount;
+  const substractedEighthMonthBooksCount = eighthMonthBooksCount - seventhMonthBooksCount;
+  const substractedNinthMonthBooksCount = ninthMonthBooksCount - eighthMonthBooksCount;
+  const substractedTenthMonthBooksCount = tenthMonthBooksCount - ninthMonthBooksCount;
+  const substractedEleventhMonthBooksCount = eleventhMonthBooksCount - tenthMonthBooksCount;
+  const substractedTwelfthMonthBooksCount = twelfthMonthBooksCount - eleventhMonthBooksCount;
 
-  books.forEach(({ updatedAt }) => {
-    if (!dayjs(updatedAt).isValid()) return;
+  const currentYearBooksCount = twelfthMonthBooksCount;
 
-    const monthNumber = dayjs(updatedAt).month();
-    const monthName = dayjs(updatedAt).format('MMM');
+  const diff = prevYearBooksCount - currentYearBooksCount;
 
-    if (chartData[monthNumber]) {
-      chartData[monthNumber].value++;
-      return;
-    }
+  const chartData: Record<string, { value: number; month: string }> = {
+    [twelfthMonthDate]: { value: substractedTwelfthMonthBooksCount, month: getMonthName(twelfthMonthDate) },
+    [eleventhMonthDate]: { value: substractedEleventhMonthBooksCount, month: getMonthName(eleventhMonthDate) },
+    [tenthMonthDate]: { value: substractedTenthMonthBooksCount, month: getMonthName(tenthMonthDate) },
+    [ninthMonthDate]: { value: substractedNinthMonthBooksCount, month: getMonthName(ninthMonthDate) },
+    [eighthMonthDate]: { value: substractedEighthMonthBooksCount, month: getMonthName(eighthMonthDate) },
+    [seventhMonthDate]: { value: substractedSeventhMonthBooksCount, month: getMonthName(seventhMonthDate) },
+    [sixthMonthDate]: { value: substractedSixthMonthBooksCount, month: getMonthName(sixthMonthDate) },
+    [fifthMonthDate]: { value: substractedFifthMonthBooksCount, month: getMonthName(fifthMonthDate) },
+    [fourthMonthDate]: { value: substractedFourthMonthBooksCount, month: getMonthName(fourthMonthDate) },
+    [thirdMonthDate]: { value: substractedThirdMonthBooksCount, month: getMonthName(thirdMonthDate) },
+    [secondMonthDate]: { value: substractedSecondMonthBooksCount, month: getMonthName(secondMonthDate) },
+    [firstMonthDate]: { value: firstMonthBooksCount, month: getMonthName(firstMonthDate) },
+  };
 
-    chartData[monthNumber] = { value: 1, month: monthName };
-  });
+  const axisData = Object.values(chartData).map(({ month }) => month);
+  const seriesData = Object.values(chartData).map(({ value }) => value);
 
-  const sortedData = Object.entries(chartData).sort((a, b) => +a - +b);
+  const isEmpty = seriesData.every((value) => value === 0);
 
-  const axisData = sortedData.map(([_, { month }]) => month).slice(-5);
-  const seriesData = sortedData.map(([_, { value }]) => value).slice(-5);
-
-  if (sortedData.length === 0) {
+  if (isEmpty) {
     return null;
   }
 
@@ -56,11 +95,11 @@ const PublishedBooksChart = () => {
           </Typography>
           <ul className="flex flex-col gap-1">
             <Typography component="li" variant="body1">
-              {isDesktop ? 'Last 12 months:' : 'This year:'} {bookCount}{' '}
-              {bookCount > 0 && <ArrowDropUpRoundedIcon color="success" fontSize={isDesktop ? 'large' : 'small'} />}
+              {isDesktop ? 'Last 12 months:' : 'This year:'} {currentYearBooksCount}{' '}
+              {diff > 0 && <ArrowDropUpRoundedIcon color="success" fontSize={isDesktop ? 'large' : 'small'} />}
             </Typography>
             <Typography component="li" variant="body1">
-              {isDesktop ? 'Previous 12 months:' : 'Prev year:'} {diff}
+              {isDesktop ? 'Previous 12 months:' : 'Prev year:'} {prevYearBooksCount}
             </Typography>
           </ul>
         </div>
@@ -90,7 +129,7 @@ const PublishedBooksChart = () => {
           ]}
           series={[{ data: seriesData }]}
           height={isDesktop ? 127 : 95}
-          width={isDesktop ? seriesData.length * 75 : seriesData.length * 55}
+          width={isDesktop ? seriesData.length * 23 : seriesData.length * 15}
           sx={{
             marginTop: 'auto',
             position: 'relative',

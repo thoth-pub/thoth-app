@@ -1,11 +1,11 @@
-import { useQuery, useSuspenseQuery } from '@apollo/client/react';
+import { useSuspenseQuery } from '@apollo/client/react';
 
 import type { Expression } from '@/gql/graphql';
 import type { PublisherId } from '@/src/entities/publisher';
 
 import { GET_BOOKS_COUNT } from '../../model/book.schema';
 
-type UseBooksCountProps = {
+type UseSuspenseBooksCountProps = {
   publishersIds: PublisherId[];
   isAdmin: boolean;
   filter?: string;
@@ -13,10 +13,10 @@ type UseBooksCountProps = {
   publishedAt?: string;
 };
 
-const useBooksCount = (props: UseBooksCountProps) => {
+const useSuspenseBooksCount = (props: UseSuspenseBooksCountProps) => {
   const { publishersIds, isAdmin = false, filter, expression, publishedAt } = props;
 
-  const { data: { bookCount } = { bookCount: 0 }, error } = useQuery(GET_BOOKS_COUNT, {
+  const { data: { bookCount } = { bookCount: 0 }, error } = useSuspenseQuery(GET_BOOKS_COUNT, {
     variables: {
       publishers: publishersIds,
       filter,
@@ -28,4 +28,4 @@ const useBooksCount = (props: UseBooksCountProps) => {
   return { bookCount, error };
 };
 
-export default useBooksCount;
+export default useSuspenseBooksCount;
