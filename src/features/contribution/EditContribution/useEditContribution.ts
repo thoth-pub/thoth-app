@@ -18,14 +18,35 @@ import type { WorkContribution } from '@/src/entities/work/model/work.types';
 import { type BaseEditSectionProps, NOTIFICATIONS, removePrefix, serverErrorParser } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import type { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 
-type UseEditContributionProps = BaseEditSectionProps & {
-  isAdmin?: boolean;
-  linkedPublishers?: PublisherId[];
-};
+type UseEditContributionProps = BaseEditSectionProps &
+  Partial<{
+    isAdmin: boolean;
+    linkedPublishers: PublisherId[];
+    onNamesUpdate: (data: ContributionNamesForm) => void;
+    onTypeUpdate: (data: ContributionTypeForm) => void;
+    onBiographyUpdate: (data: ContributionBiographyForm) => void;
+    onOrcidUpdate: (data: OrcidForm) => void;
+    onWebsiteUrlUpdate: (data: WebsiteUrlForm) => void;
+    onAffiliationsUpdate: (data: AffiliationsForm) => void;
+    onDeleteAffiliation: (id: string) => void;
+  }>;
 
 export const useEditContribution = (props: UseEditContributionProps) => {
-  const { workId, queryToken, isAdmin = false, linkedPublishers = [] } = props;
+  const {
+    workId,
+    queryToken,
+    isAdmin = false,
+    linkedPublishers = [],
+    onNamesUpdate,
+    onTypeUpdate,
+    onBiographyUpdate,
+    onOrcidUpdate,
+    onWebsiteUrlUpdate,
+    onAffiliationsUpdate,
+    onDeleteAffiliation,
+  } = props;
 
   const { activeContribution, close } = useContributionStateMachine();
   const { close: closeForm } = useFormStateMachine();
@@ -90,6 +111,11 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   const updateNames = ({ fullName, firstName = '', lastName }: ContributionNamesForm) => {
     if (!contribution) return;
 
+    if (onNamesUpdate) {
+      onNamesUpdate({ fullName, firstName, lastName });
+      return;
+    }
+
     updateContribution({
       ...contribution,
       fullName,
@@ -101,6 +127,11 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   const updateType = ({ contributorType }: ContributionTypeForm) => {
     if (!contribution) return;
 
+    if (onTypeUpdate) {
+      onTypeUpdate({ contributorType });
+      return;
+    }
+
     updateContribution({
       ...contribution,
       type: contributorType,
@@ -110,6 +141,11 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   const updateBiography = ({ contributorBiography = '' }: ContributionBiographyForm) => {
     if (!contribution) return;
 
+    if (onBiographyUpdate) {
+      onBiographyUpdate({ contributorBiography });
+      return;
+    }
+
     updateContribution({
       ...contribution,
       biography: contributorBiography,
@@ -118,6 +154,11 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
   const updateOrcid = ({ orcid = '' }: OrcidForm) => {
     if (!contribution || orcid.length === 0) return;
+
+    if (onOrcidUpdate) {
+      onOrcidUpdate({ orcid });
+      return;
+    }
 
     updateContributor({
       id: contribution.contributorId,
@@ -132,6 +173,11 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   const updateWebsiteUrl = ({ websiteUrl = '' }: WebsiteUrlForm) => {
     if (!contribution || websiteUrl.length === 0) return;
 
+    if (onWebsiteUrlUpdate) {
+      onWebsiteUrlUpdate({ websiteUrl });
+      return;
+    }
+
     updateContributor({
       id: contribution.contributorId,
       firstName: contribution.firstName,
@@ -140,6 +186,24 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       orcid: contribution.orcidId,
       website: websiteUrl,
     });
+  };
+
+  const updateContributionAffiliations = (data: AffiliationsForm) => {
+    if (onAffiliationsUpdate) {
+      onAffiliationsUpdate(data);
+      return;
+    }
+
+    updateAffiliations(data);
+  };
+
+  const deleteContributionAffiliation = (id: string) => {
+    if (onDeleteAffiliation) {
+      onDeleteAffiliation(id);
+      return;
+    }
+
+    deleteAffiliation(id);
   };
 
   return {
@@ -152,7 +216,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     updateBiography,
     updateOrcid,
     updateWebsiteUrl,
-    updateAffiliations,
-    deleteAffiliation,
+    updateAffiliations: updateContributionAffiliations,
+    deleteAffiliation: deleteContributionAffiliation,
   };
 };

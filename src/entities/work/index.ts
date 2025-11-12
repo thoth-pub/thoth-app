@@ -9,6 +9,8 @@ export { default as useWorksCount } from './api/hooks/useWorksCount';
 export { default as useWorkChapters } from './api/hooks/useWorkChapters';
 export { default as useCreateWorkRelation } from './api/hooks/useCreateWorkRelation';
 export { default as useDeleteChapter } from './api/hooks/useDeleteChapter';
+export { default as useWorkContributionsBulkDelete } from './api/hooks/useWorkContributionsBulkDelete';
+export { default as useWorkContributionsBulkUpdate } from './api/hooks/useWorkContributionsBulkUpdate';
 
 // UI
 export { default as CreateWorkForm } from './ui/CreateWorkForm/CreateWorkForm';

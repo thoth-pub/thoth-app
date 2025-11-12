@@ -22,7 +22,7 @@ const useCreateAffiliation = (props: UseCreateAffiliationProps) => {
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
+  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
     queryToken,
     mutation: CREATE_AFFILIATION,
     options: {
@@ -41,12 +41,13 @@ const useCreateAffiliation = (props: UseCreateAffiliationProps) => {
 
         sendErrorNotification(AFFILIATION_CREATION_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 
   return {
     createAffiliation: mutate,
+    client,
     loading,
   };
 };

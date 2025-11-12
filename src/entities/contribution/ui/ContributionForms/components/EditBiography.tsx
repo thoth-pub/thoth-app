@@ -13,16 +13,18 @@ const { CONTRIBUTOR_BIOGRAPHY: CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT } = HELPER_TEXT
 type EditBiographyProps = {
   biography: string;
   recommended?: boolean;
+  skipAutosave?: boolean;
   onSubmit: (data: ContributionBiographyForm) => void;
 };
 
 export const EditBiography = (props: EditBiographyProps) => {
-  const { biography, recommended = false, onSubmit } = props;
+  const { biography, recommended = false, skipAutosave, onSubmit } = props;
 
   const showPreviewIndicator = recommended && biography.length === 0;
 
   return (
     <EditableContent
+      skipAutoSubmit={skipAutosave}
       isTableVariant
       formId={IDs.CONTRIBUTOR_BIOGRAPHY}
       defaultValues={{ [CONTRIBUTOR_BIOGRAPHY.name]: biography }}

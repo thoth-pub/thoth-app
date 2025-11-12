@@ -5,6 +5,7 @@ import { useWork } from '@/src/entities/work';
 import type { WorkContribution, WorkEntity } from '@/src/entities/work/model/work.types';
 import { AddNewContribution } from '@/src/features/contribution';
 import { isDefaultId, type BaseRecommendedSectionProps } from '@/src/shared';
+import { useEffect } from 'react';
 
 type AddNewChaptersContributionProps = BaseRecommendedSectionProps & {
   chapters: WorkEntity[];
@@ -66,6 +67,12 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
     contributorId: '',
     onError: () => close(),
   });
+
+  useEffect(() => {
+    return () => {
+      close();
+    };
+  }, [close]);
 
   const createWithNewContributor = (contribution: WorkContribution) => {
     createContributor({

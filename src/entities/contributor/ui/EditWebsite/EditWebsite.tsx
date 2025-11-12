@@ -12,16 +12,18 @@ const { CONTRIBUTOR_WEBSITE_URL: CONTRIBUTOR_WEBSITE_URL_HELPER_TEXT } = HELPER_
 type EditWebsiteProps = {
   websiteUrl?: string;
   disabled?: boolean;
+  skipAutosave?: boolean;
   onSubmit: (data: WebsiteUrlForm) => void;
 };
 
 export const EditWebsite = (props: EditWebsiteProps) => {
-  const { websiteUrl, disabled, onSubmit } = props;
+  const { skipAutosave, websiteUrl, disabled, onSubmit } = props;
 
   const value = websiteUrl ?? '';
 
   return (
     <EditableContent
+      skipAutoSubmit={skipAutosave}
       isTableVariant
       formId={IDs.CONTRIBUTOR_WEBSITE_URL}
       defaultValues={{ [WEBSITE_URL.name]: websiteUrl }}

@@ -1,17 +1,47 @@
 import { AffiliationsForm } from '@/src/entities/affiliation';
+import { type AffiliationsForm as AffiliationsFormType } from '@/src/entities/affiliation/model/affiliation.types';
 import { ContributionForms } from '@/src/entities/contribution';
 import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import type { BaseRecommendedSectionProps } from '@/src/shared';
 
 import { useEditContribution } from './useEditContribution';
+import {
+  ContributionBiographyForm,
+  ContributionNamesForm,
+  ContributionTypeForm,
+} from '@/src/entities/contribution/model/contribution.types';
+import { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 
-type EditContributionProps = BaseRecommendedSectionProps & {
-  isAdmin?: boolean;
-};
+type EditContributionProps = BaseRecommendedSectionProps &
+  Partial<{
+    isAdmin?: boolean;
+    skipAutosave: boolean;
+    onNamesUpdate: (data: ContributionNamesForm) => void;
+    onTypeUpdate: (data: ContributionTypeForm) => void;
+    onBiographyUpdate: (data: ContributionBiographyForm) => void;
+    onOrcidUpdate: (data: OrcidForm) => void;
+    onWebsiteUrlUpdate: (data: WebsiteUrlForm) => void;
+    onAffiliationsUpdate: (data: AffiliationsFormType) => void;
+    onDeleteAffiliation: (id: string) => void;
+  }>;
 
 const EditContribution = (props: EditContributionProps) => {
-  const { recommended = false, workId, queryToken, isAdmin } = props;
+  const {
+    recommended = false,
+    workId,
+    queryToken,
+    isAdmin,
+    skipAutosave = false,
+    onNamesUpdate,
+    onTypeUpdate,
+    onBiographyUpdate,
+    onOrcidUpdate,
+    onWebsiteUrlUpdate,
+    onAffiliationsUpdate,
+    onDeleteAffiliation,
+  } = props;
+
   const { linkedPublishers } = usePublisherStateMachine();
 
   const publishersIds = linkedPublishers.map((publisher) => publisher.id);
@@ -33,6 +63,13 @@ const EditContribution = (props: EditContributionProps) => {
     queryToken,
     isAdmin,
     linkedPublishers: publishersIds,
+    onNamesUpdate,
+    onTypeUpdate,
+    onBiographyUpdate,
+    onOrcidUpdate,
+    onWebsiteUrlUpdate,
+    onAffiliationsUpdate,
+    onDeleteAffiliation,
   });
 
   if (!contribution) return null;
@@ -41,6 +78,7 @@ const EditContribution = (props: EditContributionProps) => {
     <ContributionForms
       showRecommendations={recommended}
       contribution={contribution}
+      skipAutosave={skipAutosave}
       isOrchidEditionDisabled={isOrchidEditionDisabled}
       isWebsiteUrlEditionDisabled={isWebsiteUrlEditionDisabled}
       onDone={close}
@@ -49,8 +87,14 @@ const EditContribution = (props: EditContributionProps) => {
       onContributorTypeSubmit={updateType}
       onBiographySubmit={updateBiography}
     >
-      <EditOrcid orcidId={contribution.orcidId} disabled={isOrchidEditionDisabled} onSubmit={updateOrcid} />
+      <EditOrcid
+        skipAutosave={skipAutosave}
+        orcidId={contribution.orcidId}
+        disabled={isOrchidEditionDisabled}
+        onSubmit={updateOrcid}
+      />
       <EditWebsite
+        skipAutosave={skipAutosave}
         websiteUrl={contribution.website}
         disabled={isWebsiteUrlEditionDisabled}
         onSubmit={updateWebsiteUrl}

@@ -15,7 +15,7 @@ type UseEditContributionAffiliationsProps = {
 const useEditContributionAffiliations = (props: UseEditContributionAffiliationsProps) => {
   const { queryToken, contributionId, affiliations, workId = '' } = props;
 
-  const { createAffiliation } = useCreateAffiliation({
+  const { createAffiliation, client } = useCreateAffiliation({
     queryToken,
     workId,
   });
@@ -28,7 +28,7 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
     workId,
   });
 
-  const updateAffiliations = async (data: AffiliationsForm) => {
+  const updateAffiliations = async (data: AffiliationsForm, id = contributionId) => {
     const newAffilations = data.affiliations.filter((affiliation) => isDefaultId(affiliation.id));
     const existingAffilations = data.affiliations.filter((affiliation) => !isDefaultId(affiliation.id));
     const affiliationsCount = affiliations.length;
@@ -37,7 +37,7 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
       await createAffiliation({
         variables: {
           data: {
-            contributionId,
+            contributionId: id,
             institutionId: value,
             affiliationOrdinal: affiliationsCount + 1 + index,
             position: position && position.length > 0 ? position : null,
@@ -65,6 +65,15 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
     });
   };
 
+  const updateBulkAffiliations = async (data: AffiliationsForm, contributionIds: ContributionId[]) => {
+    const promises = contributionIds.map((contributionId) => {
+      return updateAffiliations(data, contributionId);
+    });
+
+    await Promise.all(promises);
+    await client.refetchQueries({ include: 'all' });
+  };
+
   const deleteContributionAffiliation = (id: string) => {
     deleteAffiliation({
       variables: {
@@ -73,10 +82,25 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
     });
   };
 
+  const deleteBulkAffiliations = async (ids: string[]) => {
+    const promises = ids.map((id) => {
+      return deleteAffiliation({
+        variables: {
+          affiliationId: id,
+        },
+      });
+    });
+
+    await Promise.all(promises);
+    await client.refetchQueries({ include: 'all' });
+  };
+
   return {
     createAffiliation,
     updateAffiliations,
+    updateBulkAffiliations,
     deleteAffiliation: deleteContributionAffiliation,
+    deleteBulkAffiliations,
   };
 };
 

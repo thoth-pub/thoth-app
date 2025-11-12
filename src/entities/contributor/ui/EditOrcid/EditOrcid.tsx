@@ -10,16 +10,18 @@ const { ORCID } = FORM_FIELDS;
 const { CONTRIBUTOR_ORCID: CONTRIBUTOR_ORCID_HELPER_TEXT } = HELPER_TEXT;
 
 type EditOrcidProps = {
+  skipAutosave?: boolean;
   disabled?: boolean;
   orcidId?: string;
   onSubmit: (data: OrcidForm) => void;
 };
 
 const EditOrcid = (props: EditOrcidProps) => {
-  const { orcidId, disabled, onSubmit } = props;
+  const { skipAutosave, orcidId, disabled, onSubmit } = props;
 
   return (
     <EditableContent
+      skipAutoSubmit={skipAutosave}
       isTableVariant
       formId={IDs.CONTRIBUTOR_ORCID}
       defaultValues={{ [ORCID.name]: orcidId }}

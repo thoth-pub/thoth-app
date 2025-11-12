@@ -10,6 +10,7 @@ import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.ty
 import { licenseOptions } from '@/src/shared/constants/formFields';
 import EditChaptersContributors from '../../chapters/EditChaptersContributors/EditChaptersContributors';
 import EditChaptersFundings from '../../chapters/EditChaptersFundings/EditChaptersFundings';
+import { useContributionStateMachine } from '@/src/entities/contribution';
 
 // TODO WIP
 
@@ -22,7 +23,8 @@ type EditChaptersModalProps = BaseEditSectionProps & {
 const EditChaptersModal = (props: EditChaptersModalProps) => {
   const { workId, queryToken, title, onClose, onDone } = props;
 
-  const { activeWorkChapters, isMultipleChaptersSelected, edit, update, close } = useWorkChaptersStateMachine();
+  const { activeWorkChapters, isMultipleChaptersSelected, update, close } = useWorkChaptersStateMachine();
+  const { close: closeContribution } = useContributionStateMachine();
 
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
   const [chapters, setChapters] = useState(initValue);
@@ -44,6 +46,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
   useEffect(() => {
     return () => {
       close();
+      closeContribution();
     };
   }, []);
 
@@ -56,11 +59,13 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
   const handleDone = () => {
     onDone?.();
     close();
+    closeContribution();
   };
 
   const handleClose = () => {
     onClose?.();
     close();
+    closeContribution();
   };
 
   const onLicenseUpdate = async (data: LicenseAndCopyrightHolderForm) => {

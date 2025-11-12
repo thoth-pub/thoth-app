@@ -5,6 +5,7 @@ import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
 import { ANCHORS, type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
+import { useEffect } from 'react';
 
 type EditContributorsProps = BaseEditSectionProps & {
   isAdmin?: boolean;
@@ -12,7 +13,7 @@ type EditContributorsProps = BaseEditSectionProps & {
 
 const EditContributors = (props: EditContributorsProps) => {
   const { workId, queryToken, isAdmin = false } = props;
-  const { activeContribution } = useContributionStateMachine();
+  const { activeContribution, close } = useContributionStateMachine();
 
   const { work } = useWork(workId, queryToken);
   const { isContributionsRequired } = useWorkRecommendations({ workId });
@@ -20,6 +21,12 @@ const EditContributors = (props: EditContributorsProps) => {
   const isNewContribution = activeContribution && isDefaultId(activeContribution.id);
 
   const isEmpty = work.contributions.length === 0;
+
+  useEffect(() => {
+    return () => {
+      close();
+    };
+  }, [close]);
 
   return (
     <RecommendedSection

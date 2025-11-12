@@ -18,7 +18,7 @@ const useUpdateAffiliation = (props: UseCreateAffiliationProps) => {
     queryToken,
     mutation: UPDATE_AFFILIATION,
     options: {
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 

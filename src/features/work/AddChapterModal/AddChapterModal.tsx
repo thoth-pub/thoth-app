@@ -20,6 +20,7 @@ import { useCreateFunding } from '@/src/entities/funding';
 import { WorkContribution } from '@/src/entities/work/model/work.types';
 import { WorkDtoMapper } from '@/src/entities/work/model/work.mapper';
 import { useCreateSubject } from '@/src/entities/subject';
+import { useContributionStateMachine } from '@/src/entities/contribution';
 
 const mapper = new WorkDtoMapper();
 
@@ -32,6 +33,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   const { t } = useTranslation();
 
   const { edit } = useWorkChaptersStateMachine();
+  const { close: closeContribution } = useContributionStateMachine();
 
   const [isOpen, setIsOpen] = useState(false);
   const [inheritContributors, setInheritContributors] = useState(false);
@@ -41,6 +43,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   useEffect(() => {
     return () => {
       close();
+      closeContribution();
     };
   }, []);
 
@@ -50,6 +53,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
 
   const closeModal = () => {
     setIsOpen(false);
+    closeContribution();
   };
 
   const { createWorkRelation } = useCreateWorkRelation({
