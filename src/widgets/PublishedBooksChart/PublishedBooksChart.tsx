@@ -99,7 +99,7 @@ const PublishedBooksChart = () => {
               {diff > 0 && <ArrowDropUpRoundedIcon color="success" fontSize={isDesktop ? 'large' : 'small'} />}
             </Typography>
             <Typography component="li" variant="body1">
-              {isDesktop ? 'Previous 12 months:' : 'Prev year:'} {prevYearBooksCount}
+              {isDesktop ? 'Previous 12 months:' : 'Prev year:'} {diff}
             </Typography>
           </ul>
         </div>
