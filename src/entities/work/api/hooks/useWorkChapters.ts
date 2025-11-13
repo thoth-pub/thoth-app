@@ -30,6 +30,7 @@ const useWorkChapters = (props: UseChaptersProps) => {
   } = useQuery(GET_WORK_CHAPTERS, {
     variables: { workId, limit: LIMIT, offset },
     skip: workId.length === 0,
+    fetchPolicy: 'no-cache',
   });
 
   useEffect(() => {

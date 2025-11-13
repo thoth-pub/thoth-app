@@ -14,7 +14,7 @@ const mapper = new WorkDtoMapper();
 const useWorkContributionsBulkUpdate = (queryToken: QueryToken) => {
   const { sendErrorNotification } = useNotifications();
 
-  const [updateContribution, { client }] = useMutationWithAuth({
+  const [updateContribution] = useMutationWithAuth({
     queryToken,
     mutation: UPDATE_CONTRIBUTION,
     options: {
@@ -40,8 +40,6 @@ const useWorkContributionsBulkUpdate = (queryToken: QueryToken) => {
     const promises = dto.map((dto) => updateContribution({ variables: { data: dto } }));
 
     await Promise.all(promises);
-
-    await client.refetchQueries({ include: 'all' });
   };
 
   return {

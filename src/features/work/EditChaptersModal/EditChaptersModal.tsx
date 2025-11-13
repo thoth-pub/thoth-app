@@ -12,8 +12,6 @@ import EditChaptersContributors from '../../chapters/EditChaptersContributors/Ed
 import EditChaptersFundings from '../../chapters/EditChaptersFundings/EditChaptersFundings';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 
-// TODO WIP
-
 type EditChaptersModalProps = BaseEditSectionProps & {
   title: string;
   onClose?: () => void;
@@ -29,7 +27,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
   const [chapters, setChapters] = useState(initValue);
 
-  const { chapters: currentWorkChapters } = useWorkChapters({ workId });
+  const { chapters: currentWorkChapters, refetchChapters } = useWorkChapters({ workId });
 
   useEffect(() => {
     if (!activeWorkChapters) return;
@@ -107,7 +105,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
         isMultipleChaptersEdit
         onLanguagesUpdate={(data) => console.log(data)}
       />
-      <EditChaptersContributors queryToken={queryToken} chapters={chapters} />
+      <EditChaptersContributors queryToken={queryToken} chapters={chapters} onUpdate={refetchChapters} />
       <EditChaptersFundings queryToken={queryToken} chapters={chapters} />
     </ChaptersModal>
   );

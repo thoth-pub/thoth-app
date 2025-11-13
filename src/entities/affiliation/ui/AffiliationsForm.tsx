@@ -22,13 +22,12 @@ type AffiliationsFormProps = {
   showRecommendations?: boolean;
   onReorder?: (data: AffiliationsFormType) => void;
   onUpdate?: (data: AffiliationsFormType) => void;
-  onDelete?: (id: string, index: number) => void;
 };
 
 const { AFFILIATIONS } = FORM_FIELDS;
 
 const AffiliationsForm = (props: AffiliationsFormProps) => {
-  const { defaultValue = [], showRecommendations = false, onReorder, onUpdate, onDelete } = props;
+  const { defaultValue = [], showRecommendations = false, onReorder, onUpdate } = props;
 
   const defaultValues = defaultValue.map(({ id, institutionName, institutionId, position }) => ({
     id,
@@ -64,14 +63,6 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
       });
     }
   };
-
-  const handleRemove = (index: number, id: string) => {
-    const updatedFormValues = formValues.filter((_, i) => i !== index);
-    setFormValues(updatedFormValues);
-
-    onDelete?.(id, index);
-  };
-
   return (
     <>
       <EditableContent
@@ -96,7 +87,6 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
                           id={id}
                           text={`${position} ${label}`}
                           isDisabled={data && data.affiliations && data.affiliations.length <= 1}
-                          onDelete={() => handleRemove(index, id)}
                         />
                       ))}
                     </ul>

@@ -16,14 +16,15 @@ import { useWorkContributionsBulkDelete, useWorkContributionsBulkUpdate } from '
 import { EditChaptersContributions } from './components/EditChaptersContributions';
 import { findAllSameContributions } from './components/utils';
 import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAffiliationsForm';
-import { AffiliationEntity, AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
+import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 
 type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
   chapters: WorkEntity[];
+  onUpdate: () => void;
 };
 
 const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
-  const { queryToken, chapters } = props;
+  const { queryToken, chapters, onUpdate } = props;
 
   const { activeContribution, edit, close } = useContributionStateMachine();
 
@@ -137,9 +138,9 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     affiliations,
   });
 
-  const handleNewContribution = (contribution: WorkContribution) => {
-    setContributions((prev) => [...prev, { ...contribution, isMain: true }]);
+  const handleNewContribution = () => {
     close();
+    onUpdate();
   };
 
   const handleEdit = (id: ContributionId) => {
@@ -151,17 +152,19 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   };
 
   const handleBulkDelete = async (id: ContributionId) => {
-    const sameContributions = findAllSameContributions(id, chapters, contributions);
+    const sameContributions = findAllSameContributions(id, chapters, uniqueContributors);
 
     if (sameContributions.length === 0) return;
 
     const contributionIds = sameContributions.map((contribution) => contribution.id);
 
-    const updatedUniqueContributors = contributions.filter((contribution) => contribution.id !== id);
+    const updatedUniqueContributors = uniqueContributors.filter((contribution) => contribution.id !== id);
 
     setContributions(updatedUniqueContributors);
 
     await deleteContributions(contributionIds);
+
+    onUpdate();
   };
 
   const handleBulkUpdate = async (id: ContributionId, updatedData?: Partial<WorkContribution>) => {
@@ -188,7 +191,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
     if (updatedContributions.length === 0) return;
 
-    const updatedUniqueContributions = contributions.map((contribution) => {
+    const updatedUniqueContributions = uniqueContributors.map((contribution) => {
       if (contribution.id !== id) return contribution;
 
       return { ...contribution, ...updatedData };
@@ -197,6 +200,8 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     setContributions(updatedUniqueContributions);
 
     await updateContributions(updatedContributions);
+
+    onUpdate();
   };
 
   const handleMainBulkUpdate = async (id: ContributionId) => {
@@ -205,6 +210,8 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     if (sameContributions.length === 0) return;
 
     await handleBulkUpdate(id, { isMain: !sameContributions[0].isMain });
+
+    onUpdate();
   };
 
   const handleUpdateAffiliations = (data: AffiliationsForm, contributionId: ContributionId) => {
@@ -215,6 +222,8 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     const contributionsIds = sameContributions.map((contributions) => contributions.id);
 
     updateBulkAffiliations(data, contributionsIds, affiliations);
+
+    onUpdate();
   };
 
   const handleDeleteAffiliation = (id: string, contributionId: ContributionId) => {
@@ -242,16 +251,18 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     if (ids.length === 0) return;
 
     deleteBulkAffiliations(ids);
+
+    onUpdate();
   };
 
   return (
-    <RecommendedSection title="Contributors" isEmpty={true} isValid={false}>
+    <RecommendedSection title="Contributors" isEmpty={uniqueContributors.length === 0} isValid={false}>
       {({ showRecommendations }) => (
         <>
           {isSectionEnabled ? (
             <>
               <ChaptersContributionsTable
-                contributions={contributions}
+                contributions={uniqueContributors}
                 activeContribution={activeContribution}
                 onEdit={handleEdit}
                 onDelete={handleBulkDelete}

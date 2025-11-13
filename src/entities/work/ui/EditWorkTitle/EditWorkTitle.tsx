@@ -87,7 +87,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
       )}
       preview={({ onEdit }) => (
         <Preview label={WORK_TITLE.label} value={placeholder ?? ''} onEdit={onEdit} recommended={showIndicator}>
-          <Typography className={placeholder.length > 0 ? 'lg:ml-2' : ''}>
+          <Typography className={placeholder.length > 0 ? 'lg:ml-2' : ''} component="span">
             <MarkdownPreview source={placeholder} />
           </Typography>
         </Preview>

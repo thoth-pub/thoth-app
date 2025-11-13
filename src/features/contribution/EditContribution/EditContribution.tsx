@@ -57,7 +57,6 @@ const EditContribution = (props: EditContributionProps) => {
     updateOrcid,
     updateWebsiteUrl,
     updateAffiliations,
-    deleteAffiliation,
   } = useEditContribution({
     workId,
     queryToken,
@@ -103,7 +102,6 @@ const EditContribution = (props: EditContributionProps) => {
         defaultValue={contribution.affiliations}
         showRecommendations={recommended}
         onUpdate={updateAffiliations}
-        onDelete={deleteAffiliation}
       />
     </ContributionForms>
   );

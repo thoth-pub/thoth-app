@@ -11,7 +11,7 @@ const { WORK_CONTRIBUTION_DELETION_FAILED } = NOTIFICATIONS;
 const useWorkContributionsBulkDelete = (queryToken: QueryToken) => {
   const { sendErrorNotification } = useNotifications();
 
-  const [deleteContribution, { client }] = useMutationWithAuth({
+  const [deleteContribution] = useMutationWithAuth({
     queryToken,
     mutation: DELETE_CONTRIBUTION,
     options: {
@@ -32,8 +32,6 @@ const useWorkContributionsBulkDelete = (queryToken: QueryToken) => {
     const promises = contributionIds.map((contributionId) => deleteContribution({ variables: { contributionId } }));
 
     await Promise.all(promises);
-
-    await client.refetchQueries({ include: 'all' });
   };
 
   return {

@@ -4,17 +4,16 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
-import { DeleteButton, Typography } from '@/src/shared/ui';
+import { Typography } from '@/src/shared/ui';
 
 type PreviewItemProps = {
   id: string;
   text: string;
   isDisabled?: boolean;
-  onDelete: () => void;
 };
 
 export const PreviewItem = (props: PreviewItemProps) => {
-  const { id, text, isDisabled = false, onDelete } = props;
+  const { id, text, isDisabled = false } = props;
 
   const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
 
@@ -38,7 +37,6 @@ export const PreviewItem = (props: PreviewItemProps) => {
         {...listeners}
       />
       {text}
-      <DeleteButton className="ml-auto" onClick={onDelete} />
     </Typography>
   );
 };

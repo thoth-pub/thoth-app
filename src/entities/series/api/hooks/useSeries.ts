@@ -11,7 +11,7 @@ type UseSeriesProps = {
 };
 
 const useSeries = (props: UseSeriesProps) => {
-  const { seriesId } = props;
+  const { seriesId = '' } = props;
 
   const {
     data: { series } = { series: null },

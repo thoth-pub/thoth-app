@@ -24,7 +24,6 @@ const AddNewContribution = (props: AddNewContributionProps) => {
     updateOrcid,
     updateWebsiteUrl,
     updateAffiliations,
-    deleteAffiliation,
   } = useAddNewContribution({ workId, queryToken, onCreate });
 
   if (!contribution) return null;
@@ -46,7 +45,6 @@ const AddNewContribution = (props: AddNewContributionProps) => {
           defaultValue={contribution.affiliations}
           showRecommendations={recommended}
           onUpdate={updateAffiliations}
-          onDelete={deleteAffiliation}
         />
       </ContributionForms>
     </TableNewEntityFormWrapper>

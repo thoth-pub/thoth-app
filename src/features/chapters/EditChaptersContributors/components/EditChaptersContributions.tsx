@@ -24,7 +24,7 @@ type EditChaptersContributionsProps = {
 export const EditChaptersContributions = (props: EditChaptersContributionsProps) => {
   const { showRecommendations, queryToken, onUpdate, onUpdateAffiliations, onDeleteAffiliation } = props;
 
-  const { activeContribution, close } = useContributionStateMachine();
+  const { activeContribution, close, update } = useContributionStateMachine();
   const { isAdmin } = usePublisherStateMachine();
 
   useEffect(() => {
@@ -41,12 +41,22 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
       firstName: data.firstName ?? '',
       lastName: data.lastName ?? '',
     });
+    update({
+      ...activeContribution,
+      fullName: data.fullName,
+      firstName: data.firstName ?? '',
+      lastName: data.lastName ?? '',
+    });
   };
 
   const handleTypeUpdate = ({ contributorType }: ContributionTypeForm) => {
     if (!activeContribution) return;
 
     onUpdate(activeContribution.id, {
+      type: contributorType,
+    });
+    update({
+      ...activeContribution,
       type: contributorType,
     });
   };
@@ -57,6 +67,10 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     onUpdate(activeContribution.id, {
       biography: contributorBiography,
     });
+    update({
+      ...activeContribution,
+      biography: contributorBiography,
+    });
   };
 
   const handleOrcidUpdate = ({ orcid }: OrcidForm) => {
@@ -65,12 +79,20 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     onUpdate(activeContribution.id, {
       orcidId: orcid,
     });
+    update({
+      ...activeContribution,
+      orcidId: orcid,
+    });
   };
 
   const handleWebsiteUrlUpdate = ({ websiteUrl }: WebsiteUrlForm) => {
     if (!activeContribution || !websiteUrl) return;
 
     onUpdate(activeContribution.id, {
+      website: websiteUrl,
+    });
+    update({
+      ...activeContribution,
       website: websiteUrl,
     });
   };

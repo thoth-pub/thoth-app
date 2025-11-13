@@ -15,7 +15,7 @@ type UseEditContributionAffiliationsProps = {
 const useEditContributionAffiliations = (props: UseEditContributionAffiliationsProps) => {
   const { queryToken, contributionId, affiliations, workId = '' } = props;
 
-  const { createAffiliation, client } = useCreateAffiliation({
+  const { createAffiliation } = useCreateAffiliation({
     queryToken,
     workId,
   });
@@ -83,7 +83,6 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
     });
 
     await Promise.all(promises);
-    await client.refetchQueries({ include: 'all' });
   };
 
   const updateBulkAffiliations = async (
@@ -110,7 +109,6 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
     ];
 
     await Promise.all(promises);
-    await client.refetchQueries({ include: 'all' });
   };
 
   return {

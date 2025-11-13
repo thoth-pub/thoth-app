@@ -23,7 +23,7 @@ export const useWorkContribution = ({ queryToken, onCreateComplete }: UseCWorkCo
     options: {
       onCompleted: async (data: CreateContributionMutation) => {
         onCreateComplete?.(data.createContribution as WorkContributionDto);
-        await client.refetchQueries({ include: 'all' });
+        await client.refetchQueries({ include: 'active' });
       },
       onError: (error) => {
         if (ServerError.is(error)) {
@@ -44,7 +44,7 @@ export const useWorkContribution = ({ queryToken, onCreateComplete }: UseCWorkCo
     mutation: DELETE_CONTRIBUTION,
     options: {
       onCompleted: async () => {
-        await client.refetchQueries({ include: 'all' });
+        await client.refetchQueries({ include: 'active' });
       },
       onError: (error) => {
         if (ServerError.is(error)) {
@@ -64,7 +64,7 @@ export const useWorkContribution = ({ queryToken, onCreateComplete }: UseCWorkCo
     mutation: UPDATE_CONTRIBUTION,
     options: {
       onCompleted: async () => {
-        await client.refetchQueries({ include: 'all' });
+        await client.refetchQueries({ include: 'active' });
       },
       onError: (error) => {
         if (ServerError.is(error)) {

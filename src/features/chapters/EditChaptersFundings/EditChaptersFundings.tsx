@@ -432,7 +432,7 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   };
 
   return (
-    <RecommendedSection title="Fundings" isEmpty={true} isValid={false}>
+    <RecommendedSection title="Fundings" isEmpty={uniqueInstitutionIds.length === 0} isValid={false}>
       {({ showRecommendations }) => (
         <>
           {isSectionEnabled ? (

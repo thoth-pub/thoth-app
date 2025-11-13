@@ -24,7 +24,12 @@ const useWork = (
     data = {
       work: defaultValues,
     },
-  } = useSuspenseQuery(GET_WORK, { variables: { workId: id }, skip: id.length === 0 || isDefaultId(id) });
+    refetch,
+  } = useSuspenseQuery(GET_WORK, {
+    variables: { workId: id },
+    skip: id.length === 0 || isDefaultId(id),
+    fetchPolicy: 'no-cache',
+  });
   const { deleteWork } = useDeleteWork({ queryToken });
   const { updateWork: updateWorkMutation } = useUpdateWork({
     workId: id,
@@ -65,6 +70,7 @@ const useWork = (
 
   return {
     work,
+    refetch,
     deleteWork,
     updateWork,
     updateContribution,

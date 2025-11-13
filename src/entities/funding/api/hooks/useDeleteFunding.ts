@@ -14,7 +14,7 @@ const useCreateFunding = (props: BaseEditSectionProps) => {
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
+  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
     queryToken,
     mutation: DELETE_FUNDING,
     options: {
@@ -34,7 +34,6 @@ const useCreateFunding = (props: BaseEditSectionProps) => {
 
   const deleteFundings = async (fundingIds: FundingId[]) => {
     await Promise.all(fundingIds.map((fundingId) => mutate({ variables: { fundingId } })));
-    await client.refetchQueries({ include: 'all' });
   };
 
   return {

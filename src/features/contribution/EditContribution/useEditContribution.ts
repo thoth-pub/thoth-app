@@ -113,6 +113,12 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
     if (onNamesUpdate) {
       onNamesUpdate({ fullName, firstName, lastName });
+      setContribution({
+        ...contribution,
+        fullName,
+        firstName,
+        lastName,
+      });
       return;
     }
 
@@ -129,6 +135,10 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
     if (onTypeUpdate) {
       onTypeUpdate({ contributorType });
+      setContribution({
+        ...contribution,
+        type: contributorType,
+      });
       return;
     }
 
@@ -143,6 +153,10 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
     if (onBiographyUpdate) {
       onBiographyUpdate({ contributorBiography });
+      setContribution({
+        ...contribution,
+        biography: contributorBiography,
+      });
       return;
     }
 
@@ -157,6 +171,10 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
     if (onOrcidUpdate) {
       onOrcidUpdate({ orcid });
+      setContribution({
+        ...contribution,
+        orcidId: orcid,
+      });
       return;
     }
 
@@ -175,6 +193,10 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
     if (onWebsiteUrlUpdate) {
       onWebsiteUrlUpdate({ websiteUrl });
+      setContribution({
+        ...contribution,
+        website: websiteUrl,
+      });
       return;
     }
 

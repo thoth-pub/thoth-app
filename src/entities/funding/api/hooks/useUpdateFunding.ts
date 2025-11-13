@@ -20,7 +20,7 @@ const useUpdateFunding = (props: BaseEditSectionProps) => {
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading, client }] = useMutationWithAuth<UpdateFundingMutation>({
+  const [mutate, { loading }] = useMutationWithAuth<UpdateFundingMutation>({
     queryToken,
     mutation: UPDATE_FUNDING,
     options: {
@@ -57,8 +57,6 @@ const useUpdateFunding = (props: BaseEditSectionProps) => {
     });
 
     await Promise.all(promises);
-
-    await client.refetchQueries({ include: 'all' });
   };
 
   return {

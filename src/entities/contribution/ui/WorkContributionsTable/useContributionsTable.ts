@@ -1,6 +1,6 @@
 'use client';
 
-import { DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
 import { useEffect, useState } from 'react';
 
@@ -14,7 +14,7 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
 
   const { updateContribution } = useWork(workId, queryToken);
 
-  const { activeContribution, edit } = useContributionStateMachine();
+  const { activeContribution, edit, close } = useContributionStateMachine();
   const [items, setItems] = useState(work.contributions);
 
   const isEqual = work.contributions.every((contribution, index) => {
@@ -69,6 +69,7 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
 
     if (!contribution) return;
 
+    close();
     edit(contribution);
   };
 
