@@ -25,7 +25,7 @@ type EditChaptersFundingsProps = Omit<BaseEditSectionProps, 'workId'> & {
 const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   const { queryToken, chapters, onUpdate } = props;
 
-  const { activeFunding, edit, update } = useFundingsStateMachine();
+  const { activeFunding, edit, close, update } = useFundingsStateMachine();
 
   const { t } = useTranslation();
 
@@ -413,13 +413,11 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
     const funding = chapters.flatMap((chapter) => chapter.fundings).find((funding) => funding.id === id);
 
     if (!funding) return;
-
+    close();
     edit({ ...funding });
   };
 
   const deleteChapterFundings = async (id: string) => {
-    const funding = fundings.find((funding) => funding.id === id);
-
     const ids: FundingId[] = [];
 
     chapters.forEach(({ fundings }) => {
