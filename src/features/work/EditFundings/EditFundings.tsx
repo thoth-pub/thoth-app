@@ -36,6 +36,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
 
     if (!funding) return;
 
+    close();
     edit({ ...funding });
   };
 

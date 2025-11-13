@@ -7,7 +7,6 @@ import { useEditFunding } from './useEditFunding';
 import { FundingEntity } from '@/src/entities/funding/model/funding.types';
 
 type EditFundingProps = BaseRecommendedSectionProps & {
-  skipAutosave?: boolean;
   onProjectUpdate?: (funding: FundingEntity) => void;
   onProjectShortNameUpdate?: (funding: FundingEntity) => void;
   onJurisdictionUpdate?: (funding: FundingEntity) => void;
@@ -21,7 +20,6 @@ const EditFunding = (props: EditFundingProps) => {
     workId,
     queryToken,
     recommended = false,
-    skipAutosave = false,
     onProjectUpdate,
     onProjectShortNameUpdate,
     onJurisdictionUpdate,
