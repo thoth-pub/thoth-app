@@ -122,7 +122,6 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
       onWebsiteUrlUpdate={handleWebsiteUrlUpdate}
       onAffiliationsUpdate={handleAffiliationsUpdate}
       onDeleteAffiliation={handleDeleteAffiliation}
-      skipAutosave
     />
   );
 };

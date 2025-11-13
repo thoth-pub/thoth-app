@@ -15,7 +15,6 @@ type ContributionFormsProps = {
   isOrchidEditionDisabled?: boolean;
   isWebsiteUrlEditionDisabled?: boolean;
   children?: React.ReactNode;
-  skipAutosave?: boolean;
   onDone?: () => void;
   onClose?: () => void;
   onNamesSubmit: (data: ContributionNamesForm) => void;
@@ -28,7 +27,6 @@ const ContributionForms = (props: ContributionFormsProps) => {
     showRecommendations,
     contribution,
     children,
-    skipAutosave = false,
     onNamesSubmit,
     onContributorTypeSubmit,
     onBiographySubmit,
@@ -46,16 +44,10 @@ const ContributionForms = (props: ContributionFormsProps) => {
         firstName={firstName}
         lastName={lastName}
         recommended={showRecommendations}
-        skipAutosave={skipAutosave}
         onSubmit={onNamesSubmit}
       />
-      <EditType contributorType={type} skipAutosave={skipAutosave} onSubmit={onContributorTypeSubmit} />
-      <EditBiography
-        biography={biography}
-        skipAutosave={skipAutosave}
-        recommended={showRecommendations}
-        onSubmit={onBiographySubmit}
-      />
+      <EditType contributorType={type} onSubmit={onContributorTypeSubmit} />
+      <EditBiography biography={biography} recommended={showRecommendations} onSubmit={onBiographySubmit} />
       {children}
     </TableFormsWrapper>
   );

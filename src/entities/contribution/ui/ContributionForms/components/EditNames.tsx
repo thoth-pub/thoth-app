@@ -20,11 +20,10 @@ type EditNamesProps = {
   firstName?: string;
   lastName?: string;
   recommended: boolean;
-  skipAutosave?: boolean;
   onSubmit: (data: ContributionNamesForm) => void;
 };
 
-export const EditNames = ({ fullName, firstName, lastName, recommended, skipAutosave, onSubmit }: EditNamesProps) => {
+export const EditNames = ({ fullName, firstName, lastName, recommended, onSubmit }: EditNamesProps) => {
   const firstNameValue = firstName ?? '';
   const lastNameValue = lastName ?? '';
   const fullNameValue = fullName ?? '';
@@ -37,7 +36,6 @@ export const EditNames = ({ fullName, firstName, lastName, recommended, skipAuto
 
   return (
     <EditableContent
-      skipAutoSubmit={skipAutosave}
       isTableVariant
       formId={IDs.CONTRIBUTOR_NAMES}
       defaultValues={{ [FULL_NAME.name]: fullName, [FIRST_NAME.name]: firstName, [LAST_NAME.name]: lastName }}

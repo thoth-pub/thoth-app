@@ -17,12 +17,11 @@ const { CONTRIBUTOR_TYPE: CONTRIBUTOR_TYPE_HELPER_TEXT } = HELPER_TEXT;
 
 type EditTypeProps = {
   contributorType: ContributionType;
-  skipAutosave?: boolean;
   onSubmit: (data: ContributionTypeForm) => void;
 };
 
 export const EditType = (props: EditTypeProps) => {
-  const { contributorType, skipAutosave, onSubmit } = props;
+  const { contributorType, onSubmit } = props;
   const { t, i18n } = useTranslation();
   const contributorTypeOptions = getContributorTypeOptions(i18n.language);
 
@@ -31,7 +30,6 @@ export const EditType = (props: EditTypeProps) => {
 
   return (
     <EditableContent
-      skipAutoSubmit={skipAutosave}
       isTableVariant
       formId={IDs.CONTRIBUTOR_TYPE}
       defaultValues={{ [CONTRIBUTOR_TYPE.name]: defaultValue.value as ContributionType }}

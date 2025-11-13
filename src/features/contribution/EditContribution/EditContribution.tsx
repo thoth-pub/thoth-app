@@ -16,7 +16,6 @@ import { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/cont
 type EditContributionProps = BaseRecommendedSectionProps &
   Partial<{
     isAdmin?: boolean;
-    skipAutosave: boolean;
     onNamesUpdate: (data: ContributionNamesForm) => void;
     onTypeUpdate: (data: ContributionTypeForm) => void;
     onBiographyUpdate: (data: ContributionBiographyForm) => void;
@@ -32,7 +31,6 @@ const EditContribution = (props: EditContributionProps) => {
     workId,
     queryToken,
     isAdmin,
-    skipAutosave = false,
     onNamesUpdate,
     onTypeUpdate,
     onBiographyUpdate,
@@ -77,7 +75,6 @@ const EditContribution = (props: EditContributionProps) => {
     <ContributionForms
       showRecommendations={recommended}
       contribution={contribution}
-      skipAutosave={skipAutosave}
       isOrchidEditionDisabled={isOrchidEditionDisabled}
       isWebsiteUrlEditionDisabled={isWebsiteUrlEditionDisabled}
       onDone={close}
@@ -86,14 +83,8 @@ const EditContribution = (props: EditContributionProps) => {
       onContributorTypeSubmit={updateType}
       onBiographySubmit={updateBiography}
     >
-      <EditOrcid
-        skipAutosave={skipAutosave}
-        orcidId={contribution.orcidId}
-        disabled={isOrchidEditionDisabled}
-        onSubmit={updateOrcid}
-      />
+      <EditOrcid orcidId={contribution.orcidId} disabled={isOrchidEditionDisabled} onSubmit={updateOrcid} />
       <EditWebsite
-        skipAutosave={skipAutosave}
         websiteUrl={contribution.website}
         disabled={isWebsiteUrlEditionDisabled}
         onSubmit={updateWebsiteUrl}
