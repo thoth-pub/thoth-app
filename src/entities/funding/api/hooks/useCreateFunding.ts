@@ -35,7 +35,7 @@ const useCreateFunding = (props: BaseEditSectionProps) => {
 
         sendErrorNotification(FUNDING_CREATION_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 
@@ -66,8 +66,6 @@ const useCreateFunding = (props: BaseEditSectionProps) => {
     const results = await Promise.all(promises);
 
     if (results.some((result) => result.error)) return;
-
-    client.refetchQueries({ include: 'all' });
 
     return results.map((result) => mapper.toEntity(result.data?.createFunding as FundingDto));
   };

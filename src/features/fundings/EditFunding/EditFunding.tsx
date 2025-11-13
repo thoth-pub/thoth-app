@@ -21,6 +21,7 @@ const EditFunding = (props: EditFundingProps) => {
     workId,
     queryToken,
     recommended = false,
+    skipAutosave = false,
     onProjectUpdate,
     onProjectShortNameUpdate,
     onJurisdictionUpdate,
@@ -51,16 +52,8 @@ const EditFunding = (props: EditFundingProps) => {
 
   if (!activeFunding) return null;
 
-  const {
-    skipAutosave = false,
-    grantNumber,
-    jurisdiction,
-    program,
-    projectName,
-    projectShortname,
-    institutionId,
-    institutionName,
-  } = activeFunding;
+  const { grantNumber, jurisdiction, program, projectName, projectShortname, institutionId, institutionName } =
+    activeFunding;
 
   return (
     <EditFundingForm

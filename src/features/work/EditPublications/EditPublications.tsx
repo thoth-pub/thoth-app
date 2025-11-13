@@ -39,7 +39,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
   const { work } = useWork(workId, queryToken);
   const { deletePublication: deletePublicationMutation } = useDeletePublication({ workId, queryToken });
 
-  const isNewPublication = activePublication && isDefaultId(activePublication.id);
+  const isNewPublication = activePublication ? isDefaultId(activePublication.id) : false;
 
   const isDimensionFormHidden = work.type === WorkTypes.enum.BookChapter;
 

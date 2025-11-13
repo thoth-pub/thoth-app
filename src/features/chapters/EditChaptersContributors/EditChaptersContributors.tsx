@@ -130,7 +130,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
   const isSectionEnabled = isContributorsRolesSame && isSameContributors && isSameAffiliations;
 
-  const isNewContribution = activeContribution && isDefaultId(activeContribution.id);
+  const isNewContribution = activeContribution ? isDefaultId(activeContribution.id) : false;
 
   const { updateBulkAffiliations, deleteBulkAffiliations } = useEditContributionAffiliations({
     queryToken,

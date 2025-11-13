@@ -18,7 +18,7 @@ const EditContributors = (props: EditContributorsProps) => {
   const { work, refetch } = useWork(workId, queryToken);
   const { isContributionsRequired } = useWorkRecommendations({ workId });
 
-  const isNewContribution = activeContribution && isDefaultId(activeContribution.id);
+  const isNewContribution = activeContribution ? isDefaultId(activeContribution.id) : false;
 
   const isEmpty = work.contributions.length === 0;
 

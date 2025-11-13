@@ -106,7 +106,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
         onLanguagesUpdate={(data) => console.log(data)}
       />
       <EditChaptersContributors queryToken={queryToken} chapters={chapters} onUpdate={refetchChapters} />
-      <EditChaptersFundings queryToken={queryToken} chapters={chapters} />
+      <EditChaptersFundings queryToken={queryToken} chapters={chapters} onUpdate={refetchChapters} />
     </ChaptersModal>
   );
 };

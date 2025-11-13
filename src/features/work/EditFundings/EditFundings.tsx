@@ -21,7 +21,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
   const { isFundingsRequired, isFundingsEmpty } = useWorkRecommendations({ workId });
   const { deleteFunding } = useDeleteFunding({ workId, queryToken });
 
-  const isNewFunding = activeFunding && isDefaultId(activeFunding.id);
+  const isNewFunding = activeFunding ? isDefaultId(activeFunding.id) : false;
 
   const addFunding = () => {
     if (activeFunding) close();

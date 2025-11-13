@@ -34,7 +34,7 @@ const EditReferences = (props: BaseEditSectionProps) => {
   const { activeReference, close, edit } = useReferencesStateMachine();
   const { deleteReference } = useDeleteReference({ workId, queryToken });
 
-  const isNewReference = activeReference && isDefaultId(activeReference.id);
+  const isNewReference = activeReference ? isDefaultId(activeReference.id) : false;
 
   const editReference = (id: string) => {
     if (activeReference) close();

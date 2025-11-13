@@ -8,7 +8,10 @@ type FundingContext = {
 
 export const fundingStateMachine = setup({
   types: {
-    events: {} as { type: 'setActiveFunding'; funding: FundingContext['activeFunding'] } | { type: 'close' },
+    events: {} as
+      | { type: 'setActiveFunding'; funding: FundingContext['activeFunding'] }
+      | { type: 'activeFunding.update'; funding: FundingContext['activeFunding'] }
+      | { type: 'close' },
   },
 }).createMachine({
   id: 'fundingEditor',
@@ -28,7 +31,14 @@ export const fundingStateMachine = setup({
       },
     },
     editing: {
-      on: { close: { target: 'init', actions: assign({ activeFunding: () => null }) } },
+      on: {
+        close: { target: 'init', actions: assign({ activeFunding: () => null }) },
+        'activeFunding.update': {
+          actions: assign({
+            activeFunding: ({ event }) => event?.funding ?? null,
+          }),
+        },
+      },
     },
   },
 });
