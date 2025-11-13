@@ -3,7 +3,7 @@ import { ServerError } from '@apollo/client';
 import type { CreateAffiliationMutation } from '@/gql/graphql';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, type QueryToken,serverErrorParser } from '@/src/shared';
+import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { LanguageDtoMapper } from '../../model/language.mapper';
@@ -28,7 +28,6 @@ const useUpdateLanguage = (props: UseCreateLanguageProps) => {
     queryToken,
     mutation: UPDATE_LANGUAGE,
     options: {
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
       onError: (error) => {
         if (ServerError.is(error)) {
           const errorMessage = serverErrorParser(error.bodyText, LANGUAGE_UPDATE_FAILED);
@@ -40,6 +39,7 @@ const useUpdateLanguage = (props: UseCreateLanguageProps) => {
 
         sendErrorNotification(LANGUAGE_UPDATE_FAILED);
       },
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 

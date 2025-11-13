@@ -25,7 +25,6 @@ const useUpdatePrice = (props: UseUpdatePriceProps) => {
     queryToken,
     mutation: UPDATE_PRICE,
     options: {
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
       onError: (error) => {
         if (ServerError.is(error)) {
           const errorMessage = serverErrorParser(error.bodyText, PRICE_UPDATE_FAILED);
@@ -37,6 +36,7 @@ const useUpdatePrice = (props: UseUpdatePriceProps) => {
 
         sendErrorNotification(PRICE_UPDATE_FAILED);
       },
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 

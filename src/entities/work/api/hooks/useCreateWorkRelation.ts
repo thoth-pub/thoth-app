@@ -33,10 +33,13 @@ const useCreateWorkRelation = (props: UseCreateWorkRelationProps) => {
 
         sendErrorNotification(CHAPTER_CREATION_FAILED);
       },
-      refetchQueries: [
-        { query: GET_WORK_CHAPTERS, variables: { workId } },
-        { query: GET_WORK, variables: { workId } },
-      ],
+      refetchQueries:
+        workId && workId.length > 0
+          ? [
+              { query: GET_WORK_CHAPTERS, variables: { workId } },
+              { query: GET_WORK, variables: { workId } },
+            ]
+          : [],
     },
   });
 

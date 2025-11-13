@@ -21,7 +21,6 @@ const useUpdateAffiliation = (props: BaseEditSectionProps) => {
     queryToken,
     mutation: UPDATE_PUBLICATION,
     options: {
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
       onError: (error) => {
         if (ServerError.is(error)) {
           const errorMessage = serverErrorParser(error.bodyText, PUBLICATION_UPDATE_FAILED);
@@ -33,6 +32,7 @@ const useUpdateAffiliation = (props: BaseEditSectionProps) => {
 
         sendErrorNotification(PUBLICATION_UPDATE_FAILED);
       },
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 

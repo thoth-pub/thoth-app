@@ -15,7 +15,7 @@ const useDeleteAffiliation = (props: BaseEditSectionProps) => {
       onError: (error) => {
         console.error(error);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 

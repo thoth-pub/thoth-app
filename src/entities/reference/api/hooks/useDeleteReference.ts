@@ -22,7 +22,7 @@ const useCreateReference = (props: BaseEditSectionProps) => {
         console.error(error);
         sendErrorNotification(REFERENCE_DELETE_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 

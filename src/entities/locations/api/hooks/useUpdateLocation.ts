@@ -34,7 +34,7 @@ const useUpdateLocation = (props: BaseEditSectionProps) => {
 
         sendErrorNotification(LOCATION_UPDATE_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 

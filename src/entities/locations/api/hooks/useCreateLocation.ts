@@ -34,7 +34,7 @@ const useCreateLocation = (props: BaseEditSectionProps) => {
 
         sendErrorNotification(LOCATION_CREATE_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 

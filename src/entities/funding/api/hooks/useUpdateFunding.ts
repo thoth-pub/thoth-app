@@ -58,7 +58,7 @@ const useUpdateFunding = (props: BaseEditSectionProps) => {
 
     await Promise.all(promises);
 
-    await client.refetchQueries({ include: 'active' });
+    await client.refetchQueries({ include: 'all' });
   };
 
   return {

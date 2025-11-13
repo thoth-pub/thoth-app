@@ -3,7 +3,7 @@ import { ServerError } from '@apollo/client';
 import type { Contributor, UpdateContributorMutation } from '@/gql/graphql';
 import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, type QueryToken,serverErrorParser } from '@/src/shared';
+import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { ContributorDtoMapper } from '../../model/contributor.mapper';
@@ -46,11 +46,7 @@ const useUpdateContributor = (props: UseUpdateContributorProps) => {
         sendErrorNotification(CONTRIBUTOR_UPDATE_FAILED);
         onError?.(error);
       },
-      refetchQueries: [
-        { query: GET_CONTRIBUTORS },
-        { query: GET_WORK, variables: { workId } },
-        { query: GET_CONTRIBUTOR, variables: { contributorId: contributorId } },
-      ],
+      refetchQueries: 'all',
     },
   });
 

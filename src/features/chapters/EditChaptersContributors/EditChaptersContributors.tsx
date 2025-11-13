@@ -54,6 +54,13 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     return isIdsSame;
   });
 
+  const affiliations = useMemo(() => {
+    const contributions = chapters.flatMap((chapter) => chapter.contributions);
+    const affiliations = contributions.flatMap((contribution) => contribution.affiliations);
+
+    return affiliations;
+  }, [chapters]);
+
   const uniqueContributors = useMemo(() => {
     const uniqueContributors: WorkContribution[] = [];
 
@@ -81,6 +88,10 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   }, [chapters]);
 
   const [contributions, setContributions] = useState(uniqueContributors);
+
+  useEffect(() => {
+    setContributions(uniqueContributors);
+  }, [uniqueContributors, affiliations]);
 
   const isSameAffiliations = useMemo(() => {
     // 1. Map all chapters
@@ -119,13 +130,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const isSectionEnabled = isContributorsRolesSame && isSameContributors && isSameAffiliations;
 
   const isNewContribution = activeContribution && isDefaultId(activeContribution.id);
-
-  const affiliations = useMemo(() => {
-    const contributions = chapters.flatMap((chapter) => chapter.contributions);
-    const affiliations = contributions.flatMap((contribution) => contribution.affiliations);
-
-    return affiliations;
-  }, [chapters]);
 
   const { updateBulkAffiliations, deleteBulkAffiliations } = useEditContributionAffiliations({
     queryToken,
@@ -208,9 +212,9 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
     if (sameContributions.length === 0) return;
 
-    const contributionIds = sameContributions.map((contribution) => contribution.id);
+    const contributionsIds = sameContributions.map((contributions) => contributions.id);
 
-    updateBulkAffiliations(data, contributionIds);
+    updateBulkAffiliations(data, contributionsIds, affiliations);
   };
 
   const handleDeleteAffiliation = (id: string, contributionId: ContributionId) => {

@@ -34,7 +34,7 @@ const useUpdateSubject = (props: BaseEditSectionProps) => {
 
         sendErrorNotification(SUBJECT_UPDATE_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 

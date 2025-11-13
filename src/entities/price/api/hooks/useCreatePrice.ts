@@ -36,7 +36,7 @@ const useCreatePrice = (props: UseCreatePriceProps) => {
 
         sendErrorNotification(PRICE_CREATION_FAILED);
       },
-      refetchQueries: [{ query: GET_WORK, variables: { workId } }],
+      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 

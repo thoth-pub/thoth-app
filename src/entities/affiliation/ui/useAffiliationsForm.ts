@@ -1,7 +1,7 @@
 import { useCreateAffiliation, useDeleteAffiliation, useUpdateAffiliation } from '@/src/entities/affiliation';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { isDefaultId, type QueryToken } from '@/src/shared';
+import { appConfig, isDefaultId, type QueryToken } from '@/src/shared';
 
 import type { AffiliationEntity, AffiliationsForm } from '../model/affiliation.types';
 
@@ -54,24 +54,15 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
       await updateAffiliation({
         variables: {
           data: {
-            affiliationId: id,
+            affiliationId: affiliation.id,
             institutionId: value,
-            contributionId,
+            contributionId: affiliation.contributionId,
             position: position && position.length > 0 ? position : null,
             affiliationOrdinal: affiliation.orderNumber,
           },
         },
       });
     });
-  };
-
-  const updateBulkAffiliations = async (data: AffiliationsForm, contributionIds: ContributionId[]) => {
-    const promises = contributionIds.map((contributionId) => {
-      return updateAffiliations(data, contributionId);
-    });
-
-    await Promise.all(promises);
-    await client.refetchQueries({ include: 'all' });
   };
 
   const deleteContributionAffiliation = (id: string) => {
@@ -90,6 +81,33 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
         },
       });
     });
+
+    await Promise.all(promises);
+    await client.refetchQueries({ include: 'all' });
+  };
+
+  const updateBulkAffiliations = async (
+    data: AffiliationsForm,
+    contributionIds: ContributionId[],
+    initialAffilations: AffiliationEntity[],
+  ) => {
+    const allAffiliationsAsNew = data.affiliations.map((affiliation) => ({
+      ...affiliation,
+      id: appConfig.defaultId,
+    }));
+
+    const allActiveAffiliations = affiliations.filter((affiliation) =>
+      contributionIds.includes(affiliation.contributionId),
+    );
+
+    const activeIds = allActiveAffiliations.map((affiliation) => affiliation.id);
+
+    const promises = [
+      deleteBulkAffiliations(activeIds),
+      contributionIds.map((contributionId) =>
+        updateAffiliations({ affiliations: allAffiliationsAsNew }, contributionId),
+      ),
+    ];
 
     await Promise.all(promises);
     await client.refetchQueries({ include: 'all' });

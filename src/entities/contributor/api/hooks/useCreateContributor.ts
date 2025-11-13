@@ -1,7 +1,7 @@
 import { ServerError } from '@apollo/client';
 
 import type { Contributor, CreateContributorMutation } from '@/gql/graphql';
-import { NOTIFICATIONS, type QueryToken,serverErrorParser } from '@/src/shared';
+import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { ContributorDtoMapper } from '../../model/contributor.mapper';
@@ -44,7 +44,7 @@ const useCreateContributor = (props: UseCreateContributorProps) => {
         sendErrorNotification(CONTRIBUTOR_CREATION_FAILED);
         onError?.(error);
       },
-      refetchQueries: [{ query: GET_CONTRIBUTORS }],
+      refetchQueries: 'all',
     },
   });
 

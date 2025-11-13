@@ -67,7 +67,7 @@ const useCreateFunding = (props: BaseEditSectionProps) => {
 
     if (results.some((result) => result.error)) return;
 
-    client.refetchQueries({ include: 'active' });
+    client.refetchQueries({ include: 'all' });
 
     return results.map((result) => mapper.toEntity(result.data?.createFunding as FundingDto));
   };
