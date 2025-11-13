@@ -7,7 +7,7 @@ import type {
   ContributorId,
 } from '@/src/entities/contributor/model/contributor.types';
 import { WorkContribution, WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
-import { isDefaultId, type BaseEditSectionProps } from '@/src/shared';
+import { isAllContributionRecommendationsFilled, isDefaultId, type BaseEditSectionProps } from '@/src/shared';
 import { RecommendedSection, Typography } from '@/src/shared/ui';
 import { useEffect, useMemo, useState } from 'react';
 import AddContributionModal from '../../work/AddContributionModal/AddContributionModal';
@@ -89,6 +89,9 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   }, [chapters]);
 
   const [contributions, setContributions] = useState(uniqueContributors);
+
+  const isEmpty = uniqueContributors.length === 0;
+  const isValid = isEmpty || uniqueContributors.every(isAllContributionRecommendationsFilled);
 
   useEffect(() => {
     setContributions(uniqueContributors);
@@ -256,7 +259,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   };
 
   return (
-    <RecommendedSection title="Contributors" isEmpty={uniqueContributors.length === 0} isValid={false}>
+    <RecommendedSection title="Contributors" isEmpty={isEmpty} isValid={isValid}>
       {({ showRecommendations }) => (
         <>
           {isSectionEnabled ? (

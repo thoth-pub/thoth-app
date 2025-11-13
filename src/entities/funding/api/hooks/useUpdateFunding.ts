@@ -20,7 +20,7 @@ const useUpdateFunding = (props: BaseEditSectionProps) => {
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<UpdateFundingMutation>({
+  const [mutate, { loading, client }] = useMutationWithAuth<UpdateFundingMutation>({
     queryToken,
     mutation: UPDATE_FUNDING,
     options: {
@@ -35,7 +35,6 @@ const useUpdateFunding = (props: BaseEditSectionProps) => {
 
         sendErrorNotification(FUNDING_UPDATE_FAILED);
       },
-      refetchQueries: workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
     },
   });
 
@@ -45,6 +44,8 @@ const useUpdateFunding = (props: BaseEditSectionProps) => {
     await mutate({
       variables: { data: { ...dto, workId: relatedWorkId } },
     });
+
+    await client.refetchQueries({ include: 'active' });
   };
 
   const updateFundings = async (funding: FundingEntity, relatedWorkIds: WorkId[]) => {

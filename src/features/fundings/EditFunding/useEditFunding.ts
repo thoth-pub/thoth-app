@@ -33,13 +33,15 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     onInstitutionUpdate,
   } = props;
 
-  const { activeFunding, close } = useFundingsStateMachine();
+  const { activeFunding, close, update } = useFundingsStateMachine();
   const { updateFunding } = useUpdateFunding({ workId, queryToken });
 
   const updateProject = ({ projectName }: FundingProjectNameFormType) => {
     if (!activeFunding || !projectName) return;
 
     const updatedFunding = { ...activeFunding, projectName };
+
+    update(updatedFunding);
 
     if (onProjectUpdate) {
       onProjectUpdate(updatedFunding);
@@ -54,6 +56,8 @@ export const useEditFunding = (props: UseEditFundingProps) => {
 
     const updatedFunding = { ...activeFunding, projectShortname };
 
+    update(updatedFunding);
+
     if (onProjectShortNameUpdate) {
       onProjectShortNameUpdate(updatedFunding);
       return;
@@ -66,6 +70,8 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     if (!activeFunding || !jurisdiction) return;
 
     const updatedFunding = { ...activeFunding, jurisdiction };
+
+    update(updatedFunding);
 
     if (onJurisdictionUpdate) {
       onJurisdictionUpdate(updatedFunding);
@@ -80,6 +86,8 @@ export const useEditFunding = (props: UseEditFundingProps) => {
 
     const updatedFunding = { ...activeFunding, program };
 
+    update(updatedFunding);
+
     if (onProgramUpdate) {
       onProgramUpdate(updatedFunding);
       return;
@@ -93,6 +101,8 @@ export const useEditFunding = (props: UseEditFundingProps) => {
 
     const updatedFunding = { ...activeFunding, grantNumber };
 
+    update(updatedFunding);
+
     if (onGrantNumberUpdate) {
       onGrantNumberUpdate(updatedFunding);
       return;
@@ -105,6 +115,8 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     if (!activeFunding) return;
 
     const updatedFunding = { ...activeFunding, institutionId: data.institution.value };
+
+    update(updatedFunding);
 
     if (onInstitutionUpdate) {
       onInstitutionUpdate(updatedFunding);

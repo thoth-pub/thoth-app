@@ -17,7 +17,7 @@ type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'> & {
 const EditChapterModal = (props: EditChapterModalProps) => {
   const { queryToken, onDone } = props;
 
-  const { activeWorkChapters, isSingleChapterSelected, close } = useWorkChaptersStateMachine();
+  const { activeWorkChapters, isSingleChapterSelected, close, update } = useWorkChaptersStateMachine();
   const { close: closeContribution } = useContributionStateMachine();
 
   useEffect(() => {

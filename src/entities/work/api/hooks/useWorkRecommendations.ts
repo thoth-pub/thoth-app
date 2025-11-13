@@ -1,4 +1,4 @@
-import { SubjectTypes } from '@/src/shared';
+import { isAllContributionRecommendationsFilled, isAllFundingRecommendationsFilled, SubjectTypes } from '@/src/shared';
 
 import useWork from './useWork';
 
@@ -28,20 +28,12 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
 
   const isFundingsEmpty = work.fundings.length === 0;
 
-  const isFundingsRequired = isFundingsEmpty || work.fundings.some((funding) => funding.grantNumber.length === 0);
+  const isFundingsRequired = isFundingsEmpty || work.fundings.some(isAllFundingRecommendationsFilled);
 
   const isContributionsEmpty = work.contributions.length === 0;
 
   const isContributionsRequired =
-    isContributionsEmpty ||
-    work.contributions.some(
-      (contribution) =>
-        !contribution.biography ||
-        !contribution.fullName ||
-        !contribution.lastName ||
-        !contribution.firstName ||
-        contribution.affiliations.length === 0,
-    );
+    isContributionsEmpty || work.contributions.some(isAllContributionRecommendationsFilled);
 
   const isEmpty =
     isTitleRequired &&

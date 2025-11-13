@@ -48,6 +48,8 @@ const useCreateFunding = (props: BaseEditSectionProps) => {
     await mutate({
       variables: { data: { ...dto, workId: relatedWorkId } },
     });
+
+    await client.refetchQueries({ include: 'active' });
   };
 
   const createFundingForMultipleWorks = async (data: {

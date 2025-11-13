@@ -9,7 +9,7 @@ import {
 } from '@/src/entities/funding';
 import { FundingEntity, FundingId } from '@/src/entities/funding/model/funding.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { BaseEditSectionProps, isDefaultId } from '@/src/shared';
+import { BaseEditSectionProps, isAllFundingRecommendationsFilled, isDefaultId } from '@/src/shared';
 import { AddButton, RecommendedSection, Typography } from '@/src/shared/ui';
 import { getDefaultFunding } from '@/src/shared/utils';
 import { useMemo, useState } from 'react';
@@ -56,6 +56,9 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   }, [chapters]);
 
   const [fundings, setFundings] = useState<FundingEntity[]>(uniqueFundings);
+
+  const isEmpty = fundings.length === 0;
+  const isValid = isEmpty || fundings.every(isAllFundingRecommendationsFilled);
 
   const { createFundingForMultipleWorks } = useCreateFunding({
     queryToken,
@@ -444,7 +447,7 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   };
 
   return (
-    <RecommendedSection title="Fundings" isEmpty={uniqueInstitutionIds.length === 0} isValid={false}>
+    <RecommendedSection title="Fundings" isEmpty={isEmpty} isValid={isValid}>
       {({ showRecommendations }) => (
         <>
           {isSectionEnabled ? (

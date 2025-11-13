@@ -15,3 +15,7 @@ export const getDefaultFunding = (data?: Partial<FundingEntity>): FundingEntity 
     ...data,
   };
 };
+
+export const isAllFundingRecommendationsFilled = (funding: FundingEntity) => {
+  return funding.grantNumber.length > 0;
+};
