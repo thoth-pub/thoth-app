@@ -37,7 +37,7 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
       id={ANCHORS.BASIC_DETAILS}
     >
       {({ showRecommendations }) => (
-        <div className="grid grid-cols-[75%_25%] gap-2">
+        <div className="grid grid-cols-1 gap-2 xl:grid-cols-[75%_25%]">
           <div>
             <EditWorkTitle workId={workId} queryToken={queryToken} />
             <EditWorkType workId={workId} queryToken={queryToken} />
@@ -53,9 +53,9 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
               queryToken={queryToken}
               recommended={showRecommendations && (isDoiRequired || isLandingPageRequired || isCoverUrlRequired)}
             />
+            {children}
           </div>
           <EditWorkCover workId={workId} queryToken={queryToken} />
-          {children}
         </div>
       )}
     </RecommendedSection>

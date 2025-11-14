@@ -224,7 +224,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
     const contributionsIds = sameContributions.map((contributions) => contributions.id);
 
-    updateBulkAffiliations(data, contributionsIds, affiliations);
+    updateBulkAffiliations(data, contributionsIds);
 
     onUpdate();
   };

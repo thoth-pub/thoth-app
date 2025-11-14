@@ -57,7 +57,7 @@ export const EditBiography = (props: EditBiographyProps) => {
           recommended={showPreviewIndicator}
         >
           {biography && (
-            <Typography>
+            <Typography component="span">
               <MarkdownPreview source={data?.contributorBiography} />
             </Typography>
           )}

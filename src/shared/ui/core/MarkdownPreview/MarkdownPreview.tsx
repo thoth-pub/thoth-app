@@ -9,11 +9,12 @@ type MarkdownPreviewProps = {
 };
 
 const MarkdownPreview = ({ source }: MarkdownPreviewProps) => {
-  const isDesktop = useIsDesktop();
+  const isDesktop = useIsDesktop(1280);
 
   return (
     <MDEditor.Markdown
       source={source}
+      className="text-sm md:text-base"
       style={{
         whiteSpace: 'pre-wrap',
         width: '100%',

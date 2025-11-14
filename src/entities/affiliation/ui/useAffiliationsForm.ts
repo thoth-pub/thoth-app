@@ -4,6 +4,7 @@ import type { WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig, isDefaultId, type QueryToken } from '@/src/shared';
 
 import type { AffiliationEntity, AffiliationsForm } from '../model/affiliation.types';
+import { GET_WORK, GET_WORK_CHAPTERS } from '../../work/model/work.schema';
 
 type UseEditContributionAffiliationsProps = {
   queryToken: QueryToken;
@@ -15,7 +16,7 @@ type UseEditContributionAffiliationsProps = {
 const useEditContributionAffiliations = (props: UseEditContributionAffiliationsProps) => {
   const { queryToken, contributionId, affiliations, workId = '' } = props;
 
-  const { createAffiliation } = useCreateAffiliation({
+  const { createAffiliation, client } = useCreateAffiliation({
     queryToken,
     workId,
   });
@@ -28,7 +29,7 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
     workId,
   });
 
-  const updateAffiliations = async (data: AffiliationsForm, id = contributionId) => {
+  const updateAffiliations = async (data: AffiliationsForm, id = contributionId, skipRefetch = false) => {
     const newAffilations = data.affiliations.filter((affiliation) => isDefaultId(affiliation.id));
     const existingAffilations = data.affiliations.filter((affiliation) => !isDefaultId(affiliation.id));
     const affiliationsCount = affiliations.length;
@@ -63,6 +64,10 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
         },
       });
     });
+
+    if (!skipRefetch) {
+      await client.refetchQueries({ include: [GET_WORK] });
+    }
   };
 
   const deleteContributionAffiliation = (id: string) => {
@@ -85,11 +90,7 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
     await Promise.all(promises);
   };
 
-  const updateBulkAffiliations = async (
-    data: AffiliationsForm,
-    contributionIds: ContributionId[],
-    initialAffilations: AffiliationEntity[],
-  ) => {
+  const updateBulkAffiliations = async (data: AffiliationsForm, contributionIds: ContributionId[]) => {
     const allAffiliationsAsNew = data.affiliations.map((affiliation) => ({
       ...affiliation,
       id: appConfig.defaultId,
@@ -104,11 +105,13 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
     const promises = [
       deleteBulkAffiliations(activeIds),
       contributionIds.map((contributionId) =>
-        updateAffiliations({ affiliations: allAffiliationsAsNew }, contributionId),
+        updateAffiliations({ affiliations: allAffiliationsAsNew }, contributionId, true),
       ),
     ];
 
     await Promise.all(promises);
+
+    await client.refetchQueries({ include: [GET_WORK_CHAPTERS] });
   };
 
   return {

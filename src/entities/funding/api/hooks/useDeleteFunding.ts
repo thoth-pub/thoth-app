@@ -31,7 +31,7 @@ const useCreateFunding = (props: BaseEditSectionProps) => {
       variables: { fundingId },
     });
 
-    await client.refetchQueries({ include: 'active' });
+    await client.refetchQueries({ include: [GET_WORK] });
   };
 
   const deleteFundings = async (fundingIds: FundingId[]) => {
