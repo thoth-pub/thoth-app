@@ -17,6 +17,7 @@ import {
   SubjectTypes,
   WeightUnit,
   WorkStatuses,
+  WorkTypes,
 } from '@/src/shared/constants';
 import type { ErrorMessage } from '@/src/shared/interfaces';
 
@@ -59,6 +60,7 @@ export const createdAtValidation = timestampValidation;
 export const updatedAtValidation = timestampValidation;
 
 /* Enums Validations */
+export const workTypeValidation = z.enum(WorkTypes.enum);
 export const workStatusValidation = z.enum(WorkStatuses.enum);
 export const languageValidation = z.enum(LanguageTypeAlt.enum);
 export const contributorType = z.enum(ContributorTypes.enum);

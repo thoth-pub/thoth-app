@@ -12,6 +12,7 @@ import { directionOptions, workOrderByOptions, workStatusOptionsAlt } from '@/sr
 import { useWorkTypeOptions } from '@/src/shared/hooks';
 import { Button, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { UploadModal } from './UploadModal';
 
 type HeaderProps = {
   workStatus: string;
@@ -63,15 +64,16 @@ export const Header = (props: HeaderProps) => {
             },
           }}
           value={searchValue}
-          className="max-w-[800px]"
+          className="grow"
           placeholder="Search by title, DOI, internal reference"
           fullWidth
           onChange={(e) => onSearch(e.target.value)}
         />
-        <div className="flex items-center gap-2">
-          <Button onClick={handleFilterOpen}>Filters</Button>
-          <CreateNewWorkLink />
-        </div>
+      </div>
+      <div className="ml-auto flex shrink-0 items-center gap-2">
+        <Button onClick={handleFilterOpen}>Filters</Button>
+        <UploadModal />
+        <CreateNewWorkLink />
       </div>
 
       <AnimatePresence mode="wait">

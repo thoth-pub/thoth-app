@@ -1,0 +1,533 @@
+<?xml version="1.0" encoding="utf-8"?>
+<xs:schema attributeFormDefault="unqualified" elementFormDefault="qualified" targetNamespace="http://ns.editeur.org/onix/3.0/reference" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="ONIXMessage">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="Header">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="Sender">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="SenderName" type="xs:string" />
+                    <xs:element name="EmailAddress" type="xs:string" />
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="SentDateTime" type="xs:string" />
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+        <xs:element name="Product">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="RecordReference" type="xs:unsignedLong" />
+              <xs:element name="NotificationType" type="xs:unsignedByte" />
+              <xs:element name="RecordSourceType" type="xs:unsignedByte" />
+              <xs:element maxOccurs="unbounded" name="ProductIdentifier">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="ProductIDType" type="xs:unsignedByte" />
+                    <xs:element name="IDValue" type="xs:string" />
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="DescriptiveDetail">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="ProductComposition" type="xs:unsignedByte" />
+                    <xs:element name="ProductForm" type="xs:string" />
+                    <xs:element name="PrimaryContentType" type="xs:unsignedByte" />
+                    <xs:element name="Collection">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="CollectionType" type="xs:unsignedByte" />
+                          <xs:element maxOccurs="unbounded" name="CollectionIdentifier">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="CollectionIDType" type="xs:unsignedByte" />
+                                <xs:element minOccurs="0" name="IDTypeName" type="xs:string" />
+                                <xs:element name="IDValue" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="CollectionSequence">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="CollectionSequenceType" type="xs:unsignedByte" />
+                                <xs:element name="CollectionSequenceNumber" type="xs:unsignedByte" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="TitleDetail">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="TitleType" type="xs:unsignedByte" />
+                                <xs:element name="TitleElement">
+                                  <xs:complexType>
+                                    <xs:sequence>
+                                      <xs:element name="TitleElementLevel" type="xs:unsignedByte" />
+                                      <xs:element name="PartNumber" type="xs:unsignedByte" />
+                                      <xs:element name="TitleText" type="xs:string" />
+                                    </xs:sequence>
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element maxOccurs="unbounded" name="Measure">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="MeasureType" type="xs:unsignedByte" />
+                          <xs:element name="Measurement" type="xs:decimal" />
+                          <xs:element name="MeasureUnitCode" type="xs:string" />
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="EpubLicense">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="EpubLicenseName" type="xs:string" />
+                          <xs:element name="EpubLicenseExpression">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="EpubLicenseExpressionType" type="xs:unsignedByte" />
+                                <xs:element name="EpubLicenseExpressionLink" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="TitleDetail">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="TitleType" type="xs:unsignedByte" />
+                          <xs:element name="TitleElement">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="TitleElementLevel" type="xs:unsignedByte" />
+                                <xs:element name="TitleText" type="xs:string" />
+                                <xs:element name="Subtitle" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="Contributor">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="SequenceNumber" type="xs:unsignedByte" />
+                          <xs:element name="ContributorRole" type="xs:string" />
+                          <xs:element name="NameIdentifier">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="NameIDType" type="xs:unsignedByte" />
+                                <xs:element name="IDValue" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="PersonName" type="xs:string" />
+                          <xs:element name="NamesBeforeKey" type="xs:string" />
+                          <xs:element name="KeyNames" type="xs:string" />
+                          <xs:element name="ProfessionalAffiliation">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="ProfessionalPosition" type="xs:string" />
+                                <xs:element name="AffiliationIdentifier">
+                                  <xs:complexType>
+                                    <xs:sequence>
+                                      <xs:element name="AffiliationIDType" type="xs:unsignedByte" />
+                                      <xs:element name="IDValue" type="xs:string" />
+                                    </xs:sequence>
+                                  </xs:complexType>
+                                </xs:element>
+                                <xs:element name="Affiliation" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="BiographicalNote" type="xs:string" />
+                          <xs:element name="Website">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="WebsiteRole" type="xs:unsignedByte" />
+                                <xs:element name="WebsiteDescription" type="xs:string" />
+                                <xs:element name="WebsiteLink" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="Edition">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="EditionNumber" type="xs:unsignedByte" />
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="Language">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="LanguageRole" type="xs:unsignedByte" />
+                          <xs:element name="LanguageCode" type="xs:string" />
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="Extent">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="ExtentType" type="xs:unsignedByte" />
+                          <xs:element name="ExtentValue" type="xs:unsignedShort" />
+                          <xs:element name="ExtentUnit" type="xs:unsignedByte" />
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="IllustrationsNote" type="xs:string" />
+                    <xs:element maxOccurs="unbounded" name="AncillaryContent">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="AncillaryContentType" type="xs:unsignedByte" />
+                          <xs:element minOccurs="0" name="AncillaryContentDescription" type="xs:string" />
+                          <xs:element name="Number" type="xs:unsignedByte" />
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element maxOccurs="unbounded" name="Subject">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="MainSubject" />
+                          <xs:element name="SubjectSchemeIdentifier" type="xs:string" />
+                          <xs:element minOccurs="0" name="SubjectHeadingText" type="xs:string" />
+                          <xs:element minOccurs="0" name="SubjectCode" type="xs:string" />
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="Audience">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="AudienceCodeType" type="xs:unsignedByte" />
+                          <xs:element name="AudienceCodeValue" type="xs:unsignedByte" />
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="CollateralDetail">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element maxOccurs="unbounded" name="TextContent">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="TextType" type="xs:unsignedByte" />
+                          <xs:element name="ContentAudience" type="xs:unsignedByte" />
+                          <xs:element name="Text">
+                            <xs:complexType>
+                              <xs:simpleContent>
+                                <xs:extension base="xs:string">
+                                  <xs:attribute name="language" type="xs:string" use="optional" />
+                                </xs:extension>
+                              </xs:simpleContent>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="SupportingResource">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="ResourceContentType" type="xs:unsignedByte" />
+                          <xs:element name="ContentAudience" type="xs:unsignedByte" />
+                          <xs:element name="ResourceMode" type="xs:unsignedByte" />
+                          <xs:element name="ResourceFeature">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="ResourceFeatureType" type="xs:unsignedByte" />
+                                <xs:element name="FeatureNote" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="ResourceVersion">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="ResourceForm" type="xs:unsignedByte" />
+                                <xs:element name="ResourceLink" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="ContentDetail">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="ContentItem">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="LevelSequenceNumber" type="xs:unsignedByte" />
+                          <xs:element name="TextItem">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="TextItemType" type="xs:unsignedByte" />
+                                <xs:element name="TextItemIdentifier">
+                                  <xs:complexType>
+                                    <xs:sequence>
+                                      <xs:element name="TextItemIDType" type="xs:unsignedByte" />
+                                      <xs:element name="IDValue" type="xs:string" />
+                                    </xs:sequence>
+                                  </xs:complexType>
+                                </xs:element>
+                                <xs:element name="PageRun">
+                                  <xs:complexType>
+                                    <xs:sequence>
+                                      <xs:element name="FirstPageNumber" type="xs:unsignedByte" />
+                                      <xs:element name="LastPageNumber" type="xs:unsignedByte" />
+                                    </xs:sequence>
+                                  </xs:complexType>
+                                </xs:element>
+                                <xs:element name="NumberOfPages" type="xs:unsignedByte" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="ComponentTypeName" type="xs:string" />
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="PublishingDetail">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="Imprint">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="ImprintIdentifier">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="ImprintIDType" type="xs:unsignedByte" />
+                                <xs:element name="IDTypeName" type="xs:string" />
+                                <xs:element name="IDValue" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="ImprintName" type="xs:string" />
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element maxOccurs="unbounded" name="Publisher">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="PublishingRole" type="xs:unsignedByte" />
+                          <xs:element minOccurs="0" maxOccurs="unbounded" name="PublisherIdentifier">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="PublisherIDType" type="xs:unsignedByte" />
+                                <xs:element name="IDValue" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="PublisherName" type="xs:string" />
+                          <xs:element minOccurs="0" name="Funding">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element maxOccurs="unbounded" name="FundingIdentifier">
+                                  <xs:complexType>
+                                    <xs:sequence>
+                                      <xs:element name="FundingIDType" type="xs:unsignedByte" />
+                                      <xs:element name="IDTypeName" type="xs:string" />
+                                      <xs:element name="IDValue" type="xs:string" />
+                                    </xs:sequence>
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element minOccurs="0" maxOccurs="unbounded" name="Website">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="WebsiteRole" type="xs:unsignedByte" />
+                                <xs:element name="WebsiteDescription" type="xs:string" />
+                                <xs:element name="WebsiteLink" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="CityOfPublication" type="xs:string" />
+                    <xs:element name="PublishingStatus" type="xs:unsignedByte" />
+                    <xs:element maxOccurs="unbounded" name="PublishingDate">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="PublishingDateRole" type="xs:unsignedByte" />
+                          <xs:element name="Date">
+                            <xs:complexType>
+                              <xs:simpleContent>
+                                <xs:extension base="xs:unsignedInt">
+                                  <xs:attribute name="dateformat" type="xs:unsignedByte" use="required" />
+                                </xs:extension>
+                              </xs:simpleContent>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="CopyrightStatement">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="CopyrightOwner">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="PersonName" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="SalesRights">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="SalesRightsType" type="xs:unsignedByte" />
+                          <xs:element name="Territory">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="RegionsIncluded" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="RelatedMaterial">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="RelatedWork">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="WorkRelationCode" type="xs:unsignedByte" />
+                          <xs:element name="WorkIdentifier">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="WorkIDType" type="xs:unsignedByte" />
+                                <xs:element name="IDValue" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element maxOccurs="unbounded" name="RelatedProduct">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="ProductRelationCode" type="xs:unsignedByte" />
+                          <xs:element name="ProductIdentifier">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="ProductIDType" type="xs:unsignedByte" />
+                                <xs:element minOccurs="0" name="IDTypeName" type="xs:string" />
+                                <xs:element name="IDValue" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+              <xs:element name="ProductSupply">
+                <xs:complexType>
+                  <xs:sequence>
+                    <xs:element name="Market">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="Territory">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="RegionsIncluded" type="xs:string" />
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                    <xs:element name="SupplyDetail">
+                      <xs:complexType>
+                        <xs:sequence>
+                          <xs:element name="Supplier">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="SupplierRole" type="xs:unsignedByte" />
+                                <xs:element name="SupplierName" type="xs:string" />
+                                <xs:element maxOccurs="unbounded" name="Website">
+                                  <xs:complexType>
+                                    <xs:sequence>
+                                      <xs:element name="WebsiteRole" type="xs:unsignedByte" />
+                                      <xs:element name="WebsiteDescription" type="xs:string" />
+                                      <xs:element name="WebsiteLink" type="xs:string" />
+                                    </xs:sequence>
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element name="ProductAvailability" type="xs:unsignedByte" />
+                          <xs:element name="SupplyDate">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="SupplyDateRole" type="xs:unsignedByte" />
+                                <xs:element name="Date">
+                                  <xs:complexType>
+                                    <xs:simpleContent>
+                                      <xs:extension base="xs:unsignedInt">
+                                        <xs:attribute name="dateformat" type="xs:unsignedByte" use="required" />
+                                      </xs:extension>
+                                    </xs:simpleContent>
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                          <xs:element maxOccurs="unbounded" name="Price">
+                            <xs:complexType>
+                              <xs:sequence>
+                                <xs:element name="PriceType" type="xs:unsignedByte" />
+                                <xs:element name="PriceAmount" type="xs:decimal" />
+                                <xs:element name="CurrencyCode" type="xs:string" />
+                                <xs:element name="Territory">
+                                  <xs:complexType>
+                                    <xs:sequence>
+                                      <xs:element name="RegionsIncluded" type="xs:string" />
+                                    </xs:sequence>
+                                  </xs:complexType>
+                                </xs:element>
+                              </xs:sequence>
+                            </xs:complexType>
+                          </xs:element>
+                        </xs:sequence>
+                      </xs:complexType>
+                    </xs:element>
+                  </xs:sequence>
+                </xs:complexType>
+              </xs:element>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="release" type="xs:decimal" use="required" />
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

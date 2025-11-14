@@ -85,6 +85,11 @@ export const theme = createTheme({
           fontWeight: 700,
           fontStyle: 'bold',
           color: 'var(--color-link)',
+          fontSize: '0.75rem',
+
+          '@media (min-width: 1280px)': {
+            fontSize: '1rem',
+          },
         },
       },
     },

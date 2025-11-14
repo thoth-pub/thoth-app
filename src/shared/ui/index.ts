@@ -43,6 +43,10 @@ export { default as Typography } from './core/Typography/Typography';
 export { default as TableFormsHeader } from './forms/TableFormsHeader/TableFormsHeader';
 export { default as TableFormsWrapper } from './forms/TableFormsWrapper/TableFormsWrapper';
 export { default as TableNewEntityFormWrapper } from './forms/TableNewEntityFormWrapper/TableNewEntityFormWrapper';
+export { default as Stepper } from './core/Stepper/Stepper';
+export { default as Step } from './core/Stepper/components/Step';
+export { default as StepLabel } from './core/Stepper/components/StepLabel';
+export { default as StepContent } from './core/Stepper/components/StepContent';
 // Forms
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
 export { default as CheckboxFormField } from './forms/CheckboxFormField/CheckboxFormField';

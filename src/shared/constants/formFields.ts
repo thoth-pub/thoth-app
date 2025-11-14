@@ -30,6 +30,7 @@ export const InputTypes = {
   TEXT: 'text',
   URL: 'url',
   NUMBER: 'number',
+  FILE: 'file',
 } as const;
 
 export const FORM_FIELDS = {
@@ -472,6 +473,12 @@ export const FORM_FIELDS = {
     name: 'ordinal',
     placeholder: 'Ordinal',
     type: InputTypes.NUMBER,
+  },
+  BULK_UPLOAD: {
+    label: 'Template Upload',
+    name: 'templateUpload',
+    placeholder: 'Template Upload',
+    type: InputTypes.FILE,
   },
 } as const;
 
