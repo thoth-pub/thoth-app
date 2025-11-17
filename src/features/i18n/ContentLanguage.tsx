@@ -22,7 +22,7 @@ const ContentLanguage = () => {
       select
       options={contentLanguageOptions}
       name="contentLanguage"
-      className="w-[240px] shrink-0"
+      className="mt-2 w-full shrink-0"
       onChange={(e) => handleChange(e.target.value as Locale)}
     />
   );

@@ -4,7 +4,7 @@ import LogoutIcon from '@mui/icons-material/Logout';
 
 import { signOutAction } from '@/app/actions';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
-import { Button } from '@/src/shared/ui';
+import { IconButton } from '@/src/shared/ui';
 import { useApolloClient } from '@apollo/client/react';
 import { useEffect } from 'react';
 
@@ -27,9 +27,9 @@ const SignOutButton = () => {
 
   return (
     <form action={signOut}>
-      <Button variant="contained" type="submit" startIcon={<LogoutIcon className="ml-1 rotate-180" />}>
-        Logout
-      </Button>
+      <IconButton type="submit" className="m-auto">
+        <LogoutIcon className="rotate-180" />
+      </IconButton>
     </form>
   );
 };

@@ -15,6 +15,7 @@ import { SignOutButton } from '../../auth';
 import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
 import { useIsDesktop } from '@/src/shared/hooks';
+import ArrowDropDownRoundedIcon from '@mui/icons-material/ArrowDropDownRounded';
 
 type NavigationProps = {
   linkedPublishers?: { publisherId: string; isAdmin: boolean }[];
@@ -25,10 +26,15 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
   const isDesktop = useIsDesktop();
 
   const [isExpanded, setIsExpanded] = useState(isDesktop);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   useEffect(() => {
     setIsExpanded(isDesktop);
   }, [isDesktop]);
+
+  const handleUserMenuOpen = () => {
+    setIsUserMenuOpen((prev) => !prev);
+  };
 
   return (
     <Paper
@@ -69,8 +75,6 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
         </div>
 
         <ChangeActivePublisher linkedPublishers={linkedPublishers} isSuperAdmin={isSuperAdmin} isHidden={!isExpanded} />
-        <ContentLanguage />
-        <SignOutButton />
         <nav>
           <ul className="flex flex-col rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)]">
             {PAGES.map(({ name, href, icon: Icon }) => (
@@ -100,17 +104,28 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
         >
           <PermIdentityRoundedIcon color="primary" className="m-auto shrink-0" />
           {isExpanded && (
-            <Typography
-              color="primary"
-              component="span"
-              className={`flex max-w-[85%] flex-col gap-1 font-semibold transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
+            <div
+              className={`flex max-w-[85%] flex-col gap-1 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
             >
-              John Doe
+              <div className="flex items-center justify-between gap-1">
+                <Typography color="primary" component="span" className="max-w-[85%] truncate font-semibold">
+                  John DoeDoeDoeDoe
+                </Typography>
+                <IconButton className="shrink-0 p-0" onClick={handleUserMenuOpen}>
+                  <ArrowDropDownRoundedIcon className={isUserMenuOpen ? 'rotate-180' : 'rotate-0'} />
+                </IconButton>
+              </div>
+
               <Typography color="primary" component="span" variant="body2" className="overflow-hidden text-ellipsis">
                 john.doelongmail@example.com
               </Typography>
-            </Typography>
+              {isUserMenuOpen && <ContentLanguage />}
+            </div>
           )}
+        </div>
+
+        <div className="flex justify-center">
+          <SignOutButton />
         </div>
       </motion.div>
     </Paper>
