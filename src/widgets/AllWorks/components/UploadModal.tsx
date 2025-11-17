@@ -56,24 +56,26 @@ export const UploadModal = () => {
         Upload Books
       </Button>
       <Modal open={isOpen} onClose={handleModalState}>
-        <ModalWrapper>
-          <div className="flex items-center justify-between">
-            <Typography variant="h2">Upload Multiple Books</Typography>
-            <CloseButton onClose={handleModalState} />
+        <div className="flex h-full items-center justify-center">
+          <div className="m-auto flex max-h-160 w-full max-w-225 flex-col gap-4 overflow-auto rounded-xl bg-[var(--color-modal-background)] p-4 lg:gap-8 lg:rounded-2xl lg:p-8">
+            <div className="flex items-center justify-between">
+              <Typography variant="h2">Upload Multiple Books</Typography>
+              <CloseButton onClose={handleModalState} />
+            </div>
+            <Stepper activeStep={activeStep} alternativeLabel>
+              {steps.map((step, index) => (
+                <Step key={step.label}>
+                  <StepLabel icon={index <= activeStep - 1 ? <DoneIcon color="primary" /> : step.icon}>
+                    {step.label}
+                  </StepLabel>
+                </Step>
+              ))}
+            </Stepper>
+            {activeStep === 0 && <TemplateStep onTemplateSelect={handleNextStep} onSkip={handleNextStep} />}
+            {activeStep === 1 && <UploadStep onPreviousStep={handlePreviousStep} onNextStep={handleNextStep} />}
+            {activeStep === 2 && <PreviewStep onPreviousStep={handlePreviousStep} />}
           </div>
-          <Stepper activeStep={activeStep} alternativeLabel>
-            {steps.map((step, index) => (
-              <Step key={step.label}>
-                <StepLabel icon={index <= activeStep - 1 ? <DoneIcon color="primary" /> : step.icon}>
-                  {step.label}
-                </StepLabel>
-              </Step>
-            ))}
-          </Stepper>
-          {activeStep === 0 && <TemplateStep onTemplateSelect={handleNextStep} onSkip={handleNextStep} />}
-          {activeStep === 1 && <UploadStep onPreviousStep={handlePreviousStep} onNextStep={handleNextStep} />}
-          {activeStep === 2 && <PreviewStep onPreviousStep={handlePreviousStep} />}
-        </ModalWrapper>
+        </div>
       </Modal>
     </>
   );

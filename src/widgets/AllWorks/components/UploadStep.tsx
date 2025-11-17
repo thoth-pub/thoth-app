@@ -7,8 +7,7 @@ import { Button, Typography } from '@/src/shared/ui';
 import { useForm } from 'react-hook-form';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useEffect, useState } from 'react';
-import { titleValidation } from '@/src/entities/work/model/work.validation';
-import { workStatusValidation, workTypeValidation } from '@/src/shared/utils/validations';
+import { workTypeValidation } from '@/src/shared/utils/validations';
 import { validateXml } from '@/app/actions';
 
 type UploadStepProps = {
@@ -212,6 +211,7 @@ export const UploadStep = (props: UploadStepProps) => {
   const [files, setFiles] = useState<FileList | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
   const [isValid, setIsValid] = useState(false);
+  const [xmlData, setXmlData] = useState<string | null>(null);
 
   const validateCsvFile = (file: File) => {
     CSVFileValidator(file, csvConfig)
@@ -236,12 +236,16 @@ export const UploadStep = (props: UploadStepProps) => {
 
   const validateXMLFile = async (file: File) => {
     const response = await validateXml(file);
-    // const reader = new FileReader();
-    // reader.onload = (event) => {
-    //   const xml = event.target?.result;
-    //   console.log(xml);
-    // };
-    // reader.readAsText(file);
+
+    if (response.status === 'error') {
+      setValidationErrors(['Invalid XML file']);
+      setIsValid(false);
+      return;
+    }
+
+    setValidationErrors([]);
+    setIsValid(true);
+    setXmlData(response.data ?? null);
   };
 
   useEffect(() => {
@@ -288,6 +292,11 @@ export const UploadStep = (props: UploadStepProps) => {
           </Typography>
         ))}
       </ul>
+      {xmlData && typeof xmlData === 'string' && (
+        <Typography variant="body2" component="pre">
+          {xmlData}
+        </Typography>
+      )}
       <div className="flex w-full justify-between gap-[var(--default-gap)]">
         <Button onClick={onPreviousStep}>Previous Step</Button>
         <Button onClick={onNextStep} disabled={!isValid}>

@@ -1,13 +1,17 @@
 'use server';
 
-import fs from 'node:fs';
-import validateSchema from 'xsd-validator';
+// @ts-expect-error No declaration file found for module 'node-onix'.
+import onix from 'node-onix';
 
 export const validateXml = async (file: File) => {
   const xmlString = await file.text();
-  const xsdString = fs.readFileSync('public/templates/schema.xsd', 'utf-8');
 
-  const result = validateSchema(xmlString, xsdString);
+  try {
+    const result = await onix.parse(xmlString);
 
-  console.log('result', result);
+    return { status: 'success', data: JSON.stringify(result, null, 100) };
+  } catch (error) {
+    console.error('ERROR: ', error);
+    return { status: 'error' };
+  }
 };
