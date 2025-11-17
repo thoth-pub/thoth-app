@@ -65,7 +65,8 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
       });
     });
 
-    if (!skipRefetch) {
+    if (workId.length > 0) {
+      await new Promise((resolve) => setTimeout(resolve, 2000));
       await client.refetchQueries({ include: [GET_WORK] });
     }
   };
@@ -105,7 +106,7 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
     const promises = [
       deleteBulkAffiliations(activeIds),
       contributionIds.map((contributionId) =>
-        updateAffiliations({ affiliations: allAffiliationsAsNew }, contributionId, true),
+        updateAffiliations({ affiliations: allAffiliationsAsNew }, contributionId),
       ),
     ];
 

@@ -84,6 +84,12 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   const license = chapters[0].license ? chapters[0].license : licenseOptions[0].value;
 
+  const handleUpdate = async () => {
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    refetchChapters();
+  };
+
   return (
     <ChaptersModal
       title={title}
@@ -105,7 +111,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
         isMultipleChaptersEdit
         onLanguagesUpdate={(data) => console.log(data)}
       />
-      <EditChaptersContributors queryToken={queryToken} chapters={chapters} onUpdate={refetchChapters} />
+      <EditChaptersContributors queryToken={queryToken} chapters={chapters} onUpdate={handleUpdate} />
       <EditChaptersFundings queryToken={queryToken} chapters={chapters} onUpdate={refetchChapters} />
     </ChaptersModal>
   );

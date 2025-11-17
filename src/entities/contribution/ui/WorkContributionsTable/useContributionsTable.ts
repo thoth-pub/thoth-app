@@ -33,7 +33,13 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
       item.orcidId === contribution.orcidId &&
       item.website === contribution.website &&
       item.affiliations.length === contribution.affiliations.length &&
-      item.affiliations.every((affiliation, index) => affiliation.id === contribution.affiliations[index].id)
+      item.affiliations.every(
+        (affiliation, index) =>
+          affiliation.id === contribution.affiliations[index].id &&
+          affiliation.orderNumber === contribution.affiliations[index].orderNumber &&
+          affiliation.position === contribution.affiliations[index].position &&
+          affiliation.institutionId === contribution.affiliations[index].institutionId,
+      )
     );
   });
 
