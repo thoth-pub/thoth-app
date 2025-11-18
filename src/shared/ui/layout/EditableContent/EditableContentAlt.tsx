@@ -45,6 +45,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
     defaultValues,
     validationSchema,
     borderTransparent = false,
+    isDisabled = false,
     skipAutoSubmit = false,
     validationMode = 'onChange',
     onSubmit,
@@ -61,6 +62,8 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
     if (!isActive && activeFormId) {
       close();
     }
+
+    if (isDisabled) return;
 
     edit(formId);
   };

@@ -35,10 +35,10 @@ export const useUpdateWork = ({ queryToken }: BaseEditSectionProps) => {
     },
   });
 
-  const updateWork = (data: WorkEntity) => {
+  const updateWork = async (data: WorkEntity) => {
     const dto = mapper.toDto(data);
 
-    mutate({ variables: { data: dto } });
+    await mutate({ variables: { data: dto } });
   };
 
   return {

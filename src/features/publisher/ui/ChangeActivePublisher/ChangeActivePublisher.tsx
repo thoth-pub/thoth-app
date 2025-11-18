@@ -31,7 +31,7 @@ const ChangeActivePublisher = ({
 
     const authorizedPublishers = publishers.map((publisher) => ({
       ...publisher,
-      isAdmin: linkedPublishers.find((p) => p.publisherId === publisher.id)?.isAdmin ?? false,
+      isAdmin: isSuperAdmin,
     }));
 
     setLinkedPublishers(authorizedPublishers, isSuperAdmin);

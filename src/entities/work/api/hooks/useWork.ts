@@ -46,8 +46,8 @@ const useWork = (
 
   const work = mapper.toEntity(data.work as WorkDto);
 
-  const updateWork = (data: WorkEntity) => {
-    updateWorkMutation(data);
+  const updateWork = async (data: WorkEntity) => {
+    await updateWorkMutation(data);
   };
 
   const updateContribution = (data: WorkContribution) => {

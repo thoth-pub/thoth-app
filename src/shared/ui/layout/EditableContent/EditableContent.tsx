@@ -48,6 +48,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     isTableVariant = false,
     borderTransparent = false,
     skipAutoSubmit = false,
+    isDisabled = false,
     validationMode = 'onChange',
     onSubmit,
     formFields,
@@ -67,6 +68,8 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     if (!isActive && activeFormId) {
       close();
     }
+
+    if (isDisabled) return;
 
     edit(formId);
   };
