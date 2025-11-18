@@ -5,7 +5,7 @@ import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/Edit
 import type { BaseEditSectionProps } from '@/src/shared';
 import { useEffect, useState } from 'react';
 import EditDescriptions from '../EditDescriptions/EditDescriptions';
-import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
+import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { licenseOptions } from '@/src/shared/constants/formFields';
 import EditChaptersContributors from '../../chapters/EditChaptersContributors/EditChaptersContributors';
@@ -91,7 +91,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
   };
 
   return (
-    <ChaptersModal
+    <FullScreenModal
       title={title}
       capitalizeTitle={false}
       isOpen={isMultipleChaptersSelected}
@@ -113,7 +113,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
       />
       <EditChaptersContributors queryToken={queryToken} chapters={chapters} onUpdate={handleUpdate} />
       <EditChaptersFundings queryToken={queryToken} chapters={chapters} onUpdate={refetchChapters} />
-    </ChaptersModal>
+    </FullScreenModal>
   );
 };
 

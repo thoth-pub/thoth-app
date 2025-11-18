@@ -10,7 +10,7 @@ import {
 import { appConfig, BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
 import { AddButton } from '@/src/shared/ui';
 import { useTranslation } from 'react-i18next';
-import ChaptersModal from '../../layout/ChaptersModal/ChaptersModal';
+import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
 import { InheritedDataForm } from './components/InheritedDataForm';
 import { RelationType } from '@/gql/graphql';
 import { useEffect, useState } from 'react';
@@ -154,9 +154,9 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
       <AddButton className="px-7 capitalize" onAdd={openModal} disabled={isOpen}>
         {t('add chapter')}
       </AddButton>
-      <ChaptersModal title="add new chapter" isOpen={isOpen} isSubmitHidden onClose={closeModal}>
+      <FullScreenModal title="add new chapter" isOpen={isOpen} isSubmitHidden onClose={closeModal}>
         <InheritedDataForm onSubmit={handleInheritedDataSubmit} />
-      </ChaptersModal>
+      </FullScreenModal>
     </>
   );
 };

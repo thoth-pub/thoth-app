@@ -6,7 +6,7 @@ import { CloseButton, Modal, SubmitButton, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { useTranslation } from 'react-i18next';
 
-type ChaptersModalProps = {
+type FullScreenModalProps = {
   title: string;
   isOpen: boolean;
   children?: Readonly<React.ReactNode>;
@@ -16,7 +16,7 @@ type ChaptersModalProps = {
   onDone?: () => void;
 };
 
-const ChaptersModal = (props: ChaptersModalProps) => {
+const FullScreenModal = (props: FullScreenModalProps) => {
   const { title, isOpen, children, isSubmitHidden = false, capitalizeTitle = true, onClose, onDone } = props;
 
   const { t } = useTranslation();
@@ -57,4 +57,4 @@ const ChaptersModal = (props: ChaptersModalProps) => {
   );
 };
 
-export default ChaptersModal;
+export default FullScreenModal;

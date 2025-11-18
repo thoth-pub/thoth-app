@@ -10,11 +10,6 @@ import { useEffect, useState } from 'react';
 import { workTypeValidation } from '@/src/shared/utils/validations';
 import { validateXml } from '@/app/actions';
 
-type UploadStepProps = {
-  onPreviousStep: () => void;
-  onNextStep: () => void;
-};
-
 const { BULK_UPLOAD } = FORM_FIELDS;
 
 const csvConfig = {
@@ -203,9 +198,7 @@ const csvConfig = {
   ],
 };
 
-export const UploadStep = (props: UploadStepProps) => {
-  const { onPreviousStep, onNextStep } = props;
-
+export const UploadStep = () => {
   const { register, handleSubmit } = useForm();
 
   const [files, setFiles] = useState<FileList | null>(null);
@@ -297,12 +290,6 @@ export const UploadStep = (props: UploadStepProps) => {
           {xmlData}
         </Typography>
       )}
-      <div className="flex w-full justify-between gap-[var(--default-gap)]">
-        <Button onClick={onPreviousStep}>Previous Step</Button>
-        <Button onClick={onNextStep} disabled={!isValid}>
-          Next Step
-        </Button>
-      </div>
     </div>
   );
 };
