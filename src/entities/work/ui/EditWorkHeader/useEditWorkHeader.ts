@@ -12,14 +12,16 @@ import {
 
 import useWork from '../../api/hooks/useWork';
 import type { WorkStatus } from '../../model/work.types';
+import useWorkChapters from '../../api/hooks/useWorkChapters';
 
 const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, updateWork } = useWork(workId, queryToken);
+  const { chapters, refetchChapters } = useWorkChapters({ workId });
   const isPublicationDateDisabled = !isPublicationDateAvailable(work.status);
   const isWithdrawnDateRequired = isSupersededOrWithdrawn(work.status);
   const minDate = isPublicationDateShouldBeInFuture(work.status) ? getDateInFuture(0) : undefined;
 
-  const changeWorkStatus = (workStatus: WorkStatus) => {
+  const changeWorkStatus = async (workStatus: WorkStatus) => {
     const isPublicationDateDisabled = !isPublicationDateAvailable(workStatus);
     const isDateRequired = isPublicationDateRequired(workStatus);
     const isWithdrawnDateRequired = isSupersededOrWithdrawn(workStatus);
@@ -41,22 +43,57 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
       publicationDate,
       withdrawnDate,
     });
+
+    const promises = chapters.map(async (chapter) => {
+      return updateWork({
+        ...chapter,
+        status: workStatus,
+        publicationDate,
+        withdrawnDate,
+      });
+    });
+
+    await Promise.all(promises);
+
+    refetchChapters();
   };
 
-  const changePublicationDate = (publicationDate: string) => {
+  const changePublicationDate = async (publicationDate: string) => {
     updateWork({
       ...work,
       publicationDate,
     });
+
+    const promises = chapters.map(async (chapter) => {
+      return updateWork({
+        ...chapter,
+        publicationDate,
+      });
+    });
+
+    await Promise.all(promises);
+
+    refetchChapters();
   };
 
-  const changeWithdrawnDate = (withdrawnDate: string) => {
+  const changeWithdrawnDate = async (withdrawnDate: string) => {
     if (withdrawnDate.length === 0) return;
 
     updateWork({
       ...work,
       withdrawnDate,
     });
+
+    const promises = chapters.map(async (chapter) => {
+      return updateWork({
+        ...chapter,
+        withdrawnDate,
+      });
+    });
+
+    await Promise.all(promises);
+
+    refetchChapters();
   };
 
   return {
