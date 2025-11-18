@@ -12,6 +12,7 @@ import { UploadStep } from './UploadStep';
 import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
+import { FormFieldOption } from '@/src/shared';
 
 const steps = [
   {
@@ -29,12 +30,13 @@ const steps = [
 ];
 
 type UploadModalProps = {
+  imprintsOptions: FormFieldOption[];
   isOpen: boolean;
   onClose: () => void;
 };
 
 export const UploadModal = (props: UploadModalProps) => {
-  const { isOpen, onClose } = props;
+  const { imprintsOptions, isOpen, onClose } = props;
 
   const [data, setData] = useState<WorkEntity[]>([]);
 
@@ -51,7 +53,7 @@ export const UploadModal = (props: UploadModalProps) => {
         <TemplateStep />
       </ContentSection>
 
-      <UploadStep />
+      <UploadStep imprintsOptions={imprintsOptions} />
 
       {data.length > 0 && (
         <ContentSection>

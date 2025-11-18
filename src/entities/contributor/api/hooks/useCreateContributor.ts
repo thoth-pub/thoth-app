@@ -5,7 +5,7 @@ import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared'
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { ContributorDtoMapper } from '../../model/contributor.mapper';
-import { CREATE_CONTRIBUTOR, GET_CONTRIBUTORS } from '../../model/contributor.schema';
+import { CREATE_CONTRIBUTOR } from '../../model/contributor.schema';
 import { ContributorEntity } from '../../model/contributor.types';
 
 type UseCreateContributorProps = {

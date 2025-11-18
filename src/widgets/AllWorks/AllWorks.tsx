@@ -7,8 +7,15 @@ import { WorksTable } from './components/WorksTable';
 import { useAllWorks } from './useAllWorks';
 import { WorksSpeedDial } from './components/WorksSpeedDial';
 import { UploadModal } from './components/UploadModal';
+import type { FormFieldOption } from '@/src/shared';
 
-const AllWorks = () => {
+type AllWorksProps = {
+  imprintsOptions: FormFieldOption[];
+};
+
+const AllWorks = (props: AllWorksProps) => {
+  const { imprintsOptions } = props;
+
   const {
     loading,
     works,
@@ -56,7 +63,7 @@ const AllWorks = () => {
         />
       </ContentSection>
       <WorksSpeedDial onUpload={openUpload} />
-      <UploadModal isOpen={isUploadModalOpen} onClose={closeUpload} />
+      <UploadModal imprintsOptions={imprintsOptions} isOpen={isUploadModalOpen} onClose={closeUpload} />
     </>
   );
 };

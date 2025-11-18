@@ -1,13 +1,12 @@
 import { ServerError } from '@apollo/client';
 
 import type { Contributor, UpdateContributorMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
 import { ContributorDtoMapper } from '../../model/contributor.mapper';
-import { GET_CONTRIBUTOR, GET_CONTRIBUTORS, UPDATE_CONTRIBUTOR } from '../../model/contributor.schema';
+import { UPDATE_CONTRIBUTOR } from '../../model/contributor.schema';
 import type { ContributorEntity, ContributorId } from '../../model/contributor.types';
 
 type UseUpdateContributorProps = {
@@ -23,7 +22,7 @@ const mapper = new ContributorDtoMapper();
 const { CONTRIBUTOR_UPDATE_FAILED } = NOTIFICATIONS;
 
 const useUpdateContributor = (props: UseUpdateContributorProps) => {
-  const { queryToken, workId = '', contributorId = '', onCompleted, onError } = props;
+  const { queryToken, onCompleted, onError } = props;
 
   const { sendErrorNotification } = useNotifications();
 
