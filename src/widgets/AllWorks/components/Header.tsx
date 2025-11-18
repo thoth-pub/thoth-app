@@ -6,13 +6,11 @@ import { useState } from 'react';
 
 import { WorkField } from '@/gql/graphql';
 import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
-import { CreateNewWorkLink } from '@/src/features';
 import type { Direction } from '@/src/shared';
 import { directionOptions, workOrderByOptions, workStatusOptionsAlt } from '@/src/shared/constants/formFields';
 import { useWorkTypeOptions } from '@/src/shared/hooks';
 import { Button, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
-import { UploadModal } from './UploadModal';
 
 type HeaderProps = {
   workStatus: string;
@@ -69,11 +67,7 @@ export const Header = (props: HeaderProps) => {
           fullWidth
           onChange={(e) => onSearch(e.target.value)}
         />
-      </div>
-      <div className="ml-auto flex shrink-0 items-center gap-2">
         <Button onClick={handleFilterOpen}>Filters</Button>
-        <UploadModal />
-        <CreateNewWorkLink />
       </div>
 
       <AnimatePresence mode="wait">

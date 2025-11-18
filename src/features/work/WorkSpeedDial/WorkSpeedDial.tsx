@@ -52,7 +52,7 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
 
   const actions = [
     {
-      icon: <DeleteOutlineIcon onClick={handleDelete} />,
+      icon: <DeleteOutlineIcon color="primary" onClick={handleDelete} />,
       name: 'Delete',
     },
     {
@@ -73,11 +73,11 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
       ariaLabel="Work SpeedDial"
       sx={{
         position: 'fixed',
-        top: 20,
+        bottom: 60,
         right: 40,
         '& .MuiSpeedDial-fab': { color: 'secondary.main' },
       }}
-      direction="down"
+      direction="up"
       icon={<SpeedDialIcon />}
     >
       {actions.map((action) => (

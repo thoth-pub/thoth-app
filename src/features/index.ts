@@ -12,7 +12,6 @@ export { default as ChangeActivePublisher } from './publisher/ui/ChangeActivePub
 export { default as AddSeries } from './series/AddSeries/AddSeries';
 export { default as EditSeries } from './series/EditSeries/EditSeries';
 export { default as AddContributionModal } from './work/AddContributionModal/AddContributionModal';
-export { default as CreateNewWorkLink } from './work/CreateNewWorkLink/CreateNewWorkLink';
 export { default as EditBasicDetails } from './work/EditBasicDetails/EditBasicDetails';
 export { default as EditContributors } from './work/EditContributors/EditContributors';
 export { default as EditDescriptions } from './work/EditDescriptions/EditDescriptions';

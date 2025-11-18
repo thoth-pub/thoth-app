@@ -24,6 +24,7 @@ export const useAllWorks = () => {
   const [activePage, setActivePage] = useState(1);
   const [direction, setDirection] = useState<Direction>(Direction.Desc);
   const [searchValue, setSearchValue] = useState('');
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
 
@@ -73,6 +74,14 @@ export const useAllWorks = () => {
     setOrderBy(value);
   };
 
+  const openUpload = () => {
+    setIsUploadModalOpen(true);
+  };
+
+  const closeUpload = () => {
+    setIsUploadModalOpen(false);
+  };
+
   return {
     // Data
     loading,
@@ -97,5 +106,10 @@ export const useAllWorks = () => {
     changeWorkType,
     orderBy,
     changeOrderBy,
+
+    // Upload
+    isUploadModalOpen,
+    openUpload,
+    closeUpload,
   };
 };

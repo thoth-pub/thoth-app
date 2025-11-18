@@ -5,7 +5,7 @@ import PreviewIcon from '@mui/icons-material/Preview';
 import DownloadIcon from '@mui/icons-material/Download';
 import UploadIcon from '@mui/icons-material/Upload';
 
-import { Button, ModalWrapper, Modal, Typography, Stepper, Step, StepLabel, CloseButton } from '@/src/shared/ui';
+import { Modal, Typography, Stepper, Step, StepLabel, CloseButton } from '@/src/shared/ui';
 import { useState } from 'react';
 import { TemplateStep } from './TemplateStep';
 import { PreviewStep } from './PreviewStep';
@@ -26,13 +26,15 @@ const steps = [
   },
 ];
 
-export const UploadModal = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activeStep, setActiveStep] = useState(0);
+type UploadModalProps = {
+  isOpen: boolean;
+  onClose: () => void;
+};
 
-  const handleModalState = () => {
-    setIsOpen((prev) => !prev);
-  };
+export const UploadModal = (props: UploadModalProps) => {
+  const { isOpen, onClose } = props;
+
+  const [activeStep, setActiveStep] = useState(0);
 
   const handleNextStep = () => {
     const nextStepNumber = activeStep + 1;
@@ -51,32 +53,27 @@ export const UploadModal = () => {
   };
 
   return (
-    <>
-      <Button onClick={handleModalState} variant="contained" startIcon={<UploadIcon />}>
-        Upload Books
-      </Button>
-      <Modal open={isOpen} onClose={handleModalState}>
-        <div className="flex h-full items-center justify-center">
-          <div className="m-auto flex max-h-160 w-full max-w-225 flex-col gap-4 overflow-auto rounded-xl bg-[var(--color-modal-background)] p-4 lg:gap-8 lg:rounded-2xl lg:p-8">
-            <div className="flex items-center justify-between">
-              <Typography variant="h2">Upload Multiple Books</Typography>
-              <CloseButton onClose={handleModalState} />
-            </div>
-            <Stepper activeStep={activeStep} alternativeLabel>
-              {steps.map((step, index) => (
-                <Step key={step.label}>
-                  <StepLabel icon={index <= activeStep - 1 ? <DoneIcon color="primary" /> : step.icon}>
-                    {step.label}
-                  </StepLabel>
-                </Step>
-              ))}
-            </Stepper>
-            {activeStep === 0 && <TemplateStep onTemplateSelect={handleNextStep} onSkip={handleNextStep} />}
-            {activeStep === 1 && <UploadStep onPreviousStep={handlePreviousStep} onNextStep={handleNextStep} />}
-            {activeStep === 2 && <PreviewStep onPreviousStep={handlePreviousStep} />}
+    <Modal open={isOpen} onClose={onClose}>
+      <div className="flex h-full items-center justify-center">
+        <div className="m-auto flex max-h-160 w-full max-w-225 flex-col gap-4 overflow-auto rounded-xl bg-[var(--color-modal-background)] p-4 lg:gap-8 lg:rounded-2xl lg:p-8">
+          <div className="flex items-center justify-between">
+            <Typography variant="h2">Upload Multiple Books</Typography>
+            <CloseButton onClose={onClose} />
           </div>
+          <Stepper activeStep={activeStep} alternativeLabel>
+            {steps.map((step, index) => (
+              <Step key={step.label}>
+                <StepLabel icon={index <= activeStep - 1 ? <DoneIcon color="primary" /> : step.icon}>
+                  {step.label}
+                </StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+          {activeStep === 0 && <TemplateStep onTemplateSelect={handleNextStep} onSkip={handleNextStep} />}
+          {activeStep === 1 && <UploadStep onPreviousStep={handlePreviousStep} onNextStep={handleNextStep} />}
+          {activeStep === 2 && <PreviewStep onPreviousStep={handlePreviousStep} />}
         </div>
-      </Modal>
-    </>
+      </div>
+    </Modal>
   );
 };

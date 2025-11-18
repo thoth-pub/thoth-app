@@ -5,6 +5,8 @@ import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection
 import { Header } from './components/Header';
 import { WorksTable } from './components/WorksTable';
 import { useAllWorks } from './useAllWorks';
+import { WorksSpeedDial } from './components/WorksSpeedDial';
+import { UploadModal } from './components/UploadModal';
 
 const AllWorks = () => {
   const {
@@ -24,6 +26,9 @@ const AllWorks = () => {
     changeWorkType,
     orderBy,
     changeOrderBy,
+    isUploadModalOpen,
+    openUpload,
+    closeUpload,
   } = useAllWorks();
 
   return (
@@ -50,6 +55,8 @@ const AllWorks = () => {
           navigateToWork={navigateToWork}
         />
       </ContentSection>
+      <WorksSpeedDial onUpload={openUpload} />
+      <UploadModal isOpen={isUploadModalOpen} onClose={closeUpload} />
     </>
   );
 };
