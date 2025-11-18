@@ -24,3 +24,4 @@ export { default as EditChapterBasicDetails } from './chapters/EditChapterBasicD
 export { default as EditChaptersFundings } from './chapters/EditChaptersFundings/EditChaptersFundings';
 export { default as EditChaptersContributors } from './chapters/EditChaptersContributors/EditChaptersContributors';
 export { default as ChaptersModal } from './layout/FullScreenModal/FullScreenModal';
+export { default as UpdateNavigationState } from './layout/UpdateNavigationState/UpdateNavigationState';

@@ -8,6 +8,7 @@ import { auth } from '@/auth';
 import { appConfig } from '@/src/shared/config';
 
 import Providers from './providers';
+import { UpdateNavigationState } from '@/src/features';
 
 const {
   meta: { title, description },
@@ -47,6 +48,7 @@ export default async function RootLayout({
         >
           <main className="flex flex-1">{children}</main>
           <SpeedInsights />
+          <UpdateNavigationState />
         </body>
       </Providers>
     </html>

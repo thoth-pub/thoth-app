@@ -6,7 +6,7 @@ import PermIdentityRoundedIcon from '@mui/icons-material/PermIdentityRounded';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import { PAGES, ROUTES } from '@/src/shared/constants';
 import { IconButton, Paper, Typography } from '@/src/shared/ui';
@@ -14,8 +14,8 @@ import { IconButton, Paper, Typography } from '@/src/shared/ui';
 import { SignOutButton } from '../../auth';
 import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
-import { useIsDesktop } from '@/src/shared/hooks';
 import ArrowDropDownRoundedIcon from '@mui/icons-material/ArrowDropDownRounded';
+import useUIStateMachine from '@/src/shared/store/ui/hooks/useUIStateMachine';
 
 type NavigationProps = {
   linkedPublishers?: { publisherId: string; isAdmin: boolean }[];
@@ -23,14 +23,9 @@ type NavigationProps = {
 };
 
 const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationProps) => {
-  const isDesktop = useIsDesktop();
-
-  const [isExpanded, setIsExpanded] = useState(isDesktop);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  useEffect(() => {
-    setIsExpanded(isDesktop);
-  }, [isDesktop]);
+  const { isExpanded, update } = useUIStateMachine();
 
   const handleUserMenuOpen = () => {
     setIsUserMenuOpen((prev) => !prev);
@@ -69,7 +64,7 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
               />
             )}
           </Link>
-          <IconButton onClick={() => setIsExpanded(!isExpanded)} className={`${isExpanded && 'self-start'}`}>
+          <IconButton onClick={update} className={`${isExpanded && 'self-start'}`}>
             {!isExpanded ? <ArrowForwardIosRoundedIcon /> : <ArrowBackIosNewRoundedIcon />}
           </IconButton>
         </div>
