@@ -30,7 +30,7 @@ export const WorksSpeedDial = (props: WorksSpeedDialProps) => {
 
   return (
     <SpeedDial
-      ariaLabel="Work SpeedDial"
+      ariaLabel="Works SpeedDial"
       sx={{
         position: 'fixed',
         bottom: 60,

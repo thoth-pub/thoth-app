@@ -16,12 +16,17 @@ export class InstitutionService extends BaseService {
     return data?.institutionCount ?? 0;
   }
 
-  async getInstitutions(offset: number = 0, limit: number = itemsPerRequestLimit): Promise<InstitutionEntity[]> {
+  async getInstitutions(
+    offset: number = 0,
+    limit: number = itemsPerRequestLimit,
+    filter: string = '',
+  ): Promise<InstitutionEntity[]> {
     const { data } = await this.queryClient({
       query: GET_INSTITUTIONS,
       variables: {
         offset,
         limit,
+        filter,
       },
     });
 

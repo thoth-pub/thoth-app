@@ -91,13 +91,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
   };
 
   return (
-    <FullScreenModal
-      title={title}
-      capitalizeTitle={false}
-      isOpen={isMultipleChaptersSelected}
-      onClose={handleClose}
-      onDone={handleDone}
-    >
+    <FullScreenModal title={title} isOpen={isMultipleChaptersSelected} onClose={handleClose} onDone={handleDone}>
       <EditChapterBasicDetails
         workId=""
         queryToken={queryToken}

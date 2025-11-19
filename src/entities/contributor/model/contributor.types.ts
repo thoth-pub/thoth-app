@@ -8,9 +8,15 @@ export type ContributorDto = Pick<
   'contributorId' | 'fullName' | 'orcid' | 'updatedAt' | 'lastName' | 'website' | 'firstName'
 >;
 
+export type ContributionId = string;
+
+export type ContributorId = string;
+
+export type ContributorName = string;
+
 export type ContributorEntity = {
-  id: string;
-  name: string;
+  id: ContributorId;
+  name: ContributorName;
   orcid: string;
   updatedAt: string;
   lastName: string;
@@ -18,9 +24,5 @@ export type ContributorEntity = {
   firstName: string;
   website: string;
 };
-
-export type ContributionId = string;
-
-export type ContributorId = string;
 
 export type ContributionType = z.infer<typeof ContributorTypes>;

@@ -1,5 +1,6 @@
 'use client';
 
+import FilterAltIcon from '@mui/icons-material/FilterAlt';
 import SearchIcon from '@mui/icons-material/Search';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
@@ -8,7 +9,7 @@ import type { SeriesField, SeriesType } from '@/gql/graphql';
 import { AddSeries } from '@/src/features';
 import type { Direction, FormFieldOption, QueryToken } from '@/src/shared';
 import { directionOptions, seriesOrderByOptions, seriesTypeOptions } from '@/src/shared/constants/formFields';
-import { Button, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';
+import { IconButton, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 type SeriesHeaderProps = {
@@ -59,13 +60,14 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
             },
           }}
           value={searchValue}
-          className="max-w-[800px]"
           placeholder="Search by name"
           fullWidth
           onChange={(e) => onSearch(e.target.value)}
         />
         <div className="flex items-center gap-2">
-          <Button onClick={handleFilterOpen}>Filters</Button>
+          <IconButton onClick={handleFilterOpen}>
+            <FilterAltIcon color="primary" />
+          </IconButton>
           <AddSeries imprintOptions={imprintOptions} queryToken={queryToken} />
         </div>
       </div>

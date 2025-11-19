@@ -1,6 +1,8 @@
 'use client';
 
 import AddIcon from '@mui/icons-material/Add';
+import SpeedDialIcon from '@mui/material/SpeedDialIcon';
+
 import { useState } from 'react';
 
 import { EditSeriesForm, useCreateSeries, useSeriesesStateMachine } from '@/src/entities/series';
@@ -14,7 +16,15 @@ import type {
   SeriesUrlFormType,
 } from '@/src/entities/series/model/series.types';
 import { appConfig, FormFieldOption, isDefaultId, type QueryToken, SeriesType } from '@/src/shared';
-import { Button, CloseButton, Modal, ModalWrapper, SubmitButton, Typography } from '@/src/shared/ui';
+import {
+  CloseButton,
+  Modal,
+  ModalWrapper,
+  SpeedDial,
+  SpeedDialActions,
+  SubmitButton,
+  Typography,
+} from '@/src/shared/ui';
 
 type AddSeriesProps = {
   imprintOptions: FormFieldOption[];
@@ -105,11 +115,30 @@ const AddSeries = ({ imprintOptions, queryToken }: AddSeriesProps) => {
     setSeries({ ...series, description: data.description ?? '' });
   };
 
+  const actions = [
+    {
+      icon: <AddIcon color="primary" onClick={editSeries} />,
+      name: 'New',
+    },
+  ];
+
   return (
     <>
-      <Button startIcon={<AddIcon />} variant="contained" onClick={editSeries}>
-        New
-      </Button>
+      <SpeedDial
+        ariaLabel="Series SpeedDial"
+        sx={{
+          position: 'fixed',
+          bottom: 60,
+          right: 40,
+          '& .MuiSpeedDial-fab': { color: 'secondary.main' },
+        }}
+        direction="up"
+        icon={<SpeedDialIcon />}
+      >
+        {actions.map((action) => (
+          <SpeedDialActions key={action.name} icon={action.icon} />
+        ))}
+      </SpeedDial>
       <Modal open={open} onClose={close}>
         <ModalWrapper>
           <div className="flex justify-between">

@@ -8,13 +8,15 @@ import { useAllWorks } from './useAllWorks';
 import { WorksSpeedDial } from './components/WorksSpeedDial';
 import { UploadModal } from './components/UploadModal';
 import type { FormFieldOption } from '@/src/shared';
+import { SeriesEntity } from '@/src/entities/series/model/series.types';
 
 type AllWorksProps = {
   imprintsOptions: FormFieldOption[];
+  serieses: SeriesEntity[];
 };
 
 const AllWorks = (props: AllWorksProps) => {
-  const { imprintsOptions } = props;
+  const { imprintsOptions, serieses } = props;
 
   const {
     loading,
@@ -63,7 +65,12 @@ const AllWorks = (props: AllWorksProps) => {
         />
       </ContentSection>
       <WorksSpeedDial onUpload={openUpload} />
-      <UploadModal imprintsOptions={imprintsOptions} isOpen={isUploadModalOpen} onClose={closeUpload} />
+      <UploadModal
+        imprintsOptions={imprintsOptions}
+        serieses={serieses}
+        isOpen={isUploadModalOpen}
+        onClose={closeUpload}
+      />
     </>
   );
 };

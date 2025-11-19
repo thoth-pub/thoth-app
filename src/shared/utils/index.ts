@@ -20,3 +20,4 @@ export * from './validations';
 export * from './work';
 export * from './fundings';
 export * from './contributions';
+export * from './files';

@@ -6,8 +6,10 @@ import AllWorks from '@/src/widgets/AllWorks/AllWorks';
 import { convertEntityToSelectFieldOptions, convertLinkedPublishers, isAdmin } from '@/src/shared/utils';
 import { ImprintService } from '@/src/entities/imprint';
 import { query } from '@/src/shared/graphqlClient';
+import { SeriesService } from '@/src/entities/series';
 
 const imprintsService = new ImprintService(query);
+const seriesService = new SeriesService(query);
 
 export default async function WorksPage() {
   const session = await auth();
@@ -22,5 +24,9 @@ export default async function WorksPage() {
   const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : linkedPublishers });
   const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
 
-  return <AllWorks imprintsOptions={imprintOptions} />;
+  const serieses = await seriesService.getAllSerieses({
+    publishersIds: isUserAdmin ? [] : linkedPublishers,
+  });
+
+  return <AllWorks imprintsOptions={imprintOptions} serieses={serieses} />;
 }

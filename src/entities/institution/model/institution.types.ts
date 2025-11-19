@@ -9,11 +9,13 @@ export type InstitutionDto = Pick<
   'institutionId' | 'institutionName' | 'institutionDoi' | 'ror' | 'countryCode' | 'updatedAt'
 >;
 
+export type InstitutionRor = string;
+
 export type InstitutionEntity = {
   id: string;
   name: string;
   doi: string;
-  ror: string;
+  ror: InstitutionRor;
   countryCode: string;
   updatedAt: string;
 };

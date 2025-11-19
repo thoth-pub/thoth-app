@@ -46,9 +46,9 @@ export const workTypeValidation = getRequiredStringValidation(WORK_TYPE.errorMes
 
 export const publicationDateValidation = optionalDateValidation;
 
-const subtitleValidation = optionalStringValidation;
+export const subtitleValidation = optionalStringValidation;
 
-const editionValidation = optionalPositiveIntValidation;
+export const editionValidation = optionalPositiveIntValidation;
 
 const pagesCountValidation = optionalPositiveIntValidation;
 

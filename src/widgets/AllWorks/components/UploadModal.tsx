@@ -13,6 +13,7 @@ import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenMod
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { FormFieldOption } from '@/src/shared';
+import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 
 const steps = [
   {
@@ -31,17 +32,18 @@ const steps = [
 
 type UploadModalProps = {
   imprintsOptions: FormFieldOption[];
+  serieses: SeriesEntity[];
   isOpen: boolean;
   onClose: () => void;
 };
 
 export const UploadModal = (props: UploadModalProps) => {
-  const { imprintsOptions, isOpen, onClose } = props;
+  const { imprintsOptions, serieses, isOpen, onClose } = props;
 
   const [data, setData] = useState<WorkEntity[]>([]);
 
   return (
-    <FullScreenModal title="Upload Multiple Books" isOpen={isOpen} isSubmitHidden onClose={onClose}>
+    <FullScreenModal title="Bulk Upload" isOpen={isOpen} isSubmitHidden onClose={onClose}>
       <ContentSection>
         <Stepper activeStep={0} alternativeLabel>
           {steps.map((step) => (
@@ -51,9 +53,8 @@ export const UploadModal = (props: UploadModalProps) => {
           ))}
         </Stepper>
         <TemplateStep />
+        <UploadStep imprintsOptions={imprintsOptions} serieses={serieses} />
       </ContentSection>
-
-      <UploadStep imprintsOptions={imprintsOptions} />
 
       {data.length > 0 && (
         <ContentSection>
