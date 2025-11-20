@@ -16,6 +16,7 @@ export const getDefaultContributor = (data?: Partial<ContributorEntity>): Contri
     fullName: '',
     firstName: '',
     website: '',
+    lastContributionTitle: '',
     ...data,
   };
 };

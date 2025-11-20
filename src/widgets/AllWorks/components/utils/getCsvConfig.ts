@@ -46,6 +46,15 @@ const {
   CONTRIBUTION_1_AFFILIATION_POSITION,
   CONTRIBUTION_1_AFFILIATION_INSTITUTION_NAME,
   CONTRIBUTION_1_AFFILIATION_INSTITUTION_ROR,
+  CONTRIBUTION_2_FIRST_NAME,
+  CONTRIBUTION_2_LAST_NAME,
+  CONTRIBUTION_2_ROLE,
+  CONTRIBUTION_2_BIOGRAPHY,
+  CONTRIBUTION_2_ORCID,
+  CONTRIBUTION_2_WEBSITE,
+  CONTRIBUTION_2_AFFILIATION_POSITION,
+  CONTRIBUTION_2_AFFILIATION_INSTITUTION_NAME,
+  CONTRIBUTION_2_AFFILIATION_INSTITUTION_ROR,
   ORIGINAL_LANGUAGE,
   TRANSLATED_FROM_LANGUAGE,
   TRANSLATED_INTO_LANGUAGE,
@@ -232,7 +241,13 @@ export const getCsvConfig = (
         name: 'contribution_1_role',
         inputName: CONTRIBUTION_1_ROLE,
         required: false,
-        validate: (field: CSVFieldType) => ContributorTypes.safeParse(`${field}`).success,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return ContributorTypes.safeParse(data).success;
+        },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
           return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
         },
@@ -253,6 +268,41 @@ export const getCsvConfig = (
       {
         name: 'contribution_1_affiliation_institution_ror',
         inputName: CONTRIBUTION_1_AFFILIATION_INSTITUTION_ROR,
+        required: false,
+      },
+      { name: 'contribution_2_first_name', inputName: CONTRIBUTION_2_FIRST_NAME, required: false },
+      { name: 'contribution_2_surname', inputName: CONTRIBUTION_2_LAST_NAME, required: false },
+      {
+        name: 'contribution_2_role',
+        inputName: CONTRIBUTION_2_ROLE,
+        required: false,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return ContributorTypes.safeParse(data).success;
+        },
+        validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
+          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+        },
+      },
+      { name: 'contribution_2_biography', inputName: CONTRIBUTION_2_BIOGRAPHY, required: false },
+      { name: 'contribution_2_orcid', inputName: CONTRIBUTION_2_ORCID, required: false },
+      { name: 'contribution_2_website', inputName: CONTRIBUTION_2_WEBSITE, required: false },
+      {
+        name: 'contribution_2_affiliation_position',
+        inputName: CONTRIBUTION_2_AFFILIATION_POSITION,
+        required: false,
+      },
+      {
+        name: 'contribution_2_affiliation_institution_name',
+        inputName: CONTRIBUTION_2_AFFILIATION_INSTITUTION_NAME,
+        required: false,
+      },
+      {
+        name: 'contribution_2_affiliation_institution_ror',
+        inputName: CONTRIBUTION_2_AFFILIATION_INSTITUTION_ROR,
         required: false,
       },
       {

@@ -6,7 +6,9 @@ import { ContributorTypes } from '@/src/shared/constants';
 export type ContributorDto = Pick<
   Contributor,
   'contributorId' | 'fullName' | 'orcid' | 'updatedAt' | 'lastName' | 'website' | 'firstName'
->;
+> & {
+  contributions: { work: { title: string } }[];
+};
 
 export type ContributionId = string;
 
@@ -23,6 +25,7 @@ export type ContributorEntity = {
   fullName: string;
   firstName: string;
   website: string;
+  lastContributionTitle: string;
 };
 
 export type ContributionType = z.infer<typeof ContributorTypes>;

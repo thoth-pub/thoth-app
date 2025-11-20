@@ -26,6 +26,7 @@ export { default as ModalWrapper } from './core/ModalWrapper/ModalWrapper';
 export { default as Pagination } from './core/Pagination/Pagination';
 export { default as Paper } from './core/Paper/Paper';
 export { default as Preview } from './core/Preview/Preview';
+export { default as Radio, type RadioProps } from './core/Radio/Radio';
 export { default as Skeleton } from './core/Skeleton/Skeleton';
 export { default as SpeedDialActions } from './core/SpeedDial/components/SpeedDialActions';
 export { default as SpeedDial } from './core/SpeedDial/SpeedDial';
