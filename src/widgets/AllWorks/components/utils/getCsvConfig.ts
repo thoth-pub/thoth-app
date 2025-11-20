@@ -10,6 +10,9 @@ import { CSV_KEYS } from '@/src/shared/constants/csvKeys';
 import { CSVFieldType } from '../CSVParse';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { editionValidation, subtitleValidation, titleValidation } from '@/src/entities/work/model/work.validation';
+import { currencyOptions, languageOptions } from '@/src/shared/constants/formFields';
+import { LocationPlatform } from '@/gql/graphql';
+import z from 'zod';
 
 const {
   PUBLISHER,
@@ -43,6 +46,24 @@ const {
   CONTRIBUTION_1_AFFILIATION_POSITION,
   CONTRIBUTION_1_AFFILIATION_INSTITUTION_NAME,
   CONTRIBUTION_1_AFFILIATION_INSTITUTION_ROR,
+  ORIGINAL_LANGUAGE,
+  TRANSLATED_FROM_LANGUAGE,
+  TRANSLATED_INTO_LANGUAGE,
+  THEMA_SUBJECTS,
+  BIC_SUBJECTS,
+  BISAC_SUBJECTS,
+  LCC_SUBJECTS,
+  KEYWORDS,
+  PUBLICATION_PAPERBACK_ISBN,
+  PUBLICATION_PAPERBACK_PRICE_1_CURRENCY_CODE,
+  PUBLICATION_PAPERBACK_PRICE_1_UNIT_PRICE,
+  PUBLICATION_HARDBACK_ISBN,
+  PUBLICATION_HARDBACK_PRICE_1_CURRENCY_CODE,
+  PUBLICATION_HARDBACK_PRICE_1_UNIT_PRICE,
+  PUBLICATION_PDF_ISBN,
+  PUBLICATION_PDF_LOCATION_LANDING_PAGE,
+  PUBLICATION_PDF_LOCATION_FULL_TEXT_URL,
+  PUBLICATION_PDF_LOCATION_PLATFORM,
   SERIES_NAME,
   SERIES_ISSN,
   SERIES_ISSN_NUMBER,
@@ -234,39 +255,121 @@ export const getCsvConfig = (
         inputName: CONTRIBUTION_1_AFFILIATION_INSTITUTION_ROR,
         required: false,
       },
-      // { name: 'original_language', inputName: 'originalLanguage', required: false },
-      // { name: 'translated_from_language', inputName: 'translatedFromLanguage', required: false },
-      // { name: 'translated_into_language', inputName: 'translatedIntoLanguage', required: false },
-      // { name: 'thema_subjects', inputName: 'themaSubjects', required: false },
-      // { name: 'bic_subjects', inputName: 'bicSubjects', required: false },
-      // { name: 'bisac_subjects', inputName: 'bisacSubjects', required: false },
-      // { name: 'keywords', inputName: 'keywords', required: false },
-      // { name: 'publication_paperback_isbn', inputName: 'publicationPaperbackIsbn', required: false },
-      // {
-      //   name: 'publication_paperback_price_1_currency_code',
-      //   inputName: 'publicationPaperbackPrice1CurrencyCode',
-      //   required: false,
-      // },
-      // {
-      //   name: 'publication_paperback_price_1_unit_price',
-      //   inputName: 'publicationPaperbackPrice1UnitPrice',
-      //   required: false,
-      // },
-      // { name: 'publication_hardback_isbn', inputName: 'publicationHardbackIsbn', required: false },
-      // {
-      //   name: 'publication_hardback_price_1_currency_code',
-      //   inputName: 'publicationHardbackPrice1CurrencyCode',
-      //   required: false,
-      // },
-      // {
-      //   name: 'publication_hardback_price_1_unit_price',
-      //   inputName: 'publicationHardbackPrice1UnitPrice',
-      //   required: false,
-      // },
-      // { name: 'publication_pdf_isbn', inputName: 'publicationPdfIsbn', required: false },
-      // { name: 'publication_pdf_location_landing_page', inputName: 'publicationPdfLocationLandingPage', required: false },
-      // { name: 'publication_pdf_location_full_text_url', inputName: 'publicationPdfLocationFullTextUrl', required: false },
-      // { name: 'publication_pdf_location_platform', inputName: 'publicationPdfLocationPlatform', required: false },
+      {
+        name: 'original_language',
+        inputName: ORIGINAL_LANGUAGE,
+        required: false,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return languageOptions.some((option) => option.value === data);
+        },
+        validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
+          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, original language should be one of the following: ${languageOptions.map((option) => option.value).join(', ')}`;
+        },
+      },
+      {
+        name: 'translated_from_language',
+        inputName: TRANSLATED_FROM_LANGUAGE,
+        required: false,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return languageOptions.some((option) => option.value === data);
+        },
+        validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
+          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, translated from language should be one of the following: ${languageOptions.map((option) => option.value).join(', ')}`;
+        },
+      },
+      {
+        name: 'translated_into_language',
+        inputName: TRANSLATED_INTO_LANGUAGE,
+        required: false,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return languageOptions.some((option) => option.value === data);
+        },
+        validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
+          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, translated into language should be one of the following: ${languageOptions.map((option) => option.value).join(', ')}`;
+        },
+      },
+      { name: 'thema_subjects', inputName: THEMA_SUBJECTS, required: false },
+      { name: 'bic_subjects', inputName: BIC_SUBJECTS, required: false },
+      { name: 'bisac_subjects', inputName: BISAC_SUBJECTS, required: false },
+      { name: 'lcc_subjects', inputName: LCC_SUBJECTS, required: false },
+      { name: 'keywords', inputName: KEYWORDS, required: false },
+      { name: 'publication_paperback_isbn', inputName: PUBLICATION_PAPERBACK_ISBN, required: false },
+      {
+        name: 'publication_paperback_price_1_currency_code',
+        inputName: PUBLICATION_PAPERBACK_PRICE_1_CURRENCY_CODE,
+        required: false,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return currencyOptions.some((option) => option.value === data);
+        },
+        validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
+          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, publication paperback price 1 currency code should be one of the following: ${currencyOptions.map((option) => option.value).join(', ')}`;
+        },
+      },
+      {
+        name: 'publication_paperback_price_1_unit_price',
+        inputName: PUBLICATION_PAPERBACK_PRICE_1_UNIT_PRICE,
+        required: false,
+      },
+      { name: 'publication_hardback_isbn', inputName: PUBLICATION_HARDBACK_ISBN, required: false },
+      {
+        name: 'publication_hardback_price_1_currency_code',
+        inputName: PUBLICATION_HARDBACK_PRICE_1_CURRENCY_CODE,
+        required: false,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return currencyOptions.some((option) => option.value === data);
+        },
+        validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
+          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, publication hardback price 1 currency code should be one of the following: ${currencyOptions.map((option) => option.value).join(', ')}`;
+        },
+      },
+      {
+        name: 'publication_hardback_price_1_unit_price',
+        inputName: PUBLICATION_HARDBACK_PRICE_1_UNIT_PRICE,
+        required: false,
+      },
+      { name: 'publication_pdf_isbn', inputName: PUBLICATION_PDF_ISBN, required: false },
+      {
+        name: 'publication_pdf_location_landing_page',
+        inputName: PUBLICATION_PDF_LOCATION_LANDING_PAGE,
+        required: false,
+      },
+      {
+        name: 'publication_pdf_location_full_text_url',
+        inputName: PUBLICATION_PDF_LOCATION_FULL_TEXT_URL,
+        required: false,
+      },
+      {
+        name: 'publication_pdf_location_platform',
+        inputName: PUBLICATION_PDF_LOCATION_PLATFORM,
+        required: false,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return z.enum(LocationPlatform).safeParse(data).success;
+        },
+      },
       {
         name: 'series_name',
         inputName: SERIES_NAME,

@@ -13,7 +13,7 @@ export * from './helpers/isUrl';
 export * from './helpers/isValidUUID';
 export * from './helpers/protocolPrefix';
 export * from './helpers/truncateString';
-export * from './publications/isDimensionsAvailable';
+export * from './publications';
 export * from './publishers';
 export * from './styles';
 export * from './validations';

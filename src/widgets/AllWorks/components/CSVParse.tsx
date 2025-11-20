@@ -5,10 +5,19 @@ import { v4 as uuidv4 } from 'uuid';
 import CSVFileValidator from 'csv-file-validator';
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
-import { convertOrchidIdToText, isCsv } from '@/src/shared/utils';
+import { convertOrchidIdToText, getDefaultPublication, isCsv } from '@/src/shared/utils';
 import { useApolloClient } from '@apollo/client/react';
 import { licenseOptions } from '@/src/shared/constants/formFields';
-import { appConfig, CSV_KEYS, FormFieldOption, getDefaultContribution, getDefaultWork } from '@/src/shared';
+import {
+  appConfig,
+  CSV_KEYS,
+  FormFieldOption,
+  getDefaultContribution,
+  getDefaultWork,
+  LanguageRelation,
+  PublicationType,
+  SubjectTypes,
+} from '@/src/shared';
 import { InstitutionEntity, InstitutionRor } from '@/src/entities/institution/model/institution.types';
 import { ContributionType, ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
@@ -18,6 +27,8 @@ import { getDefaultAffiliation } from '@/src/shared/constants/affiliations';
 import { Button, Typography } from '@mui/material';
 import { Checkbox, LinkTooltip, OrchidLogo } from '@/src/shared/ui';
 import { getCsvConfig } from './utils/getCsvConfig';
+import { CurrencyCode, LanguageCode } from '@/gql/graphql';
+import { LocationEntity, LocationPlatform } from '@/src/entities/locations/model/location.types';
 
 type CSVParseProps = {
   file: File;
@@ -28,6 +39,8 @@ type CSVParseProps = {
 };
 
 export type CSVFieldType = string | number | boolean;
+
+const { defaultId } = appConfig;
 
 const {
   PUBLISHER,
@@ -61,6 +74,24 @@ const {
   CONTRIBUTION_1_AFFILIATION_POSITION,
   CONTRIBUTION_1_AFFILIATION_INSTITUTION_NAME,
   CONTRIBUTION_1_AFFILIATION_INSTITUTION_ROR,
+  ORIGINAL_LANGUAGE,
+  TRANSLATED_FROM_LANGUAGE,
+  TRANSLATED_INTO_LANGUAGE,
+  THEMA_SUBJECTS,
+  BIC_SUBJECTS,
+  BISAC_SUBJECTS,
+  LCC_SUBJECTS,
+  KEYWORDS,
+  PUBLICATION_PAPERBACK_ISBN,
+  PUBLICATION_PAPERBACK_PRICE_1_CURRENCY_CODE,
+  PUBLICATION_PAPERBACK_PRICE_1_UNIT_PRICE,
+  PUBLICATION_HARDBACK_ISBN,
+  PUBLICATION_HARDBACK_PRICE_1_CURRENCY_CODE,
+  PUBLICATION_HARDBACK_PRICE_1_UNIT_PRICE,
+  PUBLICATION_PDF_ISBN,
+  PUBLICATION_PDF_LOCATION_LANDING_PAGE,
+  PUBLICATION_PDF_LOCATION_FULL_TEXT_URL,
+  PUBLICATION_PDF_LOCATION_PLATFORM,
   SERIES_NAME,
   SERIES_ISSN,
   SERIES_ISSN_NUMBER,
@@ -98,6 +129,24 @@ type Row = {
   [CONTRIBUTION_1_AFFILIATION_POSITION]: CSVFieldType;
   [CONTRIBUTION_1_AFFILIATION_INSTITUTION_NAME]: CSVFieldType;
   [CONTRIBUTION_1_AFFILIATION_INSTITUTION_ROR]: CSVFieldType;
+  [ORIGINAL_LANGUAGE]: CSVFieldType;
+  [TRANSLATED_FROM_LANGUAGE]: CSVFieldType;
+  [TRANSLATED_INTO_LANGUAGE]: CSVFieldType;
+  [THEMA_SUBJECTS]: CSVFieldType;
+  [BIC_SUBJECTS]: CSVFieldType;
+  [BISAC_SUBJECTS]: CSVFieldType;
+  [LCC_SUBJECTS]: CSVFieldType;
+  [KEYWORDS]: CSVFieldType;
+  [PUBLICATION_PAPERBACK_ISBN]: CSVFieldType;
+  [PUBLICATION_PAPERBACK_PRICE_1_CURRENCY_CODE]: CSVFieldType;
+  [PUBLICATION_PAPERBACK_PRICE_1_UNIT_PRICE]: CSVFieldType;
+  [PUBLICATION_HARDBACK_ISBN]: CSVFieldType;
+  [PUBLICATION_HARDBACK_PRICE_1_CURRENCY_CODE]: CSVFieldType;
+  [PUBLICATION_HARDBACK_PRICE_1_UNIT_PRICE]: CSVFieldType;
+  [PUBLICATION_PDF_ISBN]: CSVFieldType;
+  [PUBLICATION_PDF_LOCATION_LANDING_PAGE]: CSVFieldType;
+  [PUBLICATION_PDF_LOCATION_FULL_TEXT_URL]: CSVFieldType;
+  [PUBLICATION_PDF_LOCATION_PLATFORM]: CSVFieldType;
   [SERIES_NAME]: CSVFieldType;
   [SERIES_ISSN]: CSVFieldType;
   [SERIES_ISSN_NUMBER]: CSVFieldType;
@@ -109,6 +158,7 @@ export const CSVParse = (props: CSVParseProps) => {
   const { file, imprints, serieses, onValidationFailure } = props;
 
   const [works, setWorks] = useState<WorkEntity[]>([]);
+  const [seriesForUpdate, setSeriesForUpdate] = useState<Record<string, WorkEntity[]>>({});
   const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<MultipleFoundedContributors>({});
   const [selectedContributors, setSelectedContributors] = useState<string[]>([]);
 
@@ -171,6 +221,25 @@ export const CSVParse = (props: CSVParseProps) => {
           contribution1Website,
           contribution1AffiliationPosition,
           contribution1Biography,
+          originalLanguage,
+          themaSubjects,
+          bicSubjects,
+          bisacSubjects,
+          lccSubjects,
+          keywords,
+          translatedFromLanguage,
+          translatedIntoLanguage,
+          publicationPaperbackIsbn,
+          publicationPaperbackPrice1CurrencyCode,
+          publicationPaperbackPrice1UnitPrice,
+          publicationHardbackIsbn,
+          publicationHardbackPrice1CurrencyCode,
+          publicationHardbackPrice1UnitPrice,
+          publicationPdfIsbn,
+          publicationPdfLocationLandingPage,
+          publicationPdfLocationFullTextUrl,
+          publicationPdfLocationPlatform,
+          seriesName,
         } = row;
 
         const imprint = imprints.find((imprint) => imprint.label === publisher);
@@ -196,6 +265,10 @@ export const CSVParse = (props: CSVParseProps) => {
           tableCount: tableCount ? parseInt(tableCount as string) : 0,
           audioCount: audioCount ? parseInt(audioCount as string) : 0,
           videoCount: videoCount ? parseInt(videoCount as string) : 0,
+          pageCount: pageCount ? parseInt(pageCount as string) : 0,
+          languages: [],
+          subjects: [],
+          publications: [],
           contributions: [],
         });
 
@@ -211,6 +284,7 @@ export const CSVParse = (props: CSVParseProps) => {
           institutionService.getInstitutions(0, appConfig.data.maxItemsPerRequestLimit, `${ror}`),
         );
 
+        // Instititutions
         const institutions = await Promise.all(institutionsPromises);
 
         institutions.forEach((institution) => {
@@ -219,6 +293,177 @@ export const CSVParse = (props: CSVParseProps) => {
           fetchedInstitutions[institution[0].ror] = institution[0];
         });
 
+        // Languages
+        if (originalLanguage && `${originalLanguage}`.length > 0) {
+          work.languages.push({
+            code: originalLanguage as LanguageCode,
+            relation: LanguageRelation.enum.Original,
+            isMain: true,
+            id: defaultId,
+          });
+        }
+
+        if (translatedFromLanguage && `${translatedFromLanguage}`.length > 0) {
+          work.languages.push({
+            code: translatedFromLanguage as LanguageCode,
+            relation: LanguageRelation.enum.TranslatedFrom,
+            isMain: false,
+            id: defaultId,
+          });
+        }
+
+        if (translatedIntoLanguage && `${translatedIntoLanguage}`.length > 0) {
+          work.languages.push({
+            code: translatedIntoLanguage as LanguageCode,
+            relation: LanguageRelation.enum.TranslatedInto,
+            isMain: false,
+            id: defaultId,
+          });
+        }
+
+        // Subjects
+        if (themaSubjects && `${themaSubjects}`.length > 0) {
+          const startIndex = work.subjects.length;
+          const subjects = `${themaSubjects}`.split(',').map((subject) => subject.trim());
+
+          subjects.forEach((subject, index) => {
+            work.subjects.push({
+              id: defaultId,
+              code: subject,
+              type: SubjectTypes.enum.Thema,
+              ordinal: startIndex + index + 1,
+            });
+          });
+        }
+
+        if (bicSubjects && `${bicSubjects}`.length > 0) {
+          const subjects = `${bicSubjects}`.split(',').map((subject) => subject.trim());
+
+          subjects.forEach((subject, index) => {
+            work.subjects.push({
+              id: defaultId,
+              code: subject,
+              type: SubjectTypes.enum.Bic,
+              ordinal: work.subjects.length + index + 1,
+            });
+          });
+        }
+
+        if (bisacSubjects && `${bisacSubjects}`.length > 0) {
+          const subjects = `${bisacSubjects}`.split(',').map((subject) => subject.trim());
+
+          subjects.forEach((subject, index) => {
+            work.subjects.push({
+              id: defaultId,
+              code: subject,
+              type: SubjectTypes.enum.Bisac,
+              ordinal: work.subjects.length + index + 1,
+            });
+          });
+        }
+
+        if (lccSubjects && `${lccSubjects}`.length > 0) {
+          const subjects = `${lccSubjects}`.split(',').map((subject) => subject.trim());
+
+          subjects.forEach((subject, index) => {
+            work.subjects.push({
+              id: defaultId,
+              code: subject,
+              type: SubjectTypes.enum.Lcc,
+              ordinal: work.subjects.length + index + 1,
+            });
+          });
+        }
+
+        if (keywords && `${keywords}`.length > 0) {
+          const subjects = `${keywords}`.split(',').map((subject) => subject.trim());
+
+          subjects.forEach((subject, index) => {
+            work.subjects.push({
+              id: defaultId,
+              code: subject,
+              type: SubjectTypes.enum.Keyword,
+              ordinal: work.subjects.length + index + 1,
+            });
+          });
+        }
+
+        // Publications
+        if (publicationPaperbackIsbn && `${publicationPaperbackIsbn}`.length > 0) {
+          const publication = getDefaultPublication({
+            isbn: `${publicationPaperbackIsbn}`,
+            type: PublicationType.enum.Paperback,
+          });
+
+          if (
+            publicationPaperbackPrice1CurrencyCode &&
+            `${publicationPaperbackPrice1CurrencyCode}`.length > 0 &&
+            publicationPaperbackPrice1UnitPrice &&
+            `${publicationPaperbackPrice1UnitPrice}`.length > 0
+          ) {
+            publication.prices.push({
+              id: defaultId,
+              currencyCode: publicationPaperbackPrice1CurrencyCode as CurrencyCode,
+              unitPrice: publicationPaperbackPrice1UnitPrice
+                ? parseFloat(publicationPaperbackPrice1UnitPrice as string)
+                : 0,
+            });
+          }
+
+          work.publications.push(publication);
+        }
+
+        if (publicationHardbackIsbn && `${publicationHardbackIsbn}`.length > 0) {
+          const publication = getDefaultPublication({
+            isbn: `${publicationHardbackIsbn}`,
+            type: PublicationType.enum.Hardback,
+          });
+
+          if (
+            publicationHardbackPrice1CurrencyCode &&
+            `${publicationHardbackPrice1CurrencyCode}`.length > 0 &&
+            publicationHardbackPrice1UnitPrice &&
+            `${publicationHardbackPrice1UnitPrice}`.length > 0
+          ) {
+            publication.prices.push({
+              id: defaultId,
+              currencyCode: publicationHardbackPrice1CurrencyCode as CurrencyCode,
+              unitPrice: publicationHardbackPrice1UnitPrice
+                ? parseFloat(publicationHardbackPrice1UnitPrice as string)
+                : 0,
+            });
+          }
+
+          work.publications.push(publication);
+        }
+
+        if (publicationPdfIsbn && `${publicationPdfIsbn}`.length > 0) {
+          const locations: LocationEntity[] = [];
+
+          if (
+            (publicationPdfLocationLandingPage && `${publicationPdfLocationLandingPage}`.length > 0) ||
+            (publicationPdfLocationFullTextUrl && `${publicationPdfLocationFullTextUrl}`.length > 0) ||
+            (publicationPdfLocationPlatform && `${publicationPdfLocationPlatform}`.length > 0)
+          ) {
+            locations.push({
+              canonical: true,
+              id: defaultId,
+              landingPage: `${publicationPdfLocationLandingPage}`,
+              fullTextUrl: `${publicationPdfLocationFullTextUrl}`,
+              locationPlatform: `${publicationPdfLocationPlatform}` as LocationPlatform,
+            });
+          }
+
+          const publication = getDefaultPublication({
+            isbn: `${publicationPdfIsbn}`,
+            type: PublicationType.enum.Pdf,
+            locations,
+          });
+
+          work.publications.push(publication);
+        }
+
+        // Contributors
         const contributors1SearchName = `${contribution1FirstName ?? ''} ${contribution1LastName ?? ''}`.trim();
 
         const contributorsTypes = [contribution1Role];
@@ -325,18 +570,18 @@ export const CSVParse = (props: CSVParseProps) => {
           }));
         });
 
-        // TODO add logic for serieses
-        // const seriesNames = csvParseResult.data.map((row) => row.seriesName).filter((value) => value && value.length > 0);
-
-        // const seriesesEntities: Record<string, SeriesEntity> = {};
-
-        // serieses.forEach((series) => {
-        //   if (!seriesNames.includes(series.name)) return;
-
-        //   seriesesEntities[series.name] = series;
-        // });
-
         setWorks((prev) => [...prev, work]);
+
+        const existingSeries = serieses.find((series) => series.name === seriesName);
+
+        if (!existingSeries) return;
+
+        const existingData = seriesForUpdate[existingSeries.id] ?? [];
+
+        setSeriesForUpdate((prev) => ({
+          ...prev,
+          [existingSeries.id]: [...existingData, work],
+        }));
       });
     } catch (error) {
       console.error(error);
@@ -363,8 +608,6 @@ export const CSVParse = (props: CSVParseProps) => {
 
     setSelectedContributors((prev) => [...prev, `${workId}-${contributorId}`]);
   };
-
-  console.log(works);
 
   if (!isMultipleFoundedContributors) {
     return null;
