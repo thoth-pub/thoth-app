@@ -47,6 +47,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       pageCount,
       pageBreakdown,
       reference,
+      lastPage,
+      firstPage,
       contributions = [],
       languages = [],
       fundings = [],
@@ -88,6 +90,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       pageCount: pageCount ?? 0,
       frontmatterCount: frontmatterValue,
       backmatterCount: backmatterValue,
+      firstPage: firstPage ?? '',
+      lastPage: lastPage ?? '',
       fundings: fundings.map(fundingMapper.toEntity),
       references: references.map(referenceMapper.toEntity),
       subjects: subjects.map(subjectMapper.toEntity),
@@ -222,6 +226,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       pageCount,
       frontmatterCount,
       backmatterCount,
+      firstPage,
+      lastPage,
     } = entity;
     const defaultEdition = edition ?? 1;
 
@@ -254,6 +260,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       audioCount: +audioCount > 0 ? +audioCount : null,
       videoCount: +videoCount > 0 ? +videoCount : null,
       pageCount: +pageCount > 0 ? +pageCount : null,
+      firstPage: firstPage && firstPage.length > 0 ? firstPage : null,
+      lastPage: lastPage && lastPage.length > 0 ? lastPage : null,
       pageBreakdown: pageBreakdownValue.length > 0 ? pageBreakdownValue : null,
     };
   }

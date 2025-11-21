@@ -17,20 +17,27 @@ import {
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-const { WORK_PAGES_COUNT, WORK_FRONTMATTER_COUNT, WORK_BACKMATTER_COUNT } = FORM_FIELDS;
+const { WORK_PAGES_COUNT, WORK_FRONTMATTER_COUNT, WORK_BACKMATTER_COUNT, WORK_FIRST_PAGE, WORK_LAST_PAGE } =
+  FORM_FIELDS;
 
 const {
   WORK_PAGES_COUNT: WORK_PAGES_COUNT_HELPER_TEXT,
   WORK_FRONTMATTER_COUNT: WORK_FRONTMATTER_COUNT_HELPER_TEXT,
   WORK_BACKMATTER_COUNT: WORK_BACKMATTER_COUNT_HELPER_TEXT,
+  WORK_FIRST_PAGE: WORK_FIRST_PAGE_HELPER_TEXT,
+  WORK_LAST_PAGE: WORK_LAST_PAGE_HELPER_TEXT,
 } = HELPER_TEXT;
 
-export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
-  const { workId, queryToken, recommended = false } = props;
+type EditPagesCountProps = BaseRecommendedSectionProps & {
+  isChapter?: boolean;
+};
+
+export const EditPagesCount = (props: EditPagesCountProps) => {
+  const { workId, queryToken, recommended = false, isChapter = false } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
 
-  const { pageCount, frontmatterCount, backmatterCount } = work;
+  const { pageCount, frontmatterCount, backmatterCount, firstPage, lastPage } = work;
 
   const showPagesCountIndicator = recommended && pageCount === 0;
   const backmatterValue = convertArabicToRoman(backmatterCount);
@@ -56,12 +63,14 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
 
   const placeholder = pageCount ? `${pageCount} ${pageCount > 1 ? 'pages' : 'page'} (${pageBreakdownValue})` : '';
 
-  const handleSubmit = ({ pageCount, frontmatterCount, backmatterCount }: PagesCountForm) => {
+  const handleSubmit = ({ pageCount, frontmatterCount, backmatterCount, firstPage, lastPage }: PagesCountForm) => {
     updateWork({
       ...work,
       pageCount: pageCount ?? 0,
       frontmatterCount: frontmatterCount ?? 0,
       backmatterCount: backmatterCount ?? 0,
+      firstPage: firstPage ? `${firstPage}` : '',
+      lastPage: lastPage ? `${lastPage}` : '',
     });
   };
 
@@ -72,6 +81,8 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
         [WORK_PAGES_COUNT.name]: pageCount,
         [WORK_FRONTMATTER_COUNT.name]: frontmatterCount,
         [WORK_BACKMATTER_COUNT.name]: backmatterCount,
+        [WORK_FIRST_PAGE.name]: firstPage ? +firstPage : 0,
+        [WORK_LAST_PAGE.name]: lastPage ? +lastPage : 0,
       }}
       validationSchema={pagesCountValidationSchema}
       onSubmit={handleSubmit}
@@ -93,30 +104,62 @@ export const EditPagesCount = (props: BaseRecommendedSectionProps) => {
               min={0}
             />
           </ContentWrapper>
-          <ContentWrapper>
-            <FormFieldLabel label={WORK_FRONTMATTER_COUNT.label} id={WORK_FRONTMATTER_COUNT.name} />
-            <FormTextField
-              control={control}
-              name={WORK_FRONTMATTER_COUNT.name}
-              helperText={WORK_FRONTMATTER_COUNT_HELPER_TEXT}
-              id={WORK_FRONTMATTER_COUNT.name}
-              isHelperTextVisible={isHelperTextVisible}
-              type={WORK_FRONTMATTER_COUNT.type}
-              min={0}
-            />
-          </ContentWrapper>
-          <ContentWrapper>
-            <FormFieldLabel label={WORK_BACKMATTER_COUNT.label} id={WORK_BACKMATTER_COUNT.name} />
-            <FormTextField
-              control={control}
-              name={WORK_BACKMATTER_COUNT.name}
-              helperText={WORK_BACKMATTER_COUNT_HELPER_TEXT}
-              id={WORK_BACKMATTER_COUNT.name}
-              isHelperTextVisible={isHelperTextVisible}
-              type={WORK_BACKMATTER_COUNT.type}
-              min={0}
-            />
-          </ContentWrapper>
+          {isChapter && (
+            <>
+              <ContentWrapper>
+                <FormFieldLabel label={WORK_FIRST_PAGE.label} id={WORK_FIRST_PAGE.name} />
+                <FormTextField
+                  control={control}
+                  name={WORK_FIRST_PAGE.name}
+                  helperText={WORK_FIRST_PAGE_HELPER_TEXT}
+                  id={WORK_FIRST_PAGE.name}
+                  isHelperTextVisible={isHelperTextVisible}
+                  type={WORK_FIRST_PAGE.type}
+                  min={0}
+                />
+              </ContentWrapper>
+              <ContentWrapper>
+                <FormFieldLabel label={WORK_LAST_PAGE.label} id={WORK_LAST_PAGE.name} />
+                <FormTextField
+                  control={control}
+                  name={WORK_LAST_PAGE.name}
+                  helperText={WORK_LAST_PAGE_HELPER_TEXT}
+                  id={WORK_LAST_PAGE.name}
+                  isHelperTextVisible={isHelperTextVisible}
+                  type={WORK_LAST_PAGE.type}
+                  min={0}
+                />
+              </ContentWrapper>
+            </>
+          )}
+          {!isChapter && (
+            <>
+              <ContentWrapper>
+                <FormFieldLabel label={WORK_FRONTMATTER_COUNT.label} id={WORK_FRONTMATTER_COUNT.name} />
+                <FormTextField
+                  control={control}
+                  name={WORK_FRONTMATTER_COUNT.name}
+                  helperText={WORK_FRONTMATTER_COUNT_HELPER_TEXT}
+                  id={WORK_FRONTMATTER_COUNT.name}
+                  isHelperTextVisible={isHelperTextVisible}
+                  type={WORK_FRONTMATTER_COUNT.type}
+                  min={0}
+                />
+              </ContentWrapper>
+              <ContentWrapper>
+                <FormFieldLabel label={WORK_BACKMATTER_COUNT.label} id={WORK_BACKMATTER_COUNT.name} />
+                <FormTextField
+                  control={control}
+                  name={WORK_BACKMATTER_COUNT.name}
+                  helperText={WORK_BACKMATTER_COUNT_HELPER_TEXT}
+                  id={WORK_BACKMATTER_COUNT.name}
+                  isHelperTextVisible={isHelperTextVisible}
+                  type={WORK_BACKMATTER_COUNT.type}
+                  min={0}
+                />
+              </ContentWrapper>
+            </>
+          )}
         </MultipleContentWrapper>
       )}
       preview={({ onEdit }) => (

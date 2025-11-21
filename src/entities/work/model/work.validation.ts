@@ -38,6 +38,8 @@ const {
   WORK_PAGES_COUNT,
   WORK_FRONTMATTER_COUNT,
   WORK_BACKMATTER_COUNT,
+  WORK_FIRST_PAGE,
+  WORK_LAST_PAGE,
 } = FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
@@ -71,6 +73,10 @@ const landingPageValidation = optionalUrlValidation;
 const frontMatterCountValidation = optionalPositiveIntValidation;
 
 const backMatterCountValidation = optionalPositiveIntValidation;
+
+const firstPageValidation = optionalPositiveIntValidation;
+
+const lastPageValidation = optionalPositiveIntValidation;
 
 const coverUrlValidation = optionalUrlValidation;
 
@@ -124,6 +130,10 @@ export const imprintValidationSchema = z.object({
   [IMPRINT.name]: imprintValidation,
 });
 
+export const landingPageValidationSchema = z.object({
+  [LANDING_PAGE.name]: landingPageValidation,
+});
+
 export const licenseAndCopyrightHolderValidationSchema = z.object({
   [LICENSE.name]: licenseValidation,
   [COPYRIGHT_HOLDER.name]: copyrightHolderValidation,
@@ -146,6 +156,8 @@ export const pagesCountValidationSchema = z.object({
   [WORK_PAGES_COUNT.name]: pagesCountValidation,
   [WORK_FRONTMATTER_COUNT.name]: frontMatterCountValidation,
   [WORK_BACKMATTER_COUNT.name]: backMatterCountValidation,
+  [WORK_FIRST_PAGE.name]: firstPageValidation,
+  [WORK_LAST_PAGE.name]: lastPageValidation,
 });
 
 export const coverUrlValidationSchema = z.object({

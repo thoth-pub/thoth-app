@@ -121,20 +121,21 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   });
 
   const handleInheritedDataSubmit = (data: {
+    landingPage: boolean;
     license: boolean;
     copyrightHolder: boolean;
     contributors: boolean;
     fundings: boolean;
     subjects: boolean;
   }) => {
-    const { license, copyrightHolder, contributors, fundings, subjects } = data;
+    const { landingPage, license, copyrightHolder, contributors, fundings, subjects } = data;
 
     const defaultChapter = getDefaultChapter({
       title: 'New Chapter',
       fullTitle: 'New Chapter',
       status: work.status,
       coverUrl: work.coverUrl,
-      landingPage: work.landingPage,
+      landingPage: landingPage ? work.landingPage : '',
       imprintId: work.imprintId,
       license: license ? work.license : licenseOptions[0].value,
       copyrightHolder: copyrightHolder ? work.copyrightHolder : '',

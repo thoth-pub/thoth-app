@@ -5,7 +5,13 @@ import { v4 as uuidv4 } from 'uuid';
 import CSVFileValidator from 'csv-file-validator';
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
-import { convertOrchidIdToText, getDefaultPublication, isCsv, isDefaultId } from '@/src/shared/utils';
+import {
+  convertOrchidIdToText,
+  convertRomanToArabic,
+  getDefaultPublication,
+  isCsv,
+  isDefaultId,
+} from '@/src/shared/utils';
 import { useApolloClient } from '@apollo/client/react';
 import { licenseOptions } from '@/src/shared/constants/formFields';
 import {
@@ -286,6 +292,8 @@ export const CSVParse = (props: CSVParseProps) => {
 
         const imprint = imprints.find((imprint) => imprint.label === publisher);
 
+        const [frontmatterCount = '', totalPages = '', backmatterCount = ''] = `${pageBreakdown}`.split('+');
+
         const work: WorkEntity = getDefaultWork({
           id: workId,
           title: `${title}`,
@@ -308,6 +316,8 @@ export const CSVParse = (props: CSVParseProps) => {
           audioCount: audioCount ? parseInt(audioCount as string) : 0,
           videoCount: videoCount ? parseInt(videoCount as string) : 0,
           pageCount: pageCount ? parseInt(pageCount as string) : 0,
+          frontmatterCount: convertRomanToArabic(frontmatterCount),
+          backmatterCount: convertRomanToArabic(backmatterCount),
           languages: [],
           subjects: [],
           publications: [],
@@ -714,10 +724,14 @@ export const CSVParse = (props: CSVParseProps) => {
                   const defaultContributor = contributions.find(({ contributorId }) => isDefaultId(contributorId));
 
                   return (
-                    <TableRow key={`${workId}-${itemId}`}>
-                      <TableCell>{work.title}</TableCell>
-                      <TableCell>{defaultContributor?.fullName ?? ''}</TableCell>
-                      <TableCell>
+                    <TableRow key={`${workId}-${itemId}`} className="group">
+                      <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
+                        {work.title}
+                      </TableCell>
+                      <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                        {defaultContributor?.fullName ?? ''}
+                      </TableCell>
+                      <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
                         {contributions.map(({ fullName, orcidId, contributorId, lastContribution, selected }) => (
                           <div className="flex items-center gap-2 [&:not(:first-child)&:not(:last-child)]:my-4">
                             <Radio

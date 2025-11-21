@@ -6,6 +6,7 @@ const itemStyles = 'max-w-fit p-0';
 
 type InheritedDataFormProps = {
   onSubmit: (data: {
+    landingPage: boolean;
     license: boolean;
     copyrightHolder: boolean;
     contributors: boolean;
@@ -19,6 +20,7 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
 
   const { control, handleSubmit } = useForm({
     defaultValues: {
+      landingPage: false,
       license: false,
       copyrightHolder: false,
       contributors: false,
@@ -47,12 +49,12 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
             <Checkbox className={itemStyles} checked disabled />
           </div>
           <div className="flex items-center gap-2">
-            <FormFieldLabel label="Landing page" className="min-w-30 lg:min-w-40" />
+            <FormFieldLabel label="Imprint" className="min-w-30 lg:min-w-40" />
             <Checkbox className={itemStyles} checked disabled />
           </div>
           <div className="flex items-center gap-2">
-            <FormFieldLabel label="Imprint" className="min-w-30 lg:min-w-40" />
-            <Checkbox className={itemStyles} checked disabled />
+            <FormFieldLabel label="Landing page" className="min-w-30 lg:min-w-40" />
+            <CheckboxFormField control={control} name="landingPage" className={itemStyles} />
           </div>
           <div className="flex items-center gap-2">
             <FormFieldLabel label="License" className="min-w-30 lg:min-w-40" />

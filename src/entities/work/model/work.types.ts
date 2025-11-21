@@ -91,6 +91,8 @@ export type WorkEntity = {
   references: ReferenceEntity[];
   subjects: SubjectEntity[];
   issues: WorkIssue[];
+  firstPage: string;
+  lastPage: string;
 };
 
 export type CreateWorkForm = z.infer<typeof createWorkValidationSchema>;

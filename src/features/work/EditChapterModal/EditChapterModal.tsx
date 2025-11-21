@@ -41,7 +41,7 @@ const EditChapterModal = (props: EditChapterModalProps) => {
   return (
     <FullScreenModal title="edit chapter" isOpen={isSingleChapterSelected} onClose={close} onDone={handleDone}>
       <EditChapterBasicDetails workId={chapter.id} queryToken={queryToken} />
-      <EditDescriptions workId={chapter.id} queryToken={queryToken} />
+      <EditDescriptions workId={chapter.id} queryToken={queryToken} isSingleChapterEdit={isSingleChapterSelected} />
       <EditContributors workId={chapter.id} queryToken={queryToken} />
       <EditFundings workId={chapter.id} queryToken={queryToken} />
     </FullScreenModal>

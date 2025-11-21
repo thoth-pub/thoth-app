@@ -12,12 +12,13 @@ import { LanguagesForm } from '@/src/entities/language/model/language.types';
 
 type EditDescriptionsProps = BaseEditSectionProps &
   Partial<{
+    isSingleChapterEdit: boolean;
     isMultipleChaptersEdit: boolean;
     onLanguagesUpdate: (data: LanguagesForm) => void;
   }>;
 
 const EditDescriptions = (props: EditDescriptionsProps) => {
-  const { workId, queryToken, isMultipleChaptersEdit = false, onLanguagesUpdate } = props;
+  const { workId, queryToken, isSingleChapterEdit = false, isMultipleChaptersEdit = false, onLanguagesUpdate } = props;
 
   const { work } = useWork(workId, queryToken);
   const { isPageCountRequired, isLanguagesRequired, isSubjectsRequired } = useWorkRecommendations({ workId });
@@ -34,6 +35,7 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
               workId={workId}
               queryToken={queryToken}
               recommended={showRecommendations && isPageCountRequired}
+              isChapter={isSingleChapterEdit}
             />
           )}
           {!isMultipleChaptersEdit && <EditMedia workId={workId} queryToken={queryToken} />}

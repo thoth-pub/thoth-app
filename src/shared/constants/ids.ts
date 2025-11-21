@@ -14,6 +14,7 @@ export const IDs = {
   WORK_SUBJECTS: 'work_subjects',
   WORK_STATUS: 'work_status',
   WORK_SERIES: 'work_series',
+  WORK_LANDING_PAGE: 'work_landing_page',
   // CONTRIBUTIONS
   CONTRIBUTOR_NAMES: 'contributor_names',
   CONTRIBUTOR_TYPE: 'contributor_type',

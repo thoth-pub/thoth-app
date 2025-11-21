@@ -30,6 +30,8 @@ export const WORK_FRAGMENT = graphql(`
     tableCount
     audioCount
     videoCount
+    firstPage
+    lastPage
     contributions {
       fullName
       lastName

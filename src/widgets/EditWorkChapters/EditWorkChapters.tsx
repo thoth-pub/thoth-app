@@ -246,6 +246,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                 cells={[
                   'Title',
                   'Main Contributor',
+                  'Page Range',
                   <div className="flex items-center justify-between">
                     <Typography
                       variant="h2"

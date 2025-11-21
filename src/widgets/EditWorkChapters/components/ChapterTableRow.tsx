@@ -32,7 +32,7 @@ type TableRowProps = {
 export const ChapterTableRow = (props: TableRowProps) => {
   const { chapter, selected, isButtonsDisabled = false, onEdit, onCopy, onSelect, onDeselect, onDelete } = props;
 
-  const { id, title, pageCount, contributions } = chapter;
+  const { id, title, pageCount, contributions, firstPage, lastPage } = chapter;
 
   const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
 
@@ -66,6 +66,11 @@ export const ChapterTableRow = (props: TableRowProps) => {
       </TableCell>
       <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
         <Typography>{mainContributor?.fullName ?? ''}</Typography>
+      </TableCell>
+      <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+        <Typography>
+          {firstPage} - {lastPage}
+        </Typography>
       </TableCell>
       <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
         <div className="flex justify-between">

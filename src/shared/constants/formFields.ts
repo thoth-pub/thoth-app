@@ -260,6 +260,18 @@ export const FORM_FIELDS = {
     placeholder: 'Frontmatter Count',
     type: InputTypes.NUMBER,
   },
+  WORK_FIRST_PAGE: {
+    label: 'First Page',
+    name: 'firstPage',
+    placeholder: 'First Page',
+    type: InputTypes.NUMBER,
+  },
+  WORK_LAST_PAGE: {
+    label: 'Last Page',
+    name: 'lastPage',
+    placeholder: 'Last Page',
+    type: InputTypes.NUMBER,
+  },
   WORK_BACKMATTER_COUNT: {
     label: 'Backmatter Count',
     name: 'backmatterCount',
