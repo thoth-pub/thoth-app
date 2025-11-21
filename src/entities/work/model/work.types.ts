@@ -62,10 +62,13 @@ export type WorkEntity = {
   title: string;
   subtitle: string;
   fullTitle: string;
+  bibliographyNote: string;
   type: WorkType;
   updatedAt: string;
   contributorsNames: string[];
   doi: string;
+  lccn: string;
+  oclc: string;
   publisherName: string;
   imprintId: string;
   status: WorkStatus;

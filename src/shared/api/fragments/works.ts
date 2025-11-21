@@ -3,10 +3,13 @@ import { graphql } from '@/gql';
 export const WORK_FRAGMENT = graphql(`
   fragment WorkFragment on Work {
     doi
+    lccn
+    oclc
     workId
     title
     subtitle
     fullTitle
+    bibliographyNote
     workType
     updatedAt
     publicationDate

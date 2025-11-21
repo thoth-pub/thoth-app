@@ -5,10 +5,10 @@ import UploadIcon from '@mui/icons-material/Upload';
 import { Button, Typography } from '@/src/shared/ui';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useState } from 'react';
-import { validateXml } from '@/app/actions';
 import { FormFieldOption } from '@/src/shared';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { CSVParse } from './CSVParse';
+import { XMLParse } from './XMLParse';
 
 const { BULK_UPLOAD } = FORM_FIELDS;
 
@@ -22,25 +22,10 @@ export const UploadStep = (props: UploadStepProps) => {
 
   const [files, setFiles] = useState<FileList | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
-  const [xmlData, setXmlData] = useState<string | null>(null);
 
   const isFileUploaded = files && files.length > 0;
   const isCsv = isFileUploaded && files[0].type === 'text/csv';
   const isXml = isFileUploaded && files[0].type === 'text/xml';
-
-  const validateXMLFile = async (file: File) => {
-    const response = await validateXml(file);
-
-    if (response.status === 'error') {
-      setValidationErrors(['Invalid XML file']);
-      // setIsValid(false);
-      return;
-    }
-
-    setValidationErrors([]);
-    // setIsValid(true);
-    setXmlData(response.data ?? null);
-  };
 
   return (
     <div className="flex flex-col items-center gap-[var(--default-gap)]">
@@ -62,6 +47,14 @@ export const UploadStep = (props: UploadStepProps) => {
           onValidationFailure={setValidationErrors}
         />
       )}
+      {isXml && (
+        <XMLParse
+          file={files[0]}
+          imprints={imprintsOptions}
+          serieses={serieses}
+          onValidationFailure={setValidationErrors}
+        />
+      )}
       {validationErrors.length > 0 && (
         <ul>
           {validationErrors.map((error, index) => (
@@ -73,11 +66,6 @@ export const UploadStep = (props: UploadStepProps) => {
             </Typography>
           ))}
         </ul>
-      )}
-      {xmlData && typeof xmlData === 'string' && (
-        <Typography variant="body2" component="pre">
-          {xmlData}
-        </Typography>
       )}
     </div>
   );

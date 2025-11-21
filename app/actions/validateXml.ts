@@ -1,15 +1,26 @@
 'use server';
 
-// @ts-expect-error No declaration file found for module 'node-onix'.
-import onix from 'node-onix';
+import type { OnixData } from '@/src/widgets/AllWorks/components/utils/types';
+
+import { parse } from '@5stones/onix';
+
+export type ValidationResult =
+  | {
+      status: 'success';
+      data: OnixData;
+    }
+  | {
+      status: 'error';
+      error: string;
+    };
 
 export const validateXml = async (file: File) => {
   const xmlString = await file.text();
 
   try {
-    const result = await onix.parse(xmlString);
+    const result = await parse(xmlString);
 
-    return { status: 'success', data: JSON.stringify(result, null, 100) };
+    return { status: 'success', data: result };
   } catch (error) {
     console.error('ERROR: ', error);
     return { status: 'error' };

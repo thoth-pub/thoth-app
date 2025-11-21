@@ -3,6 +3,7 @@ import { appConfig } from '../../config';
 import { PublicationType } from '../../constants';
 
 import { PublicationType as TPublicationType } from '@/src/entities/publication/model/publication.types';
+import { OnixProductForm } from '@/src/widgets/AllWorks/components/utils/types';
 
 export const getDefaultPublication = (data?: Partial<PublicationEntity>): PublicationEntity => {
   return {
@@ -29,4 +30,25 @@ export const getDefaultPublication = (data?: Partial<PublicationEntity>): Public
 
 export const isDimensionsAvailable = (publicationType: TPublicationType) => {
   return publicationType === PublicationType.enum.Hardback || publicationType === PublicationType.enum.Paperback;
+};
+
+export const isValidPublicationForm = (publicationForm: string) => {
+  const validPublicationForms = ['AJ', 'BB', 'BC', 'ED'];
+
+  return validPublicationForms.includes(publicationForm);
+};
+
+export const getPublicationType = (publicationForm: string) => {
+  switch (publicationForm) {
+    case 'AJ':
+      return PublicationType.enum.Mp3;
+    case 'BB':
+      return PublicationType.enum.Hardback;
+    case 'BC':
+      return PublicationType.enum.Paperback;
+    case 'ED':
+      return PublicationType.enum.Pdf;
+    default:
+      return PublicationType.enum.Pdf;
+  }
 };
