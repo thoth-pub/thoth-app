@@ -18,6 +18,7 @@ import {
   imprintValidationSchema,
   licenseAndCopyrightHolderValidationSchema,
   mediaValidationSchema,
+  notesValidationSchema,
   pagesCountValidationSchema,
   publicationDateValidationSchema,
   titleValidationSchema,
@@ -63,6 +64,7 @@ export type WorkEntity = {
   subtitle: string;
   fullTitle: string;
   bibliographyNote: string;
+  generalNote: string;
   type: WorkType;
   updatedAt: string;
   contributorsNames: string[];
@@ -121,3 +123,5 @@ export type MediaForm = z.infer<typeof mediaValidationSchema>;
 export type PagesCountForm = z.infer<typeof pagesCountValidationSchema>;
 
 export type CoverUrlForm = z.infer<typeof coverUrlValidationSchema>;
+
+export type NotesForm = z.infer<typeof notesValidationSchema>;

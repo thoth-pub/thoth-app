@@ -9,6 +9,7 @@ import { EditLanguages } from './components/EditLanguages';
 import { EditMedia } from './components/EditMedia';
 import { EditPagesCount } from './components/EditPagesCount';
 import { LanguagesForm } from '@/src/entities/language/model/language.types';
+import { EditNotes } from './components/EditNotes';
 
 type EditDescriptionsProps = BaseEditSectionProps &
   Partial<{
@@ -38,6 +39,7 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
               isChapter={isSingleChapterEdit}
             />
           )}
+          {!isMultipleChaptersEdit && !isSingleChapterEdit && <EditNotes workId={workId} queryToken={queryToken} />}
           {!isMultipleChaptersEdit && <EditMedia workId={workId} queryToken={queryToken} />}
           <EditLanguages
             workId={workId}

@@ -40,6 +40,8 @@ const {
   WORK_BACKMATTER_COUNT,
   WORK_FIRST_PAGE,
   WORK_LAST_PAGE,
+  WORK_GENERAL_NOTE,
+  WORK_BIBLIOGRAPHY_NOTE,
 } = FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
@@ -166,4 +168,9 @@ export const coverUrlValidationSchema = z.object({
     ERRORS.FILE_FORMAT_INVALID,
     ERRORS.MAX_FILE_SIZE_EXCEEDED,
   ),
+});
+
+export const notesValidationSchema = z.object({
+  [WORK_GENERAL_NOTE.name]: optionalStringValidation,
+  [WORK_BIBLIOGRAPHY_NOTE.name]: optionalStringValidation,
 });

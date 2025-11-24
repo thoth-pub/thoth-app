@@ -10,6 +10,7 @@ export const WORK_FRAGMENT = graphql(`
     subtitle
     fullTitle
     bibliographyNote
+    generalNote
     workType
     updatedAt
     publicationDate

@@ -28,6 +28,8 @@ export const HELPER_TEXT = {
   WORK_BACKMATTER_COUNT: 'Enter the backmatter count of the work.',
   WORK_FIRST_PAGE: 'Enter the first page of the work.',
   WORK_LAST_PAGE: 'Enter the last page of the work.',
+  WORK_GENERAL_NOTE: 'Enter the general note of the work.',
+  WORK_BIBLIOGRAPHY_NOTE: 'Enter the bibliography note of the work.',
   PUBLICATION_TYPE: 'Choose the type of publication.',
   PUBLICATION_ISBN: 'Enter the ISBN of the publication.',
   PUBLICATION_WIDTH: 'Enter the width of the publication.',

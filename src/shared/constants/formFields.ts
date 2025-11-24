@@ -284,6 +284,18 @@ export const FORM_FIELDS = {
     placeholder: 'Series',
     type: InputTypes.TEXT,
   },
+  WORK_GENERAL_NOTE: {
+    label: 'General Note',
+    name: 'generalNote',
+    placeholder: 'General Note',
+    type: InputTypes.TEXT,
+  },
+  WORK_BIBLIOGRAPHY_NOTE: {
+    label: 'Bibliography Note',
+    name: 'bibliographyNote',
+    placeholder: 'Bibliography Note',
+    type: InputTypes.TEXT,
+  },
   PUBLICATION_TYPE: {
     label: 'Publication Type',
     name: 'publicationType',
