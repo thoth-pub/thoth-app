@@ -6,19 +6,23 @@ import {
   getDefaultPublication,
   getDefaultWork,
   getPublicationType,
+  getWorkStatusFromXml,
   isValidPublicationForm,
   LanguageRelation,
+  LocationPlatforms,
   SubjectTypes,
+  WorkStatuses,
   type FormFieldOption,
 } from '@/src/shared';
 import { Typography } from '@/src/shared/ui';
 import { useEffect, useState } from 'react';
 import { OnixData } from './utils/types';
 import { v4 as uuidv4 } from 'uuid';
-import { MeasureType, MeasureUnit, ProductIdentifierType } from '@5stones/onix/dist/enums';
-import { languageOptions, licenseOptions } from '@/src/shared/constants/formFields';
+import { MeasureType, MeasureUnit, ProductIdentifierType, PublishingDateRole } from '@5stones/onix/dist/enums';
+import { currencyOptions, languageOptions, licenseOptions } from '@/src/shared/constants/formFields';
 import { LanguageCode } from '@/gql/graphql';
 import { Publisher } from '@5stones/onix/dist/interfaces';
+import { CurrencyCode } from '@/src/entities/price/model/price.types';
 
 type XMLParseProps = {
   file: File;
@@ -26,6 +30,10 @@ type XMLParseProps = {
   serieses: SeriesEntity[];
   onValidationSuccess?: (data: WorkEntity[]) => void;
   onValidationFailure?: (errors: string[]) => void;
+};
+
+type SeriesForUpdateItem = WorkEntity & {
+  orderNumber: number;
 };
 
 const defaultId = appConfig.defaultId;
@@ -36,6 +44,7 @@ export const XMLParse = (props: XMLParseProps) => {
   const imprintsLabels = imprints.map((imprint) => imprint.label);
 
   const [xmlData, setXmlData] = useState<OnixData | null>(null);
+  const [seriesForUpdate, setSeriesForUpdate] = useState<Record<string, SeriesForUpdateItem[]>>({});
 
   const validateXMLFile = async (file: File) => {
     const response = await validateXml(file);
@@ -56,30 +65,27 @@ export const XMLParse = (props: XMLParseProps) => {
 
     const { ONIXMessage } = data;
 
-    if (!ONIXMessage || !ONIXMessage.Header || !ONIXMessage.Product) {
-      onValidationFailure?.(['Invalid XML file']);
-      return;
-    }
-
-    const xmlImprint = ONIXMessage.Header.Sender?.SenderName ?? '';
-    const isImprintExists = imprints.some((option) => option.label === xmlImprint);
-
-    if (!isImprintExists) {
-      errors.push(`Imprint ${xmlImprint} not found, should be one of the following: ${imprintsLabels.join(', ')}`);
-      return;
-    }
-
-    if (!ONIXMessage.Product || ONIXMessage.Product.length === 0) {
-      errors.push('No products found in the XML file');
+    if (!ONIXMessage || !ONIXMessage.Product) {
+      onValidationFailure?.(['Invalid XML file, missing products data']);
       return;
     }
 
     const uploadedProducts = Array.isArray(ONIXMessage.Product) ? ONIXMessage.Product : [ONIXMessage.Product];
 
     uploadedProducts.forEach((product, index) => {
+      const xmlImprint = product.PublishingDetail?.Imprint?.ImprintName ?? '';
+      const isImprintExists = imprints.some((option) => option.label === xmlImprint);
+
       const productNumber = index + 1;
 
-      const { ProductIdentifier = [], DescriptiveDetail, PublishingDetail } = product;
+      if (!isImprintExists) {
+        errors.push(
+          `Imprint ${xmlImprint} not found for product ${productNumber}, should be one of the following: ${imprintsLabels.join(', ')}`,
+        );
+        return;
+      }
+
+      const { ProductIdentifier = [], DescriptiveDetail, PublishingDetail, ProductSupply } = product;
 
       const workId = uuidv4();
 
@@ -129,6 +135,23 @@ export const XMLParse = (props: XMLParseProps) => {
       const enteredPublishers = PublishingDetail?.Publisher ?? ([] as Publisher[]);
       const publishers = Array.isArray(enteredPublishers) ? enteredPublishers : [enteredPublishers];
 
+      const workStatus = PublishingDetail?.PublishingStatus
+        ? getWorkStatusFromXml(PublishingDetail?.PublishingStatus)
+        : WorkStatuses.enum.Forthcoming;
+
+      const publicationDate =
+        PublishingDetail?.PublishingDate?.find((date) => date.PublishingDateRole === PublishingDateRole._01)?.Date?.[
+          '#text'
+        ] ?? '';
+
+      const withdrawnDate =
+        PublishingDetail?.PublishingDate?.find((date) => date.PublishingDateRole === PublishingDateRole._13)?.Date?.[
+          '#text'
+        ] ?? '';
+
+      // @ts-expect-error not exist in library types
+      const copyrightHolder = PublishingDetail?.CopyrightStatement?.CopyrightOwner?.PersonName ?? '';
+
       const publishersWithWebsites = publishers.filter(
         // @ts-expect-error not exist in library types
         (publisher) => publisher?.Website && publisher.Website?.length > 0,
@@ -147,14 +170,19 @@ export const XMLParse = (props: XMLParseProps) => {
 
       const work: WorkEntity = getDefaultWork({
         id: workId,
+        status: workStatus,
         doi,
+        lccn,
         oclc,
         references: [],
         license: license?.value ?? '',
+        copyrightHolder,
         title,
         subtitle,
         edition,
         bibliographyNote,
+        publicationDate,
+        withdrawnDate,
         landingPage: websiteWithLandingPage?.WebsiteLink ?? '',
         pageCount: Number(pageCount),
         imageCount: Number(imageCount),
@@ -210,7 +238,59 @@ export const XMLParse = (props: XMLParseProps) => {
           weight: Number(weight),
           weightOz: Number(weightOz),
           doi: work.doi,
+          prices: [],
+          locations: [],
         });
+
+        if (ProductSupply && ProductSupply.SupplyDetail && ProductSupply.SupplyDetail.Price) {
+          // Prices
+          const prices = Array.isArray(ProductSupply.SupplyDetail.Price)
+            ? ProductSupply.SupplyDetail.Price
+            : [ProductSupply.SupplyDetail.Price];
+
+          prices.forEach((price) => {
+            const currencyCode = currencyOptions.find(
+              (option) => option.value.toLowerCase() === price.CurrencyCode.toLowerCase(),
+            )?.value;
+
+            if (!currencyCode) {
+              errors.push(
+                `Currency code ${price.CurrencyCode} not found, should be one of the following: ${currencyOptions.map((option) => option.label).join(', ')}`,
+              );
+              return;
+            }
+
+            publication.prices.push({
+              id: defaultId,
+              currencyCode: currencyCode as CurrencyCode,
+              unitPrice: price.PriceAmount ?? 0,
+            });
+          });
+
+          // Locations
+          if (ProductSupply.SupplyDetail.Supplier) {
+            const landingPage =
+              // @ts-expect-error not exist in library types
+              ProductSupply.SupplyDetail.Supplier.Website?.find((website) => website.WebsiteRole === '02')
+                ?.WebsiteLink ?? '';
+            const fullTextUrl =
+              // @ts-expect-error not exist in library types
+              ProductSupply.SupplyDetail.Supplier.Website?.find((website) => website.WebsiteRole === '29')
+                ?.WebsiteLink ?? '';
+            const locationPlatform =
+              // @ts-expect-error not exist in library types
+              LocationPlatforms.options.find((option) => option === ProductSupply.Market?.Territory?.RegionsIncluded) ??
+              LocationPlatforms.enum.Other;
+
+            publication.locations.push({
+              id: defaultId,
+              canonical: true,
+              landingPage,
+              fullTextUrl,
+              locationPlatform,
+            });
+          }
+        }
 
         work.publications.push(publication);
       }
@@ -306,9 +386,31 @@ export const XMLParse = (props: XMLParseProps) => {
         }
       }
 
+      // Contributors
+      // Chapters
       // Fundings
       console.log(work);
-      // TODO series
+      // Series
+      const seriesCollection = Array.isArray(DescriptiveDetail?.Collection)
+        ? DescriptiveDetail?.Collection[0]
+        : DescriptiveDetail?.Collection;
+      const seriesName = seriesCollection?.TitleDetail?.TitleElement?.TitleText ?? '';
+      const existingSeries = serieses.find((series) => series.name === seriesName);
+      // @ts-expect-error not exist in library types
+      const collectionSequence = seriesCollection?.CollectionSequence;
+      const orderNumber = collectionSequence.CollectionSequenceNumber
+        ? parseInt(collectionSequence.CollectionSequenceNumber)
+        : 1;
+
+      if (!existingSeries) return;
+
+      const existingData = seriesForUpdate[existingSeries.id] ?? [];
+      const updatedSeriesData = {
+        ...seriesForUpdate,
+        [existingSeries.id]: [...existingData, { ...work, orderNumber }],
+      };
+      console.log(updatedSeriesData);
+      setSeriesForUpdate(updatedSeriesData);
     });
 
     if (errors.length > 0) {

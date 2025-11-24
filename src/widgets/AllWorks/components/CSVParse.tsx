@@ -69,11 +69,15 @@ type ContributorSelection = {
 
 type MultipleFoundedContributors = Record<WorkId, Record<string, ContributorSelection[]>>;
 
+type SeriesForUpdateItem = WorkEntity & {
+  orderNumber: number;
+};
+
 export const CSVParse = (props: CSVParseProps) => {
   const { file, imprints, serieses, onValidationFailure } = props;
 
   const [works, setWorks] = useState<WorkEntity[]>([]);
-  const [seriesForUpdate, setSeriesForUpdate] = useState<Record<string, WorkEntity[]>>({});
+  const [seriesForUpdate, setSeriesForUpdate] = useState<Record<string, SeriesForUpdateItem[]>>({});
   const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<MultipleFoundedContributors>({});
 
   const queryClient = useApolloClient();
@@ -164,6 +168,7 @@ export const CSVParse = (props: CSVParseProps) => {
           publicationPdfLocationFullTextUrl,
           publicationPdfLocationPlatform,
           seriesName,
+          seriesIssueNumber,
         } = row;
 
         const imprint = imprints.find((imprint) => imprint.label === publisher);
@@ -501,10 +506,12 @@ export const CSVParse = (props: CSVParseProps) => {
         if (!existingSeries) return;
 
         const existingData = seriesForUpdate[existingSeries.id] ?? [];
+        const orderNumber =
+          seriesIssueNumber && `${seriesIssueNumber}`.length > 0 ? parseInt(`${seriesIssueNumber}`) : 1;
 
         setSeriesForUpdate((prev) => ({
           ...prev,
-          [existingSeries.id]: [...existingData, work],
+          [existingSeries.id]: [...existingData, { ...work, orderNumber }],
         }));
       });
     } catch (error) {
@@ -573,6 +580,9 @@ export const CSVParse = (props: CSVParseProps) => {
 
       updatedWorks.push(updatedWork);
     });
+
+    console.log('Works', updatedWorks);
+    console.log('Series', seriesForUpdate);
   };
 
   if (isDataEmpty) return null;
