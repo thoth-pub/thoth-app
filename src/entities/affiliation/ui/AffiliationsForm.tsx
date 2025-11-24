@@ -42,7 +42,13 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
   const showIndicator = showRecommendations && formValues.length === 0;
 
   const onSubmit = (data: AffiliationsFormType) => {
-    setFormValues(data.affiliations);
+    const newValues = data.affiliations.map(({ id, affiliation: { label }, position }) => ({
+      id,
+      [AFFILIATION.name]: { value: label, label },
+      [POSITION.name]: position || '',
+    }));
+
+    setFormValues(newValues);
 
     onUpdate?.(data);
   };

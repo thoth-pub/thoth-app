@@ -26,7 +26,7 @@ type FormFieldsProps = {
 
 const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
 
-const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
+const itemsStyle = 'flex flex-col gap-4';
 
 export const FormFields = (props: FormFieldsProps) => {
   const { control, recommended, onDelete, onClose } = props;

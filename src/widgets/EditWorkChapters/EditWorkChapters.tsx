@@ -187,7 +187,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
 
     if (!chapter) return;
 
-    const newChapter = { ...chapter, id: appConfig.defaultId, title: NEW_CHAPTER_PREFIX + chapter.title };
+    const newChapter = { ...chapter, id: appConfig.defaultId, title: NEW_CHAPTER_PREFIX + chapter.title, doi: '' };
 
     createWork(newChapter);
   };
@@ -245,7 +245,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
               <TableHeader
                 cells={[
                   'Title',
-                  'Main Contributor',
+                  'Contributors',
                   'Page Range',
                   <div className="flex items-center justify-between">
                     <Typography

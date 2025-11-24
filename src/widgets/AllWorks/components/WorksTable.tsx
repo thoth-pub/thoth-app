@@ -37,7 +37,7 @@ export const WorksTable = (props: WorksTableProps) => {
       <div className="overflow-auto">
         <Table className="border-separate">
           <TableHeader
-            cells={['Int. ID', 'Title', 'Status', 'Type', 'Contributors', 'Updated At']}
+            cells={['ID', 'Title', 'Status', 'Type', 'Contributors', 'Updated At']}
             cellStyles={[
               'min-w-[90px]',
               'min-w-[210px]',

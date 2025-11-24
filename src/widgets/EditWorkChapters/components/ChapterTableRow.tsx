@@ -41,8 +41,6 @@ export const ChapterTableRow = (props: TableRowProps) => {
     transition,
   };
 
-  const mainContributor = contributions.find((contribution) => contribution.isMain);
-
   const handleSelect = () => {
     if (selected) {
       onDeselect?.(id);
@@ -53,7 +51,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
 
   return (
     <TableRow ref={setNodeRef} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
-      <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-7 capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
+      <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-7 group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
         <div className="flex items-center gap-2">
           <DragIndicatorIcon
             {...listeners}
@@ -65,7 +63,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
         </div>
       </TableCell>
       <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-        <Typography>{mainContributor?.fullName ?? ''}</Typography>
+        <Typography>{contributions.map((contribution) => contribution.fullName).join(', ') ?? ''}</Typography>
       </TableCell>
       <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
         <Typography>

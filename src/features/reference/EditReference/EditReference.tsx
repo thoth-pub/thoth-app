@@ -6,24 +6,27 @@ import type { BaseRecommendedSectionProps } from '@/src/shared';
 const EditReference = (props: BaseRecommendedSectionProps) => {
   const { workId, queryToken } = props;
 
-  const { activeReference, close } = useReferencesStateMachine();
+  const { activeReference, update, close } = useReferencesStateMachine();
   const { updateReference } = useUpdateReference({ workId, queryToken });
 
   const updateUrl = (url: string) => {
     if (!activeReference) return;
 
+    update({ ...activeReference, url });
     updateReference({ ...activeReference, url });
   };
 
   const updateDoi = (doi: string) => {
     if (!activeReference) return;
 
+    update({ ...activeReference, doi });
     updateReference({ ...activeReference, doi });
   };
 
   const updateCitation = (citation: string) => {
     if (!activeReference) return;
 
+    update({ ...activeReference, unstructuredCitation: citation });
     updateReference({ ...activeReference, unstructuredCitation: citation });
   };
 

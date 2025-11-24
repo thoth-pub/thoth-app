@@ -8,7 +8,10 @@ type ReferenceContext = {
 
 export const referenceStateMachine = setup({
   types: {
-    events: {} as { type: 'setActiveReference'; reference: ReferenceContext['activeReference'] } | { type: 'close' },
+    events: {} as
+      | { type: 'setActiveReference'; reference: ReferenceContext['activeReference'] }
+      | { type: 'activeReference.update'; reference: ReferenceContext['activeReference'] }
+      | { type: 'close' },
   },
 }).createMachine({
   id: 'referenceEditor',
@@ -28,7 +31,14 @@ export const referenceStateMachine = setup({
       },
     },
     editing: {
-      on: { close: { target: 'init', actions: assign({ activeReference: () => null }) } },
+      on: {
+        close: { target: 'init', actions: assign({ activeReference: () => null }) },
+        'activeReference.update': {
+          actions: assign({
+            activeReference: ({ event }) => event?.reference ?? null,
+          }),
+        },
+      },
     },
   },
 });

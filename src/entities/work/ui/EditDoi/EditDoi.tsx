@@ -5,7 +5,7 @@ import { DoiAndCoversForm } from '@/src/entities/work/model/work.types';
 import { doiAndCoversValidationSchema } from '@/src/entities/work/model/work.validation';
 import { type BaseRecommendedSectionProps, getProtocolPrefix, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { ContentWrapper, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
+import { ContentWrapper, FormTextField, Link, MultipleContentWrapper, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
@@ -24,6 +24,8 @@ const EditDoi = (props: EditDoiProps) => {
   const doiValue = work?.doi ?? '';
   const landingPageValue = work?.landingPage ?? '';
   const coverUrlValue = work?.coverUrl ?? '';
+
+  const isAnyValueFilled = doiValue.length > 0 || landingPageValue.length > 0 || coverUrlValue.length > 0;
 
   const showDoiIndicator = recommended && isDoiRequired;
   const showLandingPageIndicator = recommended && isLandingPageRequired;
@@ -101,7 +103,27 @@ const EditDoi = (props: EditDoiProps) => {
           value={isChapter ? chapterPlaceholderValue : workPlaceholderValue}
           recommended={showDoiIndicator || showLandingPageIndicator || showCoverUrlIndicator}
           onEdit={onEdit}
-        />
+        >
+          {isAnyValueFilled && (
+            <ul className="flex flex-col gap-2">
+              {doiValue.length > 0 && (
+                <Link href={doiValue} target="_blank">
+                  {doiValue}
+                </Link>
+              )}
+              {landingPageValue.length > 0 && (
+                <Link href={landingPageValue} target="_blank">
+                  {landingPageValue}
+                </Link>
+              )}
+              {coverUrlValue.length > 0 && (
+                <Link href={coverUrlValue} target="_blank">
+                  {coverUrlValue}
+                </Link>
+              )}
+            </ul>
+          )}
+        </Preview>
       )}
     />
   );

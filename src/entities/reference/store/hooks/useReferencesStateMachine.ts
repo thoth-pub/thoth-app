@@ -14,11 +14,18 @@ const useReferencesStateMachine = () => {
     [actorRef],
   );
 
+  const update = useCallback(
+    (reference: ReferenceEntity) => {
+      actorRef.send({ type: 'activeReference.update', reference: reference });
+    },
+    [actorRef],
+  );
+
   const close = useCallback(() => {
     actorRef.send({ type: 'close' });
   }, [actorRef]);
 
-  return { activeReference, edit, close };
+  return { activeReference, edit, update, close };
 };
 
 export default useReferencesStateMachine;
