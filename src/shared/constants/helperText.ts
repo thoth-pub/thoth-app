@@ -23,7 +23,7 @@ export const HELPER_TEXT = {
   WORK_IMAGE_COUNT: 'Enter the image count of the work.',
   WORK_AUDIO_COUNT: 'Enter the audio count of the work.',
   WORK_VIDEO_COUNT: 'Enter the video count of the work.',
-  WORK_PAGES_COUNT: 'Enter the pages count of the work.',
+  WORK_PAGES_COUNT: 'Enter the page count of the work.',
   WORK_FRONTMATTER_COUNT: 'Enter the frontmatter count of the work.',
   WORK_BACKMATTER_COUNT: 'Enter the backmatter count of the work.',
   WORK_FIRST_PAGE: 'Enter the first page of the work.',

@@ -61,7 +61,8 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
     return res.join(' + ').toLowerCase();
   }, [pageCount, frontmatterCount, backmatterCount]);
 
-  const placeholder = pageCount ? `${pageCount} ${pageCount > 1 ? 'pages' : 'page'} (${pageBreakdownValue})` : '';
+  const workPlaceholder = pageCount ? `${pageCount} ${pageCount > 1 ? 'pages' : 'page'} (${pageBreakdownValue})` : '';
+  const chapterPlaceholder = `${firstPage.length > 0 ? firstPage : '0'} - ${lastPage.length > 0 ? lastPage : '0'} (${pageCount} ${pageCount > 1 ? 'pages' : 'page'})`;
 
   const handleSubmit = ({ pageCount, frontmatterCount, backmatterCount, firstPage, lastPage }: PagesCountForm) => {
     updateWork({
@@ -165,11 +166,11 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
       preview={({ onEdit }) => (
         <Preview
           label={WORK_PAGES_COUNT.label}
-          value={placeholder}
+          value={isChapter ? chapterPlaceholder : workPlaceholder}
           recommended={showPagesCountIndicator}
           onEdit={onEdit}
         >
-          <Typography className="lg:ml-2">{placeholder}</Typography>
+          <Typography className="lg:ml-2">{isChapter ? chapterPlaceholder : workPlaceholder}</Typography>
         </Preview>
       )}
     />

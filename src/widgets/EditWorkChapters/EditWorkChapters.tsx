@@ -260,7 +260,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                         '@media (min-width: 1280px)': { fontSize: '1.375rem' },
                       }}
                     >
-                      Pages Count
+                      Page Count
                     </Typography>
                     <Checkbox
                       size="small"

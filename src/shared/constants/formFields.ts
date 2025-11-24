@@ -249,9 +249,9 @@ export const FORM_FIELDS = {
     type: InputTypes.NUMBER,
   },
   WORK_PAGES_COUNT: {
-    label: 'Total Pages Count',
+    label: 'Total Page Count',
     name: 'pageCount',
-    placeholder: 'Total Pages Count',
+    placeholder: 'Total Page Count',
     type: InputTypes.NUMBER,
   },
   WORK_FRONTMATTER_COUNT: {
