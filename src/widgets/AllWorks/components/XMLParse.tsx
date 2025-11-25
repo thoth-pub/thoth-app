@@ -1,12 +1,17 @@
 import { validateXml } from '@/app/actions/validateXml';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
-import type { WorkEntity } from '@/src/entities/work/model/work.types';
+import type { WorkContribution, WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 import {
   appConfig,
+  convertOrchidIdToText,
+  getContributorRoleFromXml,
+  getDefaultAffiliation,
+  getDefaultContribution,
   getDefaultPublication,
   getDefaultWork,
   getPublicationType,
   getWorkStatusFromXml,
+  isDefaultId,
   isValidPublicationForm,
   LanguageRelation,
   LocationPlatforms,
@@ -14,15 +19,36 @@ import {
   WorkStatuses,
   type FormFieldOption,
 } from '@/src/shared';
-import { Typography } from '@/src/shared/ui';
+import {
+  Button,
+  LinkTooltip,
+  OrchidLogo,
+  Radio,
+  Table,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+  Typography,
+} from '@/src/shared/ui';
 import { useEffect, useState } from 'react';
-import { OnixData } from './utils/types';
 import { v4 as uuidv4 } from 'uuid';
-import { MeasureType, MeasureUnit, ProductIdentifierType, PublishingDateRole } from '@5stones/onix/dist/enums';
+import {
+  MeasureType,
+  MeasureUnit,
+  ProductIdentifierType,
+  PublishingDateRole,
+  TextType,
+} from '@5stones/onix/dist/enums';
 import { currencyOptions, languageOptions, licenseOptions } from '@/src/shared/constants/formFields';
 import { LanguageCode } from '@/gql/graphql';
 import { Publisher } from '@5stones/onix/dist/interfaces';
 import { CurrencyCode } from '@/src/entities/price/model/price.types';
+import { ContributorService } from '@/src/entities/contributor';
+import { InstitutionService } from '@/src/entities/institution';
+import { useApolloClient } from '@apollo/client/react';
+import { InstitutionEntity, InstitutionRor } from '@/src/entities/institution/model/institution.types';
+import { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 
 type XMLParseProps = {
   file: File;
@@ -36,6 +62,13 @@ type SeriesForUpdateItem = WorkEntity & {
   orderNumber: number;
 };
 
+type ContributorSelection = {
+  lastContribution: string;
+  selected: boolean;
+} & WorkContribution;
+
+type MultipleFoundedContributors = Record<WorkId, Record<string, ContributorSelection[]>>;
+
 const defaultId = appConfig.defaultId;
 
 export const XMLParse = (props: XMLParseProps) => {
@@ -43,8 +76,20 @@ export const XMLParse = (props: XMLParseProps) => {
 
   const imprintsLabels = imprints.map((imprint) => imprint.label);
 
-  const [xmlData, setXmlData] = useState<OnixData | null>(null);
+  const queryClient = useApolloClient();
+
+  const contributorService = new ContributorService(queryClient.query);
+  const institutionService = new InstitutionService(queryClient.query);
+
+  const [works, setWorks] = useState<WorkEntity[]>([]);
   const [seriesForUpdate, setSeriesForUpdate] = useState<Record<string, SeriesForUpdateItem[]>>({});
+  const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<MultipleFoundedContributors>({});
+
+  const fetchedInstitutions: Record<InstitutionRor, InstitutionEntity> = {};
+
+  const showContributorsSelection = Object.keys(multipleFoundedContributors).length > 0;
+
+  const isDataEmpty = works.length === 0;
 
   const validateXMLFile = async (file: File) => {
     const response = await validateXml(file);
@@ -56,7 +101,6 @@ export const XMLParse = (props: XMLParseProps) => {
 
     const { data } = response;
     const errors: string[] = [];
-    const convertedProductsIntoWorks: WorkEntity[] = [];
 
     if (!data) {
       onValidationFailure?.(['Invalid XML file']);
@@ -85,11 +129,13 @@ export const XMLParse = (props: XMLParseProps) => {
         return;
       }
 
-      const { ProductIdentifier = [], DescriptiveDetail, PublishingDetail, ProductSupply } = product;
+      const { ProductIdentifier = [], DescriptiveDetail, PublishingDetail, ProductSupply, CollateralDetail } = product;
 
       const workId = uuidv4();
 
-      console.log(product);
+      const collateralDetailTextContent = Array.isArray(CollateralDetail?.TextContent)
+        ? CollateralDetail?.TextContent
+        : [CollateralDetail?.TextContent];
 
       const doi =
         ProductIdentifier.find((identifier) => identifier.ProductIDType === ProductIdentifierType._06)?.IDValue ?? '';
@@ -117,6 +163,8 @@ export const XMLParse = (props: XMLParseProps) => {
 
       // @ts-expect-error not exist in library types
       const bibliographyNote = DescriptiveDetail?.IllustrationsNote?.IllustrationsNoteText ?? '';
+      const generalNote =
+        collateralDetailTextContent.find((text) => text?.TextType === TextType._13)?.Text?.['#text'] ?? '';
 
       const pageCount = DescriptiveDetail?.Extent?.ExtentValue ?? 0;
       const imageCount =
@@ -181,6 +229,7 @@ export const XMLParse = (props: XMLParseProps) => {
         subtitle,
         edition,
         bibliographyNote,
+        generalNote,
         publicationDate,
         withdrawnDate,
         landingPage: websiteWithLandingPage?.WebsiteLink ?? '',
@@ -225,9 +274,11 @@ export const XMLParse = (props: XMLParseProps) => {
           DescriptiveDetail?.Measure?.find(
             (measure) => measure.MeasureType === MeasureType._08 && measure.MeasureUnitCode === MeasureUnit.oz,
           )?.Measurement ?? 0;
+        const isbn =
+          ProductIdentifier.find((identifier) => identifier.ProductIDType === ProductIdentifierType._15)?.IDValue ?? '';
 
         const publication = getDefaultPublication({
-          isbn: product.RecordReference ?? '',
+          isbn,
           type: getPublicationType(DescriptiveDetail?.ProductForm),
           width: Number(width),
           widthIn: Number(widthIn),
@@ -386,10 +437,126 @@ export const XMLParse = (props: XMLParseProps) => {
         }
       }
 
-      // Contributors
       // Chapters
       // Fundings
-      console.log(work);
+
+      // Contributors
+      if (DescriptiveDetail?.Contributor) {
+        const contributors = Array.isArray(DescriptiveDetail?.Contributor)
+          ? DescriptiveDetail?.Contributor
+          : [DescriptiveDetail?.Contributor];
+
+        const multipleContributions: MultipleFoundedContributors = {
+          [workId]: {},
+        };
+
+        contributors.forEach(async (contributor) => {
+          const role = getContributorRoleFromXml(contributor.ContributorRole);
+          const fullName = contributor.PersonName ?? '';
+          const lastName = contributor.KeyNames ?? '';
+          const firstName = contributor.NamesBeforeKey ?? '';
+          const orcid = contributor.NameIdentifier?.IDValue ?? '';
+          const website = contributor.Website?.WebsiteLink ?? '';
+          const affiliationPosition = contributor.ProfessionalAffiliation?.ProfessionalPosition ?? '';
+          const affiliationInstitutionRor = contributor.ProfessionalAffiliation?.AffiliationIdentifier?.IDValue;
+          const position = contributor.ProfessionalAffiliation?.ProfessionalPosition ?? '';
+          const biography = contributor.BiographicalNote ?? '';
+
+          const newContributor = {
+            lastName,
+            firstName,
+            fullName,
+            orcid,
+            website,
+            type: role,
+            affiliationPosition,
+            affiliationInstitutionRor,
+            position,
+            biography,
+          };
+
+          if (newContributor.fullName === 0) return;
+
+          // Instititutions
+          if (affiliationInstitutionRor && !fetchedInstitutions[affiliationInstitutionRor]) {
+            const institutions = await institutionService.getInstitutions(
+              0,
+              appConfig.data.maxItemsPerRequestLimit,
+              `${affiliationInstitutionRor}`,
+            );
+
+            if (institutions.length > 0) {
+              fetchedInstitutions[affiliationInstitutionRor] = institutions[0];
+            }
+          }
+
+          const affiliation = fetchedInstitutions[affiliationInstitutionRor]
+            ? getDefaultAffiliation({
+                institutionId: fetchedInstitutions[affiliationInstitutionRor].id,
+                institutionName: fetchedInstitutions[affiliationInstitutionRor].name,
+                rorId: fetchedInstitutions[affiliationInstitutionRor].ror,
+                position: affiliationPosition,
+              })
+            : null;
+
+          const contributionWithNewContributor = getDefaultContribution({
+            fullName,
+            lastName,
+            firstName,
+            type: role,
+            isMain: true,
+            orderNumber: 1,
+            biography: biography ? `${biography}` : '',
+            orcidId: orcid ? `${orcid}` : '',
+            website: website ? `${website}` : '',
+            contributorId: defaultId,
+            affiliations: affiliation ? [affiliation] : [],
+          });
+
+          work.contributions.push(contributionWithNewContributor);
+
+          const multipleContributionsItemId = uuidv4();
+
+          multipleContributions[workId][multipleContributionsItemId] = [
+            { ...contributionWithNewContributor, selected: true, lastContribution: '' },
+          ];
+
+          const foundedContributors = await contributorService.getContributors(newContributor.fullName);
+
+          if (foundedContributors.length === 0) return;
+
+          foundedContributors.forEach((foundedContributor) => {
+            const contribution = getDefaultContribution({
+              fullName: foundedContributor.fullName,
+              lastName: foundedContributor.lastName,
+              firstName: foundedContributor.firstName,
+              contributorId: foundedContributor.id,
+              type: role,
+              isMain: true,
+              orderNumber: 1,
+              biography: biography,
+              orcidId: foundedContributor.orcid,
+              website: foundedContributor.website,
+              affiliations: affiliation ? [affiliation] : [],
+            });
+
+            work.contributions.push(contribution);
+            multipleContributions[workId][multipleContributionsItemId].push({
+              ...contribution,
+              selected: false,
+              lastContribution: foundedContributor.lastContributionTitle,
+            });
+          });
+        });
+
+        setMultipleFoundedContributors((prev) => ({
+          ...prev,
+          ...multipleContributions,
+        }));
+      }
+
+      setWorks((prev) => [...prev, work]);
+
       // Series
       const seriesCollection = Array.isArray(DescriptiveDetail?.Collection)
         ? DescriptiveDetail?.Collection[0]
@@ -409,7 +576,6 @@ export const XMLParse = (props: XMLParseProps) => {
         ...seriesForUpdate,
         [existingSeries.id]: [...existingData, { ...work, orderNumber }],
       };
-      console.log(updatedSeriesData);
       setSeriesForUpdate(updatedSeriesData);
     });
 
@@ -417,21 +583,147 @@ export const XMLParse = (props: XMLParseProps) => {
       onValidationFailure?.(errors);
       return;
     }
-
-    // setXmlData(data ?? null);
   };
 
   useEffect(() => {
     validateXMLFile(file);
   }, [file]);
 
+  const handleSelectContributor = (workId: WorkId, itemId: string, contributorId: ContributorId) => {
+    const selectedWork = multipleFoundedContributors[workId];
+
+    if (!selectedWork) return;
+
+    const selectedItems = selectedWork[itemId];
+
+    if (!selectedItems) return;
+
+    const updatedContributors = selectedItems.map((item) => {
+      if (item.contributorId !== contributorId) return { ...item, selected: false };
+
+      return { ...item, selected: true };
+    });
+
+    setMultipleFoundedContributors((prev) => ({
+      ...prev,
+      [workId]: {
+        ...prev[workId],
+        [itemId]: updatedContributors,
+      },
+    }));
+  };
+
+  const handleSubmit = () => {
+    const updatedWorks: WorkEntity[] = [];
+
+    Object.entries(multipleFoundedContributors).forEach(([workId, data]) => {
+      const work = works.find((work) => work.id === workId);
+
+      if (!work) return;
+
+      const appliedContributions: WorkContribution[] = [];
+
+      Object.entries(data).forEach(([_itemId, contributions]) => {
+        const contribution = contributions.find(({ selected }) => selected);
+
+        if (!contribution) return;
+
+        const { selected, lastContribution, ...contributionData } = contribution;
+
+        appliedContributions.push(contributionData);
+      });
+
+      const updatedWork = {
+        ...work,
+        contributions: appliedContributions.length > 0 ? appliedContributions : work.contributions,
+      };
+
+      updatedWorks.push(updatedWork);
+    });
+
+    const updatedWorksIds = updatedWorks.map((work) => work.id);
+    const notUpdatedWorks = works.filter((work) => !updatedWorksIds.includes(work.id));
+
+    console.log('Works', [...notUpdatedWorks, ...updatedWorks]);
+    console.log('Series', seriesForUpdate);
+  };
+
+  if (isDataEmpty) return null;
+
   return (
-    <div>
-      {xmlData && typeof xmlData === 'string' && (
-        <Typography variant="body2" component="pre">
-          {JSON.parse(JSON.stringify(xmlData, null, 2))}
-        </Typography>
+    <div className="flex w-full flex-col gap-4">
+      <Typography variant="h1" component="h2">
+        Multiple contributors found
+      </Typography>
+      {showContributorsSelection && (
+        <div className="overflow-auto">
+          <Table className="border-separate">
+            <TableHeader
+              cells={['Work', 'Search Value', 'Contributors']}
+              cellStyles={['min-w-[210px]', 'min-w-[210px]', 'min-w-[210px]']}
+            />
+            <TableBody>
+              {Object.entries(multipleFoundedContributors).map(([workId, data]) => {
+                const work = works.find((work) => work.id === workId);
+
+                if (!work) return null;
+
+                const contributions = Object.entries(data);
+
+                return contributions.map(([itemId, contributions]) => {
+                  const defaultContributor = contributions.find(({ contributorId }) => isDefaultId(contributorId));
+
+                  if (contributions.length < 2) return null;
+
+                  return (
+                    <TableRow key={`${workId}-${itemId}`} className="group">
+                      <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
+                        {work.title}
+                      </TableCell>
+                      <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                        {defaultContributor?.fullName ?? ''}
+                      </TableCell>
+                      <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                        {contributions.map(({ fullName, orcidId, contributorId, lastContribution, selected }) => (
+                          <div className="flex items-center gap-2 [&:not(:first-child)&:not(:last-child)]:my-4">
+                            <Radio
+                              checked={selected}
+                              onChange={() => handleSelectContributor(workId, itemId, contributorId)}
+                              className="self-start"
+                            />
+                            <Typography className="flex flex-col gap-2">
+                              {isDefaultId(contributorId) ? (
+                                'Create new'
+                              ) : (
+                                <>
+                                  <Typography className="flex items-center gap-1" fontWeight="bold" component="span">
+                                    {fullName}
+                                    {orcidId && (
+                                      <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
+                                        <OrchidLogo />
+                                      </LinkTooltip>
+                                    )}
+                                  </Typography>
+                                  {lastContribution && lastContribution.length > 0 && (
+                                    <Typography component="span">Latest contribution to: {lastContribution}</Typography>
+                                  )}
+                                </>
+                              )}
+                            </Typography>
+                          </div>
+                        ))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                });
+              })}
+            </TableBody>
+          </Table>
+        </div>
       )}
+      <Button variant="contained" color="primary" className="m-auto" onClick={handleSubmit}>
+        Submit
+      </Button>
     </div>
   );
 };

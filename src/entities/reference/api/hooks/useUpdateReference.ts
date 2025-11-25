@@ -1,7 +1,6 @@
 import { ServerError } from '@apollo/client';
 
 import { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import { NOTIFICATIONS, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
@@ -34,14 +33,14 @@ const useUpdateFunding = (props: BaseEditSectionProps) => {
 
         sendErrorNotification(REFERENCE_UPDATE_FAILED);
       },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+      refetchQueries: 'active',
     },
   });
 
-  const updateReference = (data: ReferenceEntity) => {
+  const updateReference = async (data: ReferenceEntity) => {
     const dto = mapper.toDto(data);
 
-    mutate({
+    await mutate({
       variables: { data: { ...dto, workId } },
     });
   };

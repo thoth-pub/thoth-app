@@ -1,5 +1,4 @@
 import { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import { NOTIFICATIONS } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
@@ -10,7 +9,7 @@ import type { ReferenceId } from '../../model/reference.types';
 const { REFERENCE_DELETE_FAILED } = NOTIFICATIONS;
 
 const useCreateReference = (props: BaseEditSectionProps) => {
-  const { queryToken, workId = '' } = props;
+  const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
 
@@ -22,7 +21,7 @@ const useCreateReference = (props: BaseEditSectionProps) => {
         console.error(error);
         sendErrorNotification(REFERENCE_DELETE_FAILED);
       },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+      refetchQueries: 'active',
     },
   });
 
