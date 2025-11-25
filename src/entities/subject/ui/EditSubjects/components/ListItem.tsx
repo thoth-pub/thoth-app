@@ -7,6 +7,12 @@ import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { Chip, DeleteButton, Typography } from '@/src/shared/ui';
 
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
+import {
+  convertBicSubjectCodeToReadableFormat,
+  convertBisacSubjectCodeToReadableFormat,
+  convertThemaSubjectCodeToReadableFormat,
+  SubjectTypes,
+} from '@/src/shared';
 
 type ListItemProps = {
   subject: SubjectEntity;
@@ -23,6 +29,12 @@ const ListItem = ({ subject, onDelete }: ListItemProps) => {
     transition,
   };
 
+  const isBisac = subject.type === SubjectTypes.enum.Bisac;
+  const isBic = subject.type === SubjectTypes.enum.Bic;
+  const isThema = subject.type === SubjectTypes.enum.Thema;
+
+  const isDefault = !isBisac && !isBic && !isThema;
+
   return (
     <li
       ref={setNodeRef}
@@ -38,7 +50,10 @@ const ListItem = ({ subject, onDelete }: ListItemProps) => {
       />
       <Typography>
         <Chip label={subject.type} size="small" component="span" className="mr-2" />
-        {subject.code}
+        {isDefault && subject.code}
+        {isBisac && convertBisacSubjectCodeToReadableFormat(subject.code)}
+        {isBic && convertBicSubjectCodeToReadableFormat(subject.code)}
+        {isThema && convertThemaSubjectCodeToReadableFormat(subject.code)}
       </Typography>
       <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
     </li>

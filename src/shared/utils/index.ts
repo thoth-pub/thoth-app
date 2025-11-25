@@ -22,3 +22,4 @@ export * from './fundings';
 export * from './contributions';
 export * from './files';
 export * from './xml';
+export * from './subjects';
