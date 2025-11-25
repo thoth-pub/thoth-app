@@ -40,7 +40,9 @@ const EditJurisdictionForm = (props: EditJurisdictionFormProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => <Preview label={JURISDICTION.label} value={data?.jurisdiction} onEdit={onEdit} />}
+      preview={({ data, disabled, onEdit }) => (
+        <Preview label={JURISDICTION.label} value={data?.jurisdiction} disabled={disabled} onEdit={onEdit} />
+      )}
     />
   );
 };

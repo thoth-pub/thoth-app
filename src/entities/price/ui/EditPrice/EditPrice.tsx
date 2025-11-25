@@ -49,7 +49,6 @@ const EditPrice = (props: EditPriceProps) => {
       defaultValues={{ [PRICES.name]: defaultValues }}
       validationSchema={pricesValidationSchema}
       borderTransparent
-      skipAutoSubmit
       isTableVariant
       onSubmit={(data) => onUpdate?.(data)}
       formFields={({ control, isHelperTextVisible }) => (
@@ -60,7 +59,9 @@ const EditPrice = (props: EditPriceProps) => {
           onClose={onClose}
         />
       )}
-      preview={({ onEdit }) => <Preview label={PRICES.label} onEdit={onEdit} value={placeholder} />}
+      preview={({ disabled, onEdit }) => (
+        <Preview label={PRICES.label} disabled={disabled} onEdit={onEdit} value={placeholder} />
+      )}
     />
   );
 };

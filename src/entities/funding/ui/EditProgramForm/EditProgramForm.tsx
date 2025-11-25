@@ -40,7 +40,9 @@ const EditProgramForm = (props: EditProgramFormProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => <Preview label={PROGRAM.label} value={data?.program} onEdit={onEdit} />}
+      preview={({ data, disabled, onEdit }) => (
+        <Preview label={PROGRAM.label} value={data?.program} disabled={disabled} onEdit={onEdit} />
+      )}
     />
   );
 };

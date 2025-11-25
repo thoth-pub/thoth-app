@@ -37,8 +37,6 @@ const EditReferences = (props: BaseEditSectionProps) => {
   const isNewReference = activeReference ? isDefaultId(activeReference.id) : false;
 
   const editReference = (id: string) => {
-    if (activeReference) close();
-
     const reference = work.references.find((reference) => reference.id === id);
 
     if (!reference) return;
@@ -47,8 +45,6 @@ const EditReferences = (props: BaseEditSectionProps) => {
   };
 
   const addReference = () => {
-    if (activeReference) close();
-
     edit({ ...defaultReference });
   };
 

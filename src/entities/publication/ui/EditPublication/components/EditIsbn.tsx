@@ -42,8 +42,8 @@ const EditIsbn = (props: EditIsbnProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
-        <Preview label={PUBLICATION_ISBN.label} value={data?.isbn} onEdit={onEdit} />
+      preview={({ data, disabled, onEdit }) => (
+        <Preview label={PUBLICATION_ISBN.label} value={data?.isbn} disabled={disabled} onEdit={onEdit} />
       )}
     />
   );

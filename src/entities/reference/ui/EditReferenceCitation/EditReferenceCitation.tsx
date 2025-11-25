@@ -38,8 +38,13 @@ export const EditReferenceCitation = (props: EditReferenceCitationProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
-        <Preview label={REFERENCE_CITATION.label} value={data?.unstructuredCitation} onEdit={onEdit} />
+      preview={({ data, disabled, onEdit }) => (
+        <Preview
+          label={REFERENCE_CITATION.label}
+          value={data?.unstructuredCitation}
+          disabled={disabled}
+          onEdit={onEdit}
+        />
       )}
     />
   );

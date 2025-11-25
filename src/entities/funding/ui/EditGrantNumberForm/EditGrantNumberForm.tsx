@@ -43,8 +43,14 @@ const EditGrantNumberForm = (props: EditGrantNumberFormProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
-        <Preview label={GRANT_NUMBER.label} value={data?.grantNumber} recommended={showIndicator} onEdit={onEdit} />
+      preview={({ data, disabled, onEdit }) => (
+        <Preview
+          label={GRANT_NUMBER.label}
+          value={data?.grantNumber}
+          recommended={showIndicator}
+          disabled={disabled}
+          onEdit={onEdit}
+        />
       )}
     />
   );

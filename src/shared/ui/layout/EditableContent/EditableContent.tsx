@@ -24,6 +24,7 @@ type FormFieldsProps = {
 
 type PreviewProps<T extends FieldValues> = Partial<{
   data: T;
+  disabled?: boolean;
   onEdit: () => void;
 }>;
 
@@ -35,7 +36,6 @@ type EditableContentProps<T extends FieldValues> = {
   onSubmit: (data: T) => void;
   formFields: ({ control, isHelperTextVisible, reset, setValue }: FormFieldsProps) => Readonly<React.ReactNode>;
   preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
-  skipAutoSubmit?: boolean;
   resetOnSubmit?: boolean;
   validationMode?: keyof ValidationMode;
 } & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose' | 'onInfo'>;
@@ -47,7 +47,6 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     validationSchema,
     isTableVariant = false,
     borderTransparent = false,
-    skipAutoSubmit = false,
     isDisabled = false,
     validationMode = 'onChange',
     onSubmit,
@@ -65,10 +64,6 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
   }, [defaultValues]);
 
   const handleEdit = () => {
-    if (!isActive && activeFormId) {
-      close();
-    }
-
     if (isDisabled) return;
 
     edit(formId);
@@ -78,14 +73,6 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     setFormData(data as DefaultValues<T>);
 
     close();
-
-    onSubmit(data as T);
-  };
-
-  const onAutoSubmit = (data: FieldValues) => {
-    setFormData(data as DefaultValues<T>);
-
-    if (skipAutoSubmit) return;
 
     onSubmit(data as T);
   };
@@ -110,7 +97,6 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           validationMode={validationMode}
           borderTransparent={borderTransparent}
           onSubmit={submit}
-          onAutoSubmit={onAutoSubmit}
           onClose={onClose}
           onInfo={handleShowInfo}
         >
@@ -121,7 +107,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           onDoubleClick={handleEdit}
           className={`group cursor-pointer ${borderTransparent ? '' : 'border-1 border-[transparent] hover:border-[var(--color-hover-border)]'} duration-300 hover:bg-[var(--color-hover-alt)] ${isTableVariant ? '' : 'rounded-xl p-4'}`}
         >
-          {preview({ data: formData as T, onEdit: handleEdit })}
+          {preview({ data: formData as T, disabled: !!activeFormId && !isActive, onEdit: handleEdit })}
         </div>
       )}
     </>

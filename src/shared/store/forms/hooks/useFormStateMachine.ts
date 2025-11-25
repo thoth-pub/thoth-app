@@ -3,7 +3,7 @@ import { useCallback } from 'react';
 import { FormStateMachineContext, Id } from '@/src/shared';
 
 const useFormStateMachine = () => {
-  const activeFormId = FormStateMachineContext.useSelector((state) => state.context.activeForm);
+  const activeFormId: Id | null = FormStateMachineContext.useSelector((state) => state.context.activeForm);
   const actorRef = FormStateMachineContext.useActorRef();
 
   const edit = useCallback(

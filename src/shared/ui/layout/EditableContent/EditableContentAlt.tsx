@@ -24,6 +24,7 @@ type FormFieldsProps = {
 
 type PreviewProps<T extends FieldValues> = Partial<{
   data: T;
+  disabled?: boolean;
   onEdit: () => void;
 }>;
 
@@ -34,7 +35,6 @@ type EditableContentAltProps<T extends FieldValues> = {
   onSubmit: (data: T) => void;
   formFields: ({ control, isHelperTextVisible, reset, setValue }: FormFieldsProps) => Readonly<React.ReactNode>;
   preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
-  skipAutoSubmit?: boolean;
   resetOnSubmit?: boolean;
   validationMode?: keyof ValidationMode;
 } & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose' | 'onInfo'>;
@@ -46,7 +46,6 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
     validationSchema,
     borderTransparent = false,
     isDisabled = false,
-    skipAutoSubmit = false,
     validationMode = 'onChange',
     onSubmit,
     formFields,
@@ -59,10 +58,6 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
   const isActive = activeFormId === formId;
 
   const handleEdit = () => {
-    if (!isActive && activeFormId) {
-      close();
-    }
-
     if (isDisabled) return;
 
     edit(formId);
@@ -72,14 +67,6 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
     setFormData(data as DefaultValues<T>);
 
     close();
-
-    onSubmit(data as T);
-  };
-
-  const onAutoSubmit = (data: FieldValues) => {
-    setFormData(data as DefaultValues<T>);
-
-    if (skipAutoSubmit) return;
 
     onSubmit(data as T);
   };
@@ -103,7 +90,6 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
           validationMode={validationMode}
           borderTransparent={borderTransparent}
           onSubmit={submit}
-          onAutoSubmit={onAutoSubmit}
           onClose={onClose}
           onInfo={handleShowInfo}
           className="items-end gap-1 bg-transparent p-0"
@@ -113,7 +99,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
         </FormWrapper>
       ) : (
         <div onDoubleClick={handleEdit} className="cursor-pointer">
-          {preview({ data: formData as T, onEdit: handleEdit })}
+          {preview({ data: formData as T, disabled: !!activeFormId && !isActive, onEdit: handleEdit })}
         </div>
       )}
     </>

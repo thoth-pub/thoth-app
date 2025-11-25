@@ -163,11 +163,12 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
           )}
         </MultipleContentWrapper>
       )}
-      preview={({ onEdit }) => (
+      preview={({ disabled, onEdit }) => (
         <Preview
           label={isChapter ? 'Page Range' : 'Page Count'}
           value={isChapter ? chapterPlaceholder : workPlaceholder}
           recommended={showPagesCountIndicator}
+          disabled={disabled}
           onEdit={onEdit}
         >
           <Typography className="lg:ml-2">{isChapter ? chapterPlaceholder : workPlaceholder}</Typography>

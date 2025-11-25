@@ -77,11 +77,16 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
         validationSchema={affiliationsValidationSchema}
         onSubmit={onSubmit}
         defaultValues={{ [AFFILIATIONS.name]: defaultValues }}
-        skipAutoSubmit
         borderTransparent
         formFields={({ control }) => <FormFields control={control as unknown as Control<AffiliationsFormType>} />}
-        preview={({ data, onEdit }) => (
-          <Preview label={AFFILIATIONS.label} onEdit={onEdit} value={formValues.join(', ')} recommended={showIndicator}>
+        preview={({ data, disabled, onEdit }) => (
+          <Preview
+            label={AFFILIATIONS.label}
+            disabled={disabled}
+            onEdit={onEdit}
+            value={formValues.join(', ')}
+            recommended={showIndicator}
+          >
             <div className="flex flex-col gap-[var(--default-gap)]">
               {formValues.length > 0 && (
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>

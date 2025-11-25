@@ -76,8 +76,14 @@ export const EditNames = ({ fullName, firstName, lastName, recommended, onSubmit
           </ContentWrapper>
         </MultipleContentWrapper>
       )}
-      preview={({ onEdit }) => (
-        <Preview label={FULL_NAME.label} value={fullName} recommended={showPreviewIndicator} onEdit={onEdit} />
+      preview={({ disabled, onEdit }) => (
+        <Preview
+          label={FULL_NAME.label}
+          value={fullName}
+          recommended={showPreviewIndicator}
+          disabled={disabled}
+          onEdit={onEdit}
+        />
       )}
     />
   );

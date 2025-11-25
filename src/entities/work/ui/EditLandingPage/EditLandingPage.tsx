@@ -32,7 +32,9 @@ const EditLandingPage = (props: BaseEditSectionProps) => {
           <FormTextField control={control} name={LANDING_PAGE.name} id={LANDING_PAGE.name} isUrlField />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => <Preview label={LANDING_PAGE.label} value={landingPageValue} onEdit={onEdit} />}
+      preview={({ disabled, onEdit }) => (
+        <Preview label={LANDING_PAGE.label} value={landingPageValue} disabled={disabled} onEdit={onEdit} />
+      )}
     />
   );
 };

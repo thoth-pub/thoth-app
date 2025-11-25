@@ -106,7 +106,6 @@ const SeriesTable = (props: SeriesTableProps) => {
                               />
                               <EditButton
                                 onClick={() => {
-                                  close();
                                   edit({
                                     id,
                                     name,

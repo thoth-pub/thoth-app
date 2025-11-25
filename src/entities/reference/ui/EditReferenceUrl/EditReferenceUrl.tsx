@@ -39,7 +39,9 @@ export const EditReferenceUrl = (props: EditReferenceUrlProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => <Preview label={REFERENCE_URL.label} value={data?.url} onEdit={onEdit} />}
+      preview={({ data, disabled, onEdit }) => (
+        <Preview label={REFERENCE_URL.label} value={data?.url} disabled={disabled} onEdit={onEdit} />
+      )}
     />
   );
 };

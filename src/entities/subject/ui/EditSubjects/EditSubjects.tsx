@@ -54,7 +54,6 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
       validationSchema={subjectsValidationSchema}
       onSubmit={update}
       defaultValues={{ [SUBJECTS.name]: defaultValues }}
-      skipAutoSubmit
       formFields={({ control }) => (
         <FormFields
           recommended={recommended}
@@ -63,10 +62,11 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
           onDelete={deleteSubject}
         />
       )}
-      preview={({ onEdit }) => (
+      preview={({ disabled, onEdit }) => (
         <Preview
           label={SUBJECTS.label}
           onEdit={onEdit}
+          disabled={disabled}
           value={placeholder}
           recommended={recommended}
           tooltip="Theme subject is recommended"

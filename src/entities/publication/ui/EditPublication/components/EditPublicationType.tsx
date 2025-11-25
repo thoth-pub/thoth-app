@@ -47,10 +47,11 @@ const EditPublicationType = (props: EditPublicationTypeProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
+      preview={({ data, disabled, onEdit }) => (
         <Preview
           label={PUBLICATION_TYPE.label}
           value={convertOptionToString(data?.publicationType ?? '')}
+          disabled={disabled}
           onEdit={onEdit}
         />
       )}

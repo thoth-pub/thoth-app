@@ -39,7 +39,9 @@ export const EditReferenceDoi = (props: EditReferenceDoiProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => <Preview label={DOI.label} value={data?.doi} onEdit={onEdit} />}
+      preview={({ data, disabled, onEdit }) => (
+        <Preview label={DOI.label} value={data?.doi} disabled={disabled} onEdit={onEdit} />
+      )}
     />
   );
 };

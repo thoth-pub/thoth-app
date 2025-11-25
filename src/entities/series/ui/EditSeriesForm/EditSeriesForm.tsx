@@ -92,7 +92,9 @@ const EditSeriesForm = ({
             />
           </ContentWrapper>
         )}
-        preview={({ onEdit }) => <Preview label={SERIES_NAME.label} onEdit={onEdit} value={name} />}
+        preview={({ disabled, onEdit }) => (
+          <Preview label={SERIES_NAME.label} disabled={disabled} onEdit={onEdit} value={name} />
+        )}
       />
 
       <EditableContent
@@ -114,8 +116,8 @@ const EditSeriesForm = ({
             />
           </ContentWrapper>
         )}
-        preview={({ onEdit }) => (
-          <Preview label={SERIES_TYPE.label} onEdit={onEdit} value={convertOptionToString(type)} />
+        preview={({ disabled, onEdit }) => (
+          <Preview label={SERIES_TYPE.label} disabled={disabled} onEdit={onEdit} value={convertOptionToString(type)} />
         )}
       />
 
@@ -138,7 +140,9 @@ const EditSeriesForm = ({
             />
           </ContentWrapper>
         )}
-        preview={({ onEdit }) => <Preview label={SERIES_IMPRINT.label} onEdit={onEdit} value={imprint} />}
+        preview={({ disabled, onEdit }) => (
+          <Preview label={SERIES_IMPRINT.label} disabled={disabled} onEdit={onEdit} value={imprint} />
+        )}
       />
 
       <EditableContent
@@ -169,7 +173,9 @@ const EditSeriesForm = ({
             </div>
           </ContentWrapper>
         )}
-        preview={({ onEdit }) => <Preview label="ISSN" onEdit={onEdit} value={issnPrint ?? issnDigital ?? ''} />}
+        preview={({ disabled, onEdit }) => (
+          <Preview label="ISSN" disabled={disabled} onEdit={onEdit} value={issnPrint ?? issnDigital ?? ''} />
+        )}
       />
 
       <EditableContent
@@ -191,7 +197,9 @@ const EditSeriesForm = ({
             />
           </ContentWrapper>
         )}
-        preview={({ onEdit }) => <Preview label={SERIES_URL.label} onEdit={onEdit} value={url ?? ''} />}
+        preview={({ disabled, onEdit }) => (
+          <Preview label={SERIES_URL.label} disabled={disabled} onEdit={onEdit} value={url ?? ''} />
+        )}
       />
 
       <EditableContent
@@ -226,7 +234,9 @@ const EditSeriesForm = ({
             />
           </ContentWrapper>
         )}
-        preview={({ onEdit }) => <Preview label={SERIES_DESCRIPTION.label} onEdit={onEdit} value={description} />}
+        preview={({ disabled, onEdit }) => (
+          <Preview label={SERIES_DESCRIPTION.label} disabled={disabled} onEdit={onEdit} value={description} />
+        )}
       />
     </div>
   );

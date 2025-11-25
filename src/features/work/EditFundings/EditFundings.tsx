@@ -24,19 +24,14 @@ const EditFundings = (props: BaseEditSectionProps) => {
   const isNewFunding = activeFunding ? isDefaultId(activeFunding.id) : false;
 
   const addFunding = () => {
-    if (activeFunding) close();
-
     edit({ ...getDefaultFunding() });
   };
 
   const editFunding = (id: string) => {
-    if (activeFunding) close();
-
     const funding = work.fundings.find((funding) => funding.id === id);
 
     if (!funding) return;
 
-    close();
     edit({ ...funding });
   };
 

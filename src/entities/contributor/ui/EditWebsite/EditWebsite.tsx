@@ -41,8 +41,8 @@ export const EditWebsite = (props: EditWebsiteProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => (
-        <Preview disabled={disabled} label={WEBSITE_URL.label} value={websiteUrl} onEdit={onEdit} />
+      preview={({ disabled: disabledPreview, onEdit }) => (
+        <Preview label={WEBSITE_URL.label} value={websiteUrl} disabled={disabledPreview || disabled} onEdit={onEdit} />
       )}
     />
   );

@@ -167,8 +167,8 @@ export const EditDimensions = (props: EditSizesProps) => {
           />
         </MultipleContentWrapper>
       )}
-      preview={({ onEdit }) => (
-        <Preview label={PUBLICATION_DIMENSIONS.label} value={placeholderValues} onEdit={onEdit} />
+      preview={({ disabled, onEdit }) => (
+        <Preview label={PUBLICATION_DIMENSIONS.label} value={placeholderValues} disabled={disabled} onEdit={onEdit} />
       )}
     />
   );

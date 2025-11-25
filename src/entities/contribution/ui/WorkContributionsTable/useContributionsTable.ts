@@ -14,7 +14,7 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
 
   const { updateContribution } = useWork(workId, queryToken);
 
-  const { activeContribution, edit, close } = useContributionStateMachine();
+  const { activeContribution, edit } = useContributionStateMachine();
   const [items, setItems] = useState(work.contributions);
 
   const isEqual = work.contributions.every((contribution, index) => {
@@ -75,7 +75,6 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
 
     if (!contribution) return;
 
-    close();
     edit(contribution);
   };
 

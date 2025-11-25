@@ -40,8 +40,8 @@ const EditProjectShortNameForm = (props: EditProjectShortNameFormProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
-        <Preview label={PROJECT_SHORTNAME.label} value={data?.projectShortname} onEdit={onEdit} />
+      preview={({ data, disabled, onEdit }) => (
+        <Preview label={PROJECT_SHORTNAME.label} value={data?.projectShortname} disabled={disabled} onEdit={onEdit} />
       )}
     />
   );

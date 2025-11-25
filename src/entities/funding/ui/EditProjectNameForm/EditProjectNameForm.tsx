@@ -40,7 +40,9 @@ const EditProjectNameForm = (props: EditProjectNameFormProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => <Preview label={PROJECT_NAME.label} value={data?.projectName} onEdit={onEdit} />}
+      preview={({ data, disabled, onEdit }) => (
+        <Preview label={PROJECT_NAME.label} value={data?.projectName} disabled={disabled} onEdit={onEdit} />
+      )}
     />
   );
 };

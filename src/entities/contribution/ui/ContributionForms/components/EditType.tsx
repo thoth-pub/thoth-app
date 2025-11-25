@@ -50,8 +50,14 @@ export const EditType = (props: EditTypeProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => (
-        <Preview capitalize label={CONTRIBUTOR_TYPE.label} value={t(defaultValue.label)} onEdit={onEdit} />
+      preview={({ disabled, onEdit }) => (
+        <Preview
+          capitalize
+          label={CONTRIBUTOR_TYPE.label}
+          value={t(defaultValue.label)}
+          disabled={disabled}
+          onEdit={onEdit}
+        />
       )}
     />
   );

@@ -49,7 +49,6 @@ const EditLocations = (props: EditLocationsProps) => {
       defaultValues={{ [LOCATIONS.name]: defaultValues }}
       validationSchema={locationsValidationSchema}
       borderTransparent
-      skipAutoSubmit
       isTableVariant
       onSubmit={(data) => onUpdate?.(data)}
       formFields={({ control, isHelperTextVisible }) => (
@@ -60,8 +59,8 @@ const EditLocations = (props: EditLocationsProps) => {
           onClose={onClose}
         />
       )}
-      preview={({ onEdit }) => (
-        <Preview label={LOCATIONS.label} value={placeholder} onEdit={onEdit}>
+      preview={({ disabled, onEdit }) => (
+        <Preview label={LOCATIONS.label} value={placeholder} disabled={disabled} onEdit={onEdit}>
           {locations.length > 0 && (
             <ul className="flex w-full flex-col gap-[var(--default-gap)]">
               {defaultValues.map(({ platformId, platform: { label }, fullTextUrl, landingPage, canonical }) => (

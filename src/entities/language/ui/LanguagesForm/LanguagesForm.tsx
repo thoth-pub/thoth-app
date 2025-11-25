@@ -52,14 +52,14 @@ const LanguagesForm = (props: LanguagesFormProps) => {
       validationSchema={languagesValidationSchema}
       onSubmit={(data) => onUpdate?.(data)}
       defaultValues={{ [LANGUAGES.name]: defaultValues }}
-      skipAutoSubmit
       formFields={({ control }) => (
         <FormFields control={control as unknown as Control<LanguagesFormType>} onDelete={onDelete} onClose={onClose} />
       )}
-      preview={({ onEdit }) => (
+      preview={({ disabled, onEdit }) => (
         <Preview
           label={LANGUAGES.label}
           onEdit={onEdit}
+          disabled={disabled}
           value={placeholder}
           recommended={showRecommendations}
           editButtonClassName="mt-1.5 lg:mt-0"

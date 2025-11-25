@@ -10,7 +10,6 @@ import {
   type UseFormSetValue,
   type ValidationMode,
 } from 'react-hook-form';
-import { useUnmount } from 'react-use';
 import type { ZodType } from 'zod';
 
 import { mergeStyles } from '@/src/shared';
@@ -33,7 +32,6 @@ export type FormProps<T extends FieldValues> = {
     setValue: UseFormSetValue<FieldValues>;
   }) => Readonly<React.ReactNode>;
   onSubmit: SubmitHandler<T>;
-  onAutoSubmit: (data: FieldValues) => void;
   onClose: () => void;
   onInfo: () => void;
 };
@@ -49,7 +47,6 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     className,
     children,
     onSubmit,
-    onAutoSubmit,
     onClose,
     onInfo,
   } = props;
@@ -60,7 +57,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     getValues,
     reset,
     setValue,
-    formState: { isValid, isDirty, isSubmitSuccessful },
+    formState: { isValid, isDirty },
   } = useForm({
     resolver: zodResolver(validationSchema),
     mode: validationMode,
@@ -70,18 +67,9 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
   const isDesktop = useIsDesktop(980);
 
   const isSubmitDisabled = !isValid || !isDirty;
-  const shouldSubmitAutomatically = isDirty && isValid && !isSubmitSuccessful;
 
   const handleSubmitForm = handleSubmit((data) => {
     onSubmit(data as T);
-  });
-
-  useUnmount(() => {
-    if (!shouldSubmitAutomatically) return;
-
-    const values = getValues();
-
-    onAutoSubmit(values as T);
   });
 
   return (

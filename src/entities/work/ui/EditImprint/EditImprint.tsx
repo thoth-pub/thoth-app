@@ -45,8 +45,8 @@ export const EditImprint = ({ workId, queryToken, imprintOptions, recommended = 
           />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => (
-        <Preview label={IMPRINT.label} value={value} recommended={showIndicator} onEdit={onEdit} />
+      preview={({ disabled, onEdit }) => (
+        <Preview label={IMPRINT.label} value={value} recommended={showIndicator} disabled={disabled} onEdit={onEdit} />
       )}
     />
   );

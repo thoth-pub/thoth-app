@@ -103,11 +103,12 @@ const EditDoi = (props: EditDoiProps) => {
           )}
         </MultipleContentWrapper>
       )}
-      preview={({ onEdit }) => (
+      preview={({ disabled, onEdit }) => (
         <Preview
           label={DOI.label}
           value={isChapter ? chapterPlaceholderValue : workPlaceholderValue}
           recommended={showDoiIndicator || showLandingPageIndicator || showCoverUrlIndicator}
+          disabled={disabled}
           onEdit={onEdit}
         >
           {isAnyValueFilled && (

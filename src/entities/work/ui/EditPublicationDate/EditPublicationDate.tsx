@@ -41,12 +41,12 @@ const EditPublicationDate = (props: EditPublicationDateProps) => {
           {isHelperTextVisible && <FormHelperText>{PUBLICATION_DATE_HELPER_TEXT}</FormHelperText>}
         </div>
       )}
-      preview={({ data, onEdit }) => (
+      preview={({ data, disabled, onEdit }) => (
         <div className="flex flex-col gap-2">
           <InputLabel>{PUBLICATION_DATE.label}</InputLabel>
           <div className="group flex items-center gap-1">
             <Typography>{data?.publicationDate ? convertDateToFormattedDate(data.publicationDate) : ''}</Typography>
-            <EditButton onClick={onEdit} className="opacity-0 group-hover:opacity-100" />
+            <EditButton disabled={disabled} onClick={onEdit} className="opacity-0 group-hover:opacity-100" />
           </div>
         </div>
       )}

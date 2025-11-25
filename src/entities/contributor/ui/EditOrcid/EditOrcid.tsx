@@ -40,11 +40,11 @@ const EditOrcid = (props: EditOrcidProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => (
+      preview={({ disabled, onEdit }) => (
         <Preview
-          disabled={disabled}
           label={ORCID.label}
           value={orcidId ? convertOrchidIdToText(orcidId) : ''}
+          disabled={disabled}
           onEdit={onEdit}
         />
       )}

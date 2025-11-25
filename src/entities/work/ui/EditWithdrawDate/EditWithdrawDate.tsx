@@ -41,12 +41,12 @@ const EditWithdrawDate = (props: EditWithdrawDateProps) => {
           {isHelperTextVisible && <FormHelperText>{WITHDRAWN_DATE_HELPER_TEXT}</FormHelperText>}
         </div>
       )}
-      preview={({ data, onEdit }) => (
+      preview={({ data, disabled, onEdit }) => (
         <div className="flex flex-col gap-2">
           <InputLabel>{WITHDRAWN_DATE.label}</InputLabel>
           <div className="group flex items-center gap-1">
             <Typography>{data?.withdrawnDate ? convertDateToFormattedDate(data.withdrawnDate) : ''}</Typography>
-            <EditButton onClick={onEdit} className="opacity-0 group-hover:opacity-100" />
+            <EditButton disabled={disabled} onClick={onEdit} className="opacity-0 group-hover:opacity-100" />
           </div>
         </div>
       )}

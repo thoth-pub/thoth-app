@@ -32,7 +32,6 @@ const EditInstitutionForm = (props: InstitutionFormProps) => {
     <EditableContent
       formId={IDs.INSTITUTION}
       borderTransparent
-      skipAutoSubmit
       isTableVariant
       validationSchema={institutionValidationSchema}
       defaultValues={{ [INSTITUTION.name]: defaultValue }}
@@ -57,8 +56,13 @@ const EditInstitutionForm = (props: InstitutionFormProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ data, onEdit }) => (
-        <Preview label={INSTITUTION.label} value={value?.name ?? data?.institution.label} onEdit={onEdit} />
+      preview={({ data, disabled, onEdit }) => (
+        <Preview
+          label={INSTITUTION.label}
+          value={value?.name ?? data?.institution.label}
+          disabled={disabled}
+          onEdit={onEdit}
+        />
       )}
     />
   );

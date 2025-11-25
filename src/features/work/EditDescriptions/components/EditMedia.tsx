@@ -115,7 +115,9 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
           </ContentWrapper>
         </MultipleContentWrapper>
       )}
-      preview={({ onEdit }) => <Preview label="Media count" value={placeholderValue} onEdit={onEdit} />}
+      preview={({ disabled, onEdit }) => (
+        <Preview label="Media count" value={placeholderValue} disabled={disabled} onEdit={onEdit} />
+      )}
     />
   );
 };

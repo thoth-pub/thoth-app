@@ -71,8 +71,8 @@ export const EditNotes = (props: BaseRecommendedSectionProps) => {
           </ContentWrapper>
         </MultipleContentWrapper>
       )}
-      preview={({ onEdit }) => (
-        <Preview label="Notes" value={placeholderValue} onEdit={onEdit}>
+      preview={({ disabled, onEdit }) => (
+        <Preview label="Notes" value={placeholderValue} disabled={disabled} onEdit={onEdit}>
           <div className="flex flex-col gap-2">
             {work.generalNote && work.generalNote.length > 0 && <Typography>{work.generalNote}</Typography>}
             {work.bibliographyNote && work.bibliographyNote.length > 0 && (

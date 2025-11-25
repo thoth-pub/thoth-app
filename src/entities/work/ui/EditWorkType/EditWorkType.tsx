@@ -45,7 +45,9 @@ export const EditImprint = ({ workId, queryToken }: BaseEditSectionProps) => {
           />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => <Preview label={WORK_TYPE.label} value={value} onEdit={onEdit} capitalize />}
+      preview={({ disabled, onEdit }) => (
+        <Preview label={WORK_TYPE.label} value={value} disabled={disabled} onEdit={onEdit} capitalize />
+      )}
     />
   );
 };

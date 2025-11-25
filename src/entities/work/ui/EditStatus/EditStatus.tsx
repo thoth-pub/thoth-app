@@ -69,7 +69,7 @@ const EditStatus = (props: EditStatusProps) => {
           />
         </div>
       )}
-      preview={({ onEdit }) => {
+      preview={({ disabled, onEdit }) => {
         const option = workStatusOptionsAlt.find((option) => option.value === defaultValue);
 
         if (!option) {
@@ -81,7 +81,7 @@ const EditStatus = (props: EditStatusProps) => {
             <InputLabel>{WORK_STATUS.label}</InputLabel>
             <div className="group flex items-center gap-1">
               <Typography>{option.label}</Typography>
-              <EditButton onClick={onEdit} disabled={isFieldDisable} className="opacity-0 group-hover:opacity-100" />
+              <EditButton onClick={onEdit} disabled={disabled} className="opacity-0 group-hover:opacity-100" />
             </div>
           </div>
         );
