@@ -1,6 +1,6 @@
 'use client';
 
-import { EditDoi, EditLandingPage, EditLicense, EditWorkTitle, useWorkRecommendations } from '@/src/entities/work';
+import { EditDoi, EditLicense, EditWorkTitle, useWorkRecommendations } from '@/src/entities/work';
 import type { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { type BaseEditSectionProps } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
@@ -54,7 +54,6 @@ const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
           {!isMultipleChaptersEdit && (
             <EditDoi workId={workId} queryToken={queryToken} recommended={showRecommendations} isChapter />
           )}
-          {!isMultipleChaptersEdit && <EditLandingPage workId={workId} queryToken={queryToken} />}
         </div>
       )}
     </RecommendedSection>

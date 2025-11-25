@@ -16,7 +16,7 @@ const LinkTooltip = ({ link, linkText, children }: LinkTooltipProps) => {
       className="shrink-0 shadow-2xl"
       title={
         <div className="flex items-center gap-1">
-          <Link href={link} target="_blank" rel="noopener noreferrer">
+          <Link href={link} target="_blank" rel="noopener noreferrer" className="max-w-[100px] truncate">
             {linkText}
           </Link>
           <LaunchIcon color="primary" className="h-4 w-4" />

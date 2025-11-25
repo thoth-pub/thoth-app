@@ -165,7 +165,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
       )}
       preview={({ onEdit }) => (
         <Preview
-          label={WORK_PAGES_COUNT.label}
+          label={isChapter ? 'Page Range' : 'Page Count'}
           value={isChapter ? chapterPlaceholder : workPlaceholder}
           recommended={showPagesCountIndicator}
           onEdit={onEdit}

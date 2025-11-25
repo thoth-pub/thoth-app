@@ -1,11 +1,22 @@
 'use client';
 
+import PhotoAlbumIcon from '@mui/icons-material/PhotoAlbum';
+import InsertPhotoIcon from '@mui/icons-material/InsertPhoto';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { DoiAndCoversForm } from '@/src/entities/work/model/work.types';
 import { doiAndCoversValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseRecommendedSectionProps, getProtocolPrefix, HELPER_TEXT, IDs } from '@/src/shared';
+import { type BaseRecommendedSectionProps, convertDoiToText, getProtocolPrefix, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { ContentWrapper, FormTextField, Link, MultipleContentWrapper, Preview } from '@/src/shared/ui';
+import {
+  ContentWrapper,
+  DoiLogo,
+  FormTextField,
+  Link,
+  LinkTooltip,
+  MultipleContentWrapper,
+  Preview,
+  Typography,
+} from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
@@ -63,24 +74,19 @@ const EditDoi = (props: EditDoiProps) => {
               isDoiField
             />
           </ContentWrapper>
-          {!isChapter && (
-            <ContentWrapper>
-              <FormFieldLabel
-                label={LANDING_PAGE.label}
-                id={LANDING_PAGE.name}
-                recommended={showLandingPageIndicator}
-              />
-              <FormTextField
-                control={control}
-                name={LANDING_PAGE.name}
-                id={LANDING_PAGE.name}
-                helperText={HELPER_TEXT.LANDING_PAGE}
-                isHelperTextVisible={isHelperTextVisible}
-                isUrlField
-                predefinedPrefix={getProtocolPrefix(landingPageValue ?? '')}
-              />
-            </ContentWrapper>
-          )}
+          <ContentWrapper>
+            <FormFieldLabel label={LANDING_PAGE.label} id={LANDING_PAGE.name} recommended={showLandingPageIndicator} />
+            <FormTextField
+              control={control}
+              name={LANDING_PAGE.name}
+              id={LANDING_PAGE.name}
+              helperText={HELPER_TEXT.LANDING_PAGE}
+              isHelperTextVisible={isHelperTextVisible}
+              isUrlField
+              predefinedPrefix={getProtocolPrefix(landingPageValue ?? '')}
+            />
+          </ContentWrapper>
+
           {!isChapter && (
             <ContentWrapper>
               <FormFieldLabel label={COVER_URL.label} id={COVER_URL.name} recommended={showCoverUrlIndicator} />
@@ -105,21 +111,28 @@ const EditDoi = (props: EditDoiProps) => {
           onEdit={onEdit}
         >
           {isAnyValueFilled && (
-            <ul className="flex flex-col gap-2">
+            <ul className="flex items-center gap-1">
               {doiValue.length > 0 && (
-                <Link href={doiValue} target="_blank">
-                  {doiValue}
-                </Link>
+                <li className="flex items-center gap-1">
+                  <Typography>{convertDoiToText(doiValue)}</Typography>
+                  <LinkTooltip link={doiValue} linkText={convertDoiToText(doiValue)}>
+                    <DoiLogo />
+                  </LinkTooltip>
+                </li>
               )}
               {landingPageValue.length > 0 && (
-                <Link href={landingPageValue} target="_blank">
-                  {landingPageValue}
-                </Link>
+                <li>
+                  <LinkTooltip link={landingPageValue} linkText={landingPageValue}>
+                    <InsertPhotoIcon color="primary" />
+                  </LinkTooltip>
+                </li>
               )}
               {coverUrlValue.length > 0 && (
-                <Link href={coverUrlValue} target="_blank">
-                  {coverUrlValue}
-                </Link>
+                <li>
+                  <LinkTooltip link={coverUrlValue} linkText={coverUrlValue}>
+                    <PhotoAlbumIcon color="primary" />
+                  </LinkTooltip>
+                </li>
               )}
             </ul>
           )}

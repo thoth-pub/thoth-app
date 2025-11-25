@@ -26,7 +26,7 @@ const EditLandingPage = (props: BaseEditSectionProps) => {
       defaultValues={{ [LANDING_PAGE.name]: landingPageValue }}
       validationSchema={landingPageValidationSchema}
       onSubmit={({ landingPage }) => updateLandingPage(landingPage)}
-      formFields={({ control, isHelperTextVisible }) => (
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={LANDING_PAGE.label} id={LANDING_PAGE.name} />
           <FormTextField control={control} name={LANDING_PAGE.name} id={LANDING_PAGE.name} isUrlField />

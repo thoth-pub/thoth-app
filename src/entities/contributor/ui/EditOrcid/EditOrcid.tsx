@@ -1,4 +1,4 @@
-import { HELPER_TEXT, IDs } from '@/src/shared';
+import { convertOrchidIdToText, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
@@ -36,10 +36,18 @@ const EditOrcid = (props: EditOrcidProps) => {
             helperText={CONTRIBUTOR_ORCID_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
             disabled={disabled}
+            isOrcidField
           />
         </ContentWrapper>
       )}
-      preview={({ onEdit }) => <Preview disabled={disabled} label={ORCID.label} value={orcidId} onEdit={onEdit} />}
+      preview={({ onEdit }) => (
+        <Preview
+          disabled={disabled}
+          label={ORCID.label}
+          value={orcidId ? convertOrchidIdToText(orcidId) : ''}
+          onEdit={onEdit}
+        />
+      )}
     />
   );
 };

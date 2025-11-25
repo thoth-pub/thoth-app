@@ -6,7 +6,7 @@ import type { FormFieldOption } from '@/src/shared/interfaces';
 import { convertDateToFormattedDate } from './date';
 
 const {
-  data: { orcidPrefix, rorPrefix },
+  validations: { orcidPrefix, rorPrefix, doiPrefix },
   dataApi: { textSeparator },
 } = appConfig;
 
@@ -54,6 +54,10 @@ export const convertLanguageCode = (code: string) => {
   if (!end) return start;
 
   return `${start}-${end.toUpperCase()}`;
+};
+
+export const convertDoiToText = (doi: string) => {
+  return doi.replace(doiPrefix, '');
 };
 
 export const convertOrchidIdToText = (orcidId: string) => {

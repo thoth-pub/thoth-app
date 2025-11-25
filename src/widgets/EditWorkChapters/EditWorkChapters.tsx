@@ -246,7 +246,6 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                 cells={[
                   'Title',
                   'Contributors',
-                  'Page Range',
                   <div className="flex items-center justify-between">
                     <Typography
                       variant="h2"
@@ -260,7 +259,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                         '@media (min-width: 1280px)': { fontSize: '1.375rem' },
                       }}
                     >
-                      Page Count
+                      Page Range
                     </Typography>
                     <Checkbox
                       size="small"

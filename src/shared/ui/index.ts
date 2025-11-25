@@ -68,6 +68,7 @@ export { default as DashboardChartSkeleton } from './layout/DashboardChartSkelet
 // Icons
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';
+export { default as DoiLogo } from './icons/DoiLogo/DoiLogo';
 // Layout
 export { default as ContentWrapper } from './layout/ContentWrapper/ContentWrapper';
 export { default as DashboardContentWrapper } from './layout/DashboardContentWrapper/DashboardContentWrapper';

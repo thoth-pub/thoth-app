@@ -21,7 +21,7 @@ import {
 } from '@/src/shared/constants';
 import type { ErrorMessage } from '@/src/shared/interfaces';
 
-const { doiPrefix, rorPrefix } = appConfig.validations;
+const { doiPrefix, rorPrefix, orcidPrefix } = appConfig.validations;
 
 const { INVALID_URL } = ERRORS;
 
@@ -89,9 +89,18 @@ export const doiValidation = optionalUrlValidation.refine((doi) => {
 export const idValidation = z.uuid();
 export const orcidValidation = getStringValidation()
   .optional()
-  .refine((value) => (value ? orcid.validate(appConfig.validations.orcidPrefix + value) : true), {
-    message: 'Invalid ORCID ID (0000-0000-0000-0000 or 0000-0000-0000-000X)',
-  });
+  .refine(
+    (value) => {
+      if (!value) return true;
+
+      return value.startsWith(orcidPrefix)
+        ? orcid.validate(value)
+        : orcid.validate(appConfig.validations.orcidPrefix + value);
+    },
+    {
+      message: 'Invalid ORCID ID (0000-0000-0000-0000 or 0000-0000-0000-000X)',
+    },
+  );
 export const rorValidation = getStringValidation().refine((ror) => ror.startsWith(rorPrefix));
 
 export const issnValidation = optionalStringValidation.refine((issn) => {

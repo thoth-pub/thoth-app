@@ -20,11 +20,12 @@ export type FormTextFieldComponentProps<T extends FieldValues> = {
   isDoiField?: boolean;
   isUrlField?: boolean;
   isRorField?: boolean;
+  isOrcidField?: boolean;
   id?: string;
 } & BaseFieldProps<T> &
   TextFieldProps;
 
-const { protocolPrefixHttps, protocolPrefixHttp, doiPrefix, rorPrefix } = appConfig.validations;
+const { protocolPrefixHttps, protocolPrefixHttp, doiPrefix, rorPrefix, orcidPrefix } = appConfig.validations;
 
 const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextFieldComponentProps<T>) => {
   const {
@@ -38,17 +39,18 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     step,
     id,
     type,
-    predefinedPrefix = protocolPrefixHttp,
+    predefinedPrefix = protocolPrefixHttps,
     isDoiField = false,
     isUrlField = false,
     isRorField = false,
+    isOrcidField = false,
     ...restProps
   } = props;
 
   const [protocolPrefix, setProtocolPrefix] = useState(predefinedPrefix);
   const [showPassword, setShowPassword] = useState(false);
 
-  const addPrefix = isDoiField || isUrlField || isRorField;
+  const addPrefix = isDoiField || isUrlField || isRorField || isOrcidField;
 
   const isPasswordField = type === InputTypes.PASSWORD;
 
@@ -93,6 +95,10 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
               return onChange(rorPrefix + e.target.value);
             }
 
+            if (isOrcidField && !e.target.value.startsWith(orcidPrefix) && e.target.value.length > 0) {
+              return onChange(orcidPrefix + e.target.value);
+            }
+
             onChange(e.target.value);
           }}
           slotProps={{
@@ -117,6 +123,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
                   {isUrlField && protocolPrefix}
                   {isDoiField && doiPrefix}
                   {isRorField && rorPrefix}
+                  {isOrcidField && orcidPrefix}
                 </InputAdornment>
               ),
               endAdornment: isPasswordField && (
