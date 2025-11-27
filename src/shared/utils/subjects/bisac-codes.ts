@@ -1,7 +1,3 @@
-/**
- * BISAC (Book Industry Standards and Communications) Subject Codes
- * Maps BISAC codes to their full descriptive names
- */
 export const BISAC_CODES: Record<string, string> = {
   ANT000000: 'Antiques & Collectibles / General',
   ANT001000: 'Antiques & Collectibles / Americana',
