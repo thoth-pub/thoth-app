@@ -5,7 +5,13 @@ import { useMemo } from 'react';
 import { useWork } from '@/src/entities/work';
 import type { PagesCountForm } from '@/src/entities/work/model/work.types';
 import { pagesCountValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseRecommendedSectionProps, convertArabicToRoman, HELPER_TEXT, IDs } from '@/src/shared';
+import {
+  type BaseRecommendedSectionProps,
+  convertArabicToRoman,
+  getPagesPlaceholder,
+  HELPER_TEXT,
+  IDs,
+} from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import {
   ContentWrapper,
@@ -62,7 +68,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
   }, [pageCount, frontmatterCount, backmatterCount]);
 
   const workPlaceholder = pageCount ? `${pageCount} ${pageCount > 1 ? 'pages' : 'page'} (${pageBreakdownValue})` : '';
-  const chapterPlaceholder = `${firstPage.length > 0 ? firstPage : '0'} - ${lastPage.length > 0 ? lastPage : '0'} (${pageCount} ${pageCount > 1 ? 'pages' : 'page'})`;
+  const chapterPlaceholder = getPagesPlaceholder(firstPage, lastPage, pageCount);
 
   const handleSubmit = ({ pageCount, frontmatterCount, backmatterCount, firstPage, lastPage }: PagesCountForm) => {
     updateWork({
@@ -82,29 +88,13 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
         [WORK_PAGES_COUNT.name]: pageCount,
         [WORK_FRONTMATTER_COUNT.name]: frontmatterCount,
         [WORK_BACKMATTER_COUNT.name]: backmatterCount,
-        [WORK_FIRST_PAGE.name]: firstPage ? +firstPage : 0,
-        [WORK_LAST_PAGE.name]: lastPage ? +lastPage : 0,
+        [WORK_FIRST_PAGE.name]: firstPage ? firstPage : '',
+        [WORK_LAST_PAGE.name]: lastPage ? lastPage : '',
       }}
       validationSchema={pagesCountValidationSchema}
       onSubmit={handleSubmit}
       formFields={({ control, isHelperTextVisible }) => (
         <MultipleContentWrapper>
-          <ContentWrapper>
-            <FormFieldLabel
-              label={WORK_PAGES_COUNT.label}
-              id={WORK_PAGES_COUNT.name}
-              recommended={showPagesCountIndicator}
-            />
-            <FormTextField
-              control={control}
-              name={WORK_PAGES_COUNT.name}
-              helperText={WORK_PAGES_COUNT_HELPER_TEXT}
-              id={WORK_PAGES_COUNT.name}
-              isHelperTextVisible={isHelperTextVisible}
-              type={WORK_PAGES_COUNT.type}
-              min={0}
-            />
-          </ContentWrapper>
           {isChapter && (
             <>
               <ContentWrapper>
@@ -133,6 +123,22 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
               </ContentWrapper>
             </>
           )}
+          <ContentWrapper>
+            <FormFieldLabel
+              label={WORK_PAGES_COUNT.label}
+              id={WORK_PAGES_COUNT.name}
+              recommended={showPagesCountIndicator}
+            />
+            <FormTextField
+              control={control}
+              name={WORK_PAGES_COUNT.name}
+              helperText={WORK_PAGES_COUNT_HELPER_TEXT}
+              id={WORK_PAGES_COUNT.name}
+              isHelperTextVisible={isHelperTextVisible}
+              type={WORK_PAGES_COUNT.type}
+              min={0}
+            />
+          </ContentWrapper>
           {!isChapter && (
             <>
               <ContentWrapper>

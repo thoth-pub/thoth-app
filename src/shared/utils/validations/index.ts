@@ -135,6 +135,25 @@ export const romanNumeralValidation = z.string().toUpperCase().regex(romanRegex,
 
 export const romanNumeralValidationOptional = romanNumeralValidation.optional();
 
+export const numberOrRomanNumeralValidation = z.string().refine(
+  (value) => {
+    if (value.length === 0) return true;
+
+    const numValue = Number(value);
+
+    if (Number.isInteger(numValue) && numValue >= 1) {
+      return true;
+    }
+
+    return romanRegex.test(value.toUpperCase());
+  },
+  {
+    message: 'Must be a valid positive number or Roman numeral',
+  },
+);
+
+export const numberOrRomanNumeralValidationOptional = numberOrRomanNumeralValidation.optional();
+
 export const uuidValidation = z.uuid();
 
 export const getFileValidation = (

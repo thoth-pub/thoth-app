@@ -264,13 +264,13 @@ export const FORM_FIELDS = {
     label: 'First Page',
     name: 'firstPage',
     placeholder: 'First Page',
-    type: InputTypes.NUMBER,
+    type: InputTypes.TEXT,
   },
   WORK_LAST_PAGE: {
     label: 'Last Page',
     name: 'lastPage',
     placeholder: 'Last Page',
-    type: InputTypes.NUMBER,
+    type: InputTypes.TEXT,
   },
   WORK_BACKMATTER_COUNT: {
     label: 'Backmatter Count',

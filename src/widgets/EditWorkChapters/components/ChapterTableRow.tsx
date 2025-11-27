@@ -17,6 +17,7 @@ import {
   TableRow,
   Typography,
 } from '@/src/shared/ui';
+import { getPagesPlaceholder } from '@/src/shared';
 
 type TableRowProps = {
   chapter: WorkEntity;
@@ -67,7 +68,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
       </TableCell>
       <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
         <div className="flex justify-between">
-          <Typography>{`${firstPage} - ${lastPage} (${pageCount} ${pageCount > 1 ? 'pages' : 'page'})`}</Typography>
+          <Typography>{getPagesPlaceholder(firstPage, lastPage, pageCount)}</Typography>
           {!isButtonsDisabled && (
             <ButtonGroup className="mb-auto ml-auto">
               <DeleteButton className="opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />

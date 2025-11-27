@@ -1,6 +1,6 @@
 import z from 'zod';
 
-import { ERRORS, getStringValidation } from '@/src/shared';
+import { ERRORS, getStringValidation, numberOrRomanNumeralValidationOptional } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import {
@@ -76,9 +76,9 @@ const frontMatterCountValidation = optionalPositiveIntValidation;
 
 const backMatterCountValidation = optionalPositiveIntValidation;
 
-const firstPageValidation = optionalPositiveIntValidation;
+const firstPageValidation = numberOrRomanNumeralValidationOptional;
 
-const lastPageValidation = optionalPositiveIntValidation;
+const lastPageValidation = numberOrRomanNumeralValidationOptional;
 
 const coverUrlValidation = optionalUrlValidation;
 
@@ -144,7 +144,6 @@ export const licenseAndCopyrightHolderValidationSchema = z.object({
 export const doiAndCoversValidationSchema = z.object({
   [DOI.name]: doiValidation,
   [LANDING_PAGE.name]: landingPageValidation,
-  [COVER_URL.name]: coverUrlValidation,
 });
 
 export const mediaValidationSchema = z.object({

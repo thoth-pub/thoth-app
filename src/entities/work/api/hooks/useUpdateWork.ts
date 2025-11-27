@@ -3,7 +3,7 @@ import { ServerError } from '@apollo/client';
 import { BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
 import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
 
-import { UPDATE_WORK } from '../../model/work.schema';
+import { GET_WORK_CHAPTERS, UPDATE_WORK } from '../../model/work.schema';
 import { WorkEntity } from '../../model/work.types';
 import { WorkDtoMapper } from '../../model/work.mapper';
 
@@ -32,6 +32,7 @@ export const useUpdateWork = ({ queryToken }: BaseEditSectionProps) => {
 
         sendErrorNotification(WORK_UPDATE_FAILED);
       },
+      refetchQueries: [GET_WORK_CHAPTERS],
     },
   });
 

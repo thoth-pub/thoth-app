@@ -1,6 +1,5 @@
 'use client';
 
-import PhotoAlbumIcon from '@mui/icons-material/PhotoAlbum';
 import InsertPhotoIcon from '@mui/icons-material/InsertPhoto';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { DoiAndCoversForm } from '@/src/entities/work/model/work.types';
@@ -11,7 +10,6 @@ import {
   ContentWrapper,
   DoiLogo,
   FormTextField,
-  Link,
   LinkTooltip,
   MultipleContentWrapper,
   Preview,
@@ -20,7 +18,7 @@ import {
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-const { DOI, LANDING_PAGE, COVER_URL } = FORM_FIELDS;
+const { DOI, LANDING_PAGE } = FORM_FIELDS;
 
 type EditDoiProps = BaseRecommendedSectionProps & {
   isChapter?: boolean;
@@ -30,25 +28,21 @@ const EditDoi = (props: EditDoiProps) => {
   const { workId, queryToken, recommended = false, isChapter = false } = props;
 
   const { work, updateWork } = useWork(workId, queryToken);
-  const { isDoiRequired, isLandingPageRequired, isCoverUrlRequired } = useWorkRecommendations({ workId });
+  const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
 
   const doiValue = work?.doi ?? '';
   const landingPageValue = work?.landingPage ?? '';
-  const coverUrlValue = work?.coverUrl ?? '';
 
-  const isAnyValueFilled = doiValue.length > 0 || landingPageValue.length > 0 || coverUrlValue.length > 0;
+  const isAnyValueFilled = doiValue.length > 0 || landingPageValue.length > 0;
 
   const showDoiIndicator = recommended && isDoiRequired;
   const showLandingPageIndicator = recommended && isLandingPageRequired;
-  const showCoverUrlIndicator = recommended && isCoverUrlRequired;
 
-  const workPlaceholderValue = [doiValue, landingPageValue, coverUrlValue]
-    .filter((value) => value.length > 0)
-    .join(', ');
+  const workPlaceholderValue = [doiValue, landingPageValue].filter((value) => value.length > 0).join(', ');
   const chapterPlaceholderValue = [doiValue].filter((value) => value.length > 0).join(', ');
 
-  const updateImprint = ({ doi, landingPage, coverUrl }: DoiAndCoversForm) => {
-    updateWork({ ...work, doi: doi ?? '', landingPage, coverUrl });
+  const updateDoiAndLandingPage = ({ doi, landingPage }: DoiAndCoversForm) => {
+    updateWork({ ...work, doi: doi ?? '', landingPage });
   };
 
   return (
@@ -57,10 +51,9 @@ const EditDoi = (props: EditDoiProps) => {
       defaultValues={{
         [DOI.name]: doiValue,
         [LANDING_PAGE.name]: landingPageValue,
-        [COVER_URL.name]: coverUrlValue,
       }}
       validationSchema={doiAndCoversValidationSchema}
-      onSubmit={updateImprint}
+      onSubmit={updateDoiAndLandingPage}
       formFields={({ control, isHelperTextVisible }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
@@ -86,28 +79,13 @@ const EditDoi = (props: EditDoiProps) => {
               predefinedPrefix={getProtocolPrefix(landingPageValue ?? '')}
             />
           </ContentWrapper>
-
-          {!isChapter && (
-            <ContentWrapper>
-              <FormFieldLabel label={COVER_URL.label} id={COVER_URL.name} recommended={showCoverUrlIndicator} />
-              <FormTextField
-                control={control}
-                name={COVER_URL.name}
-                id={COVER_URL.name}
-                helperText={HELPER_TEXT.COVER_URL}
-                isHelperTextVisible={isHelperTextVisible}
-                isUrlField
-                predefinedPrefix={getProtocolPrefix(coverUrlValue ?? '')}
-              />
-            </ContentWrapper>
-          )}
         </MultipleContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (
         <Preview
           label={DOI.label}
           value={isChapter ? chapterPlaceholderValue : workPlaceholderValue}
-          recommended={showDoiIndicator || showLandingPageIndicator || showCoverUrlIndicator}
+          recommended={showDoiIndicator || showLandingPageIndicator}
           disabled={disabled}
           onEdit={onEdit}
         >
@@ -125,13 +103,6 @@ const EditDoi = (props: EditDoiProps) => {
                 <li>
                   <LinkTooltip link={landingPageValue} linkText={landingPageValue}>
                     <InsertPhotoIcon color="primary" />
-                  </LinkTooltip>
-                </li>
-              )}
-              {coverUrlValue.length > 0 && (
-                <li>
-                  <LinkTooltip link={coverUrlValue} linkText={coverUrlValue}>
-                    <PhotoAlbumIcon color="primary" />
                   </LinkTooltip>
                 </li>
               )}
