@@ -169,6 +169,10 @@ export const coverUrlValidationSchema = z.object({
   ),
 });
 
+export const coverUrlAltValidationSchema = z.object({
+  [COVER_URL.name]: optionalUrlValidation,
+});
+
 export const notesValidationSchema = z.object({
   [WORK_GENERAL_NOTE.name]: optionalStringValidation,
   [WORK_BIBLIOGRAPHY_NOTE.name]: optionalStringValidation,

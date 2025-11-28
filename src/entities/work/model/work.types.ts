@@ -11,6 +11,7 @@ import { PublicationEntity } from '../../publication/model/publication.types';
 import { ReferenceEntity } from '../../reference/model/reference.types';
 import type { SubjectEntity } from '../../subject/model/subject.types';
 import {
+  coverUrlAltValidationSchema,
   coverUrlValidationSchema,
   createWorkValidationSchema,
   doiAndCoversValidationSchema,
@@ -123,5 +124,7 @@ export type MediaForm = z.infer<typeof mediaValidationSchema>;
 export type PagesCountForm = z.infer<typeof pagesCountValidationSchema>;
 
 export type CoverUrlForm = z.infer<typeof coverUrlValidationSchema>;
+
+export type CoverUrlAltForm = z.infer<typeof coverUrlAltValidationSchema>;
 
 export type NotesForm = z.infer<typeof notesValidationSchema>;
