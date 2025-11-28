@@ -7,6 +7,7 @@ import {
   getContributorRoleFromXml,
   getDefaultAffiliation,
   getDefaultContribution,
+  getDefaultFunding,
   getDefaultPublication,
   getDefaultWork,
   getPublicationType,
@@ -238,6 +239,7 @@ export const XMLParse = (props: XMLParseProps) => {
         tableCount: Number(tableCount),
         audioCount: Number(audioCount),
         videoCount: Number(videoCount),
+        fundings: [],
       });
 
       // Publication
@@ -438,7 +440,59 @@ export const XMLParse = (props: XMLParseProps) => {
       }
 
       // Chapters
+
       // Fundings
+      const publishersWithFundings = publishers.filter((publisher) => publisher.PublishingRole === '16');
+
+      publishersWithFundings.forEach(async (publisherWithFunding) => {
+        const identifiers = Array.isArray(publisherWithFunding.PublisherIdentifier)
+          ? publisherWithFunding.PublisherIdentifier
+          : [publisherWithFunding.PublisherIdentifier];
+
+        const ror = identifiers.find((identifier) => identifier.PublisherIDType === '40')?.IDValue ?? '';
+
+        if (!ror || ror.length === 0) return;
+
+        const institutions = await institutionService.getInstitutions(0, appConfig.data.maxItemsPerRequestLimit, ror);
+
+        if (institutions.length === 0 || !institutions[0]) return;
+
+        const selectedInstitution = institutions[0];
+
+        // @ts-expect-error not exist in library types
+        const fundings = Array.isArray(publisherWithFunding.Funding)
+          ? // @ts-expect-error not exist in library types
+            publisherWithFunding.Funding
+          : // @ts-expect-error not exist in library types
+            [publisherWithFunding.Funding];
+
+        fundings.forEach((funding: { FundingIdentifier: { IDTypeName: string; IDValue: string }[] }) => {
+          const program =
+            funding.FundingIdentifier?.find((identifier) => identifier.IDTypeName === 'programname')?.IDValue ?? '';
+          const projectName =
+            funding.FundingIdentifier?.find((identifier) => identifier.IDTypeName === 'projectname')?.IDValue ?? '';
+          const projectShortname =
+            funding.FundingIdentifier?.find((identifier) => identifier.IDTypeName === 'projectshortname')?.IDValue ??
+            '';
+          const grantNumber =
+            funding.FundingIdentifier?.find((identifier) => identifier.IDTypeName === 'grantnumber')?.IDValue ?? '';
+          const jurisdiction =
+            funding.FundingIdentifier?.find((identifier) => identifier.IDTypeName === 'jurisdiction')?.IDValue ?? '';
+
+          const newFunding = getDefaultFunding({
+            program,
+            projectName,
+            projectShortname,
+            grantNumber,
+            jurisdiction,
+            institutionId: selectedInstitution.id,
+            institutionName: selectedInstitution.name,
+            institutionRor: selectedInstitution.ror,
+          });
+
+          work.fundings.push(newFunding);
+        });
+      });
 
       // Contributors
       if (DescriptiveDetail?.Contributor) {
