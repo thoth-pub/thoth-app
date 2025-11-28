@@ -10,6 +10,7 @@ import {
   SubmitButton,
   Typography,
 } from '@/src/shared/ui';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { PlaceholderLogo } from './PlaceholderLogo';
 import { Wrapper } from './Wrapper';
 import { useForm } from 'react-hook-form';
@@ -20,6 +21,8 @@ import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { CoverUrlAltForm } from '@/src/entities/work/model/work.types';
 import type { BaseEditSectionProps } from '@/src/shared';
 import { useWork } from '@/src/entities/work';
+import { IconButton } from '@mui/material';
+import { useCopyToClipboard } from 'react-use';
 
 const { COVER_URL } = FORM_FIELDS;
 
@@ -28,6 +31,7 @@ export const CoverForm = (props: BaseEditSectionProps) => {
 
   const [isOpen, setIsOpen] = useState(false);
   const { work, updateWork } = useWork(workId, queryToken);
+  const [, copyToClipboard] = useCopyToClipboard();
 
   const { control, handleSubmit } = useForm({
     defaultValues: {
@@ -49,16 +53,29 @@ export const CoverForm = (props: BaseEditSectionProps) => {
     handleClose();
   };
 
+  const handleCopyToClipboard = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+
+    copyToClipboard(work.coverUrl ?? '');
+  };
+
   return (
     <Wrapper>
-      <button
-        className="flex h-full w-full cursor-pointer flex-col items-center justify-center gap-1"
-        onClick={handleModalState}
-      >
-        <PlaceholderLogo />
-        <Typography className="text-center font-semibold">Add Cover</Typography>
-        {work.coverUrl && <img src={work.coverUrl} alt="Cover" className="absolute h-full w-full object-contain" />}
-      </button>
+      <div className="relative h-full w-full">
+        <button
+          className="absolute flex h-full w-full cursor-pointer flex-col items-center justify-center gap-1"
+          onClick={handleModalState}
+        >
+          <PlaceholderLogo />
+          <Typography className="text-center font-semibold">Add Cover</Typography>
+          {work.coverUrl && <img src={work.coverUrl} alt="Cover" className="absolute h-full w-full object-contain" />}
+          {work.coverUrl && (
+            <IconButton className="absolute top-0 right-0" onClick={handleCopyToClipboard}>
+              <ContentCopyIcon color="primary" />
+            </IconButton>
+          )}
+        </button>
+      </div>
       <Modal open={isOpen}>
         <ModalWrapper>
           <div className="flex justify-between">

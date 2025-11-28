@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { coverUrlValidationSchema } from '@/src/entities/work/model/work.validation';
 import useIsDragStarted from '@/src/shared/hooks/useIsDragStarted';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -9,10 +9,11 @@ import { useForm } from 'react-hook-form';
 
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import type { CoverUrlForm } from '@/src/entities/work/model/work.types';
-import { Button, Typography } from '@/src/shared/ui';
+import { Button, IconButton, Typography } from '@/src/shared/ui';
 import { appConfig } from '@/src/shared';
 import { Wrapper } from './Wrapper';
 import { PlaceholderLogo } from './PlaceholderLogo';
+import { useCopyToClipboard } from 'react-use';
 
 const { COVER_URL } = FORM_FIELDS;
 
@@ -24,6 +25,8 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
   const { defaultValue = '' } = props;
 
   const isDragStarted = useIsDragStarted();
+  const [, copyToClipboard] = useCopyToClipboard();
+
   const {
     register,
     handleSubmit,
@@ -77,6 +80,12 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
     inputRef.current?.click();
   };
 
+  const handleCopyToClipboard = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+
+    copyToClipboard(coverUrl);
+  };
+
   return (
     <Wrapper>
       <form onDrop={handleDrop} className="flex h-full w-full flex-col items-center justify-center gap-1">
@@ -93,6 +102,12 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
 
         {coverUrl && !isDragStarted && (
           <img src={coverUrl} alt="Cover" className="absolute h-full w-full object-contain" />
+        )}
+
+        {coverUrl && (
+          <IconButton className="absolute top-0 right-0 z-10" onClick={handleCopyToClipboard}>
+            <ContentCopyIcon color="primary" />
+          </IconButton>
         )}
 
         <input
