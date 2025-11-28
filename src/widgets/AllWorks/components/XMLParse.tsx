@@ -168,18 +168,24 @@ export const XMLParse = (props: XMLParseProps) => {
         collateralDetailTextContent.find((text) => text?.TextType === TextType._13)?.Text?.['#text'] ?? '';
 
       const pageCount = DescriptiveDetail?.Extent?.ExtentValue ?? 0;
+      // @ts-expect-error not exist in library types
+      const ancillaryContent = Array.isArray(DescriptiveDetail?.AncillaryContent)
+        ? // @ts-expect-error not exist in library types
+          DescriptiveDetail?.AncillaryContent
+        : // @ts-expect-error not exist in library types
+          [DescriptiveDetail?.AncillaryContent];
       const imageCount =
         // @ts-expect-error not exist in library types
-        DescriptiveDetail?.AncillaryContent?.find((ancillary) => ancillary.AncillaryContentType === '09')?.Number ?? 0;
+        ancillaryContent.find((ancillary) => ancillary.AncillaryContentType === '09')?.Number ?? 0;
       const tableCount =
         // @ts-expect-error not exist in library types
-        DescriptiveDetail?.AncillaryContent?.find((ancillary) => ancillary.AncillaryContentType === '11')?.Number ?? 0;
+        ancillaryContent.find((ancillary) => ancillary.AncillaryContentType === '11')?.Number ?? 0;
       const audioCount =
         // @ts-expect-error not exist in library types
-        DescriptiveDetail?.AncillaryContent?.find((ancillary) => ancillary.AncillaryContentType === '19')?.Number ?? 0;
+        ancillaryContent.find((ancillary) => ancillary.AncillaryContentType === '19')?.Number ?? 0;
       const videoCount =
         // @ts-expect-error not exist in library types
-        DescriptiveDetail?.AncillaryContent?.find((ancillary) => ancillary.AncillaryContentType === '00')?.Number ?? 0;
+        ancillaryContent.find((ancillary) => ancillary.AncillaryContentType === '00')?.Number ?? 0;
 
       const enteredPublishers = PublishingDetail?.Publisher ?? ([] as Publisher[]);
       const publishers = Array.isArray(enteredPublishers) ? enteredPublishers : [enteredPublishers];
@@ -188,15 +194,15 @@ export const XMLParse = (props: XMLParseProps) => {
         ? getWorkStatusFromXml(PublishingDetail?.PublishingStatus)
         : WorkStatuses.enum.Forthcoming;
 
+      const publicationDates = Array.isArray(PublishingDetail?.PublishingDate)
+        ? PublishingDetail?.PublishingDate
+        : [PublishingDetail?.PublishingDate];
+
       const publicationDate =
-        PublishingDetail?.PublishingDate?.find((date) => date.PublishingDateRole === PublishingDateRole._01)?.Date?.[
-          '#text'
-        ] ?? '';
+        publicationDates.find((date) => date?.PublishingDateRole === PublishingDateRole._01)?.Date?.['#text'] ?? '';
 
       const withdrawnDate =
-        PublishingDetail?.PublishingDate?.find((date) => date.PublishingDateRole === PublishingDateRole._13)?.Date?.[
-          '#text'
-        ] ?? '';
+        publicationDates.find((date) => date?.PublishingDateRole === PublishingDateRole._13)?.Date?.['#text'] ?? '';
 
       // @ts-expect-error not exist in library types
       const copyrightHolder = PublishingDetail?.CopyrightStatement?.CopyrightOwner?.PersonName ?? '';
@@ -441,6 +447,8 @@ export const XMLParse = (props: XMLParseProps) => {
 
       // Chapters
 
+      // References
+
       // Fundings
       const publishersWithFundings = publishers.filter((publisher) => publisher.PublishingRole === '16');
 
@@ -466,18 +474,19 @@ export const XMLParse = (props: XMLParseProps) => {
           : // @ts-expect-error not exist in library types
             [publisherWithFunding.Funding];
 
-        fundings.forEach((funding: { FundingIdentifier: { IDTypeName: string; IDValue: string }[] }) => {
-          const program =
-            funding.FundingIdentifier?.find((identifier) => identifier.IDTypeName === 'programname')?.IDValue ?? '';
-          const projectName =
-            funding.FundingIdentifier?.find((identifier) => identifier.IDTypeName === 'projectname')?.IDValue ?? '';
+        fundings.forEach((funding: Partial<{ FundingIdentifier: { IDTypeName: string; IDValue: string }[] }>) => {
+          if (!funding || !funding?.FundingIdentifier) return;
+
+          const identifiers = Array.isArray(funding.FundingIdentifier)
+            ? funding.FundingIdentifier
+            : [funding.FundingIdentifier];
+          const program = identifiers.find((identifier) => identifier?.IDTypeName === 'programname')?.IDValue ?? '';
+          const projectName = identifiers.find((identifier) => identifier?.IDTypeName === 'projectname')?.IDValue ?? '';
           const projectShortname =
-            funding.FundingIdentifier?.find((identifier) => identifier.IDTypeName === 'projectshortname')?.IDValue ??
-            '';
-          const grantNumber =
-            funding.FundingIdentifier?.find((identifier) => identifier.IDTypeName === 'grantnumber')?.IDValue ?? '';
+            identifiers.find((identifier) => identifier?.IDTypeName === 'projectshortname')?.IDValue ?? '';
+          const grantNumber = identifiers.find((identifier) => identifier?.IDTypeName === 'grantnumber')?.IDValue ?? '';
           const jurisdiction =
-            funding.FundingIdentifier?.find((identifier) => identifier.IDTypeName === 'jurisdiction')?.IDValue ?? '';
+            identifiers.find((identifier) => identifier?.IDTypeName === 'jurisdiction')?.IDValue ?? '';
 
           const newFunding = getDefaultFunding({
             program,
@@ -618,7 +627,7 @@ export const XMLParse = (props: XMLParseProps) => {
       const seriesName = seriesCollection?.TitleDetail?.TitleElement?.TitleText ?? '';
       const existingSeries = serieses.find((series) => series.name === seriesName);
       // @ts-expect-error not exist in library types
-      const collectionSequence = seriesCollection?.CollectionSequence;
+      const collectionSequence = seriesCollection?.CollectionSequence ?? 1;
       const orderNumber = collectionSequence.CollectionSequenceNumber
         ? parseInt(collectionSequence.CollectionSequenceNumber)
         : 1;
