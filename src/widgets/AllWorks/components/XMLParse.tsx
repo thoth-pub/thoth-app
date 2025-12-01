@@ -6,6 +6,7 @@ import {
   convertOrchidIdToText,
   getContributorRoleFromXml,
   getDefaultAffiliation,
+  getDefaultChapter,
   getDefaultContribution,
   getDefaultFunding,
   getDefaultPublication,
@@ -18,6 +19,7 @@ import {
   LocationPlatforms,
   SubjectTypes,
   WorkStatuses,
+  WorkTypes,
   type FormFieldOption,
 } from '@/src/shared';
 import {
@@ -71,7 +73,7 @@ type ContributorSelection = {
 type MultipleFoundedContributors = Record<WorkId, Record<string, ContributorSelection[]>>;
 
 const defaultId = appConfig.defaultId;
-
+// TODO: Refactor, add short abstract, long abstract parsing
 export const XMLParse = (props: XMLParseProps) => {
   const { file, imprints, serieses, onValidationFailure } = props;
 
@@ -83,6 +85,7 @@ export const XMLParse = (props: XMLParseProps) => {
   const institutionService = new InstitutionService(queryClient.query);
 
   const [works, setWorks] = useState<WorkEntity[]>([]);
+  const [chapters, setChapters] = useState<Record<WorkId, WorkEntity[]>>({});
   const [seriesForUpdate, setSeriesForUpdate] = useState<Record<string, SeriesForUpdateItem[]>>({});
   const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<MultipleFoundedContributors>({});
 
@@ -119,18 +122,29 @@ export const XMLParse = (props: XMLParseProps) => {
 
     uploadedProducts.forEach((product, index) => {
       const xmlImprint = product.PublishingDetail?.Imprint?.ImprintName ?? '';
-      const isImprintExists = imprints.some((option) => option.label === xmlImprint);
+      const imprint = imprints.find((option) => option.label === xmlImprint);
 
       const productNumber = index + 1;
 
-      if (!isImprintExists) {
+      console.log('product', product);
+
+      if (!imprint) {
         errors.push(
           `Imprint ${xmlImprint} not found for product ${productNumber}, should be one of the following: ${imprintsLabels.join(', ')}`,
         );
         return;
       }
 
-      const { ProductIdentifier = [], DescriptiveDetail, PublishingDetail, ProductSupply, CollateralDetail } = product;
+      const {
+        ProductIdentifier = [],
+        DescriptiveDetail,
+        PublishingDetail,
+        ProductSupply,
+        CollateralDetail,
+        // @ts-expect-error not exist in library types
+        ContentDetail,
+        RelatedMaterial,
+      } = product;
 
       const workId = uuidv4();
 
@@ -226,10 +240,10 @@ export const XMLParse = (props: XMLParseProps) => {
       const work: WorkEntity = getDefaultWork({
         id: workId,
         status: workStatus,
-        doi,
+        type: WorkTypes.enum.EditedBook,
+        imprintId: imprint?.value ?? '',
         lccn,
         oclc,
-        references: [],
         license: license?.value ?? '',
         copyrightHolder,
         title,
@@ -246,6 +260,7 @@ export const XMLParse = (props: XMLParseProps) => {
         audioCount: Number(audioCount),
         videoCount: Number(videoCount),
         fundings: [],
+        references: [],
       });
 
       // Publication
@@ -446,8 +461,89 @@ export const XMLParse = (props: XMLParseProps) => {
       }
 
       // Chapters
+      if (ContentDetail) {
+        const chapters = Array.isArray(ContentDetail) ? ContentDetail : [ContentDetail];
 
-      // References
+        const newChapters: Record<WorkId, WorkEntity[]> = {
+          [workId]: [],
+        };
+
+        chapters
+          .sort((a, b) => a.LevelSequenceNumber - b.LevelSequenceNumber)
+          .forEach((chapter) => {
+            const chapterDoi = chapter?.ContentItem?.TextItem?.TextItemIdentifier?.IDValue ?? '';
+            const chapterTitle = chapter?.ContentItem?.TitleDetail?.TitleElement?.TitleText ?? '';
+
+            const newChapter = getDefaultChapter({
+              status: workStatus,
+              doi: chapterDoi,
+              imprintId: imprint?.value ?? '',
+              license: license?.value ?? '',
+              copyrightHolder,
+              title: chapterTitle,
+              edition,
+              publicationDate,
+              withdrawnDate,
+              pageCount: Number(chapter?.NumberOfPages ?? 0),
+              firstPage: chapter?.PageRun?.FirstPageNumber ?? '',
+              lastPage: chapter?.PageRun?.LastPageNumber ?? '',
+            });
+
+            newChapters[workId].push(newChapter);
+          });
+
+        setChapters((prev) => ({
+          ...prev,
+          [workId]: newChapters[workId],
+        }));
+      }
+
+      // Relations
+      if (RelatedMaterial && RelatedMaterial.RelatedWork) {
+        const translations = Array.isArray(RelatedMaterial.RelatedWork)
+          ? RelatedMaterial.RelatedWork
+          : [RelatedMaterial.RelatedWork];
+
+        translations.forEach((translation) => {
+          const doi = translation?.WorkIdentifier === '06' ? translation?.WorkIdentifier?.IDValue : '';
+
+          work.references.push({
+            id: defaultId,
+            doi,
+            journalTitle: '',
+            articleTitle: '',
+            seriesTitle: '',
+            volumeTitle: '',
+            url: '',
+            orderNumber: work.references.length + 1,
+            unstructuredCitation: '',
+          });
+        });
+      }
+
+      if (RelatedMaterial && RelatedMaterial.RelatedProduct) {
+        const relatedBooks = Array.isArray(RelatedMaterial.RelatedProduct)
+          ? RelatedMaterial.RelatedProduct
+          : [RelatedMaterial.RelatedProduct];
+
+        relatedBooks.forEach(async (relatedBook) => {
+          const doi = relatedBook?.ProductIdentifier?.IDValue ?? '';
+
+          // TODO: add mapper work relation codes
+
+          work.references.push({
+            id: defaultId,
+            doi,
+            journalTitle: '',
+            articleTitle: '',
+            seriesTitle: '',
+            volumeTitle: '',
+            url: '',
+            orderNumber: work.references.length + 1,
+            unstructuredCitation: '',
+          });
+        });
+      }
 
       // Fundings
       const publishersWithFundings = publishers.filter((publisher) => publisher.PublishingRole === '16');
@@ -708,6 +804,7 @@ export const XMLParse = (props: XMLParseProps) => {
     const notUpdatedWorks = works.filter((work) => !updatedWorksIds.includes(work.id));
 
     console.log('Works', [...notUpdatedWorks, ...updatedWorks]);
+    console.log('Chapters', chapters);
     console.log('Series', seriesForUpdate);
   };
 

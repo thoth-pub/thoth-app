@@ -76,7 +76,7 @@ export const getDefaultWork = (data?: Partial<WorkEntity>): WorkEntity => {
     title: '',
     fullTitle: '',
     status: WorkStatuses.enum.Forthcoming,
-    type: WorkTypes.enum.BookChapter,
+    type: WorkTypes.enum.EditedBook,
     imprintId: '',
     license: '',
     edition: 1,
