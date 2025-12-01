@@ -1,4 +1,4 @@
-export const THEMA_CODES: Record<string, string> = {
+export const THEMA_CODES = {
   '1': 'Place qualifiers',
   '2': 'Language qualifiers',
   '3': 'Time period qualifiers',
