@@ -1,6 +1,5 @@
 'use client';
 
-import InsertPhotoIcon from '@mui/icons-material/InsertPhoto';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { DoiAndCoversForm } from '@/src/entities/work/model/work.types';
 import { doiAndCoversValidationSchema } from '@/src/entities/work/model/work.validation';
@@ -96,13 +95,6 @@ const EditDoi = (props: EditDoiProps) => {
                   <Typography>{convertDoiToText(doiValue)}</Typography>
                   <LinkTooltip link={doiValue} linkText={convertDoiToText(doiValue)}>
                     <DoiLogo />
-                  </LinkTooltip>
-                </li>
-              )}
-              {landingPageValue.length > 0 && (
-                <li>
-                  <LinkTooltip link={landingPageValue} linkText={landingPageValue}>
-                    <InsertPhotoIcon color="primary" />
                   </LinkTooltip>
                 </li>
               )}

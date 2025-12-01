@@ -105,7 +105,11 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
         )}
 
         {coverUrl && (
-          <IconButton className="absolute top-0 right-0 z-10" onClick={handleCopyToClipboard}>
+          <IconButton
+            className="absolute top-0 right-0 z-100 h-12 w-12 p-0"
+            onClick={handleCopyToClipboard}
+            size="large"
+          >
             <ContentCopyIcon color="primary" />
           </IconButton>
         )}

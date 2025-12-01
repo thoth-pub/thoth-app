@@ -70,7 +70,7 @@ export const CoverForm = (props: BaseEditSectionProps) => {
           <Typography className="text-center font-semibold">Add Cover</Typography>
           {work.coverUrl && <img src={work.coverUrl} alt="Cover" className="absolute h-full w-full object-contain" />}
           {work.coverUrl && (
-            <IconButton className="absolute top-0 right-0" onClick={handleCopyToClipboard}>
+            <IconButton className="absolute top-0 right-0 h-12 w-12 p-0" onClick={handleCopyToClipboard}>
               <ContentCopyIcon color="primary" />
             </IconButton>
           )}
