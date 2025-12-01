@@ -6,7 +6,7 @@ import type { Control } from 'react-hook-form';
 
 import { type BaseRecommendedSectionProps, convertOptionToString, IDs, SubjectTypes } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { IconButton, Preview } from '@/src/shared/ui';
+import { AddButton, IconButton, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import type { SubjectsFormType, SubjectType } from '../../model/subject.types';
@@ -14,7 +14,7 @@ import { subjectsValidationSchema } from '../../model/subject.validation';
 import { FormFields } from './components/FormFields';
 import { PreviewList } from './components/PreviewList';
 import { useEditSubjects } from './useEditSubjects';
-import { Activity, useState } from 'react';
+import { Activity, Fragment, useState } from 'react';
 import { ShrinkedListItem } from './components/ShrinkedListItem';
 
 const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
@@ -48,6 +48,33 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
 
   const themaSubjects = subjects.filter((subject) => subject.type === SubjectTypes.enum.Thema);
 
+  const data = [
+    {
+      text: 'add bicub subject',
+      subjects: bicubSubjects,
+    },
+    {
+      text: 'add bisac subject',
+      subjects: bisacSubjects,
+    },
+    {
+      text: 'add custom subject',
+      subjects: customSubjects,
+    },
+    {
+      text: 'add keyword subject',
+      subjects: keywordSubjects,
+    },
+    {
+      text: 'add lcc subject',
+      subjects: lccSubjects,
+    },
+    {
+      text: 'add thema subject',
+      subjects: themaSubjects,
+    },
+  ].sort((a, b) => b.subjects.length - a.subjects.length);
+
   return (
     <EditableContent
       formId={IDs.WORK_SUBJECTS}
@@ -74,14 +101,16 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
         >
           {placeholder && (
             <div className="flex flex-col gap-[var(--default-gap)]">
-              <ul className="flex w-full flex-col gap-[var(--default-gap)]">
+              <ul className={`flex w-full flex-col ${isExpanded ? 'gap-0' : 'gap-[var(--default-gap)]'}`}>
                 <Activity mode={isExpanded || subjects.length < 10 ? 'visible' : 'hidden'}>
-                  {bicubSubjects.length > 0 && <PreviewList subjects={bicubSubjects} onDelete={deleteSubject} />}
-                  {bisacSubjects.length > 0 && <PreviewList subjects={bisacSubjects} onDelete={deleteSubject} />}
-                  {customSubjects.length > 0 && <PreviewList subjects={customSubjects} onDelete={deleteSubject} />}
-                  {keywordSubjects.length > 0 && <PreviewList subjects={keywordSubjects} onDelete={deleteSubject} />}
-                  {lccSubjects.length > 0 && <PreviewList subjects={lccSubjects} onDelete={deleteSubject} />}
-                  {themaSubjects.length > 0 && <PreviewList subjects={themaSubjects} onDelete={deleteSubject} />}
+                  {data.map(({ subjects, text }, index) => (
+                    <Fragment key={index}>
+                      <PreviewList subjects={subjects} onDelete={deleteSubject} />
+                      <AddButton onAdd={() => {}} className="capitalize">
+                        {text}
+                      </AddButton>
+                    </Fragment>
+                  ))}
                 </Activity>
                 <Activity mode={!isExpanded && subjects.length > 10 ? 'visible' : 'hidden'}>
                   {bicubSubjects.length > 0 && (

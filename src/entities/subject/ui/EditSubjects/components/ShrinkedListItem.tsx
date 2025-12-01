@@ -24,10 +24,11 @@ export const ShrinkedListItem = ({ subjects, type }: ShrinkedListItemProps) => {
   const isThema = type === SubjectTypes.enum.Thema;
 
   const isDefault = !isBisac && !isBic && !isThema;
+  const isChipHidden = type === SubjectTypes.enum.Custom || type === SubjectTypes.enum.Keyword;
 
   return (
     <Typography className="flex items-center gap-1">
-      <Chip label={type} size="small" component="span" />
+      {!isChipHidden && <Chip label={type} size="small" component="span" />}
       {isDefault && data.join(', ')}
       {isBisac && bisacReadableData.join(', ')}
       {isBic && bicReadableData.join(', ')}

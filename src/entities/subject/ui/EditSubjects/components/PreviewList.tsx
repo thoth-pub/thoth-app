@@ -6,6 +6,9 @@ import { useState } from 'react';
 
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 import ListItem from './ListItem';
+import { SubjectTypes } from '@/src/shared';
+import { AddButton, Chip } from '@/src/shared/ui';
+import { useTranslation } from 'react-i18next';
 
 type PreviewListProps = {
   subjects: SubjectEntity[];
@@ -16,6 +19,11 @@ type PreviewListProps = {
 export const PreviewList = ({ subjects, onDelete }: PreviewListProps) => {
   const [items, setItems] = useState(subjects);
   const sensors = useSensors(useSensor(PointerSensor));
+
+  const { t } = useTranslation();
+  const firstSubject = items[0];
+  const isChipHidden =
+    firstSubject && (firstSubject.type === SubjectTypes.enum.Custom || firstSubject.type === SubjectTypes.enum.Keyword);
 
   const dragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -44,6 +52,9 @@ export const PreviewList = ({ subjects, onDelete }: PreviewListProps) => {
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}>
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
+        {!isChipHidden && firstSubject && (
+          <Chip label={firstSubject.type} size="small" component="span" className="m-auto max-w-max" />
+        )}
         {items.map((subject) => (
           <ListItem key={subject.id} subject={subject} onDelete={handleDelete} />
         ))}

@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
-import { Chip, DeleteButton, Typography } from '@/src/shared/ui';
+import { DeleteButton, Typography } from '@/src/shared/ui';
 
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 import {
@@ -49,7 +49,6 @@ const ListItem = ({ subject, onDelete }: ListItemProps) => {
         {...listeners}
       />
       <Typography>
-        <Chip label={subject.type} size="small" component="span" className="mr-2" />
         {isDefault && subject.code}
         {isBisac && convertBisacSubjectCodeToReadableFormat(subject.code)}
         {isBic && convertBicSubjectCodeToReadableFormat(subject.code)}
