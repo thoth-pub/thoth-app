@@ -1,6 +1,6 @@
 import { Fragment } from 'react';
 
-import { Link, Table, TableBody, TableCell, TableFormWrapper, TableHeader, TableRow } from '@/src/shared/ui';
+import { DoiPreview, Table, TableBody, TableCell, TableFormWrapper, TableHeader, TableRow } from '@/src/shared/ui';
 
 import type { ReferenceEntity } from '../../model/reference.types';
 import { RowButtonGroup } from './components/RowButtonGroup';
@@ -38,11 +38,7 @@ const ReferencesTable = (props: ReferencesTableProps) => {
                   </TableCell>
                   <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
                     <div className="flex justify-between">
-                      {doi && doi.length > 0 && (
-                        <Link href={doi} target="_blank">
-                          {doi}
-                        </Link>
-                      )}
+                      {doi && doi.length > 0 && <DoiPreview doi={doi} />}
                       <RowButtonGroup className="ml-auto" onDelete={() => onDelete?.(id)} onEdit={() => onEdit?.(id)} />
                     </div>
                   </TableCell>

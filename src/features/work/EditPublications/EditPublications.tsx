@@ -5,31 +5,11 @@ import { useTranslation } from 'react-i18next';
 import { PublicationsTable, usePublicationsStateMachine } from '@/src/entities/publication';
 import useDeletePublication from '@/src/entities/publication/api/hooks/useDeletePublication';
 import { useWork } from '@/src/entities/work';
-import { appConfig, type BaseEditSectionProps, isDefaultId, PublicationType, WorkTypes } from '@/src/shared';
+import { type BaseEditSectionProps, getDefaultPublication, isDefaultId, WorkTypes } from '@/src/shared';
 import { AddButton } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { AddNewPublication, EditPublication } from '../../publications';
-
-const defaultPublication = {
-  id: appConfig.defaultId,
-  isbn: '',
-  title: '',
-  type: PublicationType.enum.Pdf,
-  updatedAt: '',
-  doi: '',
-  publisherName: '',
-  width: 0,
-  widthIn: 0,
-  height: 0,
-  heightIn: 0,
-  depth: 0,
-  depthIn: 0,
-  weight: 0,
-  weightOz: 0,
-  prices: [],
-  locations: [],
-};
 
 const EditPublications = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
@@ -46,7 +26,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
   const addPublication = () => {
     if (activePublication) close();
 
-    edit({ ...defaultPublication });
+    edit({ ...getDefaultPublication() });
   };
 
   const deletePublication = (id: string) => {

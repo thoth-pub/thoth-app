@@ -3,17 +3,9 @@
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { DoiAndCoversForm } from '@/src/entities/work/model/work.types';
 import { doiAndCoversValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseRecommendedSectionProps, convertDoiToText, getProtocolPrefix, HELPER_TEXT, IDs } from '@/src/shared';
+import { type BaseRecommendedSectionProps, getProtocolPrefix, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import {
-  ContentWrapper,
-  DoiLogo,
-  FormTextField,
-  LinkTooltip,
-  MultipleContentWrapper,
-  Preview,
-  Typography,
-} from '@/src/shared/ui';
+import { ContentWrapper, DoiPreview, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
@@ -31,8 +23,6 @@ const EditDoi = (props: EditDoiProps) => {
 
   const doiValue = work?.doi ?? '';
   const landingPageValue = work?.landingPage ?? '';
-
-  const isAnyValueFilled = doiValue.length > 0 || landingPageValue.length > 0;
 
   const showDoiIndicator = recommended && isDoiRequired;
   const showLandingPageIndicator = recommended && isLandingPageRequired;
@@ -88,18 +78,7 @@ const EditDoi = (props: EditDoiProps) => {
           disabled={disabled}
           onEdit={onEdit}
         >
-          {isAnyValueFilled && (
-            <ul className="flex items-center gap-1">
-              {doiValue.length > 0 && (
-                <li className="flex items-center gap-1">
-                  <Typography>{convertDoiToText(doiValue)}</Typography>
-                  <LinkTooltip link={doiValue} linkText={convertDoiToText(doiValue)}>
-                    <DoiLogo />
-                  </LinkTooltip>
-                </li>
-              )}
-            </ul>
-          )}
+          {doiValue.length > 0 && <DoiPreview doi={doiValue} />}
         </Preview>
       )}
     />

@@ -2,7 +2,7 @@
 
 import { HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
+import { ContentWrapper, FormFieldLabel, FormTextField, Preview, DoiPreview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { doiValidationSchema } from '../../model/reference.validation';
@@ -40,7 +40,9 @@ export const EditReferenceDoi = (props: EditReferenceDoiProps) => {
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview label={DOI.label} value={data?.doi} disabled={disabled} onEdit={onEdit} />
+        <Preview label={DOI.label} value={data?.doi} disabled={disabled} onEdit={onEdit}>
+          {data?.doi && data?.doi.length > 0 && <DoiPreview doi={data.doi} />}
+        </Preview>
       )}
     />
   );

@@ -48,6 +48,8 @@ export { default as Stepper } from './core/Stepper/Stepper';
 export { default as Step } from './core/Stepper/components/Step';
 export { default as StepLabel } from './core/Stepper/components/StepLabel';
 export { default as StepContent } from './core/Stepper/components/StepContent';
+export { default as DoiPreview } from './core/DoiPreview/DoiPreview';
+
 // Forms
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
 export { default as CheckboxFormField } from './forms/CheckboxFormField/CheckboxFormField';
