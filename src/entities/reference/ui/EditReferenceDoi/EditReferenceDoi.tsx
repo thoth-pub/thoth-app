@@ -41,7 +41,7 @@ export const EditReferenceDoi = (props: EditReferenceDoiProps) => {
       )}
       preview={({ data, disabled, onEdit }) => (
         <Preview label={DOI.label} value={data?.doi} disabled={disabled} onEdit={onEdit}>
-          {data?.doi && data?.doi.length > 0 && <DoiPreview doi={data.doi} />}
+          {data?.doi && data?.doi.length > 0 && <DoiPreview doi={data.doi} className="ml-2" />}
         </Preview>
       )}
     />

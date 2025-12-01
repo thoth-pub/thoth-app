@@ -11,7 +11,7 @@ export const convertBisacSubjectCodeToReadableFormat = (code: string): string =>
 
   const description = BISAC_CODES[trimmedCode as keyof typeof BISAC_CODES];
 
-  return description || trimmedCode;
+  return `${description} (${trimmedCode})` || trimmedCode;
 };
 
 export const convertBicSubjectCodeToReadableFormat = (code: string): string => {
@@ -23,7 +23,7 @@ export const convertBicSubjectCodeToReadableFormat = (code: string): string => {
 
   const description = BIC_CODES[trimmedCode as keyof typeof BIC_CODES];
 
-  return description || trimmedCode;
+  return `${description} (${trimmedCode})` || trimmedCode;
 };
 
 export const convertThemaSubjectCodeToReadableFormat = (code: string): string => {
@@ -35,5 +35,5 @@ export const convertThemaSubjectCodeToReadableFormat = (code: string): string =>
 
   const description = THEMA_CODES[trimmedCode as keyof typeof THEMA_CODES];
 
-  return description || trimmedCode;
+  return `${description} (${trimmedCode})` || trimmedCode;
 };

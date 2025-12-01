@@ -78,7 +78,7 @@ const EditDoi = (props: EditDoiProps) => {
           disabled={disabled}
           onEdit={onEdit}
         >
-          {doiValue.length > 0 && <DoiPreview doi={doiValue} />}
+          {doiValue.length > 0 && <DoiPreview doi={doiValue} className="ml-2" />}
         </Preview>
       )}
     />
