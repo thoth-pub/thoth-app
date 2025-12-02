@@ -2,7 +2,7 @@ import { BISAC_CODES } from './bisac-codes';
 import { BIC_CODES } from './bic-codes';
 import { THEMA_CODES } from './thema-codes';
 
-export const convertBisacSubjectCodeToReadableFormat = (code: string): string => {
+export const convertBisacSubjectCodeToReadableFormat = (code: string, withCode = true): string => {
   if (!code || typeof code !== 'string') {
     return '';
   }
@@ -11,10 +11,10 @@ export const convertBisacSubjectCodeToReadableFormat = (code: string): string =>
 
   const description = BISAC_CODES[trimmedCode as keyof typeof BISAC_CODES];
 
-  return `${description} (${trimmedCode})` || trimmedCode;
+  return `${description} ${withCode ? `(${trimmedCode})` : ''}` || trimmedCode;
 };
 
-export const convertBicSubjectCodeToReadableFormat = (code: string): string => {
+export const convertBicSubjectCodeToReadableFormat = (code: string, withCode = true): string => {
   if (!code || typeof code !== 'string') {
     return '';
   }
@@ -23,10 +23,10 @@ export const convertBicSubjectCodeToReadableFormat = (code: string): string => {
 
   const description = BIC_CODES[trimmedCode as keyof typeof BIC_CODES];
 
-  return `${description} (${trimmedCode})` || trimmedCode;
+  return `${description} ${withCode ? `(${trimmedCode})` : ''}` || trimmedCode;
 };
 
-export const convertThemaSubjectCodeToReadableFormat = (code: string): string => {
+export const convertThemaSubjectCodeToReadableFormat = (code: string, withCode = true): string => {
   if (!code || typeof code !== 'string') {
     return '';
   }
@@ -35,5 +35,5 @@ export const convertThemaSubjectCodeToReadableFormat = (code: string): string =>
 
   const description = THEMA_CODES[trimmedCode as keyof typeof THEMA_CODES];
 
-  return `${description} (${trimmedCode})` || trimmedCode;
+  return `${description} ${withCode ? `(${trimmedCode})` : ''}` || trimmedCode;
 };

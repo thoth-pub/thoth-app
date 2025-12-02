@@ -1,5 +1,5 @@
 import { useWork } from '@/src/entities/work';
-import { BaseEditSectionProps, isDefaultId } from '@/src/shared';
+import { BaseEditSectionProps, isDefaultId, SubjectTypes } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
@@ -8,21 +8,53 @@ import useDeleteSubject from '../../api/hooks/useDeleteSubject';
 import useUpdateSubject from '../../api/hooks/useUpdateSubject';
 import type { SubjectsFormType, SubjectType } from '../../model/subject.types';
 
-const { SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
+const { SUBJECT_TYPE, SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 
 export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data: SubjectsFormType) => void }) => {
   const { workId, queryToken, onUpdate } = props;
 
-  const { work } = useWork(workId, queryToken);
+  const { work, refetch } = useWork(workId, queryToken);
   const { close } = useFormStateMachine();
 
   const { createSubject } = useCreateSubject({ workId, queryToken });
   const { deleteSubject: deleteSubjectMutation } = useDeleteSubject({ workId, queryToken });
   const { updateSubject } = useUpdateSubject({ workId, queryToken });
 
-  const update = (data: SubjectsFormType) => {
-    const newSubjects = data.subjects.filter((subject) => isDefaultId(subject.subjectId));
-    const existingSubjects = data.subjects.filter((subject) => !isDefaultId(subject.subjectId));
+  const update = async (data: SubjectsFormType) => {
+    const newSubjects = data.subjects
+      .filter((subject) => isDefaultId(subject.subjectId))
+      .map((subject) => {
+        const altCode = subject[SUBJECT_CODE_ALT.name];
+        const isCustomCode =
+          subject[SUBJECT_TYPE.name] === SubjectTypes.enum.Custom ||
+          subject[SUBJECT_TYPE.name] === SubjectTypes.enum.Keyword;
+        const subjectCode = {
+          value: isCustomCode ? altCode : subject[SUBJECT_CODE.name]?.value,
+          label: subject[SUBJECT_CODE.name]?.label,
+        };
+
+        return {
+          ...subject,
+          [SUBJECT_CODE.name]: subjectCode,
+        };
+      });
+    const existingSubjects = data.subjects
+      .filter((subject) => !isDefaultId(subject.subjectId))
+      .map((subject) => {
+        const altCode = subject[SUBJECT_CODE_ALT.name];
+        const isCustomCode =
+          subject[SUBJECT_TYPE.name] === SubjectTypes.enum.Custom ||
+          subject[SUBJECT_TYPE.name] === SubjectTypes.enum.Keyword;
+        const subjectCode = {
+          value: isCustomCode ? altCode : subject[SUBJECT_CODE.name]?.value,
+          label: subject[SUBJECT_CODE.name]?.label,
+        };
+
+        return {
+          ...subject,
+          [SUBJECT_CODE.name]: subjectCode,
+        };
+      });
 
     if (onUpdate) {
       onUpdate(data);
@@ -34,39 +66,80 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
 
       if (!existingSubject) return false;
 
-      return existingSubject.type !== subject[SUBJECT_TYPE.name] || existingSubject.code !== subject[SUBJECT_CODE.name];
+      return (
+        existingSubject.type !== subject[SUBJECT_TYPE.name] ||
+        existingSubject.code !== subject[SUBJECT_CODE.name]?.value
+      );
     });
 
-    newSubjects.forEach((subject) => {
-      createSubject({
-        code: subject[SUBJECT_CODE.name],
-        type: subject[SUBJECT_TYPE.name] as SubjectType,
-        ordinal: work.subjects.length + 1,
-      });
-    });
+    await Promise.all(
+      newSubjects.map(async (subject) => {
+        const code = subject[SUBJECT_CODE.name]?.value;
 
-    updatedSubjects.forEach((subject) => {
-      updateSubject({
-        id: subject.subjectId,
-        code: subject[SUBJECT_CODE.name],
-        type: subject[SUBJECT_TYPE.name] as SubjectType,
-        ordinal: work.subjects.length + 1,
-      });
-    });
+        if (!code) return;
+
+        await createSubject({
+          code,
+          type: subject[SUBJECT_TYPE.name] as SubjectType,
+          ordinal: work.subjects.length + 1,
+        });
+      }),
+    );
+
+    await Promise.all(
+      updatedSubjects.map(async (subject) => {
+        const code = subject[SUBJECT_CODE.name]?.value;
+
+        if (!code) return;
+
+        await updateSubject({
+          id: subject.subjectId,
+          code,
+          type: subject[SUBJECT_TYPE.name] as SubjectType,
+          ordinal: work.subjects.length + 1,
+        });
+      }),
+    );
+
+    await refetch();
   };
 
-  const deleteSubject = (id: string) => {
+  const deleteSubject = async (id: string) => {
     if (isDefaultId(id)) return;
 
     const item = work.subjects.find((item) => item.id === id);
 
     if (!item) return;
 
-    deleteSubjectMutation(id);
+    await deleteSubjectMutation(id);
+
+    await refetch();
+  };
+
+  const create = async (data: { type: SubjectType; code: string }) => {
+    const { type, code } = data;
+
+    const sameTypeSubjects = work.subjects.filter((subject) => subject.type === type);
+    let maxOrdinal = 1;
+
+    sameTypeSubjects.forEach((subject) => {
+      if (subject.ordinal > maxOrdinal) {
+        maxOrdinal = subject.ordinal;
+      }
+    });
+
+    await createSubject({
+      code,
+      type,
+      ordinal: maxOrdinal + 1,
+    });
+
+    await refetch();
   };
 
   return {
     subjects: work.subjects ?? [],
+    create,
     update,
     deleteSubject,
     close,

@@ -26,8 +26,8 @@ const useDeleteSubject = (props: BaseEditSectionProps) => {
     },
   });
 
-  const deleteSubject = (subjectId: SubjectId) => {
-    mutate({
+  const deleteSubject = async (subjectId: SubjectId) => {
+    await mutate({
       variables: { subjectId },
     });
   };

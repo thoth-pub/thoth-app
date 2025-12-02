@@ -2,13 +2,11 @@
 
 import { closestCenter, DndContext, type DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 import ListItem from './ListItem';
-import { SubjectTypes } from '@/src/shared';
-import { AddButton, Chip } from '@/src/shared/ui';
-import { useTranslation } from 'react-i18next';
+import { Typography } from '@/src/shared/ui';
 
 type PreviewListProps = {
   subjects: SubjectEntity[];
@@ -20,10 +18,11 @@ export const PreviewList = ({ subjects, onDelete }: PreviewListProps) => {
   const [items, setItems] = useState(subjects);
   const sensors = useSensors(useSensor(PointerSensor));
 
-  const { t } = useTranslation();
   const firstSubject = items[0];
-  const isChipHidden =
-    firstSubject && (firstSubject.type === SubjectTypes.enum.Custom || firstSubject.type === SubjectTypes.enum.Keyword);
+
+  useEffect(() => {
+    setItems(subjects);
+  }, [subjects]);
 
   const dragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -52,11 +51,9 @@ export const PreviewList = ({ subjects, onDelete }: PreviewListProps) => {
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}>
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
-        {!isChipHidden && firstSubject && (
-          <Chip label={firstSubject.type} size="small" component="span" className="m-auto max-w-max" />
-        )}
-        {items.map((subject) => (
-          <ListItem key={subject.id} subject={subject} onDelete={handleDelete} />
+        {firstSubject && <Typography className="m-auto max-w-max font-bold">{firstSubject.type}</Typography>}
+        {items.map((subject, index) => (
+          <ListItem key={`${subject.id}-${index}`} subject={subject} onDelete={handleDelete} />
         ))}
       </SortableContext>
     </DndContext>

@@ -1,11 +1,11 @@
 import { Control, useFieldArray } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
-import { useEffectOnce } from 'react-use';
 
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS, subjectTypeOptions } from '@/src/shared/constants/formFields';
 import {
   AddButton,
+  AutocompleteField,
   DeleteButton,
   FormFieldLabel,
   FormFieldWithControlsWrapper,
@@ -16,6 +16,17 @@ import {
 import { isDefaultId } from '@/src/shared/utils';
 
 import type { SubjectId, SubjectsFormType, SubjectType } from '../../../model/subject.types';
+import { AddSubject } from './AddSubject';
+import { Wrapper } from './Wrapper';
+import { SubjectTypes } from '@/src/shared';
+import { bicFormFields } from '@/src/shared/constants/bicFormFields';
+import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
+import { themaFormFields } from '@/src/shared/constants/themaFormFields';
+import { useState } from 'react';
+import { NewSubjectModal } from './NewSubjectModal';
+import { BIC_CODES } from '@/src/shared/utils/subjects/bic-codes';
+import { BISAC_CODES } from '@/src/shared/utils/subjects/bisac-codes';
+import { THEMA_CODES } from '@/src/shared/utils/subjects/thema-codes';
 
 type FormFieldsProps = {
   control: Control<SubjectsFormType>;
@@ -24,31 +35,44 @@ type FormFieldsProps = {
   onClose?: () => void;
 };
 
-const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
+const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 
-const itemsStyle = 'flex flex-col gap-4';
+const fieldsDefaultValues = {
+  subjectId: appConfig.defaultId,
+  [SUBJECT_TYPE.name]: subjectTypeOptions[0].value as SubjectType,
+  [SUBJECT_CODE.name]: {
+    value: '',
+    label: '',
+  },
+  [SUBJECT_CODE_ALT.name]: '',
+};
+
+const fieldsOptions = {
+  [SubjectTypes.enum.Bic]: bicFormFields,
+  [SubjectTypes.enum.Bisac]: bisacFormFields,
+  [SubjectTypes.enum.Thema]: themaFormFields,
+  [SubjectTypes.enum.Custom]: [],
+  [SubjectTypes.enum.Keyword]: [],
+  [SubjectTypes.enum.Lcc]: [],
+};
+
+const codes = {
+  [SubjectTypes.enum.Bic]: BIC_CODES,
+  [SubjectTypes.enum.Bisac]: BISAC_CODES,
+  [SubjectTypes.enum.Thema]: THEMA_CODES,
+};
 
 export const FormFields = (props: FormFieldsProps) => {
   const { control, recommended, onDelete, onClose } = props;
 
-  const { fields, append, remove } = useFieldArray({
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const { fields, append, remove, replace } = useFieldArray({
     control,
     name: SUBJECTS.name,
   });
 
   const { t } = useTranslation();
-
-  const fieldsDefaultValues = {
-    subjectId: appConfig.defaultId,
-    [SUBJECT_TYPE.name]: subjectTypeOptions[0].value as SubjectType,
-    [SUBJECT_CODE.name]: '',
-  };
-
-  useEffectOnce(() => {
-    if (fields.length !== 0) return;
-
-    append(fieldsDefaultValues);
-  });
 
   const getFormFieldName = (fieldIndex: number, fieldName: string) => {
     return `${SUBJECTS.name}.${fieldIndex}.${fieldName}`;
@@ -60,6 +84,10 @@ export const FormFields = (props: FormFieldsProps) => {
 
   const getSubjectCodeFieldName = (fieldIndex: number) => {
     return getFormFieldName(fieldIndex, SUBJECT_CODE.name);
+  };
+
+  const getSubjectCodeAltFieldName = (fieldIndex: number) => {
+    return getFormFieldName(fieldIndex, SUBJECT_CODE_ALT.name);
   };
 
   const handleRemove = (index: number) => {
@@ -76,41 +104,99 @@ export const FormFields = (props: FormFieldsProps) => {
     }
   };
 
-  const handleAdd = () => {
-    append({ ...fieldsDefaultValues, subjectId: `${appConfig.defaultId}-${fields.length + 1}` });
+  const handleModalState = () => {
+    setIsModalOpen((prev) => !prev);
   };
+
+  const handleAdd = () => {
+    handleModalState();
+  };
+
+  const handleAddNewSubject = (value: { type: SubjectType; code: string }) => {
+    append({
+      ...fieldsDefaultValues,
+      [SUBJECT_TYPE.name]: value.type,
+      [SUBJECT_CODE.name]: { value: value.code, label: value.code },
+      [SUBJECT_CODE_ALT.name]: value.code,
+      subjectId: `${appConfig.defaultId}-${fields.length + 1}`,
+    });
+    handleModalState();
+  };
+
+  const handleAddFirstSubject = (value: { type: SubjectType; code: string }) => {
+    const category = codes[value.type as keyof typeof codes];
+
+    const label = `${category[value.code as keyof typeof category]} (${value.code})`;
+
+    const newSubject = {
+      ...fieldsDefaultValues,
+      [SUBJECT_TYPE.name]: value.type,
+      [SUBJECT_CODE.name]: { value: value.code, label },
+      [SUBJECT_CODE_ALT.name]: value.code,
+    };
+
+    replace(newSubject);
+  };
+
+  if (fields.length === 0) {
+    return <AddSubject onAdd={handleAddFirstSubject} />;
+  }
+
+  const bicField = fields.find((field) => field[SUBJECT_TYPE.name] === SubjectTypes.enum.Bic);
+  const bisacField = fields.find((field) => field[SUBJECT_TYPE.name] === SubjectTypes.enum.Bisac);
+  const customField = fields.find((field) => field[SUBJECT_TYPE.name] === SubjectTypes.enum.Custom);
+  const keywordField = fields.find((field) => field[SUBJECT_TYPE.name] === SubjectTypes.enum.Keyword);
+  const lccField = fields.find((field) => field[SUBJECT_TYPE.name] === SubjectTypes.enum.Lcc);
+  const themaField = fields.find((field) => field[SUBJECT_TYPE.name] === SubjectTypes.enum.Thema);
+
+  const fieldsIds = [bicField?.id, bisacField?.id, customField?.id, keywordField?.id, lccField?.id, themaField?.id];
 
   return (
     <>
-      <ul className={itemsStyle}>
+      <Wrapper component="ul">
         {fields.map((field, index) => (
-          <li key={field.id} className={itemsStyle}>
-            <FormFieldWrapper>
+          <Wrapper component="li" key={field.id}>
+            <FormFieldWrapper className={fieldsIds.includes(field.id) ? '' : 'hidden'}>
               <FormFieldLabel label={SUBJECT_TYPE.label} id={SUBJECT_TYPE.name} recommended={recommended} />
-              <FormFieldWithControlsWrapper>
-                <FormTextField
-                  name={getSubjectTypeFieldName(index)}
-                  control={control}
-                  id={getSubjectTypeFieldName(index)}
-                  select
-                  fullWidth
-                  options={subjectTypeOptions}
-                />
-                <DeleteButton onClick={() => handleRemove(index)} />
-              </FormFieldWithControlsWrapper>
+              <FormTextField
+                name={getSubjectTypeFieldName(index)}
+                control={control}
+                id={getSubjectTypeFieldName(index)}
+                fullWidth
+                disabled
+              />
             </FormFieldWrapper>
 
             <FormFieldWrapper>
-              <FormFieldLabel label={SUBJECT_CODE.label} id={SUBJECT_CODE.name} />
-              <FormTextField
-                name={getSubjectCodeFieldName(index)}
-                control={control}
-                id={getSubjectCodeFieldName(index)}
+              <FormFieldLabel
+                label={SUBJECT_CODE.label}
+                id={SUBJECT_CODE.name}
+                className={fieldsIds.includes(field.id) ? '' : 'opacity-0'}
               />
+              <FormFieldWithControlsWrapper>
+                {fieldsOptions[field[SUBJECT_TYPE.name]]?.length > 0 ? (
+                  <AutocompleteField
+                    name={getSubjectCodeFieldName(index)}
+                    control={control}
+                    freeSolo={fieldsOptions[field[SUBJECT_TYPE.name]]?.length === 0}
+                    id={getSubjectCodeFieldName(index)}
+                    options={fieldsOptions[field[SUBJECT_TYPE.name]]}
+                    fullWidth
+                  />
+                ) : (
+                  <FormTextField
+                    name={getSubjectCodeAltFieldName(index)}
+                    control={control}
+                    id={getSubjectCodeAltFieldName(index)}
+                    fullWidth
+                  />
+                )}
+                <DeleteButton onClick={() => handleRemove(index)} />
+              </FormFieldWithControlsWrapper>
             </FormFieldWrapper>
-          </li>
+          </Wrapper>
         ))}
-      </ul>
+      </Wrapper>
 
       <FormFieldWrapper>
         <InputLabel className={`${fields.length === 0 ? 'opacity-1' : 'opacity-0'}`} component="span">
@@ -120,6 +206,7 @@ export const FormFields = (props: FormFieldsProps) => {
           {t('add new subject')}
         </AddButton>
       </FormFieldWrapper>
+      <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />
     </>
   );
 };

@@ -457,6 +457,11 @@ export const FORM_FIELDS = {
     name: 'subjectCode',
     placeholder: 'Subject Code',
   },
+  SUBJECT_CODE_ALT: {
+    label: 'Subject Code',
+    name: 'subjectCodeAlt',
+    placeholder: 'Subject Code',
+  },
   SERIES_TYPE: {
     label: 'Series Type',
     name: 'seriesType',

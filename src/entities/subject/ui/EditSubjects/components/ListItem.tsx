@@ -4,7 +4,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
-import { DeleteButton, Typography } from '@/src/shared/ui';
+import { Chip, DeleteButton, Typography } from '@/src/shared/ui';
 
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 import {
@@ -35,6 +35,8 @@ const ListItem = ({ subject, onDelete }: ListItemProps) => {
 
   const isDefault = !isBisac && !isBic && !isThema;
 
+  const showChip = subject.type !== SubjectTypes.enum.Custom && subject.type !== SubjectTypes.enum.Keyword;
+
   return (
     <li
       ref={setNodeRef}
@@ -48,11 +50,12 @@ const ListItem = ({ subject, onDelete }: ListItemProps) => {
         fontSize="small"
         {...listeners}
       />
-      <Typography>
+      <Typography className="flex items-center gap-1">
+        {showChip && <Chip label={subject.code} size="small" component="span" />}
         {isDefault && subject.code}
-        {isBisac && convertBisacSubjectCodeToReadableFormat(subject.code)}
-        {isBic && convertBicSubjectCodeToReadableFormat(subject.code)}
-        {isThema && convertThemaSubjectCodeToReadableFormat(subject.code)}
+        {isBisac && convertBisacSubjectCodeToReadableFormat(subject.code, false)}
+        {isBic && convertBicSubjectCodeToReadableFormat(subject.code, false)}
+        {isThema && convertThemaSubjectCodeToReadableFormat(subject.code, false)}
       </Typography>
       <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
     </li>

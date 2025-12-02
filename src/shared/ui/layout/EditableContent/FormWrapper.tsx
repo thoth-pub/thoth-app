@@ -54,7 +54,6 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
   const {
     control,
     handleSubmit,
-    getValues,
     reset,
     setValue,
     formState: { isValid, isDirty },

@@ -3,7 +3,11 @@ import z from 'zod';
 import type { SubjectFragmentFragment } from '@/gql/graphql';
 import { SubjectTypes } from '@/src/shared';
 
-import { subjectsValidationSchema } from './subject.validation';
+import {
+  addSubjectAutocompleteValidationSchema,
+  addSubjectValidationSchema,
+  subjectsValidationSchema,
+} from './subject.validation';
 
 export type SubjectDto = SubjectFragmentFragment;
 
@@ -19,3 +23,7 @@ export type SubjectEntity = {
 };
 
 export type SubjectsFormType = z.infer<typeof subjectsValidationSchema>;
+
+export type AddSubjectFormType = z.infer<typeof addSubjectValidationSchema>;
+
+export type AddSubjectAutocompleteFormType = z.infer<typeof addSubjectAutocompleteValidationSchema>;

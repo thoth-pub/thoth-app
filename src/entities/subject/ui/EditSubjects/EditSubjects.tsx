@@ -14,22 +14,51 @@ import { subjectsValidationSchema } from '../../model/subject.validation';
 import { FormFields } from './components/FormFields';
 import { PreviewList } from './components/PreviewList';
 import { useEditSubjects } from './useEditSubjects';
-import { Activity, Fragment, useState } from 'react';
+import { Activity, useState } from 'react';
 import { ShrinkedListItem } from './components/ShrinkedListItem';
+import { BIC_CODES } from '@/src/shared/utils/subjects/bic-codes';
+import { THEMA_CODES } from '@/src/shared/utils/subjects/thema-codes';
+import { BISAC_CODES } from '@/src/shared/utils/subjects/bisac-codes';
+import { NewSubjectModal } from './components/NewSubjectModal';
 
-const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
+const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
+
+const codes = {
+  [SubjectTypes.enum.Bic]: BIC_CODES,
+  [SubjectTypes.enum.Bisac]: BISAC_CODES,
+  [SubjectTypes.enum.Thema]: THEMA_CODES,
+};
 
 const EditSubjects = (props: BaseRecommendedSectionProps) => {
   const { workId, queryToken, recommended = false } = props;
 
-  const { subjects, update, deleteSubject, close } = useEditSubjects({ workId, queryToken });
+  const { subjects, update, deleteSubject, close, create } = useEditSubjects({ workId, queryToken });
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const defaultValues = subjects.map((subject) => ({
-    subjectId: subject.id,
-    [SUBJECT_TYPE.name]: subject.type as SubjectType,
-    [SUBJECT_CODE.name]: subject.code,
-  }));
+  const defaultValues = subjects.map((subject) => {
+    const category = codes[subject.type as keyof typeof codes];
+
+    const defaultSubject = {
+      subjectId: subject.id,
+      [SUBJECT_TYPE.name]: subject.type as SubjectType,
+      [SUBJECT_CODE.name]: { value: subject.code, label: subject.code },
+      [SUBJECT_CODE_ALT.name]: subject.code,
+    };
+
+    if (!category) {
+      return defaultSubject;
+    }
+
+    const label = `${category[subject.code as keyof typeof category]} (${subject.code})`;
+
+    return {
+      subjectId: subject.id,
+      [SUBJECT_TYPE.name]: subject.type as SubjectType,
+      [SUBJECT_CODE.name]: { value: subject.code, label },
+      [SUBJECT_CODE_ALT.name]: subject.code,
+    };
+  });
 
   const placeholder =
     subjects.length > 0
@@ -75,6 +104,24 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
     },
   ].sort((a, b) => b.subjects.length - a.subjects.length);
 
+  const handleDelete = (id: string) => {
+    if (subjects.length === 1) {
+      setIsExpanded(false);
+      setIsModalOpen(false);
+      close();
+    }
+    deleteSubject(id);
+  };
+
+  const handleModalState = () => {
+    setIsModalOpen((prev) => !prev);
+  };
+
+  const handleAddNewSubject = (value: { type: SubjectType; code: string }) => {
+    create(value);
+    handleModalState();
+  };
+
   return (
     <EditableContent
       formId={IDs.WORK_SUBJECTS}
@@ -86,7 +133,7 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
           recommended={recommended}
           control={control as unknown as Control<SubjectsFormType>}
           onClose={close}
-          onDelete={deleteSubject}
+          onDelete={handleDelete}
         />
       )}
       preview={({ disabled, onEdit }) => (
@@ -100,19 +147,18 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
           editButtonClassName="mt-3.5 lg:mt-2"
         >
           {placeholder && (
-            <div className="flex flex-col gap-[var(--default-gap)]">
+            <div className="flex w-full flex-col gap-[var(--default-gap)]">
               <ul className={`flex w-full flex-col ${isExpanded ? 'gap-0' : 'gap-[var(--default-gap)]'}`}>
                 <Activity mode={isExpanded || subjects.length < 10 ? 'visible' : 'hidden'}>
-                  {data.map(({ subjects, text }, index) => (
-                    <Fragment key={index}>
-                      <PreviewList subjects={subjects} onDelete={deleteSubject} />
-                      <AddButton onAdd={() => {}} className="capitalize">
-                        {text}
-                      </AddButton>
-                    </Fragment>
+                  {data.map(({ subjects }) => (
+                    <PreviewList subjects={subjects} onDelete={deleteSubject} />
                   ))}
+                  <AddButton onAdd={handleModalState} className="capitalize">
+                    add new subject
+                  </AddButton>
+                  <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />
                 </Activity>
-                <Activity mode={!isExpanded && subjects.length > 10 ? 'visible' : 'hidden'}>
+                <Activity mode={!isExpanded && subjects.length >= 10 ? 'visible' : 'hidden'}>
                   {bicubSubjects.length > 0 && (
                     <ShrinkedListItem subjects={bicubSubjects} type={SubjectTypes.enum.Bic} />
                   )}
@@ -132,7 +178,7 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
                 </Activity>
               </ul>
 
-              {subjects.length > 10 && (
+              {subjects.length >= 10 && (
                 <IconButton onClick={() => setIsExpanded(!isExpanded)} className="m-auto mt-4">
                   {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
                 </IconButton>
