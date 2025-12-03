@@ -6,6 +6,7 @@ import eslintReact from '@eslint-react/eslint-plugin';
 import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
+import pluginQuery from '@tanstack/eslint-plugin-query';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -39,6 +40,7 @@ const eslintConfig = tseslint.config([
   },
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   eslintConfigPrettier,
+  pluginQuery.configs['flat/recommended'],
 ]);
 
 export default eslintConfig;

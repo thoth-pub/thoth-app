@@ -23,4 +23,15 @@ export class AffiliationDtoMapper implements BaseMapper<AffiliationEntity, Affil
       orderNumber: affiliationOrdinal,
     };
   }
+
+  toDto(entity: AffiliationEntity): Partial<AffiliationDto> {
+    const { id, contributionId, institutionId, institutionName, rorId, position, orderNumber } = entity;
+
+    return {
+      contributionId,
+      affiliationId: id,
+      institutionId,
+      position: position ?? '',
+    };
+  }
 }

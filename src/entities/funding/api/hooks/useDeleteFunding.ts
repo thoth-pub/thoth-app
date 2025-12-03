@@ -1,48 +1,47 @@
-import { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { NOTIFICATIONS } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
-import { DELETE_FUNDING } from '../../model/funding.schema';
 import type { FundingId } from '../../model/funding.types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { FundingService } from '../funding.service';
 
 const { FUNDING_DELETE_FAILED } = NOTIFICATIONS;
 
-const useCreateFunding = (props: BaseEditSectionProps) => {
-  const { queryToken, workId = '' } = props;
+const fundingService = new FundingService();
+
+const useDeleteFunding = (props: BaseEditSectionProps) => {
+  const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const queryClient = useQueryClient();
 
-  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: DELETE_FUNDING,
-    options: {
-      onError: (error) => {
-        console.error(error);
-        sendErrorNotification(FUNDING_DELETE_FAILED);
-      },
-      refetchQueries: workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (fundingId: FundingId) => {
+      return fundingService.deleteFunding({ token: queryToken, fundingId });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? FUNDING_DELETE_FAILED);
     },
   });
 
   const deleteFunding = async (fundingId: FundingId) => {
-    mutate({
-      variables: { fundingId },
-    });
-
-    await client.refetchQueries({ include: [GET_WORK] });
+    await mutateAsync(fundingId);
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   const deleteFundings = async (fundingIds: FundingId[]) => {
-    await Promise.all(fundingIds.map((fundingId) => mutate({ variables: { fundingId } })));
+    await Promise.all(fundingIds.map((fundingId) => mutateAsync(fundingId)));
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   return {
     deleteFunding,
     deleteFundings,
-    loading,
+    loading: isPending,
   };
 };
 
-export default useCreateFunding;
+export default useDeleteFunding;

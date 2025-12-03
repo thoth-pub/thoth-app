@@ -3,17 +3,21 @@ import { BaseService } from '@/src/shared/interfaces/services';
 
 import { InstitutionDtoMapper } from '../model/institution.mapper';
 import { GET_INSTITUTIONS, GET_INSTITUTIONS_COUNT } from '../model/institution.schema';
-import type { InstitutionEntity } from '../model/institution.types';
+import type { InstitutionDto, InstitutionEntity } from '../model/institution.types';
 
 const { itemsPerRequestLimit } = appConfig.data;
 
-export class InstitutionService extends BaseService {
-  async getInstitutionsCount(): Promise<number> {
-    const { data } = await this.queryClient({
-      query: GET_INSTITUTIONS_COUNT,
+export class InstitutionService extends BaseService<InstitutionEntity, InstitutionDto> {
+  constructor(mapper = new InstitutionDtoMapper()) {
+    super(mapper);
+  }
+
+  async getInstitutionsCount(filter: string = ''): Promise<number> {
+    const { institutionCount = 0 } = await this.graphqlService.query(GET_INSTITUTIONS_COUNT, {
+      filter,
     });
 
-    return data?.institutionCount ?? 0;
+    return institutionCount;
   }
 
   async getInstitutions(
@@ -21,21 +25,14 @@ export class InstitutionService extends BaseService {
     limit: number = itemsPerRequestLimit,
     filter: string = '',
   ): Promise<InstitutionEntity[]> {
-    const { data } = await this.queryClient({
+    const { institutions = [] } = await this.graphqlService.query(GET_INSTITUTIONS, {
       query: GET_INSTITUTIONS,
-      variables: {
-        offset,
-        limit,
-        filter,
-      },
+      offset,
+      limit,
+      filter,
     });
 
-    if (!data || !data.institutions) {
-      return [];
-    }
-
-    const dtoMapper = new InstitutionDtoMapper();
-    const res = data.institutions.map(dtoMapper.toEntity);
+    const res = institutions.map(this.dtoMapper.toEntity);
 
     return res;
   }

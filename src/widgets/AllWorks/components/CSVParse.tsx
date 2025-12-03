@@ -12,7 +12,6 @@ import {
   isCsv,
   isDefaultId,
 } from '@/src/shared/utils';
-import { useApolloClient } from '@apollo/client/react';
 import { licenseOptions } from '@/src/shared/constants/formFields';
 import {
   appConfig,
@@ -80,10 +79,8 @@ export const CSVParse = (props: CSVParseProps) => {
   const [seriesForUpdate, setSeriesForUpdate] = useState<Record<string, SeriesForUpdateItem[]>>({});
   const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<MultipleFoundedContributors>({});
 
-  const queryClient = useApolloClient();
-
-  const contributorService = new ContributorService(queryClient.query);
-  const institutionService = new InstitutionService(queryClient.query);
+  const contributorService = new ContributorService();
+  const institutionService = new InstitutionService();
 
   const csvConfig = getCsvConfig(imprints, licenseOptions, serieses);
 

@@ -5,12 +5,12 @@ import LogoutIcon from '@mui/icons-material/Logout';
 import { signOutAction } from '@/app/actions';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { IconButton } from '@/src/shared/ui';
-import { useApolloClient } from '@apollo/client/react';
 import { useEffect } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
 const SignOutButton = () => {
   const { resetLinkedPublishers, activePublisher } = usePublisherStateMachine();
-  const client = useApolloClient();
+  const client = useQueryClient();
 
   const signOut = async () => {
     await signOutAction();
@@ -21,7 +21,7 @@ const SignOutButton = () => {
 
     return () => {
       resetLinkedPublishers();
-      client.clearStore();
+      client.clear();
     };
   }, []);
 

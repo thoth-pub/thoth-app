@@ -1,69 +1,47 @@
-import { ServerError } from '@apollo/client';
-
-import { UpdateFundingMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { NOTIFICATIONS, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
-import { FundingDtoMapper } from '../../model/funding.mapper';
-import { UPDATE_FUNDING } from '../../model/funding.schema';
 import { FundingEntity } from '../../model/funding.types';
 import { WorkId } from '@/src/entities/work/model/work.types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { FundingService } from '../funding.service';
 
 const { FUNDING_UPDATE_FAILED } = NOTIFICATIONS;
 
-const mapper = new FundingDtoMapper();
+const fundingService = new FundingService();
 
 const useUpdateFunding = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const queryClient = useQueryClient();
 
-  const [mutate, { loading, client }] = useMutationWithAuth<UpdateFundingMutation>({
-    queryToken,
-    mutation: UPDATE_FUNDING,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, FUNDING_UPDATE_FAILED);
-
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(FUNDING_UPDATE_FAILED);
-      },
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async ({ data, relatedWorkId }: { data: FundingEntity; relatedWorkId: WorkId }) => {
+      return fundingService.updateFunding({ token: queryToken, data, relatedWorkId });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? FUNDING_UPDATE_FAILED);
     },
   });
 
   const updateFunding = async (data: FundingEntity, relatedWorkId: WorkId = workId) => {
-    const dto = mapper.toDto(data);
-
-    await mutate({
-      variables: { data: { ...dto, workId: relatedWorkId } },
-    });
-
-    await client.refetchQueries({ include: 'active' });
+    await mutateAsync({ data, relatedWorkId });
   };
 
-  const updateFundings = async (funding: FundingEntity, relatedWorkIds: WorkId[]) => {
-    const dto = mapper.toDto(funding);
-
-    const promises = relatedWorkIds.map((relatedWorkId) => {
-      return mutate({
-        variables: { data: { ...dto, workId: relatedWorkId } },
-      });
-    });
-
-    await Promise.all(promises);
+  const updateFundings = async (data: FundingEntity, relatedWorkIds: WorkId[]) => {
+    await Promise.all(relatedWorkIds.map((relatedWorkId) => mutateAsync({ data, relatedWorkId })));
   };
 
   return {
     updateFunding,
     updateFundings,
-    loading,
+    loading: isPending,
   };
 };
 

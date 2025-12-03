@@ -1,16 +1,21 @@
-import { useSuspenseQuery } from '@apollo/client/react';
-
-import { WorkStatus } from '@/gql/graphql';
-import { GET_BOOKS_COUNT } from '@/src/entities/book/model/book.schema';
 import type { PublisherId } from '@/src/entities/publisher';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { QueryKeys, WorkStatuses } from '@/src/shared';
+import { BookService } from '../book.service';
 
-const usePublishedBooksCount = (publishersIds: PublisherId[], isAdmin: boolean) => {
-  const { data: { bookCount } = { bookCount: 0 }, error } = useSuspenseQuery(GET_BOOKS_COUNT, {
-    variables: { publishers: publishersIds, workStatus: WorkStatus.Active },
-    skip: publishersIds.length === 0 && !isAdmin,
+const bookService = new BookService();
+
+const usePublishedBooksCount = (publishersIds: PublisherId[]) => {
+  const {
+    data: bookCount,
+    error,
+    isLoading,
+  } = useSuspenseQuery({
+    queryKey: [QueryKeys.publishedBooksCount, ...publishersIds],
+    queryFn: () => bookService.getBooksCount({ publishersIds, workStatus: WorkStatuses.enum.Active }),
   });
 
-  return { bookCount, error };
+  return { bookCount, error, isLoading };
 };
 
 export default usePublishedBooksCount;

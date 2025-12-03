@@ -16,7 +16,7 @@ import useWorkChapters from '../../api/hooks/useWorkChapters';
 
 const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, updateWork } = useWork(workId, queryToken);
-  const { chapters, refetchChapters } = useWorkChapters({ workId });
+  const { chapters } = useWorkChapters({ workId });
   const isPublicationDateDisabled = !isPublicationDateAvailable(work.status);
   const isWithdrawnDateRequired = isSupersededOrWithdrawn(work.status);
   const minDate = isPublicationDateShouldBeInFuture(work.status) ? getDateInFuture(0) : undefined;
@@ -54,8 +54,6 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
     });
 
     await Promise.all(promises);
-
-    refetchChapters();
   };
 
   const changePublicationDate = async (publicationDate: string) => {
@@ -72,8 +70,6 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
     });
 
     await Promise.all(promises);
-
-    refetchChapters();
   };
 
   const changeWithdrawnDate = async (withdrawnDate: string) => {
@@ -92,8 +88,6 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
     });
 
     await Promise.all(promises);
-
-    refetchChapters();
   };
 
   return {

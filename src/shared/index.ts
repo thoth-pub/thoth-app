@@ -1,6 +1,4 @@
-export * from './api/client';
 export * from './api/fragments';
-export * from './api/registries';
 export * from './config';
 export * from './constants';
 export * from './i18n';
@@ -9,3 +7,5 @@ export * from './store';
 export * from './theme';
 export * from './types';
 export * from './utils';
+export * from './api/utils';
+export * from './api/graphqlService';

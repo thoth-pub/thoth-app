@@ -1,42 +1,43 @@
 'use client';
 
-import { type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
-import { useMutationWithAuth } from '@/src/shared/hooks';
 
-import { DELETE_WORK, GET_WORK_CHAPTERS } from '../../model/work.schema';
 import { WorkId } from '../../model/work.types';
+import { WorkService } from '../work.service';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { WORK_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteChapter = ({ queryToken, workId }: BaseEditSectionProps) => {
-  const { sendErrorNotification } = useNotifications();
+const workService = new WorkService();
 
-  const [mutate, { client }] = useMutationWithAuth({
-    queryToken,
-    mutation: DELETE_WORK,
-    options: {
-      onError: () => {
-        sendErrorNotification(WORK_DELETE_FAILED);
-      },
+const useDeleteChapter = ({ queryToken }: BaseEditSectionProps) => {
+  const { sendErrorNotification } = useNotifications();
+  const queryClient = useQueryClient();
+
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (workId: WorkId) => {
+      return workService.deleteWork(queryToken, workId);
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? WORK_DELETE_FAILED);
     },
   });
 
   const deleteChapter = async (workId: WorkId) => {
-    await mutate({ variables: { workId } });
-    await client.refetchQueries({ include: [GET_WORK_CHAPTERS] });
+    await mutateAsync(workId);
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   const deleteChapters = async (workIds: WorkId[]) => {
-    workIds.forEach(async (workId) => {
-      await mutate({ variables: { workId } });
-    });
-    await client.refetchQueries({ include: [GET_WORK_CHAPTERS] });
+    await Promise.all(workIds.map((workId) => mutateAsync(workId)));
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   return {
     deleteChapter,
     deleteChapters,
+    loading: isPending,
   };
 };
 

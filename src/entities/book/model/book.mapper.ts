@@ -174,4 +174,49 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
       })),
     };
   }
+
+  toDto(entity: BookEntity): Partial<BookDto> {
+    const {
+      id,
+      title,
+      type,
+      imprintId,
+      status,
+      doi,
+      edition,
+      license,
+      copyrightHolder,
+      landingPage,
+      coverUrl,
+      fullTitle,
+      publicationDate,
+      imageCount,
+      tableCount,
+      audioCount,
+      videoCount,
+      pageCount,
+      frontmatterCount,
+      backmatterCount,
+    } = entity;
+    const defaultEdition = edition ?? 1;
+
+    return {
+      workId: id,
+      workStatus: status,
+      title,
+      fullTitle,
+      imprintId,
+      workType: type,
+      license: license && license.length > 0 ? license : null,
+      copyrightHolder: copyrightHolder && copyrightHolder.length > 0 ? copyrightHolder : null,
+      doi: doi && doi.length > 0 ? doi : null,
+      landingPage: landingPage && landingPage.length > 0 ? landingPage : null,
+      coverUrl: coverUrl && coverUrl.length > 0 ? coverUrl : null,
+      imageCount: +imageCount > 0 ? +imageCount : null,
+      tableCount: +tableCount > 0 ? +tableCount : null,
+      audioCount: +audioCount > 0 ? +audioCount : null,
+      videoCount: +videoCount > 0 ? +videoCount : null,
+      pageCount: +pageCount > 0 ? +pageCount : null,
+    };
+  }
 }

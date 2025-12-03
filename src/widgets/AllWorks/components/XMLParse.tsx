@@ -49,7 +49,6 @@ import { Publisher } from '@5stones/onix/dist/interfaces';
 import { CurrencyCode } from '@/src/entities/price/model/price.types';
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
-import { useApolloClient } from '@apollo/client/react';
 import { InstitutionEntity, InstitutionRor } from '@/src/entities/institution/model/institution.types';
 import { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 
@@ -79,10 +78,8 @@ export const XMLParse = (props: XMLParseProps) => {
 
   const imprintsLabels = imprints.map((imprint) => imprint.label);
 
-  const queryClient = useApolloClient();
-
-  const contributorService = new ContributorService(queryClient.query);
-  const institutionService = new InstitutionService(queryClient.query);
+  const contributorService = new ContributorService();
+  const institutionService = new InstitutionService();
 
   const [works, setWorks] = useState<WorkEntity[]>([]);
   const [chapters, setChapters] = useState<Record<WorkId, WorkEntity[]>>({});

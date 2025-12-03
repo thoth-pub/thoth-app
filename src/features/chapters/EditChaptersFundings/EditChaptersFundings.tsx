@@ -19,11 +19,10 @@ import EditFunding from '../../fundings/EditFunding/EditFunding';
 
 type EditChaptersFundingsProps = Omit<BaseEditSectionProps, 'workId'> & {
   chapters: WorkEntity[];
-  onUpdate: () => void;
 };
 
 const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
-  const { queryToken, chapters, onUpdate } = props;
+  const { queryToken, chapters } = props;
 
   const { activeFunding, edit, close, update } = useFundingsStateMachine();
 
@@ -179,7 +178,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
 
     setFundings(updatedFundings);
     update(updatedFunding);
-    onUpdate();
   };
 
   const updateProjectShortName = async (updatedFunding: FundingEntity) => {
@@ -221,7 +219,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
     });
 
     setFundings(updatedFundings);
-    onUpdate();
     update(updatedFunding);
   };
 
@@ -264,7 +261,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
     });
 
     setFundings(updatedFundings);
-    onUpdate();
     update(updatedFunding);
   };
 
@@ -307,7 +303,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
     });
 
     setFundings(updatedFundings);
-    onUpdate();
     update(updatedFunding);
   };
 
@@ -350,7 +345,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
     });
 
     setFundings(updatedFundings);
-    onUpdate();
     update(updatedFunding);
   };
 
@@ -404,7 +398,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
     });
 
     setFundings(updatedFundings);
-    onUpdate();
     update(updatedFunding);
   };
 
@@ -439,7 +432,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
     await deleteFundings(ids);
 
     setFundings(updatedFundings);
-    onUpdate();
   };
 
   return (

@@ -1,19 +1,18 @@
-import { ServerError } from '@apollo/client';
 import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
 import { ImprintService } from '@/src/entities/imprint';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import { convertEntityToSelectFieldOptions, isAdmin } from '@/src/shared';
 import { ROUTES } from '@/src/shared/constants';
-import { getClient, PreloadQuery, query } from '@/src/shared/graphqlClient';
 import { EditWorkWidget } from '@/src/widgets';
+import { WorkService } from '@/src/entities/work/api/work.service';
 
 type WorksPageParams = Promise<{
   id: string[];
 }>;
 
-const imprintsService = new ImprintService(query);
+const imprintsService = new ImprintService();
+const workService = new WorkService();
 
 export default async function WorkPage({ params }: { params: WorksPageParams }) {
   const {
@@ -27,16 +26,12 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
   }
 
   try {
-    const { data } = await getClient().query({ query: GET_WORK, variables: { workId: id } });
+    const work = await workService.getWork(id);
 
-    if (!data) {
+    if (!work) {
       redirect(ROUTES.NOT_FOUND);
     }
   } catch (error: unknown) {
-    if (ServerError.is(error) && error.statusCode === 400) {
-      redirect(ROUTES.NOT_FOUND);
-    }
-
     throw error;
   }
 
@@ -49,13 +44,11 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
   const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
 
   return (
-    <PreloadQuery query={GET_WORK} variables={{ workId: id }}>
-      <EditWorkWidget
-        workId={id}
-        queryToken={session.user.queryToken}
-        imprintOptions={imprintOptions}
-        isAdmin={isUserAdmin}
-      />
-    </PreloadQuery>
+    <EditWorkWidget
+      workId={id}
+      queryToken={session.user.queryToken}
+      imprintOptions={imprintOptions}
+      isAdmin={isUserAdmin}
+    />
   );
 }

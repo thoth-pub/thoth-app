@@ -5,11 +5,10 @@ import { ROUTES } from '@/src/shared/constants';
 import AllWorks from '@/src/widgets/AllWorks/AllWorks';
 import { convertEntityToSelectFieldOptions, convertLinkedPublishers, isAdmin } from '@/src/shared/utils';
 import { ImprintService } from '@/src/entities/imprint';
-import { query } from '@/src/shared/graphqlClient';
 import { SeriesService } from '@/src/entities/series';
 
-const imprintsService = new ImprintService(query);
-const seriesService = new SeriesService(query);
+const imprintsService = new ImprintService();
+const seriesService = new SeriesService();
 
 export default async function WorksPage() {
   const session = await auth();

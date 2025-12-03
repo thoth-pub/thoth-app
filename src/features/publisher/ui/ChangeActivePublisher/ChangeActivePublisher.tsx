@@ -20,7 +20,7 @@ const ChangeActivePublisher = ({
 }: ChangeActivePublisherProps) => {
   const ids = linkedPublishers.map((publisher) => publisher.publisherId);
 
-  const { publishers } = usePublishers(ids, true);
+  const { publishers } = usePublishers(ids, isSuperAdmin);
 
   const { activePublisher, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
 
