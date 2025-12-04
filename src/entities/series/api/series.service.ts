@@ -4,16 +4,20 @@ import { SeriesType as SeriesTypeEnum } from '@/gql/graphql';
 
 import { SeriesDtoMapper } from '../model/series.mapper';
 import {
+  CREATE_ISSUE,
   CREATE_SERIES,
+  DELETE_ISSUE,
   DELETE_SERIES,
   GET_SERIES,
   GET_SERIESES,
   GET_SERIESES_COUNT,
+  UPDATE_ISSUE,
   UPDATE_SERIES,
 } from '../model/series.schema';
-import type { SeriesDto, SeriesEntity } from '../model/series.types';
+import type { SeriesDto, SeriesEntity, SeriesId } from '../model/series.types';
 import { appConfig, Direction, SeriesType } from '@/src/shared';
 import { SeriesField } from '@/gql/graphql';
+import { WorkId } from '../../work/model/work.types';
 
 export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
   constructor(mapper = new SeriesDtoMapper()) {
@@ -109,7 +113,7 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
   async updateSeries(token: string, data: SeriesEntity): Promise<SeriesEntity> {
     const { updatedAt: _updatedAt, issues: _issues, ...dto } = this.dtoMapper.toDto(data);
 
-    const { updateSeries } = await this.graphqlService.mutation(token, UPDATE_SERIES, {
+    await this.graphqlService.mutation(token, UPDATE_SERIES, {
       data: {
         ...dto,
         imprintId: dto.imprintId ?? '',
@@ -119,14 +123,65 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
       },
     });
 
-    const result = this.dtoMapper.toEntity(updateSeries as SeriesDto);
-
-    return result;
+    return data;
   }
 
   async deleteSeries(token: string, seriesId: string): Promise<void> {
     await this.graphqlService.mutation(token, DELETE_SERIES, {
       seriesId,
+    });
+  }
+
+  async createIssue({
+    token,
+    orderNumber,
+    seriesId,
+    workId,
+  }: {
+    token: string;
+    orderNumber: number;
+    seriesId: SeriesId;
+    workId: WorkId;
+  }) {
+    const { createIssue } = await this.graphqlService.mutation(token, CREATE_ISSUE, {
+      data: {
+        issueOrdinal: orderNumber,
+        seriesId,
+        workId,
+      },
+    });
+
+    return createIssue;
+  }
+
+  async updateIssue({
+    token,
+    issueId,
+    orderNumber,
+    seriesId,
+    workId,
+  }: {
+    token: string;
+    issueId: string;
+    orderNumber: number;
+    seriesId: SeriesId;
+    workId: WorkId;
+  }) {
+    const { updateIssue } = await this.graphqlService.mutation(token, UPDATE_ISSUE, {
+      data: {
+        issueId,
+        issueOrdinal: orderNumber,
+        seriesId,
+        workId,
+      },
+    });
+
+    return updateIssue;
+  }
+
+  async deleteIssue(token: string, issueId: string): Promise<void> {
+    await this.graphqlService.mutation(token, DELETE_ISSUE, {
+      issueId,
     });
   }
 }

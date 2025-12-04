@@ -20,6 +20,8 @@ const useUpdateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? SERIES_UPDATE_FAILED);

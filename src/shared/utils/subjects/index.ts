@@ -11,7 +11,7 @@ export const convertBisacSubjectCodeToReadableFormat = (code: string, withCode =
 
   const description = BISAC_CODES[trimmedCode as keyof typeof BISAC_CODES];
 
-  return `${description} ${withCode ? `(${trimmedCode})` : ''}` || trimmedCode;
+  return `${withCode ? `${trimmedCode}` : ''} (${description}) ` || trimmedCode;
 };
 
 export const convertBicSubjectCodeToReadableFormat = (code: string, withCode = true): string => {
@@ -23,7 +23,7 @@ export const convertBicSubjectCodeToReadableFormat = (code: string, withCode = t
 
   const description = BIC_CODES[trimmedCode as keyof typeof BIC_CODES];
 
-  return `${description} ${withCode ? `(${trimmedCode})` : ''}` || trimmedCode;
+  return `${withCode ? `${trimmedCode}` : ''} (${description}) ` || trimmedCode;
 };
 
 export const convertThemaSubjectCodeToReadableFormat = (code: string, withCode = true): string => {
@@ -35,5 +35,5 @@ export const convertThemaSubjectCodeToReadableFormat = (code: string, withCode =
 
   const description = THEMA_CODES[trimmedCode as keyof typeof THEMA_CODES];
 
-  return `${description} ${withCode ? `(${trimmedCode})` : ''}` || trimmedCode;
+  return `${withCode ? `${trimmedCode}` : ''} (${description}) ` || trimmedCode;
 };

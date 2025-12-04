@@ -1,56 +1,44 @@
 'use client';
 
-import { ServerError } from '@apollo/client';
-
-import { CreateAffiliationMutation } from '@/gql/graphql';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, type QueryToken } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { CREATE_ISSUE } from '../../model/series.schema';
 import type { SeriesId } from '../../model/series.types';
-
-const { ISSUE_CREATION_FAILED } = NOTIFICATIONS;
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { SeriesService } from '../series.service';
 
 type UseCreateIssueProps = {
   queryToken: QueryToken;
 };
 
+const { ISSUE_CREATION_FAILED } = NOTIFICATIONS;
+
+const seriesService = new SeriesService();
+
 const useCreateIssue = ({ queryToken }: UseCreateIssueProps) => {
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: CREATE_ISSUE,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, ISSUE_CREATION_FAILED);
+  const queryClient = useQueryClient();
 
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(ISSUE_CREATION_FAILED);
-      },
-      onCompleted: async () => {
-        await client.refetchQueries({ include: 'all' });
-      },
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: { orderNumber: number; seriesId: SeriesId; workId: WorkId }) => {
+      return seriesService.createIssue({ token: queryToken, ...data });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? ISSUE_CREATION_FAILED);
     },
   });
 
-  const createIssue = async (data: { orderNumber: number; seriesId: SeriesId; workId: WorkId }) => {
-    const { orderNumber, seriesId, workId } = data;
-
-    mutate({
-      variables: { data: { issueOrdinal: orderNumber, seriesId, workId } },
-    });
-  };
-
   return {
-    createIssue,
-    loading,
+    createIssue: mutateAsync,
+    loading: isPending,
   };
 };
 

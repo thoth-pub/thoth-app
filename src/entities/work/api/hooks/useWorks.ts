@@ -6,7 +6,7 @@ import { appConfig, Direction, QueryKeys } from '@/src/shared';
 
 import { WorkType } from '../../model/work.types';
 import { WorkService } from '../work.service';
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 
 type UseWorksProps = {
   publishersIds: PublisherId[];
@@ -39,7 +39,7 @@ const useWorks = (props: UseWorksProps) => {
     data: works = [],
     error,
     isLoading,
-  } = useSuspenseQuery({
+  } = useQuery({
     queryKey: [
       QueryKeys.works,
       ...publishersIds,
