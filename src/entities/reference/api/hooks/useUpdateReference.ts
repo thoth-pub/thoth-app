@@ -1,54 +1,38 @@
-import { ServerError } from '@apollo/client';
-
-import { CreateAffiliationMutation } from '@/gql/graphql';
-import { NOTIFICATIONS, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
-import { ReferenceDtoMapper } from '../../model/reference.mapper';
-import { UPDATE_REFERENCE } from '../../model/reference.schema';
 import { ReferenceEntity } from '../../model/reference.types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { ReferenceService } from '../reference.service';
+
+const referenceService = new ReferenceService();
 
 const { REFERENCE_UPDATE_FAILED } = NOTIFICATIONS;
 
-const mapper = new ReferenceDtoMapper();
-
-const useUpdateFunding = (props: BaseEditSectionProps) => {
+const useUpdateReference = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: UPDATE_REFERENCE,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, REFERENCE_UPDATE_FAILED);
+  const queryClient = useQueryClient();
 
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(REFERENCE_UPDATE_FAILED);
-      },
-      refetchQueries: 'active',
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: ReferenceEntity) => {
+      return referenceService.updateReference(queryToken, data, workId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? REFERENCE_UPDATE_FAILED);
     },
   });
 
-  const updateReference = async (data: ReferenceEntity) => {
-    const dto = mapper.toDto(data);
-
-    await mutate({
-      variables: { data: { ...dto, workId } },
-    });
-  };
-
   return {
-    updateReference,
-    loading,
+    updateReference: mutateAsync,
+    loading: isPending,
   };
 };
 
-export default useUpdateFunding;
+export default useUpdateReference;

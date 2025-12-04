@@ -5,7 +5,7 @@ import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import { referenceValidationSchema } from '../../model/reference.validation';
+import { referenceCitationValidationSchema } from '../../model/reference.validation';
 
 const { REFERENCE_CITATION } = FORM_FIELDS;
 const { REFERENCE_CITATION: REFERENCE_CITATION_HELPER_TEXT } = HELPER_TEXT;
@@ -23,7 +23,7 @@ export const EditReferenceCitation = (props: EditReferenceCitationProps) => {
       formId={IDs.REFERENCE_CITATION}
       borderTransparent
       isTableVariant
-      validationSchema={referenceValidationSchema}
+      validationSchema={referenceCitationValidationSchema}
       defaultValues={{ [REFERENCE_CITATION.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.unstructuredCitation)}
       formFields={({ control, isHelperTextVisible }) => (
@@ -41,7 +41,7 @@ export const EditReferenceCitation = (props: EditReferenceCitationProps) => {
       preview={({ data, disabled, onEdit }) => (
         <Preview
           label={REFERENCE_CITATION.label}
-          value={data?.unstructuredCitation}
+          value={defaultValue ?? data?.unstructuredCitation}
           disabled={disabled}
           onEdit={onEdit}
         />
