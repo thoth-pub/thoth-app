@@ -1,33 +1,26 @@
-import type { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import type { WorkId } from '@/src/entities/work/model/work.types';
 import { type QueryToken } from '@/src/shared';
-import { useMutationWithAuth } from '@/src/shared/hooks';
 
-import { DELETE_AFFILIATION } from '../../model/affiliation.schema';
+import { useMutation } from '@tanstack/react-query';
+import { AffiliationService } from '../affiliation.service';
 
 type UseDeleteAffiliationProps = {
   queryToken: QueryToken;
-  workId?: WorkId;
 };
 
-const useDeleteAffiliation = (props: UseDeleteAffiliationProps) => {
-  const { queryToken, workId = '' } = props;
+const affiliationService = new AffiliationService();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: DELETE_AFFILIATION,
-    options: {
-      onError: (error) => {
-        console.error(error);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+const useDeleteAffiliation = (props: UseDeleteAffiliationProps) => {
+  const { queryToken } = props;
+
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (affiliationId: string) => {
+      return affiliationService.deleteAffiliation({ token: queryToken, affiliationId });
     },
   });
 
   return {
-    deleteAffiliation: mutate,
-    loading,
+    deleteAffiliation: mutateAsync,
+    loading: isPending,
   };
 };
 

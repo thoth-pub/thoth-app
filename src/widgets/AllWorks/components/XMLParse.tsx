@@ -1,6 +1,7 @@
 import { validateXml } from '@/app/actions/validateXml';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
-import type { WorkContribution, WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
+import type { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import {
   appConfig,
   convertOrchidIdToText,

@@ -1,30 +1,29 @@
-import type { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import { type QueryToken } from '@/src/shared';
-import { useMutationWithAuth } from '@/src/shared/hooks';
+'use client';
 
-import { UPDATE_AFFILIATION } from '../../model/affiliation.schema';
+import { type QueryToken } from '@/src/shared';
+
+import { useMutation } from '@tanstack/react-query';
+import { AffiliationEntity } from '../../model/affiliation.types';
+import { AffiliationService } from '../affiliation.service';
 
 type UseCreateAffiliationProps = {
   queryToken: QueryToken;
-  workId?: WorkId;
 };
 
-const useUpdateAffiliation = (props: UseCreateAffiliationProps) => {
-  const { queryToken, workId = '' } = props;
+const affiliationService = new AffiliationService();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: UPDATE_AFFILIATION,
-    options: {
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+const useUpdateAffiliation = (props: UseCreateAffiliationProps) => {
+  const { queryToken } = props;
+
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: AffiliationEntity) => {
+      return affiliationService.updateAffiliation({ token: queryToken, data });
     },
   });
 
   return {
-    updateAffiliation: mutate,
-    loading,
+    updateAffiliation: mutateAsync,
+    loading: isPending,
   };
 };
 

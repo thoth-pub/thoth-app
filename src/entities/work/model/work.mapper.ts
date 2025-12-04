@@ -12,7 +12,8 @@ import type { BaseMapper } from '@/src/shared/interfaces';
 import { FundingDtoMapper } from '../../funding/model/funding.mapper';
 import { ReferenceDtoMapper } from '../../reference/model/reference.mapper';
 import { SubjectDtoMapper } from '../../subject/model/subject.mapper';
-import type { WorkContribution, WorkContributionDto, WorkDto, WorkEntity } from './work.types';
+import type { WorkContributionDto, WorkDto, WorkEntity } from './work.types';
+import { WorkContribution } from '../../contribution/model/contribution.types';
 
 const { pageBreakdownSeparator } = appConfig.dataApi;
 

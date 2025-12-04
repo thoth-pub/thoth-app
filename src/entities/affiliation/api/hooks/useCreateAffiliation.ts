@@ -1,54 +1,41 @@
-import { ServerError } from '@apollo/client';
+'use client';
 
-import type { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { AffiliationDtoMapper } from '../../model/affiliation.mapper';
-import { CREATE_AFFILIATION } from '../../model/affiliation.schema';
-import { AffiliationDto, AffiliationEntity } from '../../model/affiliation.types';
+import { AffiliationEntity } from '../../model/affiliation.types';
+import { useMutation } from '@tanstack/react-query';
+import { AffiliationService } from '../affiliation.service';
 
-const { AFFILIATION_CREATION_FAILED } = NOTIFICATIONS;
-
-type UseCreateAffiliationProps = BaseEditSectionProps & {
+type UseCreateAffiliationProps = {
+  queryToken: QueryToken;
   onCompleted?: (data: AffiliationEntity) => void;
 };
 
-const mapper = new AffiliationDtoMapper();
+const { AFFILIATION_CREATION_FAILED } = NOTIFICATIONS;
+
+const affiliationService = new AffiliationService();
 
 const useCreateAffiliation = (props: UseCreateAffiliationProps) => {
-  const { queryToken, workId = '', onCompleted } = props;
+  const { queryToken, onCompleted } = props;
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: CREATE_AFFILIATION,
-    options: {
-      onCompleted: (data: CreateAffiliationMutation) => {
-        const affiliation = mapper.toEntity(data.createAffiliation as AffiliationDto);
-        onCompleted?.(affiliation);
-      },
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, AFFILIATION_CREATION_FAILED);
-
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(AFFILIATION_CREATION_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: AffiliationEntity) => {
+      return affiliationService.createAffiliation({ token: queryToken, data });
+    },
+    onSuccess: (data) => {
+      onCompleted?.(data);
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? AFFILIATION_CREATION_FAILED);
     },
   });
 
   return {
-    createAffiliation: mutate,
-    client,
-    loading,
+    createAffiliation: mutateAsync,
+    loading: isPending,
   };
 };
 

@@ -26,7 +26,8 @@ import {
 import { InstitutionEntity, InstitutionRor } from '@/src/entities/institution/model/institution.types';
 import { ContributionType, ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
-import { WorkContribution, WorkEntity, WorkId, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
+import { WorkEntity, WorkId, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { useEffect, useState } from 'react';
 import { getDefaultAffiliation } from '@/src/shared/constants/affiliations';
 import {

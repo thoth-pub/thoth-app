@@ -1,6 +1,6 @@
 'use client';
 
-import { WorkContribution } from '@/src/entities/work/model/work.types';
+import type { WorkContribution } from '../../model/contribution.types';
 import { Table, TableBody, TableHeader } from '@/src/shared/ui';
 import { closestCenter, DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';

@@ -6,30 +6,31 @@ import type {
   ContributionType,
   ContributorId,
 } from '@/src/entities/contributor/model/contributor.types';
-import { WorkContribution, WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
+import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { isAllContributionRecommendationsFilled, isDefaultId, type BaseEditSectionProps } from '@/src/shared';
 import { RecommendedSection, Typography } from '@/src/shared/ui';
 import { useEffect, useMemo, useState } from 'react';
 import AddContributionModal from '../../work/AddContributionModal/AddContributionModal';
 import { AddNewChaptersContribution } from './components/AddNewChaptersContribution';
-import { useWorkContributionsBulkDelete, useWorkContributionsBulkUpdate } from '@/src/entities/work';
 import { EditChaptersContributions } from './components/EditChaptersContributions';
 import { findAllSameContributions } from './components/utils';
 import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAffiliationsForm';
 import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
+import useContributionsBulkDelete from '@/src/entities/contribution/api/hooks/useContributionsBulkDelete';
+import useContributionsBulkUpdate from '@/src/entities/contribution/api/hooks/useContributionsBulkUpdate';
 
 type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
   chapters: WorkEntity[];
-  onUpdate: () => void;
 };
 
 const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
-  const { queryToken, chapters, onUpdate } = props;
+  const { queryToken, chapters } = props;
 
   const { activeContribution, edit, close } = useContributionStateMachine();
 
-  const { deleteContributions } = useWorkContributionsBulkDelete(queryToken);
-  const { updateContributions } = useWorkContributionsBulkUpdate(queryToken);
+  const { deleteContributions } = useContributionsBulkDelete(queryToken);
+  const { updateContributions } = useContributionsBulkUpdate(queryToken);
 
   useEffect(() => {
     return () => {
@@ -104,6 +105,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
       return chapter.contributions.every((contribution) => {
         // 3. For each contribution, get the contributor id
         const contributorId = contribution.contributorId;
+        const contributionType = contribution.type;
 
         // 4. For each affiliation, check if it exists in every other contribution in every other chapter
         // With the same contributor, with the same institution, order number and position
@@ -112,7 +114,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
           return chapters.every((chapter) => {
             // 6. Find same contribution
             const contribution = chapter.contributions.find(
-              (contribution) => contribution.contributorId === contributorId,
+              (contribution) => contribution.contributorId === contributorId && contribution.type === contributionType,
             );
 
             if (!contribution) return false;
@@ -143,7 +145,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
   const handleNewContribution = () => {
     close();
-    onUpdate();
   };
 
   const handleEdit = (id: ContributionId) => {
@@ -166,8 +167,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     setContributions(updatedUniqueContributors);
 
     await deleteContributions(contributionIds);
-
-    onUpdate();
   };
 
   const handleBulkUpdate = async (id: ContributionId, updatedData?: Partial<WorkContribution>) => {
@@ -203,8 +202,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     setContributions(updatedUniqueContributions);
 
     await updateContributions(updatedContributions);
-
-    onUpdate();
   };
 
   const handleMainBulkUpdate = async (id: ContributionId) => {
@@ -213,8 +210,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     if (sameContributions.length === 0) return;
 
     await handleBulkUpdate(id, { isMain: !sameContributions[0].isMain });
-
-    onUpdate();
   };
 
   const handleUpdateAffiliations = (data: AffiliationsForm, contributionId: ContributionId) => {
@@ -225,8 +220,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     const contributionsIds = sameContributions.map((contributions) => contributions.id);
 
     updateBulkAffiliations(data, contributionsIds);
-
-    onUpdate();
   };
 
   const handleDeleteAffiliation = (id: string, contributionId: ContributionId) => {
@@ -254,8 +247,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     if (ids.length === 0) return;
 
     deleteBulkAffiliations(ids);
-
-    onUpdate();
   };
 
   return (

@@ -27,7 +27,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
   const [chapters, setChapters] = useState(initValue);
 
-  const { chapters: currentWorkChapters, refetchChapters } = useWorkChapters({ workId });
+  const { chapters: currentWorkChapters } = useWorkChapters({ workId });
 
   useEffect(() => {
     if (!activeWorkChapters) return;
@@ -84,12 +84,6 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   const license = chapters[0].license ? chapters[0].license : licenseOptions[0].value;
 
-  const handleUpdate = async () => {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    refetchChapters();
-  };
-
   return (
     <FullScreenModal title={title} isOpen={isMultipleChaptersSelected} onClose={handleClose} onDone={handleDone}>
       <EditChapterBasicDetails
@@ -105,8 +99,8 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
         isMultipleChaptersEdit
         onLanguagesUpdate={(data) => console.log(data)}
       />
-      <EditChaptersContributors queryToken={queryToken} chapters={chapters} onUpdate={handleUpdate} />
-      <EditChaptersFundings queryToken={queryToken} chapters={chapters} onUpdate={refetchChapters} />
+      <EditChaptersContributors queryToken={queryToken} chapters={chapters} />
+      <EditChaptersFundings queryToken={queryToken} chapters={chapters} />
     </FullScreenModal>
   );
 };

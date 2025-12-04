@@ -7,7 +7,7 @@ import type {
 } from '@/src/entities/contribution/model/contribution.types';
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { WorkContribution } from '@/src/entities/work/model/work.types';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { EditContribution } from '@/src/features/contribution';
 import type { QueryToken } from '@/src/shared';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';

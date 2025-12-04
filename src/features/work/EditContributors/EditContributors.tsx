@@ -15,7 +15,7 @@ const EditContributors = (props: EditContributorsProps) => {
   const { workId, queryToken, isAdmin = false } = props;
   const { activeContribution, close } = useContributionStateMachine();
 
-  const { work, refetch } = useWork(workId, queryToken);
+  const { work } = useWork(workId, queryToken);
   const { isContributionsRequired } = useWorkRecommendations({ workId });
 
   const isNewContribution = activeContribution ? isDefaultId(activeContribution.id) : false;
@@ -23,8 +23,6 @@ const EditContributors = (props: EditContributorsProps) => {
   const isEmpty = work.contributions.length === 0;
 
   useEffect(() => {
-    refetch();
-
     return () => {
       close();
     };

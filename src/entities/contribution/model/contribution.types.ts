@@ -5,9 +5,27 @@ import {
   contributorTypeValidationSchema,
   namesFormValidationSchema,
 } from './contribution.validation';
+import { AffiliationEntity } from '../../affiliation/model/affiliation.types';
+import { ContributionType } from '@/gql/graphql';
+import { ContributorId } from '../../contributor/model/contributor.types';
 
 export type ContributionNamesForm = z.infer<typeof namesFormValidationSchema>;
 
 export type ContributionTypeForm = z.infer<typeof contributorTypeValidationSchema>;
 
 export type ContributionBiographyForm = z.infer<typeof contributorBiographyValidationSchema>;
+
+export type WorkContribution = {
+  fullName: string;
+  lastName: string;
+  firstName: string;
+  id: string;
+  contributorId: ContributorId;
+  type: ContributionType;
+  isMain: boolean;
+  orderNumber: number;
+  biography: string;
+  orcidId: string;
+  website: string;
+  affiliations: AffiliationEntity[];
+};

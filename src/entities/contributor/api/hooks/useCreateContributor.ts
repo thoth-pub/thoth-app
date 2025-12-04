@@ -1,20 +1,19 @@
-import { ServerError } from '@apollo/client';
+'use client';
 
-import type { Contributor, CreateContributorMutation } from '@/gql/graphql';
-import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { ContributorDtoMapper } from '../../model/contributor.mapper';
-import { CREATE_CONTRIBUTOR } from '../../model/contributor.schema';
 import { ContributorEntity } from '../../model/contributor.types';
+import { useMutation } from '@tanstack/react-query';
+import { ContributorService } from '../contributor.service';
 
 type UseCreateContributorProps = {
   queryToken: QueryToken;
-  onCompleted?: (data: Contributor) => void;
+  onCompleted?: (data: ContributorEntity) => void;
   onError?: (error: Error) => void;
 };
 
-const mapper = new ContributorDtoMapper();
+const contributorService = new ContributorService();
 
 const { CONTRIBUTOR_CREATION_SUCCESS, CONTRIBUTOR_CREATION_FAILED } = NOTIFICATIONS;
 
@@ -23,42 +22,23 @@ const useCreateContributor = (props: UseCreateContributorProps) => {
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateContributorMutation>({
-    queryToken,
-    mutation: CREATE_CONTRIBUTOR,
-    options: {
-      onCompleted: (data) => {
-        sendSuccessNotification(CONTRIBUTOR_CREATION_SUCCESS);
-
-        onCompleted?.(data.createContributor as Contributor);
-      },
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, CONTRIBUTOR_CREATION_FAILED);
-
-          sendErrorNotification(errorMessage);
-          onError?.(error);
-          return;
-        }
-
-        sendErrorNotification(CONTRIBUTOR_CREATION_FAILED);
-        onError?.(error);
-      },
-      refetchQueries: 'all',
+  const { mutate, isPending } = useMutation({
+    mutationFn: async (data: ContributorEntity) => {
+      return contributorService.createContributor(queryToken, data);
+    },
+    onSuccess: (data) => {
+      sendSuccessNotification(CONTRIBUTOR_CREATION_SUCCESS);
+      onCompleted?.(data);
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? CONTRIBUTOR_CREATION_FAILED);
+      onError?.(error);
     },
   });
 
-  const createContributor = (
-    contributor: Pick<ContributorEntity, 'firstName' | 'lastName' | 'fullName' | 'orcid' | 'website'>,
-  ) => {
-    const data = mapper.toDto(contributor);
-
-    mutate({ variables: { data: data } });
-  };
-
   return {
-    createContributor,
-    loading,
+    createContributor: mutate,
+    loading: isPending,
   };
 };
 

@@ -1,5 +1,6 @@
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
-import { WorkContribution, WorkEntity } from '@/src/entities/work/model/work.types';
+import type { WorkEntity } from '@/src/entities/work/model/work.types';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 
 export const findAllSameContributions = (
   id: ContributionId,

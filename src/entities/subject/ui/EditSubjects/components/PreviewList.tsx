@@ -51,7 +51,7 @@ export const PreviewList = ({ subjects, onDelete }: PreviewListProps) => {
   return (
     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={dragEnd}>
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
-        {firstSubject && <Typography className="m-auto max-w-max font-bold">{firstSubject.type}</Typography>}
+        {firstSubject && <Typography className="ml-2 max-w-max font-bold">{firstSubject.type}</Typography>}
         {items.map((subject, index) => (
           <ListItem key={`${subject.id}-${index}`} subject={subject} onDelete={handleDelete} />
         ))}

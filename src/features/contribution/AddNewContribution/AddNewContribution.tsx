@@ -5,7 +5,7 @@ import type { BaseRecommendedSectionProps } from '@/src/shared';
 import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
 import { useAddNewContribution } from './useAddNewContribution';
-import type { WorkContribution } from '@/src/entities/work/model/work.types';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 
 type AddNewContributionProps = BaseRecommendedSectionProps & {
   onCreate?: (contribution: WorkContribution) => void;

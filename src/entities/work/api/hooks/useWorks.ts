@@ -1,14 +1,12 @@
-import { useQuery } from '@apollo/client/react';
+'use client';
 
-import type { WorkField, WorkFragmentFragment, WorkStatus } from '@/gql/graphql';
+import type { WorkField, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, Direction } from '@/src/shared';
+import { appConfig, Direction, QueryKeys } from '@/src/shared';
 
-import { WorkDtoMapper } from '../../model/work.mapper';
-import { GET_WORKS } from '../../model/work.schema';
 import { WorkType } from '../../model/work.types';
-
-const mapper = new WorkDtoMapper();
+import { WorkService } from '../work.service';
+import { useSuspenseQuery } from '@tanstack/react-query';
 
 type UseWorksProps = {
   publishersIds: PublisherId[];
@@ -21,6 +19,8 @@ type UseWorksProps = {
   workTypes?: WorkType[];
   field?: WorkField;
 };
+
+const workService = new WorkService();
 
 const useWorks = (props: UseWorksProps) => {
   const {
@@ -36,17 +36,27 @@ const useWorks = (props: UseWorksProps) => {
   } = props;
 
   const {
-    data: { works } = { works: [] },
+    data: works = [],
     error,
-    loading,
-  } = useQuery(GET_WORKS, {
-    variables: { offset, limit, publishers: publishersIds, direction, filter, workStatus, workTypes, field },
-    skip: publishersIds.length === 0 && !isAdmin,
+    isLoading,
+  } = useSuspenseQuery({
+    queryKey: [
+      QueryKeys.works,
+      ...publishersIds,
+      isAdmin,
+      offset,
+      limit,
+      direction,
+      filter,
+      workStatus,
+      workTypes,
+      field,
+    ],
+    queryFn: () =>
+      workService.getWorks({ publishersIds, offset, limit, direction, filter, workStatus, workTypes, field }),
   });
 
-  const data = works.map((work) => mapper.toEntity(work as WorkFragmentFragment));
-
-  return { works: data, error, loading };
+  return { works, error, isLoading };
 };
 
 export default useWorks;

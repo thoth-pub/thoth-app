@@ -8,5 +8,5 @@ export interface ToDto<EntityType, DtoType> {
 
 export interface BaseMapper<EntityType, DtoType> {
   toEntity(dto: DtoType): EntityType;
-  toDto: (entity: EntityType) => Partial<DtoType>;
+  toDto: (entity: EntityType) => Partial<DtoType> | DtoType;
 }

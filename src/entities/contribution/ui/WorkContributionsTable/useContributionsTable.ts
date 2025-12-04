@@ -7,7 +7,8 @@ import { useEffect, useState } from 'react';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { useWork } from '@/src/entities/work';
-import type { BaseEditSectionProps } from '@/src/shared';
+import { QueryKeys, type BaseEditSectionProps } from '@/src/shared';
+import { useQueryClient } from '@tanstack/react-query';
 
 export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, deleteContribution } = useWork(workId, queryToken);
@@ -15,43 +16,12 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
   const { updateContribution } = useWork(workId, queryToken);
 
   const { activeContribution, edit } = useContributionStateMachine();
+  const queryClient = useQueryClient();
   const [items, setItems] = useState(work.contributions);
 
-  const isEqual = work.contributions.every((contribution, index) => {
-    const item = items[index];
-
-    if (!item) return false;
-
-    return (
-      item.id === contribution.id &&
-      item.fullName === contribution.fullName &&
-      item.type === contribution.type &&
-      item.biography === contribution.biography &&
-      item.contributorId === contribution.contributorId &&
-      item.isMain === contribution.isMain &&
-      item.orderNumber === contribution.orderNumber &&
-      item.orcidId === contribution.orcidId &&
-      item.website === contribution.website &&
-      item.affiliations.length === contribution.affiliations.length &&
-      item.affiliations.every(
-        (affiliation, index) =>
-          affiliation.id === contribution.affiliations[index].id &&
-          affiliation.orderNumber === contribution.affiliations[index].orderNumber &&
-          affiliation.position === contribution.affiliations[index].position &&
-          affiliation.institutionId === contribution.affiliations[index].institutionId,
-      )
-    );
-  });
-
   useEffect(() => {
-    if (!isEqual) {
-      setItems(work.contributions);
-    }
-
-    if (work.contributions.length !== items.length) {
-      setItems(work.contributions);
-    }
-  }, [isEqual, items.length, work.contributions]);
+    setItems(work.contributions);
+  }, [work.contributions]);
 
   const dragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -84,6 +54,9 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
     if (!contribution) return;
 
     updateContribution({ ...contribution, isMain: !contribution.isMain });
+
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   const deleteWorkContribution = async (id: ContributionId) => {
@@ -91,7 +64,9 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
 
     if (!contribution) return;
 
-    await deleteContribution({ variables: { contributionId: id } });
+    await deleteContribution(id);
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
     setItems((items) => items.filter((item) => item.id !== contribution.id));
   };
 

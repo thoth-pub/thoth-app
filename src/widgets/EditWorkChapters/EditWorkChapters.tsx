@@ -19,112 +19,51 @@ import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection
 import { useEffect, useState } from 'react';
 import { ChapterTableRow } from './components/ChapterTableRow';
 import {
-  useCreateWork,
-  useCreateWorkRelation,
+  useCreateWorkChapter,
   useDeleteChapter,
   useWorkChapters,
   useWorkChaptersStateMachine,
 } from '@/src/entities/work';
 import AddChapterModal from '@/src/features/work/AddChapterModal/AddChapterModal';
 import { EditChapterModal, EditChaptersModal } from '@/src/features';
-import { RelationType } from '@/gql/graphql';
-import { useWorkContribution } from '@/src/entities/work/api/hooks/useWorkContribution';
-import { WorkContribution } from '@/src/entities/work/model/work.types';
-import { WorkDtoMapper } from '@/src/entities/work/model/work.mapper';
-import { useCreateFunding } from '@/src/entities/funding';
-import { useCreateSubject } from '@/src/entities/subject';
 
 const NEW_CHAPTER_PREFIX = 'New Copy of ';
-
-const mapper = new WorkDtoMapper();
 
 export const EditWorkChapters = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
 
-  const { chapters, refetchChapters } = useWorkChapters({ workId });
+  const { chapters } = useWorkChapters({ workId });
+  const { createChapter } = useCreateWorkChapter({
+    queryToken,
+    onCompleted: (chapter) => {
+      edit([chapter]);
+    },
+  });
   const { edit } = useWorkChaptersStateMachine();
 
   const [items, setItems] = useState(chapters);
   const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
   const [isDragStarted, setIsDragStarted] = useState(false);
-  const { createWorkRelation } = useCreateWorkRelation({
-    queryToken,
-    workId,
-  });
 
-  const { createContribution: createContributionMutation } = useWorkContribution({
-    queryToken,
-  });
-
-  const { createFunding } = useCreateFunding({
-    queryToken,
-    workId,
-  });
-
-  const { createSubject } = useCreateSubject({
-    queryToken,
-    workId,
-  });
-
-  const createContribution = async (data: WorkContribution, workId: string) => {
-    const dto = mapper.toDtoContribution(data);
-
-    await createContributionMutation({
-      variables: { data: { workId, ...dto } },
-    });
-  };
-
-  const { createWork } = useCreateWork({
-    queryToken,
-    onCompleted: async (work) => {
-      const existingChapter = items.find((item) => item.title === work.title.replace(`${NEW_CHAPTER_PREFIX}`, ''));
-
-      existingChapter?.contributions.forEach(async ({ id, ...contribution }) => {
-        await createContribution({ ...contribution, id: appConfig.defaultId }, work.id);
-      });
-
-      existingChapter?.fundings.forEach(async (funding) => {
-        await createFunding(funding, work.id);
-      });
-
-      existingChapter?.subjects.forEach(async (subject) => {
-        await createSubject(subject, work.id);
-      });
-
-      createWorkRelation({
-        variables: {
-          data: {
-            relatorWorkId: work.id,
-            relatedWorkId: workId,
-            relationOrdinal: items.length + 1,
-            relationType: RelationType.IsChildOf,
-          },
-        },
-      });
-
-      const isCopied = work.title.startsWith(NEW_CHAPTER_PREFIX);
-
-      if (isCopied) {
-        edit([work]);
-      }
-    },
-  });
   const { deleteChapter, deleteChapters } = useDeleteChapter({
     queryToken,
     workId,
   });
+
+  useEffect(() => {
+    if (chapters.length === 0) {
+      setSelectedChapters([]);
+      return;
+    }
+
+    setItems(chapters);
+  }, [chapters]);
 
   const sensors = useSensors(useSensor(PointerSensor));
 
   const isMultipleChaptersSelected = selectedChapters.length > 1;
 
   const selectedChaptersTitle = `${selectedChapters.length} of ${items.length}`;
-
-  useEffect(() => {
-    if (chapters.length === 0) return;
-
-    setItems(chapters);
-  }, [chapters]);
 
   const dragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -189,13 +128,12 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
 
     const newChapter = { ...chapter, id: appConfig.defaultId, title: NEW_CHAPTER_PREFIX + chapter.title, doi: '' };
 
-    createWork(newChapter);
+    createChapter({ chapter: newChapter, relatedWorkId: workId, ordinal: chapters.length + 1 });
   };
 
   const handleDeleteChapter = async (id: string) => {
     setItems((items) => items.filter((chapter) => chapter.id !== id));
     await deleteChapter(id);
-    refetchChapters();
   };
 
   const handleBulkDelete = async () => {
@@ -204,7 +142,6 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
     setItems((items) => items.filter((chapter) => !selected.includes(chapter.id)));
 
     await deleteChapters(selected);
-    refetchChapters();
   };
 
   const handleCloseMultipleChaptersEdit = () => {
@@ -213,7 +150,6 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   };
 
   const handleDoneMultipleChaptersEdit = () => {
-    refetchChapters();
     handleCloseMultipleChaptersEdit();
   };
 
@@ -290,7 +226,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
           </div>
         </SortableContext>
       </DndContext>
-      <EditChapterModal queryToken={queryToken} onDone={refetchChapters} />
+      <EditChapterModal queryToken={queryToken} />
       <EditChaptersModal
         workId={workId}
         queryToken={queryToken}

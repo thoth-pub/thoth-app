@@ -1,6 +1,5 @@
 'use client';
 
-import { ServerError } from '@apollo/client';
 import { useMemo, useState } from 'react';
 
 import { useAffiliationsForm } from '@/src/entities/affiliation';
@@ -9,13 +8,13 @@ import type {
   ContributionBiographyForm,
   ContributionNamesForm,
   ContributionTypeForm,
+  WorkContribution,
 } from '@/src/entities/contribution/model/contribution.types';
 import { useLinkedPublishers, useUpdateContributor } from '@/src/entities/contributor';
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { useWork } from '@/src/entities/work';
-import type { WorkContribution } from '@/src/entities/work/model/work.types';
-import { type BaseEditSectionProps, NOTIFICATIONS, removePrefix, serverErrorParser } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, removePrefix } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import type { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
@@ -56,8 +55,6 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   const { sendErrorNotification } = useNotifications();
   const { updateContributor } = useUpdateContributor({
     queryToken,
-    workId,
-    contributorId: contribution?.contributorId,
     onCompleted: (data) => {
       if (!contribution) return;
 
@@ -71,21 +68,12 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       });
     },
     onError: (error) => {
-      if (ServerError.is(error)) {
-        const errorMessage = serverErrorParser(error.bodyText, NOTIFICATIONS.CONTRIBUTOR_UPDATE_FAILED);
-
-        sendErrorNotification(errorMessage);
-        close();
-        return;
-      }
-
-      sendErrorNotification(NOTIFICATIONS.CONTRIBUTOR_UPDATE_FAILED);
+      sendErrorNotification(error?.message ?? NOTIFICATIONS.CONTRIBUTOR_UPDATE_FAILED);
       close();
     },
   });
 
   const { contributedToPublishers } = useLinkedPublishers({ id: activeContribution?.contributorId });
-
   const { updateAffiliations, deleteAffiliation } = useAffiliationsForm({
     queryToken,
     contributionId: contribution?.id || '',
@@ -185,6 +173,9 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       fullName: contribution.fullName,
       orcid,
       website: contribution.website,
+      name: contribution.fullName,
+      updatedAt: '',
+      lastContributionTitle: '',
     });
   };
 
@@ -207,16 +198,19 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       fullName: contribution.fullName,
       orcid: contribution.orcidId,
       website: websiteUrl,
+      name: contribution.fullName,
+      updatedAt: '',
+      lastContributionTitle: '',
     });
   };
 
-  const updateContributionAffiliations = (data: AffiliationsForm) => {
+  const updateContributionAffiliations = async (data: AffiliationsForm) => {
     if (onAffiliationsUpdate) {
       onAffiliationsUpdate(data);
       return;
     }
 
-    updateAffiliations(data);
+    await updateAffiliations(data);
   };
 
   const deleteContributionAffiliation = (id: string) => {

@@ -1,25 +1,14 @@
 'use client';
 
-import {
-  useCreateWork,
-  useCreateWorkRelation,
-  useWork,
-  useWorkChapters,
-  useWorkChaptersStateMachine,
-} from '@/src/entities/work';
-import { appConfig, BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
+import { useCreateWorkChapter, useWork, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
+import { BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
 import { AddButton } from '@/src/shared/ui';
 import { useTranslation } from 'react-i18next';
 import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
 import { InheritedDataForm } from './components/InheritedDataForm';
-import { RelationType } from '@/gql/graphql';
 import { useEffect, useState } from 'react';
 import { licenseOptions } from '@/src/shared/constants/formFields';
-import { useWorkContribution } from '@/src/entities/work/api/hooks/useWorkContribution';
-import { useCreateFunding } from '@/src/entities/funding';
-import { WorkContribution } from '@/src/entities/work/model/work.types';
 import { WorkDtoMapper } from '@/src/entities/work/model/work.mapper';
-import { useCreateSubject } from '@/src/entities/subject';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 
 const mapper = new WorkDtoMapper();
@@ -36,9 +25,6 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   const { close: closeContribution } = useContributionStateMachine();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [inheritContributors, setInheritContributors] = useState(false);
-  const [inheritFundings, setInheritFundings] = useState(false);
-  const [inheritSubjects, setInheritSubjects] = useState(false);
 
   useEffect(() => {
     return () => {
@@ -56,67 +42,11 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
     closeContribution();
   };
 
-  const { createWorkRelation } = useCreateWorkRelation({
+  const { createChapter } = useCreateWorkChapter({
     queryToken,
-    workId,
-  });
-
-  const { createContribution: createContributionMutation } = useWorkContribution({
-    queryToken,
-  });
-
-  const { createFunding } = useCreateFunding({
-    queryToken,
-    workId,
-  });
-
-  const { createSubject } = useCreateSubject({
-    queryToken,
-    workId,
-  });
-
-  const createContribution = async (data: WorkContribution, workId: string) => {
-    const dto = mapper.toDtoContribution(data);
-
-    await createContributionMutation({
-      variables: { data: { workId, ...dto } },
-    });
-  };
-
-  const { createWork } = useCreateWork({
-    queryToken,
-    onCompleted: (newWork) => {
+    onCompleted: (chapter) => {
       closeModal();
-      edit([newWork]);
-
-      if (inheritContributors) {
-        work.contributions.forEach(async ({ id, ...contribution }) => {
-          await createContribution({ ...contribution, id: appConfig.defaultId }, newWork.id);
-        });
-      }
-
-      if (inheritFundings) {
-        work.fundings.forEach(async (funding) => {
-          await createFunding(funding, newWork.id);
-        });
-      }
-
-      if (inheritSubjects) {
-        work.subjects.forEach(async (subject) => {
-          await createSubject(subject, newWork.id);
-        });
-      }
-
-      createWorkRelation({
-        variables: {
-          data: {
-            relatorWorkId: newWork.id,
-            relatedWorkId: workId,
-            relationOrdinal: chapters.length + 1,
-            relationType: RelationType.IsChildOf,
-          },
-        },
-      });
+      edit([chapter]);
     },
   });
 
@@ -139,15 +69,13 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
       imprintId: work.imprintId,
       license: license ? work.license : licenseOptions[0].value,
       copyrightHolder: copyrightHolder ? work.copyrightHolder : '',
+      doi: '',
+      fundings: fundings ? work.fundings : [],
+      subjects: subjects ? work.subjects : [],
+      contributions: contributors ? work.contributions : [],
     });
 
-    setInheritContributors(contributors);
-
-    setInheritFundings(fundings);
-
-    setInheritSubjects(subjects);
-
-    createWork(defaultChapter);
+    createChapter({ chapter: defaultChapter, relatedWorkId: workId, ordinal: chapters.length + 1 });
   };
 
   return (

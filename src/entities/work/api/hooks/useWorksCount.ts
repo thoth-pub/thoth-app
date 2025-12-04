@@ -1,9 +1,9 @@
-import { useSuspenseQuery } from '@apollo/client/react';
-
 import type { PublisherId } from '@/src/entities/publisher';
 
-import { GET_WORKS_COUNT } from '../../model/work.schema';
 import { WorkStatus, WorkType } from '../../model/work.types';
+import { useSuspenseQuery } from '@tanstack/react-query';
+import { QueryKeys } from '@/src/shared';
+import { WorkService } from '../work.service';
 
 type UseWorksCountProps = {
   publishersIds: PublisherId[];
@@ -13,12 +13,14 @@ type UseWorksCountProps = {
   workTypes?: WorkType[];
 };
 
+const workService = new WorkService();
+
 const useWorksCount = (props: UseWorksCountProps) => {
   const { publishersIds, isAdmin = false, filter, workStatus, workTypes } = props;
 
-  const { data: { workCount } = { workCount: 0 }, error } = useSuspenseQuery(GET_WORKS_COUNT, {
-    variables: { publishers: publishersIds, filter, workStatus, workTypes },
-    skip: publishersIds.length === 0 && !isAdmin,
+  const { data: workCount = 0, error } = useSuspenseQuery({
+    queryKey: [QueryKeys.worksCount, ...publishersIds, isAdmin, filter, workStatus, workTypes],
+    queryFn: () => workService.getWorksCount({ publishersIds, filter, workStatus, workTypes }),
   });
 
   return { workCount, error };

@@ -1,10 +1,12 @@
+'use client';
+
 import { useCreateAffiliation, useDeleteAffiliation, useUpdateAffiliation } from '@/src/entities/affiliation';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { appConfig, isDefaultId, type QueryToken } from '@/src/shared';
+import { appConfig, getDefaultAffiliation, isDefaultId, QueryKeys, type QueryToken } from '@/src/shared';
 
 import type { AffiliationEntity, AffiliationsForm } from '../model/affiliation.types';
-import { GET_WORK, GET_WORK_CHAPTERS } from '../../work/model/work.schema';
+import { useQueryClient } from '@tanstack/react-query';
 
 type UseEditContributionAffiliationsProps = {
   queryToken: QueryToken;
@@ -16,79 +18,68 @@ type UseEditContributionAffiliationsProps = {
 const useEditContributionAffiliations = (props: UseEditContributionAffiliationsProps) => {
   const { queryToken, contributionId, affiliations, workId = '' } = props;
 
-  const { createAffiliation, client } = useCreateAffiliation({
+  const { createAffiliation } = useCreateAffiliation({
     queryToken,
-    workId,
   });
   const { updateAffiliation } = useUpdateAffiliation({
     queryToken,
-    workId,
   });
   const { deleteAffiliation } = useDeleteAffiliation({
     queryToken,
-    workId,
   });
+  const queryClient = useQueryClient();
 
-  const updateAffiliations = async (data: AffiliationsForm, id = contributionId, skipRefetch = false) => {
+  const updateAffiliations = async (data: AffiliationsForm, id = contributionId) => {
     const newAffilations = data.affiliations.filter((affiliation) => isDefaultId(affiliation.id));
     const existingAffilations = data.affiliations.filter((affiliation) => !isDefaultId(affiliation.id));
     const affiliationsCount = affiliations.length;
 
-    newAffilations.forEach(async ({ affiliation: { value }, position }, index) => {
-      await createAffiliation({
-        variables: {
-          data: {
-            contributionId: id,
-            institutionId: value,
-            affiliationOrdinal: affiliationsCount + 1 + index,
-            position: position && position.length > 0 ? position : null,
-          },
-        },
-      });
+    const newAffiliationsPromises = newAffilations.map(async ({ affiliation: { value }, position }, index) => {
+      return createAffiliation(
+        getDefaultAffiliation({
+          contributionId: id,
+          institutionId: value,
+          orderNumber: affiliationsCount + 1 + index,
+          position: position && position.length > 0 ? position : '',
+        }),
+      );
     });
 
-    existingAffilations.forEach(async ({ id, affiliation: { value }, position }) => {
+    await Promise.all(newAffiliationsPromises);
+
+    const existingAffiliationsPromises = existingAffilations.map(async ({ id, affiliation: { value }, position }) => {
       const affiliation = affiliations.find((affiliation) => affiliation.id === id);
 
       if (!affiliation) return;
 
-      await updateAffiliation({
-        variables: {
-          data: {
-            affiliationId: affiliation.id,
-            institutionId: value,
-            contributionId: affiliation.contributionId,
-            position: position && position.length > 0 ? position : null,
-            affiliationOrdinal: affiliation.orderNumber,
-          },
-        },
+      const updatedAffiliation = getDefaultAffiliation({
+        ...affiliation,
+        institutionId: value,
+        position: position && position.length > 0 ? position : '',
       });
+
+      return updateAffiliation(updatedAffiliation);
     });
 
-    if (workId.length > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-      await client.refetchQueries({ include: [GET_WORK] });
-    }
+    await Promise.all(existingAffiliationsPromises);
+
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
   };
 
   const deleteContributionAffiliation = (id: string) => {
-    deleteAffiliation({
-      variables: {
-        affiliationId: id,
-      },
-    });
+    deleteAffiliation(id);
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
   };
 
   const deleteBulkAffiliations = async (ids: string[]) => {
     const promises = ids.map((id) => {
-      return deleteAffiliation({
-        variables: {
-          affiliationId: id,
-        },
-      });
+      return deleteAffiliation(id);
     });
-
     await Promise.all(promises);
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
   };
 
   const updateBulkAffiliations = async (data: AffiliationsForm, contributionIds: ContributionId[]) => {
@@ -111,8 +102,8 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
     ];
 
     await Promise.all(promises);
-
-    await client.refetchQueries({ include: [GET_WORK_CHAPTERS] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
   };
 
   return {

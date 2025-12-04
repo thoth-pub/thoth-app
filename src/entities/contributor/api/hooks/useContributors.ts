@@ -1,9 +1,9 @@
 'use client';
 
-import { useQuery } from '@apollo/client/react';
-
+import { QueryKeys } from '@/src/shared';
 import { ContributorDtoMapper } from '../../model/contributor.mapper';
-import { GET_CONTRIBUTORS } from '../../model/contributor.schema';
+import { useQuery } from '@tanstack/react-query';
+import { ContributorService } from '../contributor.service';
 
 const mapper = new ContributorDtoMapper();
 
@@ -11,17 +11,23 @@ type UseContributorsProps = {
   filter: string;
 };
 
+const contributorService = new ContributorService();
+
 const useContributors = ({ filter }: UseContributorsProps) => {
-  const { data = { contributors: [] }, loading } = useQuery(GET_CONTRIBUTORS, {
-    variables: { filter },
-    skip: filter.length === 0,
+  const {
+    data = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: [QueryKeys.contributors, filter],
+    queryFn: () => contributorService.getContributors(filter),
+    enabled: filter.length > 0,
   });
 
-  const contributors = data.contributors.map(mapper.toEntity);
-
   return {
-    contributors,
-    loading,
+    contributors: data,
+    loading: isLoading,
+    error: error,
   };
 };
 

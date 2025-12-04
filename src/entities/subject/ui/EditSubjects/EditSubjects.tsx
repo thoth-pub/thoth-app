@@ -14,8 +14,7 @@ import { subjectsValidationSchema } from '../../model/subject.validation';
 import { FormFields } from './components/FormFields';
 import { PreviewList } from './components/PreviewList';
 import { useEditSubjects } from './useEditSubjects';
-import { Activity, useState } from 'react';
-import { ShrinkedListItem } from './components/ShrinkedListItem';
+import { useState } from 'react';
 import { BIC_CODES } from '@/src/shared/utils/subjects/bic-codes';
 import { THEMA_CODES } from '@/src/shared/utils/subjects/thema-codes';
 import { BISAC_CODES } from '@/src/shared/utils/subjects/bisac-codes';
@@ -33,7 +32,6 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
   const { workId, queryToken, recommended = false } = props;
 
   const { subjects, update, deleteSubject, close, create } = useEditSubjects({ workId, queryToken });
-  const [isExpanded, setIsExpanded] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const defaultValues = subjects.map((subject) => {
@@ -106,7 +104,6 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
 
   const handleDelete = (id: string) => {
     if (subjects.length === 1) {
-      setIsExpanded(false);
       setIsModalOpen(false);
       close();
     }
@@ -148,41 +145,15 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
         >
           {placeholder && (
             <div className="flex w-full flex-col gap-[var(--default-gap)]">
-              <ul className={`flex w-full flex-col ${isExpanded ? 'gap-0' : 'gap-[var(--default-gap)]'}`}>
-                <Activity mode={isExpanded || subjects.length < 10 ? 'visible' : 'hidden'}>
-                  {data.map(({ subjects }) => (
-                    <PreviewList subjects={subjects} onDelete={deleteSubject} />
-                  ))}
-                  <AddButton onAdd={handleModalState} className="capitalize">
-                    add new subject
-                  </AddButton>
-                  <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />
-                </Activity>
-                <Activity mode={!isExpanded && subjects.length >= 10 ? 'visible' : 'hidden'}>
-                  {bicubSubjects.length > 0 && (
-                    <ShrinkedListItem subjects={bicubSubjects} type={SubjectTypes.enum.Bic} />
-                  )}
-                  {bisacSubjects.length > 0 && (
-                    <ShrinkedListItem subjects={bisacSubjects} type={SubjectTypes.enum.Bisac} />
-                  )}
-                  {customSubjects.length > 0 && (
-                    <ShrinkedListItem subjects={customSubjects} type={SubjectTypes.enum.Custom} />
-                  )}
-                  {keywordSubjects.length > 0 && (
-                    <ShrinkedListItem subjects={keywordSubjects} type={SubjectTypes.enum.Keyword} />
-                  )}
-                  {lccSubjects.length > 0 && <ShrinkedListItem subjects={lccSubjects} type={SubjectTypes.enum.Lcc} />}
-                  {themaSubjects.length > 0 && (
-                    <ShrinkedListItem subjects={themaSubjects} type={SubjectTypes.enum.Thema} />
-                  )}
-                </Activity>
+              <ul className="flex w-full flex-col gap-0">
+                {data.map(({ subjects }) => (
+                  <PreviewList subjects={subjects} onDelete={deleteSubject} />
+                ))}
+                <AddButton onAdd={handleModalState} className="capitalize">
+                  add new subject
+                </AddButton>
+                <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />
               </ul>
-
-              {subjects.length >= 10 && (
-                <IconButton onClick={() => setIsExpanded(!isExpanded)} className="m-auto mt-4">
-                  {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                </IconButton>
-              )}
             </div>
           )}
         </Preview>

@@ -1,23 +1,19 @@
-import { ServerError } from '@apollo/client';
+'use client';
 
-import type { Contributor, UpdateContributorMutation } from '@/gql/graphql';
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { ContributorDtoMapper } from '../../model/contributor.mapper';
-import { UPDATE_CONTRIBUTOR } from '../../model/contributor.schema';
-import type { ContributorEntity, ContributorId } from '../../model/contributor.types';
+import type { ContributorEntity } from '../../model/contributor.types';
+import { useMutation } from '@tanstack/react-query';
+import { ContributorService } from '../contributor.service';
 
 type UseUpdateContributorProps = {
   queryToken: QueryToken;
-  workId?: WorkId;
-  contributorId?: ContributorId;
-  onCompleted?: (data: Contributor) => void;
+  onCompleted?: (data: ContributorEntity) => void;
   onError?: (error: Error) => void;
 };
 
-const mapper = new ContributorDtoMapper();
+const contributorService = new ContributorService();
 
 const { CONTRIBUTOR_UPDATE_FAILED } = NOTIFICATIONS;
 
@@ -26,40 +22,22 @@ const useUpdateContributor = (props: UseUpdateContributorProps) => {
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<UpdateContributorMutation>({
-    queryToken,
-    mutation: UPDATE_CONTRIBUTOR,
-    options: {
-      onCompleted: (data) => {
-        onCompleted?.(data.updateContributor as Contributor);
-      },
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, CONTRIBUTOR_UPDATE_FAILED);
-
-          sendErrorNotification(errorMessage);
-          onError?.(error);
-          return;
-        }
-
-        sendErrorNotification(CONTRIBUTOR_UPDATE_FAILED);
-        onError?.(error);
-      },
-      refetchQueries: 'all',
+  const { mutate, isPending } = useMutation({
+    mutationFn: async (data: ContributorEntity) => {
+      return contributorService.updateContributor(queryToken, data);
+    },
+    onSuccess: (data) => {
+      onCompleted?.(data);
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? CONTRIBUTOR_UPDATE_FAILED);
+      onError?.(error);
     },
   });
 
-  const updateContributor = (
-    contributor: Pick<ContributorEntity, 'id' | 'firstName' | 'lastName' | 'fullName' | 'orcid' | 'website'>,
-  ) => {
-    const data = mapper.toDto(contributor);
-
-    mutate({ variables: { data: data } });
-  };
-
   return {
-    updateContributor,
-    loading,
+    updateContributor: mutate,
+    loading: isPending,
   };
 };
 

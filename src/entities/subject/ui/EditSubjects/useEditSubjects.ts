@@ -13,7 +13,7 @@ const { SUBJECT_TYPE, SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data: SubjectsFormType) => void }) => {
   const { workId, queryToken, onUpdate } = props;
 
-  const { work, refetch } = useWork(workId, queryToken);
+  const { work } = useWork(workId, queryToken);
   const { close } = useFormStateMachine();
 
   const { createSubject } = useCreateSubject({ workId, queryToken });
@@ -79,6 +79,7 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
         if (!code) return;
 
         await createSubject({
+          id: '',
           code,
           type: subject[SUBJECT_TYPE.name] as SubjectType,
           ordinal: work.subjects.length + 1,
@@ -100,8 +101,6 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
         });
       }),
     );
-
-    await refetch();
   };
 
   const deleteSubject = async (id: string) => {
@@ -112,8 +111,6 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
     if (!item) return;
 
     await deleteSubjectMutation(id);
-
-    await refetch();
   };
 
   const create = async (data: { type: SubjectType; code: string }) => {
@@ -129,12 +126,11 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
     });
 
     await createSubject({
+      id: '',
       code,
       type,
       ordinal: maxOrdinal + 1,
     });
-
-    await refetch();
   };
 
   return {
