@@ -97,6 +97,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
         workId=""
         queryToken={queryToken}
         isMultipleChaptersEdit
+        // TODO: Implement languages update and reordering
         onLanguagesUpdate={(data) => console.log(data)}
       />
       <EditChaptersContributors queryToken={queryToken} chapters={chapters} />

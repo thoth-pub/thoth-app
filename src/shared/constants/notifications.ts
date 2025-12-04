@@ -27,6 +27,7 @@ export const NOTIFICATIONS = {
   // Languages
   LANGUAGE_CREATION_FAILED: 'Failed to create language',
   LANGUAGE_UPDATE_FAILED: 'Failed to update language',
+  LANGUAGE_DELETE_FAILED: 'Failed to delete language',
   // Publications
   PUBLICATION_CREATION_FAILED: 'Failed to create publication',
   PUBLICATION_UPDATE_FAILED: 'Failed to update publication',

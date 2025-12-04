@@ -1,53 +1,39 @@
-import { ServerError } from '@apollo/client';
+'use client';
 
-import type { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { LanguageDtoMapper } from '../../model/language.mapper';
-import { CREATE_LANGUAGE } from '../../model/language.schema';
 import { LanguageEntity } from '../../model/language.types';
+import { LanguageService } from '../service';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { LANGUAGE_CREATION_FAILED } = NOTIFICATIONS;
 
-const mapper = new LanguageDtoMapper();
+const languageService = new LanguageService();
 
 const useCreateLanguage = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: CREATE_LANGUAGE,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, LANGUAGE_CREATION_FAILED);
+  const queryClient = useQueryClient();
 
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(LANGUAGE_CREATION_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: LanguageEntity) => {
+      return languageService.createLanguage(queryToken, data, workId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? LANGUAGE_CREATION_FAILED);
     },
   });
 
-  const createLanguage = (data: Omit<LanguageEntity, 'id'>) => {
-    const { languageId, ...dto } = mapper.toDto({ ...data, id: '' });
-
-    mutate({
-      variables: { data: { ...dto, workId } },
-    });
-  };
-
   return {
-    createLanguage,
-    loading,
+    createLanguage: mutateAsync,
+    loading: isPending,
   };
 };
 
