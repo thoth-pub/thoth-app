@@ -1,13 +1,9 @@
-import { useQuery } from '@apollo/client/react';
-
 import { Direction, SeriesField, SeriesType } from '@/gql/graphql';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { appConfig } from '@/src/shared';
+import { appConfig, QueryKeys } from '@/src/shared';
 
-import { SeriesDtoMapper } from '../../model/series.mapper';
-import { GET_SERIESES } from '../../model/series.schema';
-
-const mapper = new SeriesDtoMapper();
+import { useQuery } from '@tanstack/react-query';
+import { SeriesService } from '../series.service';
 
 type UseSeriesProps = {
   offset?: number;
@@ -18,35 +14,26 @@ type UseSeriesProps = {
   field?: SeriesField;
 };
 
+const seriesService = new SeriesService();
+
 const useSerieses = (props: UseSeriesProps) => {
   const { offset = 0, limit = appConfig.data.itemsPerRequestLimit, filter = '', seriesType, field, direction } = props;
 
-  const { activePublisher, isAdmin } = usePublisherStateMachine();
+  const { activePublisher } = usePublisherStateMachine();
 
   const publisherId = activePublisher ? [activePublisher] : [];
 
   const {
-    data: { serieses } = { serieses: [] },
+    data: serieses = [],
     error,
-    loading,
-    refetch,
-    client,
-  } = useQuery(GET_SERIESES, {
-    variables: {
-      publishers: publisherId,
-      filter,
-      offset,
-      limit,
-      direction,
-      field,
-      seriesTypes: seriesType ? [seriesType] : undefined,
-    },
-    skip: publisherId.length === 0 && !isAdmin,
+    isLoading,
+  } = useQuery({
+    queryKey: [QueryKeys.serieses, publisherId, filter, offset, limit, direction, field, seriesType],
+    queryFn: () =>
+      seriesService.getSerieses({ publishersIds: publisherId, offset, limit, filter, direction, field, seriesType }),
   });
 
-  const data = serieses.map(mapper.toEntity);
-
-  return { serieses: data, error, loading, client, refetch };
+  return { serieses, error, loading: isLoading };
 };
 
 export default useSerieses;

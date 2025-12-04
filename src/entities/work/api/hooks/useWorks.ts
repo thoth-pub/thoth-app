@@ -56,7 +56,7 @@ const useWorks = (props: UseWorksProps) => {
       workService.getWorks({ publishersIds, offset, limit, direction, filter, workStatus, workTypes, field }),
   });
 
-  return { works, error, isLoading };
+  return { works, error, loading: isLoading };
 };
 
 export default useWorks;

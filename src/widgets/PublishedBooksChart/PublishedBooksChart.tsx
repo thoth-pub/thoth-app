@@ -32,19 +32,19 @@ const PublishedBooksChart = () => {
   const twelfthMonthDate = substractMonthesFromDate(eleventhMonthDate, 1);
   const prevYearBooksDate = substractMonthesFromDate(firstMonthDate, 24);
 
-  const { bookCount: firstMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, firstMonthDate);
-  const { bookCount: secondMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, secondMonthDate);
-  const { bookCount: thirdMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, thirdMonthDate);
-  const { bookCount: fourthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, fourthMonthDate);
-  const { bookCount: fifthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, fifthMonthDate);
-  const { bookCount: sixthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, sixthMonthDate);
-  const { bookCount: seventhMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, seventhMonthDate);
-  const { bookCount: eighthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, eighthMonthDate);
-  const { bookCount: ninthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, ninthMonthDate);
-  const { bookCount: tenthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, tenthMonthDate);
-  const { bookCount: eleventhMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, eleventhMonthDate);
-  const { bookCount: twelfthMonthBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, twelfthMonthDate);
-  const { bookCount: prevYearBooksCount } = useBooksCountByMonth(publishersIds, isAdmin, prevYearBooksDate);
+  const { bookCount: firstMonthBooksCount } = useBooksCountByMonth(publishersIds, firstMonthDate);
+  const { bookCount: secondMonthBooksCount } = useBooksCountByMonth(publishersIds, secondMonthDate);
+  const { bookCount: thirdMonthBooksCount } = useBooksCountByMonth(publishersIds, thirdMonthDate);
+  const { bookCount: fourthMonthBooksCount } = useBooksCountByMonth(publishersIds, fourthMonthDate);
+  const { bookCount: fifthMonthBooksCount } = useBooksCountByMonth(publishersIds, fifthMonthDate);
+  const { bookCount: sixthMonthBooksCount } = useBooksCountByMonth(publishersIds, sixthMonthDate);
+  const { bookCount: seventhMonthBooksCount } = useBooksCountByMonth(publishersIds, seventhMonthDate);
+  const { bookCount: eighthMonthBooksCount } = useBooksCountByMonth(publishersIds, eighthMonthDate);
+  const { bookCount: ninthMonthBooksCount } = useBooksCountByMonth(publishersIds, ninthMonthDate);
+  const { bookCount: tenthMonthBooksCount } = useBooksCountByMonth(publishersIds, tenthMonthDate);
+  const { bookCount: eleventhMonthBooksCount } = useBooksCountByMonth(publishersIds, eleventhMonthDate);
+  const { bookCount: twelfthMonthBooksCount } = useBooksCountByMonth(publishersIds, twelfthMonthDate);
+  const { bookCount: prevYearBooksCount } = useBooksCountByMonth(publishersIds, prevYearBooksDate);
 
   const substractedSecondMonthBooksCount = secondMonthBooksCount - firstMonthBooksCount;
   const substractedThirdMonthBooksCount = thirdMonthBooksCount - secondMonthBooksCount;

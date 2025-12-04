@@ -1,63 +1,45 @@
-import { ServerError } from '@apollo/client';
+import { NOTIFICATIONS, QueryKeys, type QueryToken } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { CreateAffiliationMutation } from '@/gql/graphql';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
-
-import { SeriesDtoMapper } from '../../model/series.mapper';
-import { CREATE_SERIES } from '../../model/series.schema';
 import { SeriesEntity } from '../../model/series.types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { SeriesService } from '../series.service';
 
 const { SERIES_CREATION_FAILED } = NOTIFICATIONS;
 
-const mapper = new SeriesDtoMapper();
+const seriesService = new SeriesService();
 
 const useCreateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
   const { sendErrorNotification } = useNotifications();
 
-  const { activePublisher } = usePublisherStateMachine();
+  const queryClient = useQueryClient();
 
-  const publisherId = activePublisher ? [activePublisher] : [];
-
-  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: CREATE_SERIES,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, SERIES_CREATION_FAILED);
-
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(SERIES_CREATION_FAILED);
-      },
-      onCompleted: async () => {
-        await client.refetchQueries({ include: 'all' });
-      },
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: SeriesEntity) => {
+      return seriesService.createSeries(queryToken, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? SERIES_CREATION_FAILED);
     },
   });
 
   const createSeries = async (data: Omit<SeriesEntity, 'id' | 'updatedAt' | 'imprintName' | 'issues'>) => {
-    const { seriesId, updatedAt, ...dto } = mapper.toDto({
+    await mutateAsync({
       ...data,
       id: '',
       updatedAt: new Date().toISOString(),
       imprintName: '',
       issues: [],
     });
-
-    mutate({
-      variables: { data: { ...dto } },
-    });
   };
 
   return {
     createSeries,
-    loading,
+    loading: isPending,
   };
 };
 

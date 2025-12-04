@@ -1,43 +1,74 @@
 import { PublisherId } from '@/src/entities/publisher';
 import { BaseService } from '@/src/shared/interfaces/services';
+import { SeriesType as SeriesTypeEnum } from '@/gql/graphql';
 
 import { SeriesDtoMapper } from '../model/series.mapper';
-import { GET_SERIESES, GET_SERIESES_COUNT } from '../model/series.schema';
-import type { SeriesEntity } from '../model/series.types';
-import { appConfig } from '@/src/shared';
+import {
+  CREATE_SERIES,
+  DELETE_SERIES,
+  GET_SERIES,
+  GET_SERIESES,
+  GET_SERIESES_COUNT,
+  UPDATE_SERIES,
+} from '../model/series.schema';
+import type { SeriesDto, SeriesEntity } from '../model/series.types';
+import { appConfig, Direction, SeriesType } from '@/src/shared';
+import { SeriesField } from '@/gql/graphql';
 
-export class SeriesService extends BaseService {
-  async getSerieses(
-    publishersIds: PublisherId[],
-    offset: number = 0,
-    limit: number = appConfig.data.itemsPerRequestLimit,
-  ): Promise<SeriesEntity[]> {
-    const { data } = await this.queryClient({
-      query: GET_SERIESES,
-      variables: { publishers: publishersIds, offset, limit },
+export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
+  constructor(mapper = new SeriesDtoMapper()) {
+    super(mapper);
+  }
+
+  async getSeries(seriesId: string): Promise<SeriesEntity> {
+    const { series } = await this.graphqlService.query(GET_SERIES, {
+      seriesId,
     });
 
-    if (!data || !data.serieses) {
-      return [];
-    }
+    const data = this.dtoMapper.toEntity(series);
 
-    const dtoMapper = new SeriesDtoMapper();
-    const res = data.serieses.map(dtoMapper.toEntity);
+    return data;
+  }
+
+  async getSerieses({
+    publishersIds,
+    offset,
+    limit,
+    filter,
+    direction,
+    field,
+    seriesType,
+  }: {
+    publishersIds: PublisherId[];
+    offset?: number;
+    limit?: number;
+    direction?: Direction;
+    filter?: string;
+    seriesType?: SeriesTypeEnum;
+    field?: SeriesField;
+  }): Promise<SeriesEntity[]> {
+    const { serieses = [] } = await this.graphqlService.query(GET_SERIESES, {
+      publishers: publishersIds,
+      offset,
+      limit,
+      direction,
+      filter,
+      field,
+      seriesType,
+    });
+
+    const res = serieses.map(this.dtoMapper.toEntity);
 
     return res;
   }
 
   async getSeriesCount(publishersIds: PublisherId[]): Promise<number> {
-    const { data } = await this.queryClient({
+    const { seriesCount = 0 } = await this.graphqlService.query(GET_SERIESES_COUNT, {
       query: GET_SERIESES_COUNT,
-      variables: { publishers: publishersIds },
+      publishers: publishersIds,
     });
 
-    if (!data || !data.seriesCount) {
-      return 0;
-    }
-
-    return data.seriesCount;
+    return seriesCount;
   }
 
   async getAllSerieses({
@@ -52,11 +83,50 @@ export class SeriesService extends BaseService {
     const series = [];
 
     do {
-      const data = await this.getSerieses(publishersIds, offset, limit);
+      const data = await this.getSerieses({ publishersIds, offset, limit });
       series.push(...data);
       offset += limit;
     } while (offset < maxSeriesCount);
 
     return series;
+  }
+
+  async createSeries(token: string, data: SeriesEntity): Promise<SeriesEntity> {
+    const { issues: _issues, seriesId: _seriesId, updatedAt: _updatedAt, ...dto } = this.dtoMapper.toDto(data);
+
+    const { createSeries } = await this.graphqlService.mutation(token, CREATE_SERIES, {
+      data: {
+        ...dto,
+        imprintId: dto.imprintId ?? '',
+        seriesName: dto.seriesName ?? '',
+        seriesType: dto.seriesType ?? SeriesType.enum.BookSeries,
+      },
+    });
+
+    return { ...data, id: createSeries?.seriesId ?? '' };
+  }
+
+  async updateSeries(token: string, data: SeriesEntity): Promise<SeriesEntity> {
+    const { updatedAt: _updatedAt, issues: _issues, ...dto } = this.dtoMapper.toDto(data);
+
+    const { updateSeries } = await this.graphqlService.mutation(token, UPDATE_SERIES, {
+      data: {
+        ...dto,
+        imprintId: dto.imprintId ?? '',
+        seriesId: dto.seriesId ?? '',
+        seriesName: dto.seriesName ?? '',
+        seriesType: SeriesType.enum.BookSeries,
+      },
+    });
+
+    const result = this.dtoMapper.toEntity(updateSeries as SeriesDto);
+
+    return result;
+  }
+
+  async deleteSeries(token: string, seriesId: string): Promise<void> {
+    await this.graphqlService.mutation(token, DELETE_SERIES, {
+      seriesId,
+    });
   }
 }

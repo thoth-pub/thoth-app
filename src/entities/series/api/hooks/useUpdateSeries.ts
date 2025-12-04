@@ -1,52 +1,38 @@
-import { ServerError } from '@apollo/client';
+import { NOTIFICATIONS, QueryKeys, QueryToken } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { CreateAffiliationMutation } from '@/gql/graphql';
-import { NOTIFICATIONS, QueryToken, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
-
-import { SeriesDtoMapper } from '../../model/series.mapper';
-import { UPDATE_SERIES } from '../../model/series.schema';
 import { SeriesEntity } from '../../model/series.types';
+import { SeriesService } from '../series.service';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { SERIES_UPDATE_FAILED } = NOTIFICATIONS;
 
-const mapper = new SeriesDtoMapper();
+const seriesService = new SeriesService();
 
 const useUpdateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: UPDATE_SERIES,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, SERIES_UPDATE_FAILED);
+  const queryClient = useQueryClient();
 
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(SERIES_UPDATE_FAILED);
-      },
-      onCompleted: async () => {
-        await client.refetchQueries({ include: 'all' });
-      },
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: SeriesEntity) => {
+      return seriesService.updateSeries(queryToken, data);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? SERIES_UPDATE_FAILED);
     },
   });
 
   const updateSeries = async (data: SeriesEntity) => {
-    const { updatedAt, ...dto } = mapper.toDto(data);
-
-    mutate({
-      variables: { data: dto },
-    });
+    await mutateAsync(data);
   };
 
   return {
     updateSeries,
-    loading,
+    loading: isPending,
   };
 };
 
