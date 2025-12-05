@@ -12,6 +12,7 @@ export const QueryKeys = {
   // PUBLISHERS
   publisher: 'publisher',
   publishers: 'publishers',
+  linkedPublishers: 'linkedPublishers',
   publishersCount: 'publishersCount',
   // FUNDINGS
   fundings: 'fundings',

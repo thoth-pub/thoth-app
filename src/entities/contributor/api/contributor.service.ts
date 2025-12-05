@@ -1,9 +1,16 @@
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ContributorDto, ContributorEntity, ContributorId } from '../model/contributor.types';
-import { CREATE_CONTRIBUTOR, GET_CONTRIBUTOR, GET_CONTRIBUTORS, UPDATE_CONTRIBUTOR } from '../model/contributor.schema';
+import {
+  CREATE_CONTRIBUTOR,
+  GET_CONTRIBUTOR,
+  GET_CONTRIBUTORS,
+  GET_LINKED_PUBLISHERS,
+  UPDATE_CONTRIBUTOR,
+} from '../model/contributor.schema';
 import { ContributorDtoMapper } from '../model/contributor.mapper';
 import { appConfig } from '@/src/shared';
+import { PublisherId } from '../../publisher';
 
 export class ContributorService extends BaseService<ContributorEntity, ContributorDto> {
   constructor() {
@@ -61,5 +68,25 @@ export class ContributorService extends BaseService<ContributorEntity, Contribut
     const result = this.dtoMapper.toEntity(updateContributor as ContributorDto);
 
     return result;
+  }
+
+  async getLinkedPublishers(contributorId: ContributorId): Promise<PublisherId[]> {
+    let shouldContinue = true;
+    let offset = 0;
+    const limit = this.limit;
+    const ids: PublisherId[] = [];
+
+    do {
+      const { contributor } = await this.graphqlService.query(GET_LINKED_PUBLISHERS, { contributorId, offset, limit });
+
+      const newIds = contributor.contributions.map((contribution) => contribution.work.imprint.publisherId);
+
+      ids.push(...newIds);
+
+      offset += this.limit;
+      shouldContinue = newIds.length > 0;
+    } while (shouldContinue);
+
+    return ids;
   }
 }
