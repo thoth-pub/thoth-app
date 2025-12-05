@@ -1,12 +1,11 @@
 import type { PublisherId } from '@/src/entities/publisher';
 
-import { QueryKeys } from '@/src/shared';
+import { QueryKeys, useServices } from '@/src/shared';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { SeriesService } from '../series.service';
-
-const seriesService = new SeriesService();
 
 const useSeriesesCount = (publishersIds: PublisherId[], isAdmin: boolean) => {
+  const { seriesService } = useServices();
+
   const { data: seriesCount = 0, error } = useSuspenseQuery({
     queryKey: [QueryKeys.seriesesCount, ...publishersIds, isAdmin],
     queryFn: () => seriesService.getSeriesCount(publishersIds),

@@ -1,17 +1,14 @@
-import { NOTIFICATIONS, QueryKeys, QueryToken } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, QueryToken, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { SeriesEntity } from '../../model/series.types';
-import { SeriesService } from '../series.service';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { SERIES_UPDATE_FAILED } = NOTIFICATIONS;
 
-const seriesService = new SeriesService();
-
 const useUpdateSeries = ({ queryToken }: { queryToken: QueryToken }) => {
   const { sendErrorNotification } = useNotifications();
-
+  const { seriesService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

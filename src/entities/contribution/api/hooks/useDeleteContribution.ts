@@ -1,17 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ContributionService } from '../contribution.service';
-import { QueryKeys, type QueryToken } from '@/src/shared';
+import { QueryKeys, useServices, type QueryToken } from '@/src/shared';
 
 type UseDeleteContributionProps = {
   queryToken: QueryToken;
 };
 
-const contributionService = new ContributionService();
-
 export const useDeleteContribution = (props: UseDeleteContributionProps) => {
   const { queryToken } = props;
 
   const queryClient = useQueryClient();
+  const { contributionService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (contributionId: string) => {

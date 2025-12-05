@@ -1,12 +1,9 @@
 import type { PublicationId } from '@/src/entities/publication/model/publication.types';
-import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { PriceEntity } from '../../model/price.types';
-import { PriceService } from '../price.service';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-
-const priceService = new PriceService();
 
 const { PRICE_UPDATE_FAILED } = NOTIFICATIONS;
 
@@ -14,7 +11,7 @@ const useUpdatePrice = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
-
+  const { priceService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

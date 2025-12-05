@@ -1,9 +1,8 @@
 import type { Expression, WorkField, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, QueryKeys, type Direction } from '@/src/shared';
+import { appConfig, QueryKeys, useServices, type Direction } from '@/src/shared';
 
 import { useQuery } from '@tanstack/react-query';
-import { BookService } from '../book.service';
 
 type UseBooksProps = {
   publishersIds: PublisherId[];
@@ -18,8 +17,6 @@ type UseBooksProps = {
   field?: WorkField;
 };
 
-const bookService = new BookService();
-
 const useBooks = (props: UseBooksProps) => {
   const {
     publishersIds,
@@ -33,6 +30,8 @@ const useBooks = (props: UseBooksProps) => {
     field,
     isAdmin = false,
   } = props;
+
+  const { bookService } = useServices();
 
   const {
     data: books = [],

@@ -1,17 +1,15 @@
-import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { LocationService } from '../location.service';
 
 const { LOCATION_DELETE_FAILED } = NOTIFICATIONS;
-
-const locationService = new LocationService();
 
 const useDeleteLocation = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const { locationService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

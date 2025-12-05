@@ -1,19 +1,18 @@
 'use client';
 
-import { type QueryToken } from '@/src/shared';
+import { useServices, type QueryToken } from '@/src/shared';
 
 import { useMutation } from '@tanstack/react-query';
 import { AffiliationEntity } from '../../model/affiliation.types';
-import { AffiliationService } from '../affiliation.service';
 
 type UseCreateAffiliationProps = {
   queryToken: QueryToken;
 };
 
-const affiliationService = new AffiliationService();
-
 const useUpdateAffiliation = (props: UseCreateAffiliationProps) => {
   const { queryToken } = props;
+
+  const { affiliationService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: AffiliationEntity) => {

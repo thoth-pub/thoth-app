@@ -1,11 +1,10 @@
 import type { PublisherId } from '@/src/entities/publisher';
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { QueryKeys, WorkStatuses } from '@/src/shared';
-import { BookService } from '../book.service';
-
-const bookService = new BookService();
+import { QueryKeys, useServices, WorkStatuses } from '@/src/shared';
 
 const usePublishedBooksCount = (publishersIds: PublisherId[]) => {
+  const { bookService } = useServices();
+
   const {
     data: bookCount,
     error,

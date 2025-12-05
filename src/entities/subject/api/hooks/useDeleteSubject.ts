@@ -1,21 +1,19 @@
 'use client';
 
-import { NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import type { SubjectId } from '../../model/subject.types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { SubjectService } from '../subject.service';
 
 const { SUBJECT_DELETE_FAILED } = NOTIFICATIONS;
-
-const subjectService = new SubjectService();
 
 const useDeleteSubject = (props: BaseEditSectionProps) => {
   const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const { subjectService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

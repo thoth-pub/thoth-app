@@ -1,16 +1,15 @@
 import { useQuery } from '@tanstack/react-query';
 import type { SeriesId } from '../../model/series.types';
-import { QueryKeys } from '@/src/shared';
-import { SeriesService } from '../series.service';
+import { QueryKeys, useServices } from '@/src/shared';
 
 type UseSeriesProps = {
   seriesId: SeriesId;
 };
 
-const seriesService = new SeriesService();
-
 const useSeries = (props: UseSeriesProps) => {
   const { seriesId = '' } = props;
+
+  const { seriesService } = useServices();
 
   const {
     data: series,

@@ -1,18 +1,16 @@
 'use client';
 
-import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { WorkId } from '../../model/work.types';
-import { WorkService } from '../work.service';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { WORK_DELETE_FAILED } = NOTIFICATIONS;
 
-const workService = new WorkService();
-
 const useDeleteChapter = ({ queryToken }: BaseEditSectionProps) => {
   const { sendErrorNotification } = useNotifications();
+  const { workService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

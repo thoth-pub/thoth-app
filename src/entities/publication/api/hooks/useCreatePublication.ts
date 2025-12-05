@@ -1,10 +1,9 @@
 'use client';
 
-import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { PublicationEntity } from '../../model/publication.types';
-import { PublicationService } from '../publication.service';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { PUBLICATION_CREATION_FAILED } = NOTIFICATIONS;
@@ -13,13 +12,11 @@ type UseCreatePublicationProps = BaseEditSectionProps & {
   onCompleted?: (data: PublicationEntity) => void;
 };
 
-const publicationService = new PublicationService();
-
 const useCreatePublication = (props: UseCreatePublicationProps) => {
   const { queryToken, workId = '', onCompleted } = props;
 
   const { sendErrorNotification } = useNotifications();
-
+  const { publicationService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

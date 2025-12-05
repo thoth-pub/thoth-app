@@ -1,8 +1,7 @@
 'use client';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, QueryKeys, type QueryToken } from '@/src/shared';
-import { LanguageService } from '../service';
+import { NOTIFICATIONS, QueryKeys, useServices, type QueryToken } from '@/src/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNotifications } from '@/src/shared/hooks';
 
@@ -13,13 +12,11 @@ type UseDeleteLanguageProps = {
 
 const { LANGUAGE_DELETE_FAILED } = NOTIFICATIONS;
 
-const languageService = new LanguageService();
-
 const useDeleteLanguage = (props: UseDeleteLanguageProps) => {
   const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
-
+  const { languageService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

@@ -1,6 +1,6 @@
 'use client';
 
-import { NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
@@ -10,13 +10,11 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { REFERENCE_CREATION_FAILED } = NOTIFICATIONS;
 
-const referenceService = new ReferenceService();
-
 const useCreateReference = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
-
+  const { referenceService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

@@ -2,10 +2,9 @@
 
 import type { WorkField, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, Direction, QueryKeys } from '@/src/shared';
+import { appConfig, Direction, QueryKeys, useServices } from '@/src/shared';
 
 import { WorkType } from '../../model/work.types';
-import { WorkService } from '../work.service';
 import { useQuery } from '@tanstack/react-query';
 
 type UseWorksProps = {
@@ -20,8 +19,6 @@ type UseWorksProps = {
   field?: WorkField;
 };
 
-const workService = new WorkService();
-
 const useWorks = (props: UseWorksProps) => {
   const {
     publishersIds,
@@ -34,6 +31,8 @@ const useWorks = (props: UseWorksProps) => {
     field,
     isAdmin = false,
   } = props;
+
+  const { workService } = useServices();
 
   const {
     data: works = [],

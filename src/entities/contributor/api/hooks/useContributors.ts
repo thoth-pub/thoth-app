@@ -1,19 +1,15 @@
 'use client';
 
-import { QueryKeys } from '@/src/shared';
-import { ContributorDtoMapper } from '../../model/contributor.mapper';
+import { QueryKeys, useServices } from '@/src/shared';
 import { useQuery } from '@tanstack/react-query';
-import { ContributorService } from '../contributor.service';
-
-const mapper = new ContributorDtoMapper();
 
 type UseContributorsProps = {
   filter: string;
 };
 
-const contributorService = new ContributorService();
-
 const useContributors = ({ filter }: UseContributorsProps) => {
+  const { contributorService } = useServices();
+
   const {
     data = [],
     isLoading,

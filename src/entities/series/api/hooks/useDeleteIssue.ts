@@ -1,10 +1,9 @@
 'use client';
 
-import { NOTIFICATIONS, QueryKeys, type QueryToken } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, useServices, type QueryToken } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { SeriesService } from '../series.service';
 
 type UseDeleteIssueProps = {
   queryToken: QueryToken;
@@ -12,13 +11,11 @@ type UseDeleteIssueProps = {
 
 const { ISSUE_DELETE_FAILED } = NOTIFICATIONS;
 
-const seriesService = new SeriesService();
-
 const useDeleteIssue = (props: UseDeleteIssueProps) => {
   const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
-
+  const { seriesService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

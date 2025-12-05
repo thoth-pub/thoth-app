@@ -2,12 +2,11 @@
 
 import { useQuery } from '@tanstack/react-query';
 import type { PublisherId } from '../../model/publisher.types';
-import { QueryKeys } from '@/src/shared';
-import { PublisherService } from '../publisher.service';
-
-const publisherService = new PublisherService();
+import { QueryKeys, useServices } from '@/src/shared';
 
 const usePublishers = (publisherIds: PublisherId[], isAdmin: boolean) => {
+  const { publisherService } = useServices();
+
   const {
     data = [],
     isLoading,

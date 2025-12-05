@@ -1,5 +1,4 @@
-import { QueryKeys, QueryToken } from '@/src/shared';
-import { ContributionService } from '../contribution.service';
+import { QueryKeys, QueryToken, useServices } from '@/src/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { WorkContribution } from '../../model/contribution.types';
 
@@ -8,12 +7,11 @@ type UseCreateContributionProps = {
   onCompleted?: (data: WorkContribution) => void;
 };
 
-const contributionService = new ContributionService();
-
 export const useCreateContribution = (props: UseCreateContributionProps) => {
   const { queryToken, onCompleted } = props;
 
   const queryClient = useQueryClient();
+  const { contributionService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ data, relatedWorkId }: { data: WorkContribution; relatedWorkId: string }) => {

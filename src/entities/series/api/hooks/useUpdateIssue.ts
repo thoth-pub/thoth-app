@@ -1,12 +1,11 @@
 'use client';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, QueryKeys, type QueryToken } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, useServices, type QueryToken } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import type { SeriesId } from '../../model/series.types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { SeriesService } from '../series.service';
 
 type UseUpdateIssueProps = {
   queryToken: QueryToken;
@@ -14,13 +13,11 @@ type UseUpdateIssueProps = {
 
 const { ISSUE_UPDATE_FAILED } = NOTIFICATIONS;
 
-const seriesService = new SeriesService();
-
 const useUpdateIssue = (props: UseUpdateIssueProps) => {
   const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
-
+  const { seriesService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

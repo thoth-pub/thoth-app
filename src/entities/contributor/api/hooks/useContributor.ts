@@ -1,17 +1,16 @@
-import { isDefaultId, QueryKeys } from '@/src/shared';
+import { isDefaultId, QueryKeys, useServices } from '@/src/shared';
 
 import type { ContributorId } from '../../model/contributor.types';
-import { ContributorService } from '../contributor.service';
 import { useQuery } from '@tanstack/react-query';
 
 type UseContributorProps = {
   contributorId?: ContributorId;
 };
 
-const contributorService = new ContributorService();
-
 const useContributor = (props: UseContributorProps) => {
   const { contributorId = '' } = props;
+
+  const { contributorService } = useServices();
 
   const { data, isLoading, error } = useQuery({
     queryKey: [QueryKeys.contributor, contributorId],

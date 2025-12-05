@@ -1,11 +1,10 @@
 'use client';
 
-import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import { NOTIFICATIONS, useServices, type QueryToken } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { ContributorEntity } from '../../model/contributor.types';
 import { useMutation } from '@tanstack/react-query';
-import { ContributorService } from '../contributor.service';
 
 type UseCreateContributorProps = {
   queryToken: QueryToken;
@@ -13,14 +12,13 @@ type UseCreateContributorProps = {
   onError?: (error: Error) => void;
 };
 
-const contributorService = new ContributorService();
-
 const { CONTRIBUTOR_CREATION_SUCCESS, CONTRIBUTOR_CREATION_FAILED } = NOTIFICATIONS;
 
 const useCreateContributor = (props: UseCreateContributorProps) => {
   const { queryToken, onCompleted, onError } = props;
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
+  const { contributorService } = useServices();
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: ContributorEntity) => {

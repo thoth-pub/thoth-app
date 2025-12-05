@@ -1,11 +1,10 @@
 'use client';
 
-import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import { NOTIFICATIONS, useServices, type QueryToken } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { AffiliationEntity } from '../../model/affiliation.types';
 import { useMutation } from '@tanstack/react-query';
-import { AffiliationService } from '../affiliation.service';
 
 type UseCreateAffiliationProps = {
   queryToken: QueryToken;
@@ -14,12 +13,11 @@ type UseCreateAffiliationProps = {
 
 const { AFFILIATION_CREATION_FAILED } = NOTIFICATIONS;
 
-const affiliationService = new AffiliationService();
-
 const useCreateAffiliation = (props: UseCreateAffiliationProps) => {
   const { queryToken, onCompleted } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const { affiliationService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: AffiliationEntity) => {

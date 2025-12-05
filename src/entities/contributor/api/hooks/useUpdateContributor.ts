@@ -1,11 +1,10 @@
 'use client';
 
-import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
+import { NOTIFICATIONS, useServices, type QueryToken } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import type { ContributorEntity } from '../../model/contributor.types';
 import { useMutation } from '@tanstack/react-query';
-import { ContributorService } from '../contributor.service';
 
 type UseUpdateContributorProps = {
   queryToken: QueryToken;
@@ -13,14 +12,13 @@ type UseUpdateContributorProps = {
   onError?: (error: Error) => void;
 };
 
-const contributorService = new ContributorService();
-
 const { CONTRIBUTOR_UPDATE_FAILED } = NOTIFICATIONS;
 
 const useUpdateContributor = (props: UseUpdateContributorProps) => {
   const { queryToken, onCompleted, onError } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const { contributorService } = useServices();
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: ContributorEntity) => {

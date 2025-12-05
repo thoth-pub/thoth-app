@@ -1,18 +1,17 @@
 'use client';
 
-import { appConfig, QueryKeys } from '@/src/shared';
+import { appConfig, QueryKeys, useServices } from '@/src/shared';
 
 import { useQuery } from '@tanstack/react-query';
-import { InstitutionService } from '../institution.service';
 
 type UseContributorsProps = {
   filter: string;
 };
 
-const institutionService = new InstitutionService();
-
 const useInstitutions = (props: UseContributorsProps) => {
   const { filter } = props;
+
+  const { institutionService } = useServices();
 
   const {
     data = [],

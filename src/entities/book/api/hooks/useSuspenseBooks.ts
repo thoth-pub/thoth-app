@@ -1,8 +1,7 @@
 import { Expression, WorkField, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, QueryKeys, type Direction } from '@/src/shared';
+import { appConfig, QueryKeys, useServices, type Direction } from '@/src/shared';
 
-import { BookService } from '../book.service';
 import { useSuspenseQuery } from '@tanstack/react-query';
 
 type UseBooksProps = {
@@ -18,8 +17,6 @@ type UseBooksProps = {
   field?: WorkField;
 };
 
-const bookService = new BookService();
-
 const useSuspenseBooks = (props: UseBooksProps) => {
   const {
     publishersIds,
@@ -33,6 +30,8 @@ const useSuspenseBooks = (props: UseBooksProps) => {
     field = WorkField.UpdatedAtWithRelations,
     isAdmin = false,
   } = props;
+
+  const { bookService } = useServices();
 
   const {
     data: books = [],

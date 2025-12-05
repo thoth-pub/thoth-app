@@ -1,14 +1,11 @@
 'use client';
 
-import { NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import type { ReferenceId } from '../../model/reference.types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ReferenceService } from '../reference.service';
-
-const referenceService = new ReferenceService();
 
 const { REFERENCE_DELETE_FAILED } = NOTIFICATIONS;
 
@@ -16,7 +13,7 @@ const useCreateReference = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
-
+  const { referenceService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

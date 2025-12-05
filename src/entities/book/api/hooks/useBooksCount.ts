@@ -2,8 +2,7 @@ import type { Expression } from '@/gql/graphql';
 import type { PublisherId } from '@/src/entities/publisher';
 
 import { useSuspenseQuery } from '@tanstack/react-query';
-import { QueryKeys } from '@/src/shared';
-import { BookService } from '../book.service';
+import { QueryKeys, useServices } from '@/src/shared';
 
 type UseBooksCountProps = {
   publishersIds: PublisherId[];
@@ -13,10 +12,10 @@ type UseBooksCountProps = {
   publishedAt?: string;
 };
 
-const bookService = new BookService();
-
 const useBooksCount = (props: UseBooksCountProps) => {
   const { publishersIds, isAdmin = false, filter, expression, publishedAt } = props;
+
+  const { bookService } = useServices();
 
   const {
     data: bookCount = 0,

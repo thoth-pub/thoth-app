@@ -1,11 +1,10 @@
 'use client';
 
-import { NOTIFICATIONS, QueryKeys, type QueryToken } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, useServices, type QueryToken } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { WorkEntity } from '../../model/work.types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { WorkService } from '../work.service';
 
 type UseCreateWorkProps = {
   queryToken: QueryToken;
@@ -15,12 +14,11 @@ type UseCreateWorkProps = {
 const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
 const { books, booksCount, publishedBooksCount, forthcomingBooksCount, work, worksCount } = QueryKeys;
 
-const workService = new WorkService();
-
 const useCreateWork = (props: UseCreateWorkProps) => {
   const { queryToken, onCompleted } = props;
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
+  const { workService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutate, isPending } = useMutation({

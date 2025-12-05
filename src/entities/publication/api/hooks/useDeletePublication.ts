@@ -1,14 +1,12 @@
-import { QueryKeys, type BaseEditSectionProps } from '@/src/shared';
+import { QueryKeys, useServices, type BaseEditSectionProps } from '@/src/shared';
 
-import { PublicationService } from '../publication.service';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-
-const publicationService = new PublicationService();
 
 const useDeletePublication = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const queryClient = useQueryClient();
+  const { publicationService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (publicationId: string) => {

@@ -9,6 +9,7 @@ import { ReferenceStateMachineContext } from '@/src/entities/reference';
 import { SeriesStateMachineContext } from '@/src/entities/series';
 import { FormStateMachineContext } from '@/src/shared/store/forms/forms.provider';
 import { UiStateMachineContext } from '@/src/shared/store/ui/ui.provider';
+import { ServicesProvider } from '@/src/shared';
 
 const StoreProvider = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   return (
@@ -20,7 +21,11 @@ const StoreProvider = ({ children }: Readonly<{ children: React.ReactNode }>) =>
               <FundingStateMachineContext.Provider>
                 <ReferenceStateMachineContext.Provider>
                   <SeriesStateMachineContext.Provider>
-                    <WorkChaptersStateMachineContext.Provider>{children}</WorkChaptersStateMachineContext.Provider>
+                    <WorkChaptersStateMachineContext.Provider>
+                      <ServicesProvider>
+                        {children}
+                      </ServicesProvider>
+                    </WorkChaptersStateMachineContext.Provider>
                   </SeriesStateMachineContext.Provider>
                 </ReferenceStateMachineContext.Provider>
               </FundingStateMachineContext.Provider>

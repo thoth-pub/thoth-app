@@ -1,9 +1,8 @@
 import { Direction, SeriesField, SeriesType } from '@/gql/graphql';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { appConfig, QueryKeys } from '@/src/shared';
+import { appConfig, QueryKeys, useServices } from '@/src/shared';
 
 import { useQuery } from '@tanstack/react-query';
-import { SeriesService } from '../series.service';
 
 type UseSeriesProps = {
   offset?: number;
@@ -14,12 +13,11 @@ type UseSeriesProps = {
   field?: SeriesField;
 };
 
-const seriesService = new SeriesService();
-
 const useSerieses = (props: UseSeriesProps) => {
   const { offset = 0, limit = appConfig.data.itemsPerRequestLimit, filter = '', seriesType, field, direction } = props;
 
   const { activePublisher } = usePublisherStateMachine();
+  const { seriesService } = useServices();
 
   const publisherId = activePublisher ? [activePublisher] : [];
 

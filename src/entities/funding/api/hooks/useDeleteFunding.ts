@@ -1,19 +1,17 @@
-import { NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import type { FundingId } from '../../model/funding.types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { FundingService } from '../funding.service';
 
 const { FUNDING_DELETE_FAILED } = NOTIFICATIONS;
-
-const fundingService = new FundingService();
 
 const useDeleteFunding = (props: BaseEditSectionProps) => {
   const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const { fundingService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

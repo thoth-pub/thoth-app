@@ -1,20 +1,17 @@
 import type { PublicationId } from '@/src/entities/publication/model/publication.types';
-import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { LocationEntity } from '../../model/location.types';
-import { LocationService } from '../location.service';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { LOCATION_CREATE_FAILED } = NOTIFICATIONS;
-
-const locationService = new LocationService();
 
 const useCreateLocation = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
-
+  const { locationService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
