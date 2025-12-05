@@ -1,7 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
+
 import { isDefaultId, QueryKeys, useServices } from '@/src/shared';
 
 import type { ContributorId } from '../../model/contributor.types';
-import { useQuery } from '@tanstack/react-query';
 
 type UseContributorProps = {
   contributorId?: ContributorId;

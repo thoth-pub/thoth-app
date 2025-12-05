@@ -1,8 +1,9 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
+
 import type { PublisherId } from '@/src/entities/publisher';
+import { QueryKeys, useServices } from '@/src/shared';
 
 import { WorkStatus, WorkType } from '../../model/work.types';
-import { useSuspenseQuery } from '@tanstack/react-query';
-import { QueryKeys, useServices } from '@/src/shared';
 
 type UseWorksCountProps = {
   publishersIds: PublisherId[];

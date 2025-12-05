@@ -36,7 +36,7 @@ type SeriesTableProps = {
 const SeriesTable = (props: SeriesTableProps) => {
   const { seriesForm, queryToken, loading, serieses, page, pagesCount, onPageChange } = props;
 
-  const { activeSeries, edit, close } = useSeriesesStateMachine();
+  const { activeSeries, edit } = useSeriesesStateMachine();
 
   const { deleteSeries } = useDeleteSeries({ queryToken });
 

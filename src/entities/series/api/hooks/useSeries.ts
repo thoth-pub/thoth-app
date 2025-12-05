@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
-import type { SeriesId } from '../../model/series.types';
+
 import { QueryKeys, useServices } from '@/src/shared';
+
+import type { SeriesId } from '../../model/series.types';
 
 type UseSeriesProps = {
   seriesId: SeriesId;

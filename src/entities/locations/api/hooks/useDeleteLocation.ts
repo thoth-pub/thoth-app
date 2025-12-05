@@ -1,7 +1,7 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
-
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { LOCATION_DELETE_FAILED } = NOTIFICATIONS;
 

@@ -1,5 +1,6 @@
 import { TypedDocumentNode } from '@graphql-typed-document-node/core';
 import request, { RequestDocument, Variables } from 'graphql-request';
+
 import { getAuthorizationHeaders } from '../utils';
 
 export class GraphqlService {

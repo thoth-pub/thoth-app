@@ -1,4 +1,13 @@
+import { Direction, RelationType, WorkField, WorkStatus, WorkType } from '@/gql/graphql';
+import { BaseService } from '@/src/shared/interfaces/services';
+
+import { ContributionService } from '../../contribution/api/contribution.service';
+import { FundingService } from '../../funding/api/funding.service';
+import { PublicationService } from '../../publication/api/publication.service';
+import { PublisherId } from '../../publisher/model/publisher.types';
+import { SubjectService } from '../../subject/api/subject.service';
 import { WorkDtoMapper } from '../model/work.mapper';
+import { CREATE_WORK } from '../model/work.mutations';
 import {
   CREATE_WORK_RELATION,
   DELETE_WORK,
@@ -9,14 +18,6 @@ import {
   UPDATE_WORK,
 } from '../model/work.schema';
 import type { WorkDto, WorkEntity, WorkId } from '../model/work.types';
-import { CREATE_WORK } from '../model/work.mutations';
-import { BaseService } from '@/src/shared/interfaces/services';
-import { Direction, RelationType, WorkField, WorkStatus, WorkType } from '@/gql/graphql';
-import { FundingService } from '../../funding/api/funding.service';
-import { SubjectService } from '../../subject/api/subject.service';
-import { ContributionService } from '../../contribution/api/contribution.service';
-import { PublisherId } from '../../publisher/model/publisher.types';
-import { PublicationService } from '../../publication/api/publication.service';
 
 export class WorkService extends BaseService<WorkEntity, WorkDto> {
   private readonly fundingService: FundingService;
@@ -39,6 +40,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
   }
 
   async createWork(token: string, data: WorkEntity): Promise<WorkEntity> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { workId: _, ...dto } = this.dtoMapper.toDto(data) as WorkDto;
 
     const shouldCreateSubjects = data.subjects.length > 0;

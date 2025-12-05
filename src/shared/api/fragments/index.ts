@@ -1,4 +1,5 @@
 export * from './affiliations';
+export * from './contributions';
 export * from './contributors';
 export * from './fundings';
 export * from './languages';
@@ -7,4 +8,3 @@ export * from './publications';
 export * from './references';
 export * from './subject';
 export * from './works';
-export * from './contributions';

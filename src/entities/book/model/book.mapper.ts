@@ -183,22 +183,17 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
       imprintId,
       status,
       doi,
-      edition,
       license,
       copyrightHolder,
       landingPage,
       coverUrl,
       fullTitle,
-      publicationDate,
       imageCount,
       tableCount,
       audioCount,
       videoCount,
       pageCount,
-      frontmatterCount,
-      backmatterCount,
     } = entity;
-    const defaultEdition = edition ?? 1;
 
     return {
       workId: id,

@@ -1,8 +1,8 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
+
 import { Expression, WorkField, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, QueryKeys, useServices, type Direction } from '@/src/shared';
-
-import { useSuspenseQuery } from '@tanstack/react-query';
+import { appConfig, type Direction, QueryKeys, useServices } from '@/src/shared';
 
 type UseBooksProps = {
   publishersIds: PublisherId[];

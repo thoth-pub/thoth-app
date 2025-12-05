@@ -1,9 +1,18 @@
 'use client';
 
-import DeselectIcon from '@mui/icons-material/Deselect';
-import { DndContext, useSensor, PointerSensor, useSensors, closestCenter, DragEndEvent } from '@dnd-kit/core';
+import { closestCenter, DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import DeselectIcon from '@mui/icons-material/Deselect';
+import { useEffect, useState } from 'react';
 
+import {
+  useCreateWorkChapter,
+  useDeleteChapter,
+  useWorkChapters,
+  useWorkChaptersStateMachine,
+} from '@/src/entities/work';
+import { EditChapterModal, EditChaptersModal } from '@/src/features';
+import AddChapterModal from '@/src/features/work/AddChapterModal/AddChapterModal';
 import { appConfig, BaseEditSectionProps } from '@/src/shared';
 import {
   Checkbox,
@@ -16,16 +25,8 @@ import {
   Typography,
 } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
-import { useEffect, useState } from 'react';
+
 import { ChapterTableRow } from './components/ChapterTableRow';
-import {
-  useCreateWorkChapter,
-  useDeleteChapter,
-  useWorkChapters,
-  useWorkChaptersStateMachine,
-} from '@/src/entities/work';
-import AddChapterModal from '@/src/features/work/AddChapterModal/AddChapterModal';
-import { EditChapterModal, EditChaptersModal } from '@/src/features';
 
 const NEW_CHAPTER_PREFIX = 'New Copy of ';
 
@@ -52,6 +53,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
 
   useEffect(() => {
     if (chapters.length === 0) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSelectedChapters([]);
       return;
     }
@@ -183,7 +185,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                 cells={[
                   'Title',
                   'Contributors',
-                  <div className="flex items-center justify-between">
+                  <div key="page-range" className="flex items-center justify-between">
                     <Typography
                       variant="h2"
                       component="span"

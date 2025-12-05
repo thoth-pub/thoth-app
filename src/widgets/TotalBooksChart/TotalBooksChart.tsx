@@ -4,9 +4,9 @@ import { PieChart } from '@mui/x-charts';
 
 import {
   ChartWrapper,
-  useSuspenseBooksCount,
   useForthcomingBooksCount,
   usePublishedBooksCount,
+  useSuspenseBooksCount,
 } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useIsDesktop } from '@/src/shared/hooks';

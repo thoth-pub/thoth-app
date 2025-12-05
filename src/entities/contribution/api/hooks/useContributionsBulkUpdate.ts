@@ -1,10 +1,12 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, QueryKeys, QueryToken, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
+
 import { WorkContribution } from '../../model/contribution.types';
-import { WorkId } from '@/src/entities/work/model/work.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { WORK_CONTRIBUTION_UPDATE_FAILED } = NOTIFICATIONS;
 
@@ -34,6 +36,7 @@ const useContributionsBulkUpdate = (queryToken: QueryToken) => {
 
   return {
     updateContributions,
+    loading: isPending,
   };
 };
 

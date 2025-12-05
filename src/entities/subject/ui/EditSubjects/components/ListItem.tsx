@@ -4,15 +4,15 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
-import { Chip, DeleteButton, Typography } from '@/src/shared/ui';
-
-import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 import {
   convertBicSubjectCodeToReadableFormat,
   convertBisacSubjectCodeToReadableFormat,
   convertThemaSubjectCodeToReadableFormat,
   SubjectTypes,
 } from '@/src/shared';
+import { Chip, DeleteButton, Typography } from '@/src/shared/ui';
+
+import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 
 type ListItemProps = {
   subject: SubjectEntity;

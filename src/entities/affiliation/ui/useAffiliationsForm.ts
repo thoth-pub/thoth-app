@@ -1,12 +1,13 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
+
 import { useCreateAffiliation, useDeleteAffiliation, useUpdateAffiliation } from '@/src/entities/affiliation';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig, getDefaultAffiliation, isDefaultId, QueryKeys, type QueryToken } from '@/src/shared';
 
 import type { AffiliationEntity, AffiliationsForm } from '../model/affiliation.types';
-import { useQueryClient } from '@tanstack/react-query';
 
 type UseEditContributionAffiliationsProps = {
   queryToken: QueryToken;
@@ -16,7 +17,7 @@ type UseEditContributionAffiliationsProps = {
 };
 
 const useEditContributionAffiliations = (props: UseEditContributionAffiliationsProps) => {
-  const { queryToken, contributionId, affiliations, workId = '' } = props;
+  const { queryToken, contributionId, affiliations } = props;
 
   const { createAffiliation } = useCreateAffiliation({
     queryToken,

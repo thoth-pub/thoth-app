@@ -1,7 +1,8 @@
 import { BaseService } from '@/src/shared/interfaces/services';
+
 import { PublisherDtoMapper } from '../model/publisher.mapper';
-import type { PublisherDto, PublisherEntity, PublisherId } from '../model/publisher.types';
 import { GET_PUBLISHERS } from '../model/publisher.schema';
+import type { PublisherDto, PublisherEntity, PublisherId } from '../model/publisher.types';
 
 export class PublisherService extends BaseService<PublisherEntity, PublisherDto> {
   constructor(mapper = new PublisherDtoMapper()) {

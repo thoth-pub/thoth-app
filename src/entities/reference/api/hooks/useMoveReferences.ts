@@ -1,7 +1,9 @@
-import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { ReferenceEntity, ReferenceId } from '../../model/reference.types';
+
+import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
+
+import { ReferenceEntity, ReferenceId } from '../../model/reference.types';
 
 const { REFERENCE_MOVE_FAILED } = NOTIFICATIONS;
 

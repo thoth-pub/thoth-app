@@ -1,9 +1,10 @@
-import { BaseService } from '@/src/shared/interfaces/services';
-import { PriceDtoMapper } from '../model/price.mapper';
-import { CurrencyCode, PriceDto, PriceEntity } from '../model/price.types';
 import { QueryToken } from '@/src/shared';
+import { BaseService } from '@/src/shared/interfaces/services';
+
 import { PublicationId } from '../../publication/model/publication.types';
+import { PriceDtoMapper } from '../model/price.mapper';
 import { CREATE_PRICE, DELETE_PRICE, UPDATE_PRICE } from '../model/price.schema';
+import { CurrencyCode, PriceDto, PriceEntity } from '../model/price.types';
 
 export class PriceService extends BaseService<PriceEntity, PriceDto> {
   constructor(mapper = new PriceDtoMapper()) {
@@ -11,6 +12,7 @@ export class PriceService extends BaseService<PriceEntity, PriceDto> {
   }
 
   async createPrice(token: QueryToken, data: PriceEntity, publicationId: PublicationId): Promise<PriceEntity> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { priceId: _, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_PRICE, {

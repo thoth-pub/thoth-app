@@ -1,10 +1,10 @@
 'use client';
 
+import { FundingEntity } from '@/src/entities/funding/model/funding.types';
 import { type BaseEditSectionProps } from '@/src/shared';
 
 import EditFundingForm from '../EditFundingForm/EditFundingForm';
 import { useAddFunding } from './useAddFunding';
-import { FundingEntity } from '@/src/entities/funding/model/funding.types';
 
 type AddFundingProps = BaseEditSectionProps & {
   onCreate?: (funding: FundingEntity) => void;

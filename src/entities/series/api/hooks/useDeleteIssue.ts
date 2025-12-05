@@ -1,9 +1,9 @@
 'use client';
 
-import { NOTIFICATIONS, QueryKeys, useServices, type QueryToken } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
-
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
 type UseDeleteIssueProps = {
   queryToken: QueryToken;

@@ -1,9 +1,11 @@
+/* eslint-disable react-hooks/preserve-manual-memoization */
 import { useCallback } from 'react';
 import { useUnmount } from 'react-use';
 
-import { WorkChaptersStateMachineContext } from '../work.provider';
-import { WorkEntity } from '../../model/work.types';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+
+import { WorkEntity } from '../../model/work.types';
+import { WorkChaptersStateMachineContext } from '../work.provider';
 
 const useWorkChaptersStateMachine = () => {
   const activeWorkChapters: WorkEntity[] | null = WorkChaptersStateMachineContext.useSelector(

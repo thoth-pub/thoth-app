@@ -1,10 +1,11 @@
 'use client';
 
-import { Link, SpeedDial, SpeedDialActions } from '@/src/shared/ui';
-import SpeedDialIcon from '@mui/material/SpeedDialIcon';
-import FileUploadIcon from '@mui/icons-material/FileUpload';
 import AddIcon from '@mui/icons-material/Add';
+import FileUploadIcon from '@mui/icons-material/FileUpload';
+import SpeedDialIcon from '@mui/material/SpeedDialIcon';
+
 import { ROUTES } from '@/src/shared/constants';
+import { Link, SpeedDial, SpeedDialActions } from '@/src/shared/ui';
 
 type WorksSpeedDialProps = {
   onUpload: () => void;

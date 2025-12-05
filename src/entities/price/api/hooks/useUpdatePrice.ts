@@ -1,9 +1,10 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import type { PublicationId } from '@/src/entities/publication/model/publication.types';
 import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { PriceEntity } from '../../model/price.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { PRICE_UPDATE_FAILED } = NOTIFICATIONS;
 

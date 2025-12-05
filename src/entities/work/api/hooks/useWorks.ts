@@ -1,11 +1,12 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+
 import type { WorkField, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
 import { appConfig, Direction, QueryKeys, useServices } from '@/src/shared';
 
 import { WorkType } from '../../model/work.types';
-import { useQuery } from '@tanstack/react-query';
 
 type UseWorksProps = {
   publishersIds: PublisherId[];

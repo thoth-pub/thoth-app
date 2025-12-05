@@ -1,8 +1,10 @@
 'use client';
 
-import { useQuery, skipToken } from '@tanstack/react-query';
-import type { WorkId } from '../../model/work.types';
+import { skipToken, useQuery } from '@tanstack/react-query';
+
 import { getDefaultWork, isDefaultId, QueryKeys, useServices } from '@/src/shared';
+
+import type { WorkId } from '../../model/work.types';
 
 const useGetWork = (workId: WorkId) => {
   const isValidId = workId.length > 0 && !isDefaultId(workId);

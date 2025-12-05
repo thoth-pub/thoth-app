@@ -1,9 +1,10 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { ReferenceEntity } from '../../model/reference.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { REFERENCE_UPDATE_FAILED } = NOTIFICATIONS;
 

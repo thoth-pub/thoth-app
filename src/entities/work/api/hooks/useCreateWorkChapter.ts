@@ -1,10 +1,11 @@
 'use client';
 
-import { WorkEntity, WorkId } from '../../model/work.types';
-
-import { NOTIFICATIONS, QueryKeys, useServices, type QueryToken } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
+
+import { WorkEntity, WorkId } from '../../model/work.types';
 
 type UseCreateWorkChapterProps = {
   queryToken: QueryToken;

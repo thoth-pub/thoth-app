@@ -1,11 +1,10 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
 import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, ROUTES, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
-
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { WORK_DELETE_FAILED } = NOTIFICATIONS;
 

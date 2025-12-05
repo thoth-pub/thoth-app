@@ -2,13 +2,13 @@
 
 import { DragEndEvent } from '@dnd-kit/core';
 import { arrayMove } from '@dnd-kit/sortable';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { useWork } from '@/src/entities/work';
-import { QueryKeys, type BaseEditSectionProps } from '@/src/shared';
-import { useQueryClient } from '@tanstack/react-query';
+import { type BaseEditSectionProps, QueryKeys } from '@/src/shared';
 
 export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, deleteContribution } = useWork(workId, queryToken);
@@ -20,6 +20,7 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
   const [items, setItems] = useState(work.contributions);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setItems(work.contributions);
   }, [work.contributions]);
 

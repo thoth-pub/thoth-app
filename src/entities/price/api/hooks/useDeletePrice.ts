@@ -1,7 +1,7 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
-
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { PRICE_DELETE_FAILED } = NOTIFICATIONS;
 

@@ -1,8 +1,9 @@
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+
 import { DoiPreview, DraggableComponent, TableCell, TableRow } from '@/src/shared/ui';
 
-import { RowButtonGroup } from './RowButtonGroup';
 import type { ReferenceEntity } from '../../../model/reference.types';
+import { RowButtonGroup } from './RowButtonGroup';
 
 type ReferenceTableRowProps = {
   reference: ReferenceEntity;

@@ -1,10 +1,11 @@
+import { SubjectType } from '@/gql/graphql';
 import { BaseService } from '@/src/shared/interfaces/services';
+
+import type { WorkId } from '../../work/model/work.types';
 import { SubjectDtoMapper } from '../model/subject.mapper';
+import { CREATE_SUBJECT, DELETE_SUBJECT, UPDATE_SUBJECT } from '../model/subject.schema';
 import type { SubjectEntity, SubjectId } from '../model/subject.types';
 import type { SubjectDto } from '../model/subject.types';
-import { CREATE_SUBJECT, DELETE_SUBJECT, UPDATE_SUBJECT } from '../model/subject.schema';
-import type { WorkId } from '../../work/model/work.types';
-import { SubjectType } from '@/gql/graphql';
 
 export class SubjectService extends BaseService<SubjectEntity, SubjectDto> {
   constructor(mapper = new SubjectDtoMapper()) {
@@ -12,7 +13,8 @@ export class SubjectService extends BaseService<SubjectEntity, SubjectDto> {
   }
 
   async createSubject(token: string, data: SubjectEntity, relatedWorkId: WorkId): Promise<SubjectEntity> {
-    const { subjectId: _, subjectCode, subjectType, subjectOrdinal } = this.dtoMapper.toDto({ ...data, id: '' });
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { subjectId, subjectCode, subjectType, subjectOrdinal } = this.dtoMapper.toDto({ ...data, id: '' });
 
     const { createSubject } = await this.graphqlService.mutation(token, CREATE_SUBJECT, {
       data: {

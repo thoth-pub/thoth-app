@@ -1,17 +1,17 @@
 import { AffiliationsForm } from '@/src/entities/affiliation';
 import { type AffiliationsForm as AffiliationsFormType } from '@/src/entities/affiliation/model/affiliation.types';
 import { ContributionForms } from '@/src/entities/contribution';
-import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
-import type { BaseRecommendedSectionProps } from '@/src/shared';
-
-import { useEditContribution } from './useEditContribution';
 import {
   ContributionBiographyForm,
   ContributionNamesForm,
   ContributionTypeForm,
 } from '@/src/entities/contribution/model/contribution.types';
+import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
 import { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
+import { usePublisherStateMachine } from '@/src/entities/publisher';
+import type { BaseRecommendedSectionProps } from '@/src/shared';
+
+import { useEditContribution } from './useEditContribution';
 
 type EditContributionProps = BaseRecommendedSectionProps &
   Partial<{

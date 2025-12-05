@@ -1,16 +1,13 @@
 'use client';
 
-import { QueryToken } from '@/src/shared';
-
-import { WorkDtoMapper } from '../../model/work.mapper';
-import type { WorkId } from '../../model/work.types';
-import useDeleteWork from './useDeleteWork';
-import { useUpdateWork } from './useUpdateWork';
-import useGetWork from './useGetWork';
 import { useCreateContribution, useDeleteContribution, useUpdateContribution } from '@/src/entities/contribution';
 import { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import { QueryToken } from '@/src/shared';
 
-const mapper = new WorkDtoMapper();
+import type { WorkId } from '../../model/work.types';
+import useDeleteWork from './useDeleteWork';
+import useGetWork from './useGetWork';
+import { useUpdateWork } from './useUpdateWork';
 
 const useWork = (
   id: WorkId,

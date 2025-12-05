@@ -11,8 +11,8 @@ import {
 } from '@/src/shared';
 
 import useWork from '../../api/hooks/useWork';
-import type { WorkStatus } from '../../model/work.types';
 import useWorkChapters from '../../api/hooks/useWorkChapters';
+import type { WorkStatus } from '../../model/work.types';
 
 const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, updateWork } = useWork(workId, queryToken);

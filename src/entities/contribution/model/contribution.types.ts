@@ -1,13 +1,14 @@
 import z from 'zod';
 
+import { ContributionType } from '@/gql/graphql';
+
+import { AffiliationEntity } from '../../affiliation/model/affiliation.types';
+import { ContributorId } from '../../contributor/model/contributor.types';
 import {
   contributorBiographyValidationSchema,
   contributorTypeValidationSchema,
   namesFormValidationSchema,
 } from './contribution.validation';
-import { AffiliationEntity } from '../../affiliation/model/affiliation.types';
-import { ContributionType } from '@/gql/graphql';
-import { ContributorId } from '../../contributor/model/contributor.types';
 
 export type ContributionNamesForm = z.infer<typeof namesFormValidationSchema>;
 

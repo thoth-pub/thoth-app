@@ -1,7 +1,7 @@
+import { useSuspenseQuery } from '@tanstack/react-query';
+
 import type { Expression } from '@/gql/graphql';
 import type { PublisherId } from '@/src/entities/publisher';
-
-import { useSuspenseQuery } from '@tanstack/react-query';
 import { QueryKeys, useServices } from '@/src/shared';
 
 type UseBooksCountProps = {

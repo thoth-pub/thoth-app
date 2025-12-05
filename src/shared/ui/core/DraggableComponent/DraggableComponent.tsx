@@ -1,9 +1,9 @@
 'use client';
 
 import type { DraggableAttributes, UniqueIdentifier } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
-import { useSortable } from '@dnd-kit/sortable';
 import { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 type DraggableComponentProps = {
   id: UniqueIdentifier;

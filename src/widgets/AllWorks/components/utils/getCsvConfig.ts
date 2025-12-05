@@ -1,3 +1,8 @@
+import z from 'zod';
+
+import { LocationPlatform } from '@/gql/graphql';
+import { SeriesEntity } from '@/src/entities/series/model/series.types';
+import { editionValidation, subtitleValidation, titleValidation } from '@/src/entities/work/model/work.validation';
 import {
   ContributorTypes,
   FormFieldOption,
@@ -7,12 +12,9 @@ import {
   workTypeValidation,
 } from '@/src/shared';
 import { CSV_KEYS } from '@/src/shared/constants/csvKeys';
-import { CSVFieldType } from '../CSVParse';
-import { SeriesEntity } from '@/src/entities/series/model/series.types';
-import { editionValidation, subtitleValidation, titleValidation } from '@/src/entities/work/model/work.validation';
 import { currencyOptions, languageOptions } from '@/src/shared/constants/formFields';
-import { LocationPlatform } from '@/gql/graphql';
-import z from 'zod';
+
+import { CSVFieldType } from '../CSVParse';
 
 const {
   PUBLISHER,

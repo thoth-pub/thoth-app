@@ -1,10 +1,10 @@
 'use client';
 
-import { NOTIFICATIONS, QueryKeys, QueryToken, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { NOTIFICATIONS, QueryKeys, QueryToken, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
 const { WORK_CONTRIBUTION_DELETION_FAILED } = NOTIFICATIONS;
 

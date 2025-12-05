@@ -2,20 +2,20 @@
 
 import ArrowDropUpRoundedIcon from '@mui/icons-material/ArrowDropUpRounded';
 import { BarChart } from '@mui/x-charts';
+import { useMemo } from 'react';
 
 import { ChartWrapper } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
+import { getMonthName, getStartOfTheCurrentMonthDate, substractMonthesFromDate } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
 import { DashboardContentWrapper, Typography } from '@/src/shared/ui';
 
-import { getMonthName, getStartOfTheCurrentMonthDate, substractMonthesFromDate } from '@/src/shared';
 import { useBooksCountByMonth } from './useBooksCountByMonth';
-import { useMemo } from 'react';
 
 const PublishedBooksChart = () => {
   const isDesktop = useIsDesktop(1280);
 
-  const { activePublisher, isAdmin } = usePublisherStateMachine();
+  const { activePublisher } = usePublisherStateMachine();
   const publishersIds = useMemo(() => (activePublisher ? [activePublisher] : []), [activePublisher]);
 
   const firstMonthDate = getStartOfTheCurrentMonthDate();

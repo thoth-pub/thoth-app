@@ -1,8 +1,10 @@
 'use client';
 
-import { QueryKeys, QueryToken, useServices } from '@/src/shared';
-import { WorkContribution } from '../../model/contribution.types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { QueryKeys, QueryToken, useServices } from '@/src/shared';
+
+import { WorkContribution } from '../../model/contribution.types';
 
 type UseUpdateContributionProps = {
   queryToken: QueryToken;

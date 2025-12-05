@@ -92,7 +92,7 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                   <SortableContext items={formValues} strategy={verticalListSortingStrategy}>
                     <ul className="flex flex-col gap-[var(--default-gap)]">
-                      {formValues.map(({ id, affiliation: { label }, position }, index) => (
+                      {formValues.map(({ id, affiliation: { label }, position }) => (
                         <PreviewItem
                           key={id}
                           id={id}

@@ -1,10 +1,11 @@
 'use client';
 
+import { useTranslation } from 'react-i18next';
+
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { Navigation } from '@/src/features';
 import { CloseButton, Modal, SubmitButton, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
-import { useTranslation } from 'react-i18next';
 
 type FullScreenModalProps = {
   title: string;

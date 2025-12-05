@@ -10,6 +10,9 @@ export { default as CircularProgress } from './core/CircularProgress/CircularPro
 export { default as ClickAwayListener } from './core/ClickAwayListener/ClickAwayListener';
 export { default as CloseButton } from './core/CloseButton/CloseButton';
 export { default as DeleteButton } from './core/DeleteButton/DeleteButton';
+export { default as DoiPreview } from './core/DoiPreview/DoiPreview';
+export { default as DragAndDropWrapper } from './core/DragAndDropWrapper/DragAndDropWrapper';
+export { default as DraggableComponent } from './core/DraggableComponent/DraggableComponent';
 export { default as EditButton } from './core/EditButton/EditButton';
 export { default as FavoriteButton } from './core/FavoriteButton/FavoriteButton';
 export { default as FormHelperText } from './core/FormHelperText/FormHelperText';
@@ -30,6 +33,10 @@ export { default as Radio, type RadioProps } from './core/Radio/Radio';
 export { default as Skeleton } from './core/Skeleton/Skeleton';
 export { default as SpeedDialActions } from './core/SpeedDial/components/SpeedDialActions';
 export { default as SpeedDial } from './core/SpeedDial/SpeedDial';
+export { default as Step } from './core/Stepper/components/Step';
+export { default as StepContent } from './core/Stepper/components/StepContent';
+export { default as StepLabel } from './core/Stepper/components/StepLabel';
+export { default as Stepper } from './core/Stepper/Stepper';
 export { default as Switch } from './core/Switch/Switch';
 export { default as TableBody } from './core/Table/components/TableBody';
 export { default as TableCell } from './core/Table/components/TableCell';
@@ -38,20 +45,13 @@ export { default as TableHead } from './core/Table/components/TableHead';
 export { default as TableRow } from './core/Table/components/TableRow';
 export { default as Table } from './core/Table/Table';
 export { default as TableHeader } from './core/TableHeader/TableHeader';
+export { default as TableWrapper } from './core/TableWrapper/TableWrapper';
 export { default as TextField, type TextFieldProps } from './core/TextField/TextField';
 export { default as Tooltip } from './core/Tooltip/Tooltip';
 export { default as Typography } from './core/Typography/Typography';
 export { default as TableFormsHeader } from './forms/TableFormsHeader/TableFormsHeader';
 export { default as TableFormsWrapper } from './forms/TableFormsWrapper/TableFormsWrapper';
 export { default as TableNewEntityFormWrapper } from './forms/TableNewEntityFormWrapper/TableNewEntityFormWrapper';
-export { default as Stepper } from './core/Stepper/Stepper';
-export { default as Step } from './core/Stepper/components/Step';
-export { default as StepLabel } from './core/Stepper/components/StepLabel';
-export { default as StepContent } from './core/Stepper/components/StepContent';
-export { default as DoiPreview } from './core/DoiPreview/DoiPreview';
-export { default as DragAndDropWrapper } from './core/DragAndDropWrapper/DragAndDropWrapper';
-export { default as TableWrapper } from './core/TableWrapper/TableWrapper';
-export { default as DraggableComponent } from './core/DraggableComponent/DraggableComponent';
 
 // Forms
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
@@ -71,9 +71,9 @@ export { default as MarkdownSwitch } from './forms/MarkdownSwitch/MarkdownSwitch
 export { default as SubmitButton } from './forms/SubmitButton/SubmitButton';
 export { default as DashboardChartSkeleton } from './layout/DashboardChartSkeleton/DashboardChartSkeleton';
 // Icons
+export { default as DoiLogo } from './icons/DoiLogo/DoiLogo';
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';
-export { default as DoiLogo } from './icons/DoiLogo/DoiLogo';
 // Layout
 export { default as ContentWrapper } from './layout/ContentWrapper/ContentWrapper';
 export { default as DashboardContentWrapper } from './layout/DashboardContentWrapper/DashboardContentWrapper';

@@ -1,7 +1,10 @@
 'use client';
 
+import { createContext, type ReactNode, useContext } from 'react';
+
 import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.service';
 import { BookService } from '@/src/entities/book/api/book.service';
+import { ContributionService } from '@/src/entities/contribution';
 import { ContributorService } from '@/src/entities/contributor';
 import { FundingService } from '@/src/entities/funding/api/funding.service';
 import { ImprintService } from '@/src/entities/imprint';
@@ -15,9 +18,8 @@ import { ReferenceService } from '@/src/entities/reference/api/reference.service
 import { SeriesService } from '@/src/entities/series';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
-import { createContext, useContext, type ReactNode } from 'react';
+
 import { NotificationService } from '../notifications/notification.service';
-import { ContributionService } from '@/src/entities/contribution';
 
 type ServicesMap = {
   imprintService: ImprintService;

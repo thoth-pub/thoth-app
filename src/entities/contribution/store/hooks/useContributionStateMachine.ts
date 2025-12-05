@@ -1,9 +1,8 @@
 import { useCallback } from 'react';
 import { useUnmount } from 'react-use';
 
-import { ContributionStateMachineContext } from '../contribution.provider';
-
 import type { WorkContribution } from '../../model/contribution.types';
+import { ContributionStateMachineContext } from '../contribution.provider';
 
 const useContributionStateMachine = () => {
   const activeContribution: WorkContribution | null = ContributionStateMachineContext.useSelector(

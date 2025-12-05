@@ -1,7 +1,10 @@
-import { PublisherId } from '@/src/entities/publisher';
-import { BaseService } from '@/src/shared/interfaces/services';
 import { SeriesType as SeriesTypeEnum } from '@/gql/graphql';
+import { SeriesField } from '@/gql/graphql';
+import { PublisherId } from '@/src/entities/publisher';
+import { appConfig, Direction, SeriesType } from '@/src/shared';
+import { BaseService } from '@/src/shared/interfaces/services';
 
+import { WorkId } from '../../work/model/work.types';
 import { SeriesDtoMapper } from '../model/series.mapper';
 import {
   CREATE_ISSUE,
@@ -15,9 +18,6 @@ import {
   UPDATE_SERIES,
 } from '../model/series.schema';
 import type { SeriesDto, SeriesEntity, SeriesId } from '../model/series.types';
-import { appConfig, Direction, SeriesType } from '@/src/shared';
-import { SeriesField } from '@/gql/graphql';
-import { WorkId } from '../../work/model/work.types';
 
 export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
   constructor(mapper = new SeriesDtoMapper()) {
@@ -96,6 +96,7 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
   }
 
   async createSeries(token: string, data: SeriesEntity): Promise<SeriesEntity> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { issues: _issues, seriesId: _seriesId, updatedAt: _updatedAt, ...dto } = this.dtoMapper.toDto(data);
 
     const { createSeries } = await this.graphqlService.mutation(token, CREATE_SERIES, {
@@ -111,6 +112,7 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
   }
 
   async updateSeries(token: string, data: SeriesEntity): Promise<SeriesEntity> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { updatedAt: _updatedAt, issues: _issues, ...dto } = this.dtoMapper.toDto(data);
 
     await this.graphqlService.mutation(token, UPDATE_SERIES, {

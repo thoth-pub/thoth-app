@@ -1,6 +1,8 @@
+import { appConfig } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
-import { ContributorDto, ContributorEntity, ContributorId } from '../model/contributor.types';
+import { PublisherId } from '../../publisher';
+import { ContributorDtoMapper } from '../model/contributor.mapper';
 import {
   CREATE_CONTRIBUTOR,
   GET_CONTRIBUTOR,
@@ -8,9 +10,7 @@ import {
   GET_LINKED_PUBLISHERS,
   UPDATE_CONTRIBUTOR,
 } from '../model/contributor.schema';
-import { ContributorDtoMapper } from '../model/contributor.mapper';
-import { appConfig } from '@/src/shared';
-import { PublisherId } from '../../publisher';
+import { ContributorDto, ContributorEntity, ContributorId } from '../model/contributor.types';
 
 export class ContributorService extends BaseService<ContributorEntity, ContributorDto> {
   constructor() {

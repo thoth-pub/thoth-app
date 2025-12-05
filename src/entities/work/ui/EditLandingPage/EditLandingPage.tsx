@@ -1,10 +1,11 @@
 'use client';
 
 import { useWork } from '@/src/entities/work';
-import { IDs, type BaseEditSectionProps } from '@/src/shared';
+import { type BaseEditSectionProps, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+
 import { landingPageValidationSchema } from '../../model/work.validation';
 
 const { LANDING_PAGE } = FORM_FIELDS;

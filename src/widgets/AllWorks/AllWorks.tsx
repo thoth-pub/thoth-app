@@ -1,14 +1,14 @@
 'use client';
 
+import { SeriesEntity } from '@/src/entities/series/model/series.types';
+import type { FormFieldOption } from '@/src/shared';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { Header } from './components/Header';
+import { UploadModal } from './components/UploadModal';
+import { WorksSpeedDial } from './components/WorksSpeedDial';
 import { WorksTable } from './components/WorksTable';
 import { useAllWorks } from './useAllWorks';
-import { WorksSpeedDial } from './components/WorksSpeedDial';
-import { UploadModal } from './components/UploadModal';
-import type { FormFieldOption } from '@/src/shared';
-import { SeriesEntity } from '@/src/entities/series/model/series.types';
 
 type AllWorksProps = {
   imprintsOptions: FormFieldOption[];

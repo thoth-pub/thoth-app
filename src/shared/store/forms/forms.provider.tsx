@@ -1,6 +1,6 @@
 'use client';
 
-import { createBrowserInspector } from '@statelyai/inspect';
+// import { createBrowserInspector } from '@statelyai/inspect';
 import { createActorContext } from '@xstate/react';
 
 import { formStateMachine } from './forms.state-machine';

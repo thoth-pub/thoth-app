@@ -1,10 +1,29 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+import {
+  MeasureType,
+  MeasureUnit,
+  ProductIdentifierType,
+  PublishingDateRole,
+  TextType,
+} from '@5stones/onix/dist/enums';
+import { Publisher } from '@5stones/onix/dist/interfaces';
+import { useEffect, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
+
 import { validateXml } from '@/app/actions/validateXml';
+import { LanguageCode } from '@/gql/graphql';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import { ContributorService } from '@/src/entities/contributor';
+import { ContributorId } from '@/src/entities/contributor/model/contributor.types';
+import { InstitutionService } from '@/src/entities/institution';
+import { InstitutionEntity, InstitutionRor } from '@/src/entities/institution/model/institution.types';
+import { CurrencyCode } from '@/src/entities/price/model/price.types';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import type { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
-import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import {
   appConfig,
   convertOrchidIdToText,
+  type FormFieldOption,
   getContributorRoleFromXml,
   getDefaultAffiliation,
   getDefaultChapter,
@@ -21,8 +40,8 @@ import {
   SubjectTypes,
   WorkStatuses,
   WorkTypes,
-  type FormFieldOption,
 } from '@/src/shared';
+import { currencyOptions, languageOptions, licenseOptions } from '@/src/shared/constants/formFields';
 import {
   Button,
   LinkTooltip,
@@ -35,23 +54,6 @@ import {
   TableRow,
   Typography,
 } from '@/src/shared/ui';
-import { useEffect, useState } from 'react';
-import { v4 as uuidv4 } from 'uuid';
-import {
-  MeasureType,
-  MeasureUnit,
-  ProductIdentifierType,
-  PublishingDateRole,
-  TextType,
-} from '@5stones/onix/dist/enums';
-import { currencyOptions, languageOptions, licenseOptions } from '@/src/shared/constants/formFields';
-import { LanguageCode } from '@/gql/graphql';
-import { Publisher } from '@5stones/onix/dist/interfaces';
-import { CurrencyCode } from '@/src/entities/price/model/price.types';
-import { ContributorService } from '@/src/entities/contributor';
-import { InstitutionService } from '@/src/entities/institution';
-import { InstitutionEntity, InstitutionRor } from '@/src/entities/institution/model/institution.types';
-import { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 
 type XMLParseProps = {
   file: File;
@@ -842,8 +844,11 @@ export const XMLParse = (props: XMLParseProps) => {
                         {defaultContributor?.fullName ?? ''}
                       </TableCell>
                       <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-                        {contributions.map(({ fullName, orcidId, contributorId, lastContribution, selected }) => (
-                          <div className="flex items-center gap-2 [&:not(:first-child)&:not(:last-child)]:my-4">
+                        {contributions.map(({ id, fullName, orcidId, contributorId, lastContribution, selected }) => (
+                          <div
+                            key={id}
+                            className="flex items-center gap-2 [&:not(:first-child)&:not(:last-child)]:my-4"
+                          >
                             <Radio
                               checked={selected}
                               onChange={() => handleSelectContributor(workId, itemId, contributorId)}

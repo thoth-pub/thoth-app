@@ -1,9 +1,10 @@
 import { GraphqlService, isDefaultId, QueryToken } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+
+import { AffiliationService } from '../../affiliation/api/affiliation.service';
+import { ContributorService } from '../../contributor';
 import { CREATE_CONTRIBUTION, DELETE_CONTRIBUTION, UPDATE_CONTRIBUTION } from '../../work/model/work.mutations';
 import { WorkContribution } from '../model/contribution.types';
-import { ContributorService } from '../../contributor';
-import { AffiliationService } from '../../affiliation/api/affiliation.service';
-import { appConfig } from '@/src/shared/config';
 
 // TODO: create a mapper for the contribution
 export class ContributionService {

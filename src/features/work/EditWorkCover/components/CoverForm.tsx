@@ -1,5 +1,17 @@
 'use client';
 
+import { zodResolver } from '@hookform/resolvers/zod';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import { IconButton } from '@mui/material';
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { useCopyToClipboard } from 'react-use';
+
+import { useWork } from '@/src/entities/work';
+import { CoverUrlAltForm } from '@/src/entities/work/model/work.types';
+import { coverUrlAltValidationSchema } from '@/src/entities/work/model/work.validation';
+import type { BaseEditSectionProps } from '@/src/shared';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import {
   CloseButton,
   ContentWrapper,
@@ -10,19 +22,9 @@ import {
   SubmitButton,
   Typography,
 } from '@/src/shared/ui';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+
 import { PlaceholderLogo } from './PlaceholderLogo';
 import { Wrapper } from './Wrapper';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { coverUrlAltValidationSchema } from '@/src/entities/work/model/work.validation';
-import { useState } from 'react';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { CoverUrlAltForm } from '@/src/entities/work/model/work.types';
-import type { BaseEditSectionProps } from '@/src/shared';
-import { useWork } from '@/src/entities/work';
-import { IconButton } from '@mui/material';
-import { useCopyToClipboard } from 'react-use';
 
 const { COVER_URL } = FORM_FIELDS;
 

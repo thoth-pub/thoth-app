@@ -1,11 +1,11 @@
 import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
-import { ROUTES } from '@/src/shared/constants';
-import AllWorks from '@/src/widgets/AllWorks/AllWorks';
-import { convertEntityToSelectFieldOptions, convertLinkedPublishers, isAdmin } from '@/src/shared/utils';
 import { ImprintService } from '@/src/entities/imprint';
 import { SeriesService } from '@/src/entities/series';
+import { ROUTES } from '@/src/shared/constants';
+import { convertEntityToSelectFieldOptions, convertLinkedPublishers, isAdmin } from '@/src/shared/utils';
+import AllWorks from '@/src/widgets/AllWorks/AllWorks';
 
 const imprintsService = new ImprintService();
 const seriesService = new SeriesService();

@@ -1,24 +1,26 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
+
+import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
+import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAffiliationsForm';
 import { ChaptersContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
+import useContributionsBulkDelete from '@/src/entities/contribution/api/hooks/useContributionsBulkDelete';
+import useContributionsBulkUpdate from '@/src/entities/contribution/api/hooks/useContributionsBulkUpdate';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import type {
   ContributionId,
   ContributionType,
   ContributorId,
 } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
-import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
-import { isAllContributionRecommendationsFilled, isDefaultId, type BaseEditSectionProps } from '@/src/shared';
+import { type BaseEditSectionProps, isAllContributionRecommendationsFilled, isDefaultId } from '@/src/shared';
 import { RecommendedSection, Typography } from '@/src/shared/ui';
-import { useEffect, useMemo, useState } from 'react';
+
 import AddContributionModal from '../../work/AddContributionModal/AddContributionModal';
 import { AddNewChaptersContribution } from './components/AddNewChaptersContribution';
 import { EditChaptersContributions } from './components/EditChaptersContributions';
 import { findAllSameContributions } from './components/utils';
-import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAffiliationsForm';
-import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
-import useContributionsBulkDelete from '@/src/entities/contribution/api/hooks/useContributionsBulkDelete';
-import useContributionsBulkUpdate from '@/src/entities/contribution/api/hooks/useContributionsBulkUpdate';
 
 type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
   chapters: WorkEntity[];
@@ -95,6 +97,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const isValid = isEmpty || uniqueContributors.every(isAllContributionRecommendationsFilled);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setContributions(uniqueContributors);
   }, [uniqueContributors, affiliations]);
 

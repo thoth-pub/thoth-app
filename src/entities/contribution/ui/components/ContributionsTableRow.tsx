@@ -7,7 +7,6 @@ import { AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import removeMd from 'remove-markdown';
 
-import type { WorkContribution } from '../../model/contribution.types';
 import { appConfig, convertOrchidIdToText, convertRorIdToText, truncateString } from '@/src/shared';
 import {
   Indicator,
@@ -20,6 +19,7 @@ import {
   Typography,
 } from '@/src/shared/ui';
 
+import type { WorkContribution } from '../../model/contribution.types';
 import { RowButtonGroup } from './RowButtonGroup';
 
 const { maxPreviewLength } = appConfig.tables;

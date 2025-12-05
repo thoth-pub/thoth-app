@@ -1,10 +1,11 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { FundingEntity } from '../../model/funding.types';
-import { WorkId } from '@/src/entities/work/model/work.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { FUNDING_CREATION_FAILED } = NOTIFICATIONS;
 

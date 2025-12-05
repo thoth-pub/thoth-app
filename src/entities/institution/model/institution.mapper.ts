@@ -1,7 +1,7 @@
+import { CountryCode } from '@/gql/graphql';
 import type { BaseMapper } from '@/src/shared/interfaces';
 
 import type { InstitutionDto, InstitutionEntity } from './institution.types';
-import { CountryCode } from '@/gql/graphql';
 
 export class InstitutionDtoMapper implements BaseMapper<InstitutionEntity, InstitutionDto> {
   toEntity(dto: InstitutionDto): InstitutionEntity {

@@ -1,12 +1,12 @@
 'use client';
 
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { useSortable } from '@dnd-kit/sortable';
-
-import { CSS } from '@dnd-kit/utilities';
+import { getPagesPlaceholder } from '@/src/shared';
 import {
   ButtonGroup,
   Checkbox,
@@ -17,7 +17,6 @@ import {
   TableRow,
   Typography,
 } from '@/src/shared/ui';
-import { getPagesPlaceholder } from '@/src/shared';
 
 type TableRowProps = {
   chapter: WorkEntity;

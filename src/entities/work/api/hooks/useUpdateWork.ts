@@ -1,10 +1,11 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { WorkEntity } from '../../model/work.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { WORK_UPDATE_FAILED } = NOTIFICATIONS;
 

@@ -1,10 +1,11 @@
-import { ReferenceDtoMapper } from '../model/reference.mapper';
+import type { QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
+
+import type { WorkId } from '../../work/model/work.types';
+import { ReferenceDtoMapper } from '../model/reference.mapper';
+import { CREATE_REFERENCE, DELETE_REFERENCE, MOVE_REFERENCE, UPDATE_REFERENCE } from '../model/reference.schema';
 import type { ReferenceEntity, ReferenceId } from '../model/reference.types';
 import type { ReferenceDto } from '../model/reference.types';
-import type { QueryToken } from '@/src/shared';
-import { CREATE_REFERENCE, DELETE_REFERENCE, MOVE_REFERENCE, UPDATE_REFERENCE } from '../model/reference.schema';
-import type { WorkId } from '../../work/model/work.types';
 
 export class ReferenceService extends BaseService<ReferenceEntity, ReferenceDto> {
   constructor() {
@@ -12,6 +13,7 @@ export class ReferenceService extends BaseService<ReferenceEntity, ReferenceDto>
   }
 
   async createReference(token: QueryToken, data: ReferenceEntity, relatedWorkId: WorkId): Promise<ReferenceEntity> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { referenceId, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_REFERENCE, {

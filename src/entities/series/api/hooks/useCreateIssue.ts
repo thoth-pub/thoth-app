@@ -1,11 +1,12 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, QueryKeys, useServices, type QueryToken } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import type { SeriesId } from '../../model/series.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 type UseCreateIssueProps = {
   queryToken: QueryToken;

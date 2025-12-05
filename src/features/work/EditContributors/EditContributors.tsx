@@ -1,11 +1,12 @@
 'use client';
 
-import { WorkContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
+import { useEffect } from 'react';
+
+import { useContributionStateMachine, WorkContributionsTable } from '@/src/entities/contribution';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
 import { ANCHORS, type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
-import { useEffect } from 'react';
 
 type EditContributorsProps = BaseEditSectionProps & {
   isAdmin?: boolean;

@@ -49,6 +49,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
   const backmatterValue = convertArabicToRoman(backmatterCount);
   const frontmatterValue = convertArabicToRoman(frontmatterCount);
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const pageBreakdownValue = useMemo(() => {
     const res: string[] = [];
 

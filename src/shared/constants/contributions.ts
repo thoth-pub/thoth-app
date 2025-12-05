@@ -1,6 +1,7 @@
 import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
-import { ContributorTypes } from './contributors';
+
 import { appConfig } from '../config';
+import { ContributorTypes } from './contributors';
 
 export const getDefaultContribution = (data?: Partial<WorkContribution>): WorkContribution => {
   return {

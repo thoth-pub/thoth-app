@@ -1,5 +1,5 @@
-import { GraphqlService } from '../api/graphqlService';
 import { appConfig, BaseMapper } from '..';
+import { GraphqlService } from '../api/graphqlService';
 
 export abstract class BaseService<EntityType, DtoType> {
   protected readonly graphqlService: GraphqlService;

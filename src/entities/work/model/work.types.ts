@@ -3,6 +3,7 @@ import z from 'zod';
 import type { Contribution, WorkFragmentFragment } from '@/gql/graphql';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
+import { WorkContribution } from '../../contribution/model/contribution.types';
 import type { FundingEntity } from '../../funding/model/funding.types';
 import type { LanguageEntity } from '../../language/model/language.types';
 import { PublicationEntity } from '../../publication/model/publication.types';
@@ -24,7 +25,6 @@ import {
   workTitlesValidationSchema,
   workTypeValidationSchema,
 } from '../model/work.validation';
-import { WorkContribution } from '../../contribution/model/contribution.types';
 
 export type WorkDto = WorkFragmentFragment;
 

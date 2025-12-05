@@ -1,4 +1,4 @@
-import { Table, TableRow, TableCell, TableBody, TableHeader } from '@/src/shared/ui';
+import { Table, TableBody, TableCell, TableHeader,TableRow } from '@/src/shared/ui';
 
 export const PreviewStep = () => {
   return (

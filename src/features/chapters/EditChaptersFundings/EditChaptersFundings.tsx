@@ -1,5 +1,8 @@
 'use client';
 
+import { useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
 import {
   FundingsTable,
   useCreateFunding,
@@ -12,8 +15,7 @@ import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { BaseEditSectionProps, isAllFundingRecommendationsFilled, isDefaultId } from '@/src/shared';
 import { AddButton, RecommendedSection, Typography } from '@/src/shared/ui';
 import { getDefaultFunding } from '@/src/shared/utils';
-import { useMemo, useState } from 'react';
-import { useTranslation } from 'react-i18next';
+
 import AddFunding from '../../fundings/AddFunding/AddFunding';
 import EditFunding from '../../fundings/EditFunding/EditFunding';
 

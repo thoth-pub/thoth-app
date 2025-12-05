@@ -1,14 +1,14 @@
 import './styles/globals.css';
-import { SpeedInsights } from '@vercel/speed-insights/next';
 
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
 import { Economica, Open_Sans } from 'next/font/google';
 
 import { auth } from '@/auth';
+import { UpdateNavigationState } from '@/src/features';
 import { appConfig } from '@/src/shared/config';
 
 import Providers from './providers';
-import { UpdateNavigationState } from '@/src/features';
 
 const {
   meta: { title, description },

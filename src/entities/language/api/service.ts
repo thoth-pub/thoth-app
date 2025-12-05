@@ -1,11 +1,12 @@
-import { LanguageDtoMapper } from '../model/language.mapper';
+import { LanguageCode, LanguageRelation } from '@/gql/graphql';
+import { QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
+
+import { WorkId } from '../../work/model/work.types';
+import { LanguageDtoMapper } from '../model/language.mapper';
+import { CREATE_LANGUAGE, DELETE_LANGUAGE, UPDATE_LANGUAGE } from '../model/language.schema';
 import { LanguageEntity } from '../model/language.types';
 import { LanguageDto } from '../model/language.types';
-import { QueryToken } from '@/src/shared';
-import { CREATE_LANGUAGE, DELETE_LANGUAGE, UPDATE_LANGUAGE } from '../model/language.schema';
-import { WorkId } from '../../work/model/work.types';
-import { LanguageCode, LanguageRelation } from '@/gql/graphql';
 
 export class LanguageService extends BaseService<LanguageEntity, LanguageDto> {
   constructor(mapper = new LanguageDtoMapper()) {
@@ -13,6 +14,7 @@ export class LanguageService extends BaseService<LanguageEntity, LanguageDto> {
   }
 
   async createLanguage(token: QueryToken, data: LanguageEntity, workId: WorkId): Promise<LanguageEntity> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { languageId, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_LANGUAGE, {

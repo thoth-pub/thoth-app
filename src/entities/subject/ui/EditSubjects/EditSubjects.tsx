@@ -1,22 +1,22 @@
 'use client';
 
+import { useState } from 'react';
 import type { Control } from 'react-hook-form';
 
 import { type BaseRecommendedSectionProps, convertOptionToString, IDs, SubjectTypes } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { AddButton, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { BIC_CODES } from '@/src/shared/utils/subjects/bic-codes';
+import { BISAC_CODES } from '@/src/shared/utils/subjects/bisac-codes';
+import { THEMA_CODES } from '@/src/shared/utils/subjects/thema-codes';
 
 import type { SubjectsFormType, SubjectType } from '../../model/subject.types';
 import { subjectsValidationSchema } from '../../model/subject.validation';
 import { FormFields } from './components/FormFields';
+import { NewSubjectModal } from './components/NewSubjectModal';
 import { PreviewList } from './components/PreviewList';
 import { useEditSubjects } from './useEditSubjects';
-import { useState } from 'react';
-import { BIC_CODES } from '@/src/shared/utils/subjects/bic-codes';
-import { THEMA_CODES } from '@/src/shared/utils/subjects/thema-codes';
-import { BISAC_CODES } from '@/src/shared/utils/subjects/bisac-codes';
-import { NewSubjectModal } from './components/NewSubjectModal';
 
 const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 

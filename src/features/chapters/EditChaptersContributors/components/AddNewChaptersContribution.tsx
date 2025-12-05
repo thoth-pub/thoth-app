@@ -1,14 +1,15 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
+
 import { useContributionStateMachine, useCreateContribution } from '@/src/entities/contribution';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { useContributor, useUpdateContributor } from '@/src/entities/contributor';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
-import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { AddNewContribution } from '@/src/features/contribution';
 import { type BaseRecommendedSectionProps } from '@/src/shared';
-import { useEffect } from 'react';
 import { QueryKeys } from '@/src/shared';
-import { useQueryClient } from '@tanstack/react-query';
 
 type AddNewChaptersContributionProps = BaseRecommendedSectionProps & {
   chapters: WorkEntity[];

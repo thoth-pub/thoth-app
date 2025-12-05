@@ -1,9 +1,10 @@
+import type { QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
-import type { FundingDto, FundingEntity, FundingId } from '../model/funding.types';
+
+import { WorkId } from '../../work/model/work.types';
 import { FundingDtoMapper } from '../model/funding.mapper';
 import { CREATE_FUNDING, DELETE_FUNDING, UPDATE_FUNDING } from '../model/funding.schema';
-import { WorkId } from '../../work/model/work.types';
-import type { QueryToken } from '@/src/shared';
+import type { FundingDto, FundingEntity, FundingId } from '../model/funding.types';
 
 export class FundingService extends BaseService<FundingEntity, FundingDto> {
   constructor(mapper = new FundingDtoMapper()) {
@@ -19,6 +20,7 @@ export class FundingService extends BaseService<FundingEntity, FundingDto> {
     data: Omit<FundingEntity, 'id' | 'institutionName' | 'institutionRor'>;
     relatedWorkId: WorkId;
   }): Promise<FundingEntity> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { fundingId, ...dto } = this.dtoMapper.toDto({ ...data, id: '', institutionName: '', institutionRor: '' });
 
     const response = await this.graphqlService.mutation(token, CREATE_FUNDING, {

@@ -1,16 +1,18 @@
 'use client';
 
-import { useUpdateWorks, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
-import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
-import type { BaseEditSectionProps } from '@/src/shared';
 import { useEffect, useState } from 'react';
-import EditDescriptions from '../EditDescriptions/EditDescriptions';
-import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
+
+import { useContributionStateMachine } from '@/src/entities/contribution';
+import { useUpdateWorks, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
+import type { BaseEditSectionProps } from '@/src/shared';
 import { licenseOptions } from '@/src/shared/constants/formFields';
+
+import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
 import EditChaptersContributors from '../../chapters/EditChaptersContributors/EditChaptersContributors';
 import EditChaptersFundings from '../../chapters/EditChaptersFundings/EditChaptersFundings';
-import { useContributionStateMachine } from '@/src/entities/contribution';
+import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
+import EditDescriptions from '../EditDescriptions/EditDescriptions';
 
 type EditChaptersModalProps = BaseEditSectionProps & {
   title: string;

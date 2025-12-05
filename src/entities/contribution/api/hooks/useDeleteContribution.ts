@@ -1,5 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { QueryKeys, useServices, type QueryToken } from '@/src/shared';
+
+import { QueryKeys, type QueryToken, useServices } from '@/src/shared';
 
 type UseDeleteContributionProps = {
   queryToken: QueryToken;

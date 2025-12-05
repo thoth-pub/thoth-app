@@ -1,17 +1,16 @@
 'use client';
 
+import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useCreateWorkChapter, useWork, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
 import { BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
+import { licenseOptions } from '@/src/shared/constants/formFields';
 import { AddButton } from '@/src/shared/ui';
-import { useTranslation } from 'react-i18next';
+
 import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
 import { InheritedDataForm } from './components/InheritedDataForm';
-import { useEffect, useState } from 'react';
-import { licenseOptions } from '@/src/shared/constants/formFields';
-import { WorkDtoMapper } from '@/src/entities/work/model/work.mapper';
-import { useContributionStateMachine } from '@/src/entities/contribution';
-
-const mapper = new WorkDtoMapper();
 
 const AddChapterModal = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;

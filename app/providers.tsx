@@ -6,9 +6,9 @@ import { I18nextProvider } from 'react-i18next';
 
 import { i18nConfig } from '@/src/shared';
 import { LocalizationProvider, NotificationProvider, StylesCacheProvider, ThemeProvider } from '@/src/shared/providers';
+import { QueryProvider } from '@/src/shared/providers/QueryProvider';
 
 import StoreProvider from './store';
-import { QueryProvider } from '@/src/shared/providers/QueryProvider';
 
 type ProvidersProps = {
   children: Readonly<React.ReactNode>;

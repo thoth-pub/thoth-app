@@ -1,8 +1,8 @@
+import { useQuery } from '@tanstack/react-query';
+
 import { Direction, SeriesField, SeriesType } from '@/gql/graphql';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { appConfig, QueryKeys, useServices } from '@/src/shared';
-
-import { useQuery } from '@tanstack/react-query';
 
 type UseSeriesProps = {
   offset?: number;

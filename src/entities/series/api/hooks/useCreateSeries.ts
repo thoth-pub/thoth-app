@@ -1,8 +1,9 @@
-import { NOTIFICATIONS, QueryKeys, useServices, type QueryToken } from '@/src/shared';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { SeriesEntity } from '../../model/series.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { SERIES_CREATION_FAILED } = NOTIFICATIONS;
 

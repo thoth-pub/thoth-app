@@ -1,8 +1,8 @@
 'use client';
 
-import { appConfig, QueryKeys, useServices } from '@/src/shared';
-
 import { useQuery } from '@tanstack/react-query';
+
+import { appConfig, QueryKeys, useServices } from '@/src/shared';
 
 type UseContributorsProps = {
   filter: string;

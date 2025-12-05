@@ -1,8 +1,9 @@
 'use client';
 
-import { useServices, type QueryToken } from '@/src/shared';
-
 import { useMutation } from '@tanstack/react-query';
+
+import { type QueryToken,useServices } from '@/src/shared';
+
 import { AffiliationEntity } from '../../model/affiliation.types';
 
 type UseCreateAffiliationProps = {

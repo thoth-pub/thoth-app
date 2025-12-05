@@ -1,11 +1,12 @@
-import { BaseService } from '@/src/shared/interfaces/services';
-import type { PublicationDto, PublicationEntity, PublicationType } from '../model/publication.types';
-import { PublicationDtoMapper } from '../model/publication.mapper';
 import { isDefaultId, QueryToken } from '@/src/shared';
-import { CREATE_PUBLICATION, DELETE_PUBLICATION, UPDATE_PUBLICATION } from '../model/publication.schema';
-import type { WorkId } from '../../work/model/work.types';
-import { PriceService } from '../../price/api/price.service';
+import { BaseService } from '@/src/shared/interfaces/services';
+
 import { LocationService } from '../../locations/api/location.service';
+import { PriceService } from '../../price/api/price.service';
+import type { WorkId } from '../../work/model/work.types';
+import { PublicationDtoMapper } from '../model/publication.mapper';
+import { CREATE_PUBLICATION, DELETE_PUBLICATION, UPDATE_PUBLICATION } from '../model/publication.schema';
+import type { PublicationDto, PublicationEntity, PublicationType } from '../model/publication.types';
 
 export class PublicationService extends BaseService<PublicationEntity, PublicationDto> {
   private readonly locationService = new LocationService();
@@ -22,6 +23,7 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
   }
 
   async createPublication(token: QueryToken, data: PublicationEntity, workId: WorkId): Promise<PublicationEntity> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { publicationId: _, publicationType, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_PUBLICATION, {

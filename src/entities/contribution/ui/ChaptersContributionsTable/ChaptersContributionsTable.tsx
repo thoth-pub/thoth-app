@@ -1,7 +1,8 @@
 import { DragEndEvent } from '@dnd-kit/core';
 import React from 'react';
-import { ContributionsTable } from '../components/Table';
+
 import type { WorkContribution } from '../../model/contribution.types';
+import { ContributionsTable } from '../components/Table';
 
 type ChaptersContributionsTableProps = {
   contributions: WorkContribution[];

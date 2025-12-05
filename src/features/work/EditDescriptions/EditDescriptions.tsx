@@ -1,5 +1,6 @@
 'use client';
 
+import { LanguagesForm } from '@/src/entities/language/model/language.types';
 import { EditSubjects } from '@/src/entities/subject';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { ANCHORS, type BaseEditSectionProps } from '@/src/shared';
@@ -7,9 +8,8 @@ import { RecommendedSection } from '@/src/shared/ui';
 
 import { EditLanguages } from './components/EditLanguages';
 import { EditMedia } from './components/EditMedia';
-import { EditPagesCount } from './components/EditPagesCount';
-import { LanguagesForm } from '@/src/entities/language/model/language.types';
 import { EditNotes } from './components/EditNotes';
+import { EditPagesCount } from './components/EditPagesCount';
 
 type EditDescriptionsProps = BaseEditSectionProps &
   Partial<{

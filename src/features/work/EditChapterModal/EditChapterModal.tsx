@@ -1,15 +1,16 @@
 'use client';
 
-import { useWorkChaptersStateMachine } from '@/src/entities/work';
-import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
-import type { BaseEditSectionProps } from '@/src/shared';
-import EditDescriptions from '../EditDescriptions/EditDescriptions';
-
-import EditFundings from '../EditFundings/EditFundings';
-import EditContributors from '../EditContributors/EditContributors';
 import { useEffect } from 'react';
+
 import { useContributionStateMachine } from '@/src/entities/contribution';
+import { useWorkChaptersStateMachine } from '@/src/entities/work';
+import type { BaseEditSectionProps } from '@/src/shared';
+
+import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
 import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
+import EditContributors from '../EditContributors/EditContributors';
+import EditDescriptions from '../EditDescriptions/EditDescriptions';
+import EditFundings from '../EditFundings/EditFundings';
 
 type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'> & {
   onDone?: () => void;

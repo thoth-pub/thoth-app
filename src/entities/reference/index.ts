@@ -1,8 +1,8 @@
 // API
 export { default as useCreateReference } from './api/hooks/useCreateReference';
 export { default as useDeleteReference } from './api/hooks/useDeleteReference';
-export { default as useUpdateReference } from './api/hooks/useUpdateReference';
 export { default as useMoveReferences } from './api/hooks/useMoveReferences';
+export { default as useUpdateReference } from './api/hooks/useUpdateReference';
 
 // Store
 export { default as useReferencesStateMachine } from './store/hooks/useReferencesStateMachine';

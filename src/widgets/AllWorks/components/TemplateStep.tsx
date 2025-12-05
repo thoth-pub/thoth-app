@@ -1,6 +1,7 @@
 'use client';
 
 import DownloadIcon from '@mui/icons-material/Download';
+
 import { Link } from '@/src/shared/ui';
 
 export const TemplateStep = () => {

@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import type { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import type {
@@ -5,13 +7,12 @@ import type {
   ContributionNamesForm,
   ContributionTypeForm,
 } from '@/src/entities/contribution/model/contribution.types';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { EditContribution } from '@/src/features/contribution';
 import type { QueryToken } from '@/src/shared';
-import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
-import { useEffect } from 'react';
 
 type EditChaptersContributionsProps = {
   showRecommendations: boolean;

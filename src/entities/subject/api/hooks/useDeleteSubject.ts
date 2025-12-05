@@ -1,11 +1,12 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import type { SubjectId } from '../../model/subject.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { SUBJECT_DELETE_FAILED } = NOTIFICATIONS;
 

@@ -4,8 +4,8 @@ import { closestCenter, DndContext, DragEndEvent, PointerSensor, useSensor, useS
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useEffect, useState } from 'react';
 
-import { useDeleteIssue, useUpdateIssue } from '@/src/entities/series';
-import type { SeriesEntity, SeriesId } from '@/src/entities/series/model/series.types';
+import { useDeleteIssue } from '@/src/entities/series';
+import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { QueryToken } from '@/src/shared/interfaces';
 
@@ -19,9 +19,8 @@ type IssuesListProps = {
 };
 
 export const IssuesList = (props: IssuesListProps) => {
-  const { workId = '', queryToken, withDelete = false, issues } = props;
+  const { queryToken, withDelete = false, issues } = props;
 
-  const { updateIssue } = useUpdateIssue({ queryToken });
   const { deleteIssue } = useDeleteIssue({ queryToken });
 
   const sensors = useSensors(useSensor(PointerSensor));
@@ -32,16 +31,16 @@ export const IssuesList = (props: IssuesListProps) => {
     setUpdatedIssues(issues);
   }, [issues]);
 
-  const updateSeriesIssues = (issues: { id: string }[], seriesId: SeriesId) => {
-    issues.forEach(({ id }, index) => {
-      updateIssue({
-        issueId: id,
-        orderNumber: index + 1,
-        seriesId,
-        workId,
-      });
-    });
-  };
+  // const updateSeriesIssues = (issues: { id: string }[], seriesId: SeriesId) => {
+  //   issues.forEach(({ id }, index) => {
+  //     updateIssue({
+  //       issueId: id,
+  //       orderNumber: index + 1,
+  //       seriesId,
+  //       workId,
+  //     });
+  //   });
+  // };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;

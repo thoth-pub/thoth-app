@@ -1,9 +1,10 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import type { FundingId } from '../../model/funding.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { FUNDING_DELETE_FAILED } = NOTIFICATIONS;
 

@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 
 import { useAffiliationsForm } from '@/src/entities/affiliation';
+import type { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import type {
   ContributionBiographyForm,
@@ -14,10 +15,9 @@ import { useLinkedPublishers, useUpdateContributor } from '@/src/entities/contri
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { useWork } from '@/src/entities/work';
-import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, removePrefix } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, removePrefix } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
-import type { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 
 type UseEditContributionProps = BaseEditSectionProps &
   Partial<{
@@ -81,6 +81,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     workId,
   });
 
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const isContributedOnlyToCurrentPublisher = useMemo(() => {
     const contributions = Array.from(new Set(contributedToPublishers));
 

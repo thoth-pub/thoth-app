@@ -2,10 +2,10 @@ import { redirect } from 'next/navigation';
 
 import { auth } from '@/auth';
 import { ImprintService } from '@/src/entities/imprint';
+import { WorkService } from '@/src/entities/work/api/work.service';
 import { convertEntityToSelectFieldOptions, isAdmin } from '@/src/shared';
 import { ROUTES } from '@/src/shared/constants';
 import { EditWorkWidget } from '@/src/widgets';
-import { WorkService } from '@/src/entities/work/api/work.service';
 
 type WorksPageParams = Promise<{
   id: string[];
@@ -25,6 +25,7 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
     redirect(ROUTES.LOGIN);
   }
 
+  // eslint-disable-next-line no-useless-catch
   try {
     const work = await workService.getWork(id);
 

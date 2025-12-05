@@ -7,17 +7,17 @@ import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { ANCHORS, isDefaultId } from '@/src/shared';
 import { BaseEditSectionProps } from '@/src/shared/types';
 import { AddButton, RecommendedSection } from '@/src/shared/ui';
+import { getDefaultFunding } from '@/src/shared/utils';
 
 import AddFunding from '../../fundings/AddFunding/AddFunding';
 import EditFunding from '../../fundings/EditFunding/EditFunding';
-import { getDefaultFunding } from '@/src/shared/utils';
 
 const EditFundings = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
 
   const { t } = useTranslation();
   const { work } = useWork(workId, queryToken);
-  const { activeFunding, close, edit } = useFundingsStateMachine();
+  const { activeFunding, edit } = useFundingsStateMachine();
   const { isFundingsRequired, isFundingsEmpty } = useWorkRecommendations({ workId });
   const { deleteFunding } = useDeleteFunding({ workId, queryToken });
 

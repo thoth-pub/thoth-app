@@ -31,10 +31,8 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const { createPublication } = useCreatePublication({
     workId,
     queryToken,
-    onCompleted: (data) => {
+    onCompleted: () => {
       if (!publication) return close();
-
-      const { id } = data;
 
       publication.prices.forEach(({ id, currencyCode, unitPrice }) => {
         createPrice({

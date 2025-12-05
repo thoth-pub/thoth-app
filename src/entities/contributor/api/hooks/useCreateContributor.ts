@@ -1,10 +1,11 @@
 'use client';
 
-import { NOTIFICATIONS, useServices, type QueryToken } from '@/src/shared';
+import { useMutation } from '@tanstack/react-query';
+
+import { NOTIFICATIONS, type QueryToken, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { ContributorEntity } from '../../model/contributor.types';
-import { useMutation } from '@tanstack/react-query';
 
 type UseCreateContributorProps = {
   queryToken: QueryToken;

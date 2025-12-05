@@ -4,9 +4,10 @@ import { closestCenter, DndContext, type DragEndEvent, PointerSensor, useSensor,
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useEffect, useState } from 'react';
 
+import { Typography } from '@/src/shared/ui';
+
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 import ListItem from './ListItem';
-import { Typography } from '@/src/shared/ui';
 
 type PreviewListProps = {
   subjects: SubjectEntity[];

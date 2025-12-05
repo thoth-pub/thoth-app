@@ -1,19 +1,20 @@
 'use client';
 
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { coverUrlValidationSchema } from '@/src/entities/work/model/work.validation';
-import useIsDragStarted from '@/src/shared/hooks/useIsDragStarted';
 import { zodResolver } from '@hookform/resolvers/zod';
+import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
-
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import type { CoverUrlForm } from '@/src/entities/work/model/work.types';
-import { Button, IconButton, Typography } from '@/src/shared/ui';
-import { appConfig } from '@/src/shared';
-import { Wrapper } from './Wrapper';
-import { PlaceholderLogo } from './PlaceholderLogo';
 import { useCopyToClipboard } from 'react-use';
+
+import type { CoverUrlForm } from '@/src/entities/work/model/work.types';
+import { coverUrlValidationSchema } from '@/src/entities/work/model/work.validation';
+import { appConfig } from '@/src/shared';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import useIsDragStarted from '@/src/shared/hooks/useIsDragStarted';
+import { Button, IconButton, Typography } from '@/src/shared/ui';
+
+import { PlaceholderLogo } from './PlaceholderLogo';
+import { Wrapper } from './Wrapper';
 
 const { COVER_URL } = FORM_FIELDS;
 

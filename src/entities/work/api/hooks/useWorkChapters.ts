@@ -1,8 +1,9 @@
 'use client';
 
+import { useQuery } from '@tanstack/react-query';
+
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { QueryKeys, useServices } from '@/src/shared';
-import { useQuery } from '@tanstack/react-query';
 
 type UseChaptersProps = {
   workId: WorkId;

@@ -1,12 +1,12 @@
 'use client';
 
 import LogoutIcon from '@mui/icons-material/Logout';
+import { useQueryClient } from '@tanstack/react-query';
+import { useEffect } from 'react';
 
 import { signOutAction } from '@/app/actions';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { IconButton } from '@/src/shared/ui';
-import { useEffect } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
 
 const SignOutButton = () => {
   const { resetLinkedPublishers, activePublisher } = usePublisherStateMachine();

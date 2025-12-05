@@ -1,10 +1,11 @@
-import { LocationDtoMapper } from '../model/location.mapper';
+import type { QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
+
+import { PublicationId } from '../../publication/model/publication.types';
+import { LocationDtoMapper } from '../model/location.mapper';
+import { CREATE_LOCATION, DELETE_LOCATION, UPDATE_LOCATION } from '../model/location.schema';
 import type { LocationEntity, LocationPlatform } from '../model/location.types';
 import type { LocationDto } from '../model/location.types';
-import type { QueryToken } from '@/src/shared';
-import { CREATE_LOCATION, UPDATE_LOCATION, DELETE_LOCATION } from '../model/location.schema';
-import { PublicationId } from '../../publication/model/publication.types';
 
 export class LocationService extends BaseService<LocationEntity, LocationDto> {
   constructor(mapper = new LocationDtoMapper()) {
@@ -12,6 +13,7 @@ export class LocationService extends BaseService<LocationEntity, LocationDto> {
   }
 
   async createLocation(token: QueryToken, data: LocationEntity, publicationId: PublicationId): Promise<LocationEntity> {
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { locationId, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_LOCATION, {

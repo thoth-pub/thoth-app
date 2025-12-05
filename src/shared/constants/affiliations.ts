@@ -1,4 +1,5 @@
 import { AffiliationEntity } from '@/src/entities/affiliation';
+
 import { appConfig } from '../config';
 
 export const getDefaultAffiliation = (data?: Partial<AffiliationEntity>): AffiliationEntity => {

@@ -1,10 +1,11 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { LanguageEntity } from '../../model/language.types';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { LANGUAGE_CREATION_FAILED } = NOTIFICATIONS;
 
