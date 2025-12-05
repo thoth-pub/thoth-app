@@ -1,55 +1,37 @@
-import { ServerError } from '@apollo/client';
-
-import type { CreatePriceMutation } from '@/gql/graphql';
 import type { PublicationId } from '@/src/entities/publication/model/publication.types';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { PriceDtoMapper } from '../../model/price.mapper';
-import { CREATE_PRICE } from '../../model/price.schema';
 import { PriceEntity } from '../../model/price.types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { PriceService } from '../price.service';
 
-type UseCreatePriceProps = BaseEditSectionProps;
-
-const mapper = new PriceDtoMapper();
+const priceService = new PriceService();
 
 const { PRICE_CREATION_FAILED } = NOTIFICATIONS;
 
-const useCreatePrice = (props: UseCreatePriceProps) => {
+const useCreatePrice = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate] = useMutationWithAuth<CreatePriceMutation>({
-    queryToken,
-    mutation: CREATE_PRICE,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, PRICE_CREATION_FAILED);
+  const queryClient = useQueryClient();
 
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(PRICE_CREATION_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: PriceEntity & { publicationId: PublicationId }) => {
+      return priceService.createPrice(queryToken, data, data.publicationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? PRICE_CREATION_FAILED);
     },
   });
 
-  const createPrice = (data: Omit<PriceEntity, 'id'> & { publicationId: PublicationId }) => {
-    const { priceId, ...dto } = mapper.toDto({ ...data, id: '' });
-
-    mutate({
-      variables: { data: { ...dto, publicationId: data.publicationId } },
-    });
-  };
-
   return {
-    createPrice,
+    createPrice: mutateAsync,
+    loading: isPending,
   };
 };
 

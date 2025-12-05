@@ -1,53 +1,37 @@
-import { ServerError } from '@apollo/client';
-
-import type { CreateLocationMutation } from '@/gql/graphql';
 import type { PublicationId } from '@/src/entities/publication/model/publication.types';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { LocationDtoMapper } from '../../model/location.mapper';
-import { CREATE_LOCATION } from '../../model/location.schema';
 import { LocationEntity } from '../../model/location.types';
+import { LocationService } from '../location.service';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { LOCATION_CREATE_FAILED } = NOTIFICATIONS;
 
-const mapper = new LocationDtoMapper();
+const locationService = new LocationService();
 
 const useCreateLocation = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate] = useMutationWithAuth<CreateLocationMutation>({
-    queryToken,
-    mutation: CREATE_LOCATION,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, LOCATION_CREATE_FAILED);
+  const queryClient = useQueryClient();
 
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(LOCATION_CREATE_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: LocationEntity & { publicationId: PublicationId }) => {
+      return locationService.createLocation(queryToken, data, data.publicationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? LOCATION_CREATE_FAILED);
     },
   });
 
-  const createLocation = (data: Omit<LocationEntity, 'id'> & { publicationId: PublicationId }) => {
-    const { locationId, ...dto } = mapper.toDto({ ...data, id: '' });
-
-    mutate({
-      variables: { data: { ...dto, publicationId: data.publicationId } },
-    });
-  };
-
   return {
-    createLocation,
+    createLocation: mutateAsync,
+    loading: isPending,
   };
 };
 

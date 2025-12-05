@@ -36,8 +36,9 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
 
       const { id } = data;
 
-      publication.prices.forEach(({ currencyCode, unitPrice }) => {
+      publication.prices.forEach(({ id, currencyCode, unitPrice }) => {
         createPrice({
+          id,
           publicationId: id,
           currencyCode,
           unitPrice,
@@ -48,8 +49,9 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
 
       if (sortedLocations.length > 0) sortedLocations[0].canonical = true;
 
-      sortedLocations.forEach(({ locationPlatform, canonical, fullTextUrl, landingPage }) => {
+      sortedLocations.forEach(({ id, locationPlatform, canonical, fullTextUrl, landingPage }) => {
         createLocation({
+          id,
           publicationId: id,
           locationPlatform,
           canonical,

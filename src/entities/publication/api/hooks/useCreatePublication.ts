@@ -1,13 +1,11 @@
-import { ServerError } from '@apollo/client';
+'use client';
 
-import type { CreatePublicationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { PublicationDtoMapper } from '../../model/publication.mapper';
-import { CREATE_PUBLICATION } from '../../model/publication.schema';
-import { PublicationDto, PublicationEntity } from '../../model/publication.types';
+import { PublicationEntity } from '../../model/publication.types';
+import { PublicationService } from '../publication.service';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 const { PUBLICATION_CREATION_FAILED } = NOTIFICATIONS;
 
@@ -15,53 +13,32 @@ type UseCreatePublicationProps = BaseEditSectionProps & {
   onCompleted?: (data: PublicationEntity) => void;
 };
 
-const mapper = new PublicationDtoMapper();
+const publicationService = new PublicationService();
 
 const useCreatePublication = (props: UseCreatePublicationProps) => {
   const { queryToken, workId = '', onCompleted } = props;
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreatePublicationMutation>({
-    queryToken,
-    mutation: CREATE_PUBLICATION,
-    options: {
-      onCompleted: (data: CreatePublicationMutation) => {
-        const publication = mapper.toEntity(data.createPublication as PublicationDto);
+  const queryClient = useQueryClient();
 
-        onCompleted?.(publication);
-      },
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, PUBLICATION_CREATION_FAILED);
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: PublicationEntity) => {
+      return publicationService.createPublication(queryToken, data, workId);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
 
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(PUBLICATION_CREATION_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+      onCompleted?.(data);
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? PUBLICATION_CREATION_FAILED);
     },
   });
 
-  const createPublication = (data: Omit<PublicationEntity, 'id'>) => {
-    const { publicationId, ...dto } = mapper.toDto({ ...data, id: '' });
-
-    mutate({
-      variables: {
-        data: {
-          ...dto,
-          workId,
-        },
-      },
-    });
-  };
-
   return {
-    createPublication,
-    loading,
+    createPublication: mutateAsync,
+    loading: isPending,
   };
 };
 

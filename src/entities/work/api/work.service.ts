@@ -16,22 +16,26 @@ import { FundingService } from '../../funding/api/funding.service';
 import { SubjectService } from '../../subject/api/subject.service';
 import { ContributionService } from '../../contribution/api/contribution.service';
 import { PublisherId } from '../../publisher/model/publisher.types';
+import { PublicationService } from '../../publication/api/publication.service';
 
 export class WorkService extends BaseService<WorkEntity, WorkDto> {
   private readonly fundingService: FundingService;
   private readonly subjectService: SubjectService;
   private readonly contributionService: ContributionService;
+  private readonly publicationService: PublicationService;
 
   constructor(
     mapper = new WorkDtoMapper(),
     fundingService = new FundingService(),
     subjectService = new SubjectService(),
     contributionService = new ContributionService(),
+    publicationService = new PublicationService(),
   ) {
     super(mapper);
     this.fundingService = fundingService;
     this.subjectService = subjectService;
     this.contributionService = contributionService;
+    this.publicationService = publicationService;
   }
 
   async createWork(token: string, data: WorkEntity): Promise<WorkEntity> {
@@ -40,6 +44,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     const shouldCreateSubjects = data.subjects.length > 0;
     const shouldCreateContributions = data.contributions.length > 0;
     const shouldCreateFundings = data.fundings.length > 0;
+    const shouldCreatePublications = data.publications.length > 0;
 
     const response = await this.graphqlService.mutation(token, CREATE_WORK, {
       data: dto,
@@ -75,6 +80,16 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
       const createdContributions = await Promise.all(contributionsPromises);
 
       work.contributions = createdContributions;
+    }
+
+    if (shouldCreatePublications) {
+      const publicationsPromises = data.publications.map((publication) =>
+        this.publicationService.createPublication(token, publication, work.id),
+      );
+
+      const createdPublications = await Promise.all(publicationsPromises);
+
+      work.publications = createdPublications;
     }
 
     return work;

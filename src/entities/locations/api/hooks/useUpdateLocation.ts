@@ -1,51 +1,37 @@
-import { ServerError } from '@apollo/client';
-
-import { UpdateLocationMutation } from '@/gql/graphql';
 import { PublicationId } from '@/src/entities/publication/model/publication.types';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { LocationDtoMapper } from '../../model/location.mapper';
-import { UPDATE_LOCATION } from '../../model/location.schema';
 import { LocationEntity } from '../../model/location.types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { LocationService } from '../location.service';
 
 const { LOCATION_UPDATE_FAILED } = NOTIFICATIONS;
 
-const mapper = new LocationDtoMapper();
+const locationService = new LocationService();
 
 const useUpdateLocation = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate] = useMutationWithAuth<UpdateLocationMutation>({
-    queryToken,
-    mutation: UPDATE_LOCATION,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, LOCATION_UPDATE_FAILED);
+  const queryClient = useQueryClient();
 
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(LOCATION_UPDATE_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: LocationEntity & { publicationId: PublicationId }) => {
+      return locationService.updateLocation(queryToken, data, data.publicationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? LOCATION_UPDATE_FAILED);
     },
   });
 
-  const updateLocation = (data: LocationEntity & { publicationId: PublicationId }) => {
-    const dto = mapper.toDto(data);
-
-    mutate({ variables: { data: { ...dto, publicationId: data.publicationId } } });
-  };
-
   return {
-    updateLocation,
+    updateLocation: mutateAsync,
+    loading: isPending,
   };
 };
 

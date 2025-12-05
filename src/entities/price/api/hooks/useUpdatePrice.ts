@@ -1,55 +1,37 @@
-import { ServerError } from '@apollo/client';
-
-import type { UpdatePriceMutation } from '@/gql/graphql';
 import type { PublicationId } from '@/src/entities/publication/model/publication.types';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { PriceDtoMapper } from '../../model/price.mapper';
-import { UPDATE_PRICE } from '../../model/price.schema';
 import { PriceEntity } from '../../model/price.types';
+import { PriceService } from '../price.service';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-type UseUpdatePriceProps = BaseEditSectionProps;
-
-const mapper = new PriceDtoMapper();
+const priceService = new PriceService();
 
 const { PRICE_UPDATE_FAILED } = NOTIFICATIONS;
 
-const useUpdatePrice = (props: UseUpdatePriceProps) => {
+const useUpdatePrice = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
 
-  const [mutate] = useMutationWithAuth<UpdatePriceMutation>({
-    queryToken,
-    mutation: UPDATE_PRICE,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, PRICE_UPDATE_FAILED);
+  const queryClient = useQueryClient();
 
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(PRICE_UPDATE_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: PriceEntity & { publicationId: PublicationId }) => {
+      return priceService.updatePrice(queryToken, data, data.publicationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? PRICE_UPDATE_FAILED);
     },
   });
 
-  const updatePrice = (data: PriceEntity & { publicationId: PublicationId }) => {
-    const dto = mapper.toDto(data);
-
-    mutate({
-      variables: { data: { ...dto, publicationId: data.publicationId } },
-    });
-  };
-
   return {
-    updatePrice,
+    updatePrice: mutateAsync,
+    loading: isPending,
   };
 };
 

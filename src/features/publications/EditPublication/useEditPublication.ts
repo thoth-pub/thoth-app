@@ -84,6 +84,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       }
 
       createPrice({
+        id,
         publicationId: publication.id,
         currencyCode,
         unitPrice,
@@ -132,8 +133,9 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       return isUpdated;
     });
 
-    newLocations.forEach(({ locationPlatform, canonical, fullTextUrl, landingPage }) => {
+    newLocations.forEach(({ id, locationPlatform, canonical, fullTextUrl, landingPage }) => {
       createLocation({
+        id,
         publicationId: publication.id,
         locationPlatform,
         canonical,
