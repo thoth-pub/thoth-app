@@ -1,12 +1,10 @@
 'use client';
 
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
 import type { Control } from 'react-hook-form';
 
 import { type BaseRecommendedSectionProps, convertOptionToString, IDs, SubjectTypes } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { AddButton, IconButton, Preview } from '@/src/shared/ui';
+import { AddButton, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import type { SubjectsFormType, SubjectType } from '../../model/subject.types';
@@ -146,8 +144,8 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
           {placeholder && (
             <div className="flex w-full flex-col gap-[var(--default-gap)]">
               <ul className="flex w-full flex-col gap-0">
-                {data.map(({ subjects }) => (
-                  <PreviewList subjects={subjects} onDelete={deleteSubject} />
+                {data.map(({ subjects }, index) => (
+                  <PreviewList key={index} subjects={subjects} onDelete={deleteSubject} />
                 ))}
                 <AddButton onAdd={handleModalState} className="capitalize">
                   add new subject

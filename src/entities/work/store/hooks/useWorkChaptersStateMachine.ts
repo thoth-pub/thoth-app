@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useUnmount } from 'react-use';
 
 import { WorkChaptersStateMachineContext } from '../work.provider';
 import { WorkEntity } from '../../model/work.types';
@@ -30,6 +31,10 @@ const useWorkChaptersStateMachine = () => {
     },
     [actorRef],
   );
+
+  useUnmount(() => {
+    close();
+  });
 
   return {
     activeWorkChapters,

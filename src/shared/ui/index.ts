@@ -49,6 +49,9 @@ export { default as Step } from './core/Stepper/components/Step';
 export { default as StepLabel } from './core/Stepper/components/StepLabel';
 export { default as StepContent } from './core/Stepper/components/StepContent';
 export { default as DoiPreview } from './core/DoiPreview/DoiPreview';
+export { default as DragAndDropWrapper } from './core/DragAndDropWrapper/DragAndDropWrapper';
+export { default as TableWrapper } from './core/TableWrapper/TableWrapper';
+export { default as DraggableComponent } from './core/DraggableComponent/DraggableComponent';
 
 // Forms
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';

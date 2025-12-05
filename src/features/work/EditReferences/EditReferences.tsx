@@ -2,7 +2,12 @@
 
 import { useTranslation } from 'react-i18next';
 
-import { ReferencesTable, useDeleteReference, useReferencesStateMachine } from '@/src/entities/reference';
+import {
+  ReferencesTable,
+  useDeleteReference,
+  useMoveReferences,
+  useReferencesStateMachine,
+} from '@/src/entities/reference';
 import type { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import { useWork } from '@/src/entities/work';
 import { isDefaultId } from '@/src/shared';
@@ -33,6 +38,7 @@ const EditReferences = (props: BaseEditSectionProps) => {
   const { work } = useWork(workId, queryToken);
   const { activeReference, edit } = useReferencesStateMachine();
   const { deleteReference } = useDeleteReference({ workId, queryToken });
+  const { moveReferences } = useMoveReferences({ workId, queryToken });
 
   const isNewReference = activeReference ? isDefaultId(activeReference.id) : false;
 
@@ -48,6 +54,14 @@ const EditReferences = (props: BaseEditSectionProps) => {
     edit({ ...defaultReference });
   };
 
+  const dragEnd = async (data: ReferenceEntity[]) => {
+    const updatedData = data.map((reference, index) => ({ ...reference, orderNumber: index + 1 }));
+
+    const referencesToUpdate = updatedData.filter((reference, index) => work.references[index].id !== reference.id);
+
+    await moveReferences(referencesToUpdate);
+  };
+
   return (
     <ContentSection title="References">
       <>
@@ -57,6 +71,7 @@ const EditReferences = (props: BaseEditSectionProps) => {
           form={<EditReference workId={workId} queryToken={queryToken} />}
           onDelete={(id) => deleteReference(id)}
           onEdit={(id) => editReference(id)}
+          onDragEnd={dragEnd}
         />
         {isNewReference && <AddReference workId={workId} queryToken={queryToken} />}
         <AddButton className="px-7 capitalize" onAdd={addReference} disabled={isNewReference}>

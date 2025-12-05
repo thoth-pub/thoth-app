@@ -2739,6 +2739,18 @@ export type MutationRoot = {
   deleteWork: Work;
   /** Delete a single work relation using its ID */
   deleteWorkRelation: WorkRelation;
+  /** Change the ordering of an affiliation within a contribution */
+  moveAffiliation: Affiliation;
+  /** Change the ordering of a contribution within a work */
+  moveContribution: Contribution;
+  /** Change the ordering of an issue within a series */
+  moveIssue: Issue;
+  /** Change the ordering of a reference within a work */
+  moveReference: Reference;
+  /** Change the ordering of a subject within a work */
+  moveSubject: Subject;
+  /** Change the ordering of a work relation within a work */
+  moveWorkRelation: WorkRelation;
   /** Update an existing affiliation with the specified values */
   updateAffiliation: Affiliation;
   /** Update an existing contribution with the specified values */
@@ -2942,6 +2954,42 @@ export type MutationRootDeleteWorkArgs = {
 
 
 export type MutationRootDeleteWorkRelationArgs = {
+  workRelationId: Scalars['Uuid']['input'];
+};
+
+
+export type MutationRootMoveAffiliationArgs = {
+  affiliationId: Scalars['Uuid']['input'];
+  newOrdinal: Scalars['Int']['input'];
+};
+
+
+export type MutationRootMoveContributionArgs = {
+  contributionId: Scalars['Uuid']['input'];
+  newOrdinal: Scalars['Int']['input'];
+};
+
+
+export type MutationRootMoveIssueArgs = {
+  issueId: Scalars['Uuid']['input'];
+  newOrdinal: Scalars['Int']['input'];
+};
+
+
+export type MutationRootMoveReferenceArgs = {
+  newOrdinal: Scalars['Int']['input'];
+  referenceId: Scalars['Uuid']['input'];
+};
+
+
+export type MutationRootMoveSubjectArgs = {
+  newOrdinal: Scalars['Int']['input'];
+  subjectId: Scalars['Uuid']['input'];
+};
+
+
+export type MutationRootMoveWorkRelationArgs = {
+  newOrdinal: Scalars['Int']['input'];
   workRelationId: Scalars['Uuid']['input'];
 };
 
@@ -4319,7 +4367,7 @@ export type Subject = {
   subjectCode: Scalars['String']['output'];
   /** Thoth ID of the subject */
   subjectId: Scalars['Uuid']['output'];
-  /** Number representing this subject's position in an ordered list of subjects of the same type within the work (subjects of equal prominence can have the same number) */
+  /** Number representing this subject's position in an ordered list of subjects of the same type within the work */
   subjectOrdinal: Scalars['Int']['output'];
   /** Type of the subject (e.g. the subject category scheme being used) */
   subjectType: SubjectType;
@@ -4970,6 +5018,17 @@ export type DeleteReferenceMutation = { __typename?: 'MutationRoot', deleteRefer
     & { ' $fragmentRefs'?: { 'ReferenceFragmentFragment': ReferenceFragmentFragment } }
   ) };
 
+export type MoveReferenceMutationVariables = Exact<{
+  referenceId: Scalars['Uuid']['input'];
+  newOrdinal: Scalars['Int']['input'];
+}>;
+
+
+export type MoveReferenceMutation = { __typename?: 'MutationRoot', moveReference: (
+    { __typename?: 'Reference' }
+    & { ' $fragmentRefs'?: { 'ReferenceFragmentFragment': ReferenceFragmentFragment } }
+  ) };
+
 export type GetSeriesesQueryVariables = Exact<{
   publishers: Array<Scalars['Uuid']['input']> | Scalars['Uuid']['input'];
   filter?: InputMaybe<Scalars['String']['input']>;
@@ -5246,6 +5305,7 @@ export const GetPublishersDocument = {"kind":"Document","definitions":[{"kind":"
 export const CreateReferenceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateReference"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewReference"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createReference"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ReferenceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<CreateReferenceMutation, CreateReferenceMutationVariables>;
 export const UpdateReferenceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateReference"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchReference"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateReference"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ReferenceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<UpdateReferenceMutation, UpdateReferenceMutationVariables>;
 export const DeleteReferenceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteReference"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"referenceId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteReference"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"referenceId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"referenceId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ReferenceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<DeleteReferenceMutation, DeleteReferenceMutationVariables>;
+export const MoveReferenceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MoveReference"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"referenceId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"newOrdinal"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"moveReference"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"referenceId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"referenceId"}}},{"kind":"Argument","name":{"kind":"Name","value":"newOrdinal"},"value":{"kind":"Variable","name":{"kind":"Name","value":"newOrdinal"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ReferenceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<MoveReferenceMutation, MoveReferenceMutationVariables>;
 export const GetSeriesesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetSerieses"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"direction"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Direction"}},"defaultValue":{"kind":"EnumValue","value":"ASC"}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"field"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"SeriesField"}},"defaultValue":{"kind":"EnumValue","value":"UPDATED_AT"}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"seriesTypes"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"SeriesType"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"serieses"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"Variable","name":{"kind":"Name","value":"direction"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"Variable","name":{"kind":"Name","value":"field"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"seriesTypes"},"value":{"kind":"Variable","name":{"kind":"Name","value":"seriesTypes"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}},{"kind":"Field","name":{"kind":"Name","value":"seriesType"}},{"kind":"Field","name":{"kind":"Name","value":"issnPrint"}},{"kind":"Field","name":{"kind":"Name","value":"issnDigital"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"imprintName"}}]}},{"kind":"Field","name":{"kind":"Name","value":"seriesUrl"}},{"kind":"Field","name":{"kind":"Name","value":"seriesDescription"}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}}]}}]}}]}}]}}]} as unknown as DocumentNode<GetSeriesesQuery, GetSeriesesQueryVariables>;
 export const GetSeriesCountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetSeriesCount"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesCount"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}}]}]}}]} as unknown as DocumentNode<GetSeriesCountQuery, GetSeriesCountQueryVariables>;
 export const GetSeriesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetSeries"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"seriesId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"series"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"seriesId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"seriesId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}},{"kind":"Field","name":{"kind":"Name","value":"seriesType"}},{"kind":"Field","name":{"kind":"Name","value":"issnPrint"}},{"kind":"Field","name":{"kind":"Name","value":"issnDigital"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"imprintName"}}]}},{"kind":"Field","name":{"kind":"Name","value":"seriesUrl"}},{"kind":"Field","name":{"kind":"Name","value":"seriesDescription"}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}}]}}]}}]}}]}}]} as unknown as DocumentNode<GetSeriesQuery, GetSeriesQueryVariables>;

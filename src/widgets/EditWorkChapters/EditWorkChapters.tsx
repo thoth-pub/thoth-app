@@ -61,6 +61,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
 
   const sensors = useSensors(useSensor(PointerSensor));
 
+  const isMultipleChapters = items.length > 2;
   const isMultipleChaptersSelected = selectedChapters.length > 1;
 
   const selectedChaptersTitle = `${selectedChapters.length} of ${items.length}`;
@@ -197,12 +198,14 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                     >
                       Page Range
                     </Typography>
-                    <Checkbox
-                      size="small"
-                      className="mr-2"
-                      checked={selectedChapters.length > 0 && selectedChapters.length === items.length}
-                      onChange={handleSelectAllChapters}
-                    />
+                    {isMultipleChapters && (
+                      <Checkbox
+                        size="small"
+                        className="mr-2"
+                        checked={selectedChapters.length > 0 && selectedChapters.length === items.length}
+                        onChange={handleSelectAllChapters}
+                      />
+                    )}
                   </div>,
                 ]}
                 cellStyles={['min-w-[210px]', 'min-w-[120px]']}

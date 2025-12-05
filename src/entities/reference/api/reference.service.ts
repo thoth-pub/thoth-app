@@ -1,9 +1,9 @@
 import { ReferenceDtoMapper } from '../model/reference.mapper';
 import { BaseService } from '@/src/shared/interfaces/services';
-import type { ReferenceEntity } from '../model/reference.types';
+import type { ReferenceEntity, ReferenceId } from '../model/reference.types';
 import type { ReferenceDto } from '../model/reference.types';
 import type { QueryToken } from '@/src/shared';
-import { CREATE_REFERENCE, DELETE_REFERENCE, UPDATE_REFERENCE } from '../model/reference.schema';
+import { CREATE_REFERENCE, DELETE_REFERENCE, MOVE_REFERENCE, UPDATE_REFERENCE } from '../model/reference.schema';
 import type { WorkId } from '../../work/model/work.types';
 
 export class ReferenceService extends BaseService<ReferenceEntity, ReferenceDto> {
@@ -39,5 +39,16 @@ export class ReferenceService extends BaseService<ReferenceEntity, ReferenceDto>
     return await this.graphqlService.mutation(token, DELETE_REFERENCE, {
       referenceId,
     });
+  }
+
+  async moveReference(token: QueryToken, referenceId: ReferenceId, newOrdinal: number): Promise<ReferenceEntity> {
+    const response = await this.graphqlService.mutation(token, MOVE_REFERENCE, {
+      referenceId,
+      newOrdinal,
+    });
+
+    const reference = this.dtoMapper.toEntity(response.moveReference as ReferenceDto);
+
+    return reference;
   }
 }

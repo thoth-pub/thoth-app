@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
+import { useCallback } from 'react';
 
 import { PublisherId } from '@/src/entities/publisher';
 
@@ -36,6 +36,7 @@ const usePublisherStateMachine = () => {
     },
     [actorRef],
   );
+
   return {
     linkedPublishers,
     activePublisher,

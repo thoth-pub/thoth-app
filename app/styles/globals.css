@@ -193,6 +193,18 @@
 @theme inline {
 }
 
+@layer components {
+  .firstCell {
+    @apply rounded-tl-2xl rounded-bl-2xl border border-r-0 border-transparent pl-7 capitalize group-hover:border-t-(--color-form-border) group-hover:border-b-(--color-form-border) group-hover:border-l-(--color-form-border);
+  }
+  .lastCell {
+    @apply rounded-tr-2xl rounded-br-2xl border border-l-0 border-transparent group-hover:border-t-(--color-form-border) group-hover:border-r-(--color-form-border) group-hover:border-b-(--color-form-border);
+  }
+  .middleCell {
+    @apply border-t border-b border-transparent group-hover:border-t-(--color-form-border) group-hover:border-b-(--color-form-border);
+  }
+}
+
 @layer utilities {
   .scrollbar-hidden::-webkit-scrollbar {
     display: none;

@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useUnmount } from 'react-use';
 
 import { ContributionStateMachineContext } from '../contribution.provider';
 
@@ -27,6 +28,10 @@ const useContributionStateMachine = () => {
   const close = useCallback(() => {
     actorRef.send({ type: 'close' });
   }, [actorRef]);
+
+  useUnmount(() => {
+    close();
+  });
 
   return { activeContribution, edit, update, close };
 };

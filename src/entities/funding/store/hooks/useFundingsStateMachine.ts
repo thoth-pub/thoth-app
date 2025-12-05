@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useUnmount } from 'react-use';
 
 import { FundingEntity } from '../../model/funding.types';
 import { FundingStateMachineContext } from '../funding.provider';
@@ -26,6 +27,10 @@ const useFundingsStateMachine = () => {
   const close = useCallback(() => {
     actorRef.send({ type: 'close' });
   }, [actorRef]);
+
+  useUnmount(() => {
+    close();
+  });
 
   return { activeFunding, edit, update, close };
 };
