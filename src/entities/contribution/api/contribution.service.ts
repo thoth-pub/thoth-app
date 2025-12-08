@@ -3,7 +3,12 @@ import { appConfig } from '@/src/shared/config';
 
 import { AffiliationService } from '../../affiliation/api/affiliation.service';
 import { ContributorService } from '../../contributor';
-import { CREATE_CONTRIBUTION, DELETE_CONTRIBUTION, UPDATE_CONTRIBUTION } from '../../work/model/work.mutations';
+import {
+  CREATE_CONTRIBUTION,
+  DELETE_CONTRIBUTION,
+  MOVE_CONTRIBUTION,
+  UPDATE_CONTRIBUTION,
+} from '../model/contribution.mutations';
 import { WorkContribution } from '../model/contribution.types';
 
 // TODO: create a mapper for the contribution
@@ -121,5 +126,9 @@ export class ContributionService {
 
   async deleteContribution(token: QueryToken, contributionId: string): Promise<void> {
     await this.graphqlService.mutation(token, DELETE_CONTRIBUTION, { contributionId });
+  }
+
+  async moveContribution(token: QueryToken, contributionId: string, newOrdinal: number): Promise<void> {
+    await this.graphqlService.mutation(token, MOVE_CONTRIBUTION, { contributionId, newOrdinal });
   }
 }

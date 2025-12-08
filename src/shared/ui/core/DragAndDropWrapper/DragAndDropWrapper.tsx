@@ -10,15 +10,24 @@ import {
   useSensors,
 } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { useState } from 'react';
 
 type DragAndDropWrapperProps<T extends { id: UniqueIdentifier }> = {
   items: T[];
+  onDragStart?: () => void;
   onDragEnd?: (data: T[]) => void;
-  children: Readonly<React.ReactNode>;
+  children: (isDragStarted?: boolean) => Readonly<React.ReactNode>;
 };
 
 const DragAndDropWrapper = <T extends { id: UniqueIdentifier }>(props: DragAndDropWrapperProps<T>) => {
-  const { items, onDragEnd, children } = props;
+  const { items, children, onDragStart, onDragEnd } = props;
+
+  const [isDragStarted, setIsDragStarted] = useState(false);
+
+  const handleDragStart = () => {
+    setIsDragStarted(true);
+    onDragStart?.();
+  };
 
   const handleDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
@@ -28,16 +37,22 @@ const DragAndDropWrapper = <T extends { id: UniqueIdentifier }>(props: DragAndDr
     const oldIndex = items.findIndex((item) => item.id === active.id);
     const newIndex = items.findIndex((item) => item.id === over.id);
     const newItems = arrayMove(items, oldIndex, newIndex);
-  
+
     onDragEnd?.(newItems);
+    setIsDragStarted(false);
   };
 
   const sensors = useSensors(useSensor(PointerSensor));
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+    <DndContext
+      sensors={sensors}
+      collisionDetection={closestCenter}
+      onDragStart={handleDragStart}
+      onDragEnd={handleDragEnd}
+    >
       <SortableContext items={items} strategy={verticalListSortingStrategy}>
-        {children}
+        {children(isDragStarted)}
       </SortableContext>
     </DndContext>
   );

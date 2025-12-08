@@ -1,7 +1,5 @@
 'use client';
 
-import { closestCenter, DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import DeselectIcon from '@mui/icons-material/Deselect';
 import { useEffect, useState } from 'react';
 
@@ -10,18 +8,21 @@ import {
   useDeleteChapter,
   useWorkChapters,
   useWorkChaptersStateMachine,
+  useWorkMoveRelation,
 } from '@/src/entities/work';
+import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { EditChapterModal, EditChaptersModal } from '@/src/features';
 import AddChapterModal from '@/src/features/work/AddChapterModal/AddChapterModal';
 import { appConfig, BaseEditSectionProps } from '@/src/shared';
 import {
   Checkbox,
   DeleteButton,
+  DragAndDropWrapper,
   EditButton,
   IconButton,
-  Table,
   TableBody,
   TableHeader,
+  TableWrapper,
   Typography,
 } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
@@ -34,6 +35,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   const { workId, queryToken } = props;
 
   const { chapters } = useWorkChapters({ workId });
+  const { moveWorkRelation } = useWorkMoveRelation({ queryToken, workId });
   const { createChapter } = useCreateWorkChapter({
     queryToken,
     onCompleted: (chapter) => {
@@ -42,9 +44,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   });
   const { edit } = useWorkChaptersStateMachine();
 
-  const [items, setItems] = useState(chapters);
   const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
-  const [isDragStarted, setIsDragStarted] = useState(false);
 
   const { deleteChapter, deleteChapters } = useDeleteChapter({
     queryToken,
@@ -52,42 +52,24 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   });
 
   useEffect(() => {
-    if (chapters.length === 0) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setSelectedChapters([]);
-      return;
-    }
-
-    setItems(chapters);
+    if (chapters.length > 0) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedChapters([]);
   }, [chapters]);
 
-  const sensors = useSensors(useSensor(PointerSensor));
-
-  const isMultipleChapters = items.length > 2;
+  const isMultipleChapters = chapters.length >= 2;
   const isMultipleChaptersSelected = selectedChapters.length > 1;
 
-  const selectedChaptersTitle = `${selectedChapters.length} of ${items.length}`;
+  const selectedChaptersTitle = `${selectedChapters.length} of ${chapters.length}`;
 
-  const dragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+  const dragEnd = (data: WorkEntity[]) => {
+    const reorderedChapters = data.map((chapter, index) => ({ ...chapter, ordinal: index + 1 }));
 
-    if (over && active.id !== over.id) {
-      setItems((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
+    const firstChangedChapter = reorderedChapters.find((chapter, index) => chapter.id !== chapters[index].id);
 
-        const newItems = arrayMove(items, oldIndex, newIndex);
+    if (!firstChangedChapter || !firstChangedChapter.relationId) return;
 
-        // onReorderEnd?.(newItems);
-
-        return newItems;
-      });
-      setIsDragStarted(false);
-    }
-  };
-
-  const dragStart = () => {
-    setIsDragStarted(true);
+    moveWorkRelation({ workRelationId: firstChangedChapter.relationId, newOrdinal: firstChangedChapter.ordinal });
   };
 
   const handleSelectChapter = (id: string) => {
@@ -99,16 +81,16 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   };
 
   const handleSelectAllChapters = () => {
-    if (selectedChapters.length === items.length) {
+    if (selectedChapters.length === chapters.length) {
       setSelectedChapters([]);
       return;
     }
 
-    setSelectedChapters(items.map((chapter) => chapter.id));
+    setSelectedChapters(chapters.map((chapter) => chapter.id));
   };
 
   const handleEditChapter = (id: string) => {
-    const chapter = items.find((chapter) => chapter.id === id);
+    const chapter = chapters.find((chapter) => chapter.id === id);
 
     if (!chapter) return;
 
@@ -116,7 +98,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   };
 
   const handleEditChapters = () => {
-    edit(items.filter((chapter) => selectedChapters.includes(chapter.id)));
+    edit(chapters.filter((chapter) => selectedChapters.includes(chapter.id)));
   };
 
   const handleClearSelection = () => {
@@ -125,7 +107,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   };
 
   const handleCopyChapter = (id: string) => {
-    const chapter = items.find((chapter) => chapter.id === id);
+    const chapter = chapters.find((chapter) => chapter.id === id);
 
     if (!chapter) return;
 
@@ -135,14 +117,11 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   };
 
   const handleDeleteChapter = async (id: string) => {
-    setItems((items) => items.filter((chapter) => chapter.id !== id));
     await deleteChapter(id);
   };
 
   const handleBulkDelete = async () => {
     const selected = [...selectedChapters];
-
-    setItems((items) => items.filter((chapter) => !selected.includes(chapter.id)));
 
     await deleteChapters(selected);
   };
@@ -177,60 +156,58 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
         </div>
       }
     >
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={dragStart} onDragEnd={dragEnd}>
-        <SortableContext items={items} strategy={verticalListSortingStrategy}>
-          <div className={isDragStarted ? 'overflow-hidden' : 'overflow-auto'}>
-            <Table className="border-separate">
-              <TableHeader
-                cells={[
-                  'Title',
-                  'Contributors',
-                  <div key="page-range" className="flex items-center justify-between">
-                    <Typography
-                      variant="h2"
-                      component="span"
-                      className="max-w-[300px]"
-                      sx={{
-                        fontFamily: 'unset',
-                        fontWeight: 'unset',
-                        textTransform: 'unset',
-                        fontSize: '1rem',
-                        '@media (min-width: 1280px)': { fontSize: '1.375rem' },
-                      }}
-                    >
-                      Page Range
-                    </Typography>
-                    {isMultipleChapters && (
-                      <Checkbox
-                        size="small"
-                        className="mr-2"
-                        checked={selectedChapters.length > 0 && selectedChapters.length === items.length}
-                        onChange={handleSelectAllChapters}
-                      />
-                    )}
-                  </div>,
-                ]}
-                cellStyles={['min-w-[210px]', 'min-w-[120px]']}
-              />
-              <TableBody>
-                {items.map((chapter) => (
-                  <ChapterTableRow
-                    key={chapter.id}
-                    chapter={chapter}
-                    selected={selectedChapters.includes(chapter.id)}
-                    onEdit={handleEditChapter}
-                    onCopy={handleCopyChapter}
-                    onSelect={handleSelectChapter}
-                    onDeselect={handleDeselectChapter}
-                    onDelete={handleDeleteChapter}
-                    isButtonsDisabled={isMultipleChaptersSelected}
-                  />
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </SortableContext>
-      </DndContext>
+      <DragAndDropWrapper items={chapters} onDragEnd={dragEnd}>
+        {(isDragStarted) => (
+          <TableWrapper isOverflowHidden={isDragStarted}>
+            <TableHeader
+              cells={[
+                'Title',
+                'Contributors',
+                <div key="page-range" className="flex items-center justify-between">
+                  <Typography
+                    variant="h2"
+                    component="span"
+                    className="max-w-[300px]"
+                    sx={{
+                      fontFamily: 'unset',
+                      fontWeight: 'unset',
+                      textTransform: 'unset',
+                      fontSize: '1rem',
+                      '@media (min-width: 1280px)': { fontSize: '1.375rem' },
+                    }}
+                  >
+                    Page Range
+                  </Typography>
+                  {isMultipleChapters && (
+                    <Checkbox
+                      size="small"
+                      className="mr-2"
+                      checked={selectedChapters.length > 0 && selectedChapters.length === chapters.length}
+                      onChange={handleSelectAllChapters}
+                    />
+                  )}
+                </div>,
+              ]}
+              cellStyles={['min-w-[210px]', 'min-w-[120px]']}
+            />
+            <TableBody>
+              {chapters.map((chapter) => (
+                <ChapterTableRow
+                  key={chapter.id}
+                  chapter={chapter}
+                  selected={selectedChapters.includes(chapter.id)}
+                  onEdit={handleEditChapter}
+                  onCopy={handleCopyChapter}
+                  onSelect={handleSelectChapter}
+                  onDeselect={handleDeselectChapter}
+                  onDelete={handleDeleteChapter}
+                  isButtonsDisabled={isMultipleChaptersSelected}
+                />
+              ))}
+            </TableBody>
+          </TableWrapper>
+        )}
+      </DragAndDropWrapper>
       <EditChapterModal queryToken={queryToken} />
       <EditChaptersModal
         workId={workId}

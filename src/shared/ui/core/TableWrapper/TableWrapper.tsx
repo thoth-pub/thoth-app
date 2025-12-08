@@ -1,8 +1,13 @@
 import Table from '../Table/Table';
 
-const TableWrapper = ({ children }: { children: React.ReactNode }) => {
+type TableWrapperProps = {
+  children: React.ReactNode;
+  isOverflowHidden?: boolean;
+};
+
+const TableWrapper = ({ children, isOverflowHidden = false }: TableWrapperProps) => {
   return (
-    <div className="overflow-auto">
+    <div className={isOverflowHidden ? 'overflow-hidden' : 'overflow-auto'}>
       <Table className="border-separate">{children}</Table>
     </div>
   );

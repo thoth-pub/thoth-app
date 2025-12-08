@@ -4,7 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAffiliationsForm';
-import { ChaptersContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
+import {
+  ChaptersContributionsTable,
+  useContributionStateMachine,
+  useMoveContribution,
+} from '@/src/entities/contribution';
 import useContributionsBulkDelete from '@/src/entities/contribution/api/hooks/useContributionsBulkDelete';
 import useContributionsBulkUpdate from '@/src/entities/contribution/api/hooks/useContributionsBulkUpdate';
 import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
@@ -33,12 +37,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
   const { deleteContributions } = useContributionsBulkDelete(queryToken);
   const { updateContributions } = useContributionsBulkUpdate(queryToken);
-
-  useEffect(() => {
-    return () => {
-      close();
-    };
-  }, [close]);
+  const { moveContribution } = useMoveContribution({ queryToken, workId: '' });
 
   const contributorsIds = chapters.flatMap((chapter) =>
     chapter.contributions.map((contribution) => contribution.contributorId),
@@ -252,6 +251,38 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     deleteBulkAffiliations(ids);
   };
 
+  const handleDragEnd = async (data: WorkContribution[]) => {
+    const reorderedContributions = data.map((contribution, index) => ({
+      ...contribution,
+      orderNumber: index + 1,
+    }));
+
+    const firstChangedContribution = reorderedContributions.find(
+      (contribution, index) => contribution.id !== uniqueContributors[index].id,
+    );
+
+    if (!firstChangedContribution) return;
+
+    const dateForUpdate = chapters
+      .map((chapter) => {
+        return chapter.contributions.find(
+          (contribution) =>
+            contribution.type === firstChangedContribution.type &&
+            contribution.contributorId === firstChangedContribution.contributorId,
+        );
+      })
+      .filter((contribution) => !!contribution);
+
+    const promises = dateForUpdate.map((contribution) => {
+      return moveContribution({
+        contributionId: contribution.id,
+        newOrdinal: firstChangedContribution.orderNumber,
+      });
+    });
+
+    await Promise.all(promises);
+  };
+
   return (
     <RecommendedSection title="Contributors" isEmpty={isEmpty} isValid={isValid}>
       {({ showRecommendations }) => (
@@ -264,7 +295,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
                 onEdit={handleEdit}
                 onDelete={handleBulkDelete}
                 onSelectAsMain={handleMainBulkUpdate}
-                onDragEnd={(id) => console.log('drag ended', id)}
+                onDragEnd={handleDragEnd}
                 form={
                   <EditChaptersContributions
                     showRecommendations={showRecommendations}

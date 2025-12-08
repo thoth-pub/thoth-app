@@ -1,7 +1,5 @@
 'use client';
 
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
@@ -11,6 +9,7 @@ import {
   ButtonGroup,
   Checkbox,
   DeleteButton,
+  DraggableComponent,
   EditButton,
   IconButton,
   TableCell,
@@ -34,13 +33,6 @@ export const ChapterTableRow = (props: TableRowProps) => {
 
   const { id, title, pageCount, contributions, firstPage, lastPage } = chapter;
 
-  const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
-
   const handleSelect = () => {
     if (selected) {
       onDeselect?.(id);
@@ -50,36 +42,40 @@ export const ChapterTableRow = (props: TableRowProps) => {
   };
 
   return (
-    <TableRow ref={setNodeRef} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
-      <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-7 group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
-        <div className="flex items-center gap-2">
-          <DragIndicatorIcon
-            {...listeners}
-            className="my-auto opacity-0 group-hover:opacity-100"
-            color="primary"
-            fontSize="small"
-          />
-          <Typography>{title}</Typography>
-        </div>
-      </TableCell>
-      <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-        <Typography>{contributions.map((contribution) => contribution.fullName).join(', ') ?? ''}</Typography>
-      </TableCell>
-      <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-        <div className="flex justify-between">
-          <Typography>{getPagesPlaceholder(firstPage, lastPage, pageCount)}</Typography>
-          {!isButtonsDisabled && (
-            <ButtonGroup className="mb-auto ml-auto">
-              <DeleteButton className="opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
-              <EditButton className="opacity-0 group-hover:opacity-100" onClick={() => onEdit?.(id)} />
-              <IconButton className="opacity-0 group-hover:opacity-100" onClick={() => onCopy?.(id)}>
-                <ContentCopyIcon />
-              </IconButton>
-            </ButtonGroup>
-          )}
-          <Checkbox size="small" sx={{ paddingTop: '6px' }} checked={selected} onChange={handleSelect} />
-        </div>
-      </TableCell>
-    </TableRow>
+    <DraggableComponent id={id}>
+      {({ attributes, listeners, style, ref }) => (
+        <TableRow ref={ref} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
+          <TableCell className="firstCell">
+            <div className="flex items-center gap-2">
+              <DragIndicatorIcon
+                {...listeners}
+                className="my-auto opacity-0 group-hover:opacity-100"
+                color="primary"
+                fontSize="small"
+              />
+              <Typography>{title}</Typography>
+            </div>
+          </TableCell>
+          <TableCell className="middleCell">
+            <Typography>{contributions.map((contribution) => contribution.fullName).join(', ') ?? ''}</Typography>
+          </TableCell>
+          <TableCell className="lastCell">
+            <div className="flex justify-between">
+              <Typography>{getPagesPlaceholder(firstPage, lastPage, pageCount)}</Typography>
+              {!isButtonsDisabled && (
+                <ButtonGroup className="mb-auto ml-auto">
+                  <DeleteButton className="opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
+                  <EditButton className="opacity-0 group-hover:opacity-100" onClick={() => onEdit?.(id)} />
+                  <IconButton className="opacity-0 group-hover:opacity-100" onClick={() => onCopy?.(id)}>
+                    <ContentCopyIcon />
+                  </IconButton>
+                </ButtonGroup>
+              )}
+              <Checkbox size="small" sx={{ paddingTop: '6px' }} checked={selected} onChange={handleSelect} />
+            </div>
+          </TableCell>
+        </TableRow>
+      )}
+    </DraggableComponent>
   );
 };

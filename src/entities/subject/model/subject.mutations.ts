@@ -23,3 +23,11 @@ export const DELETE_SUBJECT = graphql(`
     }
   }
 `);
+
+export const MOVE_SUBJECT = graphql(`
+  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {
+    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {
+      subjectId
+    }
+  }
+`);

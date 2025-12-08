@@ -7,7 +7,7 @@ import { PublicationService } from '../../publication/api/publication.service';
 import { PublisherId } from '../../publisher/model/publisher.types';
 import { SubjectService } from '../../subject/api/subject.service';
 import { WorkDtoMapper } from '../model/work.mapper';
-import { CREATE_WORK } from '../model/work.mutations';
+import { CREATE_WORK, MOVE_WORK_RELATION } from '../model/work.mutations';
 import {
   CREATE_WORK_RELATION,
   DELETE_WORK,
@@ -156,7 +156,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
         offset,
       });
 
-      const chapters = relations.map((relation) => this.dtoMapper.toEntity(relation.relatedWork as WorkDto));
+      const chapters = relations.map((relation) =>
+        this.dtoMapper.toEntity({ ...relation.relatedWork, workRelationId: relation.workRelationId } as WorkDto),
+      );
       allChapters.push(...chapters);
 
       fetchedCount = relations.length;
@@ -220,5 +222,12 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     });
 
     return workCount;
+  }
+
+  async moveWorkRelation(token: string, workRelationId: string, newOrdinal: number) {
+    await this.graphqlService.mutation(token, MOVE_WORK_RELATION, {
+      workRelationId,
+      newOrdinal,
+    });
   }
 }

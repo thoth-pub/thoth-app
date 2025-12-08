@@ -19,6 +19,10 @@ type Documents = {
     "\n  mutation DeleteAffiliation($affiliationId: Uuid!) {\n    deleteAffiliation(affiliationId: $affiliationId) {\n      affiliationId\n    }\n  }\n": typeof types.DeleteAffiliationDocument,
     "\n  query GetBooks(\n    $offset: Int!\n    $limit: Int\n    $publishers: [Uuid!]!\n    $direction: Direction = ASC\n    $filter: String\n    $workStatus: WorkStatus\n    $field: WorkField = UPDATED_AT_WITH_RELATIONS\n    $updatedAtWithRelations: TimeExpression\n  ) {\n    books(\n      offset: $offset\n      limit: $limit\n      publishers: $publishers\n      order: { direction: $direction, field: $field }\n      filter: $filter\n      workStatus: $workStatus\n      updatedAtWithRelations: $updatedAtWithRelations\n    ) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetBooksDocument,
     "\n  query GetBooksCount(\n    $publishers: [Uuid!]!\n    $filter: String\n    $workStatus: WorkStatus\n    $updatedAtWithRelations: TimeExpression\n    $publicationDate: TimeExpression\n  ) {\n    bookCount(\n      publishers: $publishers\n      filter: $filter\n      workStatus: $workStatus\n      updatedAtWithRelations: $updatedAtWithRelations\n      publicationDate: $publicationDate\n    )\n  }\n": typeof types.GetBooksCountDocument,
+    "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n      contributionId\n    }\n  }\n": typeof types.CreateContributionDocument,
+    "\n  mutation DeleteContribution($contributionId: Uuid!) {\n    deleteContribution(contributionId: $contributionId) {\n      workId\n    }\n  }\n": typeof types.DeleteContributionDocument,
+    "\n  mutation UpdateContribution($data: PatchContribution!) {\n    updateContribution(data: $data) {\n      workId\n    }\n  }\n": typeof types.UpdateContributionDocument,
+    "\n  mutation MoveContribution($contributionId: Uuid!, $newOrdinal: Int!) {\n    moveContribution(contributionId: $contributionId, newOrdinal: $newOrdinal) {\n      workId\n    }\n  }\n": typeof types.MoveContributionDocument,
     "\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n      contributions(order: { field: UPDATED_AT, direction: DESC }, limit: 1) {\n        work {\n          title\n        }\n      }\n    }\n  }\n": typeof types.GetContributorsDocument,
     "\n  query GetLinkedPublishers($contributorId: Uuid!, $offset: Int!, $limit: Int) {\n    contributor(contributorId: $contributorId) {\n      contributions(offset: $offset, limit: $limit) {\n        work {\n          imprint {\n            publisherId\n          }\n        }\n      }\n    }\n  }\n": typeof types.GetLinkedPublishersDocument,
     "\n  mutation CreateContributor($data: NewContributor!) {\n    createContributor(data: $data) {\n      ...ContributorFragment\n    }\n  }\n": typeof types.CreateContributorDocument,
@@ -61,16 +65,15 @@ type Documents = {
     "\n  mutation CreateSubject($data: NewSubject!) {\n    createSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.CreateSubjectDocument,
     "\n  mutation UpdateSubject($data: PatchSubject!) {\n    updateSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.UpdateSubjectDocument,
     "\n  mutation DeleteSubject($subjectId: Uuid!) {\n    deleteSubject(subjectId: $subjectId) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.DeleteSubjectDocument,
+    "\n  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {\n    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {\n      subjectId\n    }\n  }\n": typeof types.MoveSubjectDocument,
     "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": typeof types.CreateWorkDocument,
-    "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n      contributionId\n    }\n  }\n": typeof types.CreateContributionDocument,
-    "\n  mutation DeleteContribution($contributionId: Uuid!) {\n    deleteContribution(contributionId: $contributionId) {\n      workId\n    }\n  }\n": typeof types.DeleteContributionDocument,
-    "\n  mutation UpdateContribution($data: PatchContribution!) {\n    updateContribution(data: $data) {\n      workId\n    }\n  }\n": typeof types.UpdateContributionDocument,
+    "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n": typeof types.MoveWorkRelationDocument,
     "\n  query GetWorks(\n    $offset: Int!\n    $limit: Int\n    $publishers: [Uuid!]!\n    $direction: Direction = ASC\n    $field: WorkField = UPDATED_AT_WITH_RELATIONS\n    $workStatus: WorkStatus\n    $filter: String\n    $workTypes: [WorkType!]\n  ) {\n    works(\n      offset: $offset\n      limit: $limit\n      publishers: $publishers\n      order: { direction: $direction, field: $field }\n      workStatus: $workStatus\n      filter: $filter\n      workTypes: $workTypes\n    ) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetWorksDocument,
     "\n  query GetWork($workId: Uuid!) {\n    work(workId: $workId) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetWorkDocument,
     "\n  mutation UpdateWork($data: PatchWork!) {\n    updateWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": typeof types.UpdateWorkDocument,
     "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n": typeof types.DeleteWorkDocument,
     "\n  query GetWorksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus, $workTypes: [WorkType!]) {\n    workCount(publishers: $publishers, filter: $filter, workStatus: $workStatus, workTypes: $workTypes)\n  }\n": typeof types.GetWorksCountDocument,
-    "\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(\n        relationTypes: HAS_CHILD\n        limit: $limit\n        offset: $offset\n        order: { direction: ASC, field: RELATION_ORDINAL }\n      ) {\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n": typeof types.GetWorkChaptersDocument,
+    "\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(\n        relationTypes: HAS_CHILD\n        limit: $limit\n        offset: $offset\n        order: { direction: ASC, field: RELATION_ORDINAL }\n      ) {\n        workRelationId\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n": typeof types.GetWorkChaptersDocument,
     "\n  mutation CreateWorkRelation($data: NewWorkRelation!) {\n    createWorkRelation(data: $data) {\n      workRelationId\n    }\n  }\n": typeof types.CreateWorkRelationDocument,
     "\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    institution {\n      institutionName\n      ror\n    }\n    affiliationOrdinal\n    position\n  }\n": typeof types.AffiliationFragmentFragmentDoc,
     "\n  fragment ContributionFragment on Contribution {\n    workId\n    contributionId\n    mainContribution\n    fullName\n    lastName\n    firstName\n    contributionType\n    contributionOrdinal\n    biography\n    contributor {\n      ...ContributorFragment\n    }\n    contributorId\n    affiliations {\n      ...AffiliationFragment\n    }\n  }\n": typeof types.ContributionFragmentFragmentDoc,
@@ -90,6 +93,10 @@ const documents: Documents = {
     "\n  mutation DeleteAffiliation($affiliationId: Uuid!) {\n    deleteAffiliation(affiliationId: $affiliationId) {\n      affiliationId\n    }\n  }\n": types.DeleteAffiliationDocument,
     "\n  query GetBooks(\n    $offset: Int!\n    $limit: Int\n    $publishers: [Uuid!]!\n    $direction: Direction = ASC\n    $filter: String\n    $workStatus: WorkStatus\n    $field: WorkField = UPDATED_AT_WITH_RELATIONS\n    $updatedAtWithRelations: TimeExpression\n  ) {\n    books(\n      offset: $offset\n      limit: $limit\n      publishers: $publishers\n      order: { direction: $direction, field: $field }\n      filter: $filter\n      workStatus: $workStatus\n      updatedAtWithRelations: $updatedAtWithRelations\n    ) {\n      ...WorkFragment\n    }\n  }\n": types.GetBooksDocument,
     "\n  query GetBooksCount(\n    $publishers: [Uuid!]!\n    $filter: String\n    $workStatus: WorkStatus\n    $updatedAtWithRelations: TimeExpression\n    $publicationDate: TimeExpression\n  ) {\n    bookCount(\n      publishers: $publishers\n      filter: $filter\n      workStatus: $workStatus\n      updatedAtWithRelations: $updatedAtWithRelations\n      publicationDate: $publicationDate\n    )\n  }\n": types.GetBooksCountDocument,
+    "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n      contributionId\n    }\n  }\n": types.CreateContributionDocument,
+    "\n  mutation DeleteContribution($contributionId: Uuid!) {\n    deleteContribution(contributionId: $contributionId) {\n      workId\n    }\n  }\n": types.DeleteContributionDocument,
+    "\n  mutation UpdateContribution($data: PatchContribution!) {\n    updateContribution(data: $data) {\n      workId\n    }\n  }\n": types.UpdateContributionDocument,
+    "\n  mutation MoveContribution($contributionId: Uuid!, $newOrdinal: Int!) {\n    moveContribution(contributionId: $contributionId, newOrdinal: $newOrdinal) {\n      workId\n    }\n  }\n": types.MoveContributionDocument,
     "\n  query GetContributors($filter: String) {\n    contributors(filter: $filter) {\n      orcid\n      fullName\n      lastName\n      updatedAt\n      contributorId\n      contributions(order: { field: UPDATED_AT, direction: DESC }, limit: 1) {\n        work {\n          title\n        }\n      }\n    }\n  }\n": types.GetContributorsDocument,
     "\n  query GetLinkedPublishers($contributorId: Uuid!, $offset: Int!, $limit: Int) {\n    contributor(contributorId: $contributorId) {\n      contributions(offset: $offset, limit: $limit) {\n        work {\n          imprint {\n            publisherId\n          }\n        }\n      }\n    }\n  }\n": types.GetLinkedPublishersDocument,
     "\n  mutation CreateContributor($data: NewContributor!) {\n    createContributor(data: $data) {\n      ...ContributorFragment\n    }\n  }\n": types.CreateContributorDocument,
@@ -132,16 +139,15 @@ const documents: Documents = {
     "\n  mutation CreateSubject($data: NewSubject!) {\n    createSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": types.CreateSubjectDocument,
     "\n  mutation UpdateSubject($data: PatchSubject!) {\n    updateSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": types.UpdateSubjectDocument,
     "\n  mutation DeleteSubject($subjectId: Uuid!) {\n    deleteSubject(subjectId: $subjectId) {\n      ...SubjectFragment\n    }\n  }\n": types.DeleteSubjectDocument,
+    "\n  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {\n    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {\n      subjectId\n    }\n  }\n": types.MoveSubjectDocument,
     "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": types.CreateWorkDocument,
-    "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n      contributionId\n    }\n  }\n": types.CreateContributionDocument,
-    "\n  mutation DeleteContribution($contributionId: Uuid!) {\n    deleteContribution(contributionId: $contributionId) {\n      workId\n    }\n  }\n": types.DeleteContributionDocument,
-    "\n  mutation UpdateContribution($data: PatchContribution!) {\n    updateContribution(data: $data) {\n      workId\n    }\n  }\n": types.UpdateContributionDocument,
+    "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n": types.MoveWorkRelationDocument,
     "\n  query GetWorks(\n    $offset: Int!\n    $limit: Int\n    $publishers: [Uuid!]!\n    $direction: Direction = ASC\n    $field: WorkField = UPDATED_AT_WITH_RELATIONS\n    $workStatus: WorkStatus\n    $filter: String\n    $workTypes: [WorkType!]\n  ) {\n    works(\n      offset: $offset\n      limit: $limit\n      publishers: $publishers\n      order: { direction: $direction, field: $field }\n      workStatus: $workStatus\n      filter: $filter\n      workTypes: $workTypes\n    ) {\n      ...WorkFragment\n    }\n  }\n": types.GetWorksDocument,
     "\n  query GetWork($workId: Uuid!) {\n    work(workId: $workId) {\n      ...WorkFragment\n    }\n  }\n": types.GetWorkDocument,
     "\n  mutation UpdateWork($data: PatchWork!) {\n    updateWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": types.UpdateWorkDocument,
     "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n": types.DeleteWorkDocument,
     "\n  query GetWorksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus, $workTypes: [WorkType!]) {\n    workCount(publishers: $publishers, filter: $filter, workStatus: $workStatus, workTypes: $workTypes)\n  }\n": types.GetWorksCountDocument,
-    "\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(\n        relationTypes: HAS_CHILD\n        limit: $limit\n        offset: $offset\n        order: { direction: ASC, field: RELATION_ORDINAL }\n      ) {\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n": types.GetWorkChaptersDocument,
+    "\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(\n        relationTypes: HAS_CHILD\n        limit: $limit\n        offset: $offset\n        order: { direction: ASC, field: RELATION_ORDINAL }\n      ) {\n        workRelationId\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n": types.GetWorkChaptersDocument,
     "\n  mutation CreateWorkRelation($data: NewWorkRelation!) {\n    createWorkRelation(data: $data) {\n      workRelationId\n    }\n  }\n": types.CreateWorkRelationDocument,
     "\n  fragment AffiliationFragment on Affiliation {\n    contributionId\n    affiliationId\n    institutionId\n    institution {\n      institutionName\n      ror\n    }\n    affiliationOrdinal\n    position\n  }\n": types.AffiliationFragmentFragmentDoc,
     "\n  fragment ContributionFragment on Contribution {\n    workId\n    contributionId\n    mainContribution\n    fullName\n    lastName\n    firstName\n    contributionType\n    contributionOrdinal\n    biography\n    contributor {\n      ...ContributorFragment\n    }\n    contributorId\n    affiliations {\n      ...AffiliationFragment\n    }\n  }\n": types.ContributionFragmentFragmentDoc,
@@ -190,6 +196,22 @@ export function graphql(source: "\n  query GetBooks(\n    $offset: Int!\n    $li
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query GetBooksCount(\n    $publishers: [Uuid!]!\n    $filter: String\n    $workStatus: WorkStatus\n    $updatedAtWithRelations: TimeExpression\n    $publicationDate: TimeExpression\n  ) {\n    bookCount(\n      publishers: $publishers\n      filter: $filter\n      workStatus: $workStatus\n      updatedAtWithRelations: $updatedAtWithRelations\n      publicationDate: $publicationDate\n    )\n  }\n"): (typeof documents)["\n  query GetBooksCount(\n    $publishers: [Uuid!]!\n    $filter: String\n    $workStatus: WorkStatus\n    $updatedAtWithRelations: TimeExpression\n    $publicationDate: TimeExpression\n  ) {\n    bookCount(\n      publishers: $publishers\n      filter: $filter\n      workStatus: $workStatus\n      updatedAtWithRelations: $updatedAtWithRelations\n      publicationDate: $publicationDate\n    )\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n      contributionId\n    }\n  }\n"): (typeof documents)["\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n      contributionId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteContribution($contributionId: Uuid!) {\n    deleteContribution(contributionId: $contributionId) {\n      workId\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteContribution($contributionId: Uuid!) {\n    deleteContribution(contributionId: $contributionId) {\n      workId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateContribution($data: PatchContribution!) {\n    updateContribution(data: $data) {\n      workId\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateContribution($data: PatchContribution!) {\n    updateContribution(data: $data) {\n      workId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation MoveContribution($contributionId: Uuid!, $newOrdinal: Int!) {\n    moveContribution(contributionId: $contributionId, newOrdinal: $newOrdinal) {\n      workId\n    }\n  }\n"): (typeof documents)["\n  mutation MoveContribution($contributionId: Uuid!, $newOrdinal: Int!) {\n    moveContribution(contributionId: $contributionId, newOrdinal: $newOrdinal) {\n      workId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -361,19 +383,15 @@ export function graphql(source: "\n  mutation DeleteSubject($subjectId: Uuid!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {\n    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {\n      subjectId\n    }\n  }\n"): (typeof documents)["\n  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {\n    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {\n      subjectId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n      contributionId\n    }\n  }\n"): (typeof documents)["\n  mutation CreateContribution($data: NewContribution!) {\n    createContribution(data: $data) {\n      workId\n      contributionId\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DeleteContribution($contributionId: Uuid!) {\n    deleteContribution(contributionId: $contributionId) {\n      workId\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteContribution($contributionId: Uuid!) {\n    deleteContribution(contributionId: $contributionId) {\n      workId\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation UpdateContribution($data: PatchContribution!) {\n    updateContribution(data: $data) {\n      workId\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateContribution($data: PatchContribution!) {\n    updateContribution(data: $data) {\n      workId\n    }\n  }\n"];
+export function graphql(source: "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n"): (typeof documents)["\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -397,7 +415,7 @@ export function graphql(source: "\n  query GetWorksCount($publishers: [Uuid!]!, 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(\n        relationTypes: HAS_CHILD\n        limit: $limit\n        offset: $offset\n        order: { direction: ASC, field: RELATION_ORDINAL }\n      ) {\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(\n        relationTypes: HAS_CHILD\n        limit: $limit\n        offset: $offset\n        order: { direction: ASC, field: RELATION_ORDINAL }\n      ) {\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n"];
+export function graphql(source: "\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(\n        relationTypes: HAS_CHILD\n        limit: $limit\n        offset: $offset\n        order: { direction: ASC, field: RELATION_ORDINAL }\n      ) {\n        workRelationId\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {\n    work(workId: $workId) {\n      relations(\n        relationTypes: HAS_CHILD\n        limit: $limit\n        offset: $offset\n        order: { direction: ASC, field: RELATION_ORDINAL }\n      ) {\n        workRelationId\n        relatedWork {\n          ...WorkFragment\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

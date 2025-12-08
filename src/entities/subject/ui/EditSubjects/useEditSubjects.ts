@@ -129,7 +129,7 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
       id: '',
       code,
       type,
-      ordinal: maxOrdinal + 1,
+      ordinal: maxOrdinal > 1 ? maxOrdinal + 1 : 1,
     });
   };
 

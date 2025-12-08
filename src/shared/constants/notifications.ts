@@ -9,6 +9,7 @@ export const NOTIFICATIONS = {
   WORK_CONTRIBUTION_CREATION_FAILED: 'Failed to create work contribution',
   WORK_CONTRIBUTION_DELETION_FAILED: 'Failed to delete work contribution',
   WORK_CONTRIBUTION_UPDATE_FAILED: 'Failed to update work contribution',
+  WORK_MOVE_RELATION_FAILED: 'Failed to change work chapters order',
   // Chapters
   CHAPTER_CREATION_SUCCESS: 'Chapter created successfully',
   CHAPTER_CREATION_FAILED: 'Failed to create chapter',
@@ -19,6 +20,7 @@ export const NOTIFICATIONS = {
   CONTRIBUTOR_CREATION_FAILED: 'Failed to create contributor',
   CONTRIBUTOR_UPDATE_SUCCESS: 'Contributor profile updated successfully',
   CONTRIBUTOR_UPDATE_FAILED: 'Failed to update contributor profile',
+  CONTRIBUTION_MOVE_FAILED: 'Failed to change contribution order',
   // Affiliations
   AFFILIATION_CREATION_SUCCESS: 'Affiliation created successfully',
   AFFILIATION_CREATION_FAILED: 'Failed to create affiliation',
@@ -52,6 +54,7 @@ export const NOTIFICATIONS = {
   SUBJECT_CREATION_FAILED: 'Failed to create subject',
   SUBJECT_UPDATE_FAILED: 'Failed to update subject',
   SUBJECT_DELETE_FAILED: 'Failed to delete subject',
+  SUBJECT_MOVE_FAILED: 'Failed to change subjects order',
   // Series
   SERIES_CREATION_FAILED: 'Failed to create series',
   SERIES_UPDATE_FAILED: 'Failed to update series',

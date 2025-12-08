@@ -7,6 +7,7 @@ export { default as useSuspendedWorks } from './api/hooks/useSuspendedWorks';
 export { default as useUpdateWorks } from './api/hooks/useUpdateWorks';
 export { default as useWork } from './api/hooks/useWork';
 export { default as useWorkChapters } from './api/hooks/useWorkChapters';
+export { default as useWorkMoveRelation } from './api/hooks/useWorkMoveRelation';
 export { default as useWorkRecommendations } from './api/hooks/useWorkRecommendations';
 export { default as useWorks } from './api/hooks/useWorks';
 export { default as useWorksCount } from './api/hooks/useWorksCount';

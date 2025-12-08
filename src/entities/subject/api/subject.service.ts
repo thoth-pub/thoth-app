@@ -3,7 +3,7 @@ import { BaseService } from '@/src/shared/interfaces/services';
 
 import type { WorkId } from '../../work/model/work.types';
 import { SubjectDtoMapper } from '../model/subject.mapper';
-import { CREATE_SUBJECT, DELETE_SUBJECT, UPDATE_SUBJECT } from '../model/subject.schema';
+import { CREATE_SUBJECT, DELETE_SUBJECT, MOVE_SUBJECT, UPDATE_SUBJECT } from '../model/subject.mutations';
 import type { SubjectEntity, SubjectId } from '../model/subject.types';
 import type { SubjectDto } from '../model/subject.types';
 
@@ -51,6 +51,13 @@ export class SubjectService extends BaseService<SubjectEntity, SubjectDto> {
   async deleteSubject(token: string, subjectId: SubjectId): Promise<void> {
     await this.graphqlService.mutation(token, DELETE_SUBJECT, {
       subjectId,
+    });
+  }
+
+  async moveSubject(token: string, subjectId: SubjectId, newOrdinal: number): Promise<void> {
+    await this.graphqlService.mutation(token, MOVE_SUBJECT, {
+      subjectId,
+      newOrdinal,
     });
   }
 }

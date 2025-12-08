@@ -26,7 +26,7 @@ import {
   workTypeValidationSchema,
 } from '../model/work.validation';
 
-export type WorkDto = WorkFragmentFragment;
+export type WorkDto = WorkFragmentFragment & { workRelationId?: string };
 
 export type WorkContributionDto = Partial<Contribution>;
 
@@ -59,6 +59,7 @@ export type WorkEntity = {
   publisherName: string;
   imprintId: string;
   status: WorkStatus;
+  relationId: string | null;
   edition?: number | null;
   license?: string | null;
   copyrightHolder?: string | null;

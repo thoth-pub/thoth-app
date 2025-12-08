@@ -57,9 +57,11 @@ const EditReferences = (props: BaseEditSectionProps) => {
   const dragEnd = async (data: ReferenceEntity[]) => {
     const updatedData = data.map((reference, index) => ({ ...reference, orderNumber: index + 1 }));
 
-    const referencesToUpdate = updatedData.filter((reference, index) => work.references[index].id !== reference.id);
+    const referencesToUpdate = updatedData.find((reference, index) => work.references[index].id !== reference.id);
 
-    await moveReferences(referencesToUpdate);
+    if (!referencesToUpdate) return;
+
+    await moveReferences({ referenceId: referencesToUpdate.id, newOrdinal: referencesToUpdate.orderNumber });
   };
 
   return (

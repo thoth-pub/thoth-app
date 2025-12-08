@@ -19,23 +19,25 @@ const ReferencesTable = (props: ReferencesTableProps) => {
 
   return (
     <DragAndDropWrapper items={references} onDragEnd={onDragEnd}>
-      <TableWrapper>
-        <TableHeader
-          cells={['No.', 'Citation', 'DOI']}
-          cellStyles={['min-w-[60px]', 'min-w-[120px]', 'min-w-[250px]']}
-        />
-        <TableBody>
-          {references.map((reference) => (
-            <Fragment key={reference.id}>
-              {activeReference?.id === reference.id ? (
-                <TableFormWrapper colSpan={3}>{form}</TableFormWrapper>
-              ) : (
-                <ReferenceTableRow reference={reference} onDelete={onDelete} onEdit={onEdit} />
-              )}
-            </Fragment>
-          ))}
-        </TableBody>
-      </TableWrapper>
+      {(isDragStarted) => (
+        <TableWrapper isOverflowHidden={isDragStarted}>
+          <TableHeader
+            cells={['No.', 'Citation', 'DOI']}
+            cellStyles={['min-w-[60px]', 'min-w-[120px]', 'min-w-[250px]']}
+          />
+          <TableBody>
+            {references.map((reference) => (
+              <Fragment key={reference.id}>
+                {activeReference?.id === reference.id ? (
+                  <TableFormWrapper colSpan={3}>{form}</TableFormWrapper>
+                ) : (
+                  <ReferenceTableRow reference={reference} onDelete={onDelete} onEdit={onEdit} />
+                )}
+              </Fragment>
+            ))}
+          </TableBody>
+        </TableWrapper>
+      )}
     </DragAndDropWrapper>
   );
 };
