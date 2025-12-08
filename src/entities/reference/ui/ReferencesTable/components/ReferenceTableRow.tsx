@@ -1,18 +1,20 @@
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
-import { DoiPreview, DraggableComponent, TableCell, TableRow } from '@/src/shared/ui';
+import { isDragAndDropDisabled } from '@/src/shared';
+import { DoiPreview, DragAndDropListener, DraggableComponent, TableCell, TableRow } from '@/src/shared/ui';
 
 import type { ReferenceEntity } from '../../../model/reference.types';
 import { RowButtonGroup } from './RowButtonGroup';
 
 type ReferenceTableRowProps = {
   reference: ReferenceEntity;
+  totalReferencesCount: number;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 };
 
 export const ReferenceTableRow = (props: ReferenceTableRowProps) => {
-  const { reference, onDelete, onEdit } = props;
+  const { reference, totalReferencesCount, onDelete, onEdit } = props;
 
   const { id, orderNumber, unstructuredCitation, doi } = reference;
 
@@ -28,6 +30,7 @@ export const ReferenceTableRow = (props: ReferenceTableRowProps) => {
                 color="primary"
                 fontSize="small"
               />
+              <DragAndDropListener isDisabled={isDragAndDropDisabled(totalReferencesCount)} listeners={listeners} />
               {orderNumber}
             </div>
           </TableCell>

@@ -1,12 +1,18 @@
 'use client';
 
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import removeMd from 'remove-markdown';
 
-import { appConfig, convertOrchidIdToText, convertRorIdToText, truncateString } from '@/src/shared';
 import {
+  appConfig,
+  convertOrchidIdToText,
+  convertRorIdToText,
+  isDragAndDropDisabled,
+  truncateString,
+} from '@/src/shared';
+import {
+  DragAndDropListener,
   DraggableComponent,
   Indicator,
   LinkTooltip,
@@ -26,6 +32,7 @@ const { maxPreviewLength } = appConfig.tables;
 type ContributionsTableRowProps = {
   contributor: WorkContribution;
   form: Readonly<React.ReactNode>;
+  totalContributionsCount: number;
   isEditing: boolean;
   isEditable: boolean;
   showRecommendations: boolean;
@@ -41,6 +48,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
     isEditing,
     isEditable = true,
     showRecommendations,
+    totalContributionsCount,
     onEdit,
     onDelete,
     onSelectAsMain,
@@ -60,11 +68,9 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
             <TableRow ref={ref} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
               <TableCell className="firstCell">
                 <div className="flex gap-1">
-                  <DragIndicatorIcon
-                    className="my-auto opacity-0 group-hover:opacity-100"
-                    color="primary"
-                    fontSize="small"
-                    {...listeners}
+                  <DragAndDropListener
+                    isDisabled={isDragAndDropDisabled(totalContributionsCount)}
+                    listeners={listeners}
                   />
                   <div className="flex shrink flex-wrap items-center gap-1">
                     {fullName}

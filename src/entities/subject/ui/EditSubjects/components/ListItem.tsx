@@ -1,24 +1,23 @@
 'use client';
 
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-
 import {
   convertBicSubjectCodeToReadableFormat,
   convertBisacSubjectCodeToReadableFormat,
   convertThemaSubjectCodeToReadableFormat,
+  isDragAndDropDisabled,
   SubjectTypes,
 } from '@/src/shared';
-import { Chip, DeleteButton, DraggableComponent, Typography } from '@/src/shared/ui';
+import { Chip, DeleteButton, DragAndDropListener, DraggableComponent, Typography } from '@/src/shared/ui';
 
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 
 type ListItemProps = {
   subject: SubjectEntity;
-  isDragDisabled?: boolean;
+  totalSubjectsCount: number;
   onDelete?: (id: SubjectId) => void;
 };
 
-const ListItem = ({ subject, isDragDisabled = false, onDelete }: ListItemProps) => {
+const ListItem = ({ subject, totalSubjectsCount, onDelete }: ListItemProps) => {
   const { id } = subject;
 
   const isBisac = subject.type === SubjectTypes.enum.Bisac;
@@ -38,12 +37,7 @@ const ListItem = ({ subject, isDragDisabled = false, onDelete }: ListItemProps) 
           className="group flex items-center gap-1 rounded-xl border-1 border-transparent p-2 group-hover:bg-[var(--color-form-background)] hover:border-[var(--color-form-border)]"
           {...attributes}
         >
-          <DragIndicatorIcon
-            className={`my-auto ${isDragDisabled ? '!opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
-            color="primary"
-            fontSize="small"
-            {...(isDragDisabled ? undefined : listeners)}
-          />
+          <DragAndDropListener isDisabled={isDragAndDropDisabled(totalSubjectsCount)} listeners={listeners} />
           <Typography className="flex items-center gap-1">
             {showChip && <Chip label={subject.code} size="small" component="span" />}
             {isDefault && subject.code}

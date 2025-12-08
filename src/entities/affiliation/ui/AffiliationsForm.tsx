@@ -79,7 +79,7 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
         defaultValues={{ [AFFILIATIONS.name]: defaultValues }}
         borderTransparent
         formFields={({ control }) => <FormFields control={control as unknown as Control<AffiliationsFormType>} />}
-        preview={({ data, disabled, onEdit }) => (
+        preview={({ disabled, onEdit }) => (
           <Preview
             label={AFFILIATIONS.label}
             disabled={disabled}
@@ -97,7 +97,7 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
                           key={id}
                           id={id}
                           text={`${position} ${label}`}
-                          isDisabled={data && data.affiliations && data.affiliations.length <= 1}
+                          totalItemsCount={formValues.length}
                         />
                       ))}
                     </ul>

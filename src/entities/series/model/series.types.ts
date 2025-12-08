@@ -51,6 +51,7 @@ export type SeriesEntity = {
     ordinal: number;
     workId: string;
     title: string;
+    seriesId: SeriesId;
   }[];
 };
 

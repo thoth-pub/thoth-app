@@ -3,6 +3,7 @@ export { default as useCreateIssue } from './api/hooks/useCreateIssue';
 export { default as useCreateSeries } from './api/hooks/useCreateSeries';
 export { default as useDeleteIssue } from './api/hooks/useDeleteIssue';
 export { default as useDeleteSeries } from './api/hooks/useDeleteSeries';
+export { default as useMoveIssue } from './api/hooks/useMoveIssue';
 export { default as useSeries } from './api/hooks/useSeries';
 export { default as useSerieses } from './api/hooks/useSerieses';
 export { default as useSeriesesCount } from './api/hooks/useSeriesesCount';

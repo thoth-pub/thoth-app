@@ -196,6 +196,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                   key={chapter.id}
                   chapter={chapter}
                   selected={selectedChapters.includes(chapter.id)}
+                  totalChaptersCount={chapters.length}
                   onEdit={handleEditChapter}
                   onCopy={handleCopyChapter}
                   onSelect={handleSelectChapter}

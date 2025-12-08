@@ -23,7 +23,7 @@ export const PreviewList = ({ subjects, onDelete, onDragEnd }: PreviewListProps)
             <ListItem
               key={`${subject.id}-${index}`}
               subject={subject}
-              isDragDisabled={subjects.length < 2}
+              totalSubjectsCount={subjects.length}
               onDelete={onDelete}
             />
           ))}

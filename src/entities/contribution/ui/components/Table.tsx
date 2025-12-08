@@ -40,6 +40,7 @@ export const ContributionsTable = (props: ContributionsTableProps) => {
             {contributions.map((contribution) => (
               <ContributionsTableRow
                 key={contribution.id}
+                totalContributionsCount={contributions.length}
                 isEditing={activeContribution?.id === contribution.id}
                 isEditable={!activeContribution}
                 contributor={contribution}

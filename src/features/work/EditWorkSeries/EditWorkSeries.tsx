@@ -15,7 +15,6 @@ import { DeleteButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { FormFields } from './components/FormFields';
-import { IssuesList } from './components/IssuesList';
 
 const { WORK_SERIES } = FORM_FIELDS;
 
@@ -91,9 +90,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
           onChange={setSearchValue}
           onDelete={deleteExistingIssue}
           setValue={setValue}
-        >
-          {work.issues.length > 0 && <IssuesList workId={workId} queryToken={queryToken} issues={[]} />}
-        </FormFields>
+        />
       )}
       preview={({ disabled, onEdit }) => (
         <Preview label={WORK_SERIES.label} value={placeholder} disabled={disabled} onEdit={onEdit}>

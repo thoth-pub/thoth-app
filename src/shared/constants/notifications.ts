@@ -63,4 +63,5 @@ export const NOTIFICATIONS = {
   ISSUE_CREATION_FAILED: 'Failed to create issue',
   ISSUE_UPDATE_FAILED: 'Failed to update issue',
   ISSUE_DELETE_FAILED: 'Failed to delete issue',
+  ISSUE_MOVE_FAILED: 'Failed to change issues order',
 } as const;

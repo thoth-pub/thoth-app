@@ -2,18 +2,19 @@
 
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
-import { Typography } from '@/src/shared/ui';
+import { isDragAndDropDisabled } from '@/src/shared';
+import { DragAndDropListener, Typography } from '@/src/shared/ui';
 
 type PreviewItemProps = {
   id: string;
+  totalItemsCount: number;
   text: string;
   isDisabled?: boolean;
 };
 
 export const PreviewItem = (props: PreviewItemProps) => {
-  const { id, text, isDisabled = false } = props;
+  const { id, text, totalItemsCount } = props;
 
   const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
 
@@ -30,12 +31,7 @@ export const PreviewItem = (props: PreviewItemProps) => {
       style={style}
       {...attributes}
     >
-      <DragIndicatorIcon
-        className={`my-auto ${isDisabled ? '!opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
-        color="primary"
-        fontSize="small"
-        {...listeners}
-      />
+      <DragAndDropListener isDisabled={isDragAndDropDisabled(totalItemsCount)} listeners={listeners} />
       {text}
     </Typography>
   );

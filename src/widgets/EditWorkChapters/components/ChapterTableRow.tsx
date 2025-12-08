@@ -1,14 +1,14 @@
 'use client';
 
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { getPagesPlaceholder } from '@/src/shared';
+import { appConfig, getPagesPlaceholder } from '@/src/shared';
 import {
   ButtonGroup,
   Checkbox,
   DeleteButton,
+  DragAndDropListener,
   DraggableComponent,
   EditButton,
   IconButton,
@@ -21,6 +21,7 @@ type TableRowProps = {
   chapter: WorkEntity;
   selected: boolean;
   isButtonsDisabled: boolean;
+  totalChaptersCount: number;
   onEdit?: (id: string) => void;
   onCopy?: (id: string) => void;
   onSelect?: (id: string) => void;
@@ -29,7 +30,17 @@ type TableRowProps = {
 };
 
 export const ChapterTableRow = (props: TableRowProps) => {
-  const { chapter, selected, isButtonsDisabled = false, onEdit, onCopy, onSelect, onDeselect, onDelete } = props;
+  const {
+    chapter,
+    selected,
+    isButtonsDisabled = false,
+    totalChaptersCount,
+    onEdit,
+    onCopy,
+    onSelect,
+    onDeselect,
+    onDelete,
+  } = props;
 
   const { id, title, pageCount, contributions, firstPage, lastPage } = chapter;
 
@@ -47,11 +58,9 @@ export const ChapterTableRow = (props: TableRowProps) => {
         <TableRow ref={ref} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
           <TableCell className="firstCell">
             <div className="flex items-center gap-2">
-              <DragIndicatorIcon
-                {...listeners}
-                className="my-auto opacity-0 group-hover:opacity-100"
-                color="primary"
-                fontSize="small"
+              <DragAndDropListener
+                isDisabled={totalChaptersCount < appConfig.minItemsCountForDragAndDrop}
+                listeners={listeners}
               />
               <Typography>{title}</Typography>
             </div>

@@ -31,7 +31,12 @@ const ReferencesTable = (props: ReferencesTableProps) => {
                 {activeReference?.id === reference.id ? (
                   <TableFormWrapper colSpan={3}>{form}</TableFormWrapper>
                 ) : (
-                  <ReferenceTableRow reference={reference} onDelete={onDelete} onEdit={onEdit} />
+                  <ReferenceTableRow
+                    reference={reference}
+                    totalReferencesCount={references.length}
+                    onDelete={onDelete}
+                    onEdit={onEdit}
+                  />
                 )}
               </Fragment>
             ))}

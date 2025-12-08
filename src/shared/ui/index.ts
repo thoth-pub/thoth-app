@@ -13,6 +13,7 @@ export { default as DeleteButton } from './core/DeleteButton/DeleteButton';
 export { default as DoiPreview } from './core/DoiPreview/DoiPreview';
 export { default as DragAndDropWrapper } from './core/DragAndDropWrapper/DragAndDropWrapper';
 export { default as DraggableComponent } from './core/DraggableComponent/DraggableComponent';
+export { default as DragAndDropListener } from './core/DranAndDropListener/DragAndDropListener';
 export { default as EditButton } from './core/EditButton/EditButton';
 export { default as FavoriteButton } from './core/FavoriteButton/FavoriteButton';
 export { default as FormHelperText } from './core/FormHelperText/FormHelperText';

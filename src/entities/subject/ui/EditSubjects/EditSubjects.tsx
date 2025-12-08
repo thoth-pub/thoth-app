@@ -139,8 +139,6 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
       };
     });
 
-    if (updatedSubjects.length < 2) return;
-
     const existingSubjects = subjects.filter((subject) => subject.type === updatedSubjects[0].type);
 
     const firstUpdatedSubject = updatedSubjects.find((subject) => {

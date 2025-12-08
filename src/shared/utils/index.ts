@@ -11,6 +11,7 @@ export * from './files';
 export * from './fundings';
 export * from './helpers/getSameDayAndMonthDateInPast';
 export * from './helpers/isDefaultId';
+export * from './helpers/isDragAndDropDisabled';
 export * from './helpers/isUrl';
 export * from './helpers/isValidUUID';
 export * from './helpers/pages';

@@ -11,12 +11,11 @@ import {
   CREATE_SERIES,
   DELETE_ISSUE,
   DELETE_SERIES,
-  GET_SERIES,
-  GET_SERIESES,
-  GET_SERIESES_COUNT,
+  MOVE_ISSUE,
   UPDATE_ISSUE,
   UPDATE_SERIES,
-} from '../model/series.schema';
+} from '../model/series.mutations';
+import { GET_SERIES, GET_SERIESES, GET_SERIESES_COUNT } from '../model/series.schema';
 import type { SeriesDto, SeriesEntity, SeriesId } from '../model/series.types';
 
 export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
@@ -184,6 +183,13 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
   async deleteIssue(token: string, issueId: string): Promise<void> {
     await this.graphqlService.mutation(token, DELETE_ISSUE, {
       issueId,
+    });
+  }
+
+  async moveIssue(token: string, issueId: string, newOrdinal: number): Promise<void> {
+    await this.graphqlService.mutation(token, MOVE_ISSUE, {
+      issueId,
+      newOrdinal,
     });
   }
 }

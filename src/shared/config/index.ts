@@ -39,4 +39,5 @@ export const appConfig = {
     maxPreviewLength: 150,
   },
   maxFileSize: 500000,
+  minItemsCountForDragAndDrop: 2,
 };
