@@ -23,3 +23,11 @@ export const DELETE_AFFILIATION = graphql(`
     }
   }
 `);
+
+export const MOVE_AFFILIATION = graphql(`
+  mutation MoveAffiliation($affiliationId: Uuid!, $newOrdinal: Int!) {
+    moveAffiliation(affiliationId: $affiliationId, newOrdinal: $newOrdinal) {
+      ...AffiliationFragment
+    }
+  }
+`);

@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 
-import { useAffiliationsForm } from '@/src/entities/affiliation';
+import { useAffiliationsForm, useMoveAffiliation } from '@/src/entities/affiliation';
 import type { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import type {
@@ -30,6 +30,7 @@ type UseEditContributionProps = BaseEditSectionProps &
     onWebsiteUrlUpdate: (data: WebsiteUrlForm) => void;
     onAffiliationsUpdate: (data: AffiliationsForm) => void;
     onDeleteAffiliation: (id: string) => void;
+    onMoveAffiliation: (data: AffiliationsForm['affiliations']) => void;
   }>;
 
 export const useEditContribution = (props: UseEditContributionProps) => {
@@ -45,12 +46,14 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     onWebsiteUrlUpdate,
     onAffiliationsUpdate,
     onDeleteAffiliation,
+    onMoveAffiliation,
   } = props;
 
   const { activeContribution, close } = useContributionStateMachine();
   const { close: closeForm } = useFormStateMachine();
   const [contribution, setContribution] = useState<WorkContribution | null>(activeContribution);
 
+  const { moveAffiliation } = useMoveAffiliation({ queryToken, workId });
   const { updateContribution: updateWorkContribution } = useWork(workId, queryToken);
   const { sendErrorNotification } = useNotifications();
   const { updateContributor } = useUpdateContributor({
@@ -223,6 +226,37 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     deleteAffiliation(id);
   };
 
+  const moveContributionAffiliation = (data: AffiliationsForm['affiliations']) => {
+    if (!contribution) return;
+
+    const updatedAffiliations = data.map(({ id, affiliation, position }, index) => ({
+      id,
+      affiliation,
+      position,
+      newOrdinal: index + 1,
+    }));
+
+    if (onMoveAffiliation) {
+      onMoveAffiliation(updatedAffiliations);
+      return;
+    }
+
+    const firstChange = updatedAffiliations.find(
+      ({ position, affiliation: { value } }, index) =>
+        position !== contribution.affiliations[index]?.position &&
+        value !== contribution.affiliations[index]?.institutionId,
+    );
+
+    if (!firstChange) return;
+
+    console.log(firstChange);
+
+    moveAffiliation({
+      affiliationId: firstChange.id,
+      newOrdinal: firstChange.newOrdinal,
+    });
+  };
+
   return {
     contribution,
     isOrchidEditionDisabled,
@@ -235,5 +269,6 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     updateWebsiteUrl,
     updateAffiliations: updateContributionAffiliations,
     deleteAffiliation: deleteContributionAffiliation,
+    moveAffiliation: moveContributionAffiliation,
   };
 };

@@ -146,6 +146,23 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
     });
   };
 
+  const moveAffiliation = (data: AffiliationsForm['affiliations']) => {
+    if (!activeContribution) return;
+
+    const updatedAffiliations = activeContribution.affiliations.map((affiliation, index) => ({
+      ...affiliation,
+      position: affiliation.position || '',
+      institutionId: data[index]?.affiliation?.value || '',
+      institutionName: data[index]?.affiliation?.label || '',
+      orderNumber: index + 1,
+    }));
+
+    updateContribution({
+      ...activeContribution,
+      affiliations: updatedAffiliations,
+    });
+  };
+
   return {
     contribution: activeContribution,
     close,
@@ -157,5 +174,6 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
     updateNames,
     updateAffiliations: updateContributionAffiliations,
     deleteAffiliation,
+    moveAffiliation,
   };
 };

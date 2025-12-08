@@ -1,5 +1,3 @@
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
-
 import { isDragAndDropDisabled } from '@/src/shared';
 import { DoiPreview, DragAndDropListener, DraggableComponent, TableCell, TableRow } from '@/src/shared/ui';
 
@@ -24,12 +22,6 @@ export const ReferenceTableRow = (props: ReferenceTableRowProps) => {
         <TableRow className="group" ref={ref} style={style} {...attributes}>
           <TableCell className="firstCell">
             <div className="flex items-center gap-1">
-              <DragIndicatorIcon
-                {...listeners}
-                className="my-auto opacity-0 group-hover:opacity-100"
-                color="primary"
-                fontSize="small"
-              />
               <DragAndDropListener isDisabled={isDragAndDropDisabled(totalReferencesCount)} listeners={listeners} />
               {orderNumber}
             </div>

@@ -26,6 +26,7 @@ export const NOTIFICATIONS = {
   AFFILIATION_CREATION_FAILED: 'Failed to create affiliation',
   AFFILIATION_UPDATE_SUCCESS: 'Affiliation updated successfully',
   AFFILIATION_UPDATE_FAILED: 'Failed to update affiliation',
+  AFFILIATION_MOVE_FAILED: 'Failed to change affiliations order',
   // Languages
   LANGUAGE_CREATION_FAILED: 'Failed to create language',
   LANGUAGE_UPDATE_FAILED: 'Failed to update language',

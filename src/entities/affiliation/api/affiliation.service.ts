@@ -2,7 +2,7 @@ import type { QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { AffiliationDtoMapper } from '../model/affiliation.mapper';
-import { CREATE_AFFILIATION, DELETE_AFFILIATION, UPDATE_AFFILIATION } from '../model/affiliation.schema';
+import { CREATE_AFFILIATION, DELETE_AFFILIATION, MOVE_AFFILIATION, UPDATE_AFFILIATION } from '../model/affiliation.mutations';
 import type { AffiliationDto, AffiliationEntity } from '../model/affiliation.types';
 
 export class AffiliationService extends BaseService<AffiliationEntity, AffiliationDto> {
@@ -51,5 +51,17 @@ export class AffiliationService extends BaseService<AffiliationEntity, Affiliati
     });
 
     return response.deleteAffiliation;
+  }
+
+  async moveAffiliation({
+    token,
+    affiliationId,
+    newOrdinal,
+  }: {
+    token: QueryToken;
+    affiliationId: string;
+    newOrdinal: number;
+  }) {
+    return await this.graphqlService.mutation(token, MOVE_AFFILIATION, { affiliationId, newOrdinal });
   }
 }

@@ -23,6 +23,7 @@ type EditContributionProps = BaseRecommendedSectionProps &
     onWebsiteUrlUpdate: (data: WebsiteUrlForm) => void;
     onAffiliationsUpdate: (data: AffiliationsFormType) => void;
     onDeleteAffiliation: (id: string) => void;
+    onAffiliationOrderUpdate: (data: AffiliationsFormType['affiliations']) => void;
   }>;
 
 const EditContribution = (props: EditContributionProps) => {
@@ -55,6 +56,7 @@ const EditContribution = (props: EditContributionProps) => {
     updateOrcid,
     updateWebsiteUrl,
     updateAffiliations,
+    moveAffiliation,
   } = useEditContribution({
     workId,
     queryToken,
@@ -93,6 +95,7 @@ const EditContribution = (props: EditContributionProps) => {
         defaultValue={contribution.affiliations}
         showRecommendations={recommended}
         onUpdate={updateAffiliations}
+        onDragEnd={moveAffiliation}
       />
     </ContributionForms>
   );
