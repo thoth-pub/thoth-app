@@ -4,7 +4,7 @@ import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ImprintDtoMapper } from '../model/imprint.mapper';
 import { GET_IMPRINTS, GET_IMPRINTS_COUNT } from '../model/imprint.schema';
-import type { ImprintEntity } from '../model/imprint.types';
+import type { ImprintDto, ImprintEntity } from '../model/imprint.types';
 
 const { itemsPerRequestLimit, maxItemsPerRequestLimit } = appConfig.data;
 
@@ -14,18 +14,17 @@ type GetImprintsProps = {
   limit?: number;
 };
 
-export class ImprintService extends BaseService {
+export class ImprintService extends BaseService<ImprintEntity, ImprintDto> {
+  constructor(mapper = new ImprintDtoMapper()) {
+    super(mapper);
+  }
+
   async getImprintsCount(publishersIds: PublisherId[]): Promise<number> {
-    const { data } = await this.queryClient({
-      query: GET_IMPRINTS_COUNT,
-      variables: { publishers: publishersIds },
+    const { imprintCount = 0 } = await this.graphqlService.query(GET_IMPRINTS_COUNT, {
+      publishers: publishersIds,
     });
 
-    if (!data || !data.imprintCount) {
-      return 0;
-    }
-
-    return data.imprintCount;
+    return imprintCount;
   }
 
   async getImprints({
@@ -33,17 +32,13 @@ export class ImprintService extends BaseService {
     offset = 0,
     limit = itemsPerRequestLimit,
   }: GetImprintsProps): Promise<ImprintEntity[]> {
-    const { data } = await this.queryClient({
-      query: GET_IMPRINTS,
-      variables: { offset, limit, publishers: publishersIds },
+    const { imprints = [] } = await this.graphqlService.query(GET_IMPRINTS, {
+      offset,
+      limit,
+      publishers: publishersIds,
     });
 
-    if (!data || !data.imprints) {
-      return [];
-    }
-
-    const dtoMapper = new ImprintDtoMapper();
-    const res = data.imprints.map(dtoMapper.toEntity);
+    const res = imprints.map(this.dtoMapper.toEntity);
 
     return res;
   }

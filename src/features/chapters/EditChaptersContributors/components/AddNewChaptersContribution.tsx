@@ -1,11 +1,15 @@
-import { useCreateAffiliation } from '@/src/entities/affiliation';
-import { useContributionStateMachine } from '@/src/entities/contribution';
-import { useContributor, useCreateContributor, useUpdateContributor } from '@/src/entities/contributor';
-import { useWork } from '@/src/entities/work';
-import type { WorkContribution, WorkEntity } from '@/src/entities/work/model/work.types';
-import { AddNewContribution } from '@/src/features/contribution';
-import { isDefaultId, type BaseRecommendedSectionProps } from '@/src/shared';
+'use client';
+
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
+
+import { useContributionStateMachine, useCreateContribution } from '@/src/entities/contribution';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import { useContributor, useUpdateContributor } from '@/src/entities/contributor';
+import type { WorkEntity } from '@/src/entities/work/model/work.types';
+import { AddNewContribution } from '@/src/features/contribution';
+import { type BaseRecommendedSectionProps } from '@/src/shared';
+import { QueryKeys } from '@/src/shared';
 
 type AddNewChaptersContributionProps = BaseRecommendedSectionProps & {
   chapters: WorkEntity[];
@@ -17,54 +21,15 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
 
   const { activeContribution, close } = useContributionStateMachine();
 
-  const { createAffiliation } = useCreateAffiliation({
+  const queryClient = useQueryClient();
+
+  const { createContribution } = useCreateContribution({
     queryToken,
-    workId: '',
-  });
-
-  const { createContribution } = useWork('', queryToken, (data) => {
-    if (!activeContribution) return;
-
-    activeContribution.affiliations.forEach(async ({ institutionId, position }, index) => {
-      await createAffiliation({
-        variables: {
-          data: {
-            contributionId: data.contributionId,
-            institutionId,
-            affiliationOrdinal: 1 + index,
-            position: position && position.length > 0 ? position : null,
-          },
-        },
-      });
-    });
-  });
-
-  const { createContributor } = useCreateContributor({
-    queryToken,
-    onCompleted: (data) => {
-      if (!activeContribution || chapters.length === 0) return;
-
-      chapters.forEach((chapter) => {
-        createContribution(
-          {
-            ...activeContribution,
-            isMain: true,
-            orderNumber: chapter.contributions.length + 1,
-            contributorId: data.contributorId,
-          },
-          chapter.id,
-        );
-      });
-    },
-    onError: () => close(),
   });
 
   const { contributor } = useContributor({ contributorId: activeContribution?.contributorId });
-
   const { updateContributor } = useUpdateContributor({
     queryToken,
-    workId: '',
-    contributorId: '',
     onError: () => close(),
   });
 
@@ -74,17 +39,7 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
     };
   }, [close]);
 
-  const createWithNewContributor = (contribution: WorkContribution) => {
-    createContributor({
-      fullName: contribution.fullName,
-      lastName: contribution.lastName,
-      firstName: contribution.firstName,
-      orcid: contribution.orcidId,
-      website: contribution.website,
-    });
-  };
-
-  const createWithExistingContributor = (contribution: WorkContribution) => {
+  const createChaptersContribution = async (contribution: WorkContribution) => {
     if (!activeContribution) return;
 
     const isOrchidEdit = activeContribution.orcidId && activeContribution.orcidId !== '';
@@ -98,32 +53,32 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
         orcid: activeContribution.orcidId,
         website: activeContribution.website,
         id: contributor.id,
+        name: contributor.fullName,
+        updatedAt: '',
+        lastContributionTitle: '',
       });
     }
 
-    chapters.forEach((chapter) => {
-      createContribution(
-        {
-          ...activeContribution,
+    const promises = chapters.map(async (chapter) => {
+      const lastOrderNumber =
+        chapter.contributions.sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber ||
+        chapter.contributions.length + 1;
+
+      return createContribution({
+        data: {
+          ...contribution,
           isMain: true,
-          orderNumber: chapter.contributions.length + 1,
+          orderNumber: lastOrderNumber + 1,
         },
-        chapter.id,
-      );
+        relatedWorkId: chapter.id,
+      });
     });
-  };
 
-  const createChaptersContribution = (contribution: WorkContribution) => {
-    const isNewContributor = isDefaultId(contribution.contributorId);
+    await Promise.all(promises);
 
-    if (isNewContributor) {
-      createWithNewContributor(contribution);
-      close();
-      onCreate?.(contribution);
-      return;
-    }
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
 
-    createWithExistingContributor(contribution);
     close();
     onCreate?.(contribution);
   };

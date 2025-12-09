@@ -1,9 +1,8 @@
 import { PublicationEntity } from '@/src/entities/publication/model/publication.types';
+import { PublicationType as TPublicationType } from '@/src/entities/publication/model/publication.types';
+
 import { appConfig } from '../../config';
 import { PublicationType } from '../../constants';
-
-import { PublicationType as TPublicationType } from '@/src/entities/publication/model/publication.types';
-import { OnixProductForm } from '@/src/widgets/AllWorks/components/utils/types';
 
 export const getDefaultPublication = (data?: Partial<PublicationEntity>): PublicationEntity => {
   return {

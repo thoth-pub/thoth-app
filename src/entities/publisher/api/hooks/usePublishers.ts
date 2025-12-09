@@ -1,23 +1,27 @@
 'use client';
 
-import { useQuery } from '@apollo/client/react';
+import { useQuery } from '@tanstack/react-query';
 
-import { PublisherDtoMapper } from '../../model/publisher.mapper';
-import { GET_PUBLISHERS } from '../../model/publisher.schema';
+import { QueryKeys, useServices } from '@/src/shared';
+
 import type { PublisherId } from '../../model/publisher.types';
 
-const mapper = new PublisherDtoMapper();
-
 const usePublishers = (publisherIds: PublisherId[], isAdmin: boolean) => {
-  const { data: { publishers } = { publishers: [] }, error } = useQuery(GET_PUBLISHERS, {
-    variables: { publishers: publisherIds, offset: 0 },
-    skip: publisherIds.length === 0 && !isAdmin,
-  });
+  const { publisherService } = useServices();
 
-  const data = publishers.map(mapper.toEntity);
+  const {
+    data = [],
+    isLoading,
+    error,
+  } = useQuery({
+    queryKey: [QueryKeys.publishers, publisherIds],
+    queryFn: () => publisherService.getPublishers(publisherIds),
+    enabled: publisherIds.length > 0 && !isAdmin,
+  });
 
   return {
     publishers: data,
+    isLoading,
     error,
   };
 };

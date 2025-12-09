@@ -1,12 +1,13 @@
 'use client';
 
 import UploadIcon from '@mui/icons-material/Upload';
-
-import { Button, Typography } from '@/src/shared/ui';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useState } from 'react';
-import { FormFieldOption } from '@/src/shared';
+
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
+import { FormFieldOption } from '@/src/shared';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { Button, Typography } from '@/src/shared/ui';
+
 import { CSVParse } from './CSVParse';
 import { XMLParse } from './XMLParse';
 

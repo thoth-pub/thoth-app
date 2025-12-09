@@ -1,9 +1,7 @@
-import type { DeleteLocationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { DELETE_LOCATION } from '../../model/location.schema';
+import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
 const { LOCATION_DELETE_FAILED } = NOTIFICATIONS;
 
@@ -11,27 +9,24 @@ const useDeleteLocation = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const { locationService } = useServices();
+  const queryClient = useQueryClient();
 
-  const [mutate] = useMutationWithAuth<DeleteLocationMutation>({
-    queryToken,
-    mutation: DELETE_LOCATION,
-    options: {
-      onError: (error) => {
-        console.error(error);
-        sendErrorNotification(LOCATION_DELETE_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (locationId: string) => {
+      return locationService.deleteLocation(queryToken, locationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? LOCATION_DELETE_FAILED);
     },
   });
 
-  const deleteLocation = (locationId: string) => {
-    mutate({
-      variables: { locationId },
-    });
-  };
-
   return {
-    deleteLocation,
+    deleteLocation: mutateAsync,
+    loading: isPending,
   };
 };
 

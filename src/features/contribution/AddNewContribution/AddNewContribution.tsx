@@ -1,11 +1,11 @@
 import { AffiliationsForm } from '@/src/entities/affiliation';
 import { ContributionForms } from '@/src/entities/contribution';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
 import type { BaseRecommendedSectionProps } from '@/src/shared';
 import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
 import { useAddNewContribution } from './useAddNewContribution';
-import type { WorkContribution } from '@/src/entities/work/model/work.types';
 
 type AddNewContributionProps = BaseRecommendedSectionProps & {
   onCreate?: (contribution: WorkContribution) => void;
@@ -24,6 +24,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
     updateOrcid,
     updateWebsiteUrl,
     updateAffiliations,
+    moveAffiliation,
   } = useAddNewContribution({ workId, queryToken, onCreate });
 
   if (!contribution) return null;
@@ -45,6 +46,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
           defaultValue={contribution.affiliations}
           showRecommendations={recommended}
           onUpdate={updateAffiliations}
+          onDragEnd={moveAffiliation}
         />
       </ContributionForms>
     </TableNewEntityFormWrapper>

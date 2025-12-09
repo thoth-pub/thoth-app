@@ -1,70 +1,29 @@
 'use client';
 
-import { useQuery } from '@apollo/client/react';
+import { useQuery } from '@tanstack/react-query';
 
-import type { WorkDto, WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
-import { GET_WORK_CHAPTERS } from '../../model/work.schema';
-import { useEffect, useRef, useState } from 'react';
-import { WorkDtoMapper } from '../../model/work.mapper';
-import { appConfig, WorkTypes } from '@/src/shared';
+import type { WorkId } from '@/src/entities/work/model/work.types';
+import { QueryKeys, useServices } from '@/src/shared';
 
 type UseChaptersProps = {
   workId: WorkId;
 };
 
-const mapper = new WorkDtoMapper();
-
-const LIMIT = appConfig.data.itemsPerRequestLimit;
-
 const useWorkChapters = (props: UseChaptersProps) => {
   const { workId = '' } = props;
 
-  const uniqueChapters = useRef<string[]>([]);
-  const [offset, setOffset] = useState(0);
-  const [chapters, setChapters] = useState<WorkEntity[]>([]);
+  const { workService } = useServices();
+
   const {
-    data: { work: { relations } = { relations: [] } } = { work: { relations: [] } },
+    data = [],
     error,
-    loading,
-    refetch,
-  } = useQuery(GET_WORK_CHAPTERS, {
-    variables: { workId, limit: LIMIT, offset },
-    skip: workId.length === 0,
-    fetchPolicy: 'no-cache',
+    isLoading,
+  } = useQuery({
+    queryKey: [QueryKeys.workChapters, workId],
+    queryFn: async () => workService.getWorkChapters(workId),
   });
 
-  useEffect(() => {
-    if (relations.length === 0 || loading) return;
-
-    const newData = relations.map((relation) => mapper.toEntity(relation.relatedWork as WorkDto));
-    const filteredChapters = newData.filter(
-      ({ type, id }) => type === WorkTypes.enum.BookChapter && !uniqueChapters.current.includes(id),
-    );
-
-    const newUniqueChapters: WorkEntity[] = [];
-
-    filteredChapters.forEach((chapter) => {
-      if (uniqueChapters.current.includes(chapter.id)) return;
-
-      uniqueChapters.current.push(chapter.id);
-      newUniqueChapters.push(chapter);
-    });
-
-    setChapters([...chapters, ...newUniqueChapters]);
-
-    if (newData.length === LIMIT) {
-      setOffset(offset + LIMIT);
-    }
-  }, [loading]);
-
-  const refetchChapters = () => {
-    refetch();
-    setChapters([]);
-    setOffset(0);
-    uniqueChapters.current = [];
-  };
-
-  return { chapters, error, loading, refetchChapters };
+  return { chapters: data, error, isLoading };
 };
 
 export default useWorkChapters;

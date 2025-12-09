@@ -14,4 +14,16 @@ export class PublisherDtoMapper implements BaseMapper<PublisherEntity, Publisher
       updatedAt,
     };
   }
+
+  toDto(entity: PublisherEntity): PublisherDto {
+    const { id, name, shortName, url, updatedAt } = entity;
+
+    return {
+      publisherId: id,
+      publisherName: name,
+      publisherShortname: shortName,
+      publisherUrl: url,
+      updatedAt,
+    };
+  }
 }

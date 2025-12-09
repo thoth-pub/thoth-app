@@ -1,17 +1,17 @@
 import { AffiliationsForm } from '@/src/entities/affiliation';
 import { type AffiliationsForm as AffiliationsFormType } from '@/src/entities/affiliation/model/affiliation.types';
 import { ContributionForms } from '@/src/entities/contribution';
-import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
-import type { BaseRecommendedSectionProps } from '@/src/shared';
-
-import { useEditContribution } from './useEditContribution';
 import {
   ContributionBiographyForm,
   ContributionNamesForm,
   ContributionTypeForm,
 } from '@/src/entities/contribution/model/contribution.types';
+import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
 import { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
+import { usePublisherStateMachine } from '@/src/entities/publisher';
+import type { BaseRecommendedSectionProps } from '@/src/shared';
+
+import { useEditContribution } from './useEditContribution';
 
 type EditContributionProps = BaseRecommendedSectionProps &
   Partial<{
@@ -23,6 +23,7 @@ type EditContributionProps = BaseRecommendedSectionProps &
     onWebsiteUrlUpdate: (data: WebsiteUrlForm) => void;
     onAffiliationsUpdate: (data: AffiliationsFormType) => void;
     onDeleteAffiliation: (id: string) => void;
+    onAffiliationOrderUpdate: (data: AffiliationsFormType['affiliations']) => void;
   }>;
 
 const EditContribution = (props: EditContributionProps) => {
@@ -38,6 +39,7 @@ const EditContribution = (props: EditContributionProps) => {
     onWebsiteUrlUpdate,
     onAffiliationsUpdate,
     onDeleteAffiliation,
+    onAffiliationOrderUpdate,
   } = props;
 
   const { linkedPublishers } = usePublisherStateMachine();
@@ -55,6 +57,8 @@ const EditContribution = (props: EditContributionProps) => {
     updateOrcid,
     updateWebsiteUrl,
     updateAffiliations,
+    deleteAffiliation,
+    moveAffiliation,
   } = useEditContribution({
     workId,
     queryToken,
@@ -67,6 +71,7 @@ const EditContribution = (props: EditContributionProps) => {
     onWebsiteUrlUpdate,
     onAffiliationsUpdate,
     onDeleteAffiliation,
+    onMoveAffiliation: onAffiliationOrderUpdate,
   });
 
   if (!contribution) return null;
@@ -93,6 +98,8 @@ const EditContribution = (props: EditContributionProps) => {
         defaultValue={contribution.affiliations}
         showRecommendations={recommended}
         onUpdate={updateAffiliations}
+        onDragEnd={moveAffiliation}
+        onDelete={deleteAffiliation}
       />
     </ContributionForms>
   );

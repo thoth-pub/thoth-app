@@ -1,58 +1,44 @@
 'use client';
 
-import { ServerError } from '@apollo/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { CreateAffiliationMutation } from '@/gql/graphql';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { UPDATE_ISSUE } from '../../model/series.schema';
 import type { SeriesId } from '../../model/series.types';
-
-const { ISSUE_UPDATE_FAILED } = NOTIFICATIONS;
 
 type UseUpdateIssueProps = {
   queryToken: QueryToken;
 };
 
+const { ISSUE_UPDATE_FAILED } = NOTIFICATIONS;
+
 const useUpdateIssue = (props: UseUpdateIssueProps) => {
   const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const { seriesService } = useServices();
+  const queryClient = useQueryClient();
 
-  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: UPDATE_ISSUE,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, ISSUE_UPDATE_FAILED);
-
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(ISSUE_UPDATE_FAILED);
-      },
-      onCompleted: async () => {
-        await client.refetchQueries({ include: 'all' });
-      },
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: { issueId: string; orderNumber: number; seriesId: SeriesId; workId: WorkId }) => {
+      return seriesService.updateIssue({ token: queryToken, ...data });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? ISSUE_UPDATE_FAILED);
     },
   });
 
-  const updateIssue = async (data: { issueId: string; orderNumber: number; seriesId: SeriesId; workId: WorkId }) => {
-    const { issueId, orderNumber, seriesId, workId } = data;
-
-    mutate({
-      variables: { data: { issueId, issueOrdinal: orderNumber, seriesId, workId } },
-    });
-  };
-
   return {
-    updateIssue,
-    loading,
+    updateIssue: mutateAsync,
+    loading: isPending,
   };
 };
 

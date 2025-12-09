@@ -1,94 +1,59 @@
 'use client';
 
-import { closestCenter, DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useEffect, useState } from 'react';
-
-import { useDeleteIssue, useUpdateIssue } from '@/src/entities/series';
+import { useDeleteIssue, useMoveIssue } from '@/src/entities/series';
 import type { SeriesEntity, SeriesId } from '@/src/entities/series/model/series.types';
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import { QueryToken } from '@/src/shared/interfaces';
+import type { QueryToken } from '@/src/shared';
+import { DragAndDropWrapper } from '@/src/shared/ui';
 
 import { ListItem } from './ListItem';
 
 type IssuesListProps = {
-  issues: SeriesEntity['issues'];
-  workId?: WorkId;
   queryToken: QueryToken;
+  seriesId?: SeriesId;
+  issues: SeriesEntity['issues'];
   withDelete?: boolean;
 };
 
 export const IssuesList = (props: IssuesListProps) => {
-  const { workId = '', queryToken, withDelete = false, issues } = props;
-
-  const { updateIssue } = useUpdateIssue({ queryToken });
+  const { seriesId, queryToken, withDelete = false, issues } = props;
   const { deleteIssue } = useDeleteIssue({ queryToken });
+  const { moveIssue } = useMoveIssue({ seriesId, queryToken });
 
-  const sensors = useSensors(useSensor(PointerSensor));
+  const handleDragEnd = (data: SeriesEntity['issues']) => {
+    const updatedIssues = data.map((issue, index) => ({
+      ...issue,
+      orderNumber: index + 1,
+    }));
 
-  const [updatedIssues, setUpdatedIssues] = useState(issues);
+    const firstUpdatedIssue = updatedIssues.find((issue, index) => issue.id !== issues[index].id);
 
-  useEffect(() => {
-    setUpdatedIssues(issues);
-  }, [issues]);
+    if (!firstUpdatedIssue) return;
 
-  const updateSeriesIssues = (issues: { id: string }[], seriesId: SeriesId) => {
-    issues.forEach(({ id }, index) => {
-      updateIssue({
-        issueId: id,
-        orderNumber: index + 1,
-        seriesId,
-        workId,
-      });
+    moveIssue({
+      issueId: firstUpdatedIssue.id,
+      newOrdinal: firstUpdatedIssue.orderNumber,
     });
-  };
-
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setUpdatedIssues((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-
-        const newItems = arrayMove(items, oldIndex, newIndex);
-
-        // if (selectedSeries) {
-        //   updateSeriesIssues(newItems, selectedSeries.id);
-        // }
-
-        return newItems;
-      });
-    }
-  };
-
-  const handleDelete = (id: string) => {
-    const filteredIssues = issues.filter((issue) => issue.id !== id);
-
-    setUpdatedIssues(filteredIssues);
-
-    deleteIssue(id);
   };
 
   if (issues.length === 0) return null;
 
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-      <SortableContext items={issues} strategy={verticalListSortingStrategy}>
+    <DragAndDropWrapper items={issues} onDragEnd={handleDragEnd}>
+      {() => (
         <ul className="group flex w-full flex-col gap-2">
-          {updatedIssues.map(({ id, title, ordinal }) => (
+          {issues.map(({ id, title, ordinal }) => (
             <ListItem
               key={id}
               id={id}
               name={title}
               orderNumber={ordinal}
-              isDisabled={issues.length < 2}
+              totalItemsCount={issues.length}
               withDelete={withDelete}
-              onDelete={handleDelete}
+              onDelete={deleteIssue}
             />
           ))}
         </ul>
-      </SortableContext>
-    </DndContext>
+      )}
+    </DragAndDropWrapper>
   );
 };

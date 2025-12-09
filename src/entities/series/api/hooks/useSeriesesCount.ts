@@ -1,13 +1,14 @@
-import { useSuspenseQuery } from '@apollo/client/react';
+import { useSuspenseQuery } from '@tanstack/react-query';
 
 import type { PublisherId } from '@/src/entities/publisher';
-
-import { GET_SERIESES_COUNT } from '../../model/series.schema';
+import { QueryKeys, useServices } from '@/src/shared';
 
 const useSeriesesCount = (publishersIds: PublisherId[], isAdmin: boolean) => {
-  const { data: { seriesCount } = { seriesCount: 0 }, error } = useSuspenseQuery(GET_SERIESES_COUNT, {
-    variables: { publishers: publishersIds },
-    skip: publishersIds.length === 0 && !isAdmin,
+  const { seriesService } = useServices();
+
+  const { data: seriesCount = 0, error } = useSuspenseQuery({
+    queryKey: [QueryKeys.seriesesCount, ...publishersIds, isAdmin],
+    queryFn: () => seriesService.getSeriesCount(publishersIds),
   });
 
   return { seriesCount, error };

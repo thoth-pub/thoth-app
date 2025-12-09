@@ -45,8 +45,6 @@ export const getContributorRoleFromXml = (role: string) => {
       return ContributorTypes.enum.ResearchBy;
     case 'A30':
       return ContributorTypes.enum.SoftwareBy;
-    case 'A32':
-      return ContributorTypes.enum.Translator;
     default:
       return ContributorTypes.enum.Author;
   }

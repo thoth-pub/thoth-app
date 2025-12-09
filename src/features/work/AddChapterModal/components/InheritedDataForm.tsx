@@ -1,6 +1,7 @@
+import { useForm } from 'react-hook-form';
+
 import { Button, Checkbox, CheckboxFormField, FormFieldLabel } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
-import { useForm } from 'react-hook-form';
 
 const itemStyles = 'max-w-fit p-0';
 

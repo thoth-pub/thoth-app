@@ -1,18 +1,15 @@
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { FlatCompat } from '@eslint/eslintrc';
 import eslintJs from '@eslint/js';
 import eslintReact from '@eslint-react/eslint-plugin';
 import tseslint from 'typescript-eslint';
 import eslintConfigPrettier from 'eslint-config-prettier/flat';
 import simpleImportSort from 'eslint-plugin-simple-import-sort';
+import pluginQuery from '@tanstack/eslint-plugin-query';
+import nextVitals from 'eslint-config-next/core-web-vitals';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-
-const compat = new FlatCompat({
-  baseDirectory: __dirname,
-});
 
 const eslintConfig = tseslint.config([
   {
@@ -37,8 +34,9 @@ const eslintConfig = tseslint.config([
       'simple-import-sort/exports': 'error',
     },
   },
-  ...compat.extends('next/core-web-vitals', 'next/typescript'),
+  nextVitals,
   eslintConfigPrettier,
+  pluginQuery.configs['flat/recommended'],
 ]);
 
 export default eslintConfig;

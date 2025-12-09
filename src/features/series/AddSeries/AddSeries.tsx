@@ -2,7 +2,6 @@
 
 import AddIcon from '@mui/icons-material/Add';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
-
 import { useState } from 'react';
 
 import { EditSeriesForm, useCreateSeries, useSeriesesStateMachine } from '@/src/entities/series';

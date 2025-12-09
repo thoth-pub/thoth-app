@@ -9,6 +9,7 @@ export const NOTIFICATIONS = {
   WORK_CONTRIBUTION_CREATION_FAILED: 'Failed to create work contribution',
   WORK_CONTRIBUTION_DELETION_FAILED: 'Failed to delete work contribution',
   WORK_CONTRIBUTION_UPDATE_FAILED: 'Failed to update work contribution',
+  WORK_MOVE_RELATION_FAILED: 'Failed to change work chapters order',
   // Chapters
   CHAPTER_CREATION_SUCCESS: 'Chapter created successfully',
   CHAPTER_CREATION_FAILED: 'Failed to create chapter',
@@ -19,14 +20,17 @@ export const NOTIFICATIONS = {
   CONTRIBUTOR_CREATION_FAILED: 'Failed to create contributor',
   CONTRIBUTOR_UPDATE_SUCCESS: 'Contributor profile updated successfully',
   CONTRIBUTOR_UPDATE_FAILED: 'Failed to update contributor profile',
+  CONTRIBUTION_MOVE_FAILED: 'Failed to change contribution order',
   // Affiliations
   AFFILIATION_CREATION_SUCCESS: 'Affiliation created successfully',
   AFFILIATION_CREATION_FAILED: 'Failed to create affiliation',
   AFFILIATION_UPDATE_SUCCESS: 'Affiliation updated successfully',
   AFFILIATION_UPDATE_FAILED: 'Failed to update affiliation',
+  AFFILIATION_MOVE_FAILED: 'Failed to change affiliations order',
   // Languages
   LANGUAGE_CREATION_FAILED: 'Failed to create language',
   LANGUAGE_UPDATE_FAILED: 'Failed to update language',
+  LANGUAGE_DELETE_FAILED: 'Failed to delete language',
   // Publications
   PUBLICATION_CREATION_FAILED: 'Failed to create publication',
   PUBLICATION_UPDATE_FAILED: 'Failed to update publication',
@@ -46,10 +50,12 @@ export const NOTIFICATIONS = {
   REFERENCE_CREATION_FAILED: 'Failed to create reference',
   REFERENCE_UPDATE_FAILED: 'Failed to update reference',
   REFERENCE_DELETE_FAILED: 'Failed to delete reference',
+  REFERENCE_MOVE_FAILED: 'Failed to change reference order',
   // Subjects
   SUBJECT_CREATION_FAILED: 'Failed to create subject',
   SUBJECT_UPDATE_FAILED: 'Failed to update subject',
   SUBJECT_DELETE_FAILED: 'Failed to delete subject',
+  SUBJECT_MOVE_FAILED: 'Failed to change subjects order',
   // Series
   SERIES_CREATION_FAILED: 'Failed to create series',
   SERIES_UPDATE_FAILED: 'Failed to update series',
@@ -58,4 +64,5 @@ export const NOTIFICATIONS = {
   ISSUE_CREATION_FAILED: 'Failed to create issue',
   ISSUE_UPDATE_FAILED: 'Failed to update issue',
   ISSUE_DELETE_FAILED: 'Failed to delete issue',
+  ISSUE_MOVE_FAILED: 'Failed to change issues order',
 } as const;

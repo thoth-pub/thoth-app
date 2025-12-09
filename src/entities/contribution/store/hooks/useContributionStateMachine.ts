@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
+import { useUnmount } from 'react-use';
 
-import type { WorkContribution } from '@/src/entities/work/model/work.types';
-
+import type { WorkContribution } from '../../model/contribution.types';
 import { ContributionStateMachineContext } from '../contribution.provider';
 
 const useContributionStateMachine = () => {
@@ -27,6 +27,10 @@ const useContributionStateMachine = () => {
   const close = useCallback(() => {
     actorRef.send({ type: 'close' });
   }, [actorRef]);
+
+  useUnmount(() => {
+    close();
+  });
 
   return { activeContribution, edit, update, close };
 };

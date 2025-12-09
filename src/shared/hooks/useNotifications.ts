@@ -2,11 +2,11 @@
 
 import { useState } from 'react';
 
-import { NotificationService } from '../notifications/notification.service';
-
-const notificationService = new NotificationService();
+import { useServices } from '../context';
 
 export const useNotification = () => {
+  const { notificationService } = useServices();
+
   const [{ sendSuccessNotification, sendErrorNotification }] = useState(notificationService);
 
   return {

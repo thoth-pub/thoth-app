@@ -1,42 +1,42 @@
 'use client';
 
-import { type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
-import { useMutationWithAuth } from '@/src/shared/hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { DELETE_WORK, GET_WORK_CHAPTERS } from '../../model/work.schema';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
+
 import { WorkId } from '../../model/work.types';
 
 const { WORK_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteChapter = ({ queryToken, workId }: BaseEditSectionProps) => {
+const useDeleteChapter = ({ queryToken }: BaseEditSectionProps) => {
   const { sendErrorNotification } = useNotifications();
+  const { workService } = useServices();
+  const queryClient = useQueryClient();
 
-  const [mutate, { client }] = useMutationWithAuth({
-    queryToken,
-    mutation: DELETE_WORK,
-    options: {
-      onError: () => {
-        sendErrorNotification(WORK_DELETE_FAILED);
-      },
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (workId: WorkId) => {
+      return workService.deleteWork(queryToken, workId);
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? WORK_DELETE_FAILED);
     },
   });
 
   const deleteChapter = async (workId: WorkId) => {
-    await mutate({ variables: { workId } });
-    await client.refetchQueries({ include: [GET_WORK_CHAPTERS] });
+    await mutateAsync(workId);
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   const deleteChapters = async (workIds: WorkId[]) => {
-    workIds.forEach(async (workId) => {
-      await mutate({ variables: { workId } });
-    });
-    await client.refetchQueries({ include: [GET_WORK_CHAPTERS] });
+    await Promise.all(workIds.map((workId) => mutateAsync(workId)));
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   return {
     deleteChapter,
     deleteChapters,
+    loading: isPending,
   };
 };
 

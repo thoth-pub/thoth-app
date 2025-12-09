@@ -8,7 +8,6 @@ export const CREATE_REFERENCE = graphql(`
   }
 `);
 
-
 export const UPDATE_REFERENCE = graphql(`
   mutation UpdateReference($data: PatchReference!) {
     updateReference(data: $data) {
@@ -20,6 +19,14 @@ export const UPDATE_REFERENCE = graphql(`
 export const DELETE_REFERENCE = graphql(`
   mutation DeleteReference($referenceId: Uuid!) {
     deleteReference(referenceId: $referenceId) {
+      ...ReferenceFragment
+    }
+  }
+`);
+
+export const MOVE_REFERENCE = graphql(`
+  mutation MoveReference($referenceId: Uuid!, $newOrdinal: Int!) {
+    moveReference(referenceId: $referenceId, newOrdinal: $newOrdinal) {
       ...ReferenceFragment
     }
   }

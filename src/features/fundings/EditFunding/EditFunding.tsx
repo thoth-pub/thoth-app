@@ -1,10 +1,10 @@
 'use client';
 
+import { FundingEntity } from '@/src/entities/funding/model/funding.types';
 import type { BaseRecommendedSectionProps } from '@/src/shared';
 
 import EditFundingForm from '../EditFundingForm/EditFundingForm';
 import { useEditFunding } from './useEditFunding';
-import { FundingEntity } from '@/src/entities/funding/model/funding.types';
 
 type EditFundingProps = BaseRecommendedSectionProps & {
   onProjectUpdate?: (funding: FundingEntity) => void;

@@ -1,13 +1,8 @@
-import { useSuspenseQuery } from '@apollo/client/react';
+import { useSuspenseQuery } from '@tanstack/react-query';
 
-import { Expression, WorkField, WorkFragmentFragment, WorkStatus } from '@/gql/graphql';
+import { Expression, WorkField, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, type Direction } from '@/src/shared';
-
-import { BookDtoMapper } from '../../model/book.mapper';
-import { GET_BOOKS } from '../../model/book.schema';
-
-const mapper = new BookDtoMapper();
+import { appConfig, type Direction, QueryKeys, useServices } from '@/src/shared';
 
 type UseBooksProps = {
   publishersIds: PublisherId[];
@@ -36,23 +31,41 @@ const useSuspenseBooks = (props: UseBooksProps) => {
     isAdmin = false,
   } = props;
 
-  const { data: { books } = { books: [] }, error } = useSuspenseQuery(GET_BOOKS, {
-    variables: {
+  const { bookService } = useServices();
+
+  const {
+    data: books = [],
+    error,
+    isLoading,
+  } = useSuspenseQuery({
+    queryKey: [
+      QueryKeys.books,
+      ...publishersIds,
+      isAdmin,
       offset,
       limit,
-      publishers: publishersIds,
       direction,
       filter,
       workStatus,
+      startedAt,
+      expression,
       field,
-      ...(startedAt && expression ? { startedAt, expression } : {}),
-    },
-    skip: publishersIds.length === 0 && !isAdmin,
+    ],
+    queryFn: () =>
+      bookService.getBooks({
+        publishersIds,
+        offset,
+        limit,
+        direction,
+        filter,
+        workStatus,
+        startedAt,
+        expression,
+        field,
+      }),
   });
 
-  const data = books.map((book) => mapper.toEntity(book as WorkFragmentFragment));
-
-  return { books: data, error };
+  return { books, error, isLoading };
 };
 
 export default useSuspenseBooks;

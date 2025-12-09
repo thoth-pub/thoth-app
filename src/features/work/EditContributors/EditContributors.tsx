@@ -1,11 +1,12 @@
 'use client';
 
-import { WorkContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
+import { useEffect } from 'react';
+
+import { useContributionStateMachine, WorkContributionsTable } from '@/src/entities/contribution';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
 import { ANCHORS, type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
-import { useEffect } from 'react';
 
 type EditContributorsProps = BaseEditSectionProps & {
   isAdmin?: boolean;
@@ -15,7 +16,7 @@ const EditContributors = (props: EditContributorsProps) => {
   const { workId, queryToken, isAdmin = false } = props;
   const { activeContribution, close } = useContributionStateMachine();
 
-  const { work, refetch } = useWork(workId, queryToken);
+  const { work } = useWork(workId, queryToken);
   const { isContributionsRequired } = useWorkRecommendations({ workId });
 
   const isNewContribution = activeContribution ? isDefaultId(activeContribution.id) : false;
@@ -23,8 +24,6 @@ const EditContributors = (props: EditContributorsProps) => {
   const isEmpty = work.contributions.length === 0;
 
   useEffect(() => {
-    refetch();
-
     return () => {
       close();
     };

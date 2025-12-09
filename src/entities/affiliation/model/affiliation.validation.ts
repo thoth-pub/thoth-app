@@ -17,6 +17,7 @@ export const affiliationsValidationSchema = z.object({
   [AFFILIATIONS.name]: z.array(
     z.object({
       id: getRequiredStringValidation(),
+      affiliationId: getRequiredStringValidation(),
       [AFFILIATION.name]: affiliationValidationSchema,
       [POSITION.name]: positionValidationSchema,
     }),

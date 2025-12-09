@@ -1,8 +1,9 @@
 'use client';
 
+import { useEffect, useRef } from 'react';
+
 import { useIsDesktop } from '@/src/shared/hooks';
 import useUIStateMachine from '@/src/shared/store/ui/hooks/useUIStateMachine';
-import { useEffect, useRef } from 'react';
 
 const UpdateNavigationState = () => {
   const isDesktop = useIsDesktop();

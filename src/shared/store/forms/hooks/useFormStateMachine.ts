@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useUnmount } from 'react-use';
 
 import { FormStateMachineContext, Id } from '@/src/shared';
 
@@ -16,6 +17,10 @@ const useFormStateMachine = () => {
   const close = useCallback(() => {
     actorRef.send({ type: 'close' });
   }, [actorRef]);
+
+  useUnmount(() => {
+    close();
+  });
 
   return { activeFormId, edit, close };
 };

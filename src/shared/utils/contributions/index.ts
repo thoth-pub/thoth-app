@@ -1,4 +1,4 @@
-import { WorkContribution } from '@/src/entities/work/model/work.types';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 
 export const isAllContributionRecommendationsFilled = (contribution: WorkContribution) => {
   return (

@@ -2,8 +2,9 @@
 
 import NextLink from 'next/link';
 
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { useWorkRecommendations } from '@/src/entities/work';
-import type { WorkContribution, WorkStatus } from '@/src/entities/work/model/work.types';
+import type { WorkStatus } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, ROUTES } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
 import { Chip, DashboardContentWrapper, Typography } from '@/src/shared/ui';

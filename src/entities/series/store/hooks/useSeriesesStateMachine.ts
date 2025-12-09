@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useUnmount } from 'react-use';
 
 import { SeriesEntity } from '../../model/series.types';
 import { SeriesStateMachineContext } from '../serieses.provider';
@@ -19,6 +20,10 @@ const useSeriesesStateMachine = () => {
   const close = useCallback(() => {
     actorRef.send({ type: 'close' });
   }, [actorRef]);
+
+  useUnmount(() => {
+    close();
+  });
 
   return { activeSeries, edit, close };
 };

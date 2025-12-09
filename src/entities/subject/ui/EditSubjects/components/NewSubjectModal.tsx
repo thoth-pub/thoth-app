@@ -1,4 +1,13 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Activity, useEffect, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+
 import type { SubjectType } from '@/gql/graphql';
+import { bicFormFields } from '@/src/shared/constants/bicFormFields';
+import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
+import { FORM_FIELDS, subjectTypeOptions } from '@/src/shared/constants/formFields';
+import { SubjectTypes } from '@/src/shared/constants/subjects';
+import { themaFormFields } from '@/src/shared/constants/themaFormFields';
 import {
   AutocompleteField,
   CloseButton,
@@ -10,14 +19,7 @@ import {
   ModalWrapper,
   SubmitButton,
 } from '@/src/shared/ui';
-import { SubjectTypes } from '@/src/shared/constants/subjects';
-import { FORM_FIELDS, subjectTypeOptions } from '@/src/shared/constants/formFields';
-import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
-import { bicFormFields } from '@/src/shared/constants/bicFormFields';
-import { themaFormFields } from '@/src/shared/constants/themaFormFields';
-import { Activity, useEffect, useState } from 'react';
-import { useForm, useWatch } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
+
 import { addSubjectAutocompleteValidationSchema, addSubjectValidationSchema } from '../../../model/subject.validation';
 
 type NewSubjectModalProps = {
@@ -56,6 +58,7 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
   const options = autocompleteOptions[typeField];
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOptionsLength(options.length);
 
     if (options.length > 0) {

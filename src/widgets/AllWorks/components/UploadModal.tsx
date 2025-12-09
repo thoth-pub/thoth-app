@@ -1,19 +1,20 @@
 'use client';
 
-import PreviewIcon from '@mui/icons-material/Preview';
 import DownloadIcon from '@mui/icons-material/Download';
+import PreviewIcon from '@mui/icons-material/Preview';
 import UploadIcon from '@mui/icons-material/Upload';
-
-import { Stepper, Step, StepLabel } from '@/src/shared/ui';
 import { useState } from 'react';
-import { TemplateStep } from './TemplateStep';
-import { PreviewStep } from './PreviewStep';
-import { UploadStep } from './UploadStep';
-import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
-import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { FormFieldOption } from '@/src/shared';
+
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
+import { WorkEntity } from '@/src/entities/work/model/work.types';
+import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
+import { FormFieldOption } from '@/src/shared';
+import { Step, StepLabel, Stepper } from '@/src/shared/ui';
+import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+
+import { PreviewStep } from './PreviewStep';
+import { TemplateStep } from './TemplateStep';
+import { UploadStep } from './UploadStep';
 
 const steps = [
   {
@@ -40,6 +41,7 @@ type UploadModalProps = {
 export const UploadModal = (props: UploadModalProps) => {
   const { imprintsOptions, serieses, isOpen, onClose } = props;
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [data, setData] = useState<WorkEntity[]>([]);
 
   return (

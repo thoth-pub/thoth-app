@@ -4,5 +4,4 @@ export * from './forms';
 export * from './ids';
 export * from './mappers';
 export * from './notifications';
-export * from './queryClient';
 export * from './textEditorTags';

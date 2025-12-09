@@ -1,76 +1,31 @@
 'use client';
 
-import { useSuspenseQuery } from '@apollo/client/react';
+import { useCreateContribution, useDeleteContribution, useUpdateContribution } from '@/src/entities/contribution';
+import { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import { QueryToken } from '@/src/shared';
 
-import { getDefaultWork, isDefaultId, QueryToken } from '@/src/shared';
-
-import { WorkDtoMapper } from '../../model/work.mapper';
-import { GET_WORK } from '../../model/work.schema';
-import type { WorkContribution, WorkContributionDto, WorkDto, WorkEntity, WorkId } from '../../model/work.types';
+import type { WorkId } from '../../model/work.types';
 import useDeleteWork from './useDeleteWork';
+import useGetWork from './useGetWork';
 import { useUpdateWork } from './useUpdateWork';
-import { useWorkContribution } from './useWorkContribution';
-
-const mapper = new WorkDtoMapper();
-
-const defaultValues = getDefaultWork();
 
 const useWork = (
   id: WorkId,
   queryToken: QueryToken,
-  onCreateContributionCompleted?: (data: WorkContributionDto) => void,
+  onCreateContributionCompleted?: (data: WorkContribution) => void,
 ) => {
-  const {
-    data = {
-      work: defaultValues,
-    },
-    refetch,
-  } = useSuspenseQuery(GET_WORK, {
-    variables: { workId: id },
-    skip: id.length === 0 || isDefaultId(id),
-    fetchPolicy: 'no-cache',
-  });
+  const { work } = useGetWork(id);
   const { deleteWork } = useDeleteWork({ queryToken });
-  const { updateWork: updateWorkMutation } = useUpdateWork({
+  const { updateWork } = useUpdateWork({
     workId: id,
     queryToken,
   });
-  const {
-    createContribution: createContributionMutation,
-    deleteContribution,
-    updateContribution: updateContributionMutation,
-  } = useWorkContribution({
-    queryToken,
-    onCreateComplete: onCreateContributionCompleted,
-  });
-
-  const work = mapper.toEntity(data.work as WorkDto);
-
-  const updateWork = async (data: WorkEntity) => {
-    await updateWorkMutation(data);
-  };
-
-  const updateContribution = (data: WorkContribution) => {
-    const dto = mapper.toDtoContribution(data);
-
-    updateContributionMutation({
-      variables: {
-        data: { workId: id, ...dto },
-      },
-    });
-  };
-
-  const createContribution = (data: WorkContribution, workId = id) => {
-    const dto = mapper.toDtoContribution(data);
-
-    createContributionMutation({
-      variables: { data: { workId, ...dto } },
-    });
-  };
+  const { createContribution } = useCreateContribution({ queryToken, onCompleted: onCreateContributionCompleted });
+  const { updateContribution } = useUpdateContribution({ queryToken, relatedWorkId: id });
+  const { deleteContribution } = useDeleteContribution({ queryToken });
 
   return {
     work,
-    refetch,
     deleteWork,
     updateWork,
     updateContribution,

@@ -2,8 +2,8 @@
 
 import { type BaseEditSectionProps } from '@/src/shared';
 
-import { useContributionsTable } from './useContributionsTable';
 import { ContributionsTable } from '../components/Table';
+import { useContributionsTable } from './useContributionsTable';
 
 type WorkContributionsTableProps = BaseEditSectionProps & {
   form: Readonly<React.ReactNode>;

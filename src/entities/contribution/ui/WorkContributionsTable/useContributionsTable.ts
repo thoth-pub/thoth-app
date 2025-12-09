@@ -1,77 +1,40 @@
 'use client';
 
-import { DragEndEvent } from '@dnd-kit/core';
-import { arrayMove } from '@dnd-kit/sortable';
-import { useEffect, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 
-import { useContributionStateMachine } from '@/src/entities/contribution';
+import { useContributionStateMachine, useMoveContribution } from '@/src/entities/contribution';
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { useWork } from '@/src/entities/work';
-import type { BaseEditSectionProps } from '@/src/shared';
+import { type BaseEditSectionProps, QueryKeys } from '@/src/shared';
+
+import { WorkContribution } from '../../model/contribution.types';
 
 export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, deleteContribution } = useWork(workId, queryToken);
 
   const { updateContribution } = useWork(workId, queryToken);
+  const { moveContribution } = useMoveContribution({ queryToken, workId });
 
   const { activeContribution, edit } = useContributionStateMachine();
-  const [items, setItems] = useState(work.contributions);
+  const queryClient = useQueryClient();
 
-  const isEqual = work.contributions.every((contribution, index) => {
-    const item = items[index];
+  const dragEnd = (data: WorkContribution[]) => {
+    const reorderedContributions = data.map((contribution, index) => ({
+      ...contribution,
+      orderNumber: index + 1,
+    }));
 
-    if (!item) return false;
-
-    return (
-      item.id === contribution.id &&
-      item.fullName === contribution.fullName &&
-      item.type === contribution.type &&
-      item.biography === contribution.biography &&
-      item.contributorId === contribution.contributorId &&
-      item.isMain === contribution.isMain &&
-      item.orderNumber === contribution.orderNumber &&
-      item.orcidId === contribution.orcidId &&
-      item.website === contribution.website &&
-      item.affiliations.length === contribution.affiliations.length &&
-      item.affiliations.every(
-        (affiliation, index) =>
-          affiliation.id === contribution.affiliations[index].id &&
-          affiliation.orderNumber === contribution.affiliations[index].orderNumber &&
-          affiliation.position === contribution.affiliations[index].position &&
-          affiliation.institutionId === contribution.affiliations[index].institutionId,
-      )
+    const firstChangedContribution = reorderedContributions.find(
+      (contribution, index) => contribution.id !== work.contributions[index].id,
     );
-  });
 
-  useEffect(() => {
-    if (!isEqual) {
-      setItems(work.contributions);
-    }
+    if (!firstChangedContribution) return;
 
-    if (work.contributions.length !== items.length) {
-      setItems(work.contributions);
-    }
-  }, [isEqual, items.length, work.contributions]);
-
-  const dragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-
-    if (over && active.id !== over.id) {
-      setItems((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-
-        const newItems = arrayMove(items, oldIndex, newIndex);
-
-        // onReorderEnd?.(newItems);
-
-        return newItems;
-      });
-    }
+    moveContribution({ contributionId: firstChangedContribution.id, newOrdinal: firstChangedContribution.orderNumber });
   };
 
   const editContribution = (id: ContributionId) => {
-    const contribution = items.find((contribution) => contribution.id === id);
+    const contribution = work.contributions.find((contribution) => contribution.id === id);
 
     if (!contribution) return;
 
@@ -79,24 +42,28 @@ export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionPro
   };
 
   const switchMainStatus = (id: ContributionId) => {
-    const contribution = items.find((contribution) => contribution.id === id);
+    const contribution = work.contributions.find((contribution) => contribution.id === id);
 
     if (!contribution) return;
 
     updateContribution({ ...contribution, isMain: !contribution.isMain });
+
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   const deleteWorkContribution = async (id: ContributionId) => {
-    const contribution = items.find((contribution) => contribution.id === id);
+    const contribution = work.contributions.find((contribution) => contribution.id === id);
 
     if (!contribution) return;
 
-    await deleteContribution({ variables: { contributionId: id } });
-    setItems((items) => items.filter((item) => item.id !== contribution.id));
+    await deleteContribution(id);
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   return {
-    contributions: items,
+    contributions: work.contributions,
     activeContribution,
     dragEnd,
     editContribution,

@@ -1,45 +1,41 @@
 'use client';
 
-import { CreateAffiliationMutation } from '@/gql/graphql';
-import { NOTIFICATIONS, type QueryToken } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { DELETE_ISSUE } from '../../model/series.schema';
-
-const { ISSUE_DELETE_FAILED } = NOTIFICATIONS;
+import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
 type UseDeleteIssueProps = {
   queryToken: QueryToken;
 };
 
+const { ISSUE_DELETE_FAILED } = NOTIFICATIONS;
+
 const useDeleteIssue = (props: UseDeleteIssueProps) => {
   const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const { seriesService } = useServices();
+  const queryClient = useQueryClient();
 
-  const [mutate, { loading, client }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: DELETE_ISSUE,
-    options: {
-      onError: (error) => {
-        console.error(error);
-        sendErrorNotification(ISSUE_DELETE_FAILED);
-      },
-      onCompleted: async () => {
-        await client.refetchQueries({ include: 'all' });
-      },
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (issueId: string) => {
+      return seriesService.deleteIssue(queryToken, issueId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? ISSUE_DELETE_FAILED);
     },
   });
 
-  const deleteIssue = async (issueId: string) => {
-    mutate({
-      variables: { issueId },
-    });
-  };
-
   return {
-    deleteIssue,
-    loading,
+    deleteIssue: mutateAsync,
+    loading: isPending,
   };
 };
 

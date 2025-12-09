@@ -1,12 +1,10 @@
 'use client';
 
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
-import { type BaseEditSectionProps, NOTIFICATIONS, ROUTES } from '@/src/shared';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, ROUTES, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
-import { useMutationWithAuth } from '@/src/shared/hooks';
-
-import { DELETE_WORK } from '../../model/work.schema';
 
 const { WORK_DELETE_FAILED } = NOTIFICATIONS;
 
@@ -17,30 +15,28 @@ type UseDeleteWorkProps = Omit<BaseEditSectionProps, 'workId'> & {
 const useDeleteWork = ({ queryToken, redirect = true }: UseDeleteWorkProps) => {
   const router = useRouter();
   const { sendErrorNotification } = useNotifications();
+  const { workService } = useServices();
+  const queryClient = useQueryClient();
 
-  const [mutate, { client }] = useMutationWithAuth({
-    queryToken,
-    mutation: DELETE_WORK,
-    options: {
-      onCompleted: () => {
-        client.refetchQueries({ include: 'active' });
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (workId: string) => {
+      return workService.deleteWork(queryToken, workId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
 
-        if (redirect) {
-          router.replace(ROUTES.WORKS);
-        }
-      },
-      onError: () => {
-        sendErrorNotification(WORK_DELETE_FAILED);
-      },
+      if (redirect) {
+        router.replace(ROUTES.WORKS);
+      }
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? WORK_DELETE_FAILED);
     },
   });
 
-  const deleteWork = (workId: string) => {
-    mutate({ variables: { workId } });
-  };
-
   return {
-    deleteWork,
+    deleteWork: mutateAsync,
+    loading: isPending,
   };
 };
 

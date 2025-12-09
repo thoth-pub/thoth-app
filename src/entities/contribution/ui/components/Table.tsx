@@ -1,9 +1,8 @@
 'use client';
 
-import { WorkContribution } from '@/src/entities/work/model/work.types';
-import { Table, TableBody, TableHeader } from '@/src/shared/ui';
-import { closestCenter, DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { DragAndDropWrapper, TableBody, TableHeader, TableWrapper } from '@/src/shared/ui';
+
+import type { WorkContribution } from '../../model/contribution.types';
 import { ContributionsTableRow } from './ContributionsTableRow';
 
 type ContributionsTableProps = {
@@ -14,7 +13,7 @@ type ContributionsTableProps = {
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onSelectAsMain: (id: string) => void;
-  onDragEnd: (event: DragEndEvent) => void;
+  onDragEnd: (data: WorkContribution[]) => void;
 };
 
 export const ContributionsTable = (props: ContributionsTableProps) => {
@@ -29,35 +28,32 @@ export const ContributionsTable = (props: ContributionsTableProps) => {
     onDragEnd,
   } = props;
 
-  const sensors = useSensors(useSensor(PointerSensor));
-
   return (
-    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
-      <SortableContext items={contributions} strategy={verticalListSortingStrategy}>
-        <div className="overflow-auto">
-          <Table className="border-separate">
-            <TableHeader
-              cells={['Name', 'Type', 'Institution', 'Biography']}
-              cellStyles={['min-w-[250px]', 'min-w-[120px]', 'min-w-[250px]', 'min-w-[200px]']}
-            />
-            <TableBody>
-              {contributions.map((contribution) => (
-                <ContributionsTableRow
-                  key={contribution.id}
-                  isEditing={activeContribution?.id === contribution.id}
-                  isEditable={!activeContribution}
-                  contributor={contribution}
-                  form={form}
-                  showRecommendations={showRecommendations}
-                  onEdit={onEdit}
-                  onDelete={onDelete}
-                  onSelectAsMain={onSelectAsMain}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      </SortableContext>
-    </DndContext>
+    <DragAndDropWrapper items={contributions} onDragEnd={onDragEnd}>
+      {(isDragStarted) => (
+        <TableWrapper isOverflowHidden={isDragStarted}>
+          <TableHeader
+            cells={['Name', 'Type', 'Institution', 'Biography']}
+            cellStyles={['min-w-[250px]', 'min-w-[120px]', 'min-w-[250px]', 'min-w-[200px]']}
+          />
+          <TableBody>
+            {contributions.map((contribution) => (
+              <ContributionsTableRow
+                key={contribution.id}
+                totalContributionsCount={contributions.length}
+                isEditing={activeContribution?.id === contribution.id}
+                isEditable={!activeContribution}
+                contributor={contribution}
+                form={form}
+                showRecommendations={showRecommendations}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onSelectAsMain={onSelectAsMain}
+              />
+            ))}
+          </TableBody>
+        </TableWrapper>
+      )}
+    </DragAndDropWrapper>
   );
 };

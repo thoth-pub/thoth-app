@@ -1,53 +1,35 @@
-import { ServerError } from '@apollo/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import type { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { type BaseEditSectionProps, NOTIFICATIONS, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { PublicationDtoMapper } from '../../model/publication.mapper';
-import { UPDATE_PUBLICATION } from '../../model/publication.schema';
 import { PublicationEntity } from '../../model/publication.types';
 
 const { PUBLICATION_UPDATE_FAILED } = NOTIFICATIONS;
 
-const mapper = new PublicationDtoMapper();
-
-const useUpdateAffiliation = (props: BaseEditSectionProps) => {
+const useUpdatePublication = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: UPDATE_PUBLICATION,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, PUBLICATION_UPDATE_FAILED);
+  const { publicationService } = useServices();
+  const queryClient = useQueryClient();
 
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(PUBLICATION_UPDATE_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: PublicationEntity) => {
+      return publicationService.updatePublication(queryToken, data, workId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? PUBLICATION_UPDATE_FAILED);
     },
   });
 
-  const updatePublication = (data: PublicationEntity) => {
-    const dto = mapper.toDto(data);
-
-    mutate({
-      variables: { data: { ...dto, workId } },
-    });
-  };
-
   return {
-    updatePublication,
-    loading,
+    updatePublication: mutateAsync,
+    loading: isPending,
   };
 };
 
-export default useUpdateAffiliation;
+export default useUpdatePublication;

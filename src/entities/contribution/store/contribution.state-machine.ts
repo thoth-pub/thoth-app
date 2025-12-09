@@ -1,6 +1,6 @@
 import { assign, setup } from 'xstate';
 
-import { WorkContribution } from '../../work/model/work.types';
+import { WorkContribution } from '../model/contribution.types';
 
 type ContributionContext = {
   activeContribution: WorkContribution | null;

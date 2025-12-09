@@ -1,4 +1,5 @@
 import { useCallback } from 'react';
+import { useUnmount } from 'react-use';
 
 import { ReferenceEntity } from '../../model/reference.types';
 import { ReferenceStateMachineContext } from '../reference.provider';
@@ -24,6 +25,10 @@ const useReferencesStateMachine = () => {
   const close = useCallback(() => {
     actorRef.send({ type: 'close' });
   }, [actorRef]);
+
+  useUnmount(() => {
+    close();
+  });
 
   return { activeReference, edit, update, close };
 };

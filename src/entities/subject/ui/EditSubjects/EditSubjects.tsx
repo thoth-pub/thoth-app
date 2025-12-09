@@ -1,25 +1,23 @@
 'use client';
 
-import ExpandLessIcon from '@mui/icons-material/ExpandLess';
-import ExpandMoreIcon from '@mui/icons-material/ExpandMore';
+import { useState } from 'react';
 import type { Control } from 'react-hook-form';
 
 import { type BaseRecommendedSectionProps, convertOptionToString, IDs, SubjectTypes } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { AddButton, IconButton, Preview } from '@/src/shared/ui';
+import { AddButton, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { BIC_CODES } from '@/src/shared/utils/subjects/bic-codes';
+import { BISAC_CODES } from '@/src/shared/utils/subjects/bisac-codes';
+import { THEMA_CODES } from '@/src/shared/utils/subjects/thema-codes';
 
-import type { SubjectsFormType, SubjectType } from '../../model/subject.types';
+import useMoveSubjects from '../../api/hooks/useMoveSubjects';
+import type { SubjectEntity, SubjectsFormType, SubjectType } from '../../model/subject.types';
 import { subjectsValidationSchema } from '../../model/subject.validation';
 import { FormFields } from './components/FormFields';
+import { NewSubjectModal } from './components/NewSubjectModal';
 import { PreviewList } from './components/PreviewList';
 import { useEditSubjects } from './useEditSubjects';
-import { Activity, useState } from 'react';
-import { ShrinkedListItem } from './components/ShrinkedListItem';
-import { BIC_CODES } from '@/src/shared/utils/subjects/bic-codes';
-import { THEMA_CODES } from '@/src/shared/utils/subjects/thema-codes';
-import { BISAC_CODES } from '@/src/shared/utils/subjects/bisac-codes';
-import { NewSubjectModal } from './components/NewSubjectModal';
 
 const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 
@@ -33,7 +31,7 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
   const { workId, queryToken, recommended = false } = props;
 
   const { subjects, update, deleteSubject, close, create } = useEditSubjects({ workId, queryToken });
-  const [isExpanded, setIsExpanded] = useState(false);
+  const { moveSubjects } = useMoveSubjects({ queryToken, workId });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const defaultValues = subjects.map((subject) => {
@@ -65,17 +63,29 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
       ? subjects.map(({ code, type }) => `${code} | ${convertOptionToString(type)}`).join(', ')
       : undefined;
 
-  const bicubSubjects = subjects.filter((subject) => subject.type === SubjectTypes.enum.Bic);
+  const bicubSubjects = subjects
+    .filter((subject) => subject.type === SubjectTypes.enum.Bic)
+    .sort((a, b) => a.ordinal - b.ordinal);
 
-  const bisacSubjects = subjects.filter((subject) => subject.type === SubjectTypes.enum.Bisac);
+  const bisacSubjects = subjects
+    .filter((subject) => subject.type === SubjectTypes.enum.Bisac)
+    .sort((a, b) => a.ordinal - b.ordinal);
 
-  const customSubjects = subjects.filter((subject) => subject.type === SubjectTypes.enum.Custom);
+  const customSubjects = subjects
+    .filter((subject) => subject.type === SubjectTypes.enum.Custom)
+    .sort((a, b) => a.ordinal - b.ordinal);
 
-  const keywordSubjects = subjects.filter((subject) => subject.type === SubjectTypes.enum.Keyword);
+  const keywordSubjects = subjects
+    .filter((subject) => subject.type === SubjectTypes.enum.Keyword)
+    .sort((a, b) => a.ordinal - b.ordinal);
 
-  const lccSubjects = subjects.filter((subject) => subject.type === SubjectTypes.enum.Lcc);
+  const lccSubjects = subjects
+    .filter((subject) => subject.type === SubjectTypes.enum.Lcc)
+    .sort((a, b) => a.ordinal - b.ordinal);
 
-  const themaSubjects = subjects.filter((subject) => subject.type === SubjectTypes.enum.Thema);
+  const themaSubjects = subjects
+    .filter((subject) => subject.type === SubjectTypes.enum.Thema)
+    .sort((a, b) => a.ordinal - b.ordinal);
 
   const data = [
     {
@@ -106,7 +116,6 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
 
   const handleDelete = (id: string) => {
     if (subjects.length === 1) {
-      setIsExpanded(false);
       setIsModalOpen(false);
       close();
     }
@@ -120,6 +129,27 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
   const handleAddNewSubject = (value: { type: SubjectType; code: string }) => {
     create(value);
     handleModalState();
+  };
+
+  const handleMove = (subjects: SubjectEntity[]) => {
+    const updatedSubjects = subjects.map((subject, index) => {
+      return {
+        ...subject,
+        ordinal: index + 1,
+      };
+    });
+
+    const existingSubjects = subjects.filter((subject) => subject.type === updatedSubjects[0].type);
+
+    const firstUpdatedSubject = updatedSubjects.find((subject) => {
+      return existingSubjects.find(
+        (existingSubjects) => existingSubjects.id === subject.id && existingSubjects.ordinal !== subject.ordinal,
+      );
+    });
+
+    if (!firstUpdatedSubject) return;
+
+    moveSubjects({ subjectId: firstUpdatedSubject.id, newOrdinal: firstUpdatedSubject.ordinal });
   };
 
   return (
@@ -148,41 +178,15 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
         >
           {placeholder && (
             <div className="flex w-full flex-col gap-[var(--default-gap)]">
-              <ul className={`flex w-full flex-col ${isExpanded ? 'gap-0' : 'gap-[var(--default-gap)]'}`}>
-                <Activity mode={isExpanded || subjects.length < 10 ? 'visible' : 'hidden'}>
-                  {data.map(({ subjects }) => (
-                    <PreviewList subjects={subjects} onDelete={deleteSubject} />
-                  ))}
-                  <AddButton onAdd={handleModalState} className="capitalize">
-                    add new subject
-                  </AddButton>
-                  <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />
-                </Activity>
-                <Activity mode={!isExpanded && subjects.length >= 10 ? 'visible' : 'hidden'}>
-                  {bicubSubjects.length > 0 && (
-                    <ShrinkedListItem subjects={bicubSubjects} type={SubjectTypes.enum.Bic} />
-                  )}
-                  {bisacSubjects.length > 0 && (
-                    <ShrinkedListItem subjects={bisacSubjects} type={SubjectTypes.enum.Bisac} />
-                  )}
-                  {customSubjects.length > 0 && (
-                    <ShrinkedListItem subjects={customSubjects} type={SubjectTypes.enum.Custom} />
-                  )}
-                  {keywordSubjects.length > 0 && (
-                    <ShrinkedListItem subjects={keywordSubjects} type={SubjectTypes.enum.Keyword} />
-                  )}
-                  {lccSubjects.length > 0 && <ShrinkedListItem subjects={lccSubjects} type={SubjectTypes.enum.Lcc} />}
-                  {themaSubjects.length > 0 && (
-                    <ShrinkedListItem subjects={themaSubjects} type={SubjectTypes.enum.Thema} />
-                  )}
-                </Activity>
+              <ul className="flex w-full flex-col gap-0">
+                {data.map(({ subjects }, index) => (
+                  <PreviewList key={index} subjects={subjects} onDelete={deleteSubject} onDragEnd={handleMove} />
+                ))}
+                <AddButton onAdd={handleModalState} className="capitalize">
+                  add new subject
+                </AddButton>
+                <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />
               </ul>
-
-              {subjects.length >= 10 && (
-                <IconButton onClick={() => setIsExpanded(!isExpanded)} className="m-auto mt-4">
-                  {isExpanded ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                </IconButton>
-              )}
             </div>
           )}
         </Preview>

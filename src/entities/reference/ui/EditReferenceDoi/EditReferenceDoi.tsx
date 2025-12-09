@@ -2,7 +2,7 @@
 
 import { HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { ContentWrapper, FormFieldLabel, FormTextField, Preview, DoiPreview } from '@/src/shared/ui';
+import { ContentWrapper, DoiPreview, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { doiValidationSchema } from '../../model/reference.validation';

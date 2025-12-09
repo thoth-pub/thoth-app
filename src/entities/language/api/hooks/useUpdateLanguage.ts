@@ -1,13 +1,9 @@
-import { ServerError } from '@apollo/client';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import type { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
-import { LanguageDtoMapper } from '../../model/language.mapper';
-import { UPDATE_LANGUAGE } from '../../model/language.schema';
 import { LanguageEntity } from '../../model/language.types';
 
 type UseCreateLanguageProps = {
@@ -15,45 +11,31 @@ type UseCreateLanguageProps = {
   workId?: WorkId;
 };
 
-const mapper = new LanguageDtoMapper();
-
 const { LANGUAGE_UPDATE_FAILED } = NOTIFICATIONS;
 
 const useUpdateLanguage = (props: UseCreateLanguageProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
+  const { languageService } = useServices();
+  const queryClient = useQueryClient();
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: UPDATE_LANGUAGE,
-    options: {
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, LANGUAGE_UPDATE_FAILED);
-
-          sendErrorNotification(errorMessage);
-
-          return;
-        }
-
-        sendErrorNotification(LANGUAGE_UPDATE_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (data: LanguageEntity) => {
+      return languageService.updateLanguage(queryToken, data, workId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? LANGUAGE_UPDATE_FAILED);
     },
   });
 
-  const updateLanguage = (data: LanguageEntity) => {
-    const dto = mapper.toDto(data);
-
-    mutate({
-      variables: { data: { ...dto, workId } },
-    });
-  };
-
   return {
-    updateLanguage,
-    loading,
+    updateLanguage: mutateAsync,
+    loading: isPending,
   };
 };
 

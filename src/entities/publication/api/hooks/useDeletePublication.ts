@@ -1,34 +1,26 @@
-import type { CreateAffiliationMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { type BaseEditSectionProps } from '@/src/shared';
-import { useMutationWithAuth } from '@/src/shared/hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { DELETE_PUBLICATION } from '../../model/publication.schema';
+import { type BaseEditSectionProps, QueryKeys, useServices } from '@/src/shared';
 
-const useDeleteAffiliation = (props: BaseEditSectionProps) => {
+const useDeletePublication = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
-  const [mutate, { loading }] = useMutationWithAuth<CreateAffiliationMutation>({
-    queryToken,
-    mutation: DELETE_PUBLICATION,
-    options: {
-      onError: (error) => {
-        console.error(error);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const queryClient = useQueryClient();
+  const { publicationService } = useServices();
+
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (publicationId: string) => {
+      return publicationService.deletePublication(queryToken, publicationId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
     },
   });
 
-  const deletePublication = (publicationId: string) => {
-    mutate({
-      variables: { publicationId },
-    });
-  };
-
   return {
-    deletePublication,
-    loading,
+    deletePublication: mutateAsync,
+    loading: isPending,
   };
 };
 
-export default useDeleteAffiliation;
+export default useDeletePublication;

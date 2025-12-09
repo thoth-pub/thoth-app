@@ -1,41 +1,45 @@
 'use client';
 
-import { ChaptersContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
+import { useEffect, useMemo, useState } from 'react';
+
+import { useMoveBulkAffiliation } from '@/src/entities/affiliation';
+import { AffiliationEntity, AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
+import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAffiliationsForm';
+import {
+  ChaptersContributionsTable,
+  useContributionStateMachine,
+  useMoveContribution,
+} from '@/src/entities/contribution';
+import useContributionsBulkDelete from '@/src/entities/contribution/api/hooks/useContributionsBulkDelete';
+import useContributionsBulkUpdate from '@/src/entities/contribution/api/hooks/useContributionsBulkUpdate';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import type {
   ContributionId,
   ContributionType,
   ContributorId,
 } from '@/src/entities/contributor/model/contributor.types';
-import { WorkContribution, WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
-import { isAllContributionRecommendationsFilled, isDefaultId, type BaseEditSectionProps } from '@/src/shared';
+import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
+import { type BaseEditSectionProps, isAllContributionRecommendationsFilled, isDefaultId } from '@/src/shared';
 import { RecommendedSection, Typography } from '@/src/shared/ui';
-import { useEffect, useMemo, useState } from 'react';
+
 import AddContributionModal from '../../work/AddContributionModal/AddContributionModal';
 import { AddNewChaptersContribution } from './components/AddNewChaptersContribution';
-import { useWorkContributionsBulkDelete, useWorkContributionsBulkUpdate } from '@/src/entities/work';
 import { EditChaptersContributions } from './components/EditChaptersContributions';
 import { findAllSameContributions } from './components/utils';
-import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAffiliationsForm';
-import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 
 type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
   chapters: WorkEntity[];
-  onUpdate: () => void;
 };
 
 const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
-  const { queryToken, chapters, onUpdate } = props;
+  const { queryToken, chapters } = props;
 
-  const { activeContribution, edit, close } = useContributionStateMachine();
+  const { activeContribution, edit, update, close } = useContributionStateMachine();
 
-  const { deleteContributions } = useWorkContributionsBulkDelete(queryToken);
-  const { updateContributions } = useWorkContributionsBulkUpdate(queryToken);
-
-  useEffect(() => {
-    return () => {
-      close();
-    };
-  }, [close]);
+  const { deleteContributions } = useContributionsBulkDelete(queryToken);
+  const { updateContributions } = useContributionsBulkUpdate(queryToken);
+  const { moveContribution } = useMoveContribution({ queryToken, workId: '' });
+  const { moveBulkAffiliation } = useMoveBulkAffiliation(queryToken);
 
   const contributorsIds = chapters.flatMap((chapter) =>
     chapter.contributions.map((contribution) => contribution.contributorId),
@@ -94,6 +98,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const isValid = isEmpty || uniqueContributors.every(isAllContributionRecommendationsFilled);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setContributions(uniqueContributors);
   }, [uniqueContributors, affiliations]);
 
@@ -104,6 +109,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
       return chapter.contributions.every((contribution) => {
         // 3. For each contribution, get the contributor id
         const contributorId = contribution.contributorId;
+        const contributionType = contribution.type;
 
         // 4. For each affiliation, check if it exists in every other contribution in every other chapter
         // With the same contributor, with the same institution, order number and position
@@ -112,7 +118,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
           return chapters.every((chapter) => {
             // 6. Find same contribution
             const contribution = chapter.contributions.find(
-              (contribution) => contribution.contributorId === contributorId,
+              (contribution) => contribution.contributorId === contributorId && contribution.type === contributionType,
             );
 
             if (!contribution) return false;
@@ -143,7 +149,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
   const handleNewContribution = () => {
     close();
-    onUpdate();
   };
 
   const handleEdit = (id: ContributionId) => {
@@ -166,8 +171,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     setContributions(updatedUniqueContributors);
 
     await deleteContributions(contributionIds);
-
-    onUpdate();
   };
 
   const handleBulkUpdate = async (id: ContributionId, updatedData?: Partial<WorkContribution>) => {
@@ -203,8 +206,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     setContributions(updatedUniqueContributions);
 
     await updateContributions(updatedContributions);
-
-    onUpdate();
   };
 
   const handleMainBulkUpdate = async (id: ContributionId) => {
@@ -213,8 +214,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     if (sameContributions.length === 0) return;
 
     await handleBulkUpdate(id, { isMain: !sameContributions[0].isMain });
-
-    onUpdate();
   };
 
   const handleUpdateAffiliations = (data: AffiliationsForm, contributionId: ContributionId) => {
@@ -225,8 +224,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     const contributionsIds = sameContributions.map((contributions) => contributions.id);
 
     updateBulkAffiliations(data, contributionsIds);
-
-    onUpdate();
+    close();
   };
 
   const handleDeleteAffiliation = (id: string, contributionId: ContributionId) => {
@@ -255,7 +253,150 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
     deleteBulkAffiliations(ids);
 
-    onUpdate();
+    const updatedUniqueContributions = uniqueContributors.map((contribution) => {
+      if (!ids.includes(contribution.id)) return contribution;
+
+      return {
+        ...contribution,
+        affiliations: contribution.affiliations.filter((affiliation) => !ids.includes(affiliation.id)),
+      };
+    });
+
+    setContributions(updatedUniqueContributions);
+
+    if (!activeContribution) return;
+
+    const updatedActiveContribution = {
+      ...activeContribution,
+      affiliations: activeContribution.affiliations.filter((affiliation) => !ids.includes(affiliation.id)),
+    };
+
+    update(updatedActiveContribution);
+  };
+
+  const handleDragEnd = async (data: WorkContribution[]) => {
+    const reorderedContributions = data.map((contribution, index) => ({
+      ...contribution,
+      orderNumber: index + 1,
+    }));
+
+    const firstChangedContribution = reorderedContributions.find(
+      (contribution, index) => contribution.id !== uniqueContributors[index].id,
+    );
+
+    if (!firstChangedContribution) return;
+
+    const dateForUpdate = chapters
+      .map((chapter) => {
+        return chapter.contributions.find(
+          (contribution) =>
+            contribution.type === firstChangedContribution.type &&
+            contribution.contributorId === firstChangedContribution.contributorId,
+        );
+      })
+      .filter((contribution) => !!contribution);
+
+    const promises = dateForUpdate.map((contribution) => {
+      return moveContribution({
+        contributionId: contribution.id,
+        newOrdinal: firstChangedContribution.orderNumber,
+      });
+    });
+
+    await Promise.all(promises);
+  };
+
+  const handleAffiliationOrderUpdate = async (data: AffiliationsForm['affiliations']) => {
+    const changedAffiliations = data.map((affiliation, index) => ({
+      ...affiliation,
+      newOrdinal: index + 1,
+    }));
+
+    const affiliationsIds = changedAffiliations.map((affiliation) => affiliation.affiliationId);
+
+    const chapterWithAffiliations = chapters.find((chapter) => {
+      const contributions = chapter.contributions;
+      const contributionsWithAffiliations = contributions.filter((contribution) =>
+        contribution.affiliations.every((affiliation) => affiliationsIds.includes(affiliation.id)),
+      );
+
+      return contributionsWithAffiliations.length === changedAffiliations.length;
+    });
+
+    if (!chapterWithAffiliations) return;
+
+    const existingContribution = chapterWithAffiliations.contributions.find(
+      (contribution) =>
+        contribution.affiliations.every((affiliation) => affiliationsIds.includes(affiliation.id)) &&
+        contribution.affiliations.length === changedAffiliations.length,
+    );
+
+    if (!existingContribution) return;
+
+    const firstUpdatedAffiliation = changedAffiliations.find(
+      (affiliation, index) =>
+        affiliation.position !== existingContribution.affiliations[index].position ||
+        affiliation.affiliation?.value !== existingContribution.affiliations[index].institutionId,
+    );
+
+    if (!firstUpdatedAffiliation) return;
+
+    const contributionsToUpdate = findAllSameContributions(existingContribution.id, chapters, contributions);
+    const contributionsToUpdateIds = contributionsToUpdate.map((contribution) => contribution.id);
+
+    const affiliationsToUpdate: AffiliationEntity[] = [];
+
+    contributionsToUpdate.forEach((contribution) => {
+      const foundedAffiliation = contribution.affiliations.find(
+        (affiliation) =>
+          affiliation.position === firstUpdatedAffiliation.position &&
+          affiliation.institutionId === firstUpdatedAffiliation.affiliation?.value,
+      );
+
+      if (!foundedAffiliation) return;
+
+      affiliationsToUpdate.push(foundedAffiliation);
+    });
+
+    const dataForUpdate = affiliationsToUpdate.map((affiliation) => {
+      return {
+        affiliationId: affiliation.id,
+        newOrdinal: firstUpdatedAffiliation.newOrdinal,
+      };
+    });
+
+    await moveBulkAffiliation(dataForUpdate);
+
+    const updatedUniqueContributions = uniqueContributors.map((contribution) => {
+      if (!contributionsToUpdateIds.includes(contribution.id)) return contribution;
+
+      const affiliations: AffiliationEntity[] = changedAffiliations.map((affiliation) => {
+        return {
+          id: affiliation.affiliationId,
+          institutionId: affiliation.affiliation?.value,
+          institutionName: affiliation.affiliation?.label,
+          rorId: affiliation.affiliation?.value,
+          contributionId: contribution.id,
+          orderNumber: affiliation.newOrdinal,
+          position: affiliation.position || '',
+        };
+      });
+
+      return {
+        ...contribution,
+        affiliations,
+      };
+    });
+
+    const updatedActiveContribution = updatedUniqueContributions.find(
+      (contribution) => contribution.id === activeContribution?.id,
+    );
+
+    if (!updatedActiveContribution) return;
+
+    update(updatedActiveContribution);
+
+    setContributions(updatedUniqueContributions);
   };
 
   return (
@@ -270,7 +411,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
                 onEdit={handleEdit}
                 onDelete={handleBulkDelete}
                 onSelectAsMain={handleMainBulkUpdate}
-                onDragEnd={(id) => console.log('drag ended', id)}
+                onDragEnd={handleDragEnd}
                 form={
                   <EditChaptersContributions
                     showRecommendations={showRecommendations}
@@ -278,6 +419,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
                     onUpdate={handleBulkUpdate}
                     onUpdateAffiliations={handleUpdateAffiliations}
                     onDeleteAffiliation={handleDeleteAffiliation}
+                    onAffiliationOrderUpdate={handleAffiliationOrderUpdate}
                   />
                 }
                 showRecommendations={showRecommendations}

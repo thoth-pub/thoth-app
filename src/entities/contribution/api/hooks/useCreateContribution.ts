@@ -1,0 +1,33 @@
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { QueryKeys, QueryToken, useServices } from '@/src/shared';
+
+import { WorkContribution } from '../../model/contribution.types';
+
+type UseCreateContributionProps = {
+  queryToken: QueryToken;
+  onCompleted?: (data: WorkContribution) => void;
+};
+
+export const useCreateContribution = (props: UseCreateContributionProps) => {
+  const { queryToken, onCompleted } = props;
+
+  const queryClient = useQueryClient();
+  const { contributionService } = useServices();
+
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async ({ data, relatedWorkId }: { data: WorkContribution; relatedWorkId: string }) => {
+      return contributionService.createContribution(queryToken, data, relatedWorkId);
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+      onCompleted?.(data);
+    },
+  });
+
+  return {
+    createContribution: mutateAsync,
+    loading: isPending,
+  };
+};

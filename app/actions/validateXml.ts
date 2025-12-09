@@ -1,8 +1,8 @@
 'use server';
 
-import type { OnixData } from '@/src/widgets/AllWorks/components/utils/types';
-
 import { parse } from '@5stones/onix';
+
+import type { OnixData } from '@/src/widgets/AllWorks/components/utils/types';
 
 export type ValidationResult =
   | {

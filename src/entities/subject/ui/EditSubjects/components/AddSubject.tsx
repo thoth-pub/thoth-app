@@ -1,20 +1,21 @@
 'use client';
 
-import { FORM_FIELDS, subjectTypeOptions } from '@/src/shared/constants/formFields';
-import { AutocompleteField, FormFieldWithControlsWrapper, FormFieldWrapper, FormTextField } from '@/src/shared/ui';
-
-import { FormFieldLabel } from '@/src/shared/ui';
-import { useForm, useWatch } from 'react-hook-form';
-import { SubjectType } from '../../../model/subject.types';
-import { Wrapper } from './Wrapper';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { addSubjectAutocompleteValidationSchema, addSubjectValidationSchema } from '../../../model/subject.validation';
+import { Activity, useEffect, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+
 import { appConfig, SubjectTypes } from '@/src/shared';
 import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
+import { FORM_FIELDS, subjectTypeOptions } from '@/src/shared/constants/formFields';
 import { themaFormFields } from '@/src/shared/constants/themaFormFields';
-import { Activity, useEffect, useState } from 'react';
 import useDebounceValue from '@/src/shared/hooks/useDebouncedValue';
+import { AutocompleteField, FormFieldWithControlsWrapper, FormFieldWrapper, FormTextField } from '@/src/shared/ui';
+import { FormFieldLabel } from '@/src/shared/ui';
+
+import { SubjectType } from '../../../model/subject.types';
+import { addSubjectAutocompleteValidationSchema, addSubjectValidationSchema } from '../../../model/subject.validation';
+import { Wrapper } from './Wrapper';
 
 type AddSubjectProps = {
   skipAutoSubmit?: boolean;
@@ -52,6 +53,7 @@ export const AddSubject = (props: AddSubjectProps) => {
   const options = autocompleteOptions[typeField];
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setOptionsLength(options.length);
 
     if (options.length > 0) {

@@ -1,12 +1,11 @@
-import { ServerError } from '@apollo/client';
+'use client';
 
-import { type CreateWorkMutation } from '@/gql/graphql';
-import { NOTIFICATIONS, type QueryToken, serverErrorParser } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { CREATE_WORK } from '../../model/work.mutations';
-import { WorkDto, WorkEntity } from '../../model/work.types';
-import { WorkDtoMapper } from '../../model/work.mapper';
+import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
+
+import { WorkEntity } from '../../model/work.types';
 
 type UseCreateWorkProps = {
   queryToken: QueryToken;
@@ -14,49 +13,36 @@ type UseCreateWorkProps = {
 };
 
 const { WORK_CREATION_SUCCESS, WORK_CREATION_FAILED } = NOTIFICATIONS;
-
-const workDtoMapper = new WorkDtoMapper();
+const { books, booksCount, publishedBooksCount, forthcomingBooksCount, work, worksCount } = QueryKeys;
 
 const useCreateWork = (props: UseCreateWorkProps) => {
   const { queryToken, onCompleted } = props;
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
+  const { workService } = useServices();
+  const queryClient = useQueryClient();
 
-  const [mutate, { loading, client }] = useMutationWithAuth<CreateWorkMutation>({
-    queryToken,
-    mutation: CREATE_WORK,
-    options: {
-      onCompleted: (data) => {
-        sendSuccessNotification(WORK_CREATION_SUCCESS);
+  const { mutate, isPending } = useMutation({
+    mutationFn: async (data: WorkEntity) => {
+      return workService.createWork(queryToken, data);
+    },
+    onSuccess: (data) => {
+      sendSuccessNotification(WORK_CREATION_SUCCESS);
 
-        client.refetchQueries({ include: 'active' });
+      queryClient.invalidateQueries({
+        queryKey: [books, booksCount, publishedBooksCount, forthcomingBooksCount, work, worksCount],
+      });
 
-        const work = workDtoMapper.toEntity(data.createWork as WorkDto);
-
-        onCompleted(work);
-      },
-      onError: (error) => {
-        if (ServerError.is(error)) {
-          const errorMessage = serverErrorParser(error.bodyText, WORK_CREATION_FAILED);
-
-          sendErrorNotification(errorMessage);
-          return;
-        }
-
-        sendErrorNotification(WORK_CREATION_FAILED);
-      },
+      onCompleted(data);
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? WORK_CREATION_FAILED);
     },
   });
 
-  const createWork = (data: WorkEntity) => {
-    const { workId, ...work } = workDtoMapper.toDto(data) as WorkDto;
-
-    mutate({ variables: { data: work } });
-  };
-
   return {
-    createWork,
-    loading,
+    createWork: mutate,
+    loading: isPending,
   };
 };
 

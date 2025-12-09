@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+
 import type { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import type {
@@ -5,13 +7,12 @@ import type {
   ContributionNamesForm,
   ContributionTypeForm,
 } from '@/src/entities/contribution/model/contribution.types';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { WorkContribution } from '@/src/entities/work/model/work.types';
 import { EditContribution } from '@/src/features/contribution';
 import type { QueryToken } from '@/src/shared';
-import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
-import { useEffect } from 'react';
 
 type EditChaptersContributionsProps = {
   showRecommendations: boolean;
@@ -19,10 +20,18 @@ type EditChaptersContributionsProps = {
   onUpdate: (id: ContributionId, updatedData?: Partial<WorkContribution>) => void;
   onUpdateAffiliations: (data: AffiliationsForm, contributionId: ContributionId) => void;
   onDeleteAffiliation: (id: string, contributionId: ContributionId) => void;
+  onAffiliationOrderUpdate: (data: AffiliationsForm['affiliations']) => void;
 };
 
 export const EditChaptersContributions = (props: EditChaptersContributionsProps) => {
-  const { showRecommendations, queryToken, onUpdate, onUpdateAffiliations, onDeleteAffiliation } = props;
+  const {
+    showRecommendations,
+    queryToken,
+    onUpdate,
+    onUpdateAffiliations,
+    onDeleteAffiliation,
+    onAffiliationOrderUpdate,
+  } = props;
 
   const { activeContribution, close, update } = useContributionStateMachine();
   const { isAdmin } = usePublisherStateMachine();
@@ -109,6 +118,12 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     onDeleteAffiliation(id, activeContribution.id);
   };
 
+  const handleAffiliationOrderUpdate = (data: AffiliationsForm['affiliations']) => {
+    if (!activeContribution) return;
+
+    onAffiliationOrderUpdate(data);
+  };
+
   return (
     <EditContribution
       recommended={showRecommendations}
@@ -122,6 +137,7 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
       onWebsiteUrlUpdate={handleWebsiteUrlUpdate}
       onAffiliationsUpdate={handleAffiliationsUpdate}
       onDeleteAffiliation={handleDeleteAffiliation}
+      onAffiliationOrderUpdate={handleAffiliationOrderUpdate}
     />
   );
 };

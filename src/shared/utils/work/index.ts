@@ -1,5 +1,6 @@
 import type { WorkEntity, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
+
 import { appConfig } from '../../config';
 
 export const isBookChapter = (workType: WorkType) => workType === WorkTypes.enum.BookChapter;
@@ -51,6 +52,7 @@ export const getDefaultChapter = (data?: Partial<Omit<WorkEntity, 'type'>>): Wor
     landingPage: '',
     publicationDate: '',
     withdrawnDate: '',
+    relationId: null,
     contributions: [],
     imageCount: 0,
     tableCount: 0,
@@ -92,6 +94,7 @@ export const getDefaultWork = (data?: Partial<WorkEntity>): WorkEntity => {
     publisherName: '',
     publicationDate: null,
     withdrawnDate: null,
+    relationId: null,
     contributions: [],
     imageCount: 0,
     tableCount: 0,

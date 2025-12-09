@@ -9,12 +9,12 @@ import {
   DeleteButton,
   EditButton,
   Pagination,
-  Table,
   TableBody,
   TableCell,
   TableFormWrapper,
   TableHeader,
   TableRow,
+  TableWrapper,
   Typography,
 } from '@/src/shared/ui';
 
@@ -36,13 +36,13 @@ type SeriesTableProps = {
 const SeriesTable = (props: SeriesTableProps) => {
   const { seriesForm, queryToken, loading, serieses, page, pagesCount, onPageChange } = props;
 
-  const { activeSeries, edit, close } = useSeriesesStateMachine();
+  const { activeSeries, edit } = useSeriesesStateMachine();
 
   const { deleteSeries } = useDeleteSeries({ queryToken });
 
   return (
-    <div className="flex flex-col overflow-auto">
-      <Table className="border-separate">
+    <>
+      <TableWrapper>
         <TableHeader
           cells={['Name', 'Description', 'Type', 'ISSN', 'Updated At']}
           cellStyles={['w-[210px]', 'w-[210px]', 'w-[210px]', 'w-[110px]', 'w-[110px]']}
@@ -84,19 +84,13 @@ const SeriesTable = (props: SeriesTableProps) => {
                       <TableFormWrapper colSpan={5}>{seriesForm}</TableFormWrapper>
                     ) : (
                       <TableRow key={id} className="group">
-                        <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
-                          {name}
-                        </TableCell>
-                        <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-                          {description}
-                        </TableCell>
-                        <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-                          {convertOptionToString(type)}
-                        </TableCell>
-                        <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                        <TableCell className="firstCell">{name}</TableCell>
+                        <TableCell className="middleCell">{description}</TableCell>
+                        <TableCell className="middleCell">{convertOptionToString(type)}</TableCell>
+                        <TableCell className="middleCell">
                           <Typography>{issnPrint && issnPrint.length > 0 ? issnPrint : issnDigital}</Typography>
                         </TableCell>
-                        <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
+                        <TableCell className="lastCell">
                           <div className="flex justify-between">
                             <Typography>{convertUpdatedAtToFormattedDate(updatedAt)}</Typography>
                             <ButtonGroup>
@@ -133,7 +127,7 @@ const SeriesTable = (props: SeriesTableProps) => {
             </>
           )}
         </TableBody>
-      </Table>
+      </TableWrapper>
       <Pagination
         page={page}
         count={pagesCount}
@@ -144,7 +138,7 @@ const SeriesTable = (props: SeriesTableProps) => {
         onChange={(_, value) => onPageChange(value)}
         disabled={loading}
       />
-    </div>
+    </>
   );
 };
 

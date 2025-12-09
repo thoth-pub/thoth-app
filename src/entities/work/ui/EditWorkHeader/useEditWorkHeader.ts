@@ -11,12 +11,12 @@ import {
 } from '@/src/shared';
 
 import useWork from '../../api/hooks/useWork';
-import type { WorkStatus } from '../../model/work.types';
 import useWorkChapters from '../../api/hooks/useWorkChapters';
+import type { WorkStatus } from '../../model/work.types';
 
 const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
   const { work, updateWork } = useWork(workId, queryToken);
-  const { chapters, refetchChapters } = useWorkChapters({ workId });
+  const { chapters } = useWorkChapters({ workId });
   const isPublicationDateDisabled = !isPublicationDateAvailable(work.status);
   const isWithdrawnDateRequired = isSupersededOrWithdrawn(work.status);
   const minDate = isPublicationDateShouldBeInFuture(work.status) ? getDateInFuture(0) : undefined;
@@ -54,8 +54,6 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
     });
 
     await Promise.all(promises);
-
-    refetchChapters();
   };
 
   const changePublicationDate = async (publicationDate: string) => {
@@ -72,8 +70,6 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
     });
 
     await Promise.all(promises);
-
-    refetchChapters();
   };
 
   const changeWithdrawnDate = async (withdrawnDate: string) => {
@@ -92,8 +88,6 @@ const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
     });
 
     await Promise.all(promises);
-
-    refetchChapters();
   };
 
   return {

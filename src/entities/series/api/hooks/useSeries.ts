@@ -1,10 +1,8 @@
-import { useQuery } from '@apollo/client/react';
+import { useQuery } from '@tanstack/react-query';
 
-import { SeriesDtoMapper } from '../../model/series.mapper';
-import { GET_SERIES } from '../../model/series.schema';
+import { QueryKeys, useServices } from '@/src/shared';
+
 import type { SeriesId } from '../../model/series.types';
-
-const mapper = new SeriesDtoMapper();
 
 type UseSeriesProps = {
   seriesId: SeriesId;
@@ -13,20 +11,19 @@ type UseSeriesProps = {
 const useSeries = (props: UseSeriesProps) => {
   const { seriesId = '' } = props;
 
+  const { seriesService } = useServices();
+
   const {
-    data: { series } = { series: null },
+    data: series,
     error,
-    loading,
-    refetch,
-    client,
-  } = useQuery(GET_SERIES, {
-    variables: { seriesId },
-    skip: seriesId.length === 0,
+    isLoading,
+  } = useQuery({
+    queryKey: [QueryKeys.series, seriesId],
+    queryFn: () => seriesService.getSeries(seriesId),
+    enabled: seriesId.length > 0,
   });
 
-  const data = series ? mapper.toEntity(series) : null;
-
-  return { series: data, error, loading, client, refetch };
+  return { series, error, loading: isLoading };
 };
 
 export default useSeries;

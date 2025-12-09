@@ -1,16 +1,18 @@
 'use client';
 
-import { useUpdateWorks, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
-import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
-import type { BaseEditSectionProps } from '@/src/shared';
 import { useEffect, useState } from 'react';
-import EditDescriptions from '../EditDescriptions/EditDescriptions';
-import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
+
+import { useContributionStateMachine } from '@/src/entities/contribution';
+import { useUpdateWorks, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
+import type { BaseEditSectionProps } from '@/src/shared';
 import { licenseOptions } from '@/src/shared/constants/formFields';
+
+import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
 import EditChaptersContributors from '../../chapters/EditChaptersContributors/EditChaptersContributors';
 import EditChaptersFundings from '../../chapters/EditChaptersFundings/EditChaptersFundings';
-import { useContributionStateMachine } from '@/src/entities/contribution';
+import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
+import EditDescriptions from '../EditDescriptions/EditDescriptions';
 
 type EditChaptersModalProps = BaseEditSectionProps & {
   title: string;
@@ -27,7 +29,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
   const [chapters, setChapters] = useState(initValue);
 
-  const { chapters: currentWorkChapters, refetchChapters } = useWorkChapters({ workId });
+  const { chapters: currentWorkChapters } = useWorkChapters({ workId });
 
   useEffect(() => {
     if (!activeWorkChapters) return;
@@ -84,12 +86,6 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   const license = chapters[0].license ? chapters[0].license : licenseOptions[0].value;
 
-  const handleUpdate = async () => {
-    await new Promise((resolve) => setTimeout(resolve, 2000));
-
-    refetchChapters();
-  };
-
   return (
     <FullScreenModal title={title} isOpen={isMultipleChaptersSelected} onClose={handleClose} onDone={handleDone}>
       <EditChapterBasicDetails
@@ -103,10 +99,11 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
         workId=""
         queryToken={queryToken}
         isMultipleChaptersEdit
+        // TODO: Implement languages update and reordering
         onLanguagesUpdate={(data) => console.log(data)}
       />
-      <EditChaptersContributors queryToken={queryToken} chapters={chapters} onUpdate={handleUpdate} />
-      <EditChaptersFundings queryToken={queryToken} chapters={chapters} onUpdate={refetchChapters} />
+      <EditChaptersContributors queryToken={queryToken} chapters={chapters} />
+      <EditChaptersFundings queryToken={queryToken} chapters={chapters} />
     </FullScreenModal>
   );
 };

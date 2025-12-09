@@ -1,38 +1,32 @@
-import type { DeletePriceMutation } from '@/gql/graphql';
-import { GET_WORK } from '@/src/entities/work/model/work.schema';
-import { type BaseEditSectionProps, NOTIFICATIONS } from '@/src/shared';
-import { useMutationWithAuth, useNotifications } from '@/src/shared/hooks';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { DELETE_PRICE } from '../../model/price.schema';
-
-type UseDeletePriceProps = BaseEditSectionProps;
+import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications } from '@/src/shared/hooks';
 
 const { PRICE_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeletePrice = (props: UseDeletePriceProps) => {
+const useDeletePrice = (props: BaseEditSectionProps) => {
   const { queryToken, workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
-  const [mutate] = useMutationWithAuth<DeletePriceMutation>({
-    queryToken,
-    mutation: DELETE_PRICE,
-    options: {
-      onError: (error) => {
-        console.error(error);
-        sendErrorNotification(PRICE_DELETE_FAILED);
-      },
-      refetchQueries: workId && workId.length > 0 ? [{ query: GET_WORK, variables: { workId } }] : [],
+  const { priceService } = useServices();
+  const queryClient = useQueryClient();
+
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (priceId: string) => {
+      return priceService.deletePrice(queryToken, priceId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? PRICE_DELETE_FAILED);
     },
   });
 
-  const deletePrice = (priceId: string) => {
-    mutate({
-      variables: { priceId },
-    });
-  };
-
   return {
-    deletePrice,
+    deletePrice: mutateAsync,
+    loading: isPending,
   };
 };
 

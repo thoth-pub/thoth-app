@@ -64,6 +64,7 @@ export const GET_WORK_CHAPTERS = graphql(`
         offset: $offset
         order: { direction: ASC, field: RELATION_ORDINAL }
       ) {
+        workRelationId
         relatedWork {
           ...WorkFragment
         }

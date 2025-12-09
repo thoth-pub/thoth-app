@@ -1,8 +1,13 @@
+import { useState } from 'react';
 import { Control, useFieldArray } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 
+import { SubjectTypes } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
+import { bicFormFields } from '@/src/shared/constants/bicFormFields';
+import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
 import { FORM_FIELDS, subjectTypeOptions } from '@/src/shared/constants/formFields';
+import { themaFormFields } from '@/src/shared/constants/themaFormFields';
 import {
   AddButton,
   AutocompleteField,
@@ -14,19 +19,14 @@ import {
   InputLabel,
 } from '@/src/shared/ui';
 import { isDefaultId } from '@/src/shared/utils';
-
-import type { SubjectId, SubjectsFormType, SubjectType } from '../../../model/subject.types';
-import { AddSubject } from './AddSubject';
-import { Wrapper } from './Wrapper';
-import { SubjectTypes } from '@/src/shared';
-import { bicFormFields } from '@/src/shared/constants/bicFormFields';
-import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
-import { themaFormFields } from '@/src/shared/constants/themaFormFields';
-import { useState } from 'react';
-import { NewSubjectModal } from './NewSubjectModal';
 import { BIC_CODES } from '@/src/shared/utils/subjects/bic-codes';
 import { BISAC_CODES } from '@/src/shared/utils/subjects/bisac-codes';
 import { THEMA_CODES } from '@/src/shared/utils/subjects/thema-codes';
+
+import type { SubjectId, SubjectsFormType, SubjectType } from '../../../model/subject.types';
+import { AddSubject } from './AddSubject';
+import { NewSubjectModal } from './NewSubjectModal';
+import { Wrapper } from './Wrapper';
 
 type FormFieldsProps = {
   control: Control<SubjectsFormType>;

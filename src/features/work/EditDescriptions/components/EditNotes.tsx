@@ -47,7 +47,7 @@ export const EditNotes = (props: BaseRecommendedSectionProps) => {
       }}
       onSubmit={handleSubmit}
       validationSchema={notesValidationSchema}
-      formFields={({ control, isHelperTextVisible, reset, setValue }) => (
+      formFields={({ control, isHelperTextVisible }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={WORK_GENERAL_NOTE.label} id={WORK_GENERAL_NOTE.name} />

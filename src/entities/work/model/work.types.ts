@@ -1,10 +1,9 @@
 import z from 'zod';
 
-import type { Contribution, ContributionType, WorkFragmentFragment } from '@/gql/graphql';
+import type { Contribution, WorkFragmentFragment } from '@/gql/graphql';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
-import type { AffiliationEntity } from '../../affiliation';
-import type { ContributorId } from '../../contributor/model/contributor.types';
+import { WorkContribution } from '../../contribution/model/contribution.types';
 import type { FundingEntity } from '../../funding/model/funding.types';
 import type { LanguageEntity } from '../../language/model/language.types';
 import { PublicationEntity } from '../../publication/model/publication.types';
@@ -27,7 +26,7 @@ import {
   workTypeValidationSchema,
 } from '../model/work.validation';
 
-export type WorkDto = WorkFragmentFragment;
+export type WorkDto = WorkFragmentFragment & { workRelationId?: string };
 
 export type WorkContributionDto = Partial<Contribution>;
 
@@ -36,21 +35,6 @@ export type WorkId = string;
 export type WorkType = z.infer<typeof WorkTypes>;
 
 export type WorkStatus = z.infer<typeof WorkStatuses>;
-
-export type WorkContribution = {
-  fullName: string;
-  lastName: string;
-  firstName: string;
-  id: string;
-  contributorId: ContributorId;
-  type: ContributionType;
-  isMain: boolean;
-  orderNumber: number;
-  biography: string;
-  orcidId: string;
-  website: string;
-  affiliations: AffiliationEntity[];
-};
 
 export type WorkIssue = {
   id: string;
@@ -75,6 +59,7 @@ export type WorkEntity = {
   publisherName: string;
   imprintId: string;
   status: WorkStatus;
+  relationId: string | null;
   edition?: number | null;
   license?: string | null;
   copyrightHolder?: string | null;

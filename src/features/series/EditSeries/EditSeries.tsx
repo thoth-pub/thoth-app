@@ -117,7 +117,9 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
             onUrlChange={updateUrl}
             onDescriptionChange={updateDescription}
           />
-          {series.issues.length > 0 && <IssuesList queryToken={queryToken} withDelete issues={series.issues} />}
+          {series.issues.length > 0 && (
+            <IssuesList seriesId={series.id} queryToken={queryToken} withDelete issues={series.issues} />
+          )}
           <AddBookModal queryToken={queryToken} series={series} />
         </>
       )}

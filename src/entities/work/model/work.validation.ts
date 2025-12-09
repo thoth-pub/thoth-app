@@ -80,8 +80,6 @@ const firstPageValidation = numberOrRomanNumeralValidationOptional;
 
 const lastPageValidation = numberOrRomanNumeralValidationOptional;
 
-const coverUrlValidation = optionalUrlValidation;
-
 const titleLanguageValidation = z.object({
   value: languageValidation,
   label: getRequiredStringValidation(),

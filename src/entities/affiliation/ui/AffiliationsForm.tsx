@@ -1,13 +1,10 @@
 'use client';
 
-import { closestCenter, DndContext, DragEndEvent, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
-import { useState } from 'react';
 import { Control } from 'react-hook-form';
 
 import { IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { Preview } from '@/src/shared/ui';
+import { DragAndDropWrapper, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import type { AffiliationEntity, AffiliationsForm as AffiliationsFormType } from '../model/affiliation.types';
@@ -20,55 +17,43 @@ const { AFFILIATION, POSITION } = FORM_FIELDS;
 type AffiliationsFormProps = {
   defaultValue: AffiliationEntity[];
   showRecommendations?: boolean;
-  onReorder?: (data: AffiliationsFormType) => void;
+  onDragEnd?: (data: AffiliationsFormType['affiliations']) => void;
   onUpdate?: (data: AffiliationsFormType) => void;
+  onDelete?: (id: string) => void;
 };
 
 const { AFFILIATIONS } = FORM_FIELDS;
 
 const AffiliationsForm = (props: AffiliationsFormProps) => {
-  const { defaultValue = [], showRecommendations = false, onReorder, onUpdate } = props;
+  const { defaultValue = [], showRecommendations = false, onDragEnd, onUpdate, onDelete } = props;
 
-  const defaultValues = defaultValue.map(({ id, institutionName, institutionId, position }) => ({
-    id,
-    [AFFILIATION.name]: { value: institutionId, label: institutionName },
-    [POSITION.name]: position,
-  }));
-
-  const [formValues, setFormValues] = useState(defaultValues);
-
-  const sensors = useSensors(useSensor(PointerSensor));
-
-  const showIndicator = showRecommendations && formValues.length === 0;
-
-  const onSubmit = (data: AffiliationsFormType) => {
-    const newValues = data.affiliations.map(({ id, affiliation: { label }, position }) => ({
+  const defaultValues = defaultValue
+    .sort((a, b) => a.orderNumber - b.orderNumber)
+    .map(({ id, institutionName, institutionId, position }) => ({
       id,
-      [AFFILIATION.name]: { value: label, label },
-      [POSITION.name]: position || '',
+      affiliationId: id,
+      [AFFILIATION.name]: { value: institutionId, label: institutionName },
+      [POSITION.name]: position,
     }));
 
-    setFormValues(newValues);
+  const showIndicator = showRecommendations && defaultValues.length === 0;
 
+  const onSubmit = (data: AffiliationsFormType) => {
     onUpdate?.(data);
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
+  const onDragEndHandler = (data: AffiliationsFormType['affiliations']) => {
+    const newValues = data.map(({ id, affiliation, position }, index) => ({
+      id,
+      affiliationId: id,
+      affiliation,
+      position: position || '',
+      orderNumber: index + 1,
+    }));
 
-    if (over && active.id !== over.id) {
-      setFormValues((items) => {
-        const oldIndex = items.findIndex((item) => item.id === active.id);
-        const newIndex = items.findIndex((item) => item.id === over.id);
-
-        const newItems = arrayMove(items, oldIndex, newIndex);
-
-        onReorder?.({ affiliations: newItems });
-
-        return newItems;
-      });
-    }
+    onDragEnd?.(newValues);
   };
+
   return (
     <>
       <EditableContent
@@ -78,31 +63,33 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
         onSubmit={onSubmit}
         defaultValues={{ [AFFILIATIONS.name]: defaultValues }}
         borderTransparent
-        formFields={({ control }) => <FormFields control={control as unknown as Control<AffiliationsFormType>} />}
-        preview={({ data, disabled, onEdit }) => (
+        formFields={({ control }) => (
+          <FormFields control={control as unknown as Control<AffiliationsFormType>} onDelete={onDelete} />
+        )}
+        preview={({ disabled, onEdit }) => (
           <Preview
             label={AFFILIATIONS.label}
             disabled={disabled}
             onEdit={onEdit}
-            value={formValues.join(', ')}
+            value={defaultValues.join(', ')}
             recommended={showIndicator}
           >
             <div className="flex flex-col gap-[var(--default-gap)]">
-              {formValues.length > 0 && (
-                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext items={formValues} strategy={verticalListSortingStrategy}>
+              {defaultValues.length > 0 && (
+                <DragAndDropWrapper items={defaultValues} onDragEnd={onDragEndHandler}>
+                  {() => (
                     <ul className="flex flex-col gap-[var(--default-gap)]">
-                      {formValues.map(({ id, affiliation: { label }, position }, index) => (
+                      {defaultValues.map(({ id, affiliation: { label }, position }) => (
                         <PreviewItem
                           key={id}
                           id={id}
                           text={`${position} ${label}`}
-                          isDisabled={data && data.affiliations && data.affiliations.length <= 1}
+                          totalItemsCount={defaultValues.length}
                         />
                       ))}
                     </ul>
-                  </SortableContext>
-                </DndContext>
+                  )}
+                </DragAndDropWrapper>
               )}
             </div>
           </Preview>

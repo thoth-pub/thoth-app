@@ -20,4 +20,18 @@ export class ImprintDtoMapper implements BaseMapper<ImprintEntity, ImprintDto> {
       publisherName,
     };
   }
+
+  toDto(entity: ImprintEntity): ImprintDto {
+    const { id, name, url, updatedAt, publisherName } = entity;
+
+    return {
+      imprintId: id,
+      imprintName: name,
+      imprintUrl: url,
+      updatedAt,
+      publisher: {
+        publisherName,
+      },
+    };
+  }
 }

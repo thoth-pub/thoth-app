@@ -1,4 +1,10 @@
+import { DAY } from '../constants';
+
 export const appConfig = {
+  query: {
+    staleTime: DAY,
+    cacheTime: DAY,
+  },
   meta: {
     title: 'Thoth Metadata Management Platform',
     description: ' Metadata Management Platform',
@@ -33,4 +39,5 @@ export const appConfig = {
     maxPreviewLength: 150,
   },
   maxFileSize: 500000,
+  minItemsCountForDragAndDrop: 2,
 };

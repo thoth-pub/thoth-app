@@ -1,19 +1,19 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
+import CSVFileValidator from 'csv-file-validator';
+import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
-import CSVFileValidator from 'csv-file-validator';
+import { CurrencyCode, LanguageCode } from '@/gql/graphql';
+import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { ContributorService } from '@/src/entities/contributor';
+import { ContributionType, ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { InstitutionService } from '@/src/entities/institution';
-import {
-  convertOrchidIdToText,
-  convertRomanToArabic,
-  getDefaultPublication,
-  isCsv,
-  isDefaultId,
-} from '@/src/shared/utils';
-import { useApolloClient } from '@apollo/client/react';
-import { licenseOptions } from '@/src/shared/constants/formFields';
+import { InstitutionEntity, InstitutionRor } from '@/src/entities/institution/model/institution.types';
+import { LocationEntity, LocationPlatform } from '@/src/entities/locations/model/location.types';
+import { SeriesEntity } from '@/src/entities/series/model/series.types';
+import { WorkEntity, WorkId, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
 import {
   appConfig,
   CSV_KEYS,
@@ -24,27 +24,30 @@ import {
   PublicationType,
   SubjectTypes,
 } from '@/src/shared';
-import { InstitutionEntity, InstitutionRor } from '@/src/entities/institution/model/institution.types';
-import { ContributionType, ContributorId } from '@/src/entities/contributor/model/contributor.types';
-import { SeriesEntity } from '@/src/entities/series/model/series.types';
-import { WorkContribution, WorkEntity, WorkId, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
-import { useEffect, useState } from 'react';
 import { getDefaultAffiliation } from '@/src/shared/constants/affiliations';
+import { licenseOptions } from '@/src/shared/constants/formFields';
 import {
-  Radio,
+  Button,
   LinkTooltip,
   OrchidLogo,
+  Radio,
   Table,
+  TableBody,
   TableCell,
   TableHeader,
-  Button,
-  TableBody,
   TableRow,
+  TableWrapper,
   Typography,
 } from '@/src/shared/ui';
+import {
+  convertOrchidIdToText,
+  convertRomanToArabic,
+  getDefaultPublication,
+  isCsv,
+  isDefaultId,
+} from '@/src/shared/utils';
+
 import { getCsvConfig } from './utils/getCsvConfig';
-import { CurrencyCode, LanguageCode } from '@/gql/graphql';
-import { LocationEntity, LocationPlatform } from '@/src/entities/locations/model/location.types';
 
 type CSVParseProps = {
   file: File;
@@ -80,10 +83,8 @@ export const CSVParse = (props: CSVParseProps) => {
   const [seriesForUpdate, setSeriesForUpdate] = useState<Record<string, SeriesForUpdateItem[]>>({});
   const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<MultipleFoundedContributors>({});
 
-  const queryClient = useApolloClient();
-
-  const contributorService = new ContributorService(queryClient.query);
-  const institutionService = new InstitutionService(queryClient.query);
+  const contributorService = new ContributorService();
+  const institutionService = new InstitutionService();
 
   const csvConfig = getCsvConfig(imprints, licenseOptions, serieses);
 
@@ -924,70 +925,64 @@ export const CSVParse = (props: CSVParseProps) => {
         Multiple contributors found
       </Typography>
       {showContributorsSelection && (
-        <div className="overflow-auto">
-          <Table className="border-separate">
-            <TableHeader
-              cells={['Work', 'Search Value', 'Contributors']}
-              cellStyles={['min-w-[210px]', 'min-w-[210px]', 'min-w-[210px]']}
-            />
-            <TableBody>
-              {Object.entries(multipleFoundedContributors).map(([workId, data]) => {
-                const work = works.find((work) => work.id === workId);
+        <TableWrapper>
+          <TableHeader
+            cells={['Work', 'Search Value', 'Contributors']}
+            cellStyles={['min-w-[210px]', 'min-w-[210px]', 'min-w-[210px]']}
+          />
+          <TableBody>
+            {Object.entries(multipleFoundedContributors).map(([workId, data]) => {
+              const work = works.find((work) => work.id === workId);
 
-                if (!work) return null;
+              if (!work) return null;
 
-                const contributions = Object.entries(data);
+              const contributions = Object.entries(data);
 
-                return contributions.map(([itemId, contributions]) => {
-                  const defaultContributor = contributions.find(({ contributorId }) => isDefaultId(contributorId));
+              return contributions.map(([itemId, contributions]) => {
+                const defaultContributor = contributions.find(({ contributorId }) => isDefaultId(contributorId));
 
-                  if (contributions.length < 2) return null;
+                if (contributions.length < 2) return null;
 
-                  return (
-                    <TableRow key={`${workId}-${itemId}`} className="group">
-                      <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
-                        {work.title}
-                      </TableCell>
-                      <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-                        {defaultContributor?.fullName ?? ''}
-                      </TableCell>
-                      <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-                        {contributions.map(({ fullName, orcidId, contributorId, lastContribution, selected }) => (
-                          <div className="flex items-center gap-2 [&:not(:first-child)&:not(:last-child)]:my-4">
-                            <Radio
-                              checked={selected}
-                              onChange={() => handleSelectContributor(workId, itemId, contributorId)}
-                              className="self-start"
-                            />
-                            <Typography className="flex flex-col gap-2">
-                              {isDefaultId(contributorId) ? (
-                                'Create new'
-                              ) : (
-                                <>
-                                  <Typography className="flex items-center gap-1" fontWeight="bold" component="span">
-                                    {fullName}
-                                    {orcidId && (
-                                      <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
-                                        <OrchidLogo />
-                                      </LinkTooltip>
-                                    )}
-                                  </Typography>
-                                  {lastContribution && lastContribution.length > 0 && (
-                                    <Typography component="span">Latest contribution to: {lastContribution}</Typography>
+                return (
+                  <TableRow key={`${workId}-${itemId}`} className="group">
+                    <TableCell className="firstCell">{work.title}</TableCell>
+                    <TableCell className="middleCell">{defaultContributor?.fullName ?? ''}</TableCell>
+                    <TableCell className="lastCell">
+                      {contributions.map(({ id, fullName, orcidId, contributorId, lastContribution, selected }) => (
+                        <div key={id} className="flex items-center gap-2 [&:not(:first-child)&:not(:last-child)]:my-4">
+                          <Radio
+                            checked={selected}
+                            onChange={() => handleSelectContributor(workId, itemId, contributorId)}
+                            className="self-start"
+                          />
+                          <Typography className="flex flex-col gap-2">
+                            {isDefaultId(contributorId) ? (
+                              'Create new'
+                            ) : (
+                              <>
+                                <Typography className="flex items-center gap-1" fontWeight="bold" component="span">
+                                  {fullName}
+                                  {orcidId && (
+                                    <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
+                                      <OrchidLogo />
+                                    </LinkTooltip>
                                   )}
-                                </>
-                              )}
-                            </Typography>
-                          </div>
-                        ))}
-                      </TableCell>
-                    </TableRow>
-                  );
-                });
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                                </Typography>
+                                {lastContribution && lastContribution.length > 0 && (
+                                  <Typography component="span">Latest contribution to: {lastContribution}</Typography>
+                                )}
+                              </>
+                            )}
+                          </Typography>
+                        </div>
+                      ))}
+                    </TableCell>
+                  </TableRow>
+                );
+              });
+            })}
+          </TableBody>
+        </TableWrapper>
       )}
       <Button variant="contained" color="primary" className="m-auto" onClick={handleSubmit}>
         Submit

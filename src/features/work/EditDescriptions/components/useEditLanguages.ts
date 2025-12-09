@@ -49,6 +49,7 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
     newLanguages.forEach(({ language: { value }, languageRelation }) => {
       newCodes.push(value as LanguageCode);
       createLanguage({
+        id: '',
         code: value as LanguageCode,
         relation: languageRelation,
         isMain: false,

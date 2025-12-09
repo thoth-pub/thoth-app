@@ -1,15 +1,19 @@
 'use client';
 
-import { useSortable } from '@dnd-kit/sortable';
-import { CSS } from '@dnd-kit/utilities';
-import DragIndicatorIcon from '@mui/icons-material/DragIndicator';
 import { AnimatePresence } from 'motion/react';
 import { useTranslation } from 'react-i18next';
 import removeMd from 'remove-markdown';
 
-import type { WorkContribution } from '@/src/entities/work/model/work.types';
-import { appConfig, convertOrchidIdToText, convertRorIdToText, truncateString } from '@/src/shared';
 import {
+  appConfig,
+  convertOrchidIdToText,
+  convertRorIdToText,
+  isDragAndDropDisabled,
+  truncateString,
+} from '@/src/shared';
+import {
+  DragAndDropListener,
+  DraggableComponent,
   Indicator,
   LinkTooltip,
   OrchidLogo,
@@ -20,6 +24,7 @@ import {
   Typography,
 } from '@/src/shared/ui';
 
+import type { WorkContribution } from '../../model/contribution.types';
 import { RowButtonGroup } from './RowButtonGroup';
 
 const { maxPreviewLength } = appConfig.tables;
@@ -27,6 +32,7 @@ const { maxPreviewLength } = appConfig.tables;
 type ContributionsTableRowProps = {
   contributor: WorkContribution;
   form: Readonly<React.ReactNode>;
+  totalContributionsCount: number;
   isEditing: boolean;
   isEditable: boolean;
   showRecommendations: boolean;
@@ -42,17 +48,12 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
     isEditing,
     isEditable = true,
     showRecommendations,
+    totalContributionsCount,
     onEdit,
     onDelete,
     onSelectAsMain,
   } = props;
   const { t } = useTranslation();
-  const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
 
   const plainText = removeMd(biography);
   const truncatedBiography = truncateString(plainText, maxPreviewLength);
@@ -62,59 +63,59 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
       {isEditing ? (
         <TableFormWrapper colSpan={4}>{form}</TableFormWrapper>
       ) : (
-        <TableRow ref={setNodeRef} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
-          <TableCell className="rounded-tl-2xl rounded-bl-2xl border-1 border-r-0 border-transparent pl-1 group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)] group-hover:border-l-[var(--color-form-border)]">
-            <div className="flex gap-1">
-              <DragIndicatorIcon
-                className="my-auto opacity-0 group-hover:opacity-100"
-                color="primary"
-                fontSize="small"
-                {...listeners}
-              />
-              <div className="flex shrink flex-wrap items-center gap-1">
-                {fullName}
-                {orcidId && (
-                  <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
-                    <OrchidLogo />
-                  </LinkTooltip>
-                )}
-                {showRecommendations && (!biography || affiliations.length === 0) && <Indicator />}
-              </div>
-            </div>
-          </TableCell>
-          <TableCell className="border-1 border-r-0 border-l-0 border-transparent capitalize group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-            {t(type.toLowerCase().replace('_', ' '))}
-          </TableCell>
-          <TableCell className="border-1 border-r-0 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-            <div className="flex rounded-tr-2xl rounded-br-2xl">
-              <ul className="flex flex-col gap-1">
-                {affiliations.map(({ id, institutionName, rorId }) => (
-                  <li key={id} className="flex items-center justify-between gap-1">
-                    {institutionName}
-                    {rorId && (
-                      <LinkTooltip link={rorId} linkText={convertRorIdToText(rorId)}>
-                        <RorLogo />
+        <DraggableComponent id={id}>
+          {({ attributes, listeners, style, ref }) => (
+            <TableRow ref={ref} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
+              <TableCell className="firstCell">
+                <div className="flex gap-1">
+                  <DragAndDropListener
+                    isDisabled={isDragAndDropDisabled(totalContributionsCount)}
+                    listeners={listeners}
+                  />
+                  <div className="flex shrink flex-wrap items-center gap-1">
+                    {fullName}
+                    {orcidId && (
+                      <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
+                        <OrchidLogo />
                       </LinkTooltip>
                     )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </TableCell>
-          <TableCell className="rounded-tr-2xl rounded-br-2xl border-1 border-l-0 border-transparent group-hover:border-t-[var(--color-form-border)] group-hover:border-r-[var(--color-form-border)] group-hover:border-b-[var(--color-form-border)]">
-            <div className="flex justify-between">
-              <Typography>{truncatedBiography}</Typography>
-              <RowButtonGroup
-                className="ml-auto"
-                isSelected={isMain}
-                isDisabled={!isEditable}
-                onEdit={() => onEdit?.(id)}
-                onSelectAsMain={() => onSelectAsMain?.(id)}
-                onDelete={() => onDelete?.(id)}
-              />
-            </div>
-          </TableCell>
-        </TableRow>
+                    {showRecommendations && (!biography || affiliations.length === 0) && <Indicator />}
+                  </div>
+                </div>
+              </TableCell>
+              <TableCell className="middleCell">{t(type.toLowerCase().replace('_', ' '))}</TableCell>
+              <TableCell className="middleCell">
+                <div className="flex rounded-tr-2xl rounded-br-2xl">
+                  <ul className="flex flex-col gap-1">
+                    {affiliations.map(({ id, institutionName, rorId }) => (
+                      <li key={id} className="flex items-center justify-between gap-1">
+                        {institutionName}
+                        {rorId && (
+                          <LinkTooltip link={rorId} linkText={convertRorIdToText(rorId)}>
+                            <RorLogo />
+                          </LinkTooltip>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </TableCell>
+              <TableCell className="lastCell">
+                <div className="flex justify-between">
+                  <Typography>{truncatedBiography}</Typography>
+                  <RowButtonGroup
+                    className="ml-auto"
+                    isSelected={isMain}
+                    isDisabled={!isEditable}
+                    onEdit={() => onEdit?.(id)}
+                    onSelectAsMain={() => onSelectAsMain?.(id)}
+                    onDelete={() => onDelete?.(id)}
+                  />
+                </div>
+              </TableCell>
+            </TableRow>
+          )}
+        </DraggableComponent>
       )}
     </AnimatePresence>
   );

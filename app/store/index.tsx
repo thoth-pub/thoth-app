@@ -1,12 +1,13 @@
 'use client';
 
-import { WorkChaptersStateMachineContext } from '@/src/entities/work';
 import { ContributionStateMachineContext } from '@/src/entities/contribution';
 import { FundingStateMachineContext } from '@/src/entities/funding';
 import { PublicationsStateMachineContext } from '@/src/entities/publication';
 import { PublisherStateMachineContext } from '@/src/entities/publisher';
 import { ReferenceStateMachineContext } from '@/src/entities/reference';
 import { SeriesStateMachineContext } from '@/src/entities/series';
+import { WorkChaptersStateMachineContext } from '@/src/entities/work';
+import { ServicesProvider } from '@/src/shared';
 import { FormStateMachineContext } from '@/src/shared/store/forms/forms.provider';
 import { UiStateMachineContext } from '@/src/shared/store/ui/ui.provider';
 
@@ -20,7 +21,9 @@ const StoreProvider = ({ children }: Readonly<{ children: React.ReactNode }>) =>
               <FundingStateMachineContext.Provider>
                 <ReferenceStateMachineContext.Provider>
                   <SeriesStateMachineContext.Provider>
-                    <WorkChaptersStateMachineContext.Provider>{children}</WorkChaptersStateMachineContext.Provider>
+                    <WorkChaptersStateMachineContext.Provider>
+                      <ServicesProvider>{children}</ServicesProvider>
+                    </WorkChaptersStateMachineContext.Provider>
                   </SeriesStateMachineContext.Provider>
                 </ReferenceStateMachineContext.Provider>
               </FundingStateMachineContext.Provider>

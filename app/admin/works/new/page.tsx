@@ -5,10 +5,9 @@ import { ImprintService } from '@/src/entities/imprint';
 import { CreateWorkForm } from '@/src/entities/work';
 import { ROUTES } from '@/src/shared/constants';
 import { licenseOptions } from '@/src/shared/constants/formFields';
-import { query } from '@/src/shared/graphqlClient';
 import { convertEntityToSelectFieldOptions, convertLinkedPublishers, isAdmin } from '@/src/shared/utils';
 
-const imprintsService = new ImprintService(query);
+const imprintsService = new ImprintService();
 
 export default async function NewWorkPage() {
   const session = await auth();

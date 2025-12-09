@@ -56,7 +56,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
 
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
-  const { books, loading } = useBooks({ publishersIds, filter: debouncedValue, isAdmin });
+  const { books, isLoading } = useBooks({ publishersIds, filter: debouncedValue, isAdmin });
   const { createIssue } = useCreateIssue({ queryToken });
 
   const filteredBooks = books.filter((book) => book.issues.length === 0);
@@ -101,7 +101,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
                   control={control}
                   options={options}
                   onInputChange={(_, value) => setSearchValue(value)}
-                  loading={loading}
+                  loading={isLoading}
                   icon={
                     <InputAdornment position="start">
                       <SearchIcon color="primary" />

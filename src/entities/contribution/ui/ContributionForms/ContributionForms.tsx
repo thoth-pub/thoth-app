@@ -1,8 +1,8 @@
 'use client';
 
-import { WorkContribution } from '@/src/entities/work/model/work.types';
 import { TableFormsWrapper } from '@/src/shared/ui';
 
+import type { WorkContribution } from '../../model/contribution.types';
 import { ContributionBiographyForm, ContributionNamesForm, ContributionTypeForm } from '../../model/contribution.types';
 import { EditBiography } from './components/EditBiography';
 import { EditNames } from './components/EditNames';

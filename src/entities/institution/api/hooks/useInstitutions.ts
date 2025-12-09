@@ -1,13 +1,8 @@
 'use client';
 
-import { useQuery } from '@apollo/client/react';
+import { useQuery } from '@tanstack/react-query';
 
-import { appConfig } from '@/src/shared';
-
-import { InstitutionDtoMapper } from '../../model/institution.mapper';
-import { GET_INSTITUTIONS } from '../../model/institution.schema';
-
-const mapper = new InstitutionDtoMapper();
+import { appConfig, QueryKeys, useServices } from '@/src/shared';
 
 type UseContributorsProps = {
   filter: string;
@@ -16,16 +11,22 @@ type UseContributorsProps = {
 const useInstitutions = (props: UseContributorsProps) => {
   const { filter } = props;
 
-  const { data = { institutions: [] }, loading } = useQuery(GET_INSTITUTIONS, {
-    variables: { filter, offset: 0, limit: appConfig.data.maxItemsPerRequestLimit },
-    skip: filter.length === 0,
+  const { institutionService } = useServices();
+
+  const {
+    data = [],
+    error,
+    isLoading,
+  } = useQuery({
+    queryKey: [QueryKeys.institutions, filter],
+    queryFn: () => institutionService.getInstitutions(0, appConfig.data.maxItemsPerRequestLimit, filter),
+    enabled: filter.length > 0,
   });
 
-  const institutions = data.institutions.map(mapper.toEntity);
-
   return {
-    institutions,
-    loading,
+    institutions: data,
+    error,
+    loading: isLoading,
   };
 };
 

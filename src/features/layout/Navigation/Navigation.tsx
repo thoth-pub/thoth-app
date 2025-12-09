@@ -1,6 +1,7 @@
 'use client';
 
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
+import ArrowDropDownRoundedIcon from '@mui/icons-material/ArrowDropDownRounded';
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded';
 import PermIdentityRoundedIcon from '@mui/icons-material/PermIdentityRounded';
 import { motion } from 'motion/react';
@@ -9,13 +10,12 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { PAGES, ROUTES } from '@/src/shared/constants';
+import useUIStateMachine from '@/src/shared/store/ui/hooks/useUIStateMachine';
 import { IconButton, Paper, Typography } from '@/src/shared/ui';
 
 import { SignOutButton } from '../../auth';
 import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
-import ArrowDropDownRoundedIcon from '@mui/icons-material/ArrowDropDownRounded';
-import useUIStateMachine from '@/src/shared/store/ui/hooks/useUIStateMachine';
 
 type NavigationProps = {
   linkedPublishers?: { publisherId: string; isAdmin: boolean }[];
