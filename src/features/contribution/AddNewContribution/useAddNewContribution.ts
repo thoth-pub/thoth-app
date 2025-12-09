@@ -1,6 +1,6 @@
 'use client';
 
-import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
+import { AffiliationEntity, AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import type {
   ContributionBiographyForm,
@@ -105,8 +105,10 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
       });
     }
 
+    const lastOrderNumber = work.contributions.sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber || 1;
+
     createContribution({
-      data: { ...activeContribution, isMain: true, orderNumber: work.contributions.length + 1 },
+      data: { ...activeContribution, isMain: true, orderNumber: lastOrderNumber + 1 },
       relatedWorkId: workId,
     });
 
@@ -149,11 +151,13 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
   const moveAffiliation = (data: AffiliationsForm['affiliations']) => {
     if (!activeContribution) return;
 
-    const updatedAffiliations = activeContribution.affiliations.map((affiliation, index) => ({
-      ...affiliation,
-      position: affiliation.position || '',
-      institutionId: data[index]?.affiliation?.value || '',
-      institutionName: data[index]?.affiliation?.label || '',
+    const updatedAffiliations: AffiliationEntity[] = data.map((item, index) => ({
+      id: item.id,
+      contributionId: activeContribution.id || '',
+      institutionId: item.affiliation?.value || '',
+      institutionName: item.affiliation?.label || '',
+      rorId: item.affiliation?.value || '',
+      position: item.position || '',
       orderNumber: index + 1,
     }));
 

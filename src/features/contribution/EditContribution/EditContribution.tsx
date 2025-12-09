@@ -39,6 +39,7 @@ const EditContribution = (props: EditContributionProps) => {
     onWebsiteUrlUpdate,
     onAffiliationsUpdate,
     onDeleteAffiliation,
+    onAffiliationOrderUpdate,
   } = props;
 
   const { linkedPublishers } = usePublisherStateMachine();
@@ -56,6 +57,7 @@ const EditContribution = (props: EditContributionProps) => {
     updateOrcid,
     updateWebsiteUrl,
     updateAffiliations,
+    deleteAffiliation,
     moveAffiliation,
   } = useEditContribution({
     workId,
@@ -69,6 +71,7 @@ const EditContribution = (props: EditContributionProps) => {
     onWebsiteUrlUpdate,
     onAffiliationsUpdate,
     onDeleteAffiliation,
+    onMoveAffiliation: onAffiliationOrderUpdate,
   });
 
   if (!contribution) return null;
@@ -96,6 +99,7 @@ const EditContribution = (props: EditContributionProps) => {
         showRecommendations={recommended}
         onUpdate={updateAffiliations}
         onDragEnd={moveAffiliation}
+        onDelete={deleteAffiliation}
       />
     </ContributionForms>
   );

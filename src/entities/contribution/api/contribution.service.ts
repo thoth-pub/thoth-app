@@ -85,9 +85,10 @@ export class ContributionService {
 
     if (!shouldCreateAffiliations) return workContribution;
 
-    const updatedAffiliations = data.affiliations.map((affiliation) => ({
+    const updatedAffiliations = data.affiliations.map((affiliation, index) => ({
       ...affiliation,
       contributionId: contribution.contributionId,
+      orderNumber: index + 1,
     }));
 
     const affiliationsPromises = updatedAffiliations.map((affiliation) =>

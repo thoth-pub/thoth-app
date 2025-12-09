@@ -1,6 +1,5 @@
 'use client';
 
-import { useState } from 'react';
 import { Control } from 'react-hook-form';
 
 import { IDs } from '@/src/shared';
@@ -20,46 +19,37 @@ type AffiliationsFormProps = {
   showRecommendations?: boolean;
   onDragEnd?: (data: AffiliationsFormType['affiliations']) => void;
   onUpdate?: (data: AffiliationsFormType) => void;
+  onDelete?: (id: string) => void;
 };
 
 const { AFFILIATIONS } = FORM_FIELDS;
 
 const AffiliationsForm = (props: AffiliationsFormProps) => {
-  const { defaultValue = [], showRecommendations = false, onDragEnd, onUpdate } = props;
+  const { defaultValue = [], showRecommendations = false, onDragEnd, onUpdate, onDelete } = props;
 
   const defaultValues = defaultValue
     .sort((a, b) => a.orderNumber - b.orderNumber)
     .map(({ id, institutionName, institutionId, position }) => ({
       id,
+      affiliationId: id,
       [AFFILIATION.name]: { value: institutionId, label: institutionName },
       [POSITION.name]: position,
     }));
 
-  const [formValues, setFormValues] = useState(defaultValues);
-
   const showIndicator = showRecommendations && defaultValues.length === 0;
 
   const onSubmit = (data: AffiliationsFormType) => {
-    const newValues = data.affiliations.map(({ id, affiliation: { label, value }, position }) => ({
-      id,
-      [AFFILIATION.name]: { value, label },
-      [POSITION.name]: position || '',
-    }));
-
-    setFormValues(newValues);
-
     onUpdate?.(data);
   };
 
   const onDragEndHandler = (data: AffiliationsFormType['affiliations']) => {
     const newValues = data.map(({ id, affiliation, position }, index) => ({
       id,
+      affiliationId: id,
       affiliation,
       position: position || '',
       orderNumber: index + 1,
     }));
-
-    setFormValues(newValues);
 
     onDragEnd?.(newValues);
   };
@@ -73,26 +63,28 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
         onSubmit={onSubmit}
         defaultValues={{ [AFFILIATIONS.name]: defaultValues }}
         borderTransparent
-        formFields={({ control }) => <FormFields control={control as unknown as Control<AffiliationsFormType>} />}
+        formFields={({ control }) => (
+          <FormFields control={control as unknown as Control<AffiliationsFormType>} onDelete={onDelete} />
+        )}
         preview={({ disabled, onEdit }) => (
           <Preview
             label={AFFILIATIONS.label}
             disabled={disabled}
             onEdit={onEdit}
-            value={formValues.join(', ')}
+            value={defaultValues.join(', ')}
             recommended={showIndicator}
           >
             <div className="flex flex-col gap-[var(--default-gap)]">
-              {formValues.length > 0 && (
-                <DragAndDropWrapper items={formValues} onDragEnd={onDragEndHandler}>
+              {defaultValues.length > 0 && (
+                <DragAndDropWrapper items={defaultValues} onDragEnd={onDragEndHandler}>
                   {() => (
                     <ul className="flex flex-col gap-[var(--default-gap)]">
-                      {formValues.map(({ id, affiliation: { label }, position }) => (
+                      {defaultValues.map(({ id, affiliation: { label }, position }) => (
                         <PreviewItem
                           key={id}
                           id={id}
                           text={`${position} ${label}`}
-                          totalItemsCount={formValues.length}
+                          totalItemsCount={defaultValues.length}
                         />
                       ))}
                     </ul>

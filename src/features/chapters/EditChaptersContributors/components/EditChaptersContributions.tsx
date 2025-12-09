@@ -20,10 +20,18 @@ type EditChaptersContributionsProps = {
   onUpdate: (id: ContributionId, updatedData?: Partial<WorkContribution>) => void;
   onUpdateAffiliations: (data: AffiliationsForm, contributionId: ContributionId) => void;
   onDeleteAffiliation: (id: string, contributionId: ContributionId) => void;
+  onAffiliationOrderUpdate: (data: AffiliationsForm['affiliations']) => void;
 };
 
 export const EditChaptersContributions = (props: EditChaptersContributionsProps) => {
-  const { showRecommendations, queryToken, onUpdate, onUpdateAffiliations, onDeleteAffiliation } = props;
+  const {
+    showRecommendations,
+    queryToken,
+    onUpdate,
+    onUpdateAffiliations,
+    onDeleteAffiliation,
+    onAffiliationOrderUpdate,
+  } = props;
 
   const { activeContribution, close, update } = useContributionStateMachine();
   const { isAdmin } = usePublisherStateMachine();
@@ -110,6 +118,12 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     onDeleteAffiliation(id, activeContribution.id);
   };
 
+  const handleAffiliationOrderUpdate = (data: AffiliationsForm['affiliations']) => {
+    if (!activeContribution) return;
+
+    onAffiliationOrderUpdate(data);
+  };
+
   return (
     <EditContribution
       recommended={showRecommendations}
@@ -123,6 +137,7 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
       onWebsiteUrlUpdate={handleWebsiteUrlUpdate}
       onAffiliationsUpdate={handleAffiliationsUpdate}
       onDeleteAffiliation={handleDeleteAffiliation}
+      onAffiliationOrderUpdate={handleAffiliationOrderUpdate}
     />
   );
 };

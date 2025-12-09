@@ -13,6 +13,7 @@ import { FormField } from './FormField';
 
 type FormFieldsProps = {
   control: Control<AffiliationsForm>;
+  onDelete?: (id: string) => void;
 };
 
 const { AFFILIATIONS, AFFILIATION, POSITION } = FORM_FIELDS;
@@ -21,12 +22,13 @@ const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const fieldsDefaultValues = {
   id: appConfig.defaultId,
+  affiliationId: appConfig.defaultId,
   [AFFILIATION.name]: { value: '', label: '' },
   [POSITION.name]: '',
 };
 
 export const FormFields = (props: FormFieldsProps) => {
-  const { control } = props;
+  const { control, onDelete } = props;
 
   const { t } = useTranslation();
 
@@ -54,6 +56,10 @@ export const FormFields = (props: FormFieldsProps) => {
   };
 
   const handleRemove = (index: number) => {
+    if (onDelete) {
+      onDelete(fields[index].affiliationId);
+    }
+
     remove(index);
   };
 

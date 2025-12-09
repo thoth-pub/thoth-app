@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import { useAffiliationsForm, useMoveAffiliation } from '@/src/entities/affiliation';
 import type { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
@@ -54,7 +54,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   const [contribution, setContribution] = useState<WorkContribution | null>(activeContribution);
 
   const { moveAffiliation } = useMoveAffiliation({ queryToken, workId });
-  const { updateContribution: updateWorkContribution } = useWork(workId, queryToken);
+  const { work, updateContribution: updateWorkContribution } = useWork(workId, queryToken);
   const { sendErrorNotification } = useNotifications();
   const { updateContributor } = useUpdateContributor({
     queryToken,
@@ -83,6 +83,21 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     affiliations: contribution?.affiliations || [],
     workId,
   });
+
+  useEffect(() => {
+    const contribution = work?.contributions.find((contribution) => contribution.id === activeContribution?.id);
+
+    if (!contribution) return;
+
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setContribution(contribution);
+  }, [work]);
+
+  useEffect(() => {
+    if (!activeContribution) return;
+
+    setContribution(activeContribution);
+  }, [activeContribution]);
 
   // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const isContributedOnlyToCurrentPublisher = useMemo(() => {
@@ -231,6 +246,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
     const updatedAffiliations = data.map(({ id, affiliation, position }, index) => ({
       id,
+      affiliationId: id,
       affiliation,
       position,
       newOrdinal: index + 1,
@@ -248,8 +264,6 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     );
 
     if (!firstChange) return;
-
-    console.log(firstChange);
 
     moveAffiliation({
       affiliationId: firstChange.id,
