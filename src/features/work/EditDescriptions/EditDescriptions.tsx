@@ -16,10 +16,20 @@ type EditDescriptionsProps = BaseEditSectionProps &
     isSingleChapterEdit: boolean;
     isMultipleChaptersEdit: boolean;
     onLanguagesUpdate: (data: LanguagesForm) => void;
+    onLanguagesDelete: (id: string) => void;
+    onLanguagesSelectAsMain: (id: string) => void;
   }>;
 
 const EditDescriptions = (props: EditDescriptionsProps) => {
-  const { workId, queryToken, isSingleChapterEdit = false, isMultipleChaptersEdit = false, onLanguagesUpdate } = props;
+  const {
+    workId,
+    queryToken,
+    isSingleChapterEdit = false,
+    isMultipleChaptersEdit = false,
+    onLanguagesUpdate,
+    onLanguagesDelete,
+    onLanguagesSelectAsMain,
+  } = props;
 
   const { work } = useWork(workId, queryToken);
   const { isPageCountRequired, isLanguagesRequired, isSubjectsRequired } = useWorkRecommendations({ workId });
@@ -46,6 +56,8 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
             queryToken={queryToken}
             recommended={showRecommendations && isLanguagesRequired}
             onUpdate={onLanguagesUpdate}
+            onDelete={onLanguagesDelete}
+            onSelectAsMain={onLanguagesSelectAsMain}
           />
           {!isMultipleChaptersEdit && (
             <EditSubjects

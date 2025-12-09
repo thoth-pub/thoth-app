@@ -13,6 +13,7 @@ import EditChaptersContributors from '../../chapters/EditChaptersContributors/Ed
 import EditChaptersFundings from '../../chapters/EditChaptersFundings/EditChaptersFundings';
 import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
 import EditDescriptions from '../EditDescriptions/EditDescriptions';
+import { useChaptersLanguages } from './useChaptersLanguages';
 
 type EditChaptersModalProps = BaseEditSectionProps & {
   title: string;
@@ -25,6 +26,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   const { activeWorkChapters, isMultipleChaptersSelected, update, close } = useWorkChaptersStateMachine();
   const { close: closeContribution } = useContributionStateMachine();
+  const { updateLanguages, deleteLanguages, changeLanguagesMainStatus } = useChaptersLanguages(queryToken);
 
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
   const [chapters, setChapters] = useState(initValue);
@@ -85,6 +87,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
   if (!chapters || !isMultipleChaptersSelected) return null;
 
   const license = chapters[0].license ? chapters[0].license : licenseOptions[0].value;
+  const firstChapterId = activeWorkChapters?.[0].id ?? '';
 
   return (
     <FullScreenModal title={title} isOpen={isMultipleChaptersSelected} onClose={handleClose} onDone={handleDone}>
@@ -96,11 +99,12 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
         onLicenseUpdate={onLicenseUpdate}
       />
       <EditDescriptions
-        workId=""
+        workId={firstChapterId}
         queryToken={queryToken}
         isMultipleChaptersEdit
-        // TODO: Implement languages update and reordering
-        onLanguagesUpdate={(data) => console.log(data)}
+        onLanguagesUpdate={updateLanguages}
+        onLanguagesDelete={deleteLanguages}
+        onLanguagesSelectAsMain={changeLanguagesMainStatus}
       />
       <EditChaptersContributors queryToken={queryToken} chapters={chapters} />
       <EditChaptersFundings queryToken={queryToken} chapters={chapters} />

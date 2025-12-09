@@ -6,15 +6,20 @@ import { useEditLanguages } from './useEditLanguages';
 
 type EditLanguagesProps = BaseRecommendedSectionProps & {
   onUpdate?: (data: LanguagesFormType) => void;
+  onDelete?: (id: string) => void;
+  onSelectAsMain?: (id: string) => void;
 };
 
 export const EditLanguages = (props: EditLanguagesProps) => {
-  const { workId, queryToken, recommended = false } = props;
+  const { workId, queryToken, recommended = false, onUpdate, onDelete, onSelectAsMain } = props;
 
   const { languages, showIndicator, update, deleteLanguage, selectAsMain, close } = useEditLanguages({
     workId,
     queryToken,
     recommended,
+    onUpdate,
+    onDelete,
+    onSelectAsMain,
   });
 
   return (

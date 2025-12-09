@@ -9,10 +9,12 @@ import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMach
 
 type useEditLanguagesProps = BaseRecommendedSectionProps & {
   onUpdate?: (data: LanguagesFormType) => void;
+  onDelete?: (id: string) => void;
+  onSelectAsMain?: (id: string) => void;
 };
 
 export const useEditLanguages = (props: useEditLanguagesProps) => {
-  const { workId, queryToken, recommended, onUpdate } = props;
+  const { workId, queryToken, recommended, onUpdate, onDelete, onSelectAsMain } = props;
 
   const { work } = useWork(workId, queryToken);
   const { close } = useFormStateMachine();
@@ -77,6 +79,11 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
   const deleteLanguage = (id: string) => {
     if (isDefaultId(id)) return;
 
+    if (onDelete) {
+      onDelete(id);
+      return;
+    }
+
     const item = work.languages.find((item) => item.id === id);
 
     if (!item) return;
@@ -85,6 +92,11 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
   };
 
   const selectAsMain = async (id: string) => {
+    if (onSelectAsMain) {
+      onSelectAsMain(id);
+      return;
+    }
+
     const item = work.languages.find((item) => item.id === id);
 
     if (!item) return;
