@@ -7,6 +7,7 @@ import {
   useDeleteReference,
   useMoveReferences,
   useReferencesStateMachine,
+  useUpdateReference,
 } from '@/src/entities/reference';
 import type { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import { useWork } from '@/src/entities/work';
@@ -38,6 +39,7 @@ const EditReferences = (props: BaseEditSectionProps) => {
   const { work } = useWork(workId, queryToken);
   const { activeReference, edit } = useReferencesStateMachine();
   const { deleteReference } = useDeleteReference({ workId, queryToken });
+  const { updateReference } = useUpdateReference({ workId, queryToken });
   const { moveReferences } = useMoveReferences({ workId, queryToken });
 
   const isNewReference = activeReference ? isDefaultId(activeReference.id) : false;
@@ -64,6 +66,23 @@ const EditReferences = (props: BaseEditSectionProps) => {
     await moveReferences({ referenceId: referencesToUpdate.id, newOrdinal: referencesToUpdate.orderNumber });
   };
 
+  const handleDeleteReference = async (id: string) => {
+    await deleteReference(id);
+
+    const referencesWithUpdatedOrderNumbers = work.references
+      .filter((reference) => reference.id !== id)
+      .map((reference, index) => ({
+        ...reference,
+        orderNumber: index + 1,
+      }));
+
+    const promises = referencesWithUpdatedOrderNumbers.map((reference) => {
+      return updateReference({ ...reference, orderNumber: reference.orderNumber });
+    });
+
+    await Promise.all(promises);
+  };
+
   return (
     <ContentSection title="References">
       <>
@@ -71,7 +90,7 @@ const EditReferences = (props: BaseEditSectionProps) => {
           activeReference={activeReference}
           references={work.references}
           form={<EditReference workId={workId} queryToken={queryToken} />}
-          onDelete={(id) => deleteReference(id)}
+          onDelete={handleDeleteReference}
           onEdit={(id) => editReference(id)}
           onDragEnd={dragEnd}
         />

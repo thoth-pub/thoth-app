@@ -10,8 +10,8 @@ import type { SubjectsFormType, SubjectType } from '../../model/subject.types';
 
 const { SUBJECT_TYPE, SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 
-export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data: SubjectsFormType) => void }) => {
-  const { workId, queryToken, onUpdate } = props;
+export const useEditSubjects = (props: BaseEditSectionProps) => {
+  const { workId, queryToken } = props;
 
   const { work } = useWork(workId, queryToken);
   const { close } = useFormStateMachine();
@@ -56,11 +56,6 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
         };
       });
 
-    if (onUpdate) {
-      onUpdate(data);
-      return;
-    }
-
     const updatedSubjects = existingSubjects.filter((subject) => {
       const existingSubject = work.subjects.find((workSubject) => workSubject.id === subject.subjectId);
 
@@ -75,6 +70,9 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
     await Promise.all(
       newSubjects.map(async (subject) => {
         const code = subject[SUBJECT_CODE.name]?.value;
+        const maxOrdinal = work.subjects
+          .filter((workSubject) => workSubject.type === subject.subjectType)
+          .sort((a, b) => b.ordinal - a.ordinal)[0]?.ordinal;
 
         if (!code) return;
 
@@ -82,7 +80,7 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
           id: '',
           code,
           type: subject[SUBJECT_TYPE.name] as SubjectType,
-          ordinal: work.subjects.length + 1,
+          ordinal: maxOrdinal ? maxOrdinal + 1 : work.subjects.length + 1,
         });
       }),
     );
@@ -90,6 +88,9 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
     await Promise.all(
       updatedSubjects.map(async (subject) => {
         const code = subject[SUBJECT_CODE.name]?.value;
+        const maxOrdinal = work.subjects
+          .filter((workSubject) => workSubject.type === subject.subjectType)
+          .sort((a, b) => b.ordinal - a.ordinal)[0]?.ordinal;
 
         if (!code) return;
 
@@ -97,7 +98,7 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
           id: subject.subjectId,
           code,
           type: subject[SUBJECT_TYPE.name] as SubjectType,
-          ordinal: work.subjects.length + 1,
+          ordinal: maxOrdinal ? maxOrdinal + 1 : work.subjects.length + 1,
         });
       }),
     );
@@ -117,7 +118,7 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
     const { type, code } = data;
 
     const sameTypeSubjects = work.subjects.filter((subject) => subject.type === type);
-    let maxOrdinal = 1;
+    let maxOrdinal = 0;
 
     sameTypeSubjects.forEach((subject) => {
       if (subject.ordinal > maxOrdinal) {
@@ -129,7 +130,7 @@ export const useEditSubjects = (props: BaseEditSectionProps & { onUpdate?: (data
       id: '',
       code,
       type,
-      ordinal: maxOrdinal > 1 ? maxOrdinal + 1 : 1,
+      ordinal: maxOrdinal ? maxOrdinal + 1 : 1,
     });
   };
 

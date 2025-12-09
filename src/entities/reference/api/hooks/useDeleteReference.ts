@@ -1,8 +1,8 @@
 'use client';
 
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { NOTIFICATIONS, useServices } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
@@ -10,19 +10,15 @@ import type { ReferenceId } from '../../model/reference.types';
 
 const { REFERENCE_DELETE_FAILED } = NOTIFICATIONS;
 
-const useCreateReference = (props: BaseEditSectionProps) => {
-  const { queryToken, workId = '' } = props;
+const useDeleteReference = (props: BaseEditSectionProps) => {
+  const { queryToken } = props;
 
   const { sendErrorNotification } = useNotifications();
   const { referenceService } = useServices();
-  const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (referenceId: ReferenceId) => {
       return referenceService.deleteReference(queryToken, referenceId);
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? REFERENCE_DELETE_FAILED);
@@ -35,4 +31,4 @@ const useCreateReference = (props: BaseEditSectionProps) => {
   };
 };
 
-export default useCreateReference;
+export default useDeleteReference;

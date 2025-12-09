@@ -18,9 +18,11 @@ const AddReference = (props: BaseRecommendedSectionProps) => {
   const create = () => {
     if (!reference) return;
 
+    const lastReferenceOrderNumber = work.references.sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber;
+
     createReference({
       ...reference,
-      orderNumber: work.references.length + 1,
+      orderNumber: lastReferenceOrderNumber ? lastReferenceOrderNumber + 1 : 1,
     });
     close();
   };
