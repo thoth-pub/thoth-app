@@ -27,8 +27,11 @@ const useMoveBulkAffiliation = (queryToken: QueryToken) => {
     const promises = data.map((affiliation) => {
       return mutateAsync(affiliation);
     });
+
     await Promise.all(promises);
+
     queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
   };
 
   return {

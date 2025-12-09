@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from 'react';
 
-import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
+import { useMoveBulkAffiliation } from '@/src/entities/affiliation';
+import { AffiliationEntity, AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAffiliationsForm';
 import {
   ChaptersContributionsTable,
@@ -33,11 +34,12 @@ type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
 const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const { queryToken, chapters } = props;
 
-  const { activeContribution, edit, close } = useContributionStateMachine();
+  const { activeContribution, edit, update, close } = useContributionStateMachine();
 
   const { deleteContributions } = useContributionsBulkDelete(queryToken);
   const { updateContributions } = useContributionsBulkUpdate(queryToken);
   const { moveContribution } = useMoveContribution({ queryToken, workId: '' });
+  const { moveBulkAffiliation } = useMoveBulkAffiliation(queryToken);
 
   const contributorsIds = chapters.flatMap((chapter) =>
     chapter.contributions.map((contribution) => contribution.contributorId),
@@ -222,6 +224,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     const contributionsIds = sameContributions.map((contributions) => contributions.id);
 
     updateBulkAffiliations(data, contributionsIds);
+    close();
   };
 
   const handleDeleteAffiliation = (id: string, contributionId: ContributionId) => {
@@ -249,6 +252,26 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     if (ids.length === 0) return;
 
     deleteBulkAffiliations(ids);
+
+    const updatedUniqueContributions = uniqueContributors.map((contribution) => {
+      if (!ids.includes(contribution.id)) return contribution;
+
+      return {
+        ...contribution,
+        affiliations: contribution.affiliations.filter((affiliation) => !ids.includes(affiliation.id)),
+      };
+    });
+
+    setContributions(updatedUniqueContributions);
+
+    if (!activeContribution) return;
+
+    const updatedActiveContribution = {
+      ...activeContribution,
+      affiliations: activeContribution.affiliations.filter((affiliation) => !ids.includes(affiliation.id)),
+    };
+
+    update(updatedActiveContribution);
   };
 
   const handleDragEnd = async (data: WorkContribution[]) => {
@@ -283,6 +306,99 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     await Promise.all(promises);
   };
 
+  const handleAffiliationOrderUpdate = async (data: AffiliationsForm['affiliations']) => {
+    const changedAffiliations = data.map((affiliation, index) => ({
+      ...affiliation,
+      newOrdinal: index + 1,
+    }));
+
+    const affiliationsIds = changedAffiliations.map((affiliation) => affiliation.affiliationId);
+
+    const chapterWithAffiliations = chapters.find((chapter) => {
+      const contributions = chapter.contributions;
+      const contributionsWithAffiliations = contributions.filter((contribution) =>
+        contribution.affiliations.every((affiliation) => affiliationsIds.includes(affiliation.id)),
+      );
+
+      return contributionsWithAffiliations.length === changedAffiliations.length;
+    });
+
+    if (!chapterWithAffiliations) return;
+
+    const existingContribution = chapterWithAffiliations.contributions.find(
+      (contribution) =>
+        contribution.affiliations.every((affiliation) => affiliationsIds.includes(affiliation.id)) &&
+        contribution.affiliations.length === changedAffiliations.length,
+    );
+
+    if (!existingContribution) return;
+
+    const firstUpdatedAffiliation = changedAffiliations.find(
+      (affiliation, index) =>
+        affiliation.position !== existingContribution.affiliations[index].position ||
+        affiliation.affiliation?.value !== existingContribution.affiliations[index].institutionId,
+    );
+
+    if (!firstUpdatedAffiliation) return;
+
+    const contributionsToUpdate = findAllSameContributions(existingContribution.id, chapters, contributions);
+    const contributionsToUpdateIds = contributionsToUpdate.map((contribution) => contribution.id);
+
+    const affiliationsToUpdate: AffiliationEntity[] = [];
+
+    contributionsToUpdate.forEach((contribution) => {
+      const foundedAffiliation = contribution.affiliations.find(
+        (affiliation) =>
+          affiliation.position === firstUpdatedAffiliation.position &&
+          affiliation.institutionId === firstUpdatedAffiliation.affiliation?.value,
+      );
+
+      if (!foundedAffiliation) return;
+
+      affiliationsToUpdate.push(foundedAffiliation);
+    });
+
+    const dataForUpdate = affiliationsToUpdate.map((affiliation) => {
+      return {
+        affiliationId: affiliation.id,
+        newOrdinal: firstUpdatedAffiliation.newOrdinal,
+      };
+    });
+
+    await moveBulkAffiliation(dataForUpdate);
+
+    const updatedUniqueContributions = uniqueContributors.map((contribution) => {
+      if (!contributionsToUpdateIds.includes(contribution.id)) return contribution;
+
+      const affiliations: AffiliationEntity[] = changedAffiliations.map((affiliation) => {
+        return {
+          id: affiliation.affiliationId,
+          institutionId: affiliation.affiliation?.value,
+          institutionName: affiliation.affiliation?.label,
+          rorId: affiliation.affiliation?.value,
+          contributionId: contribution.id,
+          orderNumber: affiliation.newOrdinal,
+          position: affiliation.position || '',
+        };
+      });
+
+      return {
+        ...contribution,
+        affiliations,
+      };
+    });
+
+    const updatedActiveContribution = updatedUniqueContributions.find(
+      (contribution) => contribution.id === activeContribution?.id,
+    );
+
+    if (!updatedActiveContribution) return;
+
+    update(updatedActiveContribution);
+
+    setContributions(updatedUniqueContributions);
+  };
+
   return (
     <RecommendedSection title="Contributors" isEmpty={isEmpty} isValid={isValid}>
       {({ showRecommendations }) => (
@@ -303,6 +419,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
                     onUpdate={handleBulkUpdate}
                     onUpdateAffiliations={handleUpdateAffiliations}
                     onDeleteAffiliation={handleDeleteAffiliation}
+                    onAffiliationOrderUpdate={handleAffiliationOrderUpdate}
                   />
                 }
                 showRecommendations={showRecommendations}
