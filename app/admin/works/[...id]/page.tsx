@@ -44,12 +44,5 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
 
   const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
 
-  return (
-    <EditWorkWidget
-      workId={id}
-      queryToken={session.user.queryToken}
-      imprintOptions={imprintOptions}
-      isAdmin={isUserAdmin}
-    />
-  );
+  return <EditWorkWidget workId={id} imprintOptions={imprintOptions} isAdmin={isUserAdmin} />;
 }

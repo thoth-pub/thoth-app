@@ -32,12 +32,11 @@ import { ChapterTableRow } from './components/ChapterTableRow';
 const NEW_CHAPTER_PREFIX = 'New Copy of ';
 
 export const EditWorkChapters = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
   const { chapters } = useWorkChapters({ workId });
-  const { moveWorkRelation } = useWorkMoveRelation({ queryToken, workId });
+  const { moveWorkRelation } = useWorkMoveRelation();
   const { createChapter } = useCreateWorkChapter({
-    queryToken,
     onCompleted: (chapter) => {
       edit([chapter]);
     },
@@ -46,10 +45,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
 
   const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
 
-  const { deleteChapter, deleteChapters } = useDeleteChapter({
-    queryToken,
-    workId,
-  });
+  const { deleteChapter, deleteChapters } = useDeleteChapter();
 
   useEffect(() => {
     if (chapters.length > 0) return;
@@ -209,15 +205,14 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
           </TableWrapper>
         )}
       </DragAndDropWrapper>
-      <EditChapterModal queryToken={queryToken} />
+      <EditChapterModal />
       <EditChaptersModal
         workId={workId}
-        queryToken={queryToken}
         title={`Editing ${selectedChaptersTitle} Chapters`}
         onClose={handleCloseMultipleChaptersEdit}
         onDone={handleDoneMultipleChaptersEdit}
       />
-      <AddChapterModal workId={workId} queryToken={queryToken} />
+      <AddChapterModal workId={workId} />
     </ContentSection>
   );
 };

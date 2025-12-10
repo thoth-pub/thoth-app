@@ -20,9 +20,9 @@ const {
 } = HELPER_TEXT;
 
 export const EditMedia = (props: BaseRecommendedSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
-  const { work, updateWork } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId);
 
   const { imageCount, tableCount, audioCount, videoCount } = work;
 

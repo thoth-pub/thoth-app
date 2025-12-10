@@ -9,11 +9,11 @@ import { type BaseEditSectionProps, QueryKeys } from '@/src/shared';
 
 import { WorkContribution } from '../../model/contribution.types';
 
-export const useContributionsTable = ({ workId, queryToken }: BaseEditSectionProps) => {
-  const { work, deleteContribution } = useWork(workId, queryToken);
+export const useContributionsTable = ({ workId }: BaseEditSectionProps) => {
+  const { work, deleteContribution } = useWork(workId);
 
-  const { updateContribution } = useWork(workId, queryToken);
-  const { moveContribution } = useMoveContribution({ queryToken, workId });
+  const { updateContribution } = useWork(workId);
+  const { moveContribution } = useMoveContribution({ workId });
 
   const { activeContribution, edit } = useContributionStateMachine();
   const queryClient = useQueryClient();

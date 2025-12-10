@@ -2,13 +2,12 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import { WorkEntity, WorkId } from '../../model/work.types';
 
 type UseCreateWorkChapterProps = {
-  queryToken: QueryToken;
   onCompleted?: (chapter: WorkEntity) => void;
 };
 
@@ -16,11 +15,12 @@ const { CHAPTER_CREATION_SUCCESS, CHAPTER_CREATION_FAILED } = NOTIFICATIONS;
 const { workChapters } = QueryKeys;
 
 const useCreateWorkChapter = (props: UseCreateWorkChapterProps) => {
-  const { queryToken, onCompleted } = props;
+  const { onCompleted } = props;
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
   const { workService } = useServices();
   const queryClient = useQueryClient();
+  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({

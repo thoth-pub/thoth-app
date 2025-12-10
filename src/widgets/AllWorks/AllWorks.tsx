@@ -1,7 +1,7 @@
 'use client';
 
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
-import type { FormFieldOption } from '@/src/shared';
+import { type FormFieldOption, WORK_COPY_VARIANTS } from '@/src/shared';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { Header } from './components/Header';
@@ -21,7 +21,6 @@ const AllWorks = (props: AllWorksProps) => {
   const {
     loading,
     works,
-    navigateToWork,
     searchValue,
     setSearchValue,
     activePage,
@@ -38,6 +37,10 @@ const AllWorks = (props: AllWorksProps) => {
     isUploadModalOpen,
     openUpload,
     closeUpload,
+    navigateToWork,
+    navigateToCopyWork,
+    createNewWorkEdition,
+    createWorkTranslation,
   } = useAllWorks();
 
   return (
@@ -62,9 +65,15 @@ const AllWorks = (props: AllWorksProps) => {
           pagesCount={totalPagesCount}
           onPageChange={changePage}
           navigateToWork={navigateToWork}
+          onCreateNewEdition={createNewWorkEdition}
+          onCreateTranslation={createWorkTranslation}
         />
       </ContentSection>
-      <WorksSpeedDial onUpload={openUpload} />
+      <WorksSpeedDial
+        onUpload={openUpload}
+        onCreateTranslation={() => navigateToCopyWork(WORK_COPY_VARIANTS.TRANSLATION)}
+        onCreateNewEdition={() => navigateToCopyWork(WORK_COPY_VARIANTS.REISSUE)}
+      />
       <UploadModal
         imprintsOptions={imprintsOptions}
         serieses={serieses}

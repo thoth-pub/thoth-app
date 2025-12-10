@@ -1,18 +1,19 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { QueryKeys, QueryToken, useServices } from '@/src/shared';
+import { QueryKeys, useServices } from '@/src/shared';
+import { useQueryToken } from '@/src/shared/hooks';
 
 import { WorkContribution } from '../../model/contribution.types';
 
 type UseCreateContributionProps = {
-  queryToken: QueryToken;
   onCompleted?: (data: WorkContribution) => void;
 };
 
 export const useCreateContribution = (props: UseCreateContributionProps) => {
-  const { queryToken, onCompleted } = props;
+  const { onCompleted } = props;
 
   const queryClient = useQueryClient();
+  const queryToken = useQueryToken();
   const { contributionService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({

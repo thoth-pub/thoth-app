@@ -2,17 +2,18 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import { WorkId } from '../../model/work.types';
 
 const { WORK_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteChapter = ({ queryToken }: BaseEditSectionProps) => {
+const useDeleteChapter = () => {
   const { sendErrorNotification } = useNotifications();
   const { workService } = useServices();
   const queryClient = useQueryClient();
+  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (workId: WorkId) => {

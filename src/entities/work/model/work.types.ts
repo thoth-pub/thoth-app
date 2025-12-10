@@ -22,6 +22,7 @@ import {
   pagesCountValidationSchema,
   publicationDateValidationSchema,
   titleValidationSchema,
+  workCopyValidationSchema,
   workTitlesValidationSchema,
   workTypeValidationSchema,
 } from '../model/work.validation';
@@ -56,6 +57,8 @@ export type WorkEntity = {
   doi: string;
   lccn: string;
   oclc: string;
+  shortAbstract: string;
+  longAbstract: string;
   publisherName: string;
   imprintId: string;
   status: WorkStatus;
@@ -113,3 +116,5 @@ export type CoverUrlForm = z.infer<typeof coverUrlValidationSchema>;
 export type CoverUrlAltForm = z.infer<typeof coverUrlAltValidationSchema>;
 
 export type NotesForm = z.infer<typeof notesValidationSchema>;
+
+export type WorkCopyForm = z.infer<typeof workCopyValidationSchema>;

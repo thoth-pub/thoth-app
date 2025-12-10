@@ -18,7 +18,6 @@ type EditFundingProps = BaseRecommendedSectionProps & {
 const EditFunding = (props: EditFundingProps) => {
   const {
     workId,
-    queryToken,
     recommended = false,
     onProjectUpdate,
     onProjectShortNameUpdate,
@@ -39,7 +38,6 @@ const EditFunding = (props: EditFundingProps) => {
     updateInstitution,
   } = useEditFunding({
     workId,
-    queryToken,
     onProjectUpdate,
     onProjectShortNameUpdate,
     onJurisdictionUpdate,

@@ -4,17 +4,17 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, useServices } from '@/src/shared';
 import { QueryKeys } from '@/src/shared/constants';
-import { useNotifications } from '@/src/shared/hooks';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 import { BaseEditSectionProps } from '@/src/shared/types';
 
 const { AFFILIATION_MOVE_FAILED } = NOTIFICATIONS;
 
 const useMoveAffiliation = (props: BaseEditSectionProps) => {
-  const { queryToken, workId = '' } = props;
+  const { workId = '' } = props;
 
   const { affiliationService } = useServices();
   const { sendErrorNotification } = useNotifications();
-
+  const queryToken = useQueryToken();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

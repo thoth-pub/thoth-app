@@ -22,3 +22,4 @@ export * from './subjects';
 export * from './textEditorTags';
 export * from './time';
 export * from './work';
+export * from './workCopyVariants';

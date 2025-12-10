@@ -2,19 +2,20 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { QueryKeys, QueryToken, useServices } from '@/src/shared';
+import { QueryKeys, useServices } from '@/src/shared';
+import { useQueryToken } from '@/src/shared/hooks';
 
 import { WorkContribution } from '../../model/contribution.types';
 
 type UseUpdateContributionProps = {
-  queryToken: QueryToken;
   relatedWorkId: string;
 };
 
 export const useUpdateContribution = (props: UseUpdateContributionProps & { relatedWorkId: string }) => {
-  const { queryToken, relatedWorkId } = props;
+  const { relatedWorkId } = props;
 
   const queryClient = useQueryClient();
+  const queryToken = useQueryToken();
   const { contributionService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({

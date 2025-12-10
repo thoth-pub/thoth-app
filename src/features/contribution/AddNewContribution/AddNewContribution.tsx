@@ -12,7 +12,7 @@ type AddNewContributionProps = BaseRecommendedSectionProps & {
 };
 
 const AddNewContribution = (props: AddNewContributionProps) => {
-  const { recommended = false, workId, queryToken, onCreate } = props;
+  const { recommended = false, workId, onCreate } = props;
 
   const {
     contribution,
@@ -25,7 +25,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
     updateWebsiteUrl,
     updateAffiliations,
     moveAffiliation,
-  } = useAddNewContribution({ workId, queryToken, onCreate });
+  } = useAddNewContribution({ workId, onCreate });
 
   if (!contribution) return null;
 

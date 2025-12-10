@@ -15,6 +15,8 @@ export const WORK_FRAGMENT = graphql(`
     updatedAt
     publicationDate
     withdrawnDate
+    shortAbstract
+    longAbstract
     imprint {
       publisher {
         publisherName

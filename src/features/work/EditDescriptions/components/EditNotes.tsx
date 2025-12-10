@@ -19,9 +19,9 @@ const { WORK_GENERAL_NOTE: WORK_GENERAL_NOTE_HELPER_TEXT, WORK_BIBLIOGRAPHY_NOTE
   HELPER_TEXT;
 
 export const EditNotes = (props: BaseRecommendedSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
-  const { work, updateWork } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId);
 
   let placeholderValue = '';
 

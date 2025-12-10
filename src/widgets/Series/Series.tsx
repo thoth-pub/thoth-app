@@ -2,7 +2,7 @@
 
 import { SeriesTable } from '@/src/entities/series';
 import { EditSeries } from '@/src/features';
-import { FormFieldOption, type QueryToken } from '@/src/shared';
+import { FormFieldOption } from '@/src/shared';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { SeriesHeader } from './SeriesHeader';
@@ -10,10 +10,9 @@ import { useSeriesTable } from './useSeriesTable';
 
 type SeriesProps = {
   imprintOptions: FormFieldOption[];
-  queryToken: QueryToken;
 };
 
-const Series = ({ imprintOptions, queryToken }: SeriesProps) => {
+const Series = ({ imprintOptions }: SeriesProps) => {
   const {
     loading,
     serieses,
@@ -34,7 +33,6 @@ const Series = ({ imprintOptions, queryToken }: SeriesProps) => {
     <>
       <SeriesHeader
         imprintOptions={imprintOptions}
-        queryToken={queryToken}
         seriesType={seriesType}
         searchValue={searchValue}
         direction={direction}
@@ -51,8 +49,7 @@ const Series = ({ imprintOptions, queryToken }: SeriesProps) => {
           page={activePage}
           pagesCount={totalPagesCount}
           onPageChange={changePage}
-          queryToken={queryToken}
-          seriesForm={<EditSeries queryToken={queryToken} imprintOptions={imprintOptions} />}
+          seriesForm={<EditSeries imprintOptions={imprintOptions} />}
         />
       </ContentSection>
     </>

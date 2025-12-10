@@ -17,19 +17,16 @@ type AddNewChaptersContributionProps = BaseRecommendedSectionProps & {
 };
 
 export const AddNewChaptersContribution = (props: AddNewChaptersContributionProps) => {
-  const { recommended, queryToken, chapters, onCreate } = props;
+  const { recommended, chapters, onCreate } = props;
 
   const { activeContribution, close } = useContributionStateMachine();
 
   const queryClient = useQueryClient();
 
-  const { createContribution } = useCreateContribution({
-    queryToken,
-  });
+  const { createContribution } = useCreateContribution({});
 
   const { contributor } = useContributor({ contributorId: activeContribution?.contributorId });
   const { updateContributor } = useUpdateContributor({
-    queryToken,
     onError: () => close(),
   });
 
@@ -83,12 +80,5 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
     onCreate?.(contribution);
   };
 
-  return (
-    <AddNewContribution
-      recommended={recommended}
-      workId=""
-      queryToken={queryToken}
-      onCreate={createChaptersContribution}
-    />
-  );
+  return <AddNewContribution recommended={recommended} workId="" onCreate={createChaptersContribution} />;
 };

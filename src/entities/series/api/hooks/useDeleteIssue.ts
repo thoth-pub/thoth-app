@@ -2,18 +2,13 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
-
-type UseDeleteIssueProps = {
-  queryToken: QueryToken;
-};
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 const { ISSUE_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteIssue = (props: UseDeleteIssueProps) => {
-  const { queryToken } = props;
-
+const useDeleteIssue = () => {
+  const queryToken = useQueryToken();
   const { sendErrorNotification } = useNotifications();
   const { seriesService } = useServices();
   const queryClient = useQueryClient();

@@ -29,10 +29,10 @@ import { Wrapper } from './Wrapper';
 const { COVER_URL } = FORM_FIELDS;
 
 export const CoverForm = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
   const [isOpen, setIsOpen] = useState(false);
-  const { work, updateWork } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId);
   const [, copyToClipboard] = useCopyToClipboard();
 
   const { control, handleSubmit } = useForm({

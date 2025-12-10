@@ -13,9 +13,9 @@ type EditWorkCoverProps = BaseEditSectionProps & {
 };
 
 const EditWorkCover = (props: EditWorkCoverProps) => {
-  const { workId, queryToken, isDragAndDropEnabled = false } = props;
+  const { workId, isDragAndDropEnabled = false } = props;
 
-  const { work } = useWork(workId, queryToken);
+  const { work } = useWork(workId);
 
   return (
     <>
@@ -23,7 +23,7 @@ const EditWorkCover = (props: EditWorkCoverProps) => {
         <DragAndDropForm defaultValue={work.coverUrl ?? ''} />
       </Activity>
       <Activity mode={isDragAndDropEnabled ? 'hidden' : 'visible'}>
-        <CoverForm workId={workId} queryToken={queryToken} />
+        <CoverForm workId={workId} />
       </Activity>
     </>
   );

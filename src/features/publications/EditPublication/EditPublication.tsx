@@ -12,7 +12,7 @@ type EditPublicationProps = BaseEditSectionProps & {
 };
 
 const EditPublication = (props: EditPublicationProps) => {
-  const { workId, queryToken, isDimensionFormHidden = false } = props;
+  const { workId, isDimensionFormHidden = false } = props;
 
   const {
     activePublication,
@@ -26,7 +26,6 @@ const EditPublication = (props: EditPublicationProps) => {
     selectAsCanonical,
   } = useEditPublication({
     workId,
-    queryToken,
   });
 
   if (!activePublication) return null;

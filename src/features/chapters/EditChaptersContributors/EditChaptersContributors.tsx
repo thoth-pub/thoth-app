@@ -32,14 +32,14 @@ type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
 };
 
 const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
-  const { queryToken, chapters } = props;
+  const { chapters } = props;
 
   const { activeContribution, edit, update, close } = useContributionStateMachine();
 
-  const { deleteContributions } = useContributionsBulkDelete(queryToken);
-  const { updateContributions } = useContributionsBulkUpdate(queryToken);
-  const { moveContribution } = useMoveContribution({ queryToken, workId: '' });
-  const { moveBulkAffiliation } = useMoveBulkAffiliation(queryToken);
+  const { deleteContributions } = useContributionsBulkDelete();
+  const { updateContributions } = useContributionsBulkUpdate();
+  const { moveContribution } = useMoveContribution({ workId: '' });
+  const { moveBulkAffiliation } = useMoveBulkAffiliation();
 
   const contributorsIds = chapters.flatMap((chapter) =>
     chapter.contributions.map((contribution) => contribution.contributorId),
@@ -142,7 +142,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const isNewContribution = activeContribution ? isDefaultId(activeContribution.id) : false;
 
   const { updateBulkAffiliations, deleteBulkAffiliations } = useEditContributionAffiliations({
-    queryToken,
     contributionId: '',
     affiliations,
   });
@@ -415,7 +414,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
                 form={
                   <EditChaptersContributions
                     showRecommendations={showRecommendations}
-                    queryToken={queryToken}
                     onUpdate={handleBulkUpdate}
                     onUpdateAffiliations={handleUpdateAffiliations}
                     onDeleteAffiliation={handleDeleteAffiliation}
@@ -428,7 +426,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
                 <AddNewChaptersContribution
                   recommended={showRecommendations}
                   workId=""
-                  queryToken={queryToken}
                   chapters={chapters}
                   onCreate={handleNewContribution}
                 />

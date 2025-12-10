@@ -2,15 +2,14 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 const { WORK_MOVE_RELATION_FAILED } = NOTIFICATIONS;
 
-export const useWorkMoveRelation = (props: BaseEditSectionProps) => {
-  const { queryToken } = props;
-
+export const useWorkMoveRelation = () => {
   const { sendErrorNotification } = useNotifications();
+  const queryToken = useQueryToken();
   const { workService } = useServices();
   const queryClient = useQueryClient();
 

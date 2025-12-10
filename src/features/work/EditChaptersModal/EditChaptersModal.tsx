@@ -22,11 +22,11 @@ type EditChaptersModalProps = BaseEditSectionProps & {
 };
 
 const EditChaptersModal = (props: EditChaptersModalProps) => {
-  const { workId, queryToken, title, onClose, onDone } = props;
+  const { workId, title, onClose, onDone } = props;
 
   const { activeWorkChapters, isMultipleChaptersSelected, update, close } = useWorkChaptersStateMachine();
   const { close: closeContribution } = useContributionStateMachine();
-  const { updateLanguages, deleteLanguages, changeLanguagesMainStatus } = useChaptersLanguages(queryToken);
+  const { updateLanguages, deleteLanguages, changeLanguagesMainStatus } = useChaptersLanguages();
 
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
   const [chapters, setChapters] = useState(initValue);
@@ -56,7 +56,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
     setChapters(activeWorkChapters);
   }, [activeWorkChapters]);
 
-  const { updateWorks } = useUpdateWorks(queryToken);
+  const { updateWorks } = useUpdateWorks();
 
   const handleDone = () => {
     onDone?.();
@@ -91,23 +91,16 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   return (
     <FullScreenModal title={title} isOpen={isMultipleChaptersSelected} onClose={handleClose} onDone={handleDone}>
-      <EditChapterBasicDetails
-        workId=""
-        queryToken={queryToken}
-        isMultipleChaptersEdit
-        license={license}
-        onLicenseUpdate={onLicenseUpdate}
-      />
+      <EditChapterBasicDetails workId="" isMultipleChaptersEdit license={license} onLicenseUpdate={onLicenseUpdate} />
       <EditDescriptions
         workId={firstChapterId}
-        queryToken={queryToken}
         isMultipleChaptersEdit
         onLanguagesUpdate={updateLanguages}
         onLanguagesDelete={deleteLanguages}
         onLanguagesSelectAsMain={changeLanguagesMainStatus}
       />
-      <EditChaptersContributors queryToken={queryToken} chapters={chapters} />
-      <EditChaptersFundings queryToken={queryToken} chapters={chapters} />
+      <EditChaptersContributors chapters={chapters} />
+      <EditChaptersFundings chapters={chapters} />
     </FullScreenModal>
   );
 };

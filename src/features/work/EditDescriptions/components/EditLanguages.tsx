@@ -11,11 +11,10 @@ type EditLanguagesProps = BaseRecommendedSectionProps & {
 };
 
 export const EditLanguages = (props: EditLanguagesProps) => {
-  const { workId, queryToken, recommended = false, onUpdate, onDelete, onSelectAsMain } = props;
+  const { workId, recommended = false, onUpdate, onDelete, onSelectAsMain } = props;
 
   const { languages, showIndicator, update, deleteLanguage, selectAsMain, close } = useEditLanguages({
     workId,
-    queryToken,
     recommended,
     onUpdate,
     onDelete,

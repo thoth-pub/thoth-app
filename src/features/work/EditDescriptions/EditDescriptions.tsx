@@ -23,7 +23,6 @@ type EditDescriptionsProps = BaseEditSectionProps &
 const EditDescriptions = (props: EditDescriptionsProps) => {
   const {
     workId,
-    queryToken,
     isSingleChapterEdit = false,
     isMultipleChaptersEdit = false,
     onLanguagesUpdate,
@@ -31,7 +30,7 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
     onLanguagesSelectAsMain,
   } = props;
 
-  const { work } = useWork(workId, queryToken);
+  const { work } = useWork(workId);
   const { isPageCountRequired, isLanguagesRequired, isSubjectsRequired } = useWorkRecommendations({ workId });
 
   const isValid = !isPageCountRequired && !isLanguagesRequired && !isSubjectsRequired;
@@ -44,27 +43,21 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
           {!isMultipleChaptersEdit && (
             <EditPagesCount
               workId={workId}
-              queryToken={queryToken}
               recommended={showRecommendations && isPageCountRequired}
               isChapter={isSingleChapterEdit}
             />
           )}
-          {!isMultipleChaptersEdit && !isSingleChapterEdit && <EditNotes workId={workId} queryToken={queryToken} />}
-          {!isMultipleChaptersEdit && <EditMedia workId={workId} queryToken={queryToken} />}
+          {!isMultipleChaptersEdit && !isSingleChapterEdit && <EditNotes workId={workId} />}
+          {!isMultipleChaptersEdit && <EditMedia workId={workId} />}
           <EditLanguages
             workId={workId}
-            queryToken={queryToken}
             recommended={showRecommendations && isLanguagesRequired}
             onUpdate={onLanguagesUpdate}
             onDelete={onLanguagesDelete}
             onSelectAsMain={onLanguagesSelectAsMain}
           />
           {!isMultipleChaptersEdit && (
-            <EditSubjects
-              workId={workId}
-              queryToken={queryToken}
-              recommended={showRecommendations && isSubjectsRequired}
-            />
+            <EditSubjects workId={workId} recommended={showRecommendations && isSubjectsRequired} />
           )}
         </>
       )}

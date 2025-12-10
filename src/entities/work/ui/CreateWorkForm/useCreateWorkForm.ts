@@ -17,12 +17,11 @@ type UseCreateWorkFormProps = {
   imprintOptions: FormFieldOption[];
   workTypeOptions: FormFieldOption[];
   licenseOptions: FormFieldOption[];
-  queryToken: string;
 };
 
 const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 
-const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licenseOptions }: UseCreateWorkFormProps) => {
+const useCreateWorkForm = ({ imprintOptions, workTypeOptions, licenseOptions }: UseCreateWorkFormProps) => {
   const router = useRouter();
 
   const availableNewWorkOptions = useMemo(() => {
@@ -48,7 +47,6 @@ const useCreateWorkForm = ({ queryToken, imprintOptions, workTypeOptions, licens
   });
 
   const { createWork, loading } = useCreateWork({
-    queryToken,
     onCompleted: (data) => {
       router.push(ROUTES.WORK_PAGE(data.id));
     },

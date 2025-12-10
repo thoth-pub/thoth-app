@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { FundingEntity } from '../../model/funding.types';
@@ -10,11 +10,12 @@ import { FundingEntity } from '../../model/funding.types';
 const { FUNDING_UPDATE_FAILED } = NOTIFICATIONS;
 
 const useUpdateFunding = (props: BaseEditSectionProps) => {
-  const { queryToken, workId = '' } = props;
+  const { workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
   const { fundingService } = useServices();
   const queryClient = useQueryClient();
+  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ data, relatedWorkId }: { data: FundingEntity; relatedWorkId: WorkId }) => {

@@ -15,17 +15,17 @@ import type {
 import { type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 
 export const useEditPublication = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
   const { activePublication, close } = usePublicationsStateMachine();
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
-  const { updatePublication } = useUpdatePublication({ workId, queryToken });
-  const { createPrice } = useCreatePrice({ workId, queryToken });
-  const { updatePrice } = useUpdatePrice({ workId, queryToken });
-  const { deletePrice } = useDeletePrice({ workId, queryToken });
-  const { createLocation } = useCreateLocation({ workId, queryToken });
-  const { updateLocation } = useUpdateLocation({ workId, queryToken });
-  const { deleteLocation: deleteLocationMutation } = useDeleteLocation({ workId, queryToken });
+  const { updatePublication } = useUpdatePublication({ workId });
+  const { createPrice } = useCreatePrice({ workId });
+  const { updatePrice } = useUpdatePrice({ workId });
+  const { deletePrice } = useDeletePrice({ workId });
+  const { createLocation } = useCreateLocation({ workId });
+  const { updateLocation } = useUpdateLocation({ workId });
+  const { deleteLocation: deleteLocationMutation } = useDeleteLocation({ workId });
 
   const updateSizes = (sizes: PublicationDimensionsForm) => {
     if (!publication) return;

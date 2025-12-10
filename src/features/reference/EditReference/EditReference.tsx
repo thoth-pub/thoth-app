@@ -4,10 +4,10 @@ import { EditReferenceForm, useReferencesStateMachine, useUpdateReference } from
 import type { BaseRecommendedSectionProps } from '@/src/shared';
 
 const EditReference = (props: BaseRecommendedSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
   const { activeReference, update, close } = useReferencesStateMachine();
-  const { updateReference } = useUpdateReference({ workId, queryToken });
+  const { updateReference } = useUpdateReference({ workId });
 
   const updateUrl = (url: string) => {
     if (!activeReference) return;

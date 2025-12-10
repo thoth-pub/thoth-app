@@ -2,22 +2,20 @@
 
 import { useDeleteIssue, useMoveIssue } from '@/src/entities/series';
 import type { SeriesEntity, SeriesId } from '@/src/entities/series/model/series.types';
-import type { QueryToken } from '@/src/shared';
 import { DragAndDropWrapper } from '@/src/shared/ui';
 
 import { ListItem } from './ListItem';
 
 type IssuesListProps = {
-  queryToken: QueryToken;
   seriesId?: SeriesId;
   issues: SeriesEntity['issues'];
   withDelete?: boolean;
 };
 
 export const IssuesList = (props: IssuesListProps) => {
-  const { seriesId, queryToken, withDelete = false, issues } = props;
-  const { deleteIssue } = useDeleteIssue({ queryToken });
-  const { moveIssue } = useMoveIssue({ seriesId, queryToken });
+  const { seriesId, withDelete = false, issues } = props;
+  const { deleteIssue } = useDeleteIssue();
+  const { moveIssue } = useMoveIssue({ seriesId });
 
   const handleDragEnd = (data: SeriesEntity['issues']) => {
     const updatedIssues = data.map((issue, index) => ({

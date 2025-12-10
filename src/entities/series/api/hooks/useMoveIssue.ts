@@ -2,24 +2,23 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, QueryKeys, QueryToken, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import type { SeriesId } from '../../model/series.types';
 
 type UseMoveIssueProps = {
   seriesId?: SeriesId;
-  queryToken: QueryToken;
 };
 
 const { ISSUE_MOVE_FAILED } = NOTIFICATIONS;
 
 const useMoveIssue = (props: UseMoveIssueProps) => {
-  const { queryToken, seriesId } = props;
+  const { seriesId } = props;
 
   const { seriesService } = useServices();
   const { sendErrorNotification } = useNotifications();
-
+  const queryToken = useQueryToken();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

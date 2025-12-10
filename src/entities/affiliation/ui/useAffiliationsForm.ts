@@ -5,29 +5,22 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCreateAffiliation, useDeleteAffiliation, useUpdateAffiliation } from '@/src/entities/affiliation';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { appConfig, getDefaultAffiliation, isDefaultId, QueryKeys, type QueryToken } from '@/src/shared';
+import { appConfig, getDefaultAffiliation, isDefaultId, QueryKeys } from '@/src/shared';
 
 import type { AffiliationEntity, AffiliationsForm } from '../model/affiliation.types';
 
 type UseEditContributionAffiliationsProps = {
-  queryToken: QueryToken;
   contributionId: ContributionId;
   affiliations: AffiliationEntity[];
   workId?: WorkId;
 };
 
 const useEditContributionAffiliations = (props: UseEditContributionAffiliationsProps) => {
-  const { queryToken, contributionId, affiliations } = props;
+  const { contributionId, affiliations } = props;
 
-  const { createAffiliation } = useCreateAffiliation({
-    queryToken,
-  });
-  const { updateAffiliation } = useUpdateAffiliation({
-    queryToken,
-  });
-  const { deleteAffiliation } = useDeleteAffiliation({
-    queryToken,
-  });
+  const { createAffiliation } = useCreateAffiliation({});
+  const { updateAffiliation } = useUpdateAffiliation();
+  const { deleteAffiliation } = useDeleteAffiliation();
   const queryClient = useQueryClient();
 
   const updateAffiliations = async (data: AffiliationsForm, id = contributionId) => {

@@ -12,12 +12,12 @@ import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection
 import { AddNewPublication, EditPublication } from '../../publications';
 
 const EditPublications = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
   const { activePublication, close, edit } = usePublicationsStateMachine();
   const { t } = useTranslation();
-  const { work } = useWork(workId, queryToken);
-  const { deletePublication: deletePublicationMutation } = useDeletePublication({ workId, queryToken });
+  const { work } = useWork(workId);
+  const { deletePublication: deletePublicationMutation } = useDeletePublication({ workId });
 
   const isNewPublication = activePublication ? isDefaultId(activePublication.id) : false;
 
@@ -51,15 +51,11 @@ const EditPublications = (props: BaseEditSectionProps) => {
         <PublicationsTable
           activePublication={activePublication}
           publications={work.publications}
-          form={
-            <EditPublication workId={workId} queryToken={queryToken} isDimensionFormHidden={isDimensionFormHidden} />
-          }
+          form={<EditPublication workId={workId} isDimensionFormHidden={isDimensionFormHidden} />}
           onEdit={editPublication}
           onDelete={deletePublication}
         />
-        {isNewPublication && (
-          <AddNewPublication workId={workId} queryToken={queryToken} isDimensionFormHidden={isDimensionFormHidden} />
-        )}
+        {isNewPublication && <AddNewPublication workId={workId} isDimensionFormHidden={isDimensionFormHidden} />}
         <AddButton className="px-7 capitalize" onAdd={addPublication} disabled={isNewPublication}>
           {t('add publication')}
         </AddButton>

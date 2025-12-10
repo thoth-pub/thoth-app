@@ -15,22 +15,19 @@ import type {
 import { type BaseEditSectionProps } from '@/src/shared';
 
 export const useAddNewPublication = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
   const { activePublication, close } = usePublicationsStateMachine();
 
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
   const { createPrice } = useCreatePrice({
     workId,
-    queryToken,
   });
   const { createLocation } = useCreateLocation({
     workId,
-    queryToken,
   });
   const { createPublication } = useCreatePublication({
     workId,
-    queryToken,
     onCompleted: () => {
       if (!publication) return close();
 

@@ -73,6 +73,42 @@ export const GET_WORK_CHAPTERS = graphql(`
   }
 `);
 
+export const GET_WORK_TRANSLATIONS = graphql(`
+  query GetWorkTranslations($workId: Uuid!, $limit: Int, $offset: Int) {
+    work(workId: $workId) {
+      relations(
+        relationTypes: HAS_TRANSLATION
+        limit: $limit
+        offset: $offset
+        order: { direction: ASC, field: RELATION_ORDINAL }
+      ) {
+        workRelationId
+        relatedWork {
+          ...WorkFragment
+        }
+      }
+    }
+  }
+`);
+
+export const GET_WORK_EDITIONS = graphql(`
+  query GetWorkEditions($workId: Uuid!, $limit: Int, $offset: Int) {
+    work(workId: $workId) {
+      relations(
+        relationTypes: IS_REPLACED_BY
+        limit: $limit
+        offset: $offset
+        order: { direction: ASC, field: RELATION_ORDINAL }
+      ) {
+        workRelationId
+        relatedWork {
+          ...WorkFragment
+        }
+      }
+    }
+  }
+`);
+
 export const CREATE_WORK_RELATION = graphql(`
   mutation CreateWorkRelation($data: NewWorkRelation!) {
     createWorkRelation(data: $data) {

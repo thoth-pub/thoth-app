@@ -2,17 +2,18 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, QueryKeys, QueryToken, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import { WorkEntity } from '../../model/work.types';
 
 const { WORK_UPDATE_FAILED } = NOTIFICATIONS;
 
-const useUpdateWorks = (queryToken: QueryToken) => {
+const useUpdateWorks = () => {
   const { sendErrorNotification } = useNotifications();
   const { workService } = useServices();
   const queryClient = useQueryClient();
+  const queryToken = useQueryToken();
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: WorkEntity) => {

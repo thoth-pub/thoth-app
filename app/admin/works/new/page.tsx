@@ -22,11 +22,5 @@ export default async function NewWorkPage() {
   const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : linkedPublishers });
   const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
 
-  return (
-    <CreateWorkForm
-      imprintOptions={imprintOptions}
-      licenseOptions={licenseOptions}
-      queryToken={session.user.queryToken}
-    />
-  );
+  return <CreateWorkForm imprintOptions={imprintOptions} licenseOptions={licenseOptions} />;
 }

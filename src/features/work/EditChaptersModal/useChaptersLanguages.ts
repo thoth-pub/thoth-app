@@ -2,19 +2,20 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { LanguageCode } from '@/gql/graphql';
 import { useWorkChaptersStateMachine } from '@/src/entities/work';
-import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import { LanguageEntity, LanguagesForm } from '../../../entities/language/model/language.types';
 
 const { LANGUAGE_CREATION_FAILED, LANGUAGE_DELETE_FAILED, LANGUAGE_UPDATE_FAILED } = NOTIFICATIONS;
 
-export const useChaptersLanguages = (queryToken: QueryToken) => {
+export const useChaptersLanguages = () => {
   const { activeWorkChapters } = useWorkChaptersStateMachine();
 
   const { languageService } = useServices();
   const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
+  const queryToken = useQueryToken();
 
   const { mutateAsync: createLanguage, isPending: isCreatingLanguage } = useMutation({
     mutationFn: async (data: { language: LanguageEntity; chapterId: string }) => {

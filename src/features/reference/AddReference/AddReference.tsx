@@ -8,12 +8,12 @@ import { useWork } from '@/src/entities/work';
 import { type BaseRecommendedSectionProps } from '@/src/shared';
 
 const AddReference = (props: BaseRecommendedSectionProps) => {
-  const { queryToken, workId } = props;
+  const { workId } = props;
 
   const { activeReference, close } = useReferencesStateMachine();
-  const { work } = useWork(workId, queryToken);
+  const { work } = useWork(workId);
   const [reference, setReference] = useState<ReferenceEntity | null>(activeReference);
-  const { createReference } = useCreateReference({ workId, queryToken });
+  const { createReference } = useCreateReference({ workId });
 
   const create = () => {
     if (!reference) return;

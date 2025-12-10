@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { ReferenceEntity } from '../../model/reference.types';
@@ -9,11 +9,12 @@ import { ReferenceEntity } from '../../model/reference.types';
 const { REFERENCE_UPDATE_FAILED } = NOTIFICATIONS;
 
 const useUpdateReference = (props: BaseEditSectionProps) => {
-  const { queryToken, workId = '' } = props;
+  const { workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
   const { referenceService } = useServices();
   const queryClient = useQueryClient();
+  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: ReferenceEntity) => {

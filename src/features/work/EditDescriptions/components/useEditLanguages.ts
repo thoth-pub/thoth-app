@@ -14,15 +14,11 @@ type useEditLanguagesProps = BaseRecommendedSectionProps & {
 };
 
 export const useEditLanguages = (props: useEditLanguagesProps) => {
-  const { workId, queryToken, recommended, onUpdate, onDelete, onSelectAsMain } = props;
+  const { workId, recommended, onUpdate, onDelete, onSelectAsMain } = props;
 
-  const { work } = useWork(workId, queryToken);
+  const { work } = useWork(workId);
   const { close } = useFormStateMachine();
-  const {
-    createLanguage,
-    updateLanguage,
-    deleteLanguage: deleteLanguageMutation,
-  } = useLanguage({ queryToken, workId });
+  const { createLanguage, updateLanguage, deleteLanguage: deleteLanguageMutation } = useLanguage({ workId });
 
   const showIndicator = recommended && work.languages.length === 0;
 

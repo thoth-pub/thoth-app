@@ -11,7 +11,7 @@ type AddFundingProps = BaseEditSectionProps & {
 };
 
 const AddFunding = (props: AddFundingProps) => {
-  const { queryToken, workId, onCreate } = props;
+  const { workId, onCreate } = props;
 
   const {
     funding,
@@ -23,7 +23,7 @@ const AddFunding = (props: AddFundingProps) => {
     updateProgram,
     updateGrantNumber,
     updateInstitution,
-  } = useAddFunding({ workId, queryToken, onCreate });
+  } = useAddFunding({ workId, onCreate });
 
   if (!funding) return null;
 

@@ -11,9 +11,9 @@ import { landingPageValidationSchema } from '../../model/work.validation';
 const { LANDING_PAGE } = FORM_FIELDS;
 
 const EditLandingPage = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
-  const { work, updateWork } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId);
 
   const landingPageValue = work.landingPage ?? '';
 

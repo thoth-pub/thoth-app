@@ -7,14 +7,13 @@ import { useState } from 'react';
 
 import type { SeriesField, SeriesType } from '@/gql/graphql';
 import { AddSeries } from '@/src/features';
-import type { Direction, FormFieldOption, QueryToken } from '@/src/shared';
+import type { Direction, FormFieldOption } from '@/src/shared';
 import { directionOptions, seriesOrderByOptions, seriesTypeOptions } from '@/src/shared/constants/formFields';
 import { IconButton, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 type SeriesHeaderProps = {
   imprintOptions: FormFieldOption[];
-  queryToken: QueryToken;
   seriesType: string;
   searchValue: string;
   direction: Direction;
@@ -28,7 +27,6 @@ type SeriesHeaderProps = {
 export const SeriesHeader = (props: SeriesHeaderProps) => {
   const {
     imprintOptions,
-    queryToken,
     seriesType,
     searchValue,
     direction,
@@ -68,7 +66,7 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
           <IconButton onClick={handleFilterOpen}>
             <FilterAltIcon color="primary" />
           </IconButton>
-          <AddSeries imprintOptions={imprintOptions} queryToken={queryToken} />
+          <AddSeries imprintOptions={imprintOptions} />
         </div>
       </div>
 

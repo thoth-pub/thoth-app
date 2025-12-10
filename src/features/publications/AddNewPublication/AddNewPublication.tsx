@@ -12,7 +12,7 @@ type AddNewPublicationProps = BaseRecommendedSectionProps & {
 };
 
 const AddNewPublication = (props: AddNewPublicationProps) => {
-  const { workId, queryToken, isDimensionFormHidden = false } = props;
+  const { workId, isDimensionFormHidden = false } = props;
 
   const {
     publication,
@@ -26,7 +26,6 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
     selectAsCanonical,
   } = useAddNewPublication({
     workId,
-    queryToken,
   });
 
   if (!publication) return null;

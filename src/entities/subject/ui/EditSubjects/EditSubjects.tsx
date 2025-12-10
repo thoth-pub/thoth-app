@@ -28,10 +28,10 @@ const codes = {
 };
 
 const EditSubjects = (props: BaseRecommendedSectionProps) => {
-  const { workId, queryToken, recommended = false } = props;
+  const { workId, recommended = false } = props;
 
-  const { subjects, update, deleteSubject, close, create } = useEditSubjects({ workId, queryToken });
-  const { moveSubjects } = useMoveSubjects({ queryToken, workId });
+  const { subjects, update, deleteSubject, close, create } = useEditSubjects({ workId });
+  const { moveSubjects } = useMoveSubjects({ workId });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
   const defaultValues = subjects.map((subject) => {

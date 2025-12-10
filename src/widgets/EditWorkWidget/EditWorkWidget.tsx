@@ -18,7 +18,7 @@ type EditWorkWidgetProps = BaseEditSectionProps & {
 };
 
 const EditWorkWidget = (props: EditWorkWidgetProps) => {
-  const { imprintOptions, queryToken, workId, isAdmin = false } = props;
+  const { imprintOptions, workId, isAdmin = false } = props;
 
   const { close } = useFormStateMachine();
 
@@ -30,17 +30,17 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
 
   return (
     <div className="flex flex-col gap-8">
-      <EditWorkHeader queryToken={queryToken} workId={workId} />
-      <EditBasicDetails workId={workId} queryToken={queryToken} imprintOptions={imprintOptions}>
-        <EditWorkSeries workId={workId} queryToken={queryToken} />
+      <EditWorkHeader workId={workId} />
+      <EditBasicDetails workId={workId} imprintOptions={imprintOptions}>
+        <EditWorkSeries workId={workId} />
       </EditBasicDetails>
-      <EditDescriptions workId={workId} queryToken={queryToken} />
-      <EditContributors workId={workId} queryToken={queryToken} isAdmin={isAdmin} />
-      <EditWorkChapters workId={workId} queryToken={queryToken} />
-      <EditPublications workId={workId} queryToken={queryToken} />
-      <EditFundings workId={workId} queryToken={queryToken} />
-      <EditReferences workId={workId} queryToken={queryToken} />
-      <WorkSpeedDial workId={workId} queryToken={queryToken} />
+      <EditDescriptions workId={workId} />
+      <EditContributors workId={workId} isAdmin={isAdmin} />
+      <EditWorkChapters workId={workId} />
+      <EditPublications workId={workId} />
+      <EditFundings workId={workId} />
+      <EditReferences workId={workId} />
+      <WorkSpeedDial workId={workId} />
     </div>
   );
 };

@@ -15,7 +15,7 @@ type EditWorkHeaderProps = BaseEditSectionProps;
 
 const itemStyles = 'flex flex-col gap-2';
 
-const EditWorkHeader = ({ workId, queryToken }: EditWorkHeaderProps) => {
+const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
   const {
     title,
     id,
@@ -30,7 +30,6 @@ const EditWorkHeader = ({ workId, queryToken }: EditWorkHeaderProps) => {
     changeWithdrawnDate,
   } = useEditWorkHeader({
     workId,
-    queryToken,
   });
 
   return (

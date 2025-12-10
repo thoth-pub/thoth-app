@@ -29,9 +29,9 @@ type EditWorkTitleProps = BaseRecommendedSectionProps &
   }>;
 
 const EditWorkTitle = (props: EditWorkTitleProps) => {
-  const { workId, queryToken, recommended = false, withEdition = true, title, subtitle } = props;
+  const { workId, recommended = false, withEdition = true, title, subtitle } = props;
 
-  const { work, updateWork } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId);
 
   const placeholder = title ?? work?.title;
   const showIndicator = recommended && !placeholder;

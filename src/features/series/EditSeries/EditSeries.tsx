@@ -11,22 +11,21 @@ import {
   SeriesTypeFormType,
   SeriesUrlFormType,
 } from '@/src/entities/series/model/series.types';
-import type { FormFieldOption, QueryToken } from '@/src/shared';
+import type { FormFieldOption } from '@/src/shared';
 import { CloseButton, MultipleContentWrapper, SubmitButton } from '@/src/shared/ui';
 
 import { IssuesList } from '../../work/EditWorkSeries/components/IssuesList';
 import { AddBookModal } from './components/AddBookModal';
 
 type EditSeriesProps = {
-  queryToken: QueryToken;
   imprintOptions: FormFieldOption[];
 };
 
-const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
+const EditSeries = ({ imprintOptions }: EditSeriesProps) => {
   const { activeSeries, close } = useSeriesesStateMachine();
 
   const { series } = useSeries({ seriesId: activeSeries?.id ?? '' });
-  const { updateSeries } = useUpdateSeries({ queryToken });
+  const { updateSeries } = useUpdateSeries();
 
   const done = () => {
     close();
@@ -117,10 +116,8 @@ const EditSeries = ({ queryToken, imprintOptions }: EditSeriesProps) => {
             onUrlChange={updateUrl}
             onDescriptionChange={updateDescription}
           />
-          {series.issues.length > 0 && (
-            <IssuesList seriesId={series.id} queryToken={queryToken} withDelete issues={series.issues} />
-          )}
-          <AddBookModal queryToken={queryToken} series={series} />
+          {series.issues.length > 0 && <IssuesList seriesId={series.id} withDelete issues={series.issues} />}
+          <AddBookModal series={series} />
         </>
       )}
     </MultipleContentWrapper>

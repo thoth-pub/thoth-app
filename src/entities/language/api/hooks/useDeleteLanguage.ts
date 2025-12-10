@@ -2,20 +2,13 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import type { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, QueryKeys, type QueryToken, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
-
-type UseDeleteLanguageProps = {
-  queryToken: QueryToken;
-  workId?: WorkId;
-};
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 const { LANGUAGE_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteLanguage = (props: UseDeleteLanguageProps) => {
-  const { queryToken } = props;
-
+const useDeleteLanguage = () => {
+  const queryToken = useQueryToken();
   const { sendErrorNotification } = useNotifications();
   const { languageService } = useServices();
   const queryClient = useQueryClient();

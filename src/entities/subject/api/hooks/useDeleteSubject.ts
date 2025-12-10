@@ -3,16 +3,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
-import type { BaseEditSectionProps } from '@/src/shared/types';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import type { SubjectId } from '../../model/subject.types';
 
 const { SUBJECT_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteSubject = (props: BaseEditSectionProps) => {
-  const { queryToken } = props;
-
+const useDeleteSubject = () => {
+  const queryToken = useQueryToken();
   const { sendErrorNotification } = useNotifications();
   const { subjectService } = useServices();
   const queryClient = useQueryClient();

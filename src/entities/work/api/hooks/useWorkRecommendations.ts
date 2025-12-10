@@ -9,7 +9,7 @@ type UseWorkRecommendationsProps = {
 const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
   const { workId } = props;
 
-  const { work } = useWork(workId, '');
+  const { work } = useWork(workId);
 
   const isTitleRequired = work && work.title.length === 0;
 

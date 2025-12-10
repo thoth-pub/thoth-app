@@ -25,9 +25,9 @@ type EditLicenseProps = BaseRecommendedSectionProps & {
 };
 
 const EditLicense = (props: EditLicenseProps) => {
-  const { onUpdate, workId, queryToken, license, copyrightHolder } = props;
+  const { onUpdate, workId, license, copyrightHolder } = props;
 
-  const { work, updateWork } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId);
 
   const nullableLicense = { label: 'All Rights Reserved', value: '' };
 

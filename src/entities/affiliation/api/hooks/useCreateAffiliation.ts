@@ -2,23 +2,23 @@
 
 import { useMutation } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, type QueryToken,useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import { AffiliationEntity } from '../../model/affiliation.types';
 
-type UseCreateAffiliationProps = {
-  queryToken: QueryToken;
-  onCompleted?: (data: AffiliationEntity) => void;
-};
+type UseCreateAffiliationProps = Partial<{
+  onCompleted: (data: AffiliationEntity) => void;
+}>;
 
 const { AFFILIATION_CREATION_FAILED } = NOTIFICATIONS;
 
 const useCreateAffiliation = (props: UseCreateAffiliationProps) => {
-  const { queryToken, onCompleted } = props;
+  const { onCompleted } = props;
 
   const { sendErrorNotification } = useNotifications();
   const { affiliationService } = useServices();
+  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: AffiliationEntity) => {

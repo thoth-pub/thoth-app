@@ -20,7 +20,7 @@ type EditWorkBasicDetailsProps = BaseEditSectionProps & {
 };
 
 const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
-  const { workId, imprintOptions, queryToken, children } = props;
+  const { workId, imprintOptions, children } = props;
   const {
     isDoiRequired,
     isLandingPageRequired,
@@ -39,23 +39,21 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
       {({ showRecommendations }) => (
         <div className="grid grid-cols-1 gap-2 xl:grid-cols-[75%_25%]">
           <div>
-            <EditWorkTitle workId={workId} queryToken={queryToken} />
-            <EditWorkType workId={workId} queryToken={queryToken} />
+            <EditWorkTitle workId={workId} />
+            <EditWorkType workId={workId} />
             <EditImprint
               workId={workId}
-              queryToken={queryToken}
               imprintOptions={imprintOptions}
               recommended={showRecommendations && isLandingPageRequired}
             />
-            <EditLicense workId={workId} queryToken={queryToken} />
+            <EditLicense workId={workId} />
             <EditDoi
               workId={workId}
-              queryToken={queryToken}
               recommended={showRecommendations && (isDoiRequired || isLandingPageRequired || isCoverUrlRequired)}
             />
             {children}
           </div>
-          <EditWorkCover workId={workId} queryToken={queryToken} />
+          <EditWorkCover workId={workId} />
         </div>
       )}
     </RecommendedSection>

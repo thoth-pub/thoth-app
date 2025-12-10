@@ -11,12 +11,11 @@ type WorkContributionsTableProps = BaseEditSectionProps & {
 };
 
 const WorkContributionsTable = (props: WorkContributionsTableProps) => {
-  const { workId, queryToken, form, showRecommendations } = props;
+  const { workId, form, showRecommendations } = props;
 
   const { contributions, activeContribution, dragEnd, editContribution, deleteContribution, switchMainStatus } =
     useContributionsTable({
       workId,
-      queryToken,
     });
 
   return (

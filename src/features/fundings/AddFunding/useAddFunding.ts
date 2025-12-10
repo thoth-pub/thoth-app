@@ -19,11 +19,10 @@ type UseAddFundingProps = BaseEditSectionProps & {
 };
 
 export const useAddFunding = (props: UseAddFundingProps) => {
-  const { workId, queryToken, onCreate } = props;
+  const { workId, onCreate } = props;
 
   const { activeFunding, close } = useFundingsStateMachine();
   const { createFunding } = useCreateFunding({
-    queryToken,
     workId,
   });
 

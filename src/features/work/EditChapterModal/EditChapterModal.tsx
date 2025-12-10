@@ -17,7 +17,7 @@ type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'> & {
 };
 
 const EditChapterModal = (props: EditChapterModalProps) => {
-  const { queryToken, onDone } = props;
+  const { onDone } = props;
 
   const { activeWorkChapters, isSingleChapterSelected, close } = useWorkChaptersStateMachine();
   const { close: closeContribution } = useContributionStateMachine();
@@ -41,10 +41,10 @@ const EditChapterModal = (props: EditChapterModalProps) => {
 
   return (
     <FullScreenModal title="edit chapter" isOpen={isSingleChapterSelected} onClose={close} onDone={handleDone}>
-      <EditChapterBasicDetails workId={chapter.id} queryToken={queryToken} />
-      <EditDescriptions workId={chapter.id} queryToken={queryToken} isSingleChapterEdit={isSingleChapterSelected} />
-      <EditContributors workId={chapter.id} queryToken={queryToken} />
-      <EditFundings workId={chapter.id} queryToken={queryToken} />
+      <EditChapterBasicDetails workId={chapter.id} />
+      <EditDescriptions workId={chapter.id} isSingleChapterEdit={isSingleChapterSelected} />
+      <EditContributors workId={chapter.id} />
+      <EditFundings workId={chapter.id} />
     </FullScreenModal>
   );
 };

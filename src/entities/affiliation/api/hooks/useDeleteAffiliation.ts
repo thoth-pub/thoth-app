@@ -1,14 +1,10 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { type QueryToken,useServices } from '@/src/shared';
+import { useServices } from '@/src/shared';
+import { useQueryToken } from '@/src/shared/hooks';
 
-type UseDeleteAffiliationProps = {
-  queryToken: QueryToken;
-};
-
-const useDeleteAffiliation = (props: UseDeleteAffiliationProps) => {
-  const { queryToken } = props;
-
+const useDeleteAffiliation = () => {
+  const queryToken = useQueryToken();
   const { affiliationService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({

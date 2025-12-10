@@ -19,9 +19,9 @@ import { FormFields } from './components/FormFields';
 const { WORK_SERIES } = FORM_FIELDS;
 
 const EditWorkSeries = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
-  const { work } = useWork(workId, queryToken);
+  const { work } = useWork(workId);
   const [searchValue, setSearchValue] = useState(work.issues[0]?.seriesName ?? '');
   const { activePublisher } = usePublisherStateMachine();
 
@@ -32,8 +32,8 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
 
   const isNew = work.issues.length === 0;
 
-  const { createIssue } = useCreateIssue({ queryToken });
-  const { deleteIssue } = useDeleteIssue({ queryToken });
+  const { createIssue } = useCreateIssue();
+  const { deleteIssue } = useDeleteIssue();
   const { close } = useFormStateMachine();
 
   const placeholder = work.issues.length > 0 ? `vol. ${work.issues[0].ordinal} of ${work.issues[0].seriesName}` : '';

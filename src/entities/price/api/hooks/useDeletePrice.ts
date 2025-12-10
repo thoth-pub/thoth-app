@@ -1,16 +1,17 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 const { PRICE_DELETE_FAILED } = NOTIFICATIONS;
 
 const useDeletePrice = (props: BaseEditSectionProps) => {
-  const { queryToken, workId = '' } = props;
+  const { workId = '' } = props;
 
   const { sendErrorNotification } = useNotifications();
   const { priceService } = useServices();
   const queryClient = useQueryClient();
+  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (priceId: string) => {

@@ -2,16 +2,16 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, type QueryToken, useServices } from '@/src/shared';
+import { NOTIFICATIONS, useServices } from '@/src/shared';
 import { QueryKeys } from '@/src/shared/constants';
-import { useNotifications } from '@/src/shared/hooks';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 const { AFFILIATION_MOVE_FAILED } = NOTIFICATIONS;
 
-const useMoveBulkAffiliation = (queryToken: QueryToken) => {
+const useMoveBulkAffiliation = () => {
   const { affiliationService } = useServices();
   const { sendErrorNotification } = useNotifications();
-
+  const queryToken = useQueryToken();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({

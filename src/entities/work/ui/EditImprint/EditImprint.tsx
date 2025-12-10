@@ -15,8 +15,8 @@ type EditImprintProps = {
 
 const { IMPRINT } = FORM_FIELDS;
 
-export const EditImprint = ({ workId, queryToken, imprintOptions, recommended = false }: EditImprintProps) => {
-  const { work, updateWork } = useWork(workId, queryToken);
+export const EditImprint = ({ workId, imprintOptions, recommended = false }: EditImprintProps) => {
+  const { work, updateWork } = useWork(workId);
 
   const value = work?.publisherName ?? '';
   const showIndicator = recommended && !value;

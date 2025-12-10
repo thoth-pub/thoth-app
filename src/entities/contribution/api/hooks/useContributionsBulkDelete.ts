@@ -3,13 +3,14 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
-import { NOTIFICATIONS, QueryKeys, QueryToken, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 const { WORK_CONTRIBUTION_DELETION_FAILED } = NOTIFICATIONS;
 
-const useContributionsBulkDelete = (queryToken: QueryToken) => {
+const useContributionsBulkDelete = () => {
   const { sendErrorNotification } = useNotifications();
+  const queryToken = useQueryToken();
 
   const { contributionService } = useServices();
 

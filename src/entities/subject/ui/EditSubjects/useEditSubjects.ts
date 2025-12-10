@@ -11,14 +11,14 @@ import type { SubjectsFormType, SubjectType } from '../../model/subject.types';
 const { SUBJECT_TYPE, SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 
 export const useEditSubjects = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
-  const { work } = useWork(workId, queryToken);
+  const { work } = useWork(workId);
   const { close } = useFormStateMachine();
 
-  const { createSubject } = useCreateSubject({ workId, queryToken });
-  const { deleteSubject: deleteSubjectMutation } = useDeleteSubject({ workId, queryToken });
-  const { updateSubject } = useUpdateSubject({ workId, queryToken });
+  const { createSubject } = useCreateSubject({ workId });
+  const { deleteSubject: deleteSubjectMutation } = useDeleteSubject();
+  const { updateSubject } = useUpdateSubject({ workId });
 
   const update = async (data: SubjectsFormType) => {
     const newSubjects = data.subjects

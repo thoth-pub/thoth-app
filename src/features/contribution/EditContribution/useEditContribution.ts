@@ -36,7 +36,6 @@ type UseEditContributionProps = BaseEditSectionProps &
 export const useEditContribution = (props: UseEditContributionProps) => {
   const {
     workId,
-    queryToken,
     isAdmin = false,
     linkedPublishers = [],
     onNamesUpdate,
@@ -53,11 +52,10 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   const { close: closeForm } = useFormStateMachine();
   const [contribution, setContribution] = useState<WorkContribution | null>(activeContribution);
 
-  const { moveAffiliation } = useMoveAffiliation({ queryToken, workId });
-  const { work, updateContribution: updateWorkContribution } = useWork(workId, queryToken);
+  const { moveAffiliation } = useMoveAffiliation({ workId });
+  const { work, updateContribution: updateWorkContribution } = useWork(workId);
   const { sendErrorNotification } = useNotifications();
   const { updateContributor } = useUpdateContributor({
-    queryToken,
     onCompleted: (data) => {
       if (!contribution) return;
 
@@ -78,7 +76,6 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
   const { contributedToPublishers } = useLinkedPublishers({ id: activeContribution?.contributorId });
   const { updateAffiliations, deleteAffiliation } = useAffiliationsForm({
-    queryToken,
     contributionId: contribution?.id || '',
     affiliations: contribution?.affiliations || [],
     workId,

@@ -1,6 +1,8 @@
 // API
+export { default as useCreateNewWorkEdition } from './api/hooks/useCreateNewWorkEdition';
 export { default as useCreateWork } from './api/hooks/useCreateWork';
 export { default as useCreateWorkChapter } from './api/hooks/useCreateWorkChapter';
+export { default as useCreateWorkTranslation } from './api/hooks/useCreateWorkTranslation';
 export { default as useDeleteChapter } from './api/hooks/useDeleteChapter';
 export { default as useGetWork } from './api/hooks/useGetWork';
 export { default as useSuspendedWorks } from './api/hooks/useSuspendedWorks';

@@ -42,6 +42,7 @@ const {
   WORK_LAST_PAGE,
   WORK_GENERAL_NOTE,
   WORK_BIBLIOGRAPHY_NOTE,
+  WORK_COPY,
 } = FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
@@ -174,4 +175,11 @@ export const coverUrlAltValidationSchema = z.object({
 export const notesValidationSchema = z.object({
   [WORK_GENERAL_NOTE.name]: optionalStringValidation,
   [WORK_BIBLIOGRAPHY_NOTE.name]: optionalStringValidation,
+});
+
+export const workCopyValidationSchema = z.object({
+  [WORK_COPY.name]: z.object({
+    value: getRequiredStringValidation(),
+    label: getRequiredStringValidation(),
+  }),
 });

@@ -14,8 +14,8 @@ import { getWorkTypeOptions } from '@/src/shared/utils';
 
 const { WORK_TYPE } = FORM_FIELDS;
 
-export const EditImprint = ({ workId, queryToken }: BaseEditSectionProps) => {
-  const { work, updateWork } = useWork(workId, queryToken);
+export const EditImprint = ({ workId }: BaseEditSectionProps) => {
+  const { work, updateWork } = useWork(workId);
   const { t, i18n } = useTranslation();
   const value = t(convertOptionToString(work?.type ?? '').toLowerCase());
 

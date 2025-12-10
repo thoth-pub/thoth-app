@@ -5,11 +5,11 @@ import useDeleteLanguage from './useDeleteLanguage';
 import useUpdateLanguage from './useUpdateLanguage';
 
 const useLanguage = (props: BaseEditSectionProps) => {
-  const { queryToken, workId } = props;
+  const { workId } = props;
 
-  const { createLanguage } = useCreateLanguage({ queryToken, workId });
-  const { updateLanguage } = useUpdateLanguage({ queryToken, workId });
-  const { deleteLanguage } = useDeleteLanguage({ queryToken, workId });
+  const { createLanguage } = useCreateLanguage({ workId });
+  const { updateLanguage } = useUpdateLanguage({ workId });
+  const { deleteLanguage } = useDeleteLanguage();
 
   return {
     createLanguage,

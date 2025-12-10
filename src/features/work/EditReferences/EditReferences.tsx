@@ -33,14 +33,14 @@ const defaultReference: ReferenceEntity = {
 };
 
 const EditReferences = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
   const { t } = useTranslation();
-  const { work } = useWork(workId, queryToken);
+  const { work } = useWork(workId);
   const { activeReference, edit } = useReferencesStateMachine();
-  const { deleteReference } = useDeleteReference({ workId, queryToken });
-  const { updateReference } = useUpdateReference({ workId, queryToken });
-  const { moveReferences } = useMoveReferences({ workId, queryToken });
+  const { deleteReference } = useDeleteReference();
+  const { updateReference } = useUpdateReference({ workId });
+  const { moveReferences } = useMoveReferences({ workId });
 
   const isNewReference = activeReference ? isDefaultId(activeReference.id) : false;
 
@@ -89,12 +89,12 @@ const EditReferences = (props: BaseEditSectionProps) => {
         <ReferencesTable
           activeReference={activeReference}
           references={work.references}
-          form={<EditReference workId={workId} queryToken={queryToken} />}
+          form={<EditReference workId={workId} />}
           onDelete={handleDeleteReference}
           onEdit={(id) => editReference(id)}
           onDragEnd={dragEnd}
         />
-        {isNewReference && <AddReference workId={workId} queryToken={queryToken} />}
+        {isNewReference && <AddReference workId={workId} />}
         <AddButton className="px-7 capitalize" onAdd={addReference} disabled={isNewReference}>
           {t('add reference')}
         </AddButton>

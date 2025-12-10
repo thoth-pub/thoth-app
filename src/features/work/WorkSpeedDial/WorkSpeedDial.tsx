@@ -1,20 +1,24 @@
 'use client';
 
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import PlusOneIcon from '@mui/icons-material/PlusOne';
+import TranslateIcon from '@mui/icons-material/Translate';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
-import { useRouter } from 'next/navigation';
 
-import { useWorkRecommendations } from '@/src/entities/work';
+import {
+  useCreateNewWorkEdition,
+  useCreateWorkTranslation,
+  useWork,
+  useWorkRecommendations,
+} from '@/src/entities/work';
 import useDeleteWork from '@/src/entities/work/api/hooks/useDeleteWork';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import type { QueryToken } from '@/src/shared';
-import { ANCHORS, ROUTES } from '@/src/shared/constants';
+import { ANCHORS } from '@/src/shared/constants';
 import { SpeedDial, SpeedDialActions, Typography } from '@/src/shared/ui';
 import DataIndicator from '@/src/shared/ui/core/DataIndicator/DataIndicator';
 
 type WorkSpeedDialProps = {
   workId: WorkId;
-  queryToken: QueryToken;
 };
 
 const buttonItemStyle = {
@@ -28,7 +32,7 @@ const buttonItemStyle = {
 const { BASIC_DETAILS, DESCRIPTIONS, CONTRIBUTIONS, FUNDINGS } = ANCHORS;
 
 const WorkSpeedDial = (props: WorkSpeedDialProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
   const {
     isAllInformationFilled,
@@ -42,19 +46,20 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
     isFundingsEmpty,
     isFundingsRequired,
   } = useWorkRecommendations({ workId });
-  const { deleteWork } = useDeleteWork({ queryToken });
-  const router = useRouter();
+  const { work } = useWork(workId);
+  const { createNewWorkEdition } = useCreateNewWorkEdition();
+  const { createWorkTranslation } = useCreateWorkTranslation();
+  const { deleteWork } = useDeleteWork({});
 
-  const handleDelete = () => {
-    deleteWork(workId);
-    router.push(ROUTES.DASHBOARD);
+  const onCreateNewEdition = () => {
+    createNewWorkEdition(work);
+  };
+
+  const onCreateTranslation = () => {
+    createWorkTranslation(work);
   };
 
   const actions = [
-    {
-      icon: <DeleteOutlineIcon color="primary" onClick={handleDelete} />,
-      name: 'Delete',
-    },
     {
       icon: (
         <DataIndicator
@@ -65,6 +70,18 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
         />
       ),
       name: 'Recommendations',
+    },
+    {
+      icon: <DeleteOutlineIcon color="primary" onClick={() => deleteWork(workId)} />,
+      name: 'Delete',
+    },
+    {
+      icon: <PlusOneIcon color="primary" onClick={onCreateNewEdition} />,
+      name: 'Reissue',
+    },
+    {
+      icon: <TranslateIcon color="primary" onClick={onCreateTranslation} />,
+      name: 'Translation',
     },
   ];
 
@@ -133,7 +150,7 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
                       </ul>
                     ),
                   }
-                : undefined,
+                : { open: true, title: action.name },
           }}
         />
       ))}

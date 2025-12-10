@@ -284,6 +284,12 @@ export const FORM_FIELDS = {
     placeholder: 'Series',
     type: InputTypes.TEXT,
   },
+  WORK_COPY: {
+    label: 'Work',
+    name: 'workCopy',
+    placeholder: 'Work Copy',
+    type: InputTypes.TEXT,
+  },
   WORK_GENERAL_NOTE: {
     label: 'General Note',
     name: 'generalNote',

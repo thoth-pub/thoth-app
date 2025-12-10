@@ -24,7 +24,7 @@ type EditChaptersFundingsProps = Omit<BaseEditSectionProps, 'workId'> & {
 };
 
 const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
-  const { queryToken, chapters } = props;
+  const { chapters } = props;
 
   const { activeFunding, edit, close, update } = useFundingsStateMachine();
 
@@ -62,13 +62,12 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   const isValid = isEmpty || fundings.every(isAllFundingRecommendationsFilled);
 
   const { createFundingForMultipleWorks } = useCreateFunding({
-    queryToken,
     workId: '',
   });
 
-  const { updateFunding } = useUpdateFunding({ workId: '', queryToken });
+  const { updateFunding } = useUpdateFunding({ workId: '' });
 
-  const { deleteFundings } = useDeleteFunding({ workId: '', queryToken });
+  const { deleteFundings } = useDeleteFunding();
 
   const uniqueInstitutionIds = [
     ...new Set(chapters.flatMap((chapter) => chapter.fundings.map((funding) => funding.institutionId))),
@@ -451,7 +450,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
                 form={
                   <EditFunding
                     workId=""
-                    queryToken={queryToken}
                     onProjectUpdate={updateProject}
                     onProjectShortNameUpdate={updateProjectShortName}
                     onJurisdictionUpdate={updateJurisdiction}
@@ -461,7 +459,7 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
                   />
                 }
               />
-              {isNewFunding && <AddFunding workId="" queryToken={queryToken} onCreate={createFunding} />}
+              {isNewFunding && <AddFunding workId="" onCreate={createFunding} />}
               <AddButton className="px-7 capitalize" onAdd={addFunding} disabled={isNewFunding}>
                 {t('add funding')}
               </AddButton>

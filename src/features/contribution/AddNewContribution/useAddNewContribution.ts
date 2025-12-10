@@ -18,14 +18,13 @@ type UseAddNewContributionProps = BaseEditSectionProps & {
 };
 
 export const useAddNewContribution = (props: UseAddNewContributionProps) => {
-  const { workId, queryToken, onCreate } = props;
+  const { workId, onCreate } = props;
 
   const { activeContribution, update, close } = useContributionStateMachine();
-  const { work, createContribution } = useWork(workId, queryToken);
+  const { work, createContribution } = useWork(workId);
 
   const { contributor } = useContributor({ contributorId: activeContribution?.contributorId });
   const { updateContributor } = useUpdateContributor({
-    queryToken,
     onError: () => close(),
   });
 

@@ -2,7 +2,7 @@
 
 import { Fragment } from 'react';
 
-import { convertOptionToString, convertUpdatedAtToFormattedDate, QueryToken } from '@/src/shared';
+import { convertOptionToString, convertUpdatedAtToFormattedDate } from '@/src/shared';
 import {
   ButtonGroup,
   CircularProgress,
@@ -24,8 +24,6 @@ import useSeriesesStateMachine from '../../store/hooks/useSeriesesStateMachine';
 
 type SeriesTableProps = {
   seriesForm: Readonly<React.ReactNode>;
-  queryToken: QueryToken;
-
   loading: boolean;
   serieses: SeriesEntity[];
   page: number;
@@ -34,11 +32,11 @@ type SeriesTableProps = {
 };
 
 const SeriesTable = (props: SeriesTableProps) => {
-  const { seriesForm, queryToken, loading, serieses, page, pagesCount, onPageChange } = props;
+  const { seriesForm, loading, serieses, page, pagesCount, onPageChange } = props;
 
   const { activeSeries, edit } = useSeriesesStateMachine();
 
-  const { deleteSeries } = useDeleteSeries({ queryToken });
+  const { deleteSeries } = useDeleteSeries();
 
   return (
     <>

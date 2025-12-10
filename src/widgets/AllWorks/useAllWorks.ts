@@ -5,15 +5,17 @@ import { useState } from 'react';
 
 import { Direction, WorkField } from '@/gql/graphql';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
-import { useWorks, useWorksCount } from '@/src/entities/work';
+import { useCreateNewWorkEdition, useCreateWorkTranslation, useWorks, useWorksCount } from '@/src/entities/work';
 import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
-import { appConfig, ROUTES, WorkTypes } from '@/src/shared';
+import { appConfig, ROUTES, type WorkCopyVariant, WorkTypes } from '@/src/shared';
 import { useDebouncedValue } from '@/src/shared/hooks';
 
 const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 
 export const useAllWorks = () => {
   const router = useRouter();
+  const { createNewWorkEdition } = useCreateNewWorkEdition();
+  const { createWorkTranslation } = useCreateWorkTranslation();
 
   const { activePublisher, isAdmin } = usePublisherStateMachine();
   const publishers = activePublisher ? [activePublisher] : [];
@@ -82,11 +84,14 @@ export const useAllWorks = () => {
     setIsUploadModalOpen(false);
   };
 
+  const navigateToCopyWork = (variant: WorkCopyVariant) => {
+    router.push(ROUTES.COPY_WORK(variant));
+  };
+
   return {
     // Data
     loading,
     works,
-    navigateToWork,
 
     // Search
     searchValue,
@@ -111,5 +116,13 @@ export const useAllWorks = () => {
     isUploadModalOpen,
     openUpload,
     closeUpload,
+
+    // Navigation
+    navigateToWork,
+    navigateToCopyWork,
+
+    // Create copy
+    createNewWorkEdition,
+    createWorkTranslation,
   };
 };

@@ -13,13 +13,13 @@ import AddFunding from '../../fundings/AddFunding/AddFunding';
 import EditFunding from '../../fundings/EditFunding/EditFunding';
 
 const EditFundings = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
   const { t } = useTranslation();
-  const { work } = useWork(workId, queryToken);
+  const { work } = useWork(workId);
   const { activeFunding, edit } = useFundingsStateMachine();
   const { isFundingsRequired, isFundingsEmpty } = useWorkRecommendations({ workId });
-  const { deleteFunding } = useDeleteFunding({ workId, queryToken });
+  const { deleteFunding } = useDeleteFunding();
 
   const isNewFunding = activeFunding ? isDefaultId(activeFunding.id) : false;
 
@@ -43,11 +43,11 @@ const EditFundings = (props: BaseEditSectionProps) => {
             activeFunding={activeFunding}
             fundings={work.fundings}
             showRecommendations={showRecommendations}
-            form={<EditFunding workId={workId} queryToken={queryToken} recommended={showRecommendations} />}
+            form={<EditFunding workId={workId} recommended={showRecommendations} />}
             onDelete={(id) => deleteFunding(id)}
             onEdit={(id) => editFunding(id)}
           />
-          {isNewFunding && <AddFunding workId={workId} queryToken={queryToken} />}
+          {isNewFunding && <AddFunding workId={workId} />}
           <AddButton className="px-7 capitalize" onAdd={addFunding} disabled={isNewFunding}>
             {t('add funding')}
           </AddButton>

@@ -16,9 +16,9 @@ type EditDoiProps = BaseRecommendedSectionProps & {
 };
 
 const EditDoi = (props: EditDoiProps) => {
-  const { workId, queryToken, recommended = false, isChapter = false } = props;
+  const { workId, recommended = false, isChapter = false } = props;
 
-  const { work, updateWork } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId);
   const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
 
   const doiValue = work?.doi ?? '';

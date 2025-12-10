@@ -11,7 +11,7 @@ import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useCreateIssue } from '@/src/entities/series';
 import type { IssueValidationSchema, SeriesEntity } from '@/src/entities/series/model/series.types';
 import { issueValidationSchema } from '@/src/entities/series/model/series.validation';
-import { appConfig, convertEntityToSelectFieldOptions, QueryToken } from '@/src/shared';
+import { appConfig, convertEntityToSelectFieldOptions } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
@@ -28,12 +28,11 @@ import { Modal } from '@/src/shared/ui';
 const { WORK_SERIES, ISSUE_ORDINAL } = FORM_FIELDS;
 
 type AddBookModalProps = {
-  queryToken: QueryToken;
   series: SeriesEntity;
 };
 
 export const AddBookModal = (props: AddBookModalProps) => {
-  const { queryToken, series } = props;
+  const { series } = props;
 
   const [open, setOpen] = useState(false);
 
@@ -57,7 +56,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { books, isLoading } = useBooks({ publishersIds, filter: debouncedValue, isAdmin });
-  const { createIssue } = useCreateIssue({ queryToken });
+  const { createIssue } = useCreateIssue();
 
   const filteredBooks = books.filter((book) => book.issues.length === 0);
 

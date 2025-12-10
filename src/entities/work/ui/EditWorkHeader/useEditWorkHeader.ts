@@ -14,8 +14,8 @@ import useWork from '../../api/hooks/useWork';
 import useWorkChapters from '../../api/hooks/useWorkChapters';
 import type { WorkStatus } from '../../model/work.types';
 
-const useEditWorkHeader = ({ workId, queryToken }: BaseEditSectionProps) => {
-  const { work, updateWork } = useWork(workId, queryToken);
+const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
+  const { work, updateWork } = useWork(workId);
   const { chapters } = useWorkChapters({ workId });
   const isPublicationDateDisabled = !isPublicationDateAvailable(work.status);
   const isWithdrawnDateRequired = isSupersededOrWithdrawn(work.status);

@@ -30,7 +30,6 @@ const EditContribution = (props: EditContributionProps) => {
   const {
     recommended = false,
     workId,
-    queryToken,
     isAdmin,
     onNamesUpdate,
     onTypeUpdate,
@@ -61,7 +60,6 @@ const EditContribution = (props: EditContributionProps) => {
     moveAffiliation,
   } = useEditContribution({
     workId,
-    queryToken,
     isAdmin,
     linkedPublishers: publishersIds,
     onNamesUpdate,

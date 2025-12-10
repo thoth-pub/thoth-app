@@ -3,7 +3,7 @@
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useWorkTypeOptions } from '@/src/shared/hooks';
-import type { FormFieldOption, QueryToken } from '@/src/shared/interfaces';
+import type { FormFieldOption } from '@/src/shared/interfaces';
 import { AutocompleteGroup, Button, CircularProgress, PageHeader } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
@@ -17,10 +17,9 @@ const { CREATE_WORK } = IDs;
 type CreateWorkFormProps = {
   imprintOptions: FormFieldOption[];
   licenseOptions: FormFieldOption[];
-  queryToken: QueryToken;
 };
 
-const CreateWorkForm = ({ imprintOptions, licenseOptions, queryToken }: CreateWorkFormProps) => {
+const CreateWorkForm = ({ imprintOptions, licenseOptions }: CreateWorkFormProps) => {
   const workTypeOptions = useWorkTypeOptions();
 
   const { control, isImprintVisible, isSubmitDisabled, isLoading, availableNewWorkOptions, submit } = useCreateWorkForm(
@@ -28,7 +27,6 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions, queryToken }: CreateWo
       imprintOptions,
       workTypeOptions,
       licenseOptions,
-      queryToken,
     },
   );
 

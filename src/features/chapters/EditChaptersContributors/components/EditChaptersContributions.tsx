@@ -12,11 +12,9 @@ import { ContributionId } from '@/src/entities/contributor/model/contributor.typ
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { EditContribution } from '@/src/features/contribution';
-import type { QueryToken } from '@/src/shared';
 
 type EditChaptersContributionsProps = {
   showRecommendations: boolean;
-  queryToken: QueryToken;
   onUpdate: (id: ContributionId, updatedData?: Partial<WorkContribution>) => void;
   onUpdateAffiliations: (data: AffiliationsForm, contributionId: ContributionId) => void;
   onDeleteAffiliation: (id: string, contributionId: ContributionId) => void;
@@ -24,14 +22,7 @@ type EditChaptersContributionsProps = {
 };
 
 export const EditChaptersContributions = (props: EditChaptersContributionsProps) => {
-  const {
-    showRecommendations,
-    queryToken,
-    onUpdate,
-    onUpdateAffiliations,
-    onDeleteAffiliation,
-    onAffiliationOrderUpdate,
-  } = props;
+  const { showRecommendations, onUpdate, onUpdateAffiliations, onDeleteAffiliation, onAffiliationOrderUpdate } = props;
 
   const { activeContribution, close, update } = useContributionStateMachine();
   const { isAdmin } = usePublisherStateMachine();
@@ -128,7 +119,6 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     <EditContribution
       recommended={showRecommendations}
       workId=""
-      queryToken={queryToken}
       isAdmin={isAdmin}
       onNamesUpdate={handleNamesUpdate}
       onTypeUpdate={handleTypeUpdate}

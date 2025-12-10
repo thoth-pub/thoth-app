@@ -24,7 +24,6 @@ type UseEditFundingProps = BaseEditSectionProps & {
 export const useEditFunding = (props: UseEditFundingProps) => {
   const {
     workId,
-    queryToken,
     onProjectUpdate,
     onProjectShortNameUpdate,
     onJurisdictionUpdate,
@@ -34,7 +33,7 @@ export const useEditFunding = (props: UseEditFundingProps) => {
   } = props;
 
   const { activeFunding, close, update } = useFundingsStateMachine();
-  const { updateFunding } = useUpdateFunding({ workId, queryToken });
+  const { updateFunding } = useUpdateFunding({ workId });
 
   const updateProject = ({ projectName }: FundingProjectNameFormType) => {
     if (!activeFunding || !projectName) return;

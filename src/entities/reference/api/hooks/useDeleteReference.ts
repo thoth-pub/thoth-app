@@ -3,18 +3,16 @@
 import { useMutation } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
-import type { BaseEditSectionProps } from '@/src/shared/types';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import type { ReferenceId } from '../../model/reference.types';
 
 const { REFERENCE_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteReference = (props: BaseEditSectionProps) => {
-  const { queryToken } = props;
-
+const useDeleteReference = () => {
   const { sendErrorNotification } = useNotifications();
   const { referenceService } = useServices();
+  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (referenceId: ReferenceId) => {

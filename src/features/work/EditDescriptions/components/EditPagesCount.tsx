@@ -39,9 +39,9 @@ type EditPagesCountProps = BaseRecommendedSectionProps & {
 };
 
 export const EditPagesCount = (props: EditPagesCountProps) => {
-  const { workId, queryToken, recommended = false, isChapter = false } = props;
+  const { workId, recommended = false, isChapter = false } = props;
 
-  const { work, updateWork } = useWork(workId, queryToken);
+  const { work, updateWork } = useWork(workId);
 
   const { pageCount, frontmatterCount, backmatterCount, firstPage, lastPage } = work;
 

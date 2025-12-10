@@ -16,16 +16,7 @@ type EditChapterBasicDetailsProps = BaseEditSectionProps &
   }>;
 
 const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
-  const {
-    workId,
-    queryToken,
-    title,
-    subtitle,
-    license,
-    copyrightHolder,
-    isMultipleChaptersEdit = false,
-    onLicenseUpdate,
-  } = props;
+  const { workId, title, subtitle, license, copyrightHolder, isMultipleChaptersEdit = false, onLicenseUpdate } = props;
 
   const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
 
@@ -38,21 +29,12 @@ const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
               title={title}
               subtitle={subtitle}
               workId={workId}
-              queryToken={queryToken}
               recommended={showRecommendations}
               withEdition={false}
             />
           )}
-          <EditLicense
-            workId={workId}
-            queryToken={queryToken}
-            license={license}
-            copyrightHolder={copyrightHolder}
-            onUpdate={onLicenseUpdate}
-          />
-          {!isMultipleChaptersEdit && (
-            <EditDoi workId={workId} queryToken={queryToken} recommended={showRecommendations} isChapter />
-          )}
+          <EditLicense workId={workId} license={license} copyrightHolder={copyrightHolder} onUpdate={onLicenseUpdate} />
+          {!isMultipleChaptersEdit && <EditDoi workId={workId} recommended={showRecommendations} isChapter />}
         </div>
       )}
     </RecommendedSection>

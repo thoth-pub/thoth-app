@@ -1,8 +1,10 @@
 import { Direction, RelationType, WorkField, WorkStatus, WorkType } from '@/gql/graphql';
+import { appConfig, getDateInFuture, WorkStatuses } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ContributionService } from '../../contribution/api/contribution.service';
 import { FundingService } from '../../funding/api/funding.service';
+import { LanguageService } from '../../language/api/service';
 import { PublicationService } from '../../publication/api/publication.service';
 import { PublisherId } from '../../publisher/model/publisher.types';
 import { SubjectService } from '../../subject/api/subject.service';
@@ -13,6 +15,8 @@ import {
   DELETE_WORK,
   GET_WORK,
   GET_WORK_CHAPTERS,
+  GET_WORK_EDITIONS,
+  GET_WORK_TRANSLATIONS,
   GET_WORKS,
   GET_WORKS_COUNT,
   UPDATE_WORK,
@@ -24,6 +28,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
   private readonly subjectService: SubjectService;
   private readonly contributionService: ContributionService;
   private readonly publicationService: PublicationService;
+  private readonly languageService: LanguageService;
 
   constructor(
     mapper = new WorkDtoMapper(),
@@ -31,12 +36,14 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     subjectService = new SubjectService(),
     contributionService = new ContributionService(),
     publicationService = new PublicationService(),
+    languageService = new LanguageService(),
   ) {
     super(mapper);
     this.fundingService = fundingService;
     this.subjectService = subjectService;
     this.contributionService = contributionService;
     this.publicationService = publicationService;
+    this.languageService = languageService;
   }
 
   async createWork(token: string, data: WorkEntity): Promise<WorkEntity> {
@@ -47,6 +54,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     const shouldCreateContributions = data.contributions.length > 0;
     const shouldCreateFundings = data.fundings.length > 0;
     const shouldCreatePublications = data.publications.length > 0;
+    const shouldCreateLanguages = data.languages.length > 0;
 
     const response = await this.graphqlService.mutation(token, CREATE_WORK, {
       data: dto,
@@ -94,16 +102,32 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
       work.publications = createdPublications;
     }
 
+    if (shouldCreateLanguages) {
+      const languagesPromises = data.languages.map((language) =>
+        this.languageService.createLanguage(token, language, work.id),
+      );
+
+      const createdLanguages = await Promise.all(languagesPromises);
+
+      work.languages = createdLanguages;
+    }
+
     return work;
   }
 
-  async createWorkRelation(token: string, chapterId: WorkId, relatedWorkId: WorkId, ordinal: number) {
+  async createWorkRelation(
+    token: string,
+    relatorWorkId: WorkId,
+    relatedWorkId: WorkId,
+    ordinal: number,
+    relationType: RelationType,
+  ) {
     const response = await this.graphqlService.mutation(token, CREATE_WORK_RELATION, {
       data: {
-        relatorWorkId: chapterId,
+        relatorWorkId: relatorWorkId,
         relatedWorkId: relatedWorkId,
         relationOrdinal: ordinal,
-        relationType: RelationType.IsChildOf,
+        relationType,
       },
     });
 
@@ -113,7 +137,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
   createChapter = async (token: string, chapter: WorkEntity, relatedWorkId: WorkId, ordinal: number) => {
     const createdChapter = await this.createWork(token, chapter);
 
-    await this.createWorkRelation(token, createdChapter.id, relatedWorkId, ordinal);
+    await this.createWorkRelation(token, createdChapter.id, relatedWorkId, ordinal, RelationType.IsChildOf);
 
     return createdChapter;
   };
@@ -166,6 +190,54 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     } while (fetchedCount === this.limit);
 
     return allChapters;
+  }
+
+  async getWorkTranslations(workId: WorkId): Promise<WorkEntity[]> {
+    const allTranslations: WorkEntity[] = [];
+    let offset = 0;
+    let fetchedCount = 0;
+
+    do {
+      const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_TRANSLATIONS, {
+        workId,
+        limit: this.limit,
+        offset,
+      });
+
+      const translations = relations.map((relation) =>
+        this.dtoMapper.toEntity({ ...relation.relatedWork, workRelationId: relation.workRelationId } as WorkDto),
+      );
+      allTranslations.push(...translations);
+
+      fetchedCount = relations.length;
+      offset += this.limit;
+    } while (fetchedCount === this.limit);
+
+    return allTranslations;
+  }
+
+  async getWorkEditions(workId: WorkId): Promise<WorkEntity[]> {
+    const allEditions: WorkEntity[] = [];
+    let offset = 0;
+    let fetchedCount = 0;
+
+    do {
+      const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_EDITIONS, {
+        workId,
+        limit: this.limit,
+        offset,
+      });
+
+      const editions = relations.map((relation) =>
+        this.dtoMapper.toEntity({ ...relation.relatedWork, workRelationId: relation.workRelationId } as WorkDto),
+      );
+      allEditions.push(...editions);
+
+      fetchedCount = relations.length;
+      offset += this.limit;
+    } while (fetchedCount === this.limit);
+
+    return allEditions;
   }
 
   async getWorks({
@@ -229,5 +301,76 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
       workRelationId,
       newOrdinal,
     });
+  }
+
+  async createWorkTranslation(token: string, originalWorkId: WorkId, translation: WorkEntity): Promise<WorkEntity> {
+    const createdTranslation = await this.createWork(token, translation);
+    const translations = await this.getWorkTranslations(originalWorkId);
+    const translationsCount = translations.length;
+
+
+    await this.createWorkRelation(
+      token,
+      originalWorkId,
+      createdTranslation.id,
+      translationsCount + 1,
+      RelationType.HasTranslation,
+    );
+
+    return createdTranslation;
+  }
+
+  async createNewWorkEdition(token: string, originalWork: WorkEntity, edition: WorkEntity): Promise<WorkEntity> {
+    const createdEdition = await this.createWork(token, edition);
+    const chapters = await this.getWorkChapters(originalWork.id);
+    const editions = await this.getWorkEditions(originalWork.id);
+    const editionsCount = editions.length;
+
+    console.log('editionsCount', editionsCount);
+
+    const copiedChapters = chapters.map((chapter, index) => ({
+      chapter: {
+        ...chapter,
+        id: appConfig.defaultId,
+        contributions: chapter.contributions.map((contribution) => ({
+          ...contribution,
+          id: appConfig.defaultId,
+        })),
+        subjects: chapter.subjects.map((subject) => ({
+          ...subject,
+          id: appConfig.defaultId,
+        })),
+        languages: chapter.languages.map((language) => ({
+          ...language,
+          id: appConfig.defaultId,
+        })),
+      },
+      ordinal: index + 1,
+    }));
+
+    const chaptersPromises = copiedChapters.map(({ chapter, ordinal }) =>
+      this.createChapter(token, chapter, createdEdition.id, ordinal),
+    );
+
+    await Promise.all(chaptersPromises);
+
+    await this.createWorkRelation(
+      token,
+      originalWork.id,
+      createdEdition.id,
+      editionsCount + 1,
+      RelationType.IsReplacedBy,
+    );
+
+    if (originalWork.status === WorkStatuses.enum.Superseded) return createdEdition;
+
+    await this.updateWork(token, {
+      ...originalWork,
+      status: WorkStatuses.enum.Superseded,
+      withdrawnDate: getDateInFuture(1),
+      publicationDate: new Date().toISOString(),
+    });
+
+    return createdEdition;
   }
 }

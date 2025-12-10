@@ -1,6 +1,8 @@
 'use client';
 
 import FileOpenIcon from '@mui/icons-material/FileOpen';
+import PlusOneIcon from '@mui/icons-material/PlusOne';
+import TranslateIcon from '@mui/icons-material/Translate';
 
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, convertUpdatedAtToFormattedDate } from '@/src/shared';
@@ -25,10 +27,13 @@ type WorksTableProps = {
   pagesCount: number;
   onPageChange: (value: number) => void;
   navigateToWork: (id: string) => void;
+  onCreateNewEdition: (work: WorkEntity) => void;
+  onCreateTranslation: (work: WorkEntity) => void;
 };
 
 export const WorksTable = (props: WorksTableProps) => {
-  const { loading, works, page, pagesCount, onPageChange, navigateToWork } = props;
+  const { loading, works, page, pagesCount, onPageChange, navigateToWork, onCreateNewEdition, onCreateTranslation } =
+    props;
 
   return (
     <>
@@ -62,18 +67,24 @@ export const WorksTable = (props: WorksTableProps) => {
             </TableRow>
           ) : (
             <>
-              {works.map(({ id, reference, title, type, updatedAt, contributorsNames, status }) => (
-                <TableRow key={id} className="group" onDoubleClick={() => navigateToWork(id)}>
-                  <TableCell className="firstCell">{reference}</TableCell>
-                  <TableCell className="middleCell">{title}</TableCell>
-                  <TableCell className="middleCell">{<Chip label={convertOptionToString(status)} />}</TableCell>
-                  <TableCell className="middleCell">{convertOptionToString(type)}</TableCell>
-                  <TableCell className="middleCell">{contributorsNames.join(', ')}</TableCell>
+              {works.map((work) => (
+                <TableRow key={work.id} className="group" onDoubleClick={() => navigateToWork(work.id)}>
+                  <TableCell className="firstCell">{work.reference}</TableCell>
+                  <TableCell className="middleCell">{work.title}</TableCell>
+                  <TableCell className="middleCell">{<Chip label={convertOptionToString(work.status)} />}</TableCell>
+                  <TableCell className="middleCell">{convertOptionToString(work.type)}</TableCell>
+                  <TableCell className="middleCell">{work.contributorsNames.join(', ')}</TableCell>
                   <TableCell className="lastCell">
                     <div className="flex items-center justify-between">
-                      {convertUpdatedAtToFormattedDate(updatedAt)}{' '}
+                      {convertUpdatedAtToFormattedDate(work.updatedAt)}{' '}
                       <ButtonGroup>
-                        <IconButton onClick={() => navigateToWork(id)}>
+                        <IconButton onClick={() => onCreateNewEdition(work)}>
+                          <PlusOneIcon className="opacity-0 group-hover:opacity-100" />
+                        </IconButton>
+                        <IconButton onClick={() => onCreateTranslation(work)}>
+                          <TranslateIcon className="opacity-0 group-hover:opacity-100" />
+                        </IconButton>
+                        <IconButton onClick={() => navigateToWork(work.id)}>
                           <FileOpenIcon className="opacity-0 group-hover:opacity-100" />
                         </IconButton>
                       </ButtonGroup>

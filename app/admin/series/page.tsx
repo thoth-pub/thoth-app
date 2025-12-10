@@ -21,5 +21,5 @@ export default async function SeriesPage() {
   const imprints = await imprintsService.getAllImprints({ publishersIds: isUserAdmin ? [] : linkedPublishers });
   const imprintOptions = convertEntityToSelectFieldOptions(imprints, 'name');
 
-  return <Series imprintOptions={imprintOptions} queryToken={session.user.queryToken} />;
+  return <Series imprintOptions={imprintOptions} />;
 }

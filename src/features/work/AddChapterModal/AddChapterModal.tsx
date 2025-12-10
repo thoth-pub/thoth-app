@@ -13,9 +13,9 @@ import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
 import { InheritedDataForm } from './components/InheritedDataForm';
 
 const AddChapterModal = (props: BaseEditSectionProps) => {
-  const { workId, queryToken } = props;
+  const { workId } = props;
 
-  const { work } = useWork(workId, queryToken);
+  const { work } = useWork(workId);
   const { chapters } = useWorkChapters({ workId });
 
   const { t } = useTranslation();
@@ -42,7 +42,6 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   };
 
   const { createChapter } = useCreateWorkChapter({
-    queryToken,
     onCompleted: (chapter) => {
       closeModal();
       edit([chapter]);

@@ -13,10 +13,10 @@ type EditContributorsProps = BaseEditSectionProps & {
 };
 
 const EditContributors = (props: EditContributorsProps) => {
-  const { workId, queryToken, isAdmin = false } = props;
+  const { workId, isAdmin = false } = props;
   const { activeContribution, close } = useContributionStateMachine();
 
-  const { work } = useWork(workId, queryToken);
+  const { work } = useWork(workId);
   const { isContributionsRequired } = useWorkRecommendations({ workId });
 
   const isNewContribution = activeContribution ? isDefaultId(activeContribution.id) : false;
@@ -40,20 +40,10 @@ const EditContributors = (props: EditContributorsProps) => {
         <>
           <WorkContributionsTable
             workId={workId}
-            queryToken={queryToken}
-            form={
-              <EditContribution
-                recommended={showRecommendations}
-                workId={workId}
-                queryToken={queryToken}
-                isAdmin={isAdmin}
-              />
-            }
+            form={<EditContribution recommended={showRecommendations} workId={workId} isAdmin={isAdmin} />}
             showRecommendations={showRecommendations}
           />
-          {isNewContribution && (
-            <AddNewContribution recommended={showRecommendations} workId={workId} queryToken={queryToken} />
-          )}
+          {isNewContribution && <AddNewContribution recommended={showRecommendations} workId={workId} />}
           <AddContributionModal />
         </>
       )}

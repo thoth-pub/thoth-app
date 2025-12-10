@@ -14,7 +14,7 @@ import type {
   SeriesTypeFormType,
   SeriesUrlFormType,
 } from '@/src/entities/series/model/series.types';
-import { appConfig, FormFieldOption, isDefaultId, type QueryToken, SeriesType } from '@/src/shared';
+import { appConfig, FormFieldOption, isDefaultId, SeriesType } from '@/src/shared';
 import {
   CloseButton,
   Modal,
@@ -27,14 +27,13 @@ import {
 
 type AddSeriesProps = {
   imprintOptions: FormFieldOption[];
-  queryToken: QueryToken;
 };
 
-const AddSeries = ({ imprintOptions, queryToken }: AddSeriesProps) => {
+const AddSeries = ({ imprintOptions }: AddSeriesProps) => {
   const { activeSeries, edit, close } = useSeriesesStateMachine();
 
   const [series, setSeries] = useState(activeSeries);
-  const { createSeries } = useCreateSeries({ queryToken });
+  const { createSeries } = useCreateSeries();
 
   const open = activeSeries && isDefaultId(activeSeries.id) ? true : false;
 

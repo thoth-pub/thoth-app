@@ -3,16 +3,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { WorkId } from '@/src/entities/work/model/work.types';
-import { NOTIFICATIONS, QueryKeys, QueryToken, useServices } from '@/src/shared';
-import { useNotifications } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import { WorkContribution } from '../../model/contribution.types';
 
 const { WORK_CONTRIBUTION_UPDATE_FAILED } = NOTIFICATIONS;
 
-const useContributionsBulkUpdate = (queryToken: QueryToken) => {
+const useContributionsBulkUpdate = () => {
   const { sendErrorNotification } = useNotifications();
-
+  const queryToken = useQueryToken();
   const queryClient = useQueryClient();
   const { contributionService } = useServices();
 
