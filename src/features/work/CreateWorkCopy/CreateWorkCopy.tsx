@@ -1,14 +1,15 @@
+/* eslint-disable react-hooks/refs */
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import SearchIcon from '@mui/icons-material/Search';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { useBooks } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useCreateNewWorkEdition, useCreateWorkTranslation } from '@/src/entities/work';
-import { WorkCopyForm } from '@/src/entities/work/model/work.types';
+import { WorkCopyForm, WorkEntity } from '@/src/entities/work/model/work.types';
 import { workCopyValidationSchema } from '@/src/entities/work/model/work.validation';
 import { appConfig } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
@@ -38,7 +39,17 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
 
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
-  const { books, isLoading } = useBooks({ publishersIds, filter: debouncedValue, isAdmin });
+  const { books, isLoading } = useBooks({
+    publishersIds,
+    filter: debouncedValue,
+    isAdmin,
+  });
+
+  const latestBooks = useRef<WorkEntity[]>([]);
+
+  useEffect(() => {
+    if (books.length > 0) latestBooks.current = books;
+  }, [books]);
 
   const filteredBooks = books.filter((book) => book.issues.length === 0);
 
@@ -52,7 +63,7 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
       workCopy: { value },
     } = data;
 
-    const foundedBook = filteredBooks.find((book) => book.id === value);
+    const foundedBook = latestBooks.current.find((book) => book.id === value);
 
     if (!foundedBook) return;
 
@@ -72,7 +83,6 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
         <div className="flex gap-1">
           <FormFieldWithControlsWrapper className="w-full">
             <AutocompleteField
-              freeSolo
               disableClearable
               name={WORK_COPY.name}
               control={control}
@@ -80,6 +90,11 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
               onInputChange={(_, value) => setSearchValue(value)}
               loading={isLoading}
               fullWidth
+              renderOption={(props, option) => (
+                <li {...props} key={option.value}>
+                  <span>{option.label}</span>
+                </li>
+              )}
               icon={
                 <InputAdornment position="start">
                   <SearchIcon color="primary" />
