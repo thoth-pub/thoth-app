@@ -29,6 +29,8 @@ const useCreateNewWorkEdition = () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workEditions] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workPrevEditions] });
 
       router.push(ROUTES.WORK_PAGE(data.id));
     },

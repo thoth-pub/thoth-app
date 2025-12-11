@@ -24,6 +24,16 @@ export const useUpdateWork = (props: BaseEditSectionProps) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters, workId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workTranslations, workId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.translatedWorks, workId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workEditions, workId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workPrevEditions, workId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.works] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.forthcomingBooksCount] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.publishedBooksCount] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? WORK_UPDATE_FAILED);

@@ -10,7 +10,7 @@ import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useCreateNewWorkEdition, useCreateWorkTranslation } from '@/src/entities/work';
 import { WorkCopyForm } from '@/src/entities/work/model/work.types';
 import { workCopyValidationSchema } from '@/src/entities/work/model/work.validation';
-import { appConfig, convertEntityToSelectFieldOptions } from '@/src/shared';
+import { appConfig } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import { AutocompleteField, FormFieldWithControlsWrapper, InputAdornment, SubmitButton } from '@/src/shared/ui';
@@ -42,7 +42,10 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
 
   const filteredBooks = books.filter((book) => book.issues.length === 0);
 
-  const options = convertEntityToSelectFieldOptions(filteredBooks, 'title');
+  const options = filteredBooks.map((book) => ({
+    label: `${book.title} (edition ${book.edition ?? 1})`,
+    value: book.id,
+  }));
 
   const onSubmit = (data: WorkCopyForm) => {
     const {

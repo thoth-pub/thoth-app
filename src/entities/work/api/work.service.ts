@@ -13,9 +13,11 @@ import { CREATE_WORK, MOVE_WORK_RELATION } from '../model/work.mutations';
 import {
   CREATE_WORK_RELATION,
   DELETE_WORK,
+  GET_TRANSLATED_WORKS,
   GET_WORK,
   GET_WORK_CHAPTERS,
   GET_WORK_EDITIONS,
+  GET_WORK_PREV_EDITIONS,
   GET_WORK_TRANSLATIONS,
   GET_WORKS,
   GET_WORKS_COUNT,
@@ -240,6 +242,54 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     return allEditions;
   }
 
+  async getWorkPrevEditions(workId: WorkId): Promise<WorkEntity[]> {
+    const allPrevEditions: WorkEntity[] = [];
+    let offset = 0;
+    let fetchedCount = 0;
+
+    do {
+      const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_PREV_EDITIONS, {
+        workId,
+        limit: this.limit,
+        offset,
+      });
+
+      const editions = relations.map((relation) =>
+        this.dtoMapper.toEntity({ ...relation.relatedWork, workRelationId: relation.workRelationId } as WorkDto),
+      );
+      allPrevEditions.push(...editions);
+
+      fetchedCount = relations.length;
+      offset += this.limit;
+    } while (fetchedCount === this.limit);
+
+    return allPrevEditions;
+  }
+
+  async getTranslatedWorks(workId: WorkId): Promise<WorkEntity[]> {
+    const allTranslations: WorkEntity[] = [];
+    let offset = 0;
+    let fetchedCount = 0;
+
+    do {
+      const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_TRANSLATED_WORKS, {
+        workId,
+        limit: this.limit,
+        offset,
+      });
+
+      const translations = relations.map((relation) =>
+        this.dtoMapper.toEntity({ ...relation.relatedWork, workRelationId: relation.workRelationId } as WorkDto),
+      );
+      allTranslations.push(...translations);
+
+      fetchedCount = relations.length;
+      offset += this.limit;
+    } while (fetchedCount === this.limit);
+
+    return allTranslations;
+  }
+
   async getWorks({
     publishersIds,
     offset = 0,
@@ -308,7 +358,6 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     const translations = await this.getWorkTranslations(originalWorkId);
     const translationsCount = translations.length;
 
-
     await this.createWorkRelation(
       token,
       originalWorkId,
@@ -325,8 +374,6 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     const chapters = await this.getWorkChapters(originalWork.id);
     const editions = await this.getWorkEditions(originalWork.id);
     const editionsCount = editions.length;
-
-    console.log('editionsCount', editionsCount);
 
     const copiedChapters = chapters.map((chapter, index) => ({
       chapter: {
@@ -348,7 +395,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
       ordinal: index + 1,
     }));
 
-    const chaptersPromises = copiedChapters.map(({ chapter, ordinal }) =>
+    const chaptersPromises = copiedChapters.map(async ({ chapter, ordinal }) =>
       this.createChapter(token, chapter, createdEdition.id, ordinal),
     );
 

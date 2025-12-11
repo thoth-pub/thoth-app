@@ -25,6 +25,10 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
     isPublicationDateDisabled,
     isWithdrawnDateRequired,
     minDate,
+    latestEdition,
+    previousEdition,
+    translations,
+    translatedWorks,
     changeWorkStatus,
     changePublicationDate,
     changeWithdrawnDate,
@@ -77,6 +81,76 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
           {isWithdrawnDateRequired && (
             <div className={itemStyles}>
               <EditWithdrawDate defaultValue={withdrawnDate ?? ''} onUpdate={changeWithdrawnDate} minDate={minDate} />
+            </div>
+          )}
+        </div>
+
+        <div className="flex flex-col gap-2">
+          {translations.length > 0 && (
+            <div className="flex gap-2">
+              <InputLabel component="span" className="min-w-42 shrink-0">
+                Translations
+              </InputLabel>
+
+              <ul className="w-full">
+                {translations.map((work) => (
+                  <li key={work.id}>
+                    <NextLink href={`${ROUTES.WORK_PAGE(work.id)}`} passHref>
+                      <Link className="no-underline" component="span">
+                        {work.title}
+                      </Link>
+                    </NextLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {translatedWorks.length > 0 && (
+            <div className="flex gap-2">
+              <InputLabel component="span" className="min-w-42 shrink-0">
+                Translation of
+              </InputLabel>
+
+              <ul className="w-full">
+                {translatedWorks.map((work) => (
+                  <li key={work.id}>
+                    <NextLink href={`${ROUTES.WORK_PAGE(work.id)}`} passHref>
+                      <Link className="no-underline" component="span">
+                        {work.title}
+                      </Link>
+                    </NextLink>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {previousEdition && (
+            <div className="flex gap-2">
+              <InputLabel component="span" className="min-w-42 shrink-0">
+                Previous Edition
+              </InputLabel>
+
+              <NextLink href={`${ROUTES.WORK_PAGE(previousEdition.id)}`} passHref>
+                <Link className="no-underline" component="span">
+                  {previousEdition.title}
+                </Link>
+              </NextLink>
+            </div>
+          )}
+
+          {latestEdition && (
+            <div className="flex gap-2">
+              <InputLabel component="span" className="min-w-42 shrink-0">
+                New Edition
+              </InputLabel>
+
+              <NextLink href={`${ROUTES.WORK_PAGE(latestEdition.id)}`} passHref>
+                <Link className="no-underline" component="span">
+                  {latestEdition.title}
+                </Link>
+              </NextLink>
             </div>
           )}
         </div>

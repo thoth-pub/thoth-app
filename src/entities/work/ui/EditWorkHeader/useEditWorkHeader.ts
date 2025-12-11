@@ -10,13 +10,20 @@ import {
   isSupersededOrWithdrawn,
 } from '@/src/shared';
 
+import { useTranslatedWorks } from '../..';
 import useWork from '../../api/hooks/useWork';
 import useWorkChapters from '../../api/hooks/useWorkChapters';
+import useWorkEditions from '../../api/hooks/useWorkEditions';
+import useWorkTranslations from '../../api/hooks/useWorkTranslations';
 import type { WorkStatus } from '../../model/work.types';
 
 const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
   const { work, updateWork } = useWork(workId);
   const { chapters } = useWorkChapters({ workId });
+  const { latestEdition, previousEdition, nextEdition } = useWorkEditions(workId, work.edition ?? 1);
+  const { translations } = useWorkTranslations(workId);
+  const { translatedWorks } = useTranslatedWorks(workId);
+
   const isPublicationDateDisabled = !isPublicationDateAvailable(work.status);
   const isWithdrawnDateRequired = isSupersededOrWithdrawn(work.status);
   const minDate = isPublicationDateShouldBeInFuture(work.status) ? getDateInFuture(0) : undefined;
@@ -99,6 +106,11 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
     isPublicationDateDisabled,
     isWithdrawnDateRequired,
     minDate,
+    latestEdition,
+    previousEdition,
+    nextEdition,
+    translations,
+    translatedWorks,
     changeWorkStatus,
     changePublicationDate,
     changeWithdrawnDate,

@@ -6,6 +6,7 @@ import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { ANCHORS, type BaseEditSectionProps } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
 
+import { EditAbstracts } from './components/EditAbstracts';
 import { EditLanguages } from './components/EditLanguages';
 import { EditMedia } from './components/EditMedia';
 import { EditNotes } from './components/EditNotes';
@@ -40,6 +41,7 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
     <RecommendedSection title="Descriptions" isEmpty={isEmpty} isValid={isValid} id={ANCHORS.DESCRIPTIONS}>
       {({ showRecommendations }) => (
         <>
+          <EditAbstracts workId={workId} />
           {!isMultipleChaptersEdit && (
             <EditPagesCount
               workId={workId}

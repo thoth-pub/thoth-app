@@ -32,7 +32,7 @@ export const EditType = (props: EditTypeProps) => {
     <EditableContent
       isTableVariant
       formId={IDs.CONTRIBUTOR_TYPE}
-      defaultValues={{ [CONTRIBUTOR_TYPE.name]: defaultValue.value as ContributionType }}
+      defaultValues={{ [CONTRIBUTOR_TYPE.name]: defaultValue?.value as ContributionType }}
       validationSchema={contributorTypeValidationSchema}
       onSubmit={onSubmit}
       borderTransparent
@@ -54,7 +54,7 @@ export const EditType = (props: EditTypeProps) => {
         <Preview
           capitalize
           label={CONTRIBUTOR_TYPE.label}
-          value={t(defaultValue.label)}
+          value={t(defaultValue?.label ?? '')}
           disabled={disabled}
           onEdit={onEdit}
         />

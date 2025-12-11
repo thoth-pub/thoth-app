@@ -109,6 +109,42 @@ export const GET_WORK_EDITIONS = graphql(`
   }
 `);
 
+export const GET_WORK_PREV_EDITIONS = graphql(`
+  query GetWorkPrevEditions($workId: Uuid!, $limit: Int, $offset: Int) {
+    work(workId: $workId) {
+      relations(
+        relationTypes: REPLACES
+        limit: $limit
+        offset: $offset
+        order: { direction: ASC, field: RELATION_ORDINAL }
+      ) {
+        workRelationId
+        relatedWork {
+          ...WorkFragment
+        }
+      }
+    }
+  }
+`);
+
+export const GET_TRANSLATED_WORKS = graphql(`
+  query GetTranslatedWorks($workId: Uuid!, $limit: Int, $offset: Int) {
+    work(workId: $workId) {
+      relations(
+        relationTypes: IS_TRANSLATION_OF
+        limit: $limit
+        offset: $offset
+        order: { direction: ASC, field: RELATION_ORDINAL }
+      ) {
+        workRelationId
+        relatedWork {
+          ...WorkFragment
+        }
+      }
+    }
+  }
+`);
+
 export const CREATE_WORK_RELATION = graphql(`
   mutation CreateWorkRelation($data: NewWorkRelation!) {
     createWorkRelation(data: $data) {

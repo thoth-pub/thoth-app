@@ -54,6 +54,10 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
             <Checkbox className={itemStyles} checked disabled />
           </div>
           <div className="flex items-center gap-2">
+            <FormFieldLabel label="Place" className="min-w-30 lg:min-w-40" />
+            <Checkbox className={itemStyles} checked disabled />
+          </div>
+          <div className="flex items-center gap-2">
             <FormFieldLabel label="Landing page" className="min-w-30 lg:min-w-40" />
             <CheckboxFormField control={control} name="landingPage" className={itemStyles} />
           </div>

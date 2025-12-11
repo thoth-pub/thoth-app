@@ -9,6 +9,10 @@ export const QueryKeys = {
   works: 'works',
   worksCount: 'worksCount',
   workChapters: 'workChapters',
+  workEditions: 'workEditions',
+  workPrevEditions: 'workPrevEditions',
+  translatedWorks: 'translatedWorks',
+  workTranslations: 'workTranslations',
   // PUBLISHERS
   publisher: 'publisher',
   publishers: 'publishers',

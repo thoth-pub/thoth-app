@@ -16,6 +16,10 @@ export const IDs = {
   WORK_SERIES: 'work_series',
   WORK_LANDING_PAGE: 'work_landing_page',
   WORK_NOTES: 'work_notes',
+  WORK_ABSTRACT: 'work_abstract',
+  WORK_SHORT_ABSTRACT: 'work_short_abstract',
+  WORK_LCCN: 'work_lccn',
+  WORK_OCLC: 'work_oclc',
   // CONTRIBUTIONS
   CONTRIBUTOR_NAMES: 'contributor_names',
   CONTRIBUTOR_TYPE: 'contributor_type',

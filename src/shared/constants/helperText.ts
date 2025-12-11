@@ -1,5 +1,8 @@
 export const HELPER_TEXT = {
+  WORK_ABSTRACT: 'Enter the abstract of the work.',
+  WORK_SHORT_ABSTRACT: 'Enter the short abstract of the work.',
   WORK_TITLE: 'Enter the title of the work.',
+  PLACE: 'Enter the place of the work.',
   SUBTITLE: 'Enter the subtitle of the work.',
   EDITION: 'Enter the edition of the work.',
   WITHDRAWN_DATE: 'Enter the withdrawn date of the work.',

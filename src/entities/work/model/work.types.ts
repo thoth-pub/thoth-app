@@ -10,15 +10,18 @@ import { PublicationEntity } from '../../publication/model/publication.types';
 import { ReferenceEntity } from '../../reference/model/reference.types';
 import type { SubjectEntity } from '../../subject/model/subject.types';
 import {
+  abstractValidationSchema,
   coverUrlAltValidationSchema,
   coverUrlValidationSchema,
   createWorkValidationSchema,
   doiAndCoversValidationSchema,
   editionValidationSchema,
   imprintValidationSchema,
+  lccnValidationSchema,
   licenseAndCopyrightHolderValidationSchema,
   mediaValidationSchema,
   notesValidationSchema,
+  oclcValidationSchema,
   pagesCountValidationSchema,
   publicationDateValidationSchema,
   titleValidationSchema,
@@ -59,6 +62,7 @@ export type WorkEntity = {
   oclc: string;
   shortAbstract: string;
   longAbstract: string;
+  place: string;
   publisherName: string;
   imprintId: string;
   status: WorkStatus;
@@ -118,3 +122,9 @@ export type CoverUrlAltForm = z.infer<typeof coverUrlAltValidationSchema>;
 export type NotesForm = z.infer<typeof notesValidationSchema>;
 
 export type WorkCopyForm = z.infer<typeof workCopyValidationSchema>;
+
+export type AbstractsForm = z.infer<typeof abstractValidationSchema>;
+
+export type LccnForm = z.infer<typeof lccnValidationSchema>;
+
+export type OclcForm = z.infer<typeof oclcValidationSchema>;

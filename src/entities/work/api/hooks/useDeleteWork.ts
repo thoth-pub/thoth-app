@@ -34,6 +34,10 @@ const useDeleteWork = ({ redirect = true }: UseDeleteWorkProps) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workTranslations] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workEditions] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workPrevEditions] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.translatedWorks] });
 
       if (redirect) {
         router.replace(ROUTES.WORKS);

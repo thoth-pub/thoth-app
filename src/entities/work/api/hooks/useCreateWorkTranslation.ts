@@ -3,7 +3,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
-import { appConfig, getDefaultWork, LanguageRelation, QueryKeys, ROUTES, useServices, WorkStatuses } from '@/src/shared';
+import {
+  appConfig,
+  getDefaultWork,
+  LanguageRelation,
+  QueryKeys,
+  ROUTES,
+  useServices,
+  WorkStatuses,
+} from '@/src/shared';
 import { useQueryToken } from '@/src/shared/hooks';
 
 import { WorkEntity, WorkId } from '../../model/work.types';
@@ -28,7 +36,9 @@ const useCreateWorkTranslation = () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
-
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workTranslations] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.translatedWorks] });
+  
       router.push(ROUTES.WORK_PAGE(data.id));
     },
   });

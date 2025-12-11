@@ -57,7 +57,7 @@ export const FormFields = (props: FormFieldsProps) => {
 
   const handleRemove = (index: number) => {
     if (onDelete) {
-      onDelete(fields[index].affiliationId);
+      onDelete(fields[index]?.affiliationId ?? '');
     }
 
     remove(index);

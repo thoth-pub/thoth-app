@@ -43,6 +43,11 @@ const {
   WORK_GENERAL_NOTE,
   WORK_BIBLIOGRAPHY_NOTE,
   WORK_COPY,
+  WORK_ABSTRACT,
+  WORK_SHORT_ABSTRACT,
+  LCCN,
+  OCLC,
+  PLACE,
 } = FORM_FIELDS;
 
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
@@ -129,10 +134,19 @@ export const workTypeValidationSchema = z.object({
 
 export const imprintValidationSchema = z.object({
   [IMPRINT.name]: imprintValidation,
+  [PLACE.name]: optionalStringValidation,
 });
 
 export const landingPageValidationSchema = z.object({
   [LANDING_PAGE.name]: landingPageValidation,
+});
+
+export const lccnValidationSchema = z.object({
+  [LCCN.name]: optionalStringValidation,
+});
+
+export const oclcValidationSchema = z.object({
+  [OCLC.name]: optionalStringValidation,
 });
 
 export const licenseAndCopyrightHolderValidationSchema = z.object({
@@ -182,4 +196,9 @@ export const workCopyValidationSchema = z.object({
     value: getRequiredStringValidation(),
     label: getRequiredStringValidation(),
   }),
+});
+
+export const abstractValidationSchema = z.object({
+  [WORK_ABSTRACT.name]: optionalStringValidation,
+  [WORK_SHORT_ABSTRACT.name]: optionalStringValidation,
 });

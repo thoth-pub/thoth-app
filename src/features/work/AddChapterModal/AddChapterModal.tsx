@@ -65,6 +65,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
       coverUrl: work.coverUrl,
       landingPage: landingPage ? work.landingPage : '',
       imprintId: work.imprintId,
+      place: work.place,
       license: license ? work.license : licenseOptions[0].value,
       copyrightHolder: copyrightHolder ? work.copyrightHolder : '',
       doi: '',

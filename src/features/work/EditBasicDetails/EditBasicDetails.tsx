@@ -3,7 +3,9 @@
 import {
   EditDoi,
   EditImprint,
+  EditLccn,
   EditLicense,
+  EditOclc,
   EditWorkTitle,
   EditWorkType,
   useWorkRecommendations,
@@ -51,6 +53,8 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
               workId={workId}
               recommended={showRecommendations && (isDoiRequired || isLandingPageRequired || isCoverUrlRequired)}
             />
+            <EditLccn workId={workId} />
+            <EditOclc workId={workId} />
             {children}
           </div>
           <EditWorkCover workId={workId} />

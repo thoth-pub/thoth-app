@@ -78,6 +78,24 @@ export const FORM_FIELDS = {
     errorMessage: URL_REQUIRED,
     type: InputTypes.URL,
   },
+  LCCN: {
+    label: 'LCCN',
+    name: 'lccn',
+    placeholder: 'LCCN',
+    type: InputTypes.TEXT,
+  },
+  OCLC: {
+    label: 'OCLC Number',
+    name: 'oclc',
+    placeholder: 'OCLC Number',
+    type: InputTypes.TEXT,
+  },
+  PLACE: {
+    label: 'Place',
+    name: 'place',
+    placeholder: 'Place',
+    type: InputTypes.TEXT,
+  },
   IMPRINT: {
     label: 'Imprint',
     name: 'imprintId',
@@ -104,6 +122,22 @@ export const FORM_FIELDS = {
     name: 'workStatus',
     placeholder: 'Status',
     errorMessage: WORK_STATUS_REQUIRED,
+    type: InputTypes.TEXT,
+  },
+  WORK_ABSTRACTS: {
+    label: 'Abstracts',
+    name: 'abstracts',
+  },
+  WORK_ABSTRACT: {
+    label: 'Abstract',
+    name: 'abstract',
+    placeholder: 'Abstract',
+    type: InputTypes.TEXT,
+  },
+  WORK_SHORT_ABSTRACT: {
+    label: 'Short Abstract',
+    name: 'shortAbstract',
+    placeholder: 'Short Abstract',
     type: InputTypes.TEXT,
   },
   PUBLICATION_DATE: {
@@ -287,7 +321,7 @@ export const FORM_FIELDS = {
   WORK_COPY: {
     label: 'Work',
     name: 'workCopy',
-    placeholder: 'Work Copy',
+    placeholder: 'Work',
     type: InputTypes.TEXT,
   },
   WORK_GENERAL_NOTE: {

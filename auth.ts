@@ -2,7 +2,7 @@ import NextAuth, { type User } from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
 
 import type { AuthorizeUser, LinkedPublisher } from '@/src/entities/auth';
-import { ERRORS, ROUTES } from '@/src/shared/constants';
+import { DAY, ERRORS, ROUTES } from '@/src/shared/constants';
 
 const { INVALID_CREDENTIALS } = ERRORS;
 const { LOGIN } = ROUTES;
@@ -47,6 +47,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   ],
   session: {
     strategy: 'jwt',
+    maxAge: DAY,
   },
   callbacks: {
     async jwt({ token, user }) {
@@ -60,12 +61,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return token;
     },
     async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        session.user.linkedPublishers = token.linkedPublishers as LinkedPublisher[];
-        session.user.isSuperAdmin = token.isSuperAdmin as boolean;
-        session.user.queryToken = token.queryToken as string;
-      }
+      session.user.id = token.id as string;
+      session.user.linkedPublishers = token.linkedPublishers as LinkedPublisher[];
+      session.user.isSuperAdmin = token.isSuperAdmin as boolean;
+      session.user.queryToken = token.queryToken as string;
+
       return session;
     },
   },

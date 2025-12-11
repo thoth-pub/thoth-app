@@ -68,7 +68,7 @@ export const useEditSubjects = (props: BaseEditSectionProps) => {
     });
 
     await Promise.all(
-      newSubjects.map(async (subject) => {
+      newSubjects.map(async (subject, index) => {
         const code = subject[SUBJECT_CODE.name]?.value;
         const maxOrdinal = work.subjects
           .filter((workSubject) => workSubject.type === subject.subjectType)
@@ -80,7 +80,7 @@ export const useEditSubjects = (props: BaseEditSectionProps) => {
           id: '',
           code,
           type: subject[SUBJECT_TYPE.name] as SubjectType,
-          ordinal: maxOrdinal ? maxOrdinal + 1 : work.subjects.length + 1,
+          ordinal: maxOrdinal ? maxOrdinal + index + 1 : work.subjects.length + index + 1,
         });
       }),
     );

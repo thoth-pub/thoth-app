@@ -1,6 +1,5 @@
 'use client';
 
-import { Session } from 'next-auth';
 import { SessionProvider } from 'next-auth/react';
 import { I18nextProvider } from 'react-i18next';
 
@@ -12,12 +11,11 @@ import StoreProvider from './store';
 
 type ProvidersProps = {
   children: Readonly<React.ReactNode>;
-  session: Session | null;
 };
 
-const Providers = ({ children, session }: Readonly<ProvidersProps>) => {
+const Providers = ({ children }: Readonly<ProvidersProps>) => {
   return (
-    <SessionProvider session={session}>
+    <SessionProvider>
       <I18nextProvider i18n={i18nConfig}>
         <QueryProvider>
           <StoreProvider>

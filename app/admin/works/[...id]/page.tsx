@@ -25,6 +25,10 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
     redirect(ROUTES.LOGIN);
   }
 
+  if (!id) {
+    redirect(ROUTES.NOT_FOUND);
+  }
+
   // eslint-disable-next-line no-useless-catch
   try {
     const work = await workService.getWork(id);

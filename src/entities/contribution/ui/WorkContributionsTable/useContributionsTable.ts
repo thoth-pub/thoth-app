@@ -25,7 +25,7 @@ export const useContributionsTable = ({ workId }: BaseEditSectionProps) => {
     }));
 
     const firstChangedContribution = reorderedContributions.find(
-      (contribution, index) => contribution.id !== work.contributions[index].id,
+      (contribution, index) => contribution.id !== work.contributions[index]?.id,
     );
 
     if (!firstChangedContribution) return;
