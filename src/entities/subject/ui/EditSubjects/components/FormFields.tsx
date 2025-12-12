@@ -60,6 +60,9 @@ const codes = {
   [SubjectTypes.enum.Bic]: BIC_CODES,
   [SubjectTypes.enum.Bisac]: BISAC_CODES,
   [SubjectTypes.enum.Thema]: THEMA_CODES,
+  [SubjectTypes.enum.Custom]: [],
+  [SubjectTypes.enum.Keyword]: [],
+  [SubjectTypes.enum.Lcc]: [],
 };
 
 export const FormFields = (props: FormFieldsProps) => {
