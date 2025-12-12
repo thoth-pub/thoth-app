@@ -45,6 +45,7 @@ const {
   WORK_COPY,
   WORK_ABSTRACT,
   WORK_SHORT_ABSTRACT,
+  WORK_ABSTRACTS,
   LCCN,
   OCLC,
   PLACE,
@@ -198,7 +199,13 @@ export const workCopyValidationSchema = z.object({
   }),
 });
 
-export const abstractValidationSchema = z.object({
-  [WORK_ABSTRACT.name]: optionalStringValidation,
-  [WORK_SHORT_ABSTRACT.name]: optionalStringValidation,
+export const workAbstractsValidationSchema = z.object({
+  [WORK_ABSTRACTS.name]: z.array(
+    z.object({
+      abstractId: getRequiredStringValidation(),
+      [WORK_ABSTRACT.name]: optionalStringValidation,
+      [WORK_SHORT_ABSTRACT.name]: optionalStringValidation,
+      [LANGUAGE.name]: titleLanguageValidation,
+    }),
+  ),
 });

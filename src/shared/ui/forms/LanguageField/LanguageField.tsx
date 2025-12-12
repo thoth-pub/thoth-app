@@ -1,17 +1,17 @@
 'use client';
 
-import type { Control } from 'react-hook-form';
+import type { Control, FieldValues } from 'react-hook-form';
 
-import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
+import type { WorkAbstractsForm, WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { languageOptionsAlt } from '@/src/shared/constants/formFields';
 import { AutocompleteField, Typography } from '@/src/shared/ui';
 
 type LanguageFieldProps = {
-  control: Control<WorkTitlesForm>;
+  control: Control<WorkAbstractsForm> | Control<WorkTitlesForm>;
   languageFieldName: string;
 };
 
-export const LanguageField = (props: LanguageFieldProps) => {
+const LanguageField = (props: LanguageFieldProps) => {
   const { control, languageFieldName } = props;
   return (
     <div className="flex grow-0 lg:ml-2">
@@ -19,7 +19,7 @@ export const LanguageField = (props: LanguageFieldProps) => {
         Language
       </Typography>
       <AutocompleteField
-        control={control}
+        control={control as unknown as Control<FieldValues>}
         name={languageFieldName}
         options={languageOptionsAlt}
         variant="standard"
@@ -57,3 +57,5 @@ export const LanguageField = (props: LanguageFieldProps) => {
     </div>
   );
 };
+
+export default LanguageField;

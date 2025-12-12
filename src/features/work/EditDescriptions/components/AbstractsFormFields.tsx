@@ -4,7 +4,7 @@ import { type Control, useFieldArray } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
-import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
+import type { WorkAbstractsForm } from '@/src/entities/work/model/work.types';
 import { appConfig, HELPER_TEXT } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import {
@@ -17,32 +17,31 @@ import {
   MarkdownField,
 } from '@/src/shared/ui';
 
-const { TITLES, WORK_TITLE, SUBTITLE, LANGUAGE } = FORM_FIELDS;
-const { WORK_TITLE: WORK_TITLE_HELPER_TEXT, SUBTITLE: SUBTITLE_HELPER_TEXT } = HELPER_TEXT;
+const { WORK_ABSTRACTS, WORK_ABSTRACT, WORK_SHORT_ABSTRACT, LANGUAGE } = FORM_FIELDS;
+const { WORK_ABSTRACT: WORK_ABSTRACT_HELPER_TEXT, WORK_SHORT_ABSTRACT: WORK_SHORT_ABSTRACT_HELPER_TEXT } = HELPER_TEXT;
 
-type TitlesFormFieldsProps = {
-  control: Control<WorkTitlesForm>;
-  recommended?: boolean;
+type AbstractsFormFieldsProps = {
+  control: Control<WorkAbstractsForm>;
   isHelperTextVisible?: boolean;
 };
 
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const fieldsDefaultValues = {
-  titleId: appConfig.defaultId,
-  [WORK_TITLE.name]: '',
-  [SUBTITLE.name]: '',
+  abstractId: appConfig.defaultId,
+  [WORK_ABSTRACT.name]: '',
+  [WORK_SHORT_ABSTRACT.name]: '',
   [LANGUAGE.name]: languageOptionsAlt[0],
 };
 
-export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
-  const { control, recommended, isHelperTextVisible } = props;
+export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
+  const { control, isHelperTextVisible } = props;
 
   const { t } = useTranslation();
 
   const { fields, append, remove } = useFieldArray({
     control,
-    name: TITLES.name,
+    name: WORK_ABSTRACTS.name,
   });
 
   useEffectOnce(() => {
@@ -52,15 +51,15 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
   });
 
   const getFormFieldName = (fieldIndex: number, fieldName: string) => {
-    return `${TITLES.name}.${fieldIndex}.${fieldName}`;
+    return `${WORK_ABSTRACTS.name}.${fieldIndex}.${fieldName}`;
   };
 
-  const getTitleFieldName = (fieldIndex: number) => {
-    return getFormFieldName(fieldIndex, WORK_TITLE.name);
+  const getAbstractFieldName = (fieldIndex: number) => {
+    return getFormFieldName(fieldIndex, WORK_ABSTRACT.name);
   };
 
-  const getSubtitleFieldName = (fieldIndex: number) => {
-    return getFormFieldName(fieldIndex, SUBTITLE.name);
+  const getShortAbstractFieldName = (fieldIndex: number) => {
+    return getFormFieldName(fieldIndex, WORK_SHORT_ABSTRACT.name);
   };
 
   const getLanguageFieldName = (fieldIndex: number) => {
@@ -72,7 +71,7 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
   };
 
   const handleAdd = () => {
-    append({ ...fieldsDefaultValues, titleId: `${appConfig.defaultId}-${fields.length + 1}` });
+    append({ ...fieldsDefaultValues, abstractId: `${appConfig.defaultId}-${fields.length + 1}` });
   };
 
   return (
@@ -81,26 +80,26 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
         {fields.map((field, index) => (
           <li key={field.id} className={itemsStyle}>
             <ContentWrapper>
-              <FormFieldLabel label={WORK_TITLE.label} id={WORK_TITLE.name} recommended={recommended} />
+              <FormFieldLabel label={WORK_ABSTRACT.label} id={WORK_ABSTRACT.name} />
               <FormFieldWithControlsWrapper>
                 <MarkdownField
                   control={control}
-                  name={getTitleFieldName(index)}
-                  id={getTitleFieldName(index)}
+                  name={getAbstractFieldName(index)}
+                  id={getAbstractFieldName(index)}
                   className="w-full"
-                  helperText={isHelperTextVisible ? WORK_TITLE_HELPER_TEXT : ''}
+                  helperText={isHelperTextVisible ? WORK_ABSTRACT_HELPER_TEXT : ''}
                   disableLineBreaks
                 />
                 <DeleteButton onClick={() => handleRemove(index)} />
               </FormFieldWithControlsWrapper>
             </ContentWrapper>
             <ContentWrapper>
-              <FormFieldLabel label={SUBTITLE.label} id={SUBTITLE.name} />
+              <FormFieldLabel label={WORK_SHORT_ABSTRACT.label} id={WORK_SHORT_ABSTRACT.name} />
               <MarkdownField
                 control={control}
-                name={getSubtitleFieldName(index)}
-                id={getSubtitleFieldName(index)}
-                helperText={isHelperTextVisible ? SUBTITLE_HELPER_TEXT : ''}
+                name={getShortAbstractFieldName(index)}
+                id={getShortAbstractFieldName(index)}
+                helperText={isHelperTextVisible ? WORK_SHORT_ABSTRACT_HELPER_TEXT : ''}
                 disableLineBreaks
               />
             </ContentWrapper>

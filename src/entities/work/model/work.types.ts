@@ -10,7 +10,6 @@ import { PublicationEntity } from '../../publication/model/publication.types';
 import { ReferenceEntity } from '../../reference/model/reference.types';
 import type { SubjectEntity } from '../../subject/model/subject.types';
 import {
-  abstractValidationSchema,
   coverUrlAltValidationSchema,
   coverUrlValidationSchema,
   createWorkValidationSchema,
@@ -25,6 +24,7 @@ import {
   pagesCountValidationSchema,
   publicationDateValidationSchema,
   titleValidationSchema,
+  workAbstractsValidationSchema,
   workCopyValidationSchema,
   workTitlesValidationSchema,
   workTypeValidationSchema,
@@ -123,7 +123,7 @@ export type NotesForm = z.infer<typeof notesValidationSchema>;
 
 export type WorkCopyForm = z.infer<typeof workCopyValidationSchema>;
 
-export type AbstractsForm = z.infer<typeof abstractValidationSchema>;
+export type WorkAbstractsForm = z.infer<typeof workAbstractsValidationSchema>;
 
 export type LccnForm = z.infer<typeof lccnValidationSchema>;
 
