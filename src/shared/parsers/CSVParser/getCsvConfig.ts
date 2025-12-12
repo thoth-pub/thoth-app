@@ -14,10 +14,10 @@ import {
 import { CSV_KEYS } from '@/src/shared/constants/csvKeys';
 import { currencyOptions, languageOptions } from '@/src/shared/constants/formFields';
 
-import { CSVFieldType } from '../CSVParse';
+import { CSVFieldType } from '../../../widgets/AllWorks/components/CSVParse';
 
 const {
-  PUBLISHER,
+  IMPRINT,
   WORK_TYPE,
   WORK_STATUS,
   TITLE,
@@ -239,7 +239,7 @@ const {
   PUBLICATION_PDF_LOCATION_PLATFORM,
   SERIES_NAME,
   SERIES_ISSN,
-  SERIES_ISSN_NUMBER,
+  SERIES_ISSUE_NUMBER,
 } = CSV_KEYS;
 
 export const getCsvConfig = (
@@ -252,8 +252,8 @@ export const getCsvConfig = (
   const csvConfig = {
     headers: [
       {
-        name: 'publisher',
-        inputName: PUBLISHER,
+        name: 'imprint',
+        inputName: IMPRINT,
         required: true,
         requiredError: (headerName: string, rowNumber: number, columnNumber: number) => {
           return `${headerName} is required in the ${rowNumber} row / ${columnNumber} column`;
@@ -1247,7 +1247,7 @@ export const getCsvConfig = (
         },
       },
       { name: 'series_issn', inputName: SERIES_ISSN, required: false },
-      { name: 'series_issue_number', inputName: SERIES_ISSN_NUMBER, required: false },
+      { name: 'series_issue_number', inputName: SERIES_ISSUE_NUMBER, required: false },
     ],
   };
 

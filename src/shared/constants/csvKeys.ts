@@ -1,5 +1,7 @@
+import { appConfig } from '../config';
+
 export const CSV_KEYS = {
-  PUBLISHER: 'publisher',
+  IMPRINT: 'imprint',
   WORK_TYPE: 'workType',
   WORK_STATUS: 'workStatus',
   TITLE: 'title',
@@ -221,5 +223,20 @@ export const CSV_KEYS = {
   PUBLICATION_PDF_LOCATION_PLATFORM: 'publicationPdfLocationPlatform',
   SERIES_NAME: 'seriesName',
   SERIES_ISSN: 'seriesIssn',
-  SERIES_ISSN_NUMBER: 'seriesIssueNumber',
+  SERIES_ISSUE_NUMBER: 'seriesIssueNumber',
 } as const;
+
+export const getContributorFieldsByIndex = (position: number) => {
+  const index = position > appConfig.maxCsvContributorsCount ? 1 : position;
+
+  return {
+    FIRST_NAME: `contribution${index}FirstName`,
+    LAST_NAME: `contribution${index}LastName`,
+    ROLE: `contribution${index}Role`,
+    BIOGRAPHY: `contribution${index}Biography`,
+    ORCID: `contribution${index}Orcid`,
+    WEBSITE: `contribution${index}Website`,
+    AFFILIATION_POSITION: `contribution${index}AffiliationPosition`,
+    AFFILIATION_INSTITUTION_ROR: `contribution${index}AffiliationInstitutionRor`,
+  } as const;
+};

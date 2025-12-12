@@ -40,4 +40,5 @@ export const appConfig = {
   },
   maxFileSize: 500000,
   minItemsCountForDragAndDrop: 2,
+  maxCsvContributorsCount: 20,
 };

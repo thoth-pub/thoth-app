@@ -1,5 +1,5 @@
 import { Direction, RelationType, WorkField, WorkStatus, WorkType } from '@/gql/graphql';
-import { appConfig, getDateInFuture, WorkStatuses } from '@/src/shared';
+import { appConfig, getDateInFuture, SeriesForUpdateItems, WorkStatuses } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ContributionService } from '../../contribution/api/contribution.service';
@@ -7,6 +7,7 @@ import { FundingService } from '../../funding/api/funding.service';
 import { LanguageService } from '../../language/api/service';
 import { PublicationService } from '../../publication/api/publication.service';
 import { PublisherId } from '../../publisher/model/publisher.types';
+import { SeriesService } from '../../series';
 import { SubjectService } from '../../subject/api/subject.service';
 import { WorkDtoMapper } from '../model/work.mapper';
 import { CREATE_WORK, MOVE_WORK_RELATION } from '../model/work.mutations';
@@ -31,6 +32,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
   private readonly contributionService: ContributionService;
   private readonly publicationService: PublicationService;
   private readonly languageService: LanguageService;
+  private readonly seriesService: SeriesService;
 
   constructor(
     mapper = new WorkDtoMapper(),
@@ -39,6 +41,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     contributionService = new ContributionService(),
     publicationService = new PublicationService(),
     languageService = new LanguageService(),
+    seriesService = new SeriesService(),
   ) {
     super(mapper);
     this.fundingService = fundingService;
@@ -46,10 +49,10 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     this.contributionService = contributionService;
     this.publicationService = publicationService;
     this.languageService = languageService;
+    this.seriesService = seriesService;
   }
 
   async createWork(token: string, data: WorkEntity): Promise<WorkEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { workId: _, ...dto } = this.dtoMapper.toDto(data) as WorkDto;
 
     const shouldCreateSubjects = data.subjects.length > 0;
@@ -419,5 +422,31 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     });
 
     return createdEdition;
+  }
+
+  async bulkCreateWorks(token: string, works: WorkEntity[], serieses: SeriesForUpdateItems, _chapters: WorkEntity[]) {
+    let count = 0;
+
+    do {
+      const work = works[count];
+
+      const createdWork = await this.createWork(token, work);
+
+      const foundedSeries = Object.entries(serieses).find(([_seriedId, works]) => works.some((w) => w.id === work.id));
+
+      if (!foundedSeries || foundedSeries[1].length === 0) {
+        count++;
+        continue;
+      }
+
+      await this.seriesService.createIssue({
+        token,
+        orderNumber: foundedSeries[1][0].orderNumber,
+        seriesId: foundedSeries[0],
+        workId: createdWork.id,
+      });
+
+      count++;
+    } while (count < works.length);
   }
 }

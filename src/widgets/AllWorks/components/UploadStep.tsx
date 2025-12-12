@@ -16,10 +16,11 @@ const { BULK_UPLOAD } = FORM_FIELDS;
 type UploadStepProps = {
   imprintsOptions: FormFieldOption[];
   serieses: SeriesEntity[];
+  onSubmit?: () => void;
 };
 
 export const UploadStep = (props: UploadStepProps) => {
-  const { imprintsOptions, serieses } = props;
+  const { imprintsOptions, serieses, onSubmit } = props;
 
   const [files, setFiles] = useState<FileList | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
@@ -27,6 +28,11 @@ export const UploadStep = (props: UploadStepProps) => {
   const isFileUploaded = files && files.length > 0;
   const isCsv = isFileUploaded && files[0].type === 'text/csv';
   const isXml = isFileUploaded && files[0].type === 'text/xml';
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setValidationErrors([]);
+    setFiles(event.target.files);
+  };
 
   return (
     <div className="flex flex-col items-center gap-[var(--default-gap)]">
@@ -37,7 +43,7 @@ export const UploadStep = (props: UploadStepProps) => {
           className="hidden"
           type={BULK_UPLOAD.type}
           accept=".csv, .xml"
-          onChange={(event) => setFiles(event.target.files)}
+          onChange={handleFileChange}
         />
       </Button>
       {isCsv && (
@@ -46,6 +52,7 @@ export const UploadStep = (props: UploadStepProps) => {
           imprints={imprintsOptions}
           serieses={serieses}
           onValidationFailure={setValidationErrors}
+          onSubmit={onSubmit}
         />
       )}
       {isXml && (

@@ -55,7 +55,7 @@ export const UploadModal = (props: UploadModalProps) => {
           ))}
         </Stepper>
         <TemplateStep />
-        <UploadStep imprintsOptions={imprintsOptions} serieses={serieses} />
+        <UploadStep imprintsOptions={imprintsOptions} serieses={serieses} onSubmit={onClose} />
       </ContentSection>
 
       {data.length > 0 && (

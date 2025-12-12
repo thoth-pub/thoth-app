@@ -1,4 +1,5 @@
 // API
+export { default as useBulkCreateWorks } from './api/hooks/useBulkCreateWorks';
 export { default as useCreateNewWorkEdition } from './api/hooks/useCreateNewWorkEdition';
 export { default as useCreateWork } from './api/hooks/useCreateWork';
 export { default as useCreateWorkChapter } from './api/hooks/useCreateWorkChapter';
