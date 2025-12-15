@@ -22,17 +22,18 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
 
     if (abstracts.length === 0) return;
 
+    // TODO: fix abstracts
     updateWork({
       ...work,
-      longAbstract: abstracts[0]?.abstract ?? '',
-      shortAbstract: abstracts[0]?.shortAbstract ?? '',
     });
   };
+  // TODO: fix placeholder
+  // const placeholderValue =
+  //   work.longAbstract && work.longAbstract.length > 0
+  //     ? `${work.shortAbstract} \n ${work.longAbstract}`
+  //     : `${work.shortAbstract}`;
 
-  const placeholderValue =
-    work.longAbstract && work.longAbstract.length > 0
-      ? `${work.shortAbstract} \n ${work.longAbstract}`
-      : `${work.shortAbstract}`;
+  const placeholderValue = '';
 
   return (
     <EditableContent
@@ -41,8 +42,8 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
         [WORK_ABSTRACTS.name]: [
           {
             abstractId: appConfig.defaultId,
-            abstract: work.longAbstract,
-            shortAbstract: work.shortAbstract,
+            abstract: '',
+            shortAbstract: '',
             language: languageOptionsAlt[0],
           },
         ],

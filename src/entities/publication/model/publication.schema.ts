@@ -9,7 +9,14 @@ export const GET_PUBLICATIONS = graphql(`
       updatedAt
       work {
         doi
-        title
+        titles {
+          canonical
+          fullTitle
+          localeCode
+          subtitle
+          title
+          titleId
+        }
         imprint {
           publisher {
             publisherName
@@ -38,7 +45,14 @@ export const CREATE_PUBLICATION = graphql(`
       publicationId
       work {
         doi
-        title
+        titles {
+          canonical
+          fullTitle
+          localeCode
+          subtitle
+          title
+          titleId
+        }
         imprint {
           publisher {
             publisherName

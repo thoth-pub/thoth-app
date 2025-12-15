@@ -1,6 +1,7 @@
 import z from 'zod';
 
 import type { Contribution, WorkFragmentFragment } from '@/gql/graphql';
+import type { AbstractEntity, TitleEntity } from '@/src/shared';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
 import { WorkContribution } from '../../contribution/model/contribution.types';
@@ -49,9 +50,6 @@ export type WorkIssue = {
 
 export type WorkEntity = {
   id: string;
-  title: string;
-  subtitle: string;
-  fullTitle: string;
   bibliographyNote: string;
   generalNote: string;
   type: WorkType;
@@ -60,8 +58,8 @@ export type WorkEntity = {
   doi: string;
   lccn: string;
   oclc: string;
-  shortAbstract: string;
-  longAbstract: string;
+  titles: TitleEntity[];
+  abstracts: AbstractEntity[];
   place: string;
   publisherName: string;
   imprintId: string;

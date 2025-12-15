@@ -1,4 +1,5 @@
 import type { WorkFragmentFragment } from '@/gql/graphql';
+import type { TitleEntity } from '@/src/shared';
 
 import type { WorkContribution } from '../../contribution/model/contribution.types';
 import type { LanguageEntity } from '../../language/model/language.types';
@@ -11,8 +12,7 @@ export type BookId = string;
 
 export type BookEntity = {
   id: string;
-  title: string;
-  fullTitle: string;
+  titles: TitleEntity[];
   type: WorkType;
   updatedAt: string;
   contributorsNames: string[];

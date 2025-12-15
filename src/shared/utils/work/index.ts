@@ -29,64 +29,16 @@ export const isPublicationDateRequired = (workStatus: WorkStatus) => {
 
 export const isPublicationDateShouldBeInFuture = (workStatus: WorkStatus) => isWorkForthcoming(workStatus);
 
-export const getDefaultChapter = (data?: Partial<Omit<WorkEntity, 'type'>>): WorkEntity => {
-  return {
-    id: appConfig.defaultId,
-    title: '',
-    subtitle: '',
-    fullTitle: '',
-    type: WorkTypes.enum.BookChapter,
-    updatedAt: '',
-    contributorsNames: [],
-    doi: '',
-    lccn: '',
-    oclc: '',
-    bibliographyNote: '',
-    generalNote: '',
-    publisherName: '',
-    imprintId: '',
-    status: WorkStatuses.enum.Forthcoming,
-    edition: 0,
-    license: '',
-    copyrightHolder: '',
-    landingPage: '',
-    publicationDate: '',
-    withdrawnDate: '',
-    shortAbstract: '',
-    longAbstract: '',
-    place: '',
-    relationId: null,
-    contributions: [],
-    imageCount: 0,
-    tableCount: 0,
-    audioCount: 0,
-    videoCount: 0,
-    pageCount: 0,
-    firstPage: '',
-    lastPage: '',
-    frontmatterCount: 0,
-    backmatterCount: 0,
-    languages: [],
-    publications: [],
-    fundings: [],
-    references: [],
-    subjects: [],
-    issues: [],
-    ...data,
-  };
-};
-
 export const getDefaultWork = (data?: Partial<WorkEntity>): WorkEntity => {
   return {
-    title: '',
-    fullTitle: '',
+    titles: [],
+    abstracts: [],
     status: WorkStatuses.enum.Forthcoming,
     type: WorkTypes.enum.EditedBook,
     imprintId: '',
     license: '',
     edition: 1,
-    id: '',
-    subtitle: '',
+    id: appConfig.defaultId,
     updatedAt: '',
     contributorsNames: [],
     doi: '',
@@ -95,8 +47,6 @@ export const getDefaultWork = (data?: Partial<WorkEntity>): WorkEntity => {
     bibliographyNote: '',
     generalNote: '',
     publisherName: '',
-    shortAbstract: '',
-    longAbstract: '',
     place: '',
     publicationDate: null,
     withdrawnDate: null,
@@ -117,6 +67,14 @@ export const getDefaultWork = (data?: Partial<WorkEntity>): WorkEntity => {
     references: [],
     subjects: [],
     issues: [],
+    ...data,
+  };
+};
+
+export const getDefaultChapter = (data?: Partial<Omit<WorkEntity, 'type'>>): WorkEntity => {
+  return {
+    ...getDefaultWork(),
+    type: WorkTypes.enum.BookChapter,
     ...data,
   };
 };

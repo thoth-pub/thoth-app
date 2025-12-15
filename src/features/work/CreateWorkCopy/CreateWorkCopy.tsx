@@ -52,9 +52,9 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
   }, [books]);
 
   const filteredBooks = books.filter((book) => book.issues.length === 0);
-
+  // TODO: fix titles
   const options = filteredBooks.map((book) => ({
-    label: `${book.title} (edition ${book.edition ?? 1})`,
+    label: `${book.titles.map((title) => title.title).join(', ')} (edition ${book.edition ?? 1})`,
     value: book.id,
   }));
 

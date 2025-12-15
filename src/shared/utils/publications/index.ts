@@ -10,7 +10,7 @@ export const getDefaultPublication = (data?: Partial<PublicationEntity>): Public
     type: PublicationType.enum.Pdf,
     updatedAt: '',
     isbn: '',
-    title: '',
+    titles: [],
     doi: '',
     publisherName: '',
     width: 0,

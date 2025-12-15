@@ -23,25 +23,23 @@ const { EDITION: EDITION_HELPER_TEXT } = HELPER_TEXT;
 
 type EditWorkTitleProps = BaseRecommendedSectionProps &
   Partial<{
-    title: string;
-    subtitle: string;
     withEdition: boolean;
   }>;
 
 const EditWorkTitle = (props: EditWorkTitleProps) => {
-  const { workId, recommended = false, withEdition = true, title, subtitle } = props;
+  const { workId, recommended = false, withEdition = true } = props;
 
   const { work, updateWork } = useWork(workId);
 
-  const placeholder = title ?? work?.title;
+  const placeholder = '';
   const showIndicator = recommended && !placeholder;
 
   const defaultValues = {
     [TITLES.name]: [
       {
         titleId: appConfig.defaultId,
-        [WORK_TITLE.name]: title ?? work?.title,
-        [SUBTITLE.name]: subtitle ?? work?.subtitle,
+        [WORK_TITLE.name]: '',
+        [SUBTITLE.name]: '',
         [LANGUAGE.name]: languageOptionsAlt[0],
       },
     ],
@@ -49,12 +47,11 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
   };
 
   const updateTitles = (data: WorkTitlesForm) => {
-    const { [TITLES.name]: titles, [EDITION.name]: edition } = data;
+    const { [TITLES.name]: _titles, [EDITION.name]: edition } = data;
 
-    const title = titles.length > 0 ? titles[0][WORK_TITLE.name] : work?.title;
-    const subtitle = titles.length > 0 ? titles[0][SUBTITLE.name] : work?.subtitle;
+    // TODO: update titles
 
-    updateWork({ ...work, title: title ?? '', subtitle: subtitle ?? '', edition: edition ?? 1 });
+    updateWork({ ...work, titles: [], edition: edition ?? 1 });
   };
 
   return (

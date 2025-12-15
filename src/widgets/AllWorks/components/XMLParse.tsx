@@ -170,9 +170,9 @@ export const XMLParse = (props: XMLParseProps) => {
           `License for product ${productNumber} invalid, should be one of the following: ${licenseOptions.map((option) => option.label).join(', ')}`,
         );
       }
-
-      const title = DescriptiveDetail?.TitleDetail?.TitleElement?.TitleText ?? '';
-      const subtitle = DescriptiveDetail?.TitleDetail?.TitleElement?.Subtitle ?? '';
+      // TODO: fix titles
+      // const title = DescriptiveDetail?.TitleDetail?.TitleElement?.TitleText ?? '';
+      // const subtitle = DescriptiveDetail?.TitleDetail?.TitleElement?.Subtitle ?? '';
 
       // @ts-expect-error not exist in library types
       const edition = DescriptiveDetail?.Edition?.EditionNumber ?? 1;
@@ -247,8 +247,7 @@ export const XMLParse = (props: XMLParseProps) => {
         oclc,
         license: license?.value ?? '',
         copyrightHolder,
-        title,
-        subtitle,
+        titles: [],
         edition,
         bibliographyNote,
         generalNote,
@@ -473,7 +472,8 @@ export const XMLParse = (props: XMLParseProps) => {
           .sort((a, b) => a.LevelSequenceNumber - b.LevelSequenceNumber)
           .forEach((chapter) => {
             const chapterDoi = chapter?.ContentItem?.TextItem?.TextItemIdentifier?.IDValue ?? '';
-            const chapterTitle = chapter?.ContentItem?.TitleDetail?.TitleElement?.TitleText ?? '';
+            // TODO: fix titles
+            // const chapterTitle = chapter?.ContentItem?.TitleDetail?.TitleElement?.TitleText ?? '';
 
             const newChapter = getDefaultChapter({
               status: workStatus,
@@ -481,7 +481,7 @@ export const XMLParse = (props: XMLParseProps) => {
               imprintId: imprint?.value ?? '',
               license: license?.value ?? '',
               copyrightHolder,
-              title: chapterTitle,
+              titles: [],
               edition,
               publicationDate,
               withdrawnDate,
@@ -837,7 +837,8 @@ export const XMLParse = (props: XMLParseProps) => {
 
                 return (
                   <TableRow key={`${workId}-${itemId}`} className="group">
-                    <TableCell className="firstCell">{work.title}</TableCell>
+                    {/* TODO: fix titles */}
+                    <TableCell className="firstCell">{work.titles.map((title) => title.title).join(', ')}</TableCell>
                     <TableCell className="middleCell">{defaultContributor?.fullName ?? ''}</TableCell>
                     <TableCell className="lastCell">
                       {contributions.map(({ id, fullName, orcidId, contributorId, lastContribution, selected }) => (

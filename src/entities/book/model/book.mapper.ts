@@ -1,4 +1,4 @@
-import { appConfig, convertOrchidIdToText, convertRomanToArabic } from '@/src/shared';
+import { appConfig, convertOrchidIdToText, convertRomanToArabic, TitleDto, TitleEntity } from '@/src/shared';
 import type { BaseMapper } from '@/src/shared/interfaces';
 
 import type { BookDto, BookEntity } from './book.types';
@@ -9,8 +9,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
   toEntity(dto: BookDto): BookEntity {
     const {
       workId,
-      title,
-      fullTitle,
+      titles,
       workType,
       updatedAt,
       doi,
@@ -45,7 +44,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
 
     return {
       id: workId,
-      title,
+      titles: titles.map(this.toEntityTitle),
       type: workType,
       updatedAt,
       contributorsNames: contributions.map((contribution) => contribution.fullName),
@@ -59,7 +58,6 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
       copyrightHolder,
       landingPage,
       coverUrl,
-      fullTitle,
       publicationDate: publicationDate ?? null,
       imageCount: imageCount ?? 0,
       tableCount: tableCount ?? 0,
@@ -143,7 +141,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
           updatedAt,
           doi: doi,
           publisherName: publisherName,
-          title,
+          titles: titles.map(this.toEntityTitle),
           width: widthMm ?? 0,
           widthIn: widthIn ?? 0,
           height: heightMm ?? 0,
@@ -178,7 +176,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
   toDto(entity: BookEntity): Partial<BookDto> {
     const {
       id,
-      title,
+      titles,
       type,
       imprintId,
       status,
@@ -187,7 +185,6 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
       copyrightHolder,
       landingPage,
       coverUrl,
-      fullTitle,
       imageCount,
       tableCount,
       audioCount,
@@ -198,8 +195,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
     return {
       workId: id,
       workStatus: status,
-      title,
-      fullTitle,
+      titles: titles.map(this.toDtoTitle),
       imprintId,
       workType: type,
       license: license && license.length > 0 ? license : null,
@@ -212,6 +208,32 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
       audioCount: +audioCount > 0 ? +audioCount : null,
       videoCount: +videoCount > 0 ? +videoCount : null,
       pageCount: +pageCount > 0 ? +pageCount : null,
+    };
+  }
+
+  toEntityTitle(dto: TitleDto): TitleEntity {
+    const { titleId, canonical, fullTitle, localeCode, subtitle, title } = dto;
+
+    return {
+      id: titleId,
+      canonical,
+      fullTitle,
+      localeCode,
+      subtitle: subtitle ?? '',
+      title,
+    };
+  }
+
+  toDtoTitle(entity: TitleEntity): TitleDto {
+    const { id, canonical, fullTitle, localeCode, subtitle, title } = entity;
+
+    return {
+      titleId: id,
+      canonical,
+      fullTitle,
+      localeCode,
+      subtitle,
+      title,
     };
   }
 }

@@ -56,11 +56,9 @@ const useCreateWorkForm = ({ imprintOptions, workTypeOptions, licenseOptions }: 
   const isImprintVisible = imprintOptions.length !== 1;
 
   const submit = handleSubmit((data) => {
-    const { title, workType, imprintId, license } = data;
+    const { workType, imprintId, license } = data;
 
     const defaultWork = getDefaultWork({
-      title,
-      fullTitle: title,
       status: WorkStatuses.enum.Forthcoming,
       type: workType as WorkType,
       imprintId,

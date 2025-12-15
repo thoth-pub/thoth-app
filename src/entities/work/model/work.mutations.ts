@@ -15,3 +15,51 @@ export const MOVE_WORK_RELATION = graphql(`
     }
   }
 `);
+
+export const CREATE_TITLE = graphql(`
+  mutation CreateTitle($data: NewTitle!) {
+    createTitle(data: $data) {
+      ...TitleFragment
+    }
+  }
+`);
+
+export const UPDATE_TITLE = graphql(`
+  mutation UpdateTitle($data: PatchTitle!) {
+    updateTitle(data: $data) {
+      ...TitleFragment
+    }
+  }
+`);
+
+export const DELETE_TITLE = graphql(`
+  mutation DeleteTitle($titleId: Uuid!) {
+    deleteTitle(titleId: $titleId) {
+      titleId
+    }
+  }
+`);
+
+export const CREATE_ABSTRACT = graphql(`
+  mutation CreateAbstract($data: NewAbstract!) {
+    createAbstract(data: $data) {
+      ...AbstractFragment
+    }
+  }
+`);
+
+export const UPDATE_ABSTRACT = graphql(`
+  mutation UpdateAbstract($data: PatchAbstract!) {
+    updateAbstract(data: $data) {
+      ...AbstractFragment
+    }
+  }
+`);
+
+export const DELETE_ABSTRACT = graphql(`
+  mutation DeleteAbstract($abstractId: Uuid!) {
+    deleteAbstract(abstractId: $abstractId) {
+      abstractId
+    }
+  }
+`);

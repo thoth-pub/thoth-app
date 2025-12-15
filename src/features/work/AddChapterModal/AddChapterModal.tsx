@@ -57,10 +57,9 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
     subjects: boolean;
   }) => {
     const { landingPage, license, copyrightHolder, contributors, fundings, subjects } = data;
-
+    // TODO: fix titles
     const defaultChapter = getDefaultChapter({
-      title: 'New Chapter',
-      fullTitle: 'New Chapter',
+      // title: 'New Chapter',
       status: work.status,
       coverUrl: work.coverUrl,
       landingPage: landingPage ? work.landingPage : '',

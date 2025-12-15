@@ -96,8 +96,9 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
                 {translations.map((work) => (
                   <li key={work.id}>
                     <NextLink href={`${ROUTES.WORK_PAGE(work.id)}`} passHref>
-                      <Link className="no-underline" component="span">
-                        {work.title}
+                      <Link className="font-normal no-underline" component="span">
+                        {/* TODO: fix this - select main title */}
+                        {work.titles.map((title) => title.title).join(', ')}
                       </Link>
                     </NextLink>
                   </li>
@@ -116,8 +117,9 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
                 {translatedWorks.map((work) => (
                   <li key={work.id}>
                     <NextLink href={`${ROUTES.WORK_PAGE(work.id)}`} passHref>
-                      <Link className="no-underline" component="span">
-                        {work.title}
+                      <Link className="font-normal no-underline" component="span">
+                        {/* TODO: fix this - select main title */}
+                        {work.titles.map((title) => title.title).join(', ')}
                       </Link>
                     </NextLink>
                   </li>
@@ -133,8 +135,9 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
               </InputLabel>
 
               <NextLink href={`${ROUTES.WORK_PAGE(previousEdition.id)}`} passHref>
-                <Link className="no-underline" component="span">
-                  {previousEdition.title}
+                <Link className="font-normal no-underline" component="span">
+                  {/* TODO: fix this - select main title */}
+                  {previousEdition.titles.map((title) => title.title).join(', ')}
                 </Link>
               </NextLink>
             </div>
@@ -147,8 +150,9 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
               </InputLabel>
 
               <NextLink href={`${ROUTES.WORK_PAGE(latestEdition.id)}`} passHref>
-                <Link className="no-underline" component="span">
-                  {latestEdition.title}
+                <Link className="font-normal no-underline" component="span">
+                  {/* TODO: fix this - select main title */}
+                  {latestEdition.titles.map((title) => title.title).join(', ')}
                 </Link>
               </NextLink>
             </div>

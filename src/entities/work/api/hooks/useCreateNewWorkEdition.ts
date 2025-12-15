@@ -40,8 +40,14 @@ const useCreateNewWorkEdition = () => {
     const defaultWork = getDefaultWork({
       status: WorkStatuses.enum.Forthcoming,
       type: originalWork.type,
-      title: originalWork.title,
-      fullTitle: originalWork.fullTitle,
+      titles: originalWork.titles.map((title) => ({
+        ...title,
+        id: appConfig.defaultId,
+      })),
+      abstracts: originalWork.abstracts.map((abstract) => ({
+        ...abstract,
+        id: appConfig.defaultId,
+      })),
       contributions: originalWork.contributions.map((contribution) => ({
         ...contribution,
         id: appConfig.defaultId,
@@ -53,8 +59,6 @@ const useCreateNewWorkEdition = () => {
       imprintId: originalWork.imprintId,
       license: originalWork.license,
       edition: (originalWork.edition ?? 1) + 1,
-      longAbstract: originalWork.longAbstract,
-      shortAbstract: originalWork.shortAbstract,
       languages: originalWork.languages.map((language) => ({
         ...language,
         id: appConfig.defaultId,

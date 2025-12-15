@@ -7,16 +7,14 @@ import { RecommendedSection } from '@/src/shared/ui';
 
 type EditChapterBasicDetailsProps = BaseEditSectionProps &
   Partial<{
-    title: string;
-    subtitle: string;
-    license?: string;
-    copyrightHolder?: string;
+    license: string;
+    copyrightHolder: string;
     isMultipleChaptersEdit: boolean;
-    onLicenseUpdate?: (data: LicenseAndCopyrightHolderForm) => void;
+    onLicenseUpdate: (data: LicenseAndCopyrightHolderForm) => void;
   }>;
 
 const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
-  const { workId, title, subtitle, license, copyrightHolder, isMultipleChaptersEdit = false, onLicenseUpdate } = props;
+  const { workId, license, copyrightHolder, isMultipleChaptersEdit = false, onLicenseUpdate } = props;
 
   const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
 
@@ -25,13 +23,7 @@ const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
       {({ showRecommendations }) => (
         <div>
           {!isMultipleChaptersEdit && (
-            <EditWorkTitle
-              title={title}
-              subtitle={subtitle}
-              workId={workId}
-              recommended={showRecommendations}
-              withEdition={false}
-            />
+            <EditWorkTitle workId={workId} recommended={showRecommendations} withEdition={false} />
           )}
           <EditLicense workId={workId} license={license} copyrightHolder={copyrightHolder} onUpdate={onLicenseUpdate} />
           {!isMultipleChaptersEdit && <EditDoi workId={workId} recommended={showRecommendations} isChapter />}

@@ -41,7 +41,7 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
     <RecommendedSection title="Descriptions" isEmpty={isEmpty} isValid={isValid} id={ANCHORS.DESCRIPTIONS}>
       {({ showRecommendations }) => (
         <>
-          <EditAbstracts workId={workId} />
+          {!isMultipleChaptersEdit && <EditAbstracts workId={workId} />}
           {!isMultipleChaptersEdit && (
             <EditPagesCount
               workId={workId}

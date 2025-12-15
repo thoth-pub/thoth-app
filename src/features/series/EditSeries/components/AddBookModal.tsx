@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -57,10 +58,10 @@ export const AddBookModal = (props: AddBookModalProps) => {
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { books, isLoading } = useBooks({ publishersIds, filter: debouncedValue, isAdmin });
   const { createIssue } = useCreateIssue();
+  // TODO: fix this
+  // const filteredBooks = books.filter((book) => book.issues.length === 0);
 
-  const filteredBooks = books.filter((book) => book.issues.length === 0);
-
-  const options = convertEntityToSelectFieldOptions(filteredBooks, 'title');
+  // const options = convertEntityToSelectFieldOptions(filteredBooks, 'title');
 
   useEffect(() => {
     if (debouncedValue.length > 0) return;
@@ -92,7 +93,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
               <CloseButton onClose={() => setOpen(false)} />
             </div>
             <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-[var(--default-gap)]">
-              <div className="flex gap-1">
+              {/* <div className="flex gap-1">
                 <AutocompleteField
                   freeSolo
                   disableClearable
@@ -116,7 +117,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
                   min={1}
                   step="1"
                 />
-              </div>
+              </div> */}
 
               <Button startIcon={<AddIcon />} className="max-w-fit" disabled={!isValid || !isDirty} type="submit">
                 Add Book

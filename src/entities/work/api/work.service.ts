@@ -1,5 +1,14 @@
 import { Direction, RelationType, WorkField, WorkStatus, WorkType } from '@/gql/graphql';
-import { appConfig, getDateInFuture, SeriesForUpdateItems, WorkStatuses } from '@/src/shared';
+import {
+  AbstractDto,
+  AbstractEntity,
+  appConfig,
+  getDateInFuture,
+  SeriesForUpdateItems,
+  TitleDto,
+  TitleEntity,
+  WorkStatuses,
+} from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ContributionService } from '../../contribution/api/contribution.service';
@@ -10,7 +19,16 @@ import { PublisherId } from '../../publisher/model/publisher.types';
 import { SeriesService } from '../../series';
 import { SubjectService } from '../../subject/api/subject.service';
 import { WorkDtoMapper } from '../model/work.mapper';
-import { CREATE_WORK, MOVE_WORK_RELATION } from '../model/work.mutations';
+import {
+  CREATE_ABSTRACT,
+  CREATE_TITLE,
+  CREATE_WORK,
+  DELETE_ABSTRACT,
+  DELETE_TITLE,
+  MOVE_WORK_RELATION,
+  UPDATE_ABSTRACT,
+  UPDATE_TITLE,
+} from '../model/work.mutations';
 import {
   CREATE_WORK_RELATION,
   DELETE_WORK,
@@ -26,7 +44,7 @@ import {
 } from '../model/work.schema';
 import type { WorkDto, WorkEntity, WorkId } from '../model/work.types';
 
-export class WorkService extends BaseService<WorkEntity, WorkDto> {
+export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper> {
   private readonly fundingService: FundingService;
   private readonly subjectService: SubjectService;
   private readonly contributionService: ContributionService;
@@ -66,6 +84,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     });
 
     const work = this.dtoMapper.toEntity(response.createWork as WorkDto);
+
+    // TODO: create titles and abstracts
 
     if (shouldCreateSubjects) {
       const subjectsPromises = data.subjects.map((subject) =>
@@ -155,6 +175,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
     });
 
     const work = this.dtoMapper.toEntity(response.updateWork as WorkDto);
+
+    // TODO: update titles and abstracts
 
     return work;
   }
@@ -448,5 +470,65 @@ export class WorkService extends BaseService<WorkEntity, WorkDto> {
 
       count++;
     } while (count < works.length);
+  }
+
+  async createTitle(token: string, data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
+    const dto = this.dtoMapper.toDtoTitle(data);
+
+    const response = await this.graphqlService.mutation(token, CREATE_TITLE, {
+      data: { ...dto, workId: relatedWorkId },
+    });
+
+    const title = this.dtoMapper.toEntityTitle(response.createTitle as TitleDto);
+
+    return title;
+  }
+
+  async updateTitle(token: string, data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
+    const dto = this.dtoMapper.toDtoTitle(data);
+
+    const response = await this.graphqlService.mutation(token, UPDATE_TITLE, {
+      data: { ...dto, workId: relatedWorkId },
+    });
+
+    const title = this.dtoMapper.toEntityTitle(response.updateTitle as TitleDto);
+
+    return title;
+  }
+
+  async deleteTitle(token: string, titleId: string): Promise<void> {
+    await this.graphqlService.mutation(token, DELETE_TITLE, {
+      titleId,
+    });
+  }
+
+  async createAbstract(token: string, data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
+    const dto = this.dtoMapper.toDtoAbstract(data);
+
+    const response = await this.graphqlService.mutation(token, CREATE_ABSTRACT, {
+      data: { ...dto, workId: relatedWorkId },
+    });
+
+    const abstract = this.dtoMapper.toEntityAbstract(response.createAbstract as AbstractDto);
+
+    return abstract;
+  }
+
+  async updateAbstract(token: string, data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
+    const dto = this.dtoMapper.toDtoAbstract(data);
+
+    const response = await this.graphqlService.mutation(token, UPDATE_ABSTRACT, {
+      data: { ...dto, workId: relatedWorkId },
+    });
+
+    const abstract = this.dtoMapper.toEntityAbstract(response.updateAbstract as AbstractDto);
+
+    return abstract;
+  }
+
+  async deleteAbstract(token: string, abstractId: string): Promise<void> {
+    await this.graphqlService.mutation(token, DELETE_ABSTRACT, {
+      abstractId,
+    });
   }
 }

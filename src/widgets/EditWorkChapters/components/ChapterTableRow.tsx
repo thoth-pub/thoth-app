@@ -42,7 +42,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
     onDelete,
   } = props;
 
-  const { id, title, pageCount, contributions, firstPage, lastPage } = chapter;
+  const { id, titles, pageCount, contributions, firstPage, lastPage } = chapter;
 
   const handleSelect = () => {
     if (selected) {
@@ -62,7 +62,8 @@ export const ChapterTableRow = (props: TableRowProps) => {
                 isDisabled={totalChaptersCount < appConfig.minItemsCountForDragAndDrop}
                 listeners={listeners}
               />
-              <Typography>{title}</Typography>
+              {/* TODO: fix titles */}
+              <Typography>{titles.map((title) => title.title).join(', ')}</Typography>
             </div>
           </TableCell>
           <TableCell className="middleCell">

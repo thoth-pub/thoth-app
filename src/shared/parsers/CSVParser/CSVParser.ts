@@ -106,9 +106,10 @@ export class CSVParser {
 
     const parsedWork = getDefaultWork({
       id: workId,
-      title: this.parseStringField(row, CSV_KEYS.TITLE, rowNumber),
-      subtitle: this.parseStringField(row, CSV_KEYS.SUBTITLE, rowNumber),
-      fullTitle: this.parseStringField(row, CSV_KEYS.TITLE, rowNumber),
+      titles: [],
+      // title: this.parseStringField(row, CSV_KEYS.TITLE, rowNumber),
+      // subtitle: this.parseStringField(row, CSV_KEYS.SUBTITLE, rowNumber),
+      // fullTitle: this.parseStringField(row, CSV_KEYS.TITLE, rowNumber),
       type: this.parseStringField(row, CSV_KEYS.WORK_TYPE, rowNumber) as WorkType,
       doi: this.parseStringField(row, CSV_KEYS.DOI, rowNumber),
       publisherName: this.parseStringField(row, CSV_KEYS.IMPRINT, rowNumber),
@@ -126,8 +127,9 @@ export class CSVParser {
       audioCount: this.parseNumberField(row, CSV_KEYS.AUDIO_COUNT, rowNumber),
       videoCount: this.parseNumberField(row, CSV_KEYS.VIDEO_COUNT, rowNumber),
       pageCount: this.parseNumberField(row, CSV_KEYS.PAGE_COUNT, rowNumber),
-      longAbstract: this.parseStringField(row, CSV_KEYS.LONG_ABSTRACT, rowNumber),
-      shortAbstract: this.parseStringField(row, CSV_KEYS.SHORT_ABSTRACT, rowNumber),
+      // longAbstract: this.parseStringField(row, CSV_KEYS.LONG_ABSTRACT, rowNumber),
+      // shortAbstract: this.parseStringField(row, CSV_KEYS.SHORT_ABSTRACT, rowNumber),
+      abstracts: [],
       frontmatterCount,
       backmatterCount,
       languages: this.parseLanguages(

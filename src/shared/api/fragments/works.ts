@@ -6,17 +6,27 @@ export const WORK_FRAGMENT = graphql(`
     lccn
     oclc
     workId
-    title
-    subtitle
-    fullTitle
+    titles {
+      canonical
+      fullTitle
+      localeCode
+      subtitle
+      title
+      titleId
+    }
+    abstracts {
+      abstractId
+      abstractType
+      canonical
+      content
+      localeCode
+    }
     bibliographyNote
     generalNote
     workType
     updatedAt
     publicationDate
     withdrawnDate
-    shortAbstract
-    longAbstract
     place
     imprint {
       publisher {

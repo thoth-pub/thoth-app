@@ -179,7 +179,8 @@ export const CSVParse = (props: CSVParseProps) => {
 
                 return (
                   <TableRow key={`${workId}-${itemId}-${index}`} className="group">
-                    <TableCell className="firstCell">{work.title}</TableCell>
+                    {/* TODO: fix titles */}
+                    <TableCell className="firstCell">{work.titles.map((title) => title.title).join(', ')}</TableCell>
                     <TableCell className="middleCell">{defaultContributor?.fullName ?? ''}</TableCell>
                     <TableCell className="lastCell">
                       {contributions.map(({ id, fullName, orcidId, contributorId, lastContribution, selected }) => (

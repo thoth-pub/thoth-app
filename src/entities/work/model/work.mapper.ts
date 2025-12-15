@@ -1,4 +1,6 @@
 import {
+  AbstractDto,
+  AbstractEntity,
   appConfig,
   convertArabicToRoman,
   convertDateToFormattedDate,
@@ -6,6 +8,8 @@ import {
   convertRomanToArabic,
   isBookChapter,
   isDefaultId,
+  TitleDto,
+  TitleEntity,
 } from '@/src/shared';
 import type { BaseMapper } from '@/src/shared/interfaces';
 
@@ -25,10 +29,9 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   toEntity(dto: WorkDto): WorkEntity {
     const {
       workId,
-      title,
-      fullTitle,
-      subtitle,
       workType,
+      titles = [],
+      abstracts = [],
       updatedAt,
       doi,
       lccn,
@@ -55,8 +58,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       lastPage,
       firstPage,
       workRelationId = null,
-      shortAbstract,
-      longAbstract,
       place,
       contributions = [],
       languages = [],
@@ -74,9 +75,9 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
 
     return {
       id: workId,
-      title,
-      subtitle: subtitle ?? '',
       type: workType,
+      titles: titles.map(this.toEntityTitle),
+      abstracts: abstracts.map(this.toEntityAbstract),
       updatedAt,
       contributorsNames: contributions.map((contribution) => contribution.fullName),
       doi,
@@ -93,7 +94,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       copyrightHolder,
       landingPage,
       coverUrl,
-      fullTitle,
       relationId: workRelationId,
       publicationDate: publicationDate ?? null,
       withdrawnDate: withdrawnDate ?? null,
@@ -106,8 +106,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       backmatterCount: backmatterValue,
       firstPage: firstPage ?? '',
       lastPage: lastPage ?? '',
-      shortAbstract: shortAbstract ?? '',
-      longAbstract: longAbstract ?? '',
       place: place ?? '',
       fundings: fundings.map(fundingMapper.toEntity),
       references: references.map(referenceMapper.toEntity),
@@ -187,7 +185,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           updatedAt,
           doi: doi,
           publisherName: imprint?.publisher?.publisherName ?? '',
-          title,
+          titles: titles.map(this.toEntityTitle),
           width: widthMm ?? 0,
           widthIn: widthIn ?? 0,
           height: heightMm ?? 0,
@@ -222,8 +220,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   toDto(entity: WorkEntity): Partial<WorkDto> {
     const {
       id,
-      title,
-      subtitle,
+      titles = [],
+      abstracts = [],
       type,
       imprintId,
       status,
@@ -237,7 +235,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       copyrightHolder,
       landingPage,
       coverUrl,
-      fullTitle,
       publicationDate,
       withdrawnDate,
       imageCount,
@@ -249,8 +246,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       backmatterCount,
       firstPage,
       lastPage,
-      shortAbstract,
-      longAbstract,
       place,
     } = entity;
     const defaultEdition = edition ?? 1;
@@ -266,9 +261,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     return {
       workId: id,
       workStatus: status,
-      title,
-      subtitle: subtitle && subtitle.length > 0 ? subtitle : null,
-      fullTitle,
+      titles: titles.map(this.toDtoTitle),
+      abstracts: abstracts.map(this.toDtoAbstract),
       imprintId,
       workType: type,
       edition: isBookChapter(type) ? null : defaultEdition,
@@ -291,8 +285,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       firstPage: firstPage && firstPage.length > 0 ? firstPage : null,
       lastPage: lastPage && lastPage.length > 0 ? lastPage : null,
       pageBreakdown: pageBreakdownValue.length > 0 ? pageBreakdownValue : null,
-      shortAbstract: shortAbstract && shortAbstract.length > 0 ? shortAbstract : null,
-      longAbstract: longAbstract && longAbstract.length > 0 ? longAbstract : null,
       place: place && place.length > 0 ? place : null,
     };
   }
@@ -310,6 +302,56 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       mainContribution: isMain,
       contributionOrdinal: orderNumber,
       biography: biography && biography.length > 0 ? biography : null,
+    };
+  }
+
+  toEntityTitle(dto: TitleDto): TitleEntity {
+    const { titleId, canonical, fullTitle, localeCode, subtitle, title } = dto;
+
+    return {
+      id: titleId,
+      canonical,
+      fullTitle,
+      localeCode,
+      subtitle: subtitle ?? '',
+      title,
+    };
+  }
+
+  toDtoTitle(entity: TitleEntity): TitleDto {
+    const { id, canonical, fullTitle, localeCode, subtitle, title } = entity;
+
+    return {
+      titleId: id,
+      canonical,
+      fullTitle,
+      localeCode,
+      subtitle,
+      title,
+    };
+  }
+
+  toEntityAbstract(dto: AbstractDto): AbstractEntity {
+    const { abstractId, abstractType, canonical, content, localeCode } = dto;
+
+    return {
+      id: abstractId,
+      type: abstractType,
+      canonical,
+      content,
+      localeCode,
+    };
+  }
+
+  toDtoAbstract(entity: AbstractEntity): AbstractDto {
+    const { id, type, canonical, content, localeCode } = entity;
+
+    return {
+      abstractId: id,
+      abstractType: type,
+      canonical,
+      content,
+      localeCode,
     };
   }
 }

@@ -98,7 +98,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
   };
 
   return {
-    title: work.title,
+    title: work.titles.map((title) => title.title).join(', ') /* TODO: fix this - select main title */,
     id: work.reference,
     publicationDate: work.publicationDate,
     withdrawnDate: work.withdrawnDate,

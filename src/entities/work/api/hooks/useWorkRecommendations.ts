@@ -11,7 +11,7 @@ const useWorkRecommendations = (props: UseWorkRecommendationsProps) => {
 
   const { work } = useWork(workId);
 
-  const isTitleRequired = work && work.title.length === 0;
+  const isTitleRequired = work && work.titles.length === 0;
 
   const isDoiRequired = !work.doi || work.doi.length === 0;
 

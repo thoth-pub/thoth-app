@@ -38,7 +38,7 @@ const useCreateWorkTranslation = () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workTranslations] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.translatedWorks] });
-  
+
       router.push(ROUTES.WORK_PAGE(data.id));
     },
   });
@@ -55,8 +55,10 @@ const useCreateWorkTranslation = () => {
     const defaultWork = getDefaultWork({
       status: WorkStatuses.enum.Forthcoming,
       type: originalWork.type,
-      title: originalWork.title,
-      fullTitle: originalWork.fullTitle,
+      titles: originalWork.titles.map((title) => ({
+        ...title,
+        id: appConfig.defaultId,
+      })),
       contributions: originalWork.contributions.map((contribution) => ({
         ...contribution,
         id: appConfig.defaultId,
@@ -66,8 +68,10 @@ const useCreateWorkTranslation = () => {
         id: appConfig.defaultId,
       })),
       languages: originalLanguages,
-      shortAbstract: originalWork.shortAbstract,
-      longAbstract: originalWork.longAbstract,
+      abstracts: originalWork.abstracts.map((abstract) => ({
+        ...abstract,
+        id: appConfig.defaultId,
+      })),
       imprintId: originalWork.imprintId,
     });
 

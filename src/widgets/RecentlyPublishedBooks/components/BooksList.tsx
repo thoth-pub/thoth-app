@@ -20,11 +20,11 @@ export const BooksList = () => {
 
   return (
     <>
-      {books.map(({ id, title, coverUrl, type, status, contributions }) => (
+      {books.map(({ id, titles, coverUrl, type, status, contributions }) => (
         <EditBookLink
           key={id}
           id={id}
-          title={title}
+          titles={titles}
           type={type}
           status={status}
           contributions={contributions}
