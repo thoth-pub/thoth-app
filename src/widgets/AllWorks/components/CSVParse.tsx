@@ -85,7 +85,9 @@ export const CSVParse = (props: CSVParseProps) => {
 
   const isDataEmpty = works.length === 0;
 
-  const showContributorsSelection = Object.keys(multipleFoundedContributors).length > 0;
+  const showContributorsSelection = Object.entries(multipleFoundedContributors).some(
+    ([_, data]) => Object.keys(data).length > 0,
+  );
 
   const handleSelectContributor = (workId: WorkId, itemId: string, contributorId: ContributorId) => {
     const selectedWork = multipleFoundedContributors[workId];
@@ -153,70 +155,77 @@ export const CSVParse = (props: CSVParseProps) => {
 
   if (isDataEmpty) return null;
 
+  console.log('multipleFoundedContributors', multipleFoundedContributors);
+
   return (
     <div className="flex w-full flex-col gap-4">
-      <Typography variant="h1" component="h2">
-        Multiple contributors found
-      </Typography>
       {showContributorsSelection && (
-        <TableWrapper>
-          <TableHeader
-            cells={['Work', 'Search Value', 'Contributors']}
-            cellStyles={['min-w-[210px]', 'min-w-[210px]', 'min-w-[210px]']}
-          />
-          <TableBody>
-            {Object.entries(multipleFoundedContributors).map(([workId, data]) => {
-              const work = works.find((work) => work.id === workId);
+        <>
+          <Typography variant="h1" component="h2">
+            Multiple contributors found
+          </Typography>
+          <TableWrapper>
+            <TableHeader
+              cells={['Work', 'Search Value', 'Contributors']}
+              cellStyles={['min-w-[210px]', 'min-w-[210px]', 'min-w-[210px]']}
+            />
+            <TableBody>
+              {Object.entries(multipleFoundedContributors).map(([workId, data]) => {
+                const work = works.find((work) => work.id === workId);
 
-              if (!work) return null;
+                if (!work) return null;
 
-              const contributions = Object.entries(data);
+                const contributions = Object.entries(data);
 
-              return contributions.map(([itemId, contributions], index) => {
-                const defaultContributor = contributions.find(({ contributorId }) => isDefaultId(contributorId));
+                return contributions.map(([itemId, contributions], index) => {
+                  const defaultContributor = contributions.find(({ contributorId }) => isDefaultId(contributorId));
 
-                if (contributions.length < 2) return null;
+                  if (contributions.length < 2) return null;
 
-                return (
-                  <TableRow key={`${workId}-${itemId}-${index}`} className="group">
-                    <TableCell className="firstCell">{getMainTitle(work.titles).title}</TableCell>
-                    <TableCell className="middleCell">{defaultContributor?.fullName ?? ''}</TableCell>
-                    <TableCell className="lastCell">
-                      {contributions.map(({ id, fullName, orcidId, contributorId, lastContribution, selected }) => (
-                        <div key={id} className="flex items-center gap-2 [&:not(:first-child)&:not(:last-child)]:my-4">
-                          <Radio
-                            checked={selected}
-                            onChange={() => handleSelectContributor(workId, itemId, contributorId)}
-                            className="self-start"
-                          />
-                          <Typography className="flex flex-col gap-2">
-                            {isDefaultId(contributorId) ? (
-                              'Create new'
-                            ) : (
-                              <>
-                                <Typography className="flex items-center gap-1" fontWeight="bold" component="span">
-                                  {fullName}
-                                  {orcidId && (
-                                    <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
-                                      <OrchidLogo />
-                                    </LinkTooltip>
+                  return (
+                    <TableRow key={`${workId}-${itemId}-${index}`} className="group">
+                      <TableCell className="firstCell">{getMainTitle(work.titles).title}</TableCell>
+                      <TableCell className="middleCell">{defaultContributor?.fullName ?? ''}</TableCell>
+                      <TableCell className="lastCell">
+                        {contributions.map(({ id, fullName, orcidId, contributorId, lastContribution, selected }) => (
+                          <div
+                            key={id}
+                            className="flex items-center gap-2 [&:not(:first-child)&:not(:last-child)]:my-4"
+                          >
+                            <Radio
+                              checked={selected}
+                              onChange={() => handleSelectContributor(workId, itemId, contributorId)}
+                              className="self-start"
+                            />
+                            <Typography className="flex flex-col gap-2">
+                              {isDefaultId(contributorId) ? (
+                                'Create new'
+                              ) : (
+                                <>
+                                  <Typography className="flex items-center gap-1" fontWeight="bold" component="span">
+                                    {fullName}
+                                    {orcidId && (
+                                      <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
+                                        <OrchidLogo />
+                                      </LinkTooltip>
+                                    )}
+                                  </Typography>
+                                  {lastContribution && lastContribution.length > 0 && (
+                                    <Typography component="span">Latest contribution to: {lastContribution}</Typography>
                                   )}
-                                </Typography>
-                                {lastContribution && lastContribution.length > 0 && (
-                                  <Typography component="span">Latest contribution to: {lastContribution}</Typography>
-                                )}
-                              </>
-                            )}
-                          </Typography>
-                        </div>
-                      ))}
-                    </TableCell>
-                  </TableRow>
-                );
-              });
-            })}
-          </TableBody>
-        </TableWrapper>
+                                </>
+                              )}
+                            </Typography>
+                          </div>
+                        ))}
+                      </TableCell>
+                    </TableRow>
+                  );
+                });
+              })}
+            </TableBody>
+          </TableWrapper>
+        </>
       )}
       <Button variant="contained" color="primary" className="m-auto" onClick={handleSubmit}>
         Submit

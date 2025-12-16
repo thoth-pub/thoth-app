@@ -1,13 +1,16 @@
 'use client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { type AbstractEntity, QueryKeys, useServices } from '@/src/shared';
-import { useQueryToken } from '@/src/shared/hooks';
+import { type AbstractEntity, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import type { WorkId } from '../../model/work.types';
 
+const { ABSTRACT_UPDATE_FAILED } = NOTIFICATIONS;
+
 const useUpdateAbstract = (workId: WorkId) => {
   const { workService } = useServices();
+  const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
   const queryToken = useQueryToken();
 
@@ -17,6 +20,9 @@ const useUpdateAbstract = (workId: WorkId) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? ABSTRACT_UPDATE_FAILED);
     },
   });
 

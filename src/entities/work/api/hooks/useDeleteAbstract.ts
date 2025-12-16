@@ -1,22 +1,22 @@
 'use client';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMutation } from '@tanstack/react-query';
 
-import { QueryKeys, useServices } from '@/src/shared';
-import { useQueryToken } from '@/src/shared/hooks';
+import { NOTIFICATIONS, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
-import type { WorkId } from '../../model/work.types';
+const { ABSTRACT_DELETE_FAILED } = NOTIFICATIONS;
 
-const useDeleteAbstract = (workId: WorkId) => {
+const useDeleteAbstract = () => {
   const { workService } = useServices();
-  const queryClient = useQueryClient();
+  const { sendErrorNotification } = useNotifications();
   const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (abstractId: string) => {
       return workService.deleteAbstract(queryToken, abstractId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? ABSTRACT_DELETE_FAILED);
     },
   });
 

@@ -6,7 +6,8 @@ import {
   convertDateToFormattedDate,
   convertOrchidIdToText,
   convertRomanToArabic,
-  getMarkupFormat,
+  getAbstractMarkupFormat,
+  getTitleMarkupFormat,
   isBookChapter,
   isDefaultId,
   MarkdownFormat,
@@ -328,7 +329,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
         subtitle: subtitle.length > 0 ? subtitle : null,
         title,
       },
-      markupFormat: getMarkupFormat(entity),
+      markupFormat: getTitleMarkupFormat(entity),
     };
   }
 
@@ -344,15 +345,18 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     };
   }
 
-  toDtoAbstract(entity: AbstractEntity): AbstractDto {
+  toDtoAbstract(entity: AbstractEntity): { dto: AbstractDto; markupFormat: MarkdownFormat } {
     const { id, type, canonical, content, localeCode } = entity;
 
     return {
-      abstractId: id,
-      abstractType: type,
-      canonical,
-      content,
-      localeCode,
+      dto: {
+        abstractId: id,
+        abstractType: type,
+        canonical,
+        content,
+        localeCode,
+      },
+      markupFormat: getAbstractMarkupFormat(entity),
     };
   }
 }

@@ -41,16 +41,16 @@ export const DELETE_TITLE = graphql(`
 `);
 
 export const CREATE_ABSTRACT = graphql(`
-  mutation CreateAbstract($data: NewAbstract!) {
-    createAbstract(data: $data) {
+  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = PLAIN_TEXT) {
+    createAbstract(data: $data, markupFormat: $markupFormat) {
       ...AbstractFragment
     }
   }
 `);
 
 export const UPDATE_ABSTRACT = graphql(`
-  mutation UpdateAbstract($data: PatchAbstract!) {
-    updateAbstract(data: $data) {
+  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = PLAIN_TEXT) {
+    updateAbstract(data: $data, markupFormat: $markupFormat) {
       ...AbstractFragment
     }
   }

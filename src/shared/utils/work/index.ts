@@ -3,8 +3,9 @@ import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
 import { appConfig } from '../../config';
 import { LanguageTypeAlt } from '../../constants';
+import { AbstractTypes } from '../../constants/abstracts';
 import { MarkdownFormats } from '../../constants/markdown';
-import { MarkdownFormat, TitleEntity } from '../../types';
+import { AbstractEntity, MarkdownFormat, TitleEntity } from '../../types';
 
 export const isBookChapter = (workType: WorkType) => workType === WorkTypes.enum.BookChapter;
 
@@ -94,6 +95,17 @@ export const getDefaultTitle = (data?: Partial<TitleEntity>): TitleEntity => {
   };
 };
 
+export const getDefaultAbstract = (data?: Partial<AbstractEntity>): AbstractEntity => {
+  return {
+    id: appConfig.defaultId,
+    canonical: false,
+    type: AbstractTypes.enum.Long,
+    content: '',
+    localeCode: LanguageTypeAlt.enum.En,
+    ...data,
+  };
+};
+
 export const getMainTitle = (titles: TitleEntity[]) => {
   const defaultTitle = titles.length === 0 ? getDefaultTitle() : titles[0];
   const mainTitle = titles.find((title) => title.canonical);
@@ -101,22 +113,93 @@ export const getMainTitle = (titles: TitleEntity[]) => {
   return mainTitle ?? defaultTitle;
 };
 
-export const getMarkupFormat = (title: TitleEntity): MarkdownFormat => {
+export const isMarkdown = (text: string): boolean => {
+  const markdownPatterns = [
+    // Headers: # Header, ## Header, etc.
+    /^#{1,6}\s+.+/m,
+    // Bold: **text** or __text__
+    /\*\*.+\*\*|__.+__/,
+    // Italic: *text* or _text_ (but not in URLs)
+    /(?<![\w/:])\*[^*\s].+?[^*\s]\*(?![\w/:])|\b_[^_\s].+?[^_\s]_\b/,
+    // Links: [text](url) or [text][ref]
+    /\[.+?\]\(.+?\)|\[.+?\]\[.+?\]/,
+    // Images: ![alt](url)
+    /!\[.*?\]\(.+?\)/,
+    // Code: `code` or ```code blocks```
+    /`[^`]+`|```[\s\S]*?```/,
+    // Lists: - item, * item, + item, or numbered lists
+    /^\s*[-*+]\s+.+/m,
+    /^\s*\d+\.\s+.+/m,
+    // Blockquotes: > text
+    /^>\s+.+/m,
+    // Horizontal rules: ---, ***, ___
+    /^(?:[-*_]){3,}\s*$/m,
+    // Strikethrough: ~~text~~
+    /~~.+~~/,
+    // Tables: | header | header |
+    /\|.+\|/,
+  ];
+
+  return markdownPatterns.some((pattern) => pattern.test(text));
+};
+
+export const getTitleMarkupFormat = (title: TitleEntity): MarkdownFormat => {
   const { fullTitle } = title;
 
-  const isJatsXml = fullTitle.includes('<article-title>');
-  const isHtml = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].some((tag) => fullTitle.includes(tag));
-  const isMarkdown = ['#', '##', '###', '####', '#####', '######'].some((delimiter) => fullTitle.includes(delimiter));
+  const hasJatsXml = fullTitle.includes('<article-title>');
+  const hasHtml = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].some((tag) => fullTitle.includes(tag));
+  const hasMarkdown = isMarkdown(fullTitle);
 
-  if (isJatsXml) {
+  if (hasJatsXml) {
     return MarkdownFormats.enum.JATS_XML;
   }
 
-  if (isHtml) {
+  if (hasHtml) {
     return MarkdownFormats.enum.HTML;
   }
 
-  if (isMarkdown) {
+  if (hasMarkdown) {
+    return MarkdownFormats.enum.MARKDOWN;
+  }
+
+  return MarkdownFormats.enum.PLAIN_TEXT;
+};
+
+export const getAbstractMarkupFormat = (abstract: AbstractEntity): MarkdownFormat => {
+  const { content } = abstract;
+
+  const hasJatsXml = content.includes('<abstract>');
+  const hasHtml = [
+    '<p>',
+    '<br>',
+    '<ul>',
+    '<ol>',
+    '<li>',
+    '<a>',
+    '<img>',
+    '<strong>',
+    '<em>',
+    '<blockquote>',
+    '<code>',
+    '<pre>',
+    '<hr>',
+    '<table>',
+    '<tr>',
+    '<td>',
+    '<th>',
+    '<span>',
+  ].some((tag) => content.includes(tag));
+  const hasMarkdown = isMarkdown(content);
+
+  if (hasJatsXml) {
+    return MarkdownFormats.enum.JATS_XML;
+  }
+
+  if (hasHtml) {
+    return MarkdownFormats.enum.HTML;
+  }
+
+  if (hasMarkdown) {
     return MarkdownFormats.enum.MARKDOWN;
   }
 

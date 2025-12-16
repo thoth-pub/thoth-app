@@ -78,6 +78,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const shouldCreateFundings = data.fundings.length > 0;
     const shouldCreatePublications = data.publications.length > 0;
     const shouldCreateLanguages = data.languages.length > 0;
+    const shouldCreateTitles = data.titles.length > 0;
+    const shouldCreateAbstracts = data.abstracts.length > 0;
 
     const response = await this.graphqlService.mutation(token, CREATE_WORK, {
       data: dto,
@@ -85,7 +87,21 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
     const work = this.dtoMapper.toEntity(response.createWork as WorkDto);
 
-    // TODO: create titles and abstracts
+    if (shouldCreateTitles) {
+      const titlesPromises = data.titles.map((title) => this.createTitle(token, title, work.id));
+
+      const createdTitles = await Promise.all(titlesPromises);
+
+      work.titles = createdTitles;
+    }
+
+    if (shouldCreateAbstracts) {
+      const abstractsPromises = data.abstracts.map((abstract) => this.createAbstract(token, abstract, work.id));
+
+      const createdAbstracts = await Promise.all(abstractsPromises);
+
+      work.abstracts = createdAbstracts;
+    }
 
     if (shouldCreateSubjects) {
       const subjectsPromises = data.subjects.map((subject) =>
@@ -175,8 +191,6 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     });
 
     const work = this.dtoMapper.toEntity(response.updateWork as WorkDto);
-
-    // TODO: update titles and abstracts
 
     return work;
   }
@@ -473,10 +487,14 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   }
 
   async createTitle(token: string, data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
-    const dto = this.dtoMapper.toDtoTitle(data);
+    const {
+      dto: { titleId: _, ...dto },
+      markupFormat,
+    } = this.dtoMapper.toDtoTitle(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
+      markupFormat,
     });
 
     const title = this.dtoMapper.toEntityTitle(response.createTitle as TitleDto);
@@ -485,10 +503,11 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   }
 
   async updateTitle(token: string, data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
-    const dto = this.dtoMapper.toDtoTitle(data);
+    const { dto, markupFormat } = this.dtoMapper.toDtoTitle(data);
 
     const response = await this.graphqlService.mutation(token, UPDATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
+      markupFormat,
     });
 
     const title = this.dtoMapper.toEntityTitle(response.updateTitle as TitleDto);
@@ -503,10 +522,14 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   }
 
   async createAbstract(token: string, data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
-    const dto = this.dtoMapper.toDtoAbstract(data);
+    const {
+      dto: { abstractId: _, ...dto },
+      markupFormat,
+    } = this.dtoMapper.toDtoAbstract(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },
+      markupFormat,
     });
 
     const abstract = this.dtoMapper.toEntityAbstract(response.createAbstract as AbstractDto);
@@ -515,10 +538,11 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   }
 
   async updateAbstract(token: string, data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
-    const dto = this.dtoMapper.toDtoAbstract(data);
+    const { dto, markupFormat } = this.dtoMapper.toDtoAbstract(data);
 
     const response = await this.graphqlService.mutation(token, UPDATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },
+      markupFormat,
     });
 
     const abstract = this.dtoMapper.toEntityAbstract(response.updateAbstract as AbstractDto);

@@ -205,7 +205,8 @@ export const workCopyValidationSchema = z.object({
 export const workAbstractsValidationSchema = z.object({
   [WORK_ABSTRACTS.name]: z.array(
     z.object({
-      abstractId: getRequiredStringValidation(),
+      longAbstractId: getRequiredStringValidation(),
+      shortAbstractId: getRequiredStringValidation(),
       [WORK_ABSTRACT.name]: optionalStringValidation,
       [WORK_SHORT_ABSTRACT.name]: optionalStringValidation,
       [LANGUAGE.name]: titleLanguageValidation,

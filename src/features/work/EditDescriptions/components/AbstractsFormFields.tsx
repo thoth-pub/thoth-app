@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
 import type { WorkAbstractsForm } from '@/src/entities/work/model/work.types';
-import { appConfig, HELPER_TEXT } from '@/src/shared';
+import { type AbstractId, appConfig, HELPER_TEXT } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import {
   AddButton,
@@ -23,19 +23,21 @@ const { WORK_ABSTRACT: WORK_ABSTRACT_HELPER_TEXT, WORK_SHORT_ABSTRACT: WORK_SHOR
 type AbstractsFormFieldsProps = {
   control: Control<WorkAbstractsForm>;
   isHelperTextVisible?: boolean;
+  onDelete?: (shortAbstractId: AbstractId, longAbstractId: AbstractId) => void;
 };
 
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const fieldsDefaultValues = {
-  abstractId: appConfig.defaultId,
+  longAbstractId: appConfig.defaultId,
+  shortAbstractId: appConfig.defaultId,
   [WORK_ABSTRACT.name]: '',
   [WORK_SHORT_ABSTRACT.name]: '',
   [LANGUAGE.name]: languageOptionsAlt[0],
 };
 
 export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
-  const { control, isHelperTextVisible } = props;
+  const { control, isHelperTextVisible, onDelete } = props;
 
   const { t } = useTranslation();
 
@@ -67,11 +69,21 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
   };
 
   const handleRemove = (index: number) => {
+    const item = fields[index];
+
+    if (item && onDelete) {
+      onDelete(item.longAbstractId, item.shortAbstractId);
+    }
+
     remove(index);
   };
 
   const handleAdd = () => {
-    append({ ...fieldsDefaultValues, abstractId: `${appConfig.defaultId}-${fields.length + 1}` });
+    append({
+      ...fieldsDefaultValues,
+      longAbstractId: `${appConfig.defaultId}-${fields.length + 1}`,
+      shortAbstractId: `${appConfig.defaultId}-${fields.length + 1}`,
+    });
   };
 
   return (

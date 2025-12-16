@@ -10,21 +10,27 @@ import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { SubjectEntity } from '@/src/entities/subject/model/subject.types';
 import { WorkEntity, WorkId, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
 import {
+  AbstractEntity,
   appConfig,
   ContributorsForSelection,
   convertRomanToArabic,
   CSV_KEYS,
   FormFieldOption,
   getContributorFieldsByIndex,
+  getDefaultAbstract,
   getDefaultAffiliation,
   getDefaultContribution,
   getDefaultPublication,
+  getDefaultTitle,
   getDefaultWork,
   LanguageRelation,
   PublicationType,
   SeriesForUpdateItems,
   SubjectTypes,
+  TitleEntity,
 } from '@/src/shared';
+
+import { AbstractTypes } from '../../constants/abstracts';
 
 export type CSVFieldType = string | number | boolean;
 
@@ -106,10 +112,8 @@ export class CSVParser {
 
     const parsedWork = getDefaultWork({
       id: workId,
-      titles: [],
-      // title: this.parseStringField(row, CSV_KEYS.TITLE, rowNumber),
-      // subtitle: this.parseStringField(row, CSV_KEYS.SUBTITLE, rowNumber),
-      // fullTitle: this.parseStringField(row, CSV_KEYS.TITLE, rowNumber),
+      titles: this.parseTitles(row, rowNumber),
+      abstracts: this.parseAbstracts(row, rowNumber),
       type: this.parseStringField(row, CSV_KEYS.WORK_TYPE, rowNumber) as WorkType,
       doi: this.parseStringField(row, CSV_KEYS.DOI, rowNumber),
       publisherName: this.parseStringField(row, CSV_KEYS.IMPRINT, rowNumber),
@@ -127,9 +131,6 @@ export class CSVParser {
       audioCount: this.parseNumberField(row, CSV_KEYS.AUDIO_COUNT, rowNumber),
       videoCount: this.parseNumberField(row, CSV_KEYS.VIDEO_COUNT, rowNumber),
       pageCount: this.parseNumberField(row, CSV_KEYS.PAGE_COUNT, rowNumber),
-      // longAbstract: this.parseStringField(row, CSV_KEYS.LONG_ABSTRACT, rowNumber),
-      // shortAbstract: this.parseStringField(row, CSV_KEYS.SHORT_ABSTRACT, rowNumber),
-      abstracts: [],
       frontmatterCount,
       backmatterCount,
       languages: this.parseLanguages(
@@ -208,6 +209,30 @@ export class CSVParser {
       backmatterCount: totalPages.length > 0 ? convertRomanToArabic(backmatterCount) : 0,
       pageCount: totalPages.length > 0 ? parseInt(totalPages) : 0,
     };
+  }
+
+  parseTitles(row: Row, rowNumber: number): TitleEntity[] {
+    const title = this.parseStringField(row, CSV_KEYS.TITLE, rowNumber);
+    const subtitle = this.parseStringField(row, CSV_KEYS.SUBTITLE, rowNumber);
+    const fullTitle = this.parseStringField(row, CSV_KEYS.TITLE, rowNumber);
+
+    return [getDefaultTitle({ canonical: true, title, subtitle, fullTitle })];
+  }
+
+  parseAbstracts(row: Row, rowNumber: number): AbstractEntity[] {
+    const longAbstract = this.parseStringField(row, CSV_KEYS.LONG_ABSTRACT, rowNumber);
+    const shortAbstract = this.parseStringField(row, CSV_KEYS.SHORT_ABSTRACT, rowNumber);
+    const abstracts: AbstractEntity[] = [];
+
+    if (longAbstract.length > 0) {
+      abstracts.push(getDefaultAbstract({ content: longAbstract, type: AbstractTypes.enum.Long, canonical: true }));
+    }
+
+    if (shortAbstract.length > 0) {
+      abstracts.push(getDefaultAbstract({ content: shortAbstract, type: AbstractTypes.enum.Short, canonical: false }));
+    }
+
+    return abstracts;
   }
 
   parseLicenseField(row: Row, field: keyof Row, rowNumber: number) {

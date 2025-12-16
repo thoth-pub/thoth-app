@@ -73,8 +73,8 @@ type Documents = {
     "\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": typeof types.CreateTitleDocument,
     "\n  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    updateTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": typeof types.UpdateTitleDocument,
     "\n  mutation DeleteTitle($titleId: Uuid!) {\n    deleteTitle(titleId: $titleId) {\n      titleId\n    }\n  }\n": typeof types.DeleteTitleDocument,
-    "\n  mutation CreateAbstract($data: NewAbstract!) {\n    createAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n": typeof types.CreateAbstractDocument,
-    "\n  mutation UpdateAbstract($data: PatchAbstract!) {\n    updateAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n": typeof types.UpdateAbstractDocument,
+    "\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": typeof types.CreateAbstractDocument,
+    "\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": typeof types.UpdateAbstractDocument,
     "\n  mutation DeleteAbstract($abstractId: Uuid!) {\n    deleteAbstract(abstractId: $abstractId) {\n      abstractId\n    }\n  }\n": typeof types.DeleteAbstractDocument,
     "\n  query GetWorks(\n    $offset: Int!\n    $limit: Int\n    $publishers: [Uuid!]!\n    $direction: Direction = ASC\n    $field: WorkField = UPDATED_AT_WITH_RELATIONS\n    $workStatus: WorkStatus\n    $filter: String\n    $workTypes: [WorkType!]\n  ) {\n    works(\n      offset: $offset\n      limit: $limit\n      publishers: $publishers\n      order: { direction: $direction, field: $field }\n      workStatus: $workStatus\n      filter: $filter\n      workTypes: $workTypes\n    ) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetWorksDocument,
     "\n  query GetWork($workId: Uuid!) {\n    work(workId: $workId) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetWorkDocument,
@@ -161,8 +161,8 @@ const documents: Documents = {
     "\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": types.CreateTitleDocument,
     "\n  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    updateTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": types.UpdateTitleDocument,
     "\n  mutation DeleteTitle($titleId: Uuid!) {\n    deleteTitle(titleId: $titleId) {\n      titleId\n    }\n  }\n": types.DeleteTitleDocument,
-    "\n  mutation CreateAbstract($data: NewAbstract!) {\n    createAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n": types.CreateAbstractDocument,
-    "\n  mutation UpdateAbstract($data: PatchAbstract!) {\n    updateAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n": types.UpdateAbstractDocument,
+    "\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": types.CreateAbstractDocument,
+    "\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": types.UpdateAbstractDocument,
     "\n  mutation DeleteAbstract($abstractId: Uuid!) {\n    deleteAbstract(abstractId: $abstractId) {\n      abstractId\n    }\n  }\n": types.DeleteAbstractDocument,
     "\n  query GetWorks(\n    $offset: Int!\n    $limit: Int\n    $publishers: [Uuid!]!\n    $direction: Direction = ASC\n    $field: WorkField = UPDATED_AT_WITH_RELATIONS\n    $workStatus: WorkStatus\n    $filter: String\n    $workTypes: [WorkType!]\n  ) {\n    works(\n      offset: $offset\n      limit: $limit\n      publishers: $publishers\n      order: { direction: $direction, field: $field }\n      workStatus: $workStatus\n      filter: $filter\n      workTypes: $workTypes\n    ) {\n      ...WorkFragment\n    }\n  }\n": types.GetWorksDocument,
     "\n  query GetWork($workId: Uuid!) {\n    work(workId: $workId) {\n      ...WorkFragment\n    }\n  }\n": types.GetWorkDocument,
@@ -443,11 +443,11 @@ export function graphql(source: "\n  mutation DeleteTitle($titleId: Uuid!) {\n  
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateAbstract($data: NewAbstract!) {\n    createAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateAbstract($data: NewAbstract!) {\n    createAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n"];
+export function graphql(source: "\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateAbstract($data: PatchAbstract!) {\n    updateAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateAbstract($data: PatchAbstract!) {\n    updateAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n"];
+export function graphql(source: "\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
