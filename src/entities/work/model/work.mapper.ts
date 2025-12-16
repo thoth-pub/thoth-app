@@ -6,8 +6,10 @@ import {
   convertDateToFormattedDate,
   convertOrchidIdToText,
   convertRomanToArabic,
+  getMarkupFormat,
   isBookChapter,
   isDefaultId,
+  MarkdownFormat,
   TitleDto,
   TitleEntity,
 } from '@/src/shared';
@@ -220,8 +222,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   toDto(entity: WorkEntity): Partial<WorkDto> {
     const {
       id,
-      titles = [],
-      abstracts = [],
       type,
       imprintId,
       status,
@@ -261,8 +261,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     return {
       workId: id,
       workStatus: status,
-      titles: titles.map(this.toDtoTitle),
-      abstracts: abstracts.map(this.toDtoAbstract),
       imprintId,
       workType: type,
       edition: isBookChapter(type) ? null : defaultEdition,
@@ -318,16 +316,19 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     };
   }
 
-  toDtoTitle(entity: TitleEntity): TitleDto {
+  toDtoTitle(entity: TitleEntity): { dto: TitleDto; markupFormat: MarkdownFormat } {
     const { id, canonical, fullTitle, localeCode, subtitle, title } = entity;
 
     return {
-      titleId: id,
-      canonical,
-      fullTitle,
-      localeCode,
-      subtitle,
-      title,
+      dto: {
+        titleId: id,
+        canonical,
+        fullTitle,
+        localeCode,
+        subtitle: subtitle.length > 0 ? subtitle : null,
+        title,
+      },
+      markupFormat: getMarkupFormat(entity),
     };
   }
 

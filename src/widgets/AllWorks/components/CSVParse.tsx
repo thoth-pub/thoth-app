@@ -22,7 +22,7 @@ import {
   TableWrapper,
   Typography,
 } from '@/src/shared/ui';
-import { convertOrchidIdToText, isCsv, isDefaultId } from '@/src/shared/utils';
+import { convertOrchidIdToText, getMainTitle, isCsv, isDefaultId } from '@/src/shared/utils';
 
 import { getCsvConfig } from '../../../shared/parsers/CSVParser/getCsvConfig';
 
@@ -179,8 +179,7 @@ export const CSVParse = (props: CSVParseProps) => {
 
                 return (
                   <TableRow key={`${workId}-${itemId}-${index}`} className="group">
-                    {/* TODO: fix titles */}
-                    <TableCell className="firstCell">{work.titles.map((title) => title.title).join(', ')}</TableCell>
+                    <TableCell className="firstCell">{getMainTitle(work.titles).title}</TableCell>
                     <TableCell className="middleCell">{defaultContributor?.fullName ?? ''}</TableCell>
                     <TableCell className="lastCell">
                       {contributions.map(({ id, fullName, orcidId, contributorId, lastContribution, selected }) => (

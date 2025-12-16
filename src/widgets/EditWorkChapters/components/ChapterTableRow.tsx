@@ -3,7 +3,7 @@
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { appConfig, getPagesPlaceholder } from '@/src/shared';
+import { appConfig, getMainTitle, getPagesPlaceholder } from '@/src/shared';
 import {
   ButtonGroup,
   Checkbox,
@@ -62,8 +62,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
                 isDisabled={totalChaptersCount < appConfig.minItemsCountForDragAndDrop}
                 listeners={listeners}
               />
-              {/* TODO: fix titles */}
-              <Typography>{titles.map((title) => title.title).join(', ')}</Typography>
+              <Typography>{getMainTitle(titles).title}</Typography>
             </div>
           </TableCell>
           <TableCell className="middleCell">

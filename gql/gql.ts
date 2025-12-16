@@ -70,8 +70,8 @@ type Documents = {
     "\n  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {\n    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {\n      subjectId\n    }\n  }\n": typeof types.MoveSubjectDocument,
     "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": typeof types.CreateWorkDocument,
     "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n": typeof types.MoveWorkRelationDocument,
-    "\n  mutation CreateTitle($data: NewTitle!) {\n    createTitle(data: $data) {\n      ...TitleFragment\n    }\n  }\n": typeof types.CreateTitleDocument,
-    "\n  mutation UpdateTitle($data: PatchTitle!) {\n    updateTitle(data: $data) {\n      ...TitleFragment\n    }\n  }\n": typeof types.UpdateTitleDocument,
+    "\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": typeof types.CreateTitleDocument,
+    "\n  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    updateTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": typeof types.UpdateTitleDocument,
     "\n  mutation DeleteTitle($titleId: Uuid!) {\n    deleteTitle(titleId: $titleId) {\n      titleId\n    }\n  }\n": typeof types.DeleteTitleDocument,
     "\n  mutation CreateAbstract($data: NewAbstract!) {\n    createAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n": typeof types.CreateAbstractDocument,
     "\n  mutation UpdateAbstract($data: PatchAbstract!) {\n    updateAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n": typeof types.UpdateAbstractDocument,
@@ -158,8 +158,8 @@ const documents: Documents = {
     "\n  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {\n    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {\n      subjectId\n    }\n  }\n": types.MoveSubjectDocument,
     "\n  mutation CreateWork($data: NewWork!) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": types.CreateWorkDocument,
     "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n": types.MoveWorkRelationDocument,
-    "\n  mutation CreateTitle($data: NewTitle!) {\n    createTitle(data: $data) {\n      ...TitleFragment\n    }\n  }\n": types.CreateTitleDocument,
-    "\n  mutation UpdateTitle($data: PatchTitle!) {\n    updateTitle(data: $data) {\n      ...TitleFragment\n    }\n  }\n": types.UpdateTitleDocument,
+    "\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": types.CreateTitleDocument,
+    "\n  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    updateTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": types.UpdateTitleDocument,
     "\n  mutation DeleteTitle($titleId: Uuid!) {\n    deleteTitle(titleId: $titleId) {\n      titleId\n    }\n  }\n": types.DeleteTitleDocument,
     "\n  mutation CreateAbstract($data: NewAbstract!) {\n    createAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n": types.CreateAbstractDocument,
     "\n  mutation UpdateAbstract($data: PatchAbstract!) {\n    updateAbstract(data: $data) {\n      ...AbstractFragment\n    }\n  }\n": types.UpdateAbstractDocument,
@@ -431,11 +431,11 @@ export function graphql(source: "\n  mutation MoveWorkRelation($workRelationId: 
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateTitle($data: NewTitle!) {\n    createTitle(data: $data) {\n      ...TitleFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateTitle($data: NewTitle!) {\n    createTitle(data: $data) {\n      ...TitleFragment\n    }\n  }\n"];
+export function graphql(source: "\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateTitle($data: PatchTitle!) {\n    updateTitle(data: $data) {\n      ...TitleFragment\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateTitle($data: PatchTitle!) {\n    updateTitle(data: $data) {\n      ...TitleFragment\n    }\n  }\n"];
+export function graphql(source: "\n  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    updateTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    updateTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

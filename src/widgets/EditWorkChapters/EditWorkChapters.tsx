@@ -29,7 +29,7 @@ import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection
 
 import { ChapterTableRow } from './components/ChapterTableRow';
 
-// const NEW_CHAPTER_PREFIX = 'New Copy of ';
+const NEW_CHAPTER_PREFIX = 'New Copy of ';
 
 export const EditWorkChapters = (props: BaseEditSectionProps) => {
   const { workId } = props;
@@ -107,8 +107,22 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
 
     if (!chapter) return;
 
-    // TODO: fix titles
-    const newChapter = { ...chapter, id: appConfig.defaultId, titles: [], doi: '' };
+    const newTitles = chapter.titles.map((title) => ({ ...title, id: appConfig.defaultId }));
+
+    const newChapter = {
+      ...chapter,
+      id: appConfig.defaultId,
+      titles: newTitles,
+      doi: '',
+    };
+
+    if (newTitles.length > 0) {
+      newChapter.titles[0] = {
+        ...newTitles[0],
+        canonical: true,
+        title: `${NEW_CHAPTER_PREFIX} ${newTitles[0].title}`,
+      };
+    }
 
     createChapter({ chapter: newChapter, relatedWorkId: workId, ordinal: chapters.length + 1 });
   };

@@ -17,16 +17,16 @@ export const MOVE_WORK_RELATION = graphql(`
 `);
 
 export const CREATE_TITLE = graphql(`
-  mutation CreateTitle($data: NewTitle!) {
-    createTitle(data: $data) {
+  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {
+    createTitle(data: $data, markupFormat: $markupFormat) {
       ...TitleFragment
     }
   }
 `);
 
 export const UPDATE_TITLE = graphql(`
-  mutation UpdateTitle($data: PatchTitle!) {
-    updateTitle(data: $data) {
+  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = PLAIN_TEXT) {
+    updateTitle(data: $data, markupFormat: $markupFormat) {
       ...TitleFragment
     }
   }

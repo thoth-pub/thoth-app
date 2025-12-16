@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useCreateWorkChapter, useWork, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
-import { BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
+import { appConfig, BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
 import { licenseOptions } from '@/src/shared/constants/formFields';
 import { AddButton } from '@/src/shared/ui';
 
@@ -57,9 +57,9 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
     subjects: boolean;
   }) => {
     const { landingPage, license, copyrightHolder, contributors, fundings, subjects } = data;
-    // TODO: fix titles
+
     const defaultChapter = getDefaultChapter({
-      // title: 'New Chapter',
+      titles: work.titles.map((title) => ({ ...title, id: appConfig.defaultId })),
       status: work.status,
       coverUrl: work.coverUrl,
       landingPage: landingPage ? work.landingPage : '',
@@ -67,6 +67,8 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
       place: work.place,
       license: license ? work.license : licenseOptions[0].value,
       copyrightHolder: copyrightHolder ? work.copyrightHolder : '',
+      publicationDate: work.publicationDate,
+      withdrawnDate: work.withdrawnDate,
       doi: '',
       fundings: fundings ? work.fundings : [],
       subjects: subjects ? work.subjects : [],

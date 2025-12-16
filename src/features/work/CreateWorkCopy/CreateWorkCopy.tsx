@@ -11,7 +11,7 @@ import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useCreateNewWorkEdition, useCreateWorkTranslation } from '@/src/entities/work';
 import { WorkCopyForm, WorkEntity } from '@/src/entities/work/model/work.types';
 import { workCopyValidationSchema } from '@/src/entities/work/model/work.validation';
-import { appConfig } from '@/src/shared';
+import { appConfig, getMainTitle } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import { AutocompleteField, FormFieldWithControlsWrapper, InputAdornment, SubmitButton } from '@/src/shared/ui';
@@ -52,9 +52,9 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
   }, [books]);
 
   const filteredBooks = books.filter((book) => book.issues.length === 0);
-  // TODO: fix titles
+
   const options = filteredBooks.map((book) => ({
-    label: `${book.titles.map((title) => title.title).join(', ')} (edition ${book.edition ?? 1})`,
+    label: `${getMainTitle(book.titles).title} (edition ${book.edition ?? 1})`,
     value: book.id,
   }));
 

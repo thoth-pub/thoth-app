@@ -1,10 +1,12 @@
+import { useQueryClient } from '@tanstack/react-query';
 import type { Control } from 'react-hook-form';
 
-import { useWork } from '@/src/entities/work';
+import { useCreateTitle, useDeleteTitle, useUpdateTitle, useWork } from '@/src/entities/work';
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { workTitlesValidationSchema } from '@/src/entities/work/model/work.validation';
-import { appConfig, type BaseRecommendedSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
+import { type BaseRecommendedSectionProps, getMainTitle, HELPER_TEXT, IDs, QueryKeys, TitleEntity } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import type { LocaleCodeType } from '@/src/shared/types/languages';
 import {
   ContentWrapper,
   FormFieldLabel,
@@ -30,28 +32,89 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
   const { workId, recommended = false, withEdition = true } = props;
 
   const { work, updateWork } = useWork(workId);
+  const queryClient = useQueryClient();
+  const { createTitle } = useCreateTitle();
+  const { updateTitle } = useUpdateTitle();
+  const { deleteTitle } = useDeleteTitle(workId);
 
-  const placeholder = '';
+  const placeholder = getMainTitle(work.titles).title;
   const showIndicator = recommended && !placeholder;
 
+  const titlesDefaultValues = work.titles.map(({ id, title, subtitle, localeCode }) => ({
+    titleId: id,
+    [WORK_TITLE.name]: title,
+    [SUBTITLE.name]: subtitle,
+    [LANGUAGE.name]: languageOptionsAlt.find((option) => option.value.toLowerCase() === localeCode.toLowerCase()),
+  }));
   const defaultValues = {
-    [TITLES.name]: [
-      {
-        titleId: appConfig.defaultId,
-        [WORK_TITLE.name]: '',
-        [SUBTITLE.name]: '',
-        [LANGUAGE.name]: languageOptionsAlt[0],
-      },
-    ],
+    [TITLES.name]: titlesDefaultValues,
     [EDITION.name]: work?.edition ?? 1,
   };
 
-  const updateTitles = (data: WorkTitlesForm) => {
-    const { [TITLES.name]: _titles, [EDITION.name]: edition } = data;
+  const updateTitles = async (data: WorkTitlesForm) => {
+    const { [TITLES.name]: titles, [EDITION.name]: edition } = data;
 
-    // TODO: update titles
+    if (edition !== work.edition) {
+      updateWork({ ...work, edition });
+    }
 
-    updateWork({ ...work, titles: [], edition: edition ?? 1 });
+    const newTitles = titles.filter((title) => !work.titles.some((workTitle) => workTitle.id === title.titleId));
+    const updatedTitles = titles.filter((title) => work.titles.some((workTitle) => workTitle.id === title.titleId));
+
+    const promises: Promise<TitleEntity>[] = [];
+
+    newTitles.forEach(({ titleId, workTitle, subtitle = '', language }, index) => {
+      promises.push(
+        createTitle({
+          data: {
+            id: titleId,
+            title: workTitle,
+            subtitle,
+            localeCode: language.value as LocaleCodeType,
+            canonical: work.titles.length === 0 && index === 0,
+            fullTitle: `${workTitle} ${subtitle}`,
+          },
+          relatedWorkId: work.id,
+        }),
+      );
+    });
+
+    updatedTitles.forEach(({ titleId, workTitle, subtitle = '', language }) => {
+      const existingTitle = work.titles.find((title) => title.id === titleId);
+
+      if (!existingTitle) return;
+
+      promises.push(
+        updateTitle({
+          data: {
+            id: titleId,
+            title: workTitle,
+            subtitle,
+            localeCode: language.value as LocaleCodeType,
+            canonical: existingTitle.canonical ?? false,
+            fullTitle: `${workTitle} ${subtitle}`,
+          },
+          relatedWorkId: work.id,
+        }),
+      );
+    });
+
+    await Promise.all(promises);
+
+    if (promises.length === 0) return;
+
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters, workId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workTranslations, workId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.translatedWorks, workId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workEditions, workId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workPrevEditions, workId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.works] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.forthcomingBooksCount] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.publishedBooksCount] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
   };
 
   return (
@@ -66,6 +129,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
             control={control as unknown as Control<WorkTitlesForm>}
             recommended={showIndicator}
             isHelperTextVisible={isHelperTextVisible}
+            onDelete={deleteTitle}
           />
           {withEdition && (
             <ContentWrapper>

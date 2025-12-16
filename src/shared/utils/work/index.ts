@@ -2,6 +2,9 @@ import type { WorkEntity, WorkStatus, WorkType } from '@/src/entities/work/model
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
 import { appConfig } from '../../config';
+import { LanguageTypeAlt } from '../../constants';
+import { MarkdownFormats } from '../../constants/markdown';
+import { MarkdownFormat, TitleEntity } from '../../types';
 
 export const isBookChapter = (workType: WorkType) => workType === WorkTypes.enum.BookChapter;
 
@@ -77,4 +80,45 @@ export const getDefaultChapter = (data?: Partial<Omit<WorkEntity, 'type'>>): Wor
     type: WorkTypes.enum.BookChapter,
     ...data,
   };
+};
+
+export const getDefaultTitle = (data?: Partial<TitleEntity>): TitleEntity => {
+  return {
+    id: appConfig.defaultId,
+    canonical: false,
+    title: '',
+    subtitle: '',
+    fullTitle: '',
+    localeCode: LanguageTypeAlt.enum.En,
+    ...data,
+  };
+};
+
+export const getMainTitle = (titles: TitleEntity[]) => {
+  const defaultTitle = titles.length === 0 ? getDefaultTitle() : titles[0];
+  const mainTitle = titles.find((title) => title.canonical);
+
+  return mainTitle ?? defaultTitle;
+};
+
+export const getMarkupFormat = (title: TitleEntity): MarkdownFormat => {
+  const { fullTitle } = title;
+
+  const isJatsXml = fullTitle.includes('<article-title>');
+  const isHtml = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].some((tag) => fullTitle.includes(tag));
+  const isMarkdown = ['#', '##', '###', '####', '#####', '######'].some((delimiter) => fullTitle.includes(delimiter));
+
+  if (isJatsXml) {
+    return MarkdownFormats.enum.JATS_XML;
+  }
+
+  if (isHtml) {
+    return MarkdownFormats.enum.HTML;
+  }
+
+  if (isMarkdown) {
+    return MarkdownFormats.enum.MARKDOWN;
+  }
+
+  return MarkdownFormats.enum.PLAIN_TEXT;
 };

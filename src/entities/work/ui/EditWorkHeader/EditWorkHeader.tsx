@@ -2,7 +2,7 @@
 
 import NextLink from 'next/link';
 
-import { type BaseEditSectionProps, ROUTES } from '@/src/shared';
+import { type BaseEditSectionProps, getMainTitle, ROUTES } from '@/src/shared';
 import { Breadcrumbs, InputLabel, Link, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
@@ -97,8 +97,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
                   <li key={work.id}>
                     <NextLink href={`${ROUTES.WORK_PAGE(work.id)}`} passHref>
                       <Link className="font-normal no-underline" component="span">
-                        {/* TODO: fix this - select main title */}
-                        {work.titles.map((title) => title.title).join(', ')}
+                        {getMainTitle(work.titles).title}
                       </Link>
                     </NextLink>
                   </li>
@@ -118,8 +117,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
                   <li key={work.id}>
                     <NextLink href={`${ROUTES.WORK_PAGE(work.id)}`} passHref>
                       <Link className="font-normal no-underline" component="span">
-                        {/* TODO: fix this - select main title */}
-                        {work.titles.map((title) => title.title).join(', ')}
+                        {getMainTitle(work.titles).title}
                       </Link>
                     </NextLink>
                   </li>
@@ -136,8 +134,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
 
               <NextLink href={`${ROUTES.WORK_PAGE(previousEdition.id)}`} passHref>
                 <Link className="font-normal no-underline" component="span">
-                  {/* TODO: fix this - select main title */}
-                  {previousEdition.titles.map((title) => title.title).join(', ')}
+                  {getMainTitle(previousEdition.titles).title}
                 </Link>
               </NextLink>
             </div>
@@ -151,8 +148,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
 
               <NextLink href={`${ROUTES.WORK_PAGE(latestEdition.id)}`} passHref>
                 <Link className="font-normal no-underline" component="span">
-                  {/* TODO: fix this - select main title */}
-                  {latestEdition.titles.map((title) => title.title).join(', ')}
+                  {getMainTitle(latestEdition.titles).title}
                 </Link>
               </NextLink>
             </div>

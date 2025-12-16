@@ -1,8 +1,9 @@
 import z from 'zod';
 
-import type { Abstract as GQLAbstract, LocaleCode } from '@/gql/graphql';
+import type { Abstract as GQLAbstract } from '@/gql/graphql';
 
 import { AbstractTypes } from '../constants/abstracts';
+import type { LocaleCodeType } from './languages';
 
 export type AbstractDto = Omit<GQLAbstract, 'workId' | 'work'>;
 
@@ -15,5 +16,5 @@ export type AbstractEntity = {
   type: AbstractType;
   canonical: boolean;
   content: string;
-  localeCode: LocaleCode;
+  localeCode: LocaleCodeType;
 };

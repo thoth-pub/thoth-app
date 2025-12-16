@@ -4,6 +4,7 @@ import {
   type BaseEditSectionProps,
   getDateInFuture,
   getDateInFutureFromDate,
+  getMainTitle,
   isPublicationDateAvailable,
   isPublicationDateRequired,
   isPublicationDateShouldBeInFuture,
@@ -98,7 +99,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
   };
 
   return {
-    title: work.titles.map((title) => title.title).join(', ') /* TODO: fix this - select main title */,
+    title: getMainTitle(work.titles).title,
     id: work.reference,
     publicationDate: work.publicationDate,
     withdrawnDate: work.withdrawnDate,

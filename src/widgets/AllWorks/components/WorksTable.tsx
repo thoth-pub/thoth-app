@@ -5,7 +5,7 @@ import PlusOneIcon from '@mui/icons-material/PlusOne';
 import TranslateIcon from '@mui/icons-material/Translate';
 
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { convertOptionToString, convertUpdatedAtToFormattedDate } from '@/src/shared';
+import { convertOptionToString, convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared';
 import {
   ButtonGroup,
   Chip,
@@ -70,8 +70,7 @@ export const WorksTable = (props: WorksTableProps) => {
               {works.map((work) => (
                 <TableRow key={work.id} className="group" onDoubleClick={() => navigateToWork(work.id)}>
                   <TableCell className="firstCell">{work.reference}</TableCell>
-                  {/* TODO: fix titles */}
-                  <TableCell className="middleCell">{work.titles.map((title) => title.title).join(', ')}</TableCell>
+                  <TableCell className="middleCell">{getMainTitle(work.titles).title}</TableCell>
                   <TableCell className="middleCell">{<Chip label={convertOptionToString(work.status)} />}</TableCell>
                   <TableCell className="middleCell">{convertOptionToString(work.type)}</TableCell>
                   <TableCell className="middleCell">{work.contributorsNames.join(', ')}</TableCell>

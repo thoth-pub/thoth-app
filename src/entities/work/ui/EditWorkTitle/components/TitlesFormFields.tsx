@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
-import { appConfig, HELPER_TEXT } from '@/src/shared';
+import { appConfig, HELPER_TEXT, isDefaultId, TitleId } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import {
   AddButton,
@@ -24,6 +24,7 @@ type TitlesFormFieldsProps = {
   control: Control<WorkTitlesForm>;
   recommended?: boolean;
   isHelperTextVisible?: boolean;
+  onDelete?: (titleId: TitleId) => void;
 };
 
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
@@ -36,7 +37,7 @@ export const fieldsDefaultValues = {
 };
 
 export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
-  const { control, recommended, isHelperTextVisible } = props;
+  const { control, recommended, isHelperTextVisible, onDelete } = props;
 
   const { t } = useTranslation();
 
@@ -68,6 +69,16 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
   };
 
   const handleRemove = (index: number) => {
+    if (index === 0) return;
+
+    const item = fields[index];
+
+    if (!item) return;
+
+    if (item.titleId && onDelete && !isDefaultId(item.titleId)) {
+      onDelete?.(item.titleId);
+    }
+
     remove(index);
   };
 
@@ -91,7 +102,7 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
                   helperText={isHelperTextVisible ? WORK_TITLE_HELPER_TEXT : ''}
                   disableLineBreaks
                 />
-                <DeleteButton onClick={() => handleRemove(index)} />
+                {index > 0 && <DeleteButton onClick={() => handleRemove(index)} />}
               </FormFieldWithControlsWrapper>
             </ContentWrapper>
             <ContentWrapper>
@@ -111,7 +122,7 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
                   <LanguageField control={control} languageFieldName={getLanguageFieldName(index)} />
                 </div>
                 {index === fields.length - 1 && (
-                  <AddButton type="button" className="mr-auto capitalize" onAdd={handleAdd}>
+                  <AddButton type="button" className="mr-auto pl-2 capitalize" onAdd={handleAdd}>
                     {t('add translation')}
                   </AddButton>
                 )}

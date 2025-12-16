@@ -1,7 +1,7 @@
 'use client';
 
 import { IDs } from '@/src/shared/constants';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import { useWorkTypeOptions } from '@/src/shared/hooks';
 import type { FormFieldOption } from '@/src/shared/interfaces';
 import { AutocompleteGroup, Button, CircularProgress, PageHeader } from '@/src/shared/ui';
@@ -11,7 +11,7 @@ import CreateWorkFormAutocompleteField from './components/CreateWorkFormAutocomp
 import CreateWorkFormField from './components/CreateWorkFormField';
 import useCreateWorkForm from './useCreateWorkForm';
 
-const { TITLE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
+const { TITLE, TITLE_LANGUAGE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 const { CREATE_WORK } = IDs;
 
 type CreateWorkFormProps = {
@@ -46,13 +46,23 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions }: CreateWorkFormProps)
       </PageHeader>
       <ContentSection>
         <form id={CREATE_WORK} onSubmit={submit} className="flex flex-col gap-[var(--default-gap)]">
-          <CreateWorkFormField
-            label={TITLE.label}
-            name={TITLE.name}
-            placeholder={TITLE.placeholder}
-            control={control}
-            type={TITLE.type}
-          />
+          <div className="grid grid-cols-[1fr_25%] gap-2">
+            <CreateWorkFormField
+              label={TITLE.label}
+              name={TITLE.name}
+              placeholder={TITLE.placeholder}
+              control={control}
+              type={TITLE.type}
+            />
+            <CreateWorkFormField
+              name={TITLE_LANGUAGE.name}
+              placeholder={TITLE_LANGUAGE.placeholder}
+              control={control}
+              type={TITLE_LANGUAGE.type}
+              select
+              options={languageOptionsAlt}
+            />
+          </div>
           {isImprintVisible && (
             <CreateWorkFormField
               label={IMPRINT.label}

@@ -5,7 +5,7 @@ import NextLink from 'next/link';
 import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { useWorkRecommendations } from '@/src/entities/work';
 import type { WorkStatus } from '@/src/entities/work/model/work.types';
-import { convertOptionToString, ROUTES, TitleEntity } from '@/src/shared';
+import { convertOptionToString, getMainTitle, ROUTES, TitleEntity } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
 import { Chip, DashboardContentWrapper, Typography } from '@/src/shared/ui';
 import DataIndicator from '@/src/shared/ui/core/DataIndicator/DataIndicator';
@@ -53,8 +53,7 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
           <div className="flex max-w-[190px] grow flex-col justify-between pl-2 xl:max-w-[410px]">
             <div className="flex items-center justify-between">
               <Typography variant="h2" component="h3" className="grow truncate">
-                {/* TODO: fix titles */}
-                {titles.map((title) => title.title).join(', ')}
+                {getMainTitle(titles).title}
               </Typography>
               <DataIndicator
                 isEmpty={isEmpty}

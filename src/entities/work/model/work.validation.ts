@@ -21,6 +21,7 @@ const {
   LICENSE,
   IMPRINT,
   WORK_TYPE,
+  TITLE_LANGUAGE,
   WORK_STATUS,
   PUBLICATION_DATE,
   WORK_TITLE,
@@ -54,6 +55,7 @@ const {
 export const titleValidation = getRequiredStringValidation(TITLE.errorMessage);
 export const imprintValidation = getRequiredStringValidation(IMPRINT.errorMessage);
 export const workTypeValidation = getRequiredStringValidation(WORK_TYPE.errorMessage);
+export const titleLanguageCodeValidation = languageValidation;
 
 export const publicationDateValidation = optionalDateValidation;
 
@@ -94,6 +96,7 @@ const titleLanguageValidation = z.object({
 
 export const createWorkValidationSchema = z.object({
   [TITLE.name]: titleValidation,
+  [TITLE_LANGUAGE.name]: titleLanguageCodeValidation,
   [IMPRINT.name]: imprintValidation,
   [WORK_TYPE.name]: workTypeValidation,
   [LICENSE.name]: licenseValidation,

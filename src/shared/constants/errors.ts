@@ -12,4 +12,5 @@ export const ERRORS = {
   CONTRIBUTOR_TYPE_REQUIRED: 'Contributor Type is required',
   MAX_FILE_SIZE_EXCEEDED: 'Max file size exceeded',
   FILE_FORMAT_INVALID: 'File format is invalid',
+  TITLE_LANGUAGE_REQUIRED: 'Title Language is required',
 } as const;

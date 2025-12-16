@@ -67,4 +67,12 @@ export const NOTIFICATIONS = {
   ISSUE_UPDATE_FAILED: 'Failed to update issue',
   ISSUE_DELETE_FAILED: 'Failed to delete issue',
   ISSUE_MOVE_FAILED: 'Failed to change issues order',
+  // Titles
+  TITLE_CREATION_FAILED: 'Failed to create title',
+  TITLE_UPDATE_FAILED: 'Failed to update title',
+  TITLE_DELETE_FAILED: 'Failed to delete title',
+  // Abstracts
+  ABSTRACT_CREATION_FAILED: 'Failed to create abstract',
+  ABSTRACT_UPDATE_FAILED: 'Failed to update abstract',
+  ABSTRACT_DELETE_FAILED: 'Failed to delete abstract',
 } as const;

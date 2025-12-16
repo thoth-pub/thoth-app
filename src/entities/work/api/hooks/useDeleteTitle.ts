@@ -1,13 +1,16 @@
 'use client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { QueryKeys, useServices } from '@/src/shared';
-import { useQueryToken } from '@/src/shared/hooks';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import type { WorkId } from '../../model/work.types';
 
+const { TITLE_DELETE_FAILED } = NOTIFICATIONS;
+
 const useDeleteTitle = (workId: WorkId) => {
   const { workService } = useServices();
+  const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
   const queryToken = useQueryToken();
 
@@ -28,6 +31,9 @@ const useDeleteTitle = (workId: WorkId) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.publishedBooksCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? TITLE_DELETE_FAILED);
     },
   });
 
