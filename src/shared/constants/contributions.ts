@@ -5,15 +5,15 @@ import { ContributorTypes } from './contributors';
 
 export const getDefaultContribution = (data?: Partial<WorkContribution>): WorkContribution => {
   return {
-    fullName: '',
-    lastName: '',
+    fullName: 'Full Name',
+    lastName: 'Last Name',
     firstName: '',
     id: appConfig.defaultId,
-    contributorId: '',
+    contributorId: appConfig.defaultId,
     type: ContributorTypes.enum.Author,
     isMain: true,
     orderNumber: 1,
-    biography: '',
+    biographies: [],
     orcidId: '',
     website: '',
     affiliations: [],

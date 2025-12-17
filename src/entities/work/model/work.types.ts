@@ -4,7 +4,7 @@ import type { Contribution, WorkFragmentFragment } from '@/gql/graphql';
 import type { AbstractEntity, TitleEntity } from '@/src/shared';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
-import { WorkContribution } from '../../contribution/model/contribution.types';
+import { BiographyDto, WorkContribution } from '../../contribution/model/contribution.types';
 import type { FundingEntity } from '../../funding/model/funding.types';
 import type { LanguageEntity } from '../../language/model/language.types';
 import { PublicationEntity } from '../../publication/model/publication.types';
@@ -33,7 +33,7 @@ import {
 
 export type WorkDto = WorkFragmentFragment & { workRelationId?: string };
 
-export type WorkContributionDto = Partial<Contribution>;
+export type WorkContributionDto = Partial<Omit<Contribution, 'biographies'>> & { biographies: BiographyDto[] };
 
 export type WorkId = string;
 

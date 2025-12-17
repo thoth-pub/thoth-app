@@ -52,13 +52,14 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
     });
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const updateBiography = ({ contributorBiography = '' }: ContributionBiographyForm) => {
     if (!activeContribution) return;
-
-    updateContribution({
-      ...activeContribution,
-      biography: contributorBiography,
-    });
+    // TODO: update the biographies
+    // updateContribution({
+    //   ...activeContribution,
+    //   biography: contributorBiography,
+    // });
   };
 
   const updateOrcid = ({ orcid = '' }: OrcidForm) => {

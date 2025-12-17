@@ -40,7 +40,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     linkedPublishers = [],
     onNamesUpdate,
     onTypeUpdate,
-    onBiographyUpdate,
+    // onBiographyUpdate,
     onOrcidUpdate,
     onWebsiteUrlUpdate,
     onAffiliationsUpdate,
@@ -152,22 +152,24 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     });
   };
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const updateBiography = ({ contributorBiography = '' }: ContributionBiographyForm) => {
     if (!contribution) return;
 
-    if (onBiographyUpdate) {
-      onBiographyUpdate({ contributorBiography });
-      setContribution({
-        ...contribution,
-        biography: contributorBiography,
-      });
-      return;
-    }
+    // TODO: update the biographies
+    // if (onBiographyUpdate) {
+    //   onBiographyUpdate({ contributorBiography });
+    //   setContribution({
+    //     ...contribution,
+    //     biography: contributorBiography,
+    //   });
+    //   return;
+    // }
 
-    updateContribution({
-      ...contribution,
-      biography: contributorBiography,
-    });
+    // updateContribution({
+    //   ...contribution,
+    //   biography: contributorBiography,
+    // });
   };
 
   const updateOrcid = ({ orcid = '' }: OrcidForm) => {

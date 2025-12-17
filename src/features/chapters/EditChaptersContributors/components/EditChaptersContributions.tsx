@@ -63,14 +63,14 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
 
   const handleBiographyUpdate = ({ contributorBiography }: ContributionBiographyForm) => {
     if (!activeContribution || !contributorBiography) return;
-
-    onUpdate(activeContribution.id, {
-      biography: contributorBiography,
-    });
-    update({
-      ...activeContribution,
-      biography: contributorBiography,
-    });
+    // TODO: update the biographies
+    // onUpdate(activeContribution.id, {
+    //   biography: contributorBiography,
+    // });
+    // update({
+    //   ...activeContribution,
+    //   biography: contributorBiography,
+    // });
   };
 
   const handleOrcidUpdate = ({ orcid }: OrcidForm) => {

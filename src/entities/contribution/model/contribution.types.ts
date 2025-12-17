@@ -19,6 +19,13 @@ export type ContributionTypeForm = z.infer<typeof contributorTypeValidationSchem
 
 export type ContributionBiographyForm = z.infer<typeof contributorBiographyValidationSchema>;
 
+export type BiographyEntity = {
+  id: string;
+  canonical: boolean;
+  content: string;
+  localeCode: LocaleCodeType;
+};
+
 export type WorkContribution = {
   fullName: string;
   lastName: string;
@@ -28,15 +35,8 @@ export type WorkContribution = {
   type: ContributionType;
   isMain: boolean;
   orderNumber: number;
-  biography: string;
+  biographies: BiographyEntity[];
   orcidId: string;
   website: string;
   affiliations: AffiliationEntity[];
-};
-
-export type BiographyEntity = {
-  id: string;
-  canonical: boolean;
-  content: string;
-  localeCode: LocaleCodeType;
 };

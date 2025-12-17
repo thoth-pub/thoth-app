@@ -2,7 +2,7 @@ import type { WorkContribution } from '@/src/entities/contribution/model/contrib
 
 export const isAllContributionRecommendationsFilled = (contribution: WorkContribution) => {
   return (
-    !!contribution.biography &&
+    contribution.biographies.length > 0 &&
     !!contribution.fullName &&
     !!contribution.lastName &&
     !!contribution.firstName &&

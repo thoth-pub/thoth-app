@@ -43,7 +43,7 @@ type ContributionsTableRowProps = {
 
 export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
   const {
-    contributor: { id, fullName, type, isMain, orcidId, biography, affiliations },
+    contributor: { id, fullName, type, isMain, orcidId, biographies, affiliations },
     form,
     isEditing,
     isEditable = true,
@@ -55,7 +55,8 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
   } = props;
   const { t } = useTranslation();
 
-  const plainText = removeMd(biography);
+  const canonicalBiography = biographies.find((bio) => bio.canonical)?.content ?? '';
+  const plainText = removeMd(canonicalBiography);
   const truncatedBiography = truncateString(plainText, maxPreviewLength);
 
   return (
@@ -79,7 +80,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
                         <OrchidLogo />
                       </LinkTooltip>
                     )}
-                    {showRecommendations && (!biography || affiliations.length === 0) && <Indicator />}
+                    {showRecommendations && (biographies.length === 0 || affiliations.length === 0) && <Indicator />}
                   </div>
                 </div>
               </TableCell>

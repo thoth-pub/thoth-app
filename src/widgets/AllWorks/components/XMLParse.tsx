@@ -11,7 +11,7 @@ import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 
 import { validateXml } from '@/app/actions/validateXml';
-import { LanguageCode } from '@/gql/graphql';
+import { LanguageCode, LocaleCode } from '@/gql/graphql';
 import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { ContributorService } from '@/src/entities/contributor';
 import { ContributorId } from '@/src/entities/contributor/model/contributor.types';
@@ -659,6 +659,10 @@ export const XMLParse = (props: XMLParseProps) => {
               })
             : null;
 
+          const biographies = biography
+            ? [{ id: defaultId, canonical: true, content: `${biography}`, localeCode: LocaleCode.En }]
+            : [];
+
           const contributionWithNewContributor = getDefaultContribution({
             fullName,
             lastName,
@@ -666,7 +670,7 @@ export const XMLParse = (props: XMLParseProps) => {
             type: role,
             isMain: true,
             orderNumber: 1,
-            biography: biography ? `${biography}` : '',
+            biographies,
             orcidId: orcid ? `${orcid}` : '',
             website: website ? `${website}` : '',
             contributorId: defaultId,
@@ -694,7 +698,7 @@ export const XMLParse = (props: XMLParseProps) => {
               type: role,
               isMain: true,
               orderNumber: 1,
-              biography: biography,
+              biographies,
               orcidId: foundedContributor.orcid,
               website: foundedContributor.website,
               affiliations: affiliation ? [affiliation] : [],

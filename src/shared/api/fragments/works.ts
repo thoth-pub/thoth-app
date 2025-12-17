@@ -58,7 +58,6 @@ export const WORK_FRAGMENT = graphql(`
       contributionType
       mainContribution
       contributionOrdinal
-      biography
       biographies {
         biographyId
         canonical

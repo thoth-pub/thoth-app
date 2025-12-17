@@ -24,14 +24,13 @@ export const findAllSameContributions = (
       const isSameAffiliationsCount = contribution.affiliations.length === currentContribution.affiliations.length;
 
       if (!isSameAffiliations || !isSameAffiliationsCount) return;
-
+      // TODO: check if the biographies are the same
       if (
         contribution.fullName === currentContribution.fullName &&
         contribution.lastName === currentContribution.lastName &&
         contribution.firstName === currentContribution.firstName &&
         contribution.type === currentContribution.type &&
         contribution.isMain === currentContribution.isMain &&
-        contribution.biography === currentContribution.biography &&
         contribution.orcidId === currentContribution.orcidId &&
         contribution.website === currentContribution.website
       ) {

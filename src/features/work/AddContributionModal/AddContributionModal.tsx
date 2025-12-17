@@ -7,8 +7,8 @@ import { useTranslation } from 'react-i18next';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useContributors } from '@/src/entities/contributor';
 import type { ContributorId } from '@/src/entities/contributor/model/contributor.types';
+import { getDefaultContribution } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
-import { ContributorTypes } from '@/src/shared/constants';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
   AddButton,
@@ -22,22 +22,7 @@ import {
   Typography,
 } from '@/src/shared/ui';
 
-const defautlId = appConfig.defaultId;
-
-const defaultContribution = {
-  id: defautlId,
-  type: ContributorTypes.enum.Author,
-  isMain: false,
-  orderNumber: 0,
-  biography: '',
-  orcidId: '',
-  website: '',
-  firstName: '',
-  affiliations: [],
-  fullName: 'Full Name',
-  lastName: 'Last Name',
-  contributorId: defautlId,
-};
+const defaultContribution = getDefaultContribution({ isMain: false });
 
 const AddContributionModal = () => {
   const [searchValue, setSearchValue] = useState('');

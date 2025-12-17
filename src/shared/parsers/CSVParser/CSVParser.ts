@@ -1,7 +1,7 @@
 import CSVFileValidator, { type ValidatorConfig } from 'csv-file-validator';
 import { v4 as uuidv4 } from 'uuid';
 
-import { ContributionType, CurrencyCode, LanguageCode, LocationPlatform } from '@/gql/graphql';
+import { ContributionType, CurrencyCode, LanguageCode, LocaleCode, LocationPlatform } from '@/gql/graphql';
 import { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
@@ -552,6 +552,11 @@ export class CSVParser {
 
       const orderNumber = i + 1;
 
+      const biographies =
+        biography.length > 0
+          ? [{ id: this.defaultId, canonical: true, content: biography, localeCode: LocaleCode.En }]
+          : [];
+
       const contributionWithNewContributor = getDefaultContribution({
         fullName,
         lastName,
@@ -559,7 +564,7 @@ export class CSVParser {
         type: type as ContributionType,
         isMain: true,
         orderNumber,
-        biography: biography || '',
+        biographies,
         orcidId: orcid || '',
         website: website || '',
         contributorId: this.defaultId,
@@ -582,7 +587,7 @@ export class CSVParser {
             type: type as ContributionType,
             isMain: true,
             orderNumber,
-            biography: biography || '',
+            biographies,
             orcidId: foundedContributor.orcid,
             website: foundedContributor.website,
             affiliations: affiliation ? [affiliation] : [],

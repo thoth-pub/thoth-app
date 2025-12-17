@@ -83,7 +83,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
             contributionType,
             mainContribution,
             contributionOrdinal,
-            biography,
+            biographies,
             contributor: { orcid, website = '' },
             affiliations = [],
           }) => ({
@@ -96,7 +96,12 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
             type: contributionType,
             isMain: mainContribution,
             orderNumber: contributionOrdinal,
-            biography: biography ?? '',
+            biographies: biographies.map((bio) => ({
+              id: bio.biographyId,
+              canonical: bio.canonical,
+              content: bio.content,
+              localeCode: bio.localeCode,
+            })),
             orcidId: orcid ? convertOrchidIdToText(orcid) : '',
             website: website ?? '',
             affiliations: affiliations.map(

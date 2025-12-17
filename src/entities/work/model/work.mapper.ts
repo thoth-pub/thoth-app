@@ -130,7 +130,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
             contributionType,
             mainContribution,
             contributionOrdinal,
-            biography,
+            biographies,
             contributor: { orcid, website = '' },
             affiliations = [],
           }) => ({
@@ -143,7 +143,12 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
             type: contributionType,
             isMain: mainContribution,
             orderNumber: contributionOrdinal,
-            biography: biography ?? '',
+            biographies: biographies.map((bio) => ({
+              id: bio.biographyId,
+              canonical: bio.canonical,
+              content: bio.content,
+              localeCode: bio.localeCode,
+            })),
             orcidId: orcid ? convertOrchidIdToText(orcid) : '',
             website: website ?? '',
             affiliations: affiliations.map(
@@ -289,7 +294,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   }
 
   toDtoContribution(entity: WorkContribution): Omit<WorkContributionDto, 'workId'> {
-    const { fullName, lastName, id, contributorId, type, isMain, orderNumber, firstName, biography } = entity;
+    const { fullName, lastName, id, contributorId, type, isMain, orderNumber, firstName, biographies } = entity;
 
     return {
       fullName,
@@ -300,7 +305,12 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       contributionType: type,
       mainContribution: isMain,
       contributionOrdinal: orderNumber,
-      biography: biography && biography.length > 0 ? biography : null,
+      biographies: biographies.map((bio) => ({
+        biographyId: bio.id,
+        canonical: bio.canonical,
+        content: bio.content,
+        localeCode: bio.localeCode,
+      })),
     };
   }
 

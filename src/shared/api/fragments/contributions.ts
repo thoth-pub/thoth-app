@@ -10,7 +10,9 @@ export const CONTRIBUTION_FRAGMENT = graphql(`
     firstName
     contributionType
     contributionOrdinal
-    biography
+    biographies {
+      ...BiographyFragment
+    }
     contributor {
       ...ContributorFragment
     }

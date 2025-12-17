@@ -64,17 +64,22 @@ export class ContributionService {
         contributorId,
         contributionType: data.type,
         mainContribution: data.isMain,
-        biography: data.biography && data.biography.length > 0 ? data.biography : null,
         firstName: data.firstName && data.firstName.length > 0 ? data.firstName : null,
         lastName: data.lastName,
         fullName: data.fullName,
         contributionOrdinal: data.orderNumber,
       },
     });
-    // TODO: create biographies
+
     const shouldCreateAffiliations = data.affiliations.length > 0;
 
     const contribution = response.createContribution;
+
+    const biographiesPromises = data.biographies.map((biography) =>
+      this.createBiography(token, biography, contribution.contributionId),
+    );
+
+    const biographies = await Promise.all(biographiesPromises);
 
     const workContribution = {
       fullName: data.fullName,
@@ -85,7 +90,7 @@ export class ContributionService {
       type: data.type,
       isMain: data.isMain,
       orderNumber: data.orderNumber,
-      biography: data.biography,
+      biographies,
       orcidId: appConfig.validations.orcidPrefix + data.orcidId,
       website: data.website,
       affiliations: [],
@@ -124,12 +129,30 @@ export class ContributionService {
         fullName: data.fullName,
         lastName: data.lastName,
         firstName: data.firstName && data.firstName.length > 0 ? data.firstName : null,
-        biography: data.biography && data.biography.length > 0 ? data.biography : null,
       },
     });
 
+    const biogpraphiesForUpdata = data.biographies;
+
+    const deletedBiographiesPromises: Promise<void>[] = [];
+
+    for (const biography of biogpraphiesForUpdata) {
+      if (isDefaultId(biography.id)) continue;
+
+      deletedBiographiesPromises.push(this.deleteBiography(token, biography.id));
+    }
+
+    await Promise.all(deletedBiographiesPromises);
+
+    const createdBiographiesPromises = biogpraphiesForUpdata.map((biography) =>
+      this.createBiography(token, { ...biography, id: appConfig.defaultId }, data.id),
+    );
+
+    const createdBiographies = await Promise.all(createdBiographiesPromises);
+
     return {
       ...data,
+      biographies: createdBiographies,
     };
   }
 
