@@ -54,6 +54,7 @@ type Documents = {
     "\n  mutation DeleteContact($contactId: Uuid!) {\n    deleteContact(contactId: $contactId) {\n      contactId\n    }\n  }\n": typeof types.DeleteContactDocument,
     "\n  query GetPublishers($publishers: [Uuid!]!, $offset: Int!, $limit: Int) {\n    publishers(publishers: $publishers, offset: $offset, limit: $limit) {\n      ...PublisherFragment\n    }\n  }\n": typeof types.GetPublishersDocument,
     "\n  query GetPublisher($publisherId: Uuid!) {\n    publisher(publisherId: $publisherId) {\n      ...PublisherFragment\n    }\n  }\n": typeof types.GetPublisherDocument,
+    "\n  mutation UpdatePublisher($data: PatchPublisher!) {\n    updatePublisher(data: $data) {\n      ...PublisherFragment\n    }\n  }\n": typeof types.UpdatePublisherDocument,
     "\n  mutation CreateReference($data: NewReference!) {\n    createReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": typeof types.CreateReferenceDocument,
     "\n  mutation UpdateReference($data: PatchReference!) {\n    updateReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": typeof types.UpdateReferenceDocument,
     "\n  mutation DeleteReference($referenceId: Uuid!) {\n    deleteReference(referenceId: $referenceId) {\n      ...ReferenceFragment\n    }\n  }\n": typeof types.DeleteReferenceDocument,
@@ -100,7 +101,7 @@ type Documents = {
     "\n  fragment LocationFragment on Location {\n    canonical\n    fullTextUrl\n    landingPage\n    locationPlatform\n    locationId\n  }\n": typeof types.LocationFragmentFragmentDoc,
     "\n  fragment PriceFragment on Price {\n    unitPrice\n    priceId\n    currencyCode\n  }\n": typeof types.PriceFragmentFragmentDoc,
     "\n  fragment PublicationFragment on Publication {\n    publicationId\n    isbn\n    publicationType\n    updatedAt\n    weight(units: G)\n    width(units: MM)\n    height(units: MM)\n    depth(units: MM)\n    work {\n      doi\n      title\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": typeof types.PublicationFragmentFragmentDoc,
-    "\n  fragment PublisherFragment on Publisher {\n    publisherId\n    publisherName\n    publisherShortname\n    publisherUrl\n    updatedAt\n    contacts {\n      contactId\n      contactType\n      email\n    }\n  }\n": typeof types.PublisherFragmentFragmentDoc,
+    "\n  fragment PublisherFragment on Publisher {\n    publisherId\n    publisherName\n    publisherShortname\n    publisherUrl\n    updatedAt\n    accessibilityReportUrl\n    accessibilityStatement\n    contacts {\n      contactId\n      contactType\n      email\n    }\n  }\n": typeof types.PublisherFragmentFragmentDoc,
     "\n  fragment ReferenceFragment on Reference {\n    doi\n    referenceId\n    referenceOrdinal\n    unstructuredCitation\n    journalTitle\n    articleTitle\n    seriesTitle\n    volumeTitle\n    url\n  }\n": typeof types.ReferenceFragmentFragmentDoc,
     "\n  fragment SubjectFragment on Subject {\n    subjectId\n    subjectCode\n    subjectType\n    subjectOrdinal\n  }\n": typeof types.SubjectFragmentFragmentDoc,
     "\n  fragment TitleFragment on Title {\n    canonical\n    fullTitle\n    localeCode\n    subtitle\n    title\n    titleId\n  }\n": typeof types.TitleFragmentFragmentDoc,
@@ -147,6 +148,7 @@ const documents: Documents = {
     "\n  mutation DeleteContact($contactId: Uuid!) {\n    deleteContact(contactId: $contactId) {\n      contactId\n    }\n  }\n": types.DeleteContactDocument,
     "\n  query GetPublishers($publishers: [Uuid!]!, $offset: Int!, $limit: Int) {\n    publishers(publishers: $publishers, offset: $offset, limit: $limit) {\n      ...PublisherFragment\n    }\n  }\n": types.GetPublishersDocument,
     "\n  query GetPublisher($publisherId: Uuid!) {\n    publisher(publisherId: $publisherId) {\n      ...PublisherFragment\n    }\n  }\n": types.GetPublisherDocument,
+    "\n  mutation UpdatePublisher($data: PatchPublisher!) {\n    updatePublisher(data: $data) {\n      ...PublisherFragment\n    }\n  }\n": types.UpdatePublisherDocument,
     "\n  mutation CreateReference($data: NewReference!) {\n    createReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": types.CreateReferenceDocument,
     "\n  mutation UpdateReference($data: PatchReference!) {\n    updateReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": types.UpdateReferenceDocument,
     "\n  mutation DeleteReference($referenceId: Uuid!) {\n    deleteReference(referenceId: $referenceId) {\n      ...ReferenceFragment\n    }\n  }\n": types.DeleteReferenceDocument,
@@ -193,7 +195,7 @@ const documents: Documents = {
     "\n  fragment LocationFragment on Location {\n    canonical\n    fullTextUrl\n    landingPage\n    locationPlatform\n    locationId\n  }\n": types.LocationFragmentFragmentDoc,
     "\n  fragment PriceFragment on Price {\n    unitPrice\n    priceId\n    currencyCode\n  }\n": types.PriceFragmentFragmentDoc,
     "\n  fragment PublicationFragment on Publication {\n    publicationId\n    isbn\n    publicationType\n    updatedAt\n    weight(units: G)\n    width(units: MM)\n    height(units: MM)\n    depth(units: MM)\n    work {\n      doi\n      title\n      imprint {\n        publisher {\n          publisherName\n        }\n      }\n    }\n  }\n": types.PublicationFragmentFragmentDoc,
-    "\n  fragment PublisherFragment on Publisher {\n    publisherId\n    publisherName\n    publisherShortname\n    publisherUrl\n    updatedAt\n    contacts {\n      contactId\n      contactType\n      email\n    }\n  }\n": types.PublisherFragmentFragmentDoc,
+    "\n  fragment PublisherFragment on Publisher {\n    publisherId\n    publisherName\n    publisherShortname\n    publisherUrl\n    updatedAt\n    accessibilityReportUrl\n    accessibilityStatement\n    contacts {\n      contactId\n      contactType\n      email\n    }\n  }\n": types.PublisherFragmentFragmentDoc,
     "\n  fragment ReferenceFragment on Reference {\n    doi\n    referenceId\n    referenceOrdinal\n    unstructuredCitation\n    journalTitle\n    articleTitle\n    seriesTitle\n    volumeTitle\n    url\n  }\n": types.ReferenceFragmentFragmentDoc,
     "\n  fragment SubjectFragment on Subject {\n    subjectId\n    subjectCode\n    subjectType\n    subjectOrdinal\n  }\n": types.SubjectFragmentFragmentDoc,
     "\n  fragment TitleFragment on Title {\n    canonical\n    fullTitle\n    localeCode\n    subtitle\n    title\n    titleId\n  }\n": types.TitleFragmentFragmentDoc,
@@ -374,6 +376,10 @@ export function graphql(source: "\n  query GetPublishers($publishers: [Uuid!]!, 
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query GetPublisher($publisherId: Uuid!) {\n    publisher(publisherId: $publisherId) {\n      ...PublisherFragment\n    }\n  }\n"): (typeof documents)["\n  query GetPublisher($publisherId: Uuid!) {\n    publisher(publisherId: $publisherId) {\n      ...PublisherFragment\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdatePublisher($data: PatchPublisher!) {\n    updatePublisher(data: $data) {\n      ...PublisherFragment\n    }\n  }\n"): (typeof documents)["\n  mutation UpdatePublisher($data: PatchPublisher!) {\n    updatePublisher(data: $data) {\n      ...PublisherFragment\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -561,7 +567,7 @@ export function graphql(source: "\n  fragment PublicationFragment on Publication
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  fragment PublisherFragment on Publisher {\n    publisherId\n    publisherName\n    publisherShortname\n    publisherUrl\n    updatedAt\n    contacts {\n      contactId\n      contactType\n      email\n    }\n  }\n"): (typeof documents)["\n  fragment PublisherFragment on Publisher {\n    publisherId\n    publisherName\n    publisherShortname\n    publisherUrl\n    updatedAt\n    contacts {\n      contactId\n      contactType\n      email\n    }\n  }\n"];
+export function graphql(source: "\n  fragment PublisherFragment on Publisher {\n    publisherId\n    publisherName\n    publisherShortname\n    publisherUrl\n    updatedAt\n    accessibilityReportUrl\n    accessibilityStatement\n    contacts {\n      contactId\n      contactType\n      email\n    }\n  }\n"): (typeof documents)["\n  fragment PublisherFragment on Publisher {\n    publisherId\n    publisherName\n    publisherShortname\n    publisherUrl\n    updatedAt\n    accessibilityReportUrl\n    accessibilityStatement\n    contacts {\n      contactId\n      contactType\n      email\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

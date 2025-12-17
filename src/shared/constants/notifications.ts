@@ -79,4 +79,5 @@ export const NOTIFICATIONS = {
   PUBLISHER_CONTACT_CREATION_FAILED: 'Failed to create publisher contact',
   PUBLISHER_CONTACT_DELETION_FAILED: 'Failed to delete publisher contact',
   PUBLISHER_CONTACT_UPDATE_FAILED: 'Failed to update publisher contact',
+  PUBLISHER_UPDATE_FAILED: 'Failed to update publisher',
 } as const;

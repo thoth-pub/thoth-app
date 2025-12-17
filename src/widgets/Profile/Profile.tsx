@@ -1,6 +1,6 @@
 import { Typography } from '@mui/material';
 
-import { EditContact } from '@/src/entities/publisher';
+import { EditContact, EditReport, EditStatement } from '@/src/entities/publisher';
 import { InputLabel } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
@@ -24,6 +24,8 @@ const Profile = () => {
           Accessibility
         </Typography>
         <EditContact />
+        <EditReport />
+        <EditStatement />
       </ContentSection>
     </>
   );

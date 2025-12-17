@@ -4,7 +4,16 @@ import type { ContactDto, ContactEntity, PublisherDto, PublisherEntity } from '.
 
 export class PublisherDtoMapper implements BaseMapper<PublisherEntity, PublisherDto> {
   toEntity(dto: PublisherDto): PublisherEntity {
-    const { publisherId, publisherName, publisherShortname, publisherUrl, updatedAt, contacts } = dto;
+    const {
+      publisherId,
+      publisherName,
+      publisherShortname,
+      publisherUrl,
+      updatedAt,
+      contacts,
+      accessibilityReportUrl,
+      accessibilityStatement,
+    } = dto;
 
     return {
       id: publisherId,
@@ -12,19 +21,22 @@ export class PublisherDtoMapper implements BaseMapper<PublisherEntity, Publisher
       shortName: publisherShortname ?? '',
       url: publisherUrl ?? '',
       updatedAt,
+      accessibilityReportUrl: accessibilityReportUrl ?? '',
+      accessibilityStatement: accessibilityStatement ?? '',
       contacts: contacts.map((contact) => this.toEntityContact(contact)),
     };
   }
 
-  toDto(entity: PublisherEntity): Partial<PublisherDto> {
-    const { id, name, shortName, url, updatedAt } = entity;
+  toDto(entity: PublisherEntity): Omit<PublisherDto, 'contacts' | 'updatedAt'> {
+    const { id, name, shortName, url, accessibilityReportUrl, accessibilityStatement } = entity;
 
     return {
       publisherId: id,
       publisherName: name,
       publisherShortname: shortName,
       publisherUrl: url,
-      updatedAt,
+      accessibilityReportUrl: accessibilityReportUrl.length > 0 ? accessibilityReportUrl : null,
+      accessibilityStatement: accessibilityStatement.length > 0 ? accessibilityStatement : null,
     };
   }
 

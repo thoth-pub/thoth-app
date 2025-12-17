@@ -565,6 +565,18 @@ export const FORM_FIELDS = {
     placeholder: 'Contact',
     type: InputTypes.TEXT,
   },
+  PUBLISHER_REPORT: {
+    label: 'Report',
+    name: 'report',
+    placeholder: 'Report',
+    type: InputTypes.TEXT,
+  },
+  PUBLISHER_STATEMENT: {
+    label: 'Statement',
+    name: 'statement',
+    placeholder: 'Statement',
+    type: InputTypes.TEXT,
+  },
 } as const;
 
 export const workStatusOptions = [

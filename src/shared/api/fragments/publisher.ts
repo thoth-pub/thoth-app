@@ -7,6 +7,8 @@ export const PUBLISHER_FRAGMENT = graphql(`
     publisherShortname
     publisherUrl
     updatedAt
+    accessibilityReportUrl
+    accessibilityStatement
     contacts {
       contactId
       contactType

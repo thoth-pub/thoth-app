@@ -15,3 +15,11 @@ export const GET_PUBLISHER = graphql(`
     }
   }
 `);
+
+export const UPDATE_PUBLISHER = graphql(`
+  mutation UpdatePublisher($data: PatchPublisher!) {
+    updatePublisher(data: $data) {
+      ...PublisherFragment
+    }
+  }
+`);

@@ -56,4 +56,6 @@ export const IDs = {
   SERIES_IMPRINT: 'series_imprint',
   // PUBLISHERS
   PUBLISHER_CONTACT: 'publisher_contact',
+  PUBLISHER_REPORT: 'publisher_report',
+  PUBLISHER_STATEMENT: 'publisher_statement',
 } as const;

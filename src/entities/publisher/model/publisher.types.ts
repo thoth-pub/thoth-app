@@ -3,13 +3,23 @@ import z from 'zod';
 import type { Contact, Publisher } from '@/gql/graphql';
 import type { ContactType } from '@/src/shared';
 
-import { publisherContactValidationSchema } from './publisher.validation';
+import {
+  publisherContactValidationSchema,
+  publisherReportValidationSchema,
+  publisherStatementValidationSchema,
+} from './publisher.validation';
 
 export type ContactDto = Pick<Contact, 'contactId' | 'contactType' | 'email'>;
 
 export type PublisherDto = Pick<
   Publisher,
-  'publisherId' | 'publisherName' | 'publisherShortname' | 'publisherUrl' | 'updatedAt'
+  | 'publisherId'
+  | 'publisherName'
+  | 'publisherShortname'
+  | 'publisherUrl'
+  | 'updatedAt'
+  | 'accessibilityReportUrl'
+  | 'accessibilityStatement'
 > & {
   contacts: ContactDto[];
 };
@@ -32,7 +42,13 @@ export type PublisherEntity = {
   shortName: string;
   url: string;
   updatedAt: string;
+  accessibilityReportUrl: string;
+  accessibilityStatement: string;
   contacts: ContactEntity[];
 };
 
 export type PublisherContactForm = z.infer<typeof publisherContactValidationSchema>;
+
+export type PublisherReportForm = z.infer<typeof publisherReportValidationSchema>;
+
+export type PublisherStatementForm = z.infer<typeof publisherStatementValidationSchema>;

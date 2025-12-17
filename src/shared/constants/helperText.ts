@@ -53,4 +53,7 @@ export const HELPER_TEXT = {
   REFERENCE_URL: 'Enter the URL of the reference.',
   REFERENCE_CITATION: 'Enter the citation of the reference.',
   PUBLISHER_CONTACT: 'Choose the contact of the publisher.',
+  PUBLISHER_REPORT:
+    'Enter the accessibility report or accessibility report URL of the publisher for readers with impairments.',
+  PUBLISHER_STATEMENT: 'Enter the accessibility statement of the publisher for readers with impairments.',
 };
