@@ -1,4 +1,5 @@
 export * from './affiliations';
+export * from './biography';
 export * from './contributions';
 export * from './contributors';
 export * from './fundings';

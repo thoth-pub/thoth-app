@@ -59,6 +59,12 @@ export const WORK_FRAGMENT = graphql(`
       mainContribution
       contributionOrdinal
       biography
+      biographies {
+        biographyId
+        canonical
+        content
+        localeCode
+      }
       contributor {
         orcid
         website

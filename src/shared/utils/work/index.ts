@@ -1,3 +1,4 @@
+import type { BiographyEntity } from '@/src/entities/contribution/model/contribution.types';
 import type { WorkEntity, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
@@ -143,6 +144,31 @@ export const isMarkdown = (text: string): boolean => {
   return markdownPatterns.some((pattern) => pattern.test(text));
 };
 
+export const isHtmlText = (text: string): boolean => {
+  const htmlTags = [
+    '<p>',
+    '<br>',
+    '<ul>',
+    '<ol>',
+    '<li>',
+    '<a>',
+    '<img>',
+    '<strong>',
+    '<em>',
+    '<blockquote>',
+    '<code>',
+    '<pre>',
+    '<hr>',
+    '<table>',
+    '<tr>',
+    '<td>',
+    '<th>',
+    '<span>',
+  ];
+
+  return htmlTags.some((tag) => text.includes(tag));
+};
+
 export const getTitleMarkupFormat = (title: TitleEntity): MarkdownFormat => {
   const { fullTitle } = title;
 
@@ -168,27 +194,30 @@ export const getTitleMarkupFormat = (title: TitleEntity): MarkdownFormat => {
 export const getAbstractMarkupFormat = (abstract: AbstractEntity): MarkdownFormat => {
   const { content } = abstract;
 
-  const hasJatsXml = content.includes('<abstract>');
-  const hasHtml = [
-    '<p>',
-    '<br>',
-    '<ul>',
-    '<ol>',
-    '<li>',
-    '<a>',
-    '<img>',
-    '<strong>',
-    '<em>',
-    '<blockquote>',
-    '<code>',
-    '<pre>',
-    '<hr>',
-    '<table>',
-    '<tr>',
-    '<td>',
-    '<th>',
-    '<span>',
-  ].some((tag) => content.includes(tag));
+  const hasJatsXml = content.startsWith('<abstract>');
+  const hasHtml = isHtmlText(content);
+  const hasMarkdown = isMarkdown(content);
+
+  if (hasJatsXml) {
+    return MarkdownFormats.enum.JATS_XML;
+  }
+
+  if (hasHtml) {
+    return MarkdownFormats.enum.HTML;
+  }
+
+  if (hasMarkdown) {
+    return MarkdownFormats.enum.MARKDOWN;
+  }
+
+  return MarkdownFormats.enum.PLAIN_TEXT;
+};
+
+export const getBiographyMarkupFormat = (biography: BiographyEntity): MarkdownFormat => {
+  const { content } = biography;
+
+  const hasJatsXml = content.startsWith('<bio>');
+  const hasHtml = isHtmlText(content);
   const hasMarkdown = isMarkdown(content);
 
   if (hasJatsXml) {

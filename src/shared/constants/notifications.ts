@@ -80,4 +80,8 @@ export const NOTIFICATIONS = {
   PUBLISHER_CONTACT_DELETION_FAILED: 'Failed to delete publisher contact',
   PUBLISHER_CONTACT_UPDATE_FAILED: 'Failed to update publisher contact',
   PUBLISHER_UPDATE_FAILED: 'Failed to update publisher',
+  // Biographies
+  BIOGRAPHY_CREATION_FAILED: 'Failed to create biography',
+  BIOGRAPHY_UPDATE_FAILED: 'Failed to update biography',
+  BIOGRAPHY_DELETE_FAILED: 'Failed to delete biography',
 } as const;

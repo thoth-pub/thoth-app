@@ -1,6 +1,7 @@
 import z from 'zod';
 
-import { ContributionType } from '@/gql/graphql';
+import { Biography, ContributionType } from '@/gql/graphql';
+import { LocaleCodeType } from '@/src/shared';
 
 import { AffiliationEntity } from '../../affiliation/model/affiliation.types';
 import { ContributorId } from '../../contributor/model/contributor.types';
@@ -9,6 +10,8 @@ import {
   contributorTypeValidationSchema,
   namesFormValidationSchema,
 } from './contribution.validation';
+
+export type BiographyDto = Pick<Biography, 'biographyId' | 'canonical' | 'content' | 'localeCode'>;
 
 export type ContributionNamesForm = z.infer<typeof namesFormValidationSchema>;
 
@@ -29,4 +32,11 @@ export type WorkContribution = {
   orcidId: string;
   website: string;
   affiliations: AffiliationEntity[];
+};
+
+export type BiographyEntity = {
+  id: string;
+  canonical: boolean;
+  content: string;
+  localeCode: LocaleCodeType;
 };

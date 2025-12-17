@@ -32,3 +32,27 @@ export const MOVE_CONTRIBUTION = graphql(`
     }
   }
 `);
+
+export const CREATE_BIOGRAPHY = graphql(`
+  mutation CreateBiography($data: NewBiography!) {
+    createBiography(data: $data) {
+      ...BiographyFragment
+    }
+  }
+`);
+
+export const UPDATE_BIOGRAPHY = graphql(`
+  mutation UpdateBiography($data: PatchBiography!) {
+    updateBiography(data: $data) {
+      ...BiographyFragment
+    }
+  }
+`);
+
+export const DELETE_BIOGRAPHY = graphql(`
+  mutation DeleteBiography($biographyId: Uuid!) {
+    deleteBiography(biographyId: $biographyId) {
+      ...BiographyFragment
+    }
+  }
+`);
