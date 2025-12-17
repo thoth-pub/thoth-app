@@ -1,4 +1,5 @@
 import {
+  ContactTypes,
   ERRORS,
   LanguageTypeAlt,
   LengthUnit,
@@ -557,6 +558,12 @@ export const FORM_FIELDS = {
     name: 'templateUpload',
     placeholder: 'Template Upload',
     type: InputTypes.FILE,
+  },
+  PUBLISHER_CONTACT: {
+    label: 'Contact',
+    name: 'contact',
+    placeholder: 'Contact',
+    type: InputTypes.TEXT,
   },
 } as const;
 
@@ -2541,3 +2548,5 @@ export const seriesOrderByOptions = [
   { value: FILTER_SERIES_ORDER_BY_OPTIONS.enum.UPDATED_AT, label: 'Updated At' },
   { value: FILTER_SERIES_ORDER_BY_OPTIONS.enum.CREATED_AT, label: 'Created At' },
 ];
+
+export const contactTypeOptions = [{ value: ContactTypes.enum.Accessibility, label: 'Accessibility' }];

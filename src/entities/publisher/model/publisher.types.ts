@@ -1,13 +1,30 @@
-import type { Publisher } from '@/gql/graphql';
+import z from 'zod';
+
+import type { Contact, Publisher } from '@/gql/graphql';
+import type { ContactType } from '@/src/shared';
+
+import { publisherContactValidationSchema } from './publisher.validation';
+
+export type ContactDto = Pick<Contact, 'contactId' | 'contactType' | 'email'>;
 
 export type PublisherDto = Pick<
   Publisher,
   'publisherId' | 'publisherName' | 'publisherShortname' | 'publisherUrl' | 'updatedAt'
->;
+> & {
+  contacts: ContactDto[];
+};
 
 export type PublisherId = string;
 
+export type ContactId = string;
+
 export type AuthorizedPublisher = PublisherEntity & { isAdmin: boolean };
+
+export type ContactEntity = {
+  id: ContactId;
+  type: ContactType;
+  email: string;
+};
 
 export type PublisherEntity = {
   id: PublisherId;
@@ -15,4 +32,7 @@ export type PublisherEntity = {
   shortName: string;
   url: string;
   updatedAt: string;
+  contacts: ContactEntity[];
 };
+
+export type PublisherContactForm = z.infer<typeof publisherContactValidationSchema>;

@@ -52,4 +52,5 @@ export const HELPER_TEXT = {
   PROJECT_SHORTNAME: 'Enter the project shortname of the funding.',
   REFERENCE_URL: 'Enter the URL of the reference.',
   REFERENCE_CITATION: 'Enter the citation of the reference.',
+  PUBLISHER_CONTACT: 'Choose the contact of the publisher.',
 };

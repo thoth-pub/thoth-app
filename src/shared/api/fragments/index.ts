@@ -5,6 +5,7 @@ export * from './fundings';
 export * from './languages';
 export * from './price';
 export * from './publications';
+export * from './publisher';
 export * from './references';
 export * from './subject';
 export * from './works';

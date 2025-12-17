@@ -5,6 +5,7 @@ import z from 'zod';
 
 import { appConfig } from '@/src/shared/config';
 import {
+  ContactTypes,
   ContributorTypes,
   CurrencyCode,
   ERRORS,
@@ -72,6 +73,7 @@ export const currencyCodeValidation = z.enum(CurrencyCode.enum);
 export const locationPlatformValidation = z.enum(LocationPlatforms.enum);
 export const subjectTypeValidation = z.enum(SubjectTypes.enum);
 export const seriesTypeValidation = z.enum(SeriesType.enum);
+export const contactTypeValidation = z.enum(ContactTypes.enum);
 
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });

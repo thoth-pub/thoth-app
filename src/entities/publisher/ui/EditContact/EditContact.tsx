@@ -1,0 +1,101 @@
+'use client';
+
+import { appConfig, ContactTypes, convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
+import { contactTypeOptions, FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { useUserEmail } from '@/src/shared/hooks';
+import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import {
+  ContentWrapper,
+  DeleteButton,
+  FormFieldLabel,
+  FormFieldWithControlsWrapper,
+  FormTextField,
+  Preview,
+} from '@/src/shared/ui';
+import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+
+import useCreateContact from '../../api/hooks/useCreateContact';
+import useDeleteContact from '../../api/hooks/useDeleteContact';
+import usePublisher from '../../api/hooks/usePublisher';
+import type { PublisherContactForm } from '../../model/publisher.types';
+import { publisherContactValidationSchema } from '../../model/publisher.validation';
+import usePublisherStateMachine from '../../store/hooks/usePublisherStateMachine';
+
+const { PUBLISHER_CONTACT } = FORM_FIELDS;
+
+const { PUBLISHER_CONTACT: PUBLISHER_CONTACT_HELPER_TEXT } = HELPER_TEXT;
+
+const EditContact = () => {
+  const { activePublisher } = usePublisherStateMachine();
+  const publisherId = activePublisher ?? '';
+  const { publisher } = usePublisher(publisherId);
+  // TODO: change email logic after auth update
+  const email = useUserEmail();
+  const { createContact } = useCreateContact(publisherId);
+  const { deleteContact } = useDeleteContact(publisherId);
+  const { close } = useFormStateMachine();
+
+  if (!activePublisher || !publisher) return null;
+
+  const existingOptions = ContactTypes.options;
+  const defaultValue = publisher.contacts.find((contact) => existingOptions.includes(contact.type))?.type;
+
+  const handleSubmit = (data: PublisherContactForm) => {
+    const { contact } = data;
+
+    const existingContact = publisher.contacts.find(({ type }) => type === contact);
+
+    if (existingContact) return;
+
+    createContact({ data: { type: contact, email, id: appConfig.defaultId }, publisherId: activePublisher });
+  };
+
+  const handleDelete = () => {
+    if (!defaultValue) return;
+
+    const existingContact = publisher.contacts.find(({ type }) => type === defaultValue);
+
+    if (!existingContact) return;
+
+    deleteContact(existingContact.id);
+    close();
+  };
+
+  return (
+    <EditableContent
+      formId={IDs.PUBLISHER_CONTACT}
+      defaultValues={{ [PUBLISHER_CONTACT.name]: defaultValue }}
+      onSubmit={handleSubmit}
+      validationSchema={publisherContactValidationSchema}
+      formFields={({ control, isHelperTextVisible }) => (
+        <ContentWrapper>
+          <FormFieldLabel label={PUBLISHER_CONTACT.label} id={PUBLISHER_CONTACT.name} />
+          <FormFieldWithControlsWrapper>
+            <FormTextField
+              control={control}
+              name={PUBLISHER_CONTACT.name}
+              select
+              options={contactTypeOptions}
+              id={PUBLISHER_CONTACT.name}
+              helperText={PUBLISHER_CONTACT_HELPER_TEXT}
+              isHelperTextVisible={isHelperTextVisible}
+              fullWidth
+            />
+            <DeleteButton onClick={handleDelete} disabled={!defaultValue} />
+          </FormFieldWithControlsWrapper>
+        </ContentWrapper>
+      )}
+      preview={({ disabled, onEdit }) => (
+        <Preview
+          capitalize
+          label={PUBLISHER_CONTACT.label}
+          value={convertOptionToString(defaultValue ?? '')}
+          disabled={disabled}
+          onEdit={onEdit}
+        />
+      )}
+    />
+  );
+};
+
+export default EditContact;

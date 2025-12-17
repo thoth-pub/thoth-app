@@ -1,4 +1,5 @@
 export * from './abstracts';
+export * from './accessibility';
 export * from './filter';
 export * from './languages';
 export * from './markdown';

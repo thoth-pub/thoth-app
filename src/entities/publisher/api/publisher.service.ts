@@ -1,10 +1,12 @@
+import type { QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublisherDtoMapper } from '../model/publisher.mapper';
-import { GET_PUBLISHERS } from '../model/publisher.schema';
-import type { PublisherDto, PublisherEntity, PublisherId } from '../model/publisher.types';
+import { CREATE_CONTACT, DELETE_CONTACT, UPDATE_CONTACT } from '../model/publisher.mutations';
+import { GET_PUBLISHER, GET_PUBLISHERS } from '../model/publisher.schema';
+import type { ContactEntity, ContactId, PublisherDto, PublisherEntity, PublisherId } from '../model/publisher.types';
 
-export class PublisherService extends BaseService<PublisherEntity, PublisherDto> {
+export class PublisherService extends BaseService<PublisherEntity, PublisherDto, PublisherDtoMapper> {
   constructor(mapper = new PublisherDtoMapper()) {
     super(mapper);
   }
@@ -15,8 +17,54 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto>
       offset: 0,
     });
 
-    const data = publishers.map(this.dtoMapper.toEntity);
+    const data = publishers.map((publisher) => this.dtoMapper.toEntity(publisher as PublisherDto));
 
     return data;
+  }
+
+  async getPublisher(publisherId: PublisherId): Promise<PublisherEntity> {
+    const { publisher } = await this.graphqlService.query(GET_PUBLISHER, {
+      publisherId,
+    });
+
+    const data = this.dtoMapper.toEntity(publisher as PublisherDto);
+
+    return data;
+  }
+
+  async createContact(token: QueryToken, data: ContactEntity, publisherId: PublisherId): Promise<ContactEntity> {
+    const { contactId: _, ...dto } = this.dtoMapper.toDtoContact(data);
+
+    const { createContact } = await this.graphqlService.mutation(token, CREATE_CONTACT, {
+      data: {
+        ...dto,
+        publisherId,
+      },
+    });
+
+    const contact = this.dtoMapper.toEntityContact(createContact);
+
+    return contact;
+  }
+
+  async updateContact(token: QueryToken, data: ContactEntity, publisherId: PublisherId): Promise<ContactEntity> {
+    const dto = this.dtoMapper.toDtoContact(data);
+
+    const { updateContact } = await this.graphqlService.mutation(token, UPDATE_CONTACT, {
+      data: {
+        ...dto,
+        publisherId,
+      },
+    });
+
+    const contact = this.dtoMapper.toEntityContact(updateContact);
+
+    return contact;
+  }
+
+  async deleteContact(token: QueryToken, contactId: ContactId): Promise<void> {
+    await this.graphqlService.mutation(token, DELETE_CONTACT, {
+      contactId,
+    });
   }
 }

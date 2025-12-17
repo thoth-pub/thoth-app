@@ -54,4 +54,6 @@ export const IDs = {
   SERIES_URL: 'series_url',
   SERIES_DESCRIPTION: 'series_description',
   SERIES_IMPRINT: 'series_imprint',
+  // PUBLISHERS
+  PUBLISHER_CONTACT: 'publisher_contact',
 } as const;
