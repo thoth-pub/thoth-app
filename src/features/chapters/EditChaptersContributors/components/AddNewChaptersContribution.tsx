@@ -23,7 +23,7 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
 
   const queryClient = useQueryClient();
 
-  const { createContribution } = useCreateContribution({});
+  const { createContribution } = useCreateContribution();
 
   const { contributor } = useContributor({ contributorId: activeContribution?.contributorId });
   const { updateContributor } = useUpdateContributor({

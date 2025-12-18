@@ -14,6 +14,7 @@ import {
   UPDATE_BIOGRAPHY,
   UPDATE_CONTRIBUTION,
 } from '../model/contribution.mutations';
+import { GET_CONTRIBUTION_BIOGRAPHIES } from '../model/contribution.schema';
 import { BiographyDto, BiographyEntity, WorkContribution } from '../model/contribution.types';
 
 // TODO: create a mapper for the contribution
@@ -131,28 +132,27 @@ export class ContributionService {
         firstName: data.firstName && data.firstName.length > 0 ? data.firstName : null,
       },
     });
+    // TODO: check if we need this logic for bio
+    // const biogpraphiesForUpdata = data.biographies;
 
-    const biogpraphiesForUpdata = data.biographies;
+    // const deletedBiographiesPromises: Promise<void>[] = [];
 
-    const deletedBiographiesPromises: Promise<void>[] = [];
+    // for (const biography of biogpraphiesForUpdata) {
+    //   if (isDefaultId(biography.id)) continue;
 
-    for (const biography of biogpraphiesForUpdata) {
-      if (isDefaultId(biography.id)) continue;
+    //   deletedBiographiesPromises.push(this.deleteBiography(token, biography.id));
+    // }
 
-      deletedBiographiesPromises.push(this.deleteBiography(token, biography.id));
-    }
+    // await Promise.all(deletedBiographiesPromises);
 
-    await Promise.all(deletedBiographiesPromises);
+    // const createdBiographiesPromises = biogpraphiesForUpdata.map((biography) =>
+    //   this.createBiography(token, { ...biography, id: appConfig.defaultId }, data.id),
+    // );
 
-    const createdBiographiesPromises = biogpraphiesForUpdata.map((biography) =>
-      this.createBiography(token, { ...biography, id: appConfig.defaultId }, data.id),
-    );
-
-    const createdBiographies = await Promise.all(createdBiographiesPromises);
+    // const createdBiographies = await Promise.all(createdBiographiesPromises);
 
     return {
       ...data,
-      biographies: createdBiographies,
     };
   }
 
@@ -164,13 +164,19 @@ export class ContributionService {
     await this.graphqlService.mutation(token, MOVE_CONTRIBUTION, { contributionId, newOrdinal });
   }
 
+  async getContribution(contributionId: string) {
+    const response = await this.graphqlService.query(GET_CONTRIBUTION_BIOGRAPHIES, { contributionId });
+
+    return response.contribution;
+  }
+
   async createBiography(
     token: QueryToken,
     data: BiographyEntity,
     contributionId: ContributionId,
   ): Promise<BiographyEntity> {
     const {
-      dto: { biographyId: _, ...dto },
+      dto: { biographyId: _, contributionId: _contributionId, ...dto },
       markupFormat,
     } = this.biographyDtoMapper.toDto(data);
 
@@ -184,16 +190,11 @@ export class ContributionService {
     return biography;
   }
 
-  async updateBiography(
-    token: QueryToken,
-    data: BiographyEntity,
-    contributionId: ContributionId,
-  ): Promise<BiographyEntity> {
+  async updateBiography(token: QueryToken, data: BiographyEntity): Promise<BiographyEntity> {
     const { dto, markupFormat } = this.biographyDtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, UPDATE_BIOGRAPHY, {
       data: {
-        contributionId,
         ...dto,
       },
       markupFormat,

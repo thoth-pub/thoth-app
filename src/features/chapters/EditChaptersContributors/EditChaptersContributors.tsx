@@ -68,7 +68,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
   const uniqueContributors = useMemo(() => {
     const uniqueContributors: WorkContribution[] = [];
-    // TODO: check if the biographies are the same
+
     chapters.forEach(({ contributions }) => {
       contributions.forEach((contribution) => {
         const existingContributor = uniqueContributors.find(
@@ -79,7 +79,14 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
             contributor.firstName === contribution.firstName &&
             contributor.type === contribution.type &&
             contributor.isMain === contribution.isMain &&
-            contributor.website === contribution.website,
+            contributor.website === contribution.website &&
+            contributor.biographies.every((biography) =>
+              contribution.biographies.some(
+                (contributionBiography) =>
+                  contributionBiography.content === biography.content &&
+                  contributionBiography.localeCode === biography.localeCode,
+              ),
+            ),
         );
 
         if (existingContributor) return;

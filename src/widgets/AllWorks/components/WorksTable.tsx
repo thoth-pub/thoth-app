@@ -52,7 +52,7 @@ export const WorksTable = (props: WorksTableProps) => {
         <TableBody>
           {!loading && works.length === 0 && (
             <TableRow className="!cursor-auto hover:!bg-transparent">
-              <TableCell colSpan={5} className="text-center">
+              <TableCell colSpan={6} className="text-center">
                 <Typography variant="body1" component="span">
                   No books found
                 </Typography>
@@ -61,7 +61,7 @@ export const WorksTable = (props: WorksTableProps) => {
           )}
           {loading ? (
             <TableRow className="!cursor-auto hover:!bg-transparent">
-              <TableCell colSpan={5} className="text-center">
+              <TableCell colSpan={6} className="text-center">
                 <CircularProgress className="my-[10rem]" />
               </TableCell>
             </TableRow>

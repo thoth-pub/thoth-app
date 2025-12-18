@@ -41,6 +41,83 @@ export type Scalars = {
   Uuid: { input: any; output: any; }
 };
 
+/** An abstract associated with a work. */
+export type Abstract = {
+  __typename?: 'Abstract';
+  /** Thoth ID of the abstract */
+  abstractId: Scalars['Uuid']['output'];
+  /** Type of the abstract */
+  abstractType: AbstractType;
+  /** Whether this is the canonical abstract for the work */
+  canonical: Scalars['Boolean']['output'];
+  /** Content of the abstract */
+  content: Scalars['String']['output'];
+  /** Locale code of the abstract */
+  localeCode: LocaleCode;
+  /** Get the work to which the abstract is linked */
+  work: Work;
+  /** Thoth ID of the work to which the abstract is linked */
+  workId: Scalars['Uuid']['output'];
+};
+
+/** Field to use when sorting abstract list */
+export enum AbstractField {
+  AbstractId = 'ABSTRACT_ID',
+  AbstractType = 'ABSTRACT_TYPE',
+  Canonical = 'CANONICAL',
+  Content = 'CONTENT',
+  LocaleCode = 'LOCALE_CODE',
+  WorkId = 'WORK_ID'
+}
+
+/** Field and order to use when sorting titles list */
+export type AbstractOrderBy = {
+  direction: Direction;
+  field: AbstractField;
+};
+
+/** BCP-47 code representing locale */
+export enum AbstractType {
+  /** Long */
+  Long = 'LONG',
+  /** Short */
+  Short = 'SHORT'
+}
+
+/** Reason for publication not being required to comply with accessibility standards */
+export enum AccessibilityException {
+  /** Making the publication accessible would financially overburden the publisher */
+  DisproportionateBurden = 'DISPROPORTIONATE_BURDEN',
+  /** Making the publication accessible would fundamentally modify the nature of it */
+  FundamentalAlteration = 'FUNDAMENTAL_ALTERATION',
+  /** Publisher is a micro-enterprise */
+  MicroEnterprises = 'MICRO_ENTERPRISES'
+}
+
+/** Standardised specification for accessibility to which a publication may conform */
+export enum AccessibilityStandard {
+  /** EPUB Accessibility Specification 1.0 AA */
+  EpubA11Y10Aa = 'EPUB_A11Y10AA',
+  /** EPUB Accessibility Specification 1.0 AAA */
+  EpubA11Y10Aaa = 'EPUB_A11Y10AAA',
+  /** EPUB Accessibility Specification 1.1 AA */
+  EpubA11Y11Aa = 'EPUB_A11Y11AA',
+  /** EPUB Accessibility Specification 1.1 AAA */
+  EpubA11Y11Aaa = 'EPUB_A11Y11AAA',
+  /** PDF/UA-1 */
+  PdfUa1 = 'PDF_UA1',
+  /** PDF/UA-2 */
+  PdfUa2 = 'PDF_UA2',
+  /** WCAG 2.1 AA */
+  Wcag21Aa = 'WCAG21AA',
+  /** WCAG 2.1 AAA */
+  Wcag21Aaa = 'WCAG21AAA',
+  /** WCAG 2.2 AA */
+  Wcag22Aa = 'WCAG22AA',
+  /** WCAG 2.2 AAA */
+  Wcag22Aaa = 'WCAG22AAA'
+}
+
 /** An association between a person and an institution for a specific contribution. */
 export type Affiliation = {
   __typename?: 'Affiliation';
@@ -81,12 +158,92 @@ export type AffiliationOrderBy = {
   field: AffiliationField;
 };
 
+/** A biography associated with a work and contribution. */
+export type Biography = {
+  __typename?: 'Biography';
+  /** Thoth ID of the biography */
+  biographyId: Scalars['Uuid']['output'];
+  /** Whether this is the canonical biography for the contribution/work */
+  canonical: Scalars['Boolean']['output'];
+  /** Content of the biography */
+  content: Scalars['String']['output'];
+  /** Get the contribution to which the biography is linked */
+  contribution: Contribution;
+  /** Thoth ID of the contribution to which the biography is linked */
+  contributionId: Scalars['Uuid']['output'];
+  /** Locale code of the biography */
+  localeCode: LocaleCode;
+  /** Get the work to which the biography is linked via contribution */
+  work: Work;
+};
+
+/** Field to use when sorting biography list */
+export enum BiographyField {
+  BiographyId = 'BIOGRAPHY_ID',
+  Canonical = 'CANONICAL',
+  Content = 'CONTENT',
+  ContributionId = 'CONTRIBUTION_ID',
+  LocaleCode = 'LOCALE_CODE'
+}
+
+/** Field and order to use when sorting biography list */
+export type BiographyOrderBy = {
+  direction: Direction;
+  field: BiographyField;
+};
+
+/** A way to get in touch with a publisher. */
+export type Contact = {
+  __typename?: 'Contact';
+  /** Thoth ID of the contact */
+  contactId: Scalars['Uuid']['output'];
+  /** Type of the contact */
+  contactType: ContactType;
+  /** Date and time at which the contact record was created */
+  createdAt: Scalars['Timestamp']['output'];
+  /** Email address of the contact */
+  email: Scalars['String']['output'];
+  /** Get the publisher to which this contact belongs */
+  publisher: Publisher;
+  /** Thoth ID of the publisher to which this contact belongs */
+  publisherId: Scalars['Uuid']['output'];
+  /** Date and time at which the contact record was last updated */
+  updatedAt: Scalars['Timestamp']['output'];
+};
+
+/** Field to use when sorting contacts list */
+export enum ContactField {
+  ContactId = 'CONTACT_ID',
+  ContactType = 'CONTACT_TYPE',
+  CreatedAt = 'CREATED_AT',
+  Email = 'EMAIL',
+  PublisherId = 'PUBLISHER_ID',
+  UpdatedAt = 'UPDATED_AT'
+}
+
+/** Field and order to use when sorting contacts list */
+export type ContactOrderBy = {
+  direction: Direction;
+  field: ContactField;
+};
+
+/** Type of a contact */
+export enum ContactType {
+  /** Contact for accessibility queries */
+  Accessibility = 'ACCESSIBILITY'
+}
+
 /** A person's involvement in the production of a written text. */
 export type Contribution = {
   __typename?: 'Contribution';
   /** Get affiliations linked to this contribution */
   affiliations: Array<Affiliation>;
-  /** Biography of the contributor at the time of contribution */
+  /** Query the full list of biographies */
+  biographies: Array<Biography>;
+  /**
+   * Biography of the contributor at the time of contribution
+   * @deprecated Please use Contribution `biographies` field instead to get the correct biography in a multilingual manner
+   */
   biography?: Maybe<Scalars['String']['output']>;
   /** Thoth ID of the contribution */
   contributionId: Scalars['Uuid']['output'];
@@ -122,6 +279,17 @@ export type ContributionAffiliationsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   order?: InputMaybe<AffiliationOrderBy>;
+};
+
+
+/** A person's involvement in the production of a written text. */
+export type ContributionBiographiesArgs = {
+  filter?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  localeCodes?: InputMaybe<Array<LocaleCode>>;
+  markupFormat?: InputMaybe<MarkupFormat>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order?: InputMaybe<BiographyOrderBy>;
 };
 
 /** Field to use when sorting contributions list */
@@ -2588,6 +2756,1218 @@ export enum LengthUnit {
   Mm = 'MM'
 }
 
+/** BCP-47 code representing locale */
+export enum LocaleCode {
+  /** Afrikaans (af) */
+  Af = 'AF',
+  /** Afrikaans (Namibia) (af-NA) */
+  AfNa = 'AF_NA',
+  /** Afrikaans (South Africa) (af-ZA) */
+  AfZa = 'AF_ZA',
+  /** Aghem (agq) */
+  Agq = 'AGQ',
+  /** Aghem (Cameroon) (agq-CM) */
+  AgqCm = 'AGQ_CM',
+  /** Antigua and Barbuda Creole English */
+  Aig = 'AIG',
+  /** Akan (ak) */
+  Ak = 'AK',
+  /** Akan (Ghana) (ak-GH) */
+  AkGh = 'AK_GH',
+  /** Amharic (am) */
+  Am = 'AM',
+  /** Amharic (Ethiopia) (am-ET) */
+  AmEt = 'AM_ET',
+  /** Arabic (ar) */
+  Ar = 'AR',
+  /** Arabic (World) (ar-001) */
+  Ar001 = 'AR001',
+  /** Arabic (United Arab Emirates) (ar-AE) */
+  ArAe = 'AR_AE',
+  /** Arabic (Bahrain) (ar-BH) */
+  ArBh = 'AR_BH',
+  /** Arabic (Algeria) (ar-DZ) */
+  ArDz = 'AR_DZ',
+  /** Arabic (Egypt) (ar-EG) */
+  ArEg = 'AR_EG',
+  /** Arabic (Iraq) (ar-IQ) */
+  ArIq = 'AR_IQ',
+  /** Arabic (Jordan) (ar-JO) */
+  ArJo = 'AR_JO',
+  /** Arabic (Kuwait) (ar-KW) */
+  ArKw = 'AR_KW',
+  /** Arabic (Lebanon) (ar-LB) */
+  ArLb = 'AR_LB',
+  /** Arabic (Libya) (ar-LY) */
+  ArLy = 'AR_LY',
+  /** Arabic (Morocco) (ar-MA) */
+  ArMa = 'AR_MA',
+  /** Arabic (Oman) (ar-OM) */
+  ArOm = 'AR_OM',
+  /** Arabic (Qatar) (ar-QA) */
+  ArQa = 'AR_QA',
+  /** Arabic (Saudi Arabia) (ar-SA) */
+  ArSa = 'AR_SA',
+  /** Arabic (Sudan) (ar-SD) */
+  ArSd = 'AR_SD',
+  /** Arabic (Syria) (ar-SY) */
+  ArSy = 'AR_SY',
+  /** Arabic (Tunisia) (ar-TN) */
+  ArTn = 'AR_TN',
+  /** Arabic (Yemen) (ar-YE) */
+  ArYe = 'AR_YE',
+  /** Assamese (as) */
+  As = 'AS',
+  /** Asu (asa) */
+  Asa = 'ASA',
+  /** Asu (Tanzania) (asa-TZ) */
+  AsaTz = 'ASA_TZ',
+  /** Asturian (ast) */
+  Ast = 'AST',
+  /** Asturian (Spain) (ast-ES) */
+  AstEs = 'AST_ES',
+  /** Assamese (India) (as-IN) */
+  AsIn = 'AS_IN',
+  /** Azerbaijani (az) */
+  Az = 'AZ',
+  /** Azerbaijani (Cyrillic) (az-Cyrl) */
+  AzCyrl = 'AZ_CYRL',
+  /** Azerbaijani (Cyrillic, Azerbaijan) (az-Cyrl-AZ) */
+  AzCyrlAz = 'AZ_CYRL_AZ',
+  /** Azerbaijani (Latin) (az-Latn) */
+  AzLatn = 'AZ_LATN',
+  /** Azerbaijani (Latin, Azerbaijan) (az-Latn-AZ) */
+  AzLatnAz = 'AZ_LATN_AZ',
+  /** Bahamas Creole English */
+  Bah = 'BAH',
+  /** Basaa (bas) */
+  Bas = 'BAS',
+  /** Basaa (Cameroon) (bas-CM) */
+  BasCm = 'BAS_CM',
+  /** Belarusian (be) */
+  Be = 'BE',
+  /** Bemba (bem) */
+  Bem = 'BEM',
+  /** Bemba (Zambia) (bem-ZM) */
+  BemZm = 'BEM_ZM',
+  /** Bena (bez) */
+  Bez = 'BEZ',
+  /** Bena (Tanzania) (bez-TZ) */
+  BezTz = 'BEZ_TZ',
+  /** Belarusian (Belarus) (be-BY) */
+  BeBy = 'BE_BY',
+  /** Bulgarian (bg) */
+  Bg = 'BG',
+  /** Bulgarian (Bulgaria) (bg-BG) */
+  BgBg = 'BG_BG',
+  /** Bambara (bm) */
+  Bm = 'BM',
+  /** Bambara (Mali) (bm-ML) */
+  BmMl = 'BM_ML',
+  /** Bengali (bn) */
+  Bn = 'BN',
+  /** Bengali (Bangladesh) (bn-BD) */
+  BnBd = 'BN_BD',
+  /** Bengali (India) (bn-IN) */
+  BnIn = 'BN_IN',
+  /** Tibetan (bo) */
+  Bo = 'BO',
+  /** Tibetan (China) (bo-CN) */
+  BoCn = 'BO_CN',
+  /** Tibetan (India) (bo-IN) */
+  BoIn = 'BO_IN',
+  /** Breton (br) */
+  Br = 'BR',
+  /** Bodo (brx) */
+  Brx = 'BRX',
+  /** Bodo (India) (brx-IN) */
+  BrxIn = 'BRX_IN',
+  /** Breton (France) (br-FR) */
+  BrFr = 'BR_FR',
+  /** Bosnian (bs) */
+  Bs = 'BS',
+  /** Bosnian (Bosnia and Herzegovina) (bs-BA) */
+  BsBa = 'BS_BA',
+  /** Catalan (ca) */
+  Ca = 'CA',
+  /** Catalan (Spain) (ca-ES) */
+  CaEs = 'CA_ES',
+  /** Valencian (Spain Catalan) (ca-ES-valencia) */
+  CaEsValencia = 'CA_ES_VALENCIA',
+  /** Chiga (cgg) */
+  Cgg = 'CGG',
+  /** Chiga (Uganda) (cgg-UG) */
+  CggUg = 'CGG_UG',
+  /** Cherokee (chr) */
+  Chr = 'CHR',
+  /** Cherokee (United States) (chr-US) */
+  ChrUs = 'CHR_US',
+  /** Central Kurdish (ckb) */
+  Ckb = 'CKB',
+  /** Czech (cs) */
+  Cs = 'CS',
+  /** Czech (Czech Republic) (cs-CZ) */
+  CsCz = 'CS_CZ',
+  /** Welsh (cy) */
+  Cy = 'CY',
+  /** Welsh (United Kingdom) (cy-GB) */
+  CyGb = 'CY_GB',
+  /** Danish (da) */
+  Da = 'DA',
+  /** Taita (dav) */
+  Dav = 'DAV',
+  /** Taita (Kenya) (dav-KE) */
+  DavKe = 'DAV_KE',
+  /** Danish (Denmark) (da-DK) */
+  DaDk = 'DA_DK',
+  /** German (de) */
+  De = 'DE',
+  /** German (Austria) (de-AT) */
+  DeAt = 'DE_AT',
+  /** German (Belgium) (de-BE) */
+  DeBe = 'DE_BE',
+  /** German (Switzerland) (de-CH) */
+  DeCh = 'DE_CH',
+  /** German (Germany) (de-DE) */
+  DeDe = 'DE_DE',
+  /** German (Liechtenstein) (de-LI) */
+  DeLi = 'DE_LI',
+  /** German (Luxembourg) (de-LU) */
+  DeLu = 'DE_LU',
+  /** Zarma (dje) */
+  Dje = 'DJE',
+  /** Zarma (Niger) (dje-NE) */
+  DjeNe = 'DJE_NE',
+  /** Duala (dua) */
+  Dua = 'DUA',
+  /** Duala (Cameroon) (dua-CM) */
+  DuaCm = 'DUA_CM',
+  /** Dhivehi (Maldives) */
+  Dv = 'DV',
+  /** Jola-Fonyi (dyo) */
+  Dyo = 'DYO',
+  /** Jola-Fonyi (Senegal) (dyo-SN) */
+  DyoSn = 'DYO_SN',
+  /** Embu (ebu) */
+  Ebu = 'EBU',
+  /** Embu (Kenya) (ebu-KE) */
+  EbuKe = 'EBU_KE',
+  /** Ewe (ee) */
+  Ee = 'EE',
+  /** Ewe (Ghana) (ee-GH) */
+  EeGh = 'EE_GH',
+  /** Ewe (Togo) (ee-TG) */
+  EeTg = 'EE_TG',
+  /** Greek (el) */
+  El = 'EL',
+  /** Greek (Cyprus) (el-CY) */
+  ElCy = 'EL_CY',
+  /** Greek (Greece) (el-GR) */
+  ElGr = 'EL_GR',
+  /** English */
+  En = 'EN',
+  /** English (U.A.E.) (en-AE) */
+  EnAe = 'EN_AE',
+  /** English (Anguilla) (en-AI) */
+  EnAi = 'EN_AI',
+  /** English (American Samoa) (en-AS) */
+  EnAs = 'EN_AS',
+  /** English (Austria) (en-AT) */
+  EnAt = 'EN_AT',
+  /** English (Australia) (en-AU) */
+  EnAu = 'EN_AU',
+  /** English (Barbados) (en-BB) */
+  EnBb = 'EN_BB',
+  /** English (Belgium) (en-BE) */
+  EnBe = 'EN_BE',
+  /** English (Burundi) (en-BI) */
+  EnBi = 'EN_BI',
+  /** English (Bermuda) (en-BM) */
+  EnBm = 'EN_BM',
+  /** English (Botswana) (en-BW) */
+  EnBw = 'EN_BW',
+  /** English (Belize) (en-BZ) */
+  EnBz = 'EN_BZ',
+  /** English (Canada) (en-CA) */
+  EnCa = 'EN_CA',
+  /** English (Cocos [Keeling] Islands) (en-CC) */
+  EnCc = 'EN_CC',
+  /** English (Switzerland) (en-CH) */
+  EnCh = 'EN_CH',
+  /** English (Cook Islands) (en-CK) */
+  EnCk = 'EN_CK',
+  /** English (Cameroon) (en-CM) */
+  EnCm = 'EN_CM',
+  /** English (Christmas Island) (en-CX) */
+  EnCx = 'EN_CX',
+  /** English (Cyprus) (en-CY) */
+  EnCy = 'EN_CY',
+  /** English (Germany) (en-DE) */
+  EnDe = 'EN_DE',
+  /** English (Diego Garcia) (en-DG) */
+  EnDg = 'EN_DG',
+  /** English (Denmark) (en-DK) */
+  EnDk = 'EN_DK',
+  /** English (Dominica) (en-DM) */
+  EnDm = 'EN_DM',
+  /** English (Egypt) (en-EG) */
+  EnEg = 'EN_EG',
+  /** English (Eritrea) (en-ER) */
+  EnEr = 'EN_ER',
+  /** English (Europe) (en-EU) */
+  EnEu = 'EN_EU',
+  /** English (Finland) (en-FI) */
+  EnFi = 'EN_FI',
+  /** English (Fiji) (en-FJ) */
+  EnFj = 'EN_FJ',
+  /** English (Falkland Islands) (en-FK) */
+  EnFk = 'EN_FK',
+  /** English (Micronesia) (en-FM) */
+  EnFm = 'EN_FM',
+  /** English (United Kingdom) (en-GB) */
+  EnGb = 'EN_GB',
+  /** English (Grenada) (en-GD) */
+  EnGd = 'EN_GD',
+  /** English (Guernsey) (en-GG) */
+  EnGg = 'EN_GG',
+  /** English (Ghana) (en-GH) */
+  EnGh = 'EN_GH',
+  /** English (Gibraltar) (en-GI) */
+  EnGi = 'EN_GI',
+  /** English (Gambia) (en-GM) */
+  EnGm = 'EN_GM',
+  /** English (Guam) (en-GU) */
+  EnGu = 'EN_GU',
+  /** English (Guyana) (en-GY) */
+  EnGy = 'EN_GY',
+  /** English (Hong Kong SAR China) (en-HK) */
+  EnHk = 'EN_HK',
+  /** English (Ireland) (en-IE) */
+  EnIe = 'EN_IE',
+  /** English (Israel) (en-IL) */
+  EnIl = 'EN_IL',
+  /** English (Isle of Man) (en-IM) */
+  EnIm = 'EN_IM',
+  /** English (India) (en-IN) */
+  EnIn = 'EN_IN',
+  /** English (British Indian Ocean Territory) (en-IO) */
+  EnIo = 'EN_IO',
+  /** English (Jersey) (en-JE) */
+  EnJe = 'EN_JE',
+  /** English (Jamaica) (en-JM) */
+  EnJm = 'EN_JM',
+  /** English (Kenya) (en-KE) */
+  EnKe = 'EN_KE',
+  /** English (Kiribati) (en-KI) */
+  EnKi = 'EN_KI',
+  /** English (St Kitts & Nevis) (en-KN) */
+  EnKn = 'EN_KN',
+  /** English (Kuwait) (en-KW) */
+  EnKw = 'EN_KW',
+  /** English (Cayman Islands) (en-KY) */
+  EnKy = 'EN_KY',
+  /** English (St Lucia) (en-LC) */
+  EnLc = 'EN_LC',
+  /** English (Lesotho) (en-LS) */
+  EnLs = 'EN_LS',
+  /** English (Madagascar) (en-MG) */
+  EnMg = 'EN_MG',
+  /** English (Marshall Islands) (en-MH) */
+  EnMh = 'EN_MH',
+  /** English (Macao SAR China) (en-MO) */
+  EnMo = 'EN_MO',
+  /** English (Northern Mariana Islands) (en-MP) */
+  EnMp = 'EN_MP',
+  /** English (Montserrat) (en-MS) */
+  EnMs = 'EN_MS',
+  /** English (Malta) (en-MT) */
+  EnMt = 'EN_MT',
+  /** English (Mauritius) (en-MU) */
+  EnMu = 'EN_MU',
+  /** English (Malawi) (en-MW) */
+  EnMw = 'EN_MW',
+  /** English (Malaysia) (en-MY) */
+  EnMy = 'EN_MY',
+  /** English (Namibia) (en-NA) */
+  EnNa = 'EN_NA',
+  /** English (Norfolk Island) (en-NF) */
+  EnNf = 'EN_NF',
+  /** English (Nigeria) (en-NG) */
+  EnNg = 'EN_NG',
+  /** English (Netherlands) (en-NL) */
+  EnNl = 'EN_NL',
+  /** English (Norway) (en-NO) */
+  EnNo = 'EN_NO',
+  /** English (Nauru) (en-NR) */
+  EnNr = 'EN_NR',
+  /** English (Niue) (en-NU) */
+  EnNu = 'EN_NU',
+  /** English (New Zealand) (en-NZ) */
+  EnNz = 'EN_NZ',
+  /** English (Panama) (en-PA) */
+  EnPa = 'EN_PA',
+  /** English (Papua New Guinea) (en-PG) */
+  EnPg = 'EN_PG',
+  /** English (Philippines) (en-PH) */
+  EnPh = 'EN_PH',
+  /** English (Pakistan) (en-PK) */
+  EnPk = 'EN_PK',
+  /** English (Pitcairn Islands) (en-PN) */
+  EnPn = 'EN_PN',
+  /** English (Puerto Rico) (en-PR) */
+  EnPr = 'EN_PR',
+  /** English (Palau) (en-PW) */
+  EnPw = 'EN_PW',
+  /** English (Rwanda) (en-RW) */
+  EnRw = 'EN_RW',
+  /** English (Saudi Arabia) (en-SA) */
+  EnSa = 'EN_SA',
+  /** English (Solomon Islands) (en-SB) */
+  EnSb = 'EN_SB',
+  /** English (Seychelles) (en-SC) */
+  EnSc = 'EN_SC',
+  /** English (Sudan) (en-SD) */
+  EnSd = 'EN_SD',
+  /** English (Sweden) (en-SE) */
+  EnSe = 'EN_SE',
+  /** English (Singapore) (en-SG) */
+  EnSg = 'EN_SG',
+  /** English (St Helena) (en-SH) */
+  EnSh = 'EN_SH',
+  /** English (Slovenia) (en-SI) */
+  EnSi = 'EN_SI',
+  /** English (Sierra Leone) (en-SL) */
+  EnSl = 'EN_SL',
+  /** English (South Sudan) (en-SS) */
+  EnSs = 'EN_SS',
+  /** English (Sint Maarten) (en-SX) */
+  EnSx = 'EN_SX',
+  /** English (Swaziland) (en-SZ) */
+  EnSz = 'EN_SZ',
+  /** English (Tokelau) (en-TK) */
+  EnTk = 'EN_TK',
+  /** English (Tonga) (en-TO) */
+  EnTo = 'EN_TO',
+  /** English (Trinidad and Tobago) (en-TT) */
+  EnTt = 'EN_TT',
+  /** English (Tuvalu) (en-TV) */
+  EnTv = 'EN_TV',
+  /** English (Tanzania) (en-TZ) */
+  EnTz = 'EN_TZ',
+  /** English (Uganda) (en-UG) */
+  EnUg = 'EN_UG',
+  /** English (U.S. Minor Outlying Islands) (en-UM) */
+  EnUm = 'EN_UM',
+  /** English (United States) (en-US) */
+  EnUs = 'EN_US',
+  /** English (U.S., Computer) (en-US-POSIX) */
+  EnUsPosix = 'EN_US_POSIX',
+  /** English (U.S. Virgin Islands) (en-VI) */
+  EnVi = 'EN_VI',
+  /** English (Vanuatu) (en-VU) */
+  EnVu = 'EN_VU',
+  /** English (Samoa) (en-WS) */
+  EnWs = 'EN_WS',
+  /** English (South Africa) (en-ZA) */
+  EnZa = 'EN_ZA',
+  /** English (Zambia) (en-ZM) */
+  EnZm = 'EN_ZM',
+  /** English (Zimbabwe) (en-ZW) */
+  EnZw = 'EN_ZW',
+  /** Esperanto (eo) */
+  Eo = 'EO',
+  /** Spanish (es) */
+  Es = 'ES',
+  /** Spanish (Latin America) (es-419) */
+  Es419 = 'ES419',
+  /** Spanish (Argentina) (es-AR) */
+  EsAr = 'ES_AR',
+  /** Spanish (Bolivia) (es-BO) */
+  EsBo = 'ES_BO',
+  /** Spanish (Chile) (es-CL) */
+  EsCl = 'ES_CL',
+  /** Spanish (Colombia) (es-CO) */
+  EsCo = 'ES_CO',
+  /** Spanish (Costa Rica) (es-CR) */
+  EsCr = 'ES_CR',
+  /** Spanish (Dominican Republic) (es-DO) */
+  EsDo = 'ES_DO',
+  /** Spanish (Ecuador) (es-EC) */
+  EsEc = 'ES_EC',
+  /** Spanish (Spain) (es-ES) */
+  EsEs = 'ES_ES',
+  /** Spanish (Equatorial Guinea) (es-GQ) */
+  EsGq = 'ES_GQ',
+  /** Spanish (Guatemala) (es-GT) */
+  EsGt = 'ES_GT',
+  /** Spanish (Honduras) (es-HN) */
+  EsHn = 'ES_HN',
+  /** Spanish (Mexico) (es-MX) */
+  EsMx = 'ES_MX',
+  /** Spanish (Nicaragua) (es-NI) */
+  EsNi = 'ES_NI',
+  /** Spanish (Panama) (es-PA) */
+  EsPa = 'ES_PA',
+  /** Spanish (Peru) (es-PE) */
+  EsPe = 'ES_PE',
+  /** Spanish (Puerto Rico) (es-PR) */
+  EsPr = 'ES_PR',
+  /** Spanish (Paraguay) (es-PY) */
+  EsPy = 'ES_PY',
+  /** Spanish (El Salvador) (es-SV) */
+  EsSv = 'ES_SV',
+  /** Spanish (United States) (es-US) */
+  EsUs = 'ES_US',
+  /** Spanish (Uruguay) (es-UY) */
+  EsUy = 'ES_UY',
+  /** Spanish (Venezuela) (es-VE) */
+  EsVe = 'ES_VE',
+  /** Estonian (et) */
+  Et = 'ET',
+  /** Estonian (Estonia) (et-EE) */
+  EtEe = 'ET_EE',
+  /** Basque (eu) */
+  Eu = 'EU',
+  /** Basque (Spain) (eu-ES) */
+  EuEs = 'EU_ES',
+  /** Ewondo (ewo) */
+  Ewo = 'EWO',
+  /** Ewondo (Cameroon) (ewo-CM) */
+  EwoCm = 'EWO_CM',
+  /** Persian (fa) */
+  Fa = 'FA',
+  /** Persian (Afghanistan) (fa-AF) */
+  FaAf = 'FA_AF',
+  /** Persian (Iran) (fa-IR) */
+  FaIr = 'FA_IR',
+  /** Fulah (ff) */
+  Ff = 'FF',
+  /** Fulah (Senegal) (ff-SN) */
+  FfSn = 'FF_SN',
+  /** Finnish (fi) */
+  Fi = 'FI',
+  /** Filipino (fil) */
+  Fil = 'FIL',
+  /** Filipino (Philippines) (fil-PH) */
+  FilPh = 'FIL_PH',
+  /** Finnish (Finland) (fi-FI) */
+  FiFi = 'FI_FI',
+  /** Faroese (fo) */
+  Fo = 'FO',
+  /** Faroese (Faroe Islands) (fo-FO) */
+  FoFo = 'FO_FO',
+  /** French (fr) */
+  Fr = 'FR',
+  /** French (Belgium) (fr-BE) */
+  FrBe = 'FR_BE',
+  /** French (Burkina Faso) (fr-BF) */
+  FrBf = 'FR_BF',
+  /** French (Burundi) (fr-BI) */
+  FrBi = 'FR_BI',
+  /** French (Benin) (fr-BJ) */
+  FrBj = 'FR_BJ',
+  /** French (Saint Barthélemy) (fr-BL) */
+  FrBl = 'FR_BL',
+  /** French (Canada) (fr-CA) */
+  FrCa = 'FR_CA',
+  /** French (Congo - Kinshasa) (fr-CD) */
+  FrCd = 'FR_CD',
+  /** French (Central African Republic) (fr-CF) */
+  FrCf = 'FR_CF',
+  /** French (Congo - Brazzaville) (fr-CG) */
+  FrCg = 'FR_CG',
+  /** French (Switzerland) (fr-CH) */
+  FrCh = 'FR_CH',
+  /** French (Côte d'Ivoire) (fr-CI) */
+  FrCi = 'FR_CI',
+  /** French (Cameroon) (fr-CM) */
+  FrCm = 'FR_CM',
+  /** French (Djibouti) (fr-DJ) */
+  FrDj = 'FR_DJ',
+  /** French (France) (fr-FR) */
+  FrFr = 'FR_FR',
+  /** French (Gabon) (fr-GA) */
+  FrGa = 'FR_GA',
+  /** French (French Guiana) (fr-GF) */
+  FrGf = 'FR_GF',
+  /** French (Guinea) (fr-GN) */
+  FrGn = 'FR_GN',
+  /** French (Guadeloupe) (fr-GP) */
+  FrGp = 'FR_GP',
+  /** French (Equatorial Guinea) (fr-GQ) */
+  FrGq = 'FR_GQ',
+  /** French (Comoros) (fr-KM) */
+  FrKm = 'FR_KM',
+  /** French (Luxembourg) (fr-LU) */
+  FrLu = 'FR_LU',
+  /** French (Monaco) (fr-MC) */
+  FrMc = 'FR_MC',
+  /** French (Saint Martin) (fr-MF) */
+  FrMf = 'FR_MF',
+  /** French (Madagascar) (fr-MG) */
+  FrMg = 'FR_MG',
+  /** French (Mali) (fr-ML) */
+  FrMl = 'FR_ML',
+  /** French (Martinique) (fr-MQ) */
+  FrMq = 'FR_MQ',
+  /** French (Mauritius) (fr-MU) */
+  FrMu = 'FR_MU',
+  /** French (Niger) (fr-NE) */
+  FrNe = 'FR_NE',
+  /** French (Réunion) (fr-RE) */
+  FrRe = 'FR_RE',
+  /** French (Rwanda) (fr-RW) */
+  FrRw = 'FR_RW',
+  /** French (Senegal) (fr-SN) */
+  FrSn = 'FR_SN',
+  /** French (Chad) (fr-TD) */
+  FrTd = 'FR_TD',
+  /** French (Togo) (fr-TG) */
+  FrTg = 'FR_TG',
+  /** French (Mayotte) (fr-YT) */
+  FrYt = 'FR_YT',
+  /** Irish (ga) */
+  Ga = 'GA',
+  /** Irish (Ireland) (ga-IE) */
+  GaIe = 'GA_IE',
+  /** Scottish Gaelic (gd) */
+  Gd = 'GD',
+  /** Scottish Gaelic (United Kingdom) */
+  GdGb = 'GD_GB',
+  /** Galician (gl) */
+  Gl = 'GL',
+  /** Galician (Spain) (gl-ES) */
+  GlEs = 'GL_ES',
+  /** Swiss German (gsw) */
+  Gsw = 'GSW',
+  /** Swiss German (Switzerland) (gsw-CH) */
+  GswCh = 'GSW_CH',
+  /** Gujarati (gu) */
+  Gu = 'GU',
+  /** Gusii (guz) */
+  Guz = 'GUZ',
+  /** Gusii (Kenya) (guz-KE) */
+  GuzKe = 'GUZ_KE',
+  /** Gujarati (India) (gu-IN) */
+  GuIn = 'GU_IN',
+  /** Manx (gv) */
+  Gv = 'GV',
+  /** Manx (United Kingdom) (gv-GB) */
+  GvGb = 'GV_GB',
+  /** Hausa (ha) */
+  Ha = 'HA',
+  /** Hawaiian (haw) */
+  Haw = 'HAW',
+  /** Hawaiian (United States) (haw-US) */
+  HawUs = 'HAW_US',
+  /** Hausa (Latin) (ha-Latn) */
+  HaLatn = 'HA_LATN',
+  /** Hausa (Latin, Ghana) (ha-Latn-GH) */
+  HaLatnGh = 'HA_LATN_GH',
+  /** Hausa (Latin, Niger) (ha-Latn-NE) */
+  HaLatnNe = 'HA_LATN_NE',
+  /** Hausa (Latin, Nigeria) (ha-Latn-NG) */
+  HaLatnNg = 'HA_LATN_NG',
+  /** Hebrew (he) */
+  He = 'HE',
+  /** Hebrew (Israel) (he-IL) */
+  HeIl = 'HE_IL',
+  /** Hindi (hi) */
+  Hi = 'HI',
+  /** Hindi (India) (hi-IN) */
+  HiIn = 'HI_IN',
+  /** Croatian (hr) */
+  Hr = 'HR',
+  /** Croatian (Croatia) (hr-HR) */
+  HrHr = 'HR_HR',
+  /** Hungarian (hu) */
+  Hu = 'HU',
+  /** Hungarian (Hungary) (hu-HU) */
+  HuHu = 'HU_HU',
+  /** Armenian (hy) */
+  Hy = 'HY',
+  /** Armenian (Armenia) (hy-AM) */
+  HyAm = 'HY_AM',
+  /** Indonesian (id) */
+  Id = 'ID',
+  /** Indonesian (Indonesia) (id-ID) */
+  IdId = 'ID_ID',
+  /** Igbo (ig) */
+  Ig = 'IG',
+  /** Igbo (Nigeria) (ig-NG) */
+  IgNg = 'IG_NG',
+  /** Sichuan Yi (ii) */
+  Ii = 'II',
+  /** Sichuan Yi (China) (ii-CN) */
+  IiCn = 'II_CN',
+  /** Icelandic (is) */
+  Is = 'IS',
+  /** Icelandic (Iceland) (is-IS) */
+  IsIs = 'IS_IS',
+  /** Italian (it) */
+  It = 'IT',
+  /** Italian (Switzerland) (it-CH) */
+  ItCh = 'IT_CH',
+  /** Italian (Italy) (it-IT) */
+  ItIt = 'IT_IT',
+  /** Japanese (ja) */
+  Ja = 'JA',
+  /** Japanese (Japan) (ja-JP) */
+  JaJp = 'JA_JP',
+  /** Machame (jmc) */
+  Jmc = 'JMC',
+  /** Machame (Tanzania) (jmc-TZ) */
+  JmcTz = 'JMC_TZ',
+  /** Georgian (ka) */
+  Ka = 'KA',
+  /** Kara-Kalpak (kaa) */
+  Kaa = 'KAA',
+  /** Kabyle (kab) */
+  Kab = 'KAB',
+  /** Kabyle (Algeria) (kab-DZ) */
+  KabDz = 'KAB_DZ',
+  /** Kamba (kam) */
+  Kam = 'KAM',
+  /** Kamba (Kenya) (kam-KE) */
+  KamKe = 'KAM_KE',
+  /** Georgian (Georgia) (ka-GE) */
+  KaGe = 'KA_GE',
+  /** Makonde (kde) */
+  Kde = 'KDE',
+  /** Makonde (Tanzania) (kde-TZ) */
+  KdeTz = 'KDE_TZ',
+  /** Kabuverdianu (kea) */
+  Kea = 'KEA',
+  /** Kabuverdianu (Cape Verde) (kea-CV) */
+  KeaCv = 'KEA_CV',
+  /** Koyra Chiini (khq) */
+  Khq = 'KHQ',
+  /** Koyra Chiini (Mali) (khq-ML) */
+  KhqMl = 'KHQ_ML',
+  /** Kikuyu (ki) */
+  Ki = 'KI',
+  /** Kikuyu (Kenya) (ki-KE) */
+  KiKe = 'KI_KE',
+  /** Kazakh (kk) */
+  Kk = 'KK',
+  /** Kazakh (Cyrillic) (kk-Cyrl) */
+  KkCyrl = 'KK_CYRL',
+  /** Kazakh (Cyrillic, Kazakhstan) (kk-Cyrl-KZ) */
+  KkCyrlKz = 'KK_CYRL_KZ',
+  /** Kalaallisut (kl) */
+  Kl = 'KL',
+  /** Kalenjin (kln) */
+  Kln = 'KLN',
+  /** Kalenjin (Kenya) (kln-KE) */
+  KlnKe = 'KLN_KE',
+  /** Kalaallisut (Greenland) (kl-GL) */
+  KlGl = 'KL_GL',
+  /** Khmer (km) */
+  Km = 'KM',
+  /** Northern Kurdish (kmr) */
+  Kmr = 'KMR',
+  /** Khmer (Cambodia) (km-KH) */
+  KmKh = 'KM_KH',
+  /** Kannada (kn) */
+  Kn = 'KN',
+  /** Kannada (India) (kn-IN) */
+  KnIn = 'KN_IN',
+  /** Korean (ko) */
+  Ko = 'KO',
+  /** Konkani (kok) */
+  Kok = 'KOK',
+  /** Konkani (India) (kok-IN) */
+  KokIn = 'KOK_IN',
+  /** Korean (South Korea) (ko-KR) */
+  KoKr = 'KO_KR',
+  /** Shambala (ksb) */
+  Ksb = 'KSB',
+  /** Shambala (Tanzania) (ksb-TZ) */
+  KsbTz = 'KSB_TZ',
+  /** Bafia (ksf) */
+  Ksf = 'KSF',
+  /** Bafia (Cameroon) (ksf-CM) */
+  KsfCm = 'KSF_CM',
+  /** Cornish (kw) */
+  Kw = 'KW',
+  /** Cornish (United Kingdom) (kw-GB) */
+  KwGb = 'KW_GB',
+  /** Kyrgyz (ky) */
+  Ky = 'KY',
+  /** Langi (lag) */
+  Lag = 'LAG',
+  /** Langi (Tanzania) (lag-TZ) */
+  LagTz = 'LAG_TZ',
+  /** Laotian (Laos) (lao) */
+  Lao = 'LAO',
+  /** Ganda (lg) */
+  Lg = 'LG',
+  /** Ganda (Uganda) (lg-UG) */
+  LgUg = 'LG_UG',
+  /** Liberian English */
+  Lir = 'LIR',
+  /** Lingala (ln) */
+  Ln = 'LN',
+  /** Lingala (Congo - Kinshasa) (ln-CD) */
+  LnCd = 'LN_CD',
+  /** Lingala (Congo - Brazzaville) (ln-CG) */
+  LnCg = 'LN_CG',
+  /** Lithuanian (lt) */
+  Lt = 'LT',
+  /** Lithuanian (Lithuania) (lt-LT) */
+  LtLt = 'LT_LT',
+  /** Luba-Katanga (lu) */
+  Lu = 'LU',
+  /** Luo (luo) */
+  Luo = 'LUO',
+  /** Luo (Kenya) (luo-KE) */
+  LuoKe = 'LUO_KE',
+  /** Luyia (luy) */
+  Luy = 'LUY',
+  /** Luyia (Kenya) (luy-KE) */
+  LuyKe = 'LUY_KE',
+  /** Luba-Katanga (Congo - Kinshasa) (lu-CD) */
+  LuCd = 'LU_CD',
+  /** Latvian (lv) */
+  Lv = 'LV',
+  /** Latvian (Latvia) (lv-LV) */
+  LvLv = 'LV_LV',
+  /** Masai (mas) */
+  Mas = 'MAS',
+  /** Masai (Kenya) (mas-KE) */
+  MasKe = 'MAS_KE',
+  /** Masai (Tanzania) (mas-TZ) */
+  MasTz = 'MAS_TZ',
+  /** Meru (mer) */
+  Mer = 'MER',
+  /** Meru (Kenya) (mer-KE) */
+  MerKe = 'MER_KE',
+  /** Morisyen (mfe) */
+  Mfe = 'MFE',
+  /** Morisyen (Mauritius) (mfe-MU) */
+  MfeMu = 'MFE_MU',
+  /** Malagasy (mg) */
+  Mg = 'MG',
+  /** Makhuwa-Meetto (mgh) */
+  Mgh = 'MGH',
+  /** Makhuwa-Meetto (Mozambique) (mgh-MZ) */
+  MghMz = 'MGH_MZ',
+  /** Malagasy (Madagascar) (mg-MG) */
+  MgMg = 'MG_MG',
+  /** Te Reo Māori (mi) */
+  Mi = 'MI',
+  /** Macedonian (mk) */
+  Mk = 'MK',
+  /** Macedonian (Macedonia) (mk-MK) */
+  MkMk = 'MK_MK',
+  /** Malayalam (ml) */
+  Ml = 'ML',
+  /** Malayalam (India) (ml-IN) */
+  MlIn = 'ML_IN',
+  /** Mongolian (mn) */
+  Mn = 'MN',
+  /** Marathi (mr) */
+  Mr = 'MR',
+  /** Marathi (India) (mr-IN) */
+  MrIn = 'MR_IN',
+  /** Malay (ms) */
+  Ms = 'MS',
+  /** Malay (Brunei) (ms-BN) */
+  MsBn = 'MS_BN',
+  /** Malay (Malaysia) (ms-MY) */
+  MsMy = 'MS_MY',
+  /** Maltese (mt) */
+  Mt = 'MT',
+  /** Maltese (Malta) (mt-MT) */
+  MtMt = 'MT_MT',
+  /** Mundang (mua) */
+  Mua = 'MUA',
+  /** Mundang (Cameroon) (mua-CM) */
+  MuaCm = 'MUA_CM',
+  /** Burmese (my) */
+  My = 'MY',
+  /** Burmese (Myanmar [Burma]) (my-MM) */
+  MyMm = 'MY_MM',
+  /** Nama (naq) */
+  Naq = 'NAQ',
+  /** Nama (Namibia) (naq-NA) */
+  NaqNa = 'NAQ_NA',
+  /** Norwegian Bokmål (nb) */
+  Nb = 'NB',
+  /** Norwegian Bokmål (Norway) (nb-NO) */
+  NbNo = 'NB_NO',
+  /** North Ndebele (nd) */
+  Nd = 'ND',
+  /** North Ndebele (Zimbabwe) (nd-ZW) */
+  NdZw = 'ND_ZW',
+  /** Nepali (ne) */
+  Ne = 'NE',
+  /** Nepali (India) (ne-IN) */
+  NeIn = 'NE_IN',
+  /** Nepali (Nepal) (ne-NP) */
+  NeNp = 'NE_NP',
+  /** Dutch (nl) */
+  Nl = 'NL',
+  /** Dutch (Aruba) (nl-AW) */
+  NlAw = 'NL_AW',
+  /** Dutch (Belgium) (nl-BE) */
+  NlBe = 'NL_BE',
+  /** Dutch (Curaçao) (nl-CW) */
+  NlCw = 'NL_CW',
+  /** Dutch (Netherlands) (nl-NL) */
+  NlNl = 'NL_NL',
+  /** Dutch (Sint Maarten) (nl-SX) */
+  NlSx = 'NL_SX',
+  /** Kwasio (nmg) */
+  Nmg = 'NMG',
+  /** Kwasio (Cameroon) (nmg-CM) */
+  NmgCm = 'NMG_CM',
+  /** Norwegian Nynorsk (nn) */
+  Nn = 'NN',
+  /** Norwegian Nynorsk (Norway) (nn-NO) */
+  NnNo = 'NN_NO',
+  /** Nuer (nus) */
+  Nus = 'NUS',
+  /** Nuer (Sudan) (nus-SD) */
+  NusSd = 'NUS_SD',
+  /** Nyankole (nyn) */
+  Nyn = 'NYN',
+  /** Nyankole (Uganda) (nyn-UG) */
+  NynUg = 'NYN_UG',
+  /** Oromo (om) */
+  Om = 'OM',
+  /** Oromo (Ethiopia) (om-ET) */
+  OmEt = 'OM_ET',
+  /** Oromo (Kenya) (om-KE) */
+  OmKe = 'OM_KE',
+  /** Oriya (or) */
+  Or = 'OR',
+  /** Oriya (India) (or-IN) */
+  OrIn = 'OR_IN',
+  /** Punjabi (pa) */
+  Pa = 'PA',
+  /** Punjabi (Arabic) (pa-Arab) */
+  PaArab = 'PA_ARAB',
+  /** Punjabi (Arabic, Pakistan) (pa-Arab-PK) */
+  PaArabPk = 'PA_ARAB_PK',
+  /** Punjabi (Gurmukhi) (pa-Guru) */
+  PaGuru = 'PA_GURU',
+  /** Punjabi (Gurmukhi, India) (pa-Guru-IN) */
+  PaGuruIn = 'PA_GURU_IN',
+  /** Polish (pl) */
+  Pl = 'PL',
+  /** Polish (Poland) (pl-PL) */
+  PlPl = 'PL_PL',
+  /** Pashto (ps) */
+  Ps = 'PS',
+  /** Pashto (Afghanistan) (ps-AF) */
+  PsAf = 'PS_AF',
+  /** Portuguese (pt) */
+  Pt = 'PT',
+  /** Portuguese (Angola) (pt-AO) */
+  PtAo = 'PT_AO',
+  /** Portuguese (Brazil) (pt-BR) */
+  PtBr = 'PT_BR',
+  /** Portuguese (Guinea-Bissau) (pt-GW) */
+  PtGw = 'PT_GW',
+  /** Portuguese (Mozambique) (pt-MZ) */
+  PtMz = 'PT_MZ',
+  /** Portuguese (Portugal) (pt-PT) */
+  PtPt = 'PT_PT',
+  /** Portuguese (São Tomé and Príncipe) (pt-ST) */
+  PtSt = 'PT_ST',
+  /** Romansh (rm) */
+  Rm = 'RM',
+  /** Romansh (Switzerland) (rm-CH) */
+  RmCh = 'RM_CH',
+  /** Rundi (rn) */
+  Rn = 'RN',
+  /** Rundi (Burundi) (rn-BI) */
+  RnBi = 'RN_BI',
+  /** Romanian (ro) */
+  Ro = 'RO',
+  /** Rombo (rof) */
+  Rof = 'ROF',
+  /** Rombo (Tanzania) (rof-TZ) */
+  RofTz = 'ROF_TZ',
+  /** Romanian (Moldova) (ro-MD) */
+  RoMd = 'RO_MD',
+  /** Romanian (Romania) (ro-RO) */
+  RoRo = 'RO_RO',
+  /** Russian (ru) */
+  Ru = 'RU',
+  /** Russian (Moldova) (ru-MD) */
+  RuMd = 'RU_MD',
+  /** Russian (Russia) (ru-RU) */
+  RuRu = 'RU_RU',
+  /** Russian (Ukraine) (ru-UA) */
+  RuUa = 'RU_UA',
+  /** Kinyarwanda (rw) */
+  Rw = 'RW',
+  /** Rwa (rwk) */
+  Rwk = 'RWK',
+  /** Rwa (Tanzania) (rwk-TZ) */
+  RwkTz = 'RWK_TZ',
+  /** Kinyarwanda (Rwanda) (rw-RW) */
+  RwRw = 'RW_RW',
+  /** Sanskrit (sa) */
+  Sa = 'SA',
+  /** Samburu (saq) */
+  Saq = 'SAQ',
+  /** Samburu (Kenya) (saq-KE) */
+  SaqKe = 'SAQ_KE',
+  /** Sangu (sbp) */
+  Sbp = 'SBP',
+  /** Sangu (Tanzania) (sbp-TZ) */
+  SbpTz = 'SBP_TZ',
+  /** Southern Kurdish (sdh) */
+  Sdh = 'SDH',
+  /** Northern Sami */
+  Se = 'SE',
+  /** Sena (seh) */
+  Seh = 'SEH',
+  /** Sena (Mozambique) (seh-MZ) */
+  SehMz = 'SEH_MZ',
+  /** Koyraboro Senni (ses) */
+  Ses = 'SES',
+  /** Koyraboro Senni (Mali) (ses-ML) */
+  SesMl = 'SES_ML',
+  /** Northern Sami (Finland) */
+  SeFi = 'SE_FI',
+  /** Northern Sami (Norway) */
+  SeNo = 'SE_NO',
+  /** Northern Sami (Sweden) */
+  SeSe = 'SE_SE',
+  /** Sango (sg) */
+  Sg = 'SG',
+  /** Sango (Central African Republic) (sg-CF) */
+  SgCf = 'SG_CF',
+  /** Tachelhit (shi) */
+  Shi = 'SHI',
+  /** Tachelhit (Latin) (shi-Latn) */
+  ShiLatn = 'SHI_LATN',
+  /** Tachelhit (Latin, Morocco) (shi-Latn-MA) */
+  ShiLatnMa = 'SHI_LATN_MA',
+  /** Tachelhit (Tifinagh) (shi-Tfng) */
+  ShiTfng = 'SHI_TFNG',
+  /** Tachelhit (Tifinagh, Morocco) (shi-Tfng-MA) */
+  ShiTfngMa = 'SHI_TFNG_MA',
+  /** Sinhala (si) */
+  Si = 'SI',
+  /** Sinhala (Sri Lanka) (si-LK) */
+  SiLk = 'SI_LK',
+  /** Slovak (sk) */
+  Sk = 'SK',
+  /** Slovak (Slovakia) (sk-SK) */
+  SkSk = 'SK_SK',
+  /** Slovenian (sl) */
+  Sl = 'SL',
+  /** Slovenian (Slovenia) (sl-SI) */
+  SlSi = 'SL_SI',
+  /** Inari Sami */
+  Smn = 'SMN',
+  /** Inari Sami (Finland) */
+  SmnFi = 'SMN_FI',
+  /** Shona (sn) */
+  Sn = 'SN',
+  /** Shona (Zimbabwe) (sn-ZW) */
+  SnZw = 'SN_ZW',
+  /** Somali (so) */
+  So = 'SO',
+  /** Somali (Djibouti) (so-DJ) */
+  SoDj = 'SO_DJ',
+  /** Somali (Ethiopia) (so-ET) */
+  SoEt = 'SO_ET',
+  /** Somali (Kenya) (so-KE) */
+  SoKe = 'SO_KE',
+  /** Somali (Somalia) (so-SO) */
+  SoSo = 'SO_SO',
+  /** Albanian (sq) */
+  Sq = 'SQ',
+  /** Albanian (Albania) (sq-AL) */
+  SqAl = 'SQ_AL',
+  /** Serbian (sr) */
+  Sr = 'SR',
+  /** Serbian (Cyrillic) (sr-Cyrl) */
+  SrCyrl = 'SR_CYRL',
+  /** Serbian (Cyrillic, Bosnia and Herzegovina)(sr-Cyrl-BA)  */
+  SrCyrlBa = 'SR_CYRL_BA',
+  /** Serbian (Cyrillic, Montenegro) (sr-Cyrl-ME) */
+  SrCyrlMe = 'SR_CYRL_ME',
+  /** Serbian (Cyrillic, Serbia) (sr-Cyrl-RS) */
+  SrCyrlRs = 'SR_CYRL_RS',
+  /** Serbian (Latin) (sr-Latn) */
+  SrLatn = 'SR_LATN',
+  /** Serbian (Latin, Bosnia and Herzegovina) (sr-Latn-BA)  */
+  SrLatnBa = 'SR_LATN_BA',
+  /** Serbian (Latin, Montenegro) (sr-Latn-ME) */
+  SrLatnMe = 'SR_LATN_ME',
+  /** Serbian (Latin, Serbia) (sr-Latn-RS) */
+  SrLatnRs = 'SR_LATN_RS',
+  /** Swedish (sv) */
+  Sv = 'SV',
+  /** Vincentian Creole English */
+  Svc = 'SVC',
+  /** Swedish (Finland) (sv-FI) */
+  SvFi = 'SV_FI',
+  /** Swedish (Sweden) (sv-SE) */
+  SvSe = 'SV_SE',
+  /** Swahili (sw) */
+  Sw = 'SW',
+  /** Congo Swahili (swc) */
+  Swc = 'SWC',
+  /** Congo Swahili (Congo - Kinshasa) (swc-CD) */
+  SwcCd = 'SWC_CD',
+  /** Swahili (Kenya) (sw-KE) */
+  SwKe = 'SW_KE',
+  /** Swahili (Tanzania) (sw-TZ) */
+  SwTz = 'SW_TZ',
+  /** Tamil (ta) */
+  Ta = 'TA',
+  /** Tamil (India) (ta-IN) */
+  TaIn = 'TA_IN',
+  /** Tamil (Sri Lanka) (ta-LK) */
+  TaLk = 'TA_LK',
+  /** Turks And Caicos Creole English */
+  Tch = 'TCH',
+  /** Telugu (te) */
+  Te = 'TE',
+  /** Teso (teo) */
+  Teo = 'TEO',
+  /** Teso (Kenya) (teo-KE) */
+  TeoKe = 'TEO_KE',
+  /** Teso (Uganda) (teo-UG) */
+  TeoUg = 'TEO_UG',
+  /** Telugu (India) (te-IN) */
+  TeIn = 'TE_IN',
+  /** Tajik (tg) */
+  Tg = 'TG',
+  /** Thai (th) */
+  Th = 'TH',
+  /** Thai (Thailand) (th-TH) */
+  ThTh = 'TH_TH',
+  /** Tigrinya (ti) */
+  Ti = 'TI',
+  /** Tigrinya (Eritrea) (ti-ER) */
+  TiEr = 'TI_ER',
+  /** Tigrinya (Ethiopia) (ti-ET) */
+  TiEt = 'TI_ET',
+  /** Turkmen (tk) */
+  Tk = 'TK',
+  /** Tongan (to) */
+  To = 'TO',
+  /** Tongan (Tonga) (to-TO) */
+  ToTo = 'TO_TO',
+  /** Turkish (tr) */
+  Tr = 'TR',
+  /** Turkish (Turkey) (tr-TR) */
+  TrTr = 'TR_TR',
+  /** Tasawaq (twq) */
+  Twq = 'TWQ',
+  /** Tasawaq (Niger) (twq-NE) */
+  TwqNe = 'TWQ_NE',
+  /** Central Morocco Tamazight (tzm) */
+  Tzm = 'TZM',
+  /** Central Morocco Tamazight (Latin) (tzm-Latn) */
+  TzmLatn = 'TZM_LATN',
+  /** Central Morocco Tamazight (Latin, Morocco) (tzm-Latn-MA)  */
+  TzmLatnMa = 'TZM_LATN_MA',
+  /** Uyghur */
+  Ug = 'UG',
+  /** Uyghur (China) */
+  UgCn = 'UG_CN',
+  /** Ukrainian (uk) */
+  Uk = 'UK',
+  /** Ukrainian (Ukraine) (uk-UA) */
+  UkUa = 'UK_UA',
+  /** Urdu (ur) */
+  Ur = 'UR',
+  /** Urdu (India) (ur-IN) */
+  UrIn = 'UR_IN',
+  /** Urdu (Pakistan) (ur-PK) */
+  UrPk = 'UR_PK',
+  /** Uzbek (uz) */
+  Uz = 'UZ',
+  /** Uzbek (Arabic) (uz-Arab) */
+  UzArab = 'UZ_ARAB',
+  /** Uzbek (Arabic, Afghanistan) (uz-Arab-AF) */
+  UzArabAf = 'UZ_ARAB_AF',
+  /** Uzbek (Cyrillic) (uz-Cyrl) */
+  UzCyrl = 'UZ_CYRL',
+  /** Uzbek (Cyrillic, Uzbekistan) (uz-Cyrl-UZ) */
+  UzCyrlUz = 'UZ_CYRL_UZ',
+  /** Uzbek (Latin) (uz-Latn) */
+  UzLatn = 'UZ_LATN',
+  /** Uzbek (Latin, Uzbekistan) (uz-Latn-UZ) */
+  UzLatnUz = 'UZ_LATN_UZ',
+  /** Vai (vai) */
+  Vai = 'VAI',
+  /** Vai (Latin) (vai-Latn) */
+  VaiLatn = 'VAI_LATN',
+  /** Vai (Latin, Liberia) (vai-Latn-LR) */
+  VaiLatnLr = 'VAI_LATN_LR',
+  /** Vai (Vai) (vai-Vaii) */
+  VaiVaii = 'VAI_VAII',
+  /** Vai (Vai, Liberia) (vai-Vaii-LR) */
+  VaiVaiiLr = 'VAI_VAII_LR',
+  /** Valencian (val) */
+  Val = 'VAL',
+  /** Valencian (Spain) (val-ES) */
+  ValEs = 'VAL_ES',
+  /** Vietnamese (vi) */
+  Vi = 'VI',
+  /** Virgin Islands Creole English */
+  Vic = 'VIC',
+  /** Vietnamese (Vietnam) (vi-VN) */
+  ViVn = 'VI_VN',
+  /** Vunjo (vun) */
+  Vun = 'VUN',
+  /** Vunjo (Tanzania) (vun-TZ) */
+  VunTz = 'VUN_TZ',
+  /** Wolof (wo) */
+  Wo = 'WO',
+  /** Xhosa (xh) */
+  Xh = 'XH',
+  /** Soga (xog) */
+  Xog = 'XOG',
+  /** Soga (Uganda) (xog-UG) */
+  XogUg = 'XOG_UG',
+  /** Yangben (yav) */
+  Yav = 'YAV',
+  /** Yangben (Cameroon) (yav-CM) */
+  YavCm = 'YAV_CM',
+  /** Yoruba (yo) */
+  Yo = 'YO',
+  /** Yoruba (Nigeria) (yo-NG) */
+  YoNg = 'YO_NG',
+  /** Chinese (zh) */
+  Zh = 'ZH',
+  /** Chinese (Simplified, China) (zh-CN) */
+  ZhCn = 'ZH_CN',
+  /** Chinese (Simplified) (zh-Hans) */
+  ZhHans = 'ZH_HANS',
+  /** Chinese (Simplified, China) (zh-Hans-CN) */
+  ZhHansCn = 'ZH_HANS_CN',
+  /** Chinese (Simplified, Hong Kong SAR China) (zh-Hans-HK) */
+  ZhHansHk = 'ZH_HANS_HK',
+  /** Chinese (Simplified, Macau SAR China) (zh-Hans-MO)  */
+  ZhHansMo = 'ZH_HANS_MO',
+  /** Chinese (Simplified, Singapore) (zh-Hans-SG) */
+  ZhHansSg = 'ZH_HANS_SG',
+  /** Chinese (Traditional) (zh-Hant) */
+  ZhHant = 'ZH_HANT',
+  /** Chinese (Traditional, Hong Kong SAR China) (zh-Hant-HK)  */
+  ZhHantHk = 'ZH_HANT_HK',
+  /** Chinese (Traditional, Macau SAR China) (zh-Hant-MO)  */
+  ZhHantMo = 'ZH_HANT_MO',
+  /** Chinese (Traditional, Taiwan) (zh-Hant-TW) */
+  ZhHantTw = 'ZH_HANT_TW',
+  /** Zulu (zu) */
+  Zu = 'ZU',
+  /** Zulu (South Africa) (zu-ZA) */
+  ZuZa = 'ZU_ZA'
+}
+
 /** A location, such as a web shop or distribution platform, where a publication can be acquired or viewed. */
 export type Location = {
   __typename?: 'Location';
@@ -2669,10 +4049,28 @@ export enum LocationPlatform {
   Zenodo = 'ZENODO'
 }
 
+/** Allowed markup formats for text fields that support structured content */
+export enum MarkupFormat {
+  /** HTML format */
+  Html = 'HTML',
+  /** JATS XML format */
+  JatsXml = 'JATS_XML',
+  /** Markdown format */
+  Markdown = 'MARKDOWN',
+  /** Plain text format */
+  PlainText = 'PLAIN_TEXT'
+}
+
 export type MutationRoot = {
   __typename?: 'MutationRoot';
+  /** Create a new abstract with the specified values */
+  createAbstract: Abstract;
   /** Create a new affiliation with the specified values */
   createAffiliation: Affiliation;
+  /** Create a new biography with the specified values */
+  createBiography: Biography;
+  /** Create a new contact with the specified values */
+  createContact: Contact;
   /** Create a new contribution with the specified values */
   createContribution: Contribution;
   /** Create a new contributor with the specified values */
@@ -2701,12 +4099,20 @@ export type MutationRoot = {
   createSeries: Series;
   /** Create a new subject with the specified values */
   createSubject: Subject;
+  /** Create a new title with the specified values */
+  createTitle: Title;
   /** Create a new work with the specified values */
   createWork: Work;
   /** Create a new work relation with the specified values */
   createWorkRelation: WorkRelation;
+  /** Delete a single abstract using its ID */
+  deleteAbstract: Abstract;
   /** Delete a single affiliation using its ID */
   deleteAffiliation: Affiliation;
+  /** Delete a single biography using its ID */
+  deleteBiography: Biography;
+  /** Delete a single contact using its ID */
+  deleteContact: Contact;
   /** Delete a single contribution using its ID */
   deleteContribution: Contribution;
   /** Delete a single contributor using its ID */
@@ -2735,6 +4141,8 @@ export type MutationRoot = {
   deleteSeries: Series;
   /** Delete a single subject using its ID */
   deleteSubject: Subject;
+  /** Delete a single title using its ID */
+  deleteTitle: Title;
   /** Delete a single work using its ID */
   deleteWork: Work;
   /** Delete a single work relation using its ID */
@@ -2751,8 +4159,14 @@ export type MutationRoot = {
   moveSubject: Subject;
   /** Change the ordering of a work relation within a work */
   moveWorkRelation: WorkRelation;
+  /** Update an existing abstract with the specified values */
+  updateAbstract: Abstract;
   /** Update an existing affiliation with the specified values */
   updateAffiliation: Affiliation;
+  /** Update an existing biography with the specified values */
+  updateBiography: Biography;
+  /** Update an existing contact with the specified values */
+  updateContact: Contact;
   /** Update an existing contribution with the specified values */
   updateContribution: Contribution;
   /** Update an existing contributor with the specified values */
@@ -2781,6 +4195,8 @@ export type MutationRoot = {
   updateSeries: Series;
   /** Update an existing subject with the specified values */
   updateSubject: Subject;
+  /** Update an existing title with the specified values */
+  updateTitle: Title;
   /** Update an existing work with the specified values */
   updateWork: Work;
   /** Update an existing work relation with the specified values */
@@ -2788,8 +4204,25 @@ export type MutationRoot = {
 };
 
 
+export type MutationRootCreateAbstractArgs = {
+  data: NewAbstract;
+  markupFormat?: InputMaybe<MarkupFormat>;
+};
+
+
 export type MutationRootCreateAffiliationArgs = {
   data: NewAffiliation;
+};
+
+
+export type MutationRootCreateBiographyArgs = {
+  data: NewBiography;
+  markupFormat?: InputMaybe<MarkupFormat>;
+};
+
+
+export type MutationRootCreateContactArgs = {
+  data: NewContact;
 };
 
 
@@ -2863,6 +4296,12 @@ export type MutationRootCreateSubjectArgs = {
 };
 
 
+export type MutationRootCreateTitleArgs = {
+  data: NewTitle;
+  markupFormat?: InputMaybe<MarkupFormat>;
+};
+
+
 export type MutationRootCreateWorkArgs = {
   data: NewWork;
 };
@@ -2873,8 +4312,23 @@ export type MutationRootCreateWorkRelationArgs = {
 };
 
 
+export type MutationRootDeleteAbstractArgs = {
+  abstractId: Scalars['Uuid']['input'];
+};
+
+
 export type MutationRootDeleteAffiliationArgs = {
   affiliationId: Scalars['Uuid']['input'];
+};
+
+
+export type MutationRootDeleteBiographyArgs = {
+  biographyId: Scalars['Uuid']['input'];
+};
+
+
+export type MutationRootDeleteContactArgs = {
+  contactId: Scalars['Uuid']['input'];
 };
 
 
@@ -2948,6 +4402,11 @@ export type MutationRootDeleteSubjectArgs = {
 };
 
 
+export type MutationRootDeleteTitleArgs = {
+  titleId: Scalars['Uuid']['input'];
+};
+
+
 export type MutationRootDeleteWorkArgs = {
   workId: Scalars['Uuid']['input'];
 };
@@ -2994,8 +4453,25 @@ export type MutationRootMoveWorkRelationArgs = {
 };
 
 
+export type MutationRootUpdateAbstractArgs = {
+  data: PatchAbstract;
+  markupFormat?: InputMaybe<MarkupFormat>;
+};
+
+
 export type MutationRootUpdateAffiliationArgs = {
   data: PatchAffiliation;
+};
+
+
+export type MutationRootUpdateBiographyArgs = {
+  data: PatchBiography;
+  markupFormat?: InputMaybe<MarkupFormat>;
+};
+
+
+export type MutationRootUpdateContactArgs = {
+  data: PatchContact;
 };
 
 
@@ -3069,6 +4545,12 @@ export type MutationRootUpdateSubjectArgs = {
 };
 
 
+export type MutationRootUpdateTitleArgs = {
+  data: PatchTitle;
+  markupFormat?: InputMaybe<MarkupFormat>;
+};
+
+
 export type MutationRootUpdateWorkArgs = {
   data: PatchWork;
 };
@@ -3076,6 +4558,15 @@ export type MutationRootUpdateWorkArgs = {
 
 export type MutationRootUpdateWorkRelationArgs = {
   data: PatchWorkRelation;
+};
+
+/** Set of values required to define a new work's abstract */
+export type NewAbstract = {
+  abstractType: AbstractType;
+  canonical: Scalars['Boolean']['input'];
+  content: Scalars['String']['input'];
+  localeCode: LocaleCode;
+  workId: Scalars['Uuid']['input'];
 };
 
 /** Set of values required to define a new association between a person and an institution for a specific contribution */
@@ -3086,9 +4577,23 @@ export type NewAffiliation = {
   position?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** Set of values required to define a new work's biography */
+export type NewBiography = {
+  canonical: Scalars['Boolean']['input'];
+  content: Scalars['String']['input'];
+  contributionId: Scalars['Uuid']['input'];
+  localeCode: LocaleCode;
+};
+
+/** Set of values required to define a new way of getting in touch with a publisher */
+export type NewContact = {
+  contactType: ContactType;
+  email: Scalars['String']['input'];
+  publisherId: Scalars['Uuid']['input'];
+};
+
 /** Set of values required to define a new individual involvement in the production of a work */
 export type NewContribution = {
-  biography?: InputMaybe<Scalars['String']['input']>;
   contributionOrdinal: Scalars['Int']['input'];
   contributionType: ContributionType;
   contributorId: Scalars['Uuid']['input'];
@@ -3168,6 +4673,10 @@ export type NewPrice = {
 
 /** Set of values required to define a new manifestation of a written text */
 export type NewPublication = {
+  accessibilityAdditionalStandard?: InputMaybe<AccessibilityStandard>;
+  accessibilityException?: InputMaybe<AccessibilityException>;
+  accessibilityReportUrl?: InputMaybe<Scalars['String']['input']>;
+  accessibilityStandard?: InputMaybe<AccessibilityStandard>;
   depthIn?: InputMaybe<Scalars['Float']['input']>;
   depthMm?: InputMaybe<Scalars['Float']['input']>;
   heightIn?: InputMaybe<Scalars['Float']['input']>;
@@ -3183,6 +4692,8 @@ export type NewPublication = {
 
 /** Set of values required to define a new organisation that produces and distributes works */
 export type NewPublisher = {
+  accessibilityReportUrl?: InputMaybe<Scalars['String']['input']>;
+  accessibilityStatement?: InputMaybe<Scalars['String']['input']>;
   publisherName: Scalars['String']['input'];
   publisherShortname?: InputMaybe<Scalars['String']['input']>;
   publisherUrl?: InputMaybe<Scalars['String']['input']>;
@@ -3234,6 +4745,16 @@ export type NewSubject = {
   workId: Scalars['Uuid']['input'];
 };
 
+/** Set of values required to define a new work's title */
+export type NewTitle = {
+  canonical: Scalars['Boolean']['input'];
+  fullTitle: Scalars['String']['input'];
+  localeCode: LocaleCode;
+  subtitle?: InputMaybe<Scalars['String']['input']>;
+  title: Scalars['String']['input'];
+  workId: Scalars['Uuid']['input'];
+};
+
 /** Set of values required to define a new written text that can be published */
 export type NewWork = {
   audioCount?: InputMaybe<Scalars['Int']['input']>;
@@ -3244,7 +4765,6 @@ export type NewWork = {
   doi?: InputMaybe<Scalars['Doi']['input']>;
   edition?: InputMaybe<Scalars['Int']['input']>;
   firstPage?: InputMaybe<Scalars['String']['input']>;
-  fullTitle: Scalars['String']['input'];
   generalNote?: InputMaybe<Scalars['String']['input']>;
   imageCount?: InputMaybe<Scalars['Int']['input']>;
   imprintId: Scalars['Uuid']['input'];
@@ -3252,7 +4772,6 @@ export type NewWork = {
   lastPage?: InputMaybe<Scalars['String']['input']>;
   lccn?: InputMaybe<Scalars['String']['input']>;
   license?: InputMaybe<Scalars['String']['input']>;
-  longAbstract?: InputMaybe<Scalars['String']['input']>;
   oclc?: InputMaybe<Scalars['String']['input']>;
   pageBreakdown?: InputMaybe<Scalars['String']['input']>;
   pageCount?: InputMaybe<Scalars['Int']['input']>;
@@ -3260,10 +4779,7 @@ export type NewWork = {
   place?: InputMaybe<Scalars['String']['input']>;
   publicationDate?: InputMaybe<Scalars['Date']['input']>;
   reference?: InputMaybe<Scalars['String']['input']>;
-  shortAbstract?: InputMaybe<Scalars['String']['input']>;
-  subtitle?: InputMaybe<Scalars['String']['input']>;
   tableCount?: InputMaybe<Scalars['Int']['input']>;
-  title: Scalars['String']['input'];
   toc?: InputMaybe<Scalars['String']['input']>;
   videoCount?: InputMaybe<Scalars['Int']['input']>;
   withdrawnDate?: InputMaybe<Scalars['Date']['input']>;
@@ -3279,6 +4795,16 @@ export type NewWorkRelation = {
   relatorWorkId: Scalars['Uuid']['input'];
 };
 
+/** Set of values required to update an existing work's abstract */
+export type PatchAbstract = {
+  abstractId: Scalars['Uuid']['input'];
+  abstractType: AbstractType;
+  canonical: Scalars['Boolean']['input'];
+  content: Scalars['String']['input'];
+  localeCode: LocaleCode;
+  workId: Scalars['Uuid']['input'];
+};
+
 /** Set of values required to update an existing association between a person and an institution for a specific contribution */
 export type PatchAffiliation = {
   affiliationId: Scalars['Uuid']['input'];
@@ -3288,9 +4814,25 @@ export type PatchAffiliation = {
   position?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** Set of values required to update an existing work's biography */
+export type PatchBiography = {
+  biographyId: Scalars['Uuid']['input'];
+  canonical: Scalars['Boolean']['input'];
+  content: Scalars['String']['input'];
+  contributionId: Scalars['Uuid']['input'];
+  localeCode: LocaleCode;
+};
+
+/** Set of values required to update an existing way of getting in touch with a publisher */
+export type PatchContact = {
+  contactId: Scalars['Uuid']['input'];
+  contactType: ContactType;
+  email: Scalars['String']['input'];
+  publisherId: Scalars['Uuid']['input'];
+};
+
 /** Set of values required to update an individual involvement in the production of a work */
 export type PatchContribution = {
-  biography?: InputMaybe<Scalars['String']['input']>;
   contributionId: Scalars['Uuid']['input'];
   contributionOrdinal: Scalars['Int']['input'];
   contributionType: ContributionType;
@@ -3379,6 +4921,10 @@ export type PatchPrice = {
 
 /** Set of values required to update an existing manifestation of a written text */
 export type PatchPublication = {
+  accessibilityAdditionalStandard?: InputMaybe<AccessibilityStandard>;
+  accessibilityException?: InputMaybe<AccessibilityException>;
+  accessibilityReportUrl?: InputMaybe<Scalars['String']['input']>;
+  accessibilityStandard?: InputMaybe<AccessibilityStandard>;
   depthIn?: InputMaybe<Scalars['Float']['input']>;
   depthMm?: InputMaybe<Scalars['Float']['input']>;
   heightIn?: InputMaybe<Scalars['Float']['input']>;
@@ -3395,6 +4941,8 @@ export type PatchPublication = {
 
 /** Set of values required to update an existing organisation that produces and distributes works */
 export type PatchPublisher = {
+  accessibilityReportUrl?: InputMaybe<Scalars['String']['input']>;
+  accessibilityStatement?: InputMaybe<Scalars['String']['input']>;
   publisherId: Scalars['Uuid']['input'];
   publisherName: Scalars['String']['input'];
   publisherShortname?: InputMaybe<Scalars['String']['input']>;
@@ -3450,6 +4998,17 @@ export type PatchSubject = {
   workId: Scalars['Uuid']['input'];
 };
 
+/** Set of values required to update an existing work's title */
+export type PatchTitle = {
+  canonical: Scalars['Boolean']['input'];
+  fullTitle: Scalars['String']['input'];
+  localeCode: LocaleCode;
+  subtitle?: InputMaybe<Scalars['String']['input']>;
+  title: Scalars['String']['input'];
+  titleId: Scalars['Uuid']['input'];
+  workId: Scalars['Uuid']['input'];
+};
+
 /** Set of values required to update an existing written text that can be published */
 export type PatchWork = {
   audioCount?: InputMaybe<Scalars['Int']['input']>;
@@ -3460,7 +5019,6 @@ export type PatchWork = {
   doi?: InputMaybe<Scalars['Doi']['input']>;
   edition?: InputMaybe<Scalars['Int']['input']>;
   firstPage?: InputMaybe<Scalars['String']['input']>;
-  fullTitle: Scalars['String']['input'];
   generalNote?: InputMaybe<Scalars['String']['input']>;
   imageCount?: InputMaybe<Scalars['Int']['input']>;
   imprintId: Scalars['Uuid']['input'];
@@ -3468,7 +5026,6 @@ export type PatchWork = {
   lastPage?: InputMaybe<Scalars['String']['input']>;
   lccn?: InputMaybe<Scalars['String']['input']>;
   license?: InputMaybe<Scalars['String']['input']>;
-  longAbstract?: InputMaybe<Scalars['String']['input']>;
   oclc?: InputMaybe<Scalars['String']['input']>;
   pageBreakdown?: InputMaybe<Scalars['String']['input']>;
   pageCount?: InputMaybe<Scalars['Int']['input']>;
@@ -3476,10 +5033,7 @@ export type PatchWork = {
   place?: InputMaybe<Scalars['String']['input']>;
   publicationDate?: InputMaybe<Scalars['Date']['input']>;
   reference?: InputMaybe<Scalars['String']['input']>;
-  shortAbstract?: InputMaybe<Scalars['String']['input']>;
-  subtitle?: InputMaybe<Scalars['String']['input']>;
   tableCount?: InputMaybe<Scalars['Int']['input']>;
-  title: Scalars['String']['input'];
   toc?: InputMaybe<Scalars['String']['input']>;
   videoCount?: InputMaybe<Scalars['Int']['input']>;
   withdrawnDate?: InputMaybe<Scalars['Date']['input']>;
@@ -3535,6 +5089,14 @@ export type PriceOrderBy = {
 /** A manifestation of a written text */
 export type Publication = {
   __typename?: 'Publication';
+  /** EPUB- or PDF-specific standard accessibility level met by this publication, if applicable */
+  accessibilityAdditionalStandard?: Maybe<AccessibilityStandard>;
+  /** Reason for this publication not being required to comply with accessibility standards (if any) */
+  accessibilityException?: Maybe<AccessibilityException>;
+  /** Link to a web page showing detailed accessibility information for this publication */
+  accessibilityReportUrl?: Maybe<Scalars['String']['output']>;
+  /** WCAG standard accessibility level met by this publication (if any) */
+  accessibilityStandard?: Maybe<AccessibilityStandard>;
   /** Date and time at which the publication record was created */
   createdAt: Scalars['Timestamp']['output'];
   /** Depth of the physical Publication (in mm, cm or in) (only applicable to non-Chapter Paperbacks and Hardbacks) */
@@ -3607,6 +5169,10 @@ export type PublicationWidthArgs = {
 
 /** Field to use when sorting publications list */
 export enum PublicationField {
+  AccessibilityAdditionalStandard = 'ACCESSIBILITY_ADDITIONAL_STANDARD',
+  AccessibilityException = 'ACCESSIBILITY_EXCEPTION',
+  AccessibilityReportUrl = 'ACCESSIBILITY_REPORT_URL',
+  AccessibilityStandard = 'ACCESSIBILITY_STANDARD',
   CreatedAt = 'CREATED_AT',
   DepthIn = 'DEPTH_IN',
   DepthMm = 'DEPTH_MM',
@@ -3660,6 +5226,12 @@ export enum PublicationType {
 /** An organisation that produces and distributes written texts. */
 export type Publisher = {
   __typename?: 'Publisher';
+  /** URL of the publisher's report on the accessibility of its texts for readers with impairments */
+  accessibilityReportUrl?: Maybe<Scalars['String']['output']>;
+  /** Statement from the publisher on the accessibility of its texts for readers with impairments */
+  accessibilityStatement?: Maybe<Scalars['String']['output']>;
+  /** Get contacts linked to this publisher */
+  contacts: Array<Contact>;
   /** Date and time at which the publisher record was created */
   createdAt: Scalars['Timestamp']['output'];
   /** Get imprints linked to this publisher */
@@ -3678,6 +5250,15 @@ export type Publisher = {
 
 
 /** An organisation that produces and distributes written texts. */
+export type PublisherContactsArgs = {
+  contactTypes?: InputMaybe<Array<ContactType>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order?: InputMaybe<ContactOrderBy>;
+};
+
+
+/** An organisation that produces and distributes written texts. */
 export type PublisherImprintsArgs = {
   filter?: InputMaybe<Scalars['String']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -3687,6 +5268,8 @@ export type PublisherImprintsArgs = {
 
 /** Field to use when sorting publishers list */
 export enum PublisherField {
+  AccessibilityReportUrl = 'ACCESSIBILITY_REPORT_URL',
+  AccessibilityStatement = 'ACCESSIBILITY_STATEMENT',
   CreatedAt = 'CREATED_AT',
   PublisherId = 'PUBLISHER_ID',
   PublisherName = 'PUBLISHER_NAME',
@@ -3703,12 +5286,20 @@ export type PublisherOrderBy = {
 
 export type QueryRoot = {
   __typename?: 'QueryRoot';
+  /** Query an abstract by its ID */
+  abstract: Abstract;
+  /** Query the full list of abstracts */
+  abstracts: Array<Abstract>;
   /** Query a single affiliation using its ID */
   affiliation: Affiliation;
   /** Get the total number of affiliations */
   affiliationCount: Scalars['Int']['output'];
   /** Query the full list of affiliations */
   affiliations: Array<Affiliation>;
+  /** Query biographies by work ID */
+  biographies: Array<Biography>;
+  /** Query an biography by it's ID */
+  biography: Biography;
   /** Query a single book using its DOI */
   bookByDoi: Work;
   /** Get the total number of books (a subset of the total number of works) */
@@ -3721,6 +5312,12 @@ export type QueryRoot = {
   chapterCount: Scalars['Int']['output'];
   /** Query the full list of chapters (a subset of the full list of works) */
   chapters: Array<Work>;
+  /** Query a single contact using its ID */
+  contact: Contact;
+  /** Get the total number of contacts */
+  contactCount: Scalars['Int']['output'];
+  /** Query the full list of contacts */
+  contacts: Array<Contact>;
   /** Query a single contribution using its ID */
   contribution: Contribution;
   /** Get the total number of contributions */
@@ -3805,6 +5402,10 @@ export type QueryRoot = {
   subjectCount: Scalars['Int']['output'];
   /** Query the full list of subjects */
   subjects: Array<Subject>;
+  /** Query a title by its ID */
+  title: Title;
+  /** Query the full list of titles */
+  titles: Array<Title>;
   /** Query a single work using its ID */
   work: Work;
   /** Query a single work using its DOI */
@@ -3813,6 +5414,22 @@ export type QueryRoot = {
   workCount: Scalars['Int']['output'];
   /** Query the full list of works */
   works: Array<Work>;
+};
+
+
+export type QueryRootAbstractArgs = {
+  abstractId: Scalars['Uuid']['input'];
+  markupFormat?: InputMaybe<MarkupFormat>;
+};
+
+
+export type QueryRootAbstractsArgs = {
+  filter?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  localeCodes?: InputMaybe<Array<LocaleCode>>;
+  markupFormat?: InputMaybe<MarkupFormat>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order?: InputMaybe<AbstractOrderBy>;
 };
 
 
@@ -3826,6 +5443,22 @@ export type QueryRootAffiliationsArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   order?: InputMaybe<AffiliationOrderBy>;
   publishers?: InputMaybe<Array<Scalars['Uuid']['input']>>;
+};
+
+
+export type QueryRootBiographiesArgs = {
+  filter?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  localeCodes?: InputMaybe<Array<LocaleCode>>;
+  markupFormat?: InputMaybe<MarkupFormat>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order?: InputMaybe<BiographyOrderBy>;
+};
+
+
+export type QueryRootBiographyArgs = {
+  biographyId: Scalars['Uuid']['input'];
+  markupFormat?: InputMaybe<MarkupFormat>;
 };
 
 
@@ -3882,6 +5515,25 @@ export type QueryRootChaptersArgs = {
   updatedAtWithRelations?: InputMaybe<TimeExpression>;
   workStatus?: InputMaybe<WorkStatus>;
   workStatuses?: InputMaybe<Array<WorkStatus>>;
+};
+
+
+export type QueryRootContactArgs = {
+  contactId: Scalars['Uuid']['input'];
+};
+
+
+export type QueryRootContactCountArgs = {
+  contactTypes?: InputMaybe<Array<ContactType>>;
+};
+
+
+export type QueryRootContactsArgs = {
+  contactTypes?: InputMaybe<Array<ContactType>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order?: InputMaybe<ContactOrderBy>;
+  publishers?: InputMaybe<Array<Scalars['Uuid']['input']>>;
 };
 
 
@@ -4145,6 +5797,22 @@ export type QueryRootSubjectsArgs = {
 };
 
 
+export type QueryRootTitleArgs = {
+  markupFormat?: InputMaybe<MarkupFormat>;
+  titleId: Scalars['Uuid']['input'];
+};
+
+
+export type QueryRootTitlesArgs = {
+  filter?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  localeCodes?: InputMaybe<Array<LocaleCode>>;
+  markupFormat?: InputMaybe<MarkupFormat>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order?: InputMaybe<TitleOrderBy>;
+};
+
+
 export type QueryRootWorkArgs = {
   workId: Scalars['Uuid']['input'];
 };
@@ -4367,7 +6035,7 @@ export type Subject = {
   subjectCode: Scalars['String']['output'];
   /** Thoth ID of the subject */
   subjectId: Scalars['Uuid']['output'];
-  /** Number representing this subject's position in an ordered list of subjects of the same type within the work */
+  /** Number representing this subject's position in an ordered list of subjects of the same type within the work (subjects of equal prominence can have the same number) */
   subjectOrdinal: Scalars['Int']['output'];
   /** Type of the subject (e.g. the subject category scheme being used) */
   subjectType: SubjectType;
@@ -4412,6 +6080,44 @@ export type TimeExpression = {
   timestamp: Scalars['Timestamp']['input'];
 };
 
+/** A title associated with a work. */
+export type Title = {
+  __typename?: 'Title';
+  /** Whether this is the canonical title for the work */
+  canonical: Scalars['Boolean']['output'];
+  /** Full title including subtitle */
+  fullTitle: Scalars['String']['output'];
+  /** Locale code of the title */
+  localeCode: LocaleCode;
+  /** Subtitle of the work */
+  subtitle?: Maybe<Scalars['String']['output']>;
+  /** Main title (excluding subtitle) */
+  title: Scalars['String']['output'];
+  /** Thoth ID of the title */
+  titleId: Scalars['Uuid']['output'];
+  /** Get the work to which the title is linked */
+  work: Work;
+  /** Thoth ID of the work to which the title is linked */
+  workId: Scalars['Uuid']['output'];
+};
+
+/** Field to use when sorting title list */
+export enum TitleField {
+  Canonical = 'CANONICAL',
+  FullTitle = 'FULL_TITLE',
+  LocaleCode = 'LOCALE_CODE',
+  Subtitle = 'SUBTITLE',
+  Title = 'TITLE',
+  TitleId = 'TITLE_ID',
+  WorkId = 'WORK_ID'
+}
+
+/** Field and order to use when sorting titles list */
+export type TitleOrderBy = {
+  direction: Direction;
+  field: TitleField;
+};
+
 /** Unit of measurement for physical Work weight (grams or ounces) */
 export enum WeightUnit {
   /** Grams */
@@ -4423,6 +6129,8 @@ export enum WeightUnit {
 /** A written text that can be published */
 export type Work = {
   __typename?: 'Work';
+  /** Query abstracts by work ID */
+  abstracts: Array<Abstract>;
   /** Total number of audio fragments in the work */
   audioCount?: Maybe<Scalars['Int']['output']>;
   /** Indicates that the work contains a bibliography or other similar information */
@@ -4443,7 +6151,10 @@ export type Work = {
   edition?: Maybe<Scalars['Int']['output']>;
   /** Page number on which the work begins (only applicable to chapters) */
   firstPage?: Maybe<Scalars['String']['output']>;
-  /** Concatenation of title and subtitle with punctuation mark */
+  /**
+   * Concatenation of title and subtitle with punctuation mark
+   * @deprecated Please use Work `titles` field instead to get the correct full title in a multilingual manner
+   */
   fullTitle: Scalars['String']['output'];
   /** Get fundings linked to this work */
   fundings: Array<Funding>;
@@ -4467,7 +6178,10 @@ export type Work = {
   lccn?: Maybe<Scalars['String']['output']>;
   /** URL of the license which applies to this work (frequently a Creative Commons license for open-access works) */
   license?: Maybe<Scalars['String']['output']>;
-  /** Abstract of the work. Where a work has only one abstract, it should be entered here, and Short Abstract can be left blank. Long Abstract is output in metadata formats, and Short Abstract is not. */
+  /**
+   * Abstract of the work. Where a work has only one abstract, it should be entered here, and Short Abstract can be left blank. Long Abstract is output in metadata formats, and Short Abstract is not.
+   * @deprecated Please use Work `abstracts` field instead to get the correct long abstract in a multilingual manner
+   */
   longAbstract?: Maybe<Scalars['String']['output']>;
   /** OCLC (WorldCat) Control Number of the work (not applicable to chapters) */
   oclc?: Maybe<Scalars['String']['output']>;
@@ -4489,16 +6203,27 @@ export type Work = {
   references: Array<Reference>;
   /** Get other works related to this work */
   relations: Array<WorkRelation>;
-  /** Short abstract of the work. Where a work has two different versions of the abstract, the truncated version should be entered here. Otherwise, it can be left blank. This field is not output in metadata formats; where relevant, Long Abstract is used instead. */
+  /**
+   * Short abstract of the work. Where a work has two different versions of the abstract, the truncated version should be entered here. Otherwise, it can be left blank. This field is not output in metadata formats; where relevant, Long Abstract is used instead.
+   * @deprecated Please use Work `abstracts` field instead to get the correct short abstract in a multilingual manner
+   */
   shortAbstract?: Maybe<Scalars['String']['output']>;
   /** Get subjects linked to this work */
   subjects: Array<Subject>;
-  /** Secondary title of the work (excluding main title) */
+  /**
+   * Secondary title of the work (excluding main title)
+   * @deprecated Please use Work `titles` field instead to get the correct sub_title in a multilingual manner
+   */
   subtitle?: Maybe<Scalars['String']['output']>;
   /** Total number of tables in the work */
   tableCount?: Maybe<Scalars['Int']['output']>;
-  /** Main title of the work (excluding subtitle) */
+  /**
+   * Main title of the work (excluding subtitle)
+   * @deprecated Please use Work `titles` field instead to get the correct title in a multilingual manner
+   */
   title: Scalars['String']['output'];
+  /** Query titles by work ID */
+  titles: Array<Title>;
   /** Table of contents of the work (not applicable to chapters) */
   toc?: Maybe<Scalars['String']['output']>;
   /** Date and time at which the work record was last updated */
@@ -4515,6 +6240,17 @@ export type Work = {
   workStatus: WorkStatus;
   /** Type of the work */
   workType: WorkType;
+};
+
+
+/** A written text that can be published */
+export type WorkAbstractsArgs = {
+  filter?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  localeCodes?: InputMaybe<Array<LocaleCode>>;
+  markupFormat?: InputMaybe<MarkupFormat>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order?: InputMaybe<AbstractOrderBy>;
 };
 
 
@@ -4589,6 +6325,17 @@ export type WorkSubjectsArgs = {
   offset?: InputMaybe<Scalars['Int']['input']>;
   order?: InputMaybe<SubjectOrderBy>;
   subjectTypes?: InputMaybe<Array<SubjectType>>;
+};
+
+
+/** A written text that can be published */
+export type WorkTitlesArgs = {
+  filter?: InputMaybe<Scalars['String']['input']>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  localeCodes?: InputMaybe<Array<LocaleCode>>;
+  markupFormat?: InputMaybe<MarkupFormat>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order?: InputMaybe<TitleOrderBy>;
 };
 
 /** Field to use when sorting works list */
@@ -4802,6 +6549,48 @@ export type MoveContributionMutationVariables = Exact<{
 
 export type MoveContributionMutation = { __typename?: 'MutationRoot', moveContribution: { __typename?: 'Contribution', workId: any } };
 
+export type CreateBiographyMutationVariables = Exact<{
+  data: NewBiography;
+  markupFormat: MarkupFormat;
+}>;
+
+
+export type CreateBiographyMutation = { __typename?: 'MutationRoot', createBiography: (
+    { __typename?: 'Biography' }
+    & { ' $fragmentRefs'?: { 'BiographyFragmentFragment': BiographyFragmentFragment } }
+  ) };
+
+export type UpdateBiographyMutationVariables = Exact<{
+  data: PatchBiography;
+  markupFormat: MarkupFormat;
+}>;
+
+
+export type UpdateBiographyMutation = { __typename?: 'MutationRoot', updateBiography: (
+    { __typename?: 'Biography' }
+    & { ' $fragmentRefs'?: { 'BiographyFragmentFragment': BiographyFragmentFragment } }
+  ) };
+
+export type DeleteBiographyMutationVariables = Exact<{
+  biographyId: Scalars['Uuid']['input'];
+}>;
+
+
+export type DeleteBiographyMutation = { __typename?: 'MutationRoot', deleteBiography: (
+    { __typename?: 'Biography' }
+    & { ' $fragmentRefs'?: { 'BiographyFragmentFragment': BiographyFragmentFragment } }
+  ) };
+
+export type GetContributionBiographiesQueryVariables = Exact<{
+  contributionId: Scalars['Uuid']['input'];
+}>;
+
+
+export type GetContributionBiographiesQuery = { __typename?: 'QueryRoot', contribution: { __typename?: 'Contribution', biographies: Array<(
+      { __typename?: 'Biography', contributionId: any, work: { __typename?: 'Work', workId: any } }
+      & { ' $fragmentRefs'?: { 'BiographyFragmentFragment': BiographyFragmentFragment } }
+    )> } };
+
 export type GetContributorsQueryVariables = Exact<{
   filter?: InputMaybe<Scalars['String']['input']>;
 }>;
@@ -4996,14 +6785,14 @@ export type GetPublicationsQueryVariables = Exact<{
 }>;
 
 
-export type GetPublicationsQuery = { __typename?: 'QueryRoot', publications: Array<{ __typename?: 'Publication', isbn?: any | null, publicationId: any, publicationType: PublicationType, updatedAt: any, work: { __typename?: 'Work', doi?: any | null, title: string, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } } }, prices: Array<{ __typename?: 'Price', unitPrice: number, priceId: any, currencyCode: CurrencyCode }>, locations: Array<{ __typename?: 'Location', canonical: boolean, fullTextUrl?: string | null, landingPage?: string | null, locationPlatform: LocationPlatform, locationId: any }> }> };
+export type GetPublicationsQuery = { __typename?: 'QueryRoot', publications: Array<{ __typename?: 'Publication', isbn?: any | null, publicationId: any, publicationType: PublicationType, updatedAt: any, work: { __typename?: 'Work', doi?: any | null, titles: Array<{ __typename?: 'Title', canonical: boolean, fullTitle: string, localeCode: LocaleCode, subtitle?: string | null, title: string, titleId: any }>, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } } }, prices: Array<{ __typename?: 'Price', unitPrice: number, priceId: any, currencyCode: CurrencyCode }>, locations: Array<{ __typename?: 'Location', canonical: boolean, fullTextUrl?: string | null, landingPage?: string | null, locationPlatform: LocationPlatform, locationId: any }> }> };
 
 export type CreatePublicationMutationVariables = Exact<{
   data: NewPublication;
 }>;
 
 
-export type CreatePublicationMutation = { __typename?: 'MutationRoot', createPublication: { __typename?: 'Publication', publicationId: any, work: { __typename?: 'Work', doi?: any | null, title: string, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } } }, prices: Array<{ __typename?: 'Price', unitPrice: number, priceId: any, currencyCode: CurrencyCode }> } };
+export type CreatePublicationMutation = { __typename?: 'MutationRoot', createPublication: { __typename?: 'Publication', publicationId: any, work: { __typename?: 'Work', doi?: any | null, titles: Array<{ __typename?: 'Title', canonical: boolean, fullTitle: string, localeCode: LocaleCode, subtitle?: string | null, title: string, titleId: any }>, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } } }, prices: Array<{ __typename?: 'Price', unitPrice: number, priceId: any, currencyCode: CurrencyCode }> } };
 
 export type UpdatePublicationMutationVariables = Exact<{
   data: PatchPublication;
@@ -5019,6 +6808,27 @@ export type DeletePublicationMutationVariables = Exact<{
 
 export type DeletePublicationMutation = { __typename?: 'MutationRoot', deletePublication: { __typename?: 'Publication', publicationId: any } };
 
+export type CreateContactMutationVariables = Exact<{
+  data: NewContact;
+}>;
+
+
+export type CreateContactMutation = { __typename?: 'MutationRoot', createContact: { __typename?: 'Contact', contactId: any, contactType: ContactType, email: string } };
+
+export type UpdateContactMutationVariables = Exact<{
+  data: PatchContact;
+}>;
+
+
+export type UpdateContactMutation = { __typename?: 'MutationRoot', updateContact: { __typename?: 'Contact', contactId: any, contactType: ContactType, email: string } };
+
+export type DeleteContactMutationVariables = Exact<{
+  contactId: Scalars['Uuid']['input'];
+}>;
+
+
+export type DeleteContactMutation = { __typename?: 'MutationRoot', deleteContact: { __typename?: 'Contact', contactId: any } };
+
 export type GetPublishersQueryVariables = Exact<{
   publishers: Array<Scalars['Uuid']['input']> | Scalars['Uuid']['input'];
   offset: Scalars['Int']['input'];
@@ -5026,7 +6836,30 @@ export type GetPublishersQueryVariables = Exact<{
 }>;
 
 
-export type GetPublishersQuery = { __typename?: 'QueryRoot', publishers: Array<{ __typename?: 'Publisher', publisherId: any, publisherName: string, publisherShortname?: string | null, publisherUrl?: string | null, updatedAt: any }> };
+export type GetPublishersQuery = { __typename?: 'QueryRoot', publishers: Array<(
+    { __typename?: 'Publisher' }
+    & { ' $fragmentRefs'?: { 'PublisherFragmentFragment': PublisherFragmentFragment } }
+  )> };
+
+export type GetPublisherQueryVariables = Exact<{
+  publisherId: Scalars['Uuid']['input'];
+}>;
+
+
+export type GetPublisherQuery = { __typename?: 'QueryRoot', publisher: (
+    { __typename?: 'Publisher' }
+    & { ' $fragmentRefs'?: { 'PublisherFragmentFragment': PublisherFragmentFragment } }
+  ) };
+
+export type UpdatePublisherMutationVariables = Exact<{
+  data: PatchPublisher;
+}>;
+
+
+export type UpdatePublisherMutation = { __typename?: 'MutationRoot', updatePublisher: (
+    { __typename?: 'Publisher' }
+    & { ' $fragmentRefs'?: { 'PublisherFragmentFragment': PublisherFragmentFragment } }
+  ) };
 
 export type CreateReferenceMutationVariables = Exact<{
   data: NewReference;
@@ -5202,6 +7035,64 @@ export type MoveWorkRelationMutationVariables = Exact<{
 
 export type MoveWorkRelationMutation = { __typename?: 'MutationRoot', moveWorkRelation: { __typename?: 'WorkRelation', workRelationId: any } };
 
+export type CreateTitleMutationVariables = Exact<{
+  data: NewTitle;
+  markupFormat?: InputMaybe<MarkupFormat>;
+}>;
+
+
+export type CreateTitleMutation = { __typename?: 'MutationRoot', createTitle: (
+    { __typename?: 'Title' }
+    & { ' $fragmentRefs'?: { 'TitleFragmentFragment': TitleFragmentFragment } }
+  ) };
+
+export type UpdateTitleMutationVariables = Exact<{
+  data: PatchTitle;
+  markupFormat?: InputMaybe<MarkupFormat>;
+}>;
+
+
+export type UpdateTitleMutation = { __typename?: 'MutationRoot', updateTitle: (
+    { __typename?: 'Title' }
+    & { ' $fragmentRefs'?: { 'TitleFragmentFragment': TitleFragmentFragment } }
+  ) };
+
+export type DeleteTitleMutationVariables = Exact<{
+  titleId: Scalars['Uuid']['input'];
+}>;
+
+
+export type DeleteTitleMutation = { __typename?: 'MutationRoot', deleteTitle: { __typename?: 'Title', titleId: any } };
+
+export type CreateAbstractMutationVariables = Exact<{
+  data: NewAbstract;
+  markupFormat?: InputMaybe<MarkupFormat>;
+}>;
+
+
+export type CreateAbstractMutation = { __typename?: 'MutationRoot', createAbstract: (
+    { __typename?: 'Abstract' }
+    & { ' $fragmentRefs'?: { 'AbstractFragmentFragment': AbstractFragmentFragment } }
+  ) };
+
+export type UpdateAbstractMutationVariables = Exact<{
+  data: PatchAbstract;
+  markupFormat?: InputMaybe<MarkupFormat>;
+}>;
+
+
+export type UpdateAbstractMutation = { __typename?: 'MutationRoot', updateAbstract: (
+    { __typename?: 'Abstract' }
+    & { ' $fragmentRefs'?: { 'AbstractFragmentFragment': AbstractFragmentFragment } }
+  ) };
+
+export type DeleteAbstractMutationVariables = Exact<{
+  abstractId: Scalars['Uuid']['input'];
+}>;
+
+
+export type DeleteAbstractMutation = { __typename?: 'MutationRoot', deleteAbstract: { __typename?: 'Abstract', abstractId: any } };
+
 export type GetWorksQueryVariables = Exact<{
   offset: Scalars['Int']['input'];
   limit?: InputMaybe<Scalars['Int']['input']>;
@@ -5323,9 +7214,16 @@ export type CreateWorkRelationMutationVariables = Exact<{
 
 export type CreateWorkRelationMutation = { __typename?: 'MutationRoot', createWorkRelation: { __typename?: 'WorkRelation', workRelationId: any } };
 
+export type AbstractFragmentFragment = { __typename?: 'Abstract', abstractId: any, abstractType: AbstractType, canonical: boolean, content: string, localeCode: LocaleCode } & { ' $fragmentName'?: 'AbstractFragmentFragment' };
+
 export type AffiliationFragmentFragment = { __typename?: 'Affiliation', contributionId: any, affiliationId: any, institutionId: any, affiliationOrdinal: number, position?: string | null, institution: { __typename?: 'Institution', institutionName: string, ror?: any | null } } & { ' $fragmentName'?: 'AffiliationFragmentFragment' };
 
-export type ContributionFragmentFragment = { __typename?: 'Contribution', workId: any, contributionId: any, mainContribution: boolean, fullName: string, lastName: string, firstName?: string | null, contributionType: ContributionType, contributionOrdinal: number, biography?: string | null, contributorId: any, contributor: (
+export type BiographyFragmentFragment = { __typename?: 'Biography', biographyId: any, canonical: boolean, content: string, localeCode: LocaleCode, contributionId: any } & { ' $fragmentName'?: 'BiographyFragmentFragment' };
+
+export type ContributionFragmentFragment = { __typename?: 'Contribution', workId: any, contributionId: any, mainContribution: boolean, fullName: string, lastName: string, firstName?: string | null, contributionType: ContributionType, contributionOrdinal: number, contributorId: any, biographies: Array<(
+    { __typename?: 'Biography' }
+    & { ' $fragmentRefs'?: { 'BiographyFragmentFragment': BiographyFragmentFragment } }
+  )>, contributor: (
     { __typename?: 'Contributor' }
     & { ' $fragmentRefs'?: { 'ContributorFragmentFragment': ContributorFragmentFragment } }
   ), affiliations: Array<(
@@ -5345,33 +7243,45 @@ export type PriceFragmentFragment = { __typename?: 'Price', unitPrice: number, p
 
 export type PublicationFragmentFragment = { __typename?: 'Publication', publicationId: any, isbn?: any | null, publicationType: PublicationType, updatedAt: any, weight?: number | null, width?: number | null, height?: number | null, depth?: number | null, work: { __typename?: 'Work', doi?: any | null, title: string, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } } } } & { ' $fragmentName'?: 'PublicationFragmentFragment' };
 
+export type PublisherFragmentFragment = { __typename?: 'Publisher', publisherId: any, publisherName: string, publisherShortname?: string | null, publisherUrl?: string | null, updatedAt: any, accessibilityReportUrl?: string | null, accessibilityStatement?: string | null, contacts: Array<{ __typename?: 'Contact', contactId: any, contactType: ContactType, email: string }> } & { ' $fragmentName'?: 'PublisherFragmentFragment' };
+
 export type ReferenceFragmentFragment = { __typename?: 'Reference', doi?: any | null, referenceId: any, referenceOrdinal: number, unstructuredCitation?: string | null, journalTitle?: string | null, articleTitle?: string | null, seriesTitle?: string | null, volumeTitle?: string | null, url?: string | null } & { ' $fragmentName'?: 'ReferenceFragmentFragment' };
 
 export type SubjectFragmentFragment = { __typename?: 'Subject', subjectId: any, subjectCode: string, subjectType: SubjectType, subjectOrdinal: number } & { ' $fragmentName'?: 'SubjectFragmentFragment' };
 
-export type WorkFragmentFragment = { __typename?: 'Work', doi?: any | null, lccn?: string | null, oclc?: string | null, workId: any, title: string, subtitle?: string | null, fullTitle: string, bibliographyNote?: string | null, generalNote?: string | null, workType: WorkType, updatedAt: any, publicationDate?: any | null, withdrawnDate?: any | null, shortAbstract?: string | null, longAbstract?: string | null, place?: string | null, reference?: string | null, imprintId: any, workStatus: WorkStatus, edition?: number | null, license?: string | null, copyrightHolder?: string | null, landingPage?: string | null, coverUrl?: string | null, pageCount?: number | null, pageBreakdown?: string | null, imageCount?: number | null, tableCount?: number | null, audioCount?: number | null, videoCount?: number | null, firstPage?: string | null, lastPage?: string | null, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } }, contributions: Array<{ __typename?: 'Contribution', fullName: string, lastName: string, firstName?: string | null, contributionId: any, contributorId: any, contributionType: ContributionType, mainContribution: boolean, contributionOrdinal: number, biography?: string | null, contributor: { __typename?: 'Contributor', orcid?: any | null, website?: string | null }, affiliations: Array<{ __typename?: 'Affiliation', position?: string | null, affiliationId: any, affiliationOrdinal: number, institution: { __typename?: 'Institution', ror?: any | null, institutionName: string, institutionId: any } }> }>, languages: Array<{ __typename?: 'Language', languageCode: LanguageCode, languageRelation: LanguageRelation, mainLanguage: boolean, languageId: any }>, fundings: Array<{ __typename?: 'Funding', fundingId: any, grantNumber?: string | null, institutionId: any, jurisdiction?: string | null, program?: string | null, projectName?: string | null, projectShortname?: string | null, institution: { __typename?: 'Institution', institutionName: string, ror?: any | null } }>, publications: Array<{ __typename?: 'Publication', publicationId: any, isbn?: any | null, publicationType: PublicationType, updatedAt: any, weightG?: number | null, weightOz?: number | null, widthMm?: number | null, widthIn?: number | null, heightMm?: number | null, heightIn?: number | null, depthMm?: number | null, depthIn?: number | null, work: { __typename?: 'Work', doi?: any | null, title: string, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } } }, prices: Array<{ __typename?: 'Price', unitPrice: number, priceId: any, currencyCode: CurrencyCode }>, locations: Array<{ __typename?: 'Location', canonical: boolean, fullTextUrl?: string | null, landingPage?: string | null, locationPlatform: LocationPlatform, locationId: any }> }>, references: Array<{ __typename?: 'Reference', doi?: any | null, referenceId: any, referenceOrdinal: number, journalTitle?: string | null, articleTitle?: string | null, seriesTitle?: string | null, volumeTitle?: string | null, unstructuredCitation?: string | null, url?: string | null }>, subjects: Array<{ __typename?: 'Subject', subjectId: any, subjectCode: string, subjectType: SubjectType, subjectOrdinal: number }>, issues: Array<{ __typename?: 'Issue', issueId: any, issueOrdinal: number, series: { __typename?: 'Series', seriesId: any, seriesName: string } }> } & { ' $fragmentName'?: 'WorkFragmentFragment' };
+export type TitleFragmentFragment = { __typename?: 'Title', canonical: boolean, fullTitle: string, localeCode: LocaleCode, subtitle?: string | null, title: string, titleId: any } & { ' $fragmentName'?: 'TitleFragmentFragment' };
 
+export type WorkFragmentFragment = { __typename?: 'Work', doi?: any | null, lccn?: string | null, oclc?: string | null, workId: any, bibliographyNote?: string | null, generalNote?: string | null, workType: WorkType, updatedAt: any, publicationDate?: any | null, withdrawnDate?: any | null, place?: string | null, reference?: string | null, imprintId: any, workStatus: WorkStatus, edition?: number | null, license?: string | null, copyrightHolder?: string | null, landingPage?: string | null, coverUrl?: string | null, pageCount?: number | null, pageBreakdown?: string | null, imageCount?: number | null, tableCount?: number | null, audioCount?: number | null, videoCount?: number | null, firstPage?: string | null, lastPage?: string | null, titles: Array<{ __typename?: 'Title', canonical: boolean, fullTitle: string, localeCode: LocaleCode, subtitle?: string | null, title: string, titleId: any }>, abstracts: Array<{ __typename?: 'Abstract', abstractId: any, abstractType: AbstractType, canonical: boolean, content: string, localeCode: LocaleCode }>, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } }, contributions: Array<{ __typename?: 'Contribution', fullName: string, lastName: string, firstName?: string | null, contributionId: any, contributorId: any, contributionType: ContributionType, mainContribution: boolean, contributionOrdinal: number, biographies: Array<{ __typename?: 'Biography', biographyId: any, canonical: boolean, content: string, localeCode: LocaleCode, contributionId: any }>, contributor: { __typename?: 'Contributor', orcid?: any | null, website?: string | null }, affiliations: Array<{ __typename?: 'Affiliation', position?: string | null, affiliationId: any, affiliationOrdinal: number, institution: { __typename?: 'Institution', ror?: any | null, institutionName: string, institutionId: any } }> }>, languages: Array<{ __typename?: 'Language', languageCode: LanguageCode, languageRelation: LanguageRelation, mainLanguage: boolean, languageId: any }>, fundings: Array<{ __typename?: 'Funding', fundingId: any, grantNumber?: string | null, institutionId: any, jurisdiction?: string | null, program?: string | null, projectName?: string | null, projectShortname?: string | null, institution: { __typename?: 'Institution', institutionName: string, ror?: any | null } }>, publications: Array<{ __typename?: 'Publication', publicationId: any, isbn?: any | null, publicationType: PublicationType, updatedAt: any, accessibilityAdditionalStandard?: AccessibilityStandard | null, accessibilityException?: AccessibilityException | null, accessibilityReportUrl?: string | null, accessibilityStandard?: AccessibilityStandard | null, weightG?: number | null, weightOz?: number | null, widthMm?: number | null, widthIn?: number | null, heightMm?: number | null, heightIn?: number | null, depthMm?: number | null, depthIn?: number | null, work: { __typename?: 'Work', doi?: any | null, title: string, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } } }, prices: Array<{ __typename?: 'Price', unitPrice: number, priceId: any, currencyCode: CurrencyCode }>, locations: Array<{ __typename?: 'Location', canonical: boolean, fullTextUrl?: string | null, landingPage?: string | null, locationPlatform: LocationPlatform, locationId: any }> }>, references: Array<{ __typename?: 'Reference', doi?: any | null, referenceId: any, referenceOrdinal: number, journalTitle?: string | null, articleTitle?: string | null, seriesTitle?: string | null, volumeTitle?: string | null, unstructuredCitation?: string | null, url?: string | null }>, subjects: Array<{ __typename?: 'Subject', subjectId: any, subjectCode: string, subjectType: SubjectType, subjectOrdinal: number }>, issues: Array<{ __typename?: 'Issue', issueId: any, issueOrdinal: number, series: { __typename?: 'Series', seriesId: any, seriesName: string } }> } & { ' $fragmentName'?: 'WorkFragmentFragment' };
+
+export const AbstractFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AbstractFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Abstract"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}}]} as unknown as DocumentNode<AbstractFragmentFragment, unknown>;
+export const BiographyFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"BiographyFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Biography"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}}]} as unknown as DocumentNode<BiographyFragmentFragment, unknown>;
 export const ContributorFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ContributorFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Contributor"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}}]} as unknown as DocumentNode<ContributorFragmentFragment, unknown>;
 export const AffiliationFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AffiliationFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Affiliation"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"position"}}]}}]} as unknown as DocumentNode<AffiliationFragmentFragment, unknown>;
-export const ContributionFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ContributionFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Contribution"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ContributorFragment"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"AffiliationFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ContributorFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Contributor"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AffiliationFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Affiliation"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"position"}}]}}]} as unknown as DocumentNode<ContributionFragmentFragment, unknown>;
+export const ContributionFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ContributionFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Contribution"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"BiographyFragment"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ContributorFragment"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"AffiliationFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"BiographyFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Biography"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ContributorFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Contributor"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AffiliationFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Affiliation"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"position"}}]}}]} as unknown as DocumentNode<ContributionFragmentFragment, unknown>;
 export const FundingFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"FundingFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Funding"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}}]} as unknown as DocumentNode<FundingFragmentFragment, unknown>;
 export const LanguageFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"LanguageFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Language"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageId"}},{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}}]}}]} as unknown as DocumentNode<LanguageFragmentFragment, unknown>;
 export const LocationFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"LocationFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Location"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]} as unknown as DocumentNode<LocationFragmentFragment, unknown>;
 export const PriceFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PriceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Price"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}}]} as unknown as DocumentNode<PriceFragmentFragment, unknown>;
 export const PublicationFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PublicationFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Publication"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}}]}}]} as unknown as DocumentNode<PublicationFragmentFragment, unknown>;
+export const PublisherFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PublisherFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Publisher"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherId"}},{"kind":"Field","name":{"kind":"Name","value":"publisherName"}},{"kind":"Field","name":{"kind":"Name","value":"publisherShortname"}},{"kind":"Field","name":{"kind":"Name","value":"publisherUrl"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStatement"}},{"kind":"Field","name":{"kind":"Name","value":"contacts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contactId"}},{"kind":"Field","name":{"kind":"Name","value":"contactType"}},{"kind":"Field","name":{"kind":"Name","value":"email"}}]}}]}}]} as unknown as DocumentNode<PublisherFragmentFragment, unknown>;
 export const ReferenceFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<ReferenceFragmentFragment, unknown>;
 export const SubjectFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"SubjectFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Subject"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}}]} as unknown as DocumentNode<SubjectFragmentFragment, unknown>;
-export const WorkFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<WorkFragmentFragment, unknown>;
+export const TitleFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"TitleFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Title"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}}]} as unknown as DocumentNode<TitleFragmentFragment, unknown>;
+export const WorkFragmentFragmentDoc = {"kind":"Document","definitions":[{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<WorkFragmentFragment, unknown>;
 export const CreateAffiliationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateAffiliation"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewAffiliation"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createAffiliation"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"AffiliationFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AffiliationFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Affiliation"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"position"}}]}}]} as unknown as DocumentNode<CreateAffiliationMutation, CreateAffiliationMutationVariables>;
 export const UpdateAffiliationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateAffiliation"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchAffiliation"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateAffiliation"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"AffiliationFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AffiliationFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Affiliation"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"position"}}]}}]} as unknown as DocumentNode<UpdateAffiliationMutation, UpdateAffiliationMutationVariables>;
 export const DeleteAffiliationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteAffiliation"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"affiliationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteAffiliation"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"affiliationId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"affiliationId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}}]}}]}}]} as unknown as DocumentNode<DeleteAffiliationMutation, DeleteAffiliationMutationVariables>;
 export const MoveAffiliationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MoveAffiliation"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"affiliationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"newOrdinal"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"moveAffiliation"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"affiliationId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"affiliationId"}}},{"kind":"Argument","name":{"kind":"Name","value":"newOrdinal"},"value":{"kind":"Variable","name":{"kind":"Name","value":"newOrdinal"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"AffiliationFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AffiliationFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Affiliation"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"position"}}]}}]} as unknown as DocumentNode<MoveAffiliationMutation, MoveAffiliationMutationVariables>;
-export const GetBooksDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBooks"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"direction"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Direction"}},"defaultValue":{"kind":"EnumValue","value":"ASC"}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkStatus"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"field"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkField"}},"defaultValue":{"kind":"EnumValue","value":"UPDATED_AT_WITH_RELATIONS"}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"updatedAtWithRelations"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"TimeExpression"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"books"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"Variable","name":{"kind":"Name","value":"direction"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"Variable","name":{"kind":"Name","value":"field"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}},{"kind":"Argument","name":{"kind":"Name","value":"workStatus"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"updatedAtWithRelations"},"value":{"kind":"Variable","name":{"kind":"Name","value":"updatedAtWithRelations"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetBooksQuery, GetBooksQueryVariables>;
+export const GetBooksDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBooks"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"direction"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Direction"}},"defaultValue":{"kind":"EnumValue","value":"ASC"}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkStatus"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"field"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkField"}},"defaultValue":{"kind":"EnumValue","value":"UPDATED_AT_WITH_RELATIONS"}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"updatedAtWithRelations"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"TimeExpression"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"books"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"Variable","name":{"kind":"Name","value":"direction"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"Variable","name":{"kind":"Name","value":"field"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}},{"kind":"Argument","name":{"kind":"Name","value":"workStatus"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"updatedAtWithRelations"},"value":{"kind":"Variable","name":{"kind":"Name","value":"updatedAtWithRelations"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetBooksQuery, GetBooksQueryVariables>;
 export const GetBooksCountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetBooksCount"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkStatus"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"updatedAtWithRelations"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"TimeExpression"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publicationDate"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"TimeExpression"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"bookCount"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}},{"kind":"Argument","name":{"kind":"Name","value":"workStatus"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"updatedAtWithRelations"},"value":{"kind":"Variable","name":{"kind":"Name","value":"updatedAtWithRelations"}}},{"kind":"Argument","name":{"kind":"Name","value":"publicationDate"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publicationDate"}}}]}]}}]} as unknown as DocumentNode<GetBooksCountQuery, GetBooksCountQueryVariables>;
 export const CreateContributionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateContribution"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewContribution"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createContribution"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}}]}}]} as unknown as DocumentNode<CreateContributionMutation, CreateContributionMutationVariables>;
 export const DeleteContributionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteContribution"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"contributionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteContribution"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"contributionId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contributionId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workId"}}]}}]}}]} as unknown as DocumentNode<DeleteContributionMutation, DeleteContributionMutationVariables>;
 export const UpdateContributionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateContribution"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchContribution"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateContribution"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workId"}}]}}]}}]} as unknown as DocumentNode<UpdateContributionMutation, UpdateContributionMutationVariables>;
 export const MoveContributionDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MoveContribution"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"contributionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"newOrdinal"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"moveContribution"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"contributionId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contributionId"}}},{"kind":"Argument","name":{"kind":"Name","value":"newOrdinal"},"value":{"kind":"Variable","name":{"kind":"Name","value":"newOrdinal"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workId"}}]}}]}}]} as unknown as DocumentNode<MoveContributionMutation, MoveContributionMutationVariables>;
+export const CreateBiographyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateBiography"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewBiography"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"MarkupFormat"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createBiography"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}},{"kind":"Argument","name":{"kind":"Name","value":"markupFormat"},"value":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"BiographyFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"BiographyFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Biography"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}}]} as unknown as DocumentNode<CreateBiographyMutation, CreateBiographyMutationVariables>;
+export const UpdateBiographyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateBiography"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchBiography"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"MarkupFormat"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateBiography"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}},{"kind":"Argument","name":{"kind":"Name","value":"markupFormat"},"value":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"BiographyFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"BiographyFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Biography"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}}]} as unknown as DocumentNode<UpdateBiographyMutation, UpdateBiographyMutationVariables>;
+export const DeleteBiographyDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteBiography"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"biographyId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteBiography"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"biographyId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"biographyId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"BiographyFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"BiographyFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Biography"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}}]} as unknown as DocumentNode<DeleteBiographyMutation, DeleteBiographyMutationVariables>;
+export const GetContributionBiographiesDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetContributionBiographies"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"contributionId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contribution"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"contributionId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contributionId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"BiographyFragment"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workId"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"BiographyFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Biography"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}}]} as unknown as DocumentNode<GetContributionBiographiesQuery, GetContributionBiographiesQueryVariables>;
 export const GetContributorsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetContributors"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributors"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"UPDATED_AT"}},{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"DESC"}}]}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"IntValue","value":"1"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"title"}}]}}]}}]}}]}}]} as unknown as DocumentNode<GetContributorsQuery, GetContributorsQueryVariables>;
 export const GetLinkedPublishersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetLinkedPublishers"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"contributorId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributor"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"contributorId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contributorId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherId"}}]}}]}}]}}]}}]}}]} as unknown as DocumentNode<GetLinkedPublishersQuery, GetLinkedPublishersQueryVariables>;
 export const CreateContributorDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateContributor"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewContributor"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createContributor"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ContributorFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ContributorFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Contributor"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}}]} as unknown as DocumentNode<CreateContributorMutation, CreateContributorMutationVariables>;
@@ -5393,11 +7303,16 @@ export const DeleteLocationDocument = {"kind":"Document","definitions":[{"kind":
 export const CreatePriceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreatePrice"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewPrice"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createPrice"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"PriceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PriceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Price"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}}]} as unknown as DocumentNode<CreatePriceMutation, CreatePriceMutationVariables>;
 export const DeletePriceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeletePrice"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"priceId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deletePrice"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"priceId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"priceId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"priceId"}}]}}]}}]} as unknown as DocumentNode<DeletePriceMutation, DeletePriceMutationVariables>;
 export const UpdatePriceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdatePrice"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchPrice"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updatePrice"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"PriceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PriceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Price"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}}]} as unknown as DocumentNode<UpdatePriceMutation, UpdatePriceMutationVariables>;
-export const GetPublicationsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPublications"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publications"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}}]}}]} as unknown as DocumentNode<GetPublicationsQuery, GetPublicationsQueryVariables>;
-export const CreatePublicationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreatePublication"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewPublication"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createPublication"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}}]}}]}}]} as unknown as DocumentNode<CreatePublicationMutation, CreatePublicationMutationVariables>;
+export const GetPublicationsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPublications"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publications"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}}]}}]} as unknown as DocumentNode<GetPublicationsQuery, GetPublicationsQueryVariables>;
+export const CreatePublicationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreatePublication"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewPublication"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createPublication"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}}]}}]}}]} as unknown as DocumentNode<CreatePublicationMutation, CreatePublicationMutationVariables>;
 export const UpdatePublicationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdatePublication"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchPublication"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updatePublication"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}}]}}]}}]} as unknown as DocumentNode<UpdatePublicationMutation, UpdatePublicationMutationVariables>;
 export const DeletePublicationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeletePublication"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publicationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deletePublication"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publicationId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publicationId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}}]}}]}}]} as unknown as DocumentNode<DeletePublicationMutation, DeletePublicationMutationVariables>;
-export const GetPublishersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPublishers"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publishers"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherId"}},{"kind":"Field","name":{"kind":"Name","value":"publisherName"}},{"kind":"Field","name":{"kind":"Name","value":"publisherShortname"}},{"kind":"Field","name":{"kind":"Name","value":"publisherUrl"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]} as unknown as DocumentNode<GetPublishersQuery, GetPublishersQueryVariables>;
+export const CreateContactDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateContact"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewContact"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createContact"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contactId"}},{"kind":"Field","name":{"kind":"Name","value":"contactType"}},{"kind":"Field","name":{"kind":"Name","value":"email"}}]}}]}}]} as unknown as DocumentNode<CreateContactMutation, CreateContactMutationVariables>;
+export const UpdateContactDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateContact"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchContact"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateContact"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contactId"}},{"kind":"Field","name":{"kind":"Name","value":"contactType"}},{"kind":"Field","name":{"kind":"Name","value":"email"}}]}}]}}]} as unknown as DocumentNode<UpdateContactMutation, UpdateContactMutationVariables>;
+export const DeleteContactDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteContact"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"contactId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteContact"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"contactId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"contactId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contactId"}}]}}]}}]} as unknown as DocumentNode<DeleteContactMutation, DeleteContactMutationVariables>;
+export const GetPublishersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPublishers"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publishers"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"PublisherFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PublisherFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Publisher"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherId"}},{"kind":"Field","name":{"kind":"Name","value":"publisherName"}},{"kind":"Field","name":{"kind":"Name","value":"publisherShortname"}},{"kind":"Field","name":{"kind":"Name","value":"publisherUrl"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStatement"}},{"kind":"Field","name":{"kind":"Name","value":"contacts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contactId"}},{"kind":"Field","name":{"kind":"Name","value":"contactType"}},{"kind":"Field","name":{"kind":"Name","value":"email"}}]}}]}}]} as unknown as DocumentNode<GetPublishersQuery, GetPublishersQueryVariables>;
+export const GetPublisherDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPublisher"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publisherId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publisherId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publisherId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"PublisherFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PublisherFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Publisher"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherId"}},{"kind":"Field","name":{"kind":"Name","value":"publisherName"}},{"kind":"Field","name":{"kind":"Name","value":"publisherShortname"}},{"kind":"Field","name":{"kind":"Name","value":"publisherUrl"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStatement"}},{"kind":"Field","name":{"kind":"Name","value":"contacts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contactId"}},{"kind":"Field","name":{"kind":"Name","value":"contactType"}},{"kind":"Field","name":{"kind":"Name","value":"email"}}]}}]}}]} as unknown as DocumentNode<GetPublisherQuery, GetPublisherQueryVariables>;
+export const UpdatePublisherDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdatePublisher"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchPublisher"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updatePublisher"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"PublisherFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PublisherFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Publisher"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherId"}},{"kind":"Field","name":{"kind":"Name","value":"publisherName"}},{"kind":"Field","name":{"kind":"Name","value":"publisherShortname"}},{"kind":"Field","name":{"kind":"Name","value":"publisherUrl"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStatement"}},{"kind":"Field","name":{"kind":"Name","value":"contacts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contactId"}},{"kind":"Field","name":{"kind":"Name","value":"contactType"}},{"kind":"Field","name":{"kind":"Name","value":"email"}}]}}]}}]} as unknown as DocumentNode<UpdatePublisherMutation, UpdatePublisherMutationVariables>;
 export const CreateReferenceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateReference"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewReference"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createReference"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ReferenceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<CreateReferenceMutation, CreateReferenceMutationVariables>;
 export const UpdateReferenceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateReference"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchReference"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateReference"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ReferenceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<UpdateReferenceMutation, UpdateReferenceMutationVariables>;
 export const DeleteReferenceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteReference"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"referenceId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteReference"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"referenceId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"referenceId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ReferenceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<DeleteReferenceMutation, DeleteReferenceMutationVariables>;
@@ -5416,16 +7331,22 @@ export const CreateSubjectDocument = {"kind":"Document","definitions":[{"kind":"
 export const UpdateSubjectDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateSubject"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchSubject"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateSubject"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"SubjectFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"SubjectFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Subject"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}}]} as unknown as DocumentNode<UpdateSubjectMutation, UpdateSubjectMutationVariables>;
 export const DeleteSubjectDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteSubject"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"subjectId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteSubject"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"subjectId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"subjectId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"SubjectFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"SubjectFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Subject"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}}]} as unknown as DocumentNode<DeleteSubjectMutation, DeleteSubjectMutationVariables>;
 export const MoveSubjectDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MoveSubject"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"subjectId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"newOrdinal"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"moveSubject"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"subjectId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"subjectId"}}},{"kind":"Argument","name":{"kind":"Name","value":"newOrdinal"},"value":{"kind":"Variable","name":{"kind":"Name","value":"newOrdinal"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}}]}}]}}]} as unknown as DocumentNode<MoveSubjectMutation, MoveSubjectMutationVariables>;
-export const CreateWorkDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateWork"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewWork"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createWork"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<CreateWorkMutation, CreateWorkMutationVariables>;
+export const CreateWorkDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateWork"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewWork"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createWork"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<CreateWorkMutation, CreateWorkMutationVariables>;
 export const MoveWorkRelationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"MoveWorkRelation"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workRelationId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"newOrdinal"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"moveWorkRelation"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workRelationId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workRelationId"}}},{"kind":"Argument","name":{"kind":"Name","value":"newOrdinal"},"value":{"kind":"Variable","name":{"kind":"Name","value":"newOrdinal"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}}]}}]}}]} as unknown as DocumentNode<MoveWorkRelationMutation, MoveWorkRelationMutationVariables>;
-export const GetWorksDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorks"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"direction"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Direction"}},"defaultValue":{"kind":"EnumValue","value":"ASC"}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"field"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkField"}},"defaultValue":{"kind":"EnumValue","value":"UPDATED_AT_WITH_RELATIONS"}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkStatus"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workTypes"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkType"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"works"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"Variable","name":{"kind":"Name","value":"direction"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"Variable","name":{"kind":"Name","value":"field"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"workStatus"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}},{"kind":"Argument","name":{"kind":"Name","value":"workTypes"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workTypes"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorksQuery, GetWorksQueryVariables>;
-export const GetWorkDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWork"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorkQuery, GetWorkQueryVariables>;
-export const UpdateWorkDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateWork"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchWork"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateWork"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateWorkMutation, UpdateWorkMutationVariables>;
+export const CreateTitleDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateTitle"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewTitle"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"MarkupFormat"}},"defaultValue":{"kind":"EnumValue","value":"PLAIN_TEXT"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createTitle"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}},{"kind":"Argument","name":{"kind":"Name","value":"markupFormat"},"value":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"TitleFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"TitleFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Title"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}}]} as unknown as DocumentNode<CreateTitleMutation, CreateTitleMutationVariables>;
+export const UpdateTitleDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateTitle"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchTitle"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"MarkupFormat"}},"defaultValue":{"kind":"EnumValue","value":"PLAIN_TEXT"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateTitle"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}},{"kind":"Argument","name":{"kind":"Name","value":"markupFormat"},"value":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"TitleFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"TitleFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Title"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}}]} as unknown as DocumentNode<UpdateTitleMutation, UpdateTitleMutationVariables>;
+export const DeleteTitleDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteTitle"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"titleId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteTitle"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"titleId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"titleId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}}]}}]} as unknown as DocumentNode<DeleteTitleMutation, DeleteTitleMutationVariables>;
+export const CreateAbstractDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateAbstract"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewAbstract"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"MarkupFormat"}},"defaultValue":{"kind":"EnumValue","value":"PLAIN_TEXT"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createAbstract"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}},{"kind":"Argument","name":{"kind":"Name","value":"markupFormat"},"value":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"AbstractFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AbstractFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Abstract"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}}]} as unknown as DocumentNode<CreateAbstractMutation, CreateAbstractMutationVariables>;
+export const UpdateAbstractDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateAbstract"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchAbstract"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"MarkupFormat"}},"defaultValue":{"kind":"EnumValue","value":"PLAIN_TEXT"}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateAbstract"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}},{"kind":"Argument","name":{"kind":"Name","value":"markupFormat"},"value":{"kind":"Variable","name":{"kind":"Name","value":"markupFormat"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"AbstractFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"AbstractFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Abstract"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}}]} as unknown as DocumentNode<UpdateAbstractMutation, UpdateAbstractMutationVariables>;
+export const DeleteAbstractDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteAbstract"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"abstractId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteAbstract"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"abstractId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"abstractId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}}]}}]}}]} as unknown as DocumentNode<DeleteAbstractMutation, DeleteAbstractMutationVariables>;
+export const GetWorksDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorks"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"direction"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Direction"}},"defaultValue":{"kind":"EnumValue","value":"ASC"}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"field"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkField"}},"defaultValue":{"kind":"EnumValue","value":"UPDATED_AT_WITH_RELATIONS"}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkStatus"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workTypes"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkType"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"works"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"Variable","name":{"kind":"Name","value":"direction"}}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"Variable","name":{"kind":"Name","value":"field"}}}]}},{"kind":"Argument","name":{"kind":"Name","value":"workStatus"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}},{"kind":"Argument","name":{"kind":"Name","value":"workTypes"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workTypes"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorksQuery, GetWorksQueryVariables>;
+export const GetWorkDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWork"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorkQuery, GetWorkQueryVariables>;
+export const UpdateWorkDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateWork"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchWork"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateWork"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateWorkMutation, UpdateWorkMutationVariables>;
 export const DeleteWorkDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteWork"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteWork"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workId"}}]}}]}}]} as unknown as DocumentNode<DeleteWorkMutation, DeleteWorkMutationVariables>;
 export const GetWorksCountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorksCount"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkStatus"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workTypes"}},"type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"WorkType"}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workCount"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}},{"kind":"Argument","name":{"kind":"Name","value":"workStatus"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workStatus"}}},{"kind":"Argument","name":{"kind":"Name","value":"workTypes"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workTypes"}}}]}]}}]} as unknown as DocumentNode<GetWorksCountQuery, GetWorksCountQueryVariables>;
-export const GetWorkChaptersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorkChapters"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"relations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"relationTypes"},"value":{"kind":"EnumValue","value":"HAS_CHILD"}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"ASC"}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"RELATION_ORDINAL"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}},{"kind":"Field","name":{"kind":"Name","value":"relatedWork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorkChaptersQuery, GetWorkChaptersQueryVariables>;
-export const GetWorkTranslationsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorkTranslations"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"relations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"relationTypes"},"value":{"kind":"EnumValue","value":"HAS_TRANSLATION"}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"ASC"}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"RELATION_ORDINAL"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}},{"kind":"Field","name":{"kind":"Name","value":"relatedWork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorkTranslationsQuery, GetWorkTranslationsQueryVariables>;
-export const GetWorkEditionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorkEditions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"relations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"relationTypes"},"value":{"kind":"EnumValue","value":"IS_REPLACED_BY"}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"ASC"}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"RELATION_ORDINAL"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}},{"kind":"Field","name":{"kind":"Name","value":"relatedWork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorkEditionsQuery, GetWorkEditionsQueryVariables>;
-export const GetWorkPrevEditionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorkPrevEditions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"relations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"relationTypes"},"value":{"kind":"EnumValue","value":"REPLACES"}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"ASC"}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"RELATION_ORDINAL"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}},{"kind":"Field","name":{"kind":"Name","value":"relatedWork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorkPrevEditionsQuery, GetWorkPrevEditionsQueryVariables>;
-export const GetTranslatedWorksDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetTranslatedWorks"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"relations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"relationTypes"},"value":{"kind":"EnumValue","value":"IS_TRANSLATION_OF"}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"ASC"}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"RELATION_ORDINAL"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}},{"kind":"Field","name":{"kind":"Name","value":"relatedWork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"shortAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"longAbstract"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biography"}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetTranslatedWorksQuery, GetTranslatedWorksQueryVariables>;
+export const GetWorkChaptersDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorkChapters"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"relations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"relationTypes"},"value":{"kind":"EnumValue","value":"HAS_CHILD"}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"ASC"}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"RELATION_ORDINAL"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}},{"kind":"Field","name":{"kind":"Name","value":"relatedWork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorkChaptersQuery, GetWorkChaptersQueryVariables>;
+export const GetWorkTranslationsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorkTranslations"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"relations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"relationTypes"},"value":{"kind":"EnumValue","value":"HAS_TRANSLATION"}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"ASC"}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"RELATION_ORDINAL"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}},{"kind":"Field","name":{"kind":"Name","value":"relatedWork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorkTranslationsQuery, GetWorkTranslationsQueryVariables>;
+export const GetWorkEditionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorkEditions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"relations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"relationTypes"},"value":{"kind":"EnumValue","value":"IS_REPLACED_BY"}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"ASC"}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"RELATION_ORDINAL"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}},{"kind":"Field","name":{"kind":"Name","value":"relatedWork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorkEditionsQuery, GetWorkEditionsQueryVariables>;
+export const GetWorkPrevEditionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetWorkPrevEditions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"relations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"relationTypes"},"value":{"kind":"EnumValue","value":"REPLACES"}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"ASC"}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"RELATION_ORDINAL"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}},{"kind":"Field","name":{"kind":"Name","value":"relatedWork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetWorkPrevEditionsQuery, GetWorkPrevEditionsQueryVariables>;
+export const GetTranslatedWorksDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetTranslatedWorks"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"workId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"work"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"workId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"workId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"relations"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"relationTypes"},"value":{"kind":"EnumValue","value":"IS_TRANSLATION_OF"}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"order"},"value":{"kind":"ObjectValue","fields":[{"kind":"ObjectField","name":{"kind":"Name","value":"direction"},"value":{"kind":"EnumValue","value":"ASC"}},{"kind":"ObjectField","name":{"kind":"Name","value":"field"},"value":{"kind":"EnumValue","value":"RELATION_ORDINAL"}}]}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}},{"kind":"Field","name":{"kind":"Name","value":"relatedWork"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"WorkFragment"}}]}}]}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"WorkFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Work"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"lccn"}},{"kind":"Field","name":{"kind":"Name","value":"oclc"}},{"kind":"Field","name":{"kind":"Name","value":"workId"}},{"kind":"Field","name":{"kind":"Name","value":"titles"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTitle"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"subtitle"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"titleId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"abstracts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"abstractId"}},{"kind":"Field","name":{"kind":"Name","value":"abstractType"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"bibliographyNote"}},{"kind":"Field","name":{"kind":"Name","value":"generalNote"}},{"kind":"Field","name":{"kind":"Name","value":"workType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publicationDate"}},{"kind":"Field","name":{"kind":"Name","value":"withdrawnDate"}},{"kind":"Field","name":{"kind":"Name","value":"place"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"reference"}},{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"workStatus"}},{"kind":"Field","name":{"kind":"Name","value":"edition"}},{"kind":"Field","name":{"kind":"Name","value":"license"}},{"kind":"Field","name":{"kind":"Name","value":"copyrightHolder"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"coverUrl"}},{"kind":"Field","name":{"kind":"Name","value":"pageCount"}},{"kind":"Field","name":{"kind":"Name","value":"pageBreakdown"}},{"kind":"Field","name":{"kind":"Name","value":"imageCount"}},{"kind":"Field","name":{"kind":"Name","value":"tableCount"}},{"kind":"Field","name":{"kind":"Name","value":"audioCount"}},{"kind":"Field","name":{"kind":"Name","value":"videoCount"}},{"kind":"Field","name":{"kind":"Name","value":"firstPage"}},{"kind":"Field","name":{"kind":"Name","value":"lastPage"}},{"kind":"Field","name":{"kind":"Name","value":"contributions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fullName"}},{"kind":"Field","name":{"kind":"Name","value":"lastName"}},{"kind":"Field","name":{"kind":"Name","value":"firstName"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}},{"kind":"Field","name":{"kind":"Name","value":"contributorId"}},{"kind":"Field","name":{"kind":"Name","value":"contributionType"}},{"kind":"Field","name":{"kind":"Name","value":"mainContribution"}},{"kind":"Field","name":{"kind":"Name","value":"contributionOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"biographies"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"biographyId"}},{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"content"}},{"kind":"Field","name":{"kind":"Name","value":"localeCode"}},{"kind":"Field","name":{"kind":"Name","value":"contributionId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"contributor"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"orcid"}},{"kind":"Field","name":{"kind":"Name","value":"website"}}]}},{"kind":"Field","name":{"kind":"Name","value":"affiliations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"position"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationId"}},{"kind":"Field","name":{"kind":"Name","value":"affiliationOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"languages"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"languageCode"}},{"kind":"Field","name":{"kind":"Name","value":"languageRelation"}},{"kind":"Field","name":{"kind":"Name","value":"mainLanguage"}},{"kind":"Field","name":{"kind":"Name","value":"languageId"}}]}},{"kind":"Field","name":{"kind":"Name","value":"fundings"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"publications"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publicationId"}},{"kind":"Field","name":{"kind":"Name","value":"isbn"}},{"kind":"Field","name":{"kind":"Name","value":"publicationType"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","alias":{"kind":"Name","value":"weightG"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"G"}}]},{"kind":"Field","alias":{"kind":"Name","value":"weightOz"},"name":{"kind":"Name","value":"weight"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"OZ"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthMm"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"widthIn"},"name":{"kind":"Name","value":"width"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightMm"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"heightIn"},"name":{"kind":"Name","value":"height"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthMm"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"MM"}}]},{"kind":"Field","alias":{"kind":"Name","value":"depthIn"},"name":{"kind":"Name","value":"depth"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"units"},"value":{"kind":"EnumValue","value":"IN"}}]},{"kind":"Field","name":{"kind":"Name","value":"accessibilityAdditionalStandard"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityException"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStandard"}},{"kind":"Field","name":{"kind":"Name","value":"work"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"title"}},{"kind":"Field","name":{"kind":"Name","value":"imprint"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"prices"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"unitPrice"}},{"kind":"Field","name":{"kind":"Name","value":"priceId"}},{"kind":"Field","name":{"kind":"Name","value":"currencyCode"}}]}},{"kind":"Field","name":{"kind":"Name","value":"locations"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"canonical"}},{"kind":"Field","name":{"kind":"Name","value":"fullTextUrl"}},{"kind":"Field","name":{"kind":"Name","value":"landingPage"}},{"kind":"Field","name":{"kind":"Name","value":"locationPlatform"}},{"kind":"Field","name":{"kind":"Name","value":"locationId"}}]}}]}},{"kind":"Field","name":{"kind":"Name","value":"references"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}},{"kind":"Field","name":{"kind":"Name","value":"subjects"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subjectId"}},{"kind":"Field","name":{"kind":"Name","value":"subjectCode"}},{"kind":"Field","name":{"kind":"Name","value":"subjectType"}},{"kind":"Field","name":{"kind":"Name","value":"subjectOrdinal"}}]}},{"kind":"Field","name":{"kind":"Name","value":"issues"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"issueId"}},{"kind":"Field","name":{"kind":"Name","value":"issueOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"series"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"seriesId"}},{"kind":"Field","name":{"kind":"Name","value":"seriesName"}}]}}]}}]}}]} as unknown as DocumentNode<GetTranslatedWorksQuery, GetTranslatedWorksQueryVariables>;
 export const CreateWorkRelationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateWorkRelation"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewWorkRelation"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createWorkRelation"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"workRelationId"}}]}}]}}]} as unknown as DocumentNode<CreateWorkRelationMutation, CreateWorkRelationMutationVariables>;

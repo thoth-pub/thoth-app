@@ -55,7 +55,8 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
   } = props;
   const { t } = useTranslation();
 
-  const canonicalBiography = biographies.find((bio) => bio.canonical)?.content ?? '';
+  const canonicalBiography =
+    biographies.filter((bio) => bio.contributionId === id).find((bio) => bio.canonical)?.content ?? '';
   const plainText = removeMd(canonicalBiography);
   const truncatedBiography = truncateString(plainText, maxPreviewLength);
 

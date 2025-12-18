@@ -6,5 +6,6 @@ export const BIOGRAPHY_FRAGMENT = graphql(`
     canonical
     content
     localeCode
+    contributionId
   }
 `);

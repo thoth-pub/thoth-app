@@ -5,6 +5,8 @@ import z from 'zod';
 
 import { appConfig } from '@/src/shared/config';
 import {
+  AccessibilityExceptions,
+  AccessibilityStandards,
   ContactTypes,
   ContributorTypes,
   CurrencyCode,
@@ -74,6 +76,8 @@ export const locationPlatformValidation = z.enum(LocationPlatforms.enum);
 export const subjectTypeValidation = z.enum(SubjectTypes.enum);
 export const seriesTypeValidation = z.enum(SeriesType.enum);
 export const contactTypeValidation = z.enum(ContactTypes.enum);
+export const accessibilityStandardValidation = z.enum(AccessibilityStandards.enum);
+export const accessibilityExceptionValidation = z.enum(AccessibilityExceptions.enum);
 
 /* URL Validations */
 export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message: errorMessage });

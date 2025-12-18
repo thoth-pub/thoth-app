@@ -52,14 +52,19 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
     });
   };
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const updateBiography = ({ contributorBiography = '' }: ContributionBiographyForm) => {
+  const updateBiography = ({ biographies }: ContributionBiographyForm) => {
     if (!activeContribution) return;
-    // TODO: update the biographies
-    // updateContribution({
-    //   ...activeContribution,
-    //   biography: contributorBiography,
-    // });
+
+    updateContribution({
+      ...activeContribution,
+      biographies: biographies.map(({ biographyId, language, contributorBiography }, index) => ({
+        id: biographyId,
+        canonical: index === 0,
+        content: contributorBiography ?? '',
+        localeCode: language.value,
+        contributionId: activeContribution.id,
+      })),
+    });
   };
 
   const updateOrcid = ({ orcid = '' }: OrcidForm) => {

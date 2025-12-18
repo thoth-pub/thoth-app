@@ -34,7 +34,7 @@ const ContributionForms = (props: ContributionFormsProps) => {
     onClose,
   } = props;
 
-  const { fullName, firstName, lastName, type, biographies, orcidId } = contribution;
+  const { fullName, firstName, lastName, type, biographies, orcidId, id } = contribution;
 
   return (
     <TableFormsWrapper>
@@ -47,7 +47,12 @@ const ContributionForms = (props: ContributionFormsProps) => {
         onSubmit={onNamesSubmit}
       />
       <EditType contributorType={type} onSubmit={onContributorTypeSubmit} />
-      <EditBiography biographies={biographies} recommended={showRecommendations} onSubmit={onBiographySubmit} />
+      <EditBiography
+        contributionId={id}
+        biographies={biographies}
+        recommended={showRecommendations}
+        onSubmit={onBiographySubmit}
+      />
       {children}
     </TableFormsWrapper>
   );

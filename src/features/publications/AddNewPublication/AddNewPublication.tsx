@@ -23,6 +23,11 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
     updateDimensions,
     updatePrices,
     updateLocations,
+    updateAccessibilityStandard,
+    updateAccessibilityAdditionalStandard,
+    updateAccessibilityException,
+    updateAccessibilityReport,
+    deleteAccessibility,
     selectAsCanonical,
   } = useAddNewPublication({
     workId,
@@ -30,7 +35,22 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
 
   if (!publication) return null;
 
-  const { type, isbn, width, height, depth, weight, widthIn, heightIn, depthIn, weightOz } = publication;
+  const {
+    type,
+    isbn,
+    width,
+    height,
+    depth,
+    weight,
+    widthIn,
+    heightIn,
+    depthIn,
+    weightOz,
+    accessibilityStandard,
+    accessibilityAdditionalStandard,
+    accessibilityException,
+    accessibilityReportUrl,
+  } = publication;
 
   return (
     <EditPublication
@@ -45,11 +65,20 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
       depthIn={depthIn}
       weight={weight}
       weightOz={weightOz}
+      accessibilityStandard={accessibilityStandard}
+      accessibilityAdditionalStandard={accessibilityAdditionalStandard}
+      accessibilityException={accessibilityException}
+      accessibilityReportUrl={accessibilityReportUrl}
       onUpdateIsbn={updateIsbn}
       onUpdateType={updateType}
       onClose={close}
       onDone={create}
       onUpdateDimensions={updateDimensions}
+      onUpdateAccessibilityStandard={updateAccessibilityStandard}
+      onUpdateAccessibilityAdditionalStandard={updateAccessibilityAdditionalStandard}
+      onUpdateAccessibilityException={updateAccessibilityException}
+      onUpdateAccessibilityReport={updateAccessibilityReport}
+      onDeleteAccessibility={deleteAccessibility}
     >
       <EditPrice onUpdate={updatePrices} onClose={close} prices={publication.prices} />
       <EditLocations

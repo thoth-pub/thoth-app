@@ -554,7 +554,15 @@ export class CSVParser {
 
       const biographies =
         biography.length > 0
-          ? [{ id: this.defaultId, canonical: true, content: biography, localeCode: LocaleCode.En }]
+          ? [
+              {
+                id: this.defaultId,
+                canonical: true,
+                content: biography,
+                localeCode: LocaleCode.En,
+                contributionId: this.defaultId,
+              },
+            ]
           : [];
 
       const contributionWithNewContributor = getDefaultContribution({

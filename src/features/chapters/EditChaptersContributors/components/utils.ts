@@ -24,7 +24,18 @@ export const findAllSameContributions = (
       const isSameAffiliationsCount = contribution.affiliations.length === currentContribution.affiliations.length;
 
       if (!isSameAffiliations || !isSameAffiliationsCount) return;
-      // TODO: check if the biographies are the same
+
+      const isSameBiographiesCount = contribution.biographies.length === currentContribution.biographies.length;
+
+      const isSameBiographies = contribution.biographies.every((biography) =>
+        currentContribution.biographies.some(
+          (currentBiography) =>
+            currentBiography.content === biography.content && currentBiography.localeCode === biography.localeCode,
+        ),
+      );
+
+      if (!isSameBiographiesCount || !isSameBiographies) return;
+
       if (
         contribution.fullName === currentContribution.fullName &&
         contribution.lastName === currentContribution.lastName &&

@@ -25,6 +25,8 @@ export const QueryKeys = {
   // CONTRIBUTORS
   contributor: 'contributor',
   contributors: 'contributors',
+  // CONTRIBUTIONS
+  contribution: 'contribution',
   // SERIESES
   series: 'series',
   serieses: 'serieses',

@@ -148,6 +148,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
               canonical: bio.canonical,
               content: bio.content,
               localeCode: bio.localeCode,
+              contributionId: bio.contributionId,
             })),
             orcidId: orcid ? convertOrchidIdToText(orcid) : '',
             website: website ?? '',
@@ -186,6 +187,10 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           weightOz,
           prices = [],
           locations = [],
+          accessibilityAdditionalStandard,
+          accessibilityException,
+          accessibilityReportUrl,
+          accessibilityStandard,
         }) => ({
           id: publicationId,
           isbn: isbn ?? '',
@@ -202,6 +207,10 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           depthIn: depthIn ?? 0,
           weight: weightG ?? 0,
           weightOz: weightOz ?? 0,
+          accessibilityReportUrl: accessibilityReportUrl ?? '',
+          accessibilityAdditionalStandard: accessibilityAdditionalStandard ?? null,
+          accessibilityException: accessibilityException ?? null,
+          accessibilityStandard: accessibilityStandard ?? null,
           prices: prices.map(({ unitPrice, priceId, currencyCode }) => ({
             id: priceId,
             currencyCode,
@@ -310,6 +319,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
         canonical: bio.canonical,
         content: bio.content,
         localeCode: bio.localeCode,
+        contributionId: bio.contributionId,
       })),
     };
   }

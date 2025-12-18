@@ -63,6 +63,7 @@ export const WORK_FRAGMENT = graphql(`
         canonical
         content
         localeCode
+        contributionId
       }
       contributor {
         orcid
@@ -111,6 +112,10 @@ export const WORK_FRAGMENT = graphql(`
       heightIn: height(units: IN)
       depthMm: depth(units: MM)
       depthIn: depth(units: IN)
+      accessibilityAdditionalStandard
+      accessibilityException
+      accessibilityReportUrl
+      accessibilityStandard
       work {
         doi
         title

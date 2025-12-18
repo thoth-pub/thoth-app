@@ -12,7 +12,13 @@ import type {
   PublicationEntity,
   PublicationType,
 } from '@/src/entities/publication/model/publication.types';
-import { type BaseEditSectionProps } from '@/src/shared';
+import {
+  AccessibilityExceptionType,
+  AccessibilityStandardType,
+  type BaseEditSectionProps,
+  isAccessibilityStandardAvailable,
+  isAdditionalAccessibilityStandardAvailable,
+} from '@/src/shared';
 
 export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const { workId } = props;
@@ -68,7 +74,32 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const updateType = (type: PublicationType) => {
     if (!publication) return;
 
-    setPublication({ ...publication, type });
+    const isAdditionalStandardAvailable = isAdditionalAccessibilityStandardAvailable(type);
+    const isAccessibilityAvailable = isAccessibilityStandardAvailable(type);
+
+    if (isAdditionalStandardAvailable) {
+      setPublication({
+        ...publication,
+        type,
+        accessibilityStandard: null,
+      });
+
+      return;
+    }
+
+    if (isAccessibilityAvailable) {
+      setPublication({ ...publication, type });
+      return;
+    }
+
+    setPublication({
+      ...publication,
+      type,
+      accessibilityStandard: null,
+      accessibilityAdditionalStandard: null,
+      accessibilityException: null,
+      accessibilityReportUrl: '',
+    });
   };
 
   const updateIsbn = (isbn: string) => {
@@ -144,6 +175,57 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, locations: updatedLocations });
   };
 
+  const updateAccessibilityStandard = (standard: AccessibilityStandardType) => {
+    if (!publication) return;
+
+    setPublication({
+      ...publication,
+      accessibilityStandard: standard,
+      accessibilityAdditionalStandard: null,
+      accessibilityException: null,
+    });
+  };
+
+  const updateAccessibilityAdditionalStandard = (standard: AccessibilityStandardType) => {
+    if (!publication) return;
+
+    setPublication({
+      ...publication,
+      accessibilityStandard: null,
+      accessibilityAdditionalStandard: standard,
+      accessibilityException: null,
+    });
+  };
+
+  const updateAccessibilityException = (exception: AccessibilityExceptionType) => {
+    if (!publication) return;
+
+    setPublication({
+      ...publication,
+      accessibilityStandard: null,
+      accessibilityAdditionalStandard: null,
+      accessibilityException: exception,
+      accessibilityReportUrl: '',
+    });
+  };
+
+  const updateAccessibilityReport = (report: string) => {
+    if (!publication) return;
+
+    setPublication({ ...publication, accessibilityException: null, accessibilityReportUrl: report });
+  };
+
+  const deleteAccessibility = () => {
+    if (!publication) return;
+
+    setPublication({
+      ...publication,
+      accessibilityStandard: null,
+      accessibilityAdditionalStandard: null,
+      accessibilityException: null,
+    });
+  };
+
   return {
     publication,
     close,
@@ -153,6 +235,11 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     updateDimensions,
     updatePrices,
     updateLocations,
+    updateAccessibilityStandard,
+    updateAccessibilityAdditionalStandard,
+    updateAccessibilityException,
+    updateAccessibilityReport,
+    deleteAccessibility,
     selectAsCanonical,
   };
 };

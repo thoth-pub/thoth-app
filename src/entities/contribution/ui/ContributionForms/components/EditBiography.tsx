@@ -1,70 +1,75 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import { HELPER_TEXT, IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { ContentWrapper, MarkdownField, MarkdownPreview, MarkdownSwitch, Preview, Typography } from '@/src/shared/ui';
-import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
+import { Control } from 'react-hook-form';
+
+import { IDs } from '@/src/shared';
+import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { BiographyEntity, ContributionBiographyForm } from '../../../model/contribution.types';
 import { contributorBiographyValidationSchema } from '../../../model/contribution.validation';
+import { BiographyFormFields } from './BiographyFormFields';
 
-const { CONTRIBUTOR_BIOGRAPHY } = FORM_FIELDS;
-const { CONTRIBUTOR_BIOGRAPHY: CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT } = HELPER_TEXT;
+const { BIOGRAPHIES } = FORM_FIELDS;
 
 type EditBiographyProps = {
+  contributionId: string;
   biographies: BiographyEntity[];
   recommended?: boolean;
   onSubmit: (data: ContributionBiographyForm) => void;
 };
 
 export const EditBiography = (props: EditBiographyProps) => {
-  const { biographies, recommended = false, onSubmit } = props;
+  const { contributionId, biographies, recommended = false, onSubmit } = props;
 
-  const showPreviewIndicator = recommended && biographies.length === 0;
+  const filteredBiographies = biographies.filter((biography) => biography.contributionId === contributionId);
 
-  return <p>EditBiography</p>;
+  const showPreviewIndicator = recommended && filteredBiographies.length === 0;
 
-  // return (
-  //   <EditableContent
-  //     isTableVariant
-  //     formId={IDs.CONTRIBUTOR_BIOGRAPHY}
-  //     defaultValues={{ [CONTRIBUTOR_BIOGRAPHY.name]: biography }}
-  //     validationSchema={contributorBiographyValidationSchema}
-  //     onSubmit={onSubmit}
-  //     borderTransparent
-  //     formFields={({ control, isHelperTextVisible }) => (
-  //       <ContentWrapper>
-  //         <FormFieldLabel
-  //           label={CONTRIBUTOR_BIOGRAPHY.label}
-  //           id={CONTRIBUTOR_BIOGRAPHY.name}
-  //           recommended={showPreviewIndicator}
-  //         />
-  //         <MarkdownField
-  //           extendedToolbar
-  //           name={CONTRIBUTOR_BIOGRAPHY.name}
-  //           control={control}
-  //           helperText={isHelperTextVisible ? CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT : ''}
-  //           id={CONTRIBUTOR_BIOGRAPHY.name}
-  //         >
-  //           <MarkdownSwitch />
-  //         </MarkdownField>
-  //       </ContentWrapper>
-  //     )}
-  //     preview={({ data, disabled, onEdit }) => (
-  //       <Preview
-  //         label={CONTRIBUTOR_BIOGRAPHY.label}
-  //         value={biography}
-  //         disabled={disabled}
-  //         onEdit={onEdit}
-  //         recommended={showPreviewIndicator}
-  //       >
-  //         {biography && (
-  //           <Typography component="span">
-  //             <MarkdownPreview source={data?.contributorBiography} />
-  //           </Typography>
-  //         )}
-  //       </Preview>
-  //     )}
-  //   />
-  // );
+  const canonicalBiography = filteredBiographies.find((biography) => biography.canonical);
+
+  const placeholder = canonicalBiography?.content ?? '';
+
+  const defaultValues = filteredBiographies.map(({ id, localeCode, content }) => {
+    const language = languageOptionsAlt.find((option) => option.value.toLowerCase() === localeCode.toLowerCase());
+
+    return {
+      biographyId: id,
+      language: language ?? languageOptionsAlt[0],
+      contributorBiography: content,
+    };
+  });
+
+  return (
+    <EditableContent
+      isTableVariant
+      formId={IDs.CONTRIBUTOR_BIOGRAPHY}
+      defaultValues={{ [BIOGRAPHIES.name]: defaultValues }}
+      validationSchema={contributorBiographyValidationSchema}
+      onSubmit={onSubmit}
+      borderTransparent
+      formFields={({ control, isHelperTextVisible }) => (
+        <BiographyFormFields
+          control={control as unknown as Control<ContributionBiographyForm>}
+          recommended={showPreviewIndicator}
+          isHelperTextVisible={isHelperTextVisible}
+          onDelete={(data) => console.log(data)}
+        />
+      )}
+      preview={({ disabled, onEdit }) => (
+        <Preview
+          label={BIOGRAPHIES.label}
+          value={placeholder}
+          disabled={disabled}
+          onEdit={onEdit}
+          recommended={showPreviewIndicator}
+        >
+          {placeholder.length > 0 && (
+            <Typography component="span">
+              <MarkdownPreview source={placeholder} />
+            </Typography>
+          )}
+        </Preview>
+      )}
+    />
+  );
 };

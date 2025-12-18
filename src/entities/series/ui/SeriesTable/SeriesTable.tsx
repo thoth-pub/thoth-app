@@ -48,7 +48,7 @@ const SeriesTable = (props: SeriesTableProps) => {
         <TableBody>
           {!loading && serieses.length === 0 && (
             <TableRow className="!cursor-auto hover:!bg-transparent">
-              <TableCell colSpan={3} className="text-center">
+              <TableCell colSpan={5} className="text-center">
                 <Typography variant="body1" component="span">
                   No series found
                 </Typography>
@@ -57,7 +57,7 @@ const SeriesTable = (props: SeriesTableProps) => {
           )}
           {loading ? (
             <TableRow className="!cursor-auto hover:!bg-transparent">
-              <TableCell colSpan={3} className="text-center">
+              <TableCell colSpan={5} className="text-center">
                 <CircularProgress className="my-[10rem]" />
               </TableCell>
             </TableRow>

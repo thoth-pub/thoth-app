@@ -11,7 +11,7 @@ import {
   namesFormValidationSchema,
 } from './contribution.validation';
 
-export type BiographyDto = Pick<Biography, 'biographyId' | 'canonical' | 'content' | 'localeCode'>;
+export type BiographyDto = Pick<Biography, 'biographyId' | 'canonical' | 'content' | 'localeCode' | 'contributionId'>;
 
 export type ContributionNamesForm = z.infer<typeof namesFormValidationSchema>;
 
@@ -24,6 +24,7 @@ export type BiographyEntity = {
   canonical: boolean;
   content: string;
   localeCode: LocaleCodeType;
+  contributionId: string;
 };
 
 export type WorkContribution = {

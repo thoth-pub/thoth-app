@@ -660,7 +660,15 @@ export const XMLParse = (props: XMLParseProps) => {
             : null;
 
           const biographies = biography
-            ? [{ id: defaultId, canonical: true, content: `${biography}`, localeCode: LocaleCode.En }]
+            ? [
+                {
+                  id: defaultId,
+                  canonical: true,
+                  content: `${biography}`,
+                  localeCode: LocaleCode.En,
+                  contributionId: defaultId,
+                },
+              ]
             : [];
 
           const contributionWithNewContributor = getDefaultContribution({

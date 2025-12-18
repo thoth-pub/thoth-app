@@ -1,4 +1,6 @@
 import {
+  AccessibilityExceptions,
+  AccessibilityStandards,
   ContactTypes,
   ERRORS,
   LanguageTypeAlt,
@@ -216,6 +218,10 @@ export const FORM_FIELDS = {
     placeholder: 'Contributor Type',
     type: InputTypes.TEXT,
   },
+  BIOGRAPHIES: {
+    name: 'biographies',
+    label: 'Biographies',
+  },
   CONTRIBUTOR_BIOGRAPHY: {
     label: 'Biography',
     name: 'contributorBiography',
@@ -409,6 +415,30 @@ export const FORM_FIELDS = {
     name: 'weightOz',
     placeholder: 'Weight',
     type: InputTypes.NUMBER,
+  },
+  PUBLICATION_ACCESSIBILITY_STANDARD: {
+    label: 'Standard',
+    name: 'accessibilityStandard',
+    placeholder: 'Accessibility Standard',
+    type: InputTypes.TEXT,
+  },
+  PUBLICATION_ACCESSIBILITY_EXCEPTION: {
+    label: 'Exception',
+    name: 'accessibilityException',
+    placeholder: 'Accessibility Exception',
+    type: InputTypes.TEXT,
+  },
+  PUBLICATION_ACCESSIBILITY_REPORT_URL: {
+    label: 'Report',
+    name: 'accessibilityReportUrl',
+    placeholder: 'Accessibility Report',
+    type: InputTypes.URL,
+  },
+  PUBLICATION_ACCESSIBILITY_ADDITIONAL_STANDARD: {
+    label: 'Additional Standard',
+    name: 'accessibilityAdditionalStandard',
+    placeholder: 'Accessibility Additional Standard',
+    type: InputTypes.TEXT,
   },
   PRICES: {
     label: 'Price',
@@ -2562,3 +2592,40 @@ export const seriesOrderByOptions = [
 ];
 
 export const contactTypeOptions = [{ value: ContactTypes.enum.Accessibility, label: 'Accessibility' }];
+
+export const accessibilityStandardOptions = [
+  // { value: AccessibilityStandards.enum.EpubA11Y10Aa, label: 'EPUB Accessibility Specification 1.0 AA' },
+  // { value: AccessibilityStandards.enum.EpubA11Y10Aaa, label: 'EPUB Accessibility Specification 1.0 AAA' },
+  // { value: AccessibilityStandards.enum.EpubA11Y11Aa, label: 'EPUB Accessibility Specification 1.1 AA' },
+  // { value: AccessibilityStandards.enum.EpubA11Y11Aaa, label: 'EPUB Accessibility Specification 1.1 AAA' },
+  // { value: AccessibilityStandards.enum.PdfUa1, label: 'PDF/UA-1' },
+  // { value: AccessibilityStandards.enum.PdfUa2, label: 'PDF/UA-2' },
+  { value: AccessibilityStandards.enum.Wcag21Aa, label: 'WCAG 2.1 AA' },
+  { value: AccessibilityStandards.enum.Wcag21Aaa, label: 'WCAG 2.1 AAA' },
+  { value: AccessibilityStandards.enum.Wcag22Aa, label: 'WCAG 2.2 AA' },
+  { value: AccessibilityStandards.enum.Wcag22Aaa, label: 'WCAG 2.2 AAA' },
+];
+
+export const accessibilityAdditionalPDFStandardOptions = [
+  { value: AccessibilityStandards.enum.PdfUa1, label: 'PDF/UA-1' },
+  { value: AccessibilityStandards.enum.PdfUa2, label: 'PDF/UA-2' },
+];
+
+export const accessibilityAdditionalEpubStandardOptions = [
+  { value: AccessibilityStandards.enum.EpubA11Y10Aa, label: 'EPUB Accessibility Specification 1.0 AA' },
+  { value: AccessibilityStandards.enum.EpubA11Y10Aaa, label: 'EPUB Accessibility Specification 1.0 AAA' },
+  { value: AccessibilityStandards.enum.EpubA11Y11Aa, label: 'EPUB Accessibility Specification 1.1 AA' },
+  { value: AccessibilityStandards.enum.EpubA11Y11Aaa, label: 'EPUB Accessibility Specification 1.1 AAA' },
+];
+
+export const accessibilityExceptionOptions = [
+  {
+    value: AccessibilityExceptions.enum.DisproportionateBurden,
+    label: 'Disproportionate Burden',
+  },
+  {
+    value: AccessibilityExceptions.enum.FundamentalAlteration,
+    label: 'Fundamental Alteration',
+  },
+  { value: AccessibilityExceptions.enum.MicroEnterprises, label: 'Micro Enterprises' },
+];

@@ -23,6 +23,11 @@ const EditPublication = (props: EditPublicationProps) => {
     updatePrices,
     updateLocations,
     deleteLocation,
+    updateAccessibilityStandard,
+    updateAccessibilityAdditionalStandard,
+    updateAccessibilityException,
+    updateAccessibilityReport,
+    deleteAccessibility,
     selectAsCanonical,
   } = useEditPublication({
     workId,
@@ -43,11 +48,20 @@ const EditPublication = (props: EditPublicationProps) => {
       depthIn={activePublication.depthIn}
       weight={activePublication.weight}
       weightOz={activePublication.weightOz}
+      accessibilityStandard={activePublication.accessibilityStandard}
+      accessibilityAdditionalStandard={activePublication.accessibilityAdditionalStandard}
+      accessibilityException={activePublication.accessibilityException}
+      accessibilityReportUrl={activePublication.accessibilityReportUrl}
       onUpdateIsbn={updateIsbn}
       onUpdateType={updateType}
       onDone={close}
       onClose={close}
       onUpdateDimensions={updateSizes}
+      onUpdateAccessibilityStandard={updateAccessibilityStandard}
+      onUpdateAccessibilityAdditionalStandard={updateAccessibilityAdditionalStandard}
+      onUpdateAccessibilityException={updateAccessibilityException}
+      onUpdateAccessibilityReport={updateAccessibilityReport}
+      onDeleteAccessibility={deleteAccessibility}
     >
       <EditPrice prices={activePublication.prices} onUpdate={updatePrices} onClose={close} />
       <EditLocations

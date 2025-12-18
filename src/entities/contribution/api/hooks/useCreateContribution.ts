@@ -5,13 +5,7 @@ import { useQueryToken } from '@/src/shared/hooks';
 
 import { WorkContribution } from '../../model/contribution.types';
 
-type UseCreateContributionProps = {
-  onCompleted?: (data: WorkContribution) => void;
-};
-
-export const useCreateContribution = (props: UseCreateContributionProps) => {
-  const { onCompleted } = props;
-
+export const useCreateContribution = () => {
   const queryClient = useQueryClient();
   const queryToken = useQueryToken();
   const { contributionService } = useServices();
@@ -20,10 +14,9 @@ export const useCreateContribution = (props: UseCreateContributionProps) => {
     mutationFn: async ({ data, relatedWorkId }: { data: WorkContribution; relatedWorkId: string }) => {
       return contributionService.createContribution(queryToken, data, relatedWorkId);
     },
-    onSuccess: (data) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
-      onCompleted?.(data);
     },
   });
 

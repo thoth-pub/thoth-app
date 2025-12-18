@@ -23,6 +23,10 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       },
       prices = [],
       locations = [],
+      accessibilityReportUrl,
+      accessibilityAdditionalStandard,
+      accessibilityException,
+      accessibilityStandard,
     } = dto;
 
     return {
@@ -41,6 +45,10 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       depthIn: 0,
       weight: weight ?? 0,
       weightOz: 0,
+      accessibilityReportUrl: accessibilityReportUrl ?? '',
+      accessibilityAdditionalStandard: accessibilityAdditionalStandard ?? null,
+      accessibilityException: accessibilityException ?? null,
+      accessibilityStandard: accessibilityStandard ?? null,
       prices: prices.map(({ unitPrice, priceId, currencyCode }) => ({
         id: priceId,
         currencyCode,
@@ -59,7 +67,21 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
   toDto(
     entity: Pick<
       PublicationEntity,
-      'id' | 'type' | 'isbn' | 'width' | 'height' | 'depth' | 'weight' | 'widthIn' | 'heightIn' | 'depthIn' | 'weightOz'
+      | 'id'
+      | 'type'
+      | 'isbn'
+      | 'width'
+      | 'height'
+      | 'depth'
+      | 'weight'
+      | 'widthIn'
+      | 'heightIn'
+      | 'depthIn'
+      | 'weightOz'
+      | 'accessibilityReportUrl'
+      | 'accessibilityAdditionalStandard'
+      | 'accessibilityException'
+      | 'accessibilityStandard'
     >,
   ): Omit<PublicationDto, 'weight' | 'height' | 'width' | 'depth' | 'updatedAt' | 'work' | 'prices' | 'locations'> & {
     widthMm: number | null;
@@ -71,7 +93,23 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
     weightG: number | null;
     weightOz: number | null;
   } {
-    const { id, type, isbn, width, height, depth, weight, widthIn, heightIn, depthIn, weightOz } = entity;
+    const {
+      id,
+      type,
+      isbn,
+      width,
+      height,
+      depth,
+      weight,
+      widthIn,
+      heightIn,
+      depthIn,
+      weightOz,
+      accessibilityReportUrl,
+      accessibilityAdditionalStandard,
+      accessibilityException,
+      accessibilityStandard,
+    } = entity;
 
     const isPhysical = isDimensionsAvailable(type);
 
@@ -87,6 +125,10 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       depthIn: depthIn && depthIn > 0 && isPhysical ? depthIn : null,
       weightG: weight && weight > 0 && isPhysical ? +weight : null,
       weightOz: weightOz && weightOz > 0 && isPhysical ? weightOz : null,
+      accessibilityReportUrl: accessibilityReportUrl.length > 0 ? accessibilityReportUrl : null,
+      accessibilityAdditionalStandard: accessibilityAdditionalStandard ?? null,
+      accessibilityException: accessibilityException ?? null,
+      accessibilityStandard: accessibilityStandard ?? null,
     };
   }
 

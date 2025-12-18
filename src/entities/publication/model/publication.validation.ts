@@ -1,6 +1,13 @@
 import z from 'zod';
 
-import { isbnValidation, optionalPositiveIntValidation, publicationTypeValidation } from '@/src/shared';
+import {
+  accessibilityExceptionValidation,
+  accessibilityStandardValidation,
+  isbnValidation,
+  optionalPositiveIntValidation,
+  optionalStringValidation,
+  publicationTypeValidation,
+} from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 
 const {
@@ -14,6 +21,10 @@ const {
   PUBLICATION_DEPTH_IN,
   PUBLICATION_WEIGHT_G,
   PUBLICATION_WEIGHT_OZ,
+  PUBLICATION_ACCESSIBILITY_STANDARD,
+  PUBLICATION_ACCESSIBILITY_EXCEPTION,
+  PUBLICATION_ACCESSIBILITY_REPORT_URL,
+  PUBLICATION_ACCESSIBILITY_ADDITIONAL_STANDARD,
 } = FORM_FIELDS;
 
 const widthValidation = optionalPositiveIntValidation;
@@ -34,4 +45,20 @@ export const dimensionsValidationSchema = z.object({
   [PUBLICATION_DEPTH_IN.name]: depthValidation,
   [PUBLICATION_WEIGHT_G.name]: weightValidation,
   [PUBLICATION_WEIGHT_OZ.name]: weightValidation,
+});
+
+export const accessibilityStandardValidationSchema = z.object({
+  [PUBLICATION_ACCESSIBILITY_STANDARD.name]: accessibilityStandardValidation,
+});
+
+export const accessibilityExceptionValidationSchema = z.object({
+  [PUBLICATION_ACCESSIBILITY_EXCEPTION.name]: accessibilityExceptionValidation,
+});
+
+export const accessibilityAdditionalStandardValidationSchema = z.object({
+  [PUBLICATION_ACCESSIBILITY_ADDITIONAL_STANDARD.name]: accessibilityStandardValidation,
+});
+
+export const accessibilityReportUrlValidationSchema = z.object({
+  [PUBLICATION_ACCESSIBILITY_REPORT_URL.name]: optionalStringValidation,
 });

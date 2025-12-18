@@ -2,12 +2,13 @@
 
 import type { Control, FieldValues } from 'react-hook-form';
 
+import type { ContributionBiographyForm } from '@/src/entities/contribution/model/contribution.types';
 import type { WorkAbstractsForm, WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { languageOptionsAlt } from '@/src/shared/constants/formFields';
 import { AutocompleteField, Typography } from '@/src/shared/ui';
 
 type LanguageFieldProps = {
-  control: Control<WorkAbstractsForm> | Control<WorkTitlesForm>;
+  control: Control<WorkAbstractsForm> | Control<WorkTitlesForm> | Control<ContributionBiographyForm>;
   languageFieldName: string;
 };
 

@@ -34,16 +34,16 @@ export const MOVE_CONTRIBUTION = graphql(`
 `);
 
 export const CREATE_BIOGRAPHY = graphql(`
-  mutation CreateBiography($data: NewBiography!) {
-    createBiography(data: $data) {
+  mutation CreateBiography($data: NewBiography!, $markupFormat: MarkupFormat!) {
+    createBiography(data: $data, markupFormat: $markupFormat) {
       ...BiographyFragment
     }
   }
 `);
 
 export const UPDATE_BIOGRAPHY = graphql(`
-  mutation UpdateBiography($data: PatchBiography!) {
-    updateBiography(data: $data) {
+  mutation UpdateBiography($data: PatchBiography!, $markupFormat: MarkupFormat!) {
+    updateBiography(data: $data, markupFormat: $markupFormat) {
       ...BiographyFragment
     }
   }

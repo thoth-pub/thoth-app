@@ -61,8 +61,9 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     });
   };
 
-  const handleBiographyUpdate = ({ contributorBiography }: ContributionBiographyForm) => {
-    if (!activeContribution || !contributorBiography) return;
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const handleBiographyUpdate = ({ biographies }: ContributionBiographyForm) => {
+    if (!activeContribution) return;
     // TODO: update the biographies
     // onUpdate(activeContribution.id, {
     //   biography: contributorBiography,

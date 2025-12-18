@@ -21,6 +21,10 @@ export const getDefaultPublication = (data?: Partial<PublicationEntity>): Public
     depthIn: 0,
     weight: 0,
     weightOz: 0,
+    accessibilityReportUrl: '',
+    accessibilityAdditionalStandard: null,
+    accessibilityException: null,
+    accessibilityStandard: null,
     prices: [],
     locations: [],
     ...data,
@@ -50,4 +54,23 @@ export const getPublicationType = (publicationForm: string) => {
     default:
       return PublicationType.enum.Pdf;
   }
+};
+
+export const isAccessibilityStandardAvailable = (publicationType: TPublicationType): boolean => {
+  const ebookTypes = [
+    PublicationType.enum.Azw3,
+    PublicationType.enum.Docx,
+    PublicationType.enum.Epub,
+    PublicationType.enum.FictionBook,
+    PublicationType.enum.Html,
+    PublicationType.enum.Mobi,
+    PublicationType.enum.Pdf,
+    PublicationType.enum.Xml,
+  ];
+
+  return ebookTypes.includes(publicationType);
+};
+
+export const isAdditionalAccessibilityStandardAvailable = (publicationType: TPublicationType): boolean => {
+  return publicationType === PublicationType.enum.Pdf || publicationType === PublicationType.enum.Epub;
 };

@@ -1,5 +1,6 @@
 // API
 export * from './api/contribution.service';
+export * from './api/hooks/useContribution';
 export * from './api/hooks/useContributionsBulkDelete';
 export * from './api/hooks/useContributionsBulkUpdate';
 export * from './api/hooks/useCreateBiography';

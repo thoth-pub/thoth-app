@@ -153,7 +153,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   };
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const updateBiography = ({ contributorBiography = '' }: ContributionBiographyForm) => {
+  const updateBiography = ({ biographies }: ContributionBiographyForm) => {
     if (!contribution) return;
 
     // TODO: update the biographies
