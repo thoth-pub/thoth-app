@@ -13,8 +13,7 @@ export class LocationService extends BaseService<LocationEntity, LocationDto> {
   }
 
   async createLocation(token: QueryToken, data: LocationEntity, publicationId: PublicationId): Promise<LocationEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { locationId, ...dto } = this.dtoMapper.toDto(data);
+    const { locationId: _, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_LOCATION, {
       data: {

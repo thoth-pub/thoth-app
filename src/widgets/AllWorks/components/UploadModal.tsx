@@ -41,8 +41,7 @@ type UploadModalProps = {
 export const UploadModal = (props: UploadModalProps) => {
   const { imprintsOptions, serieses, isOpen, onClose } = props;
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const [data, setData] = useState<WorkEntity[]>([]);
+  const [data] = useState<WorkEntity[]>([]);
 
   return (
     <FullScreenModal title="Bulk Upload" isOpen={isOpen} isSubmitHidden onClose={onClose}>

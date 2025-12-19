@@ -13,8 +13,7 @@ export class ReferenceService extends BaseService<ReferenceEntity, ReferenceDto>
   }
 
   async createReference(token: QueryToken, data: ReferenceEntity, relatedWorkId: WorkId): Promise<ReferenceEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { referenceId, ...dto } = this.dtoMapper.toDto(data);
+    const { referenceId: _, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_REFERENCE, {
       data: { ...dto, workId: relatedWorkId, referenceOrdinal: data.orderNumber ?? 1 },

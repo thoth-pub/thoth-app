@@ -13,8 +13,7 @@ export class SubjectService extends BaseService<SubjectEntity, SubjectDto> {
   }
 
   async createSubject(token: string, data: SubjectEntity, relatedWorkId: WorkId): Promise<SubjectEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { subjectId, subjectCode, subjectType, subjectOrdinal } = this.dtoMapper.toDto({ ...data, id: '' });
+    const { subjectId: _, subjectCode, subjectType, subjectOrdinal } = this.dtoMapper.toDto({ ...data, id: '' });
 
     const { createSubject } = await this.graphqlService.mutation(token, CREATE_SUBJECT, {
       data: {

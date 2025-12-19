@@ -95,7 +95,6 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
   }
 
   async createSeries(token: string, data: SeriesEntity): Promise<SeriesEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { issues: _issues, seriesId: _seriesId, updatedAt: _updatedAt, ...dto } = this.dtoMapper.toDto(data);
 
     const { createSeries } = await this.graphqlService.mutation(token, CREATE_SERIES, {
@@ -111,7 +110,6 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
   }
 
   async updateSeries(token: string, data: SeriesEntity): Promise<SeriesEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { updatedAt: _updatedAt, issues: _issues, ...dto } = this.dtoMapper.toDto(data);
 
     await this.graphqlService.mutation(token, UPDATE_SERIES, {

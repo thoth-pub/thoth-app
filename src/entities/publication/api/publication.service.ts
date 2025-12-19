@@ -23,7 +23,6 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
   }
 
   async createPublication(token: QueryToken, data: PublicationEntity, workId: WorkId): Promise<PublicationEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { publicationId: _, publicationType, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_PUBLICATION, {

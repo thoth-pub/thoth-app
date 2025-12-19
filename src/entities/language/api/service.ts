@@ -14,8 +14,7 @@ export class LanguageService extends BaseService<LanguageEntity, LanguageDto> {
   }
 
   async createLanguage(token: QueryToken, data: LanguageEntity, workId: WorkId): Promise<LanguageEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { languageId, ...dto } = this.dtoMapper.toDto(data);
+    const { languageId: _, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_LANGUAGE, {
       data: {

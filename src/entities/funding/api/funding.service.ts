@@ -20,8 +20,7 @@ export class FundingService extends BaseService<FundingEntity, FundingDto> {
     data: Omit<FundingEntity, 'id' | 'institutionName' | 'institutionRor'>;
     relatedWorkId: WorkId;
   }): Promise<FundingEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    const { fundingId, ...dto } = this.dtoMapper.toDto({ ...data, id: '', institutionName: '', institutionRor: '' });
+    const { fundingId: _, ...dto } = this.dtoMapper.toDto({ ...data, id: '', institutionName: '', institutionRor: '' });
 
     const response = await this.graphqlService.mutation(token, CREATE_FUNDING, {
       data: { ...dto, workId: relatedWorkId, institutionId: data.institutionId },

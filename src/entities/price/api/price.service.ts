@@ -12,7 +12,6 @@ export class PriceService extends BaseService<PriceEntity, PriceDto> {
   }
 
   async createPrice(token: QueryToken, data: PriceEntity, publicationId: PublicationId): Promise<PriceEntity> {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { priceId: _, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_PRICE, {
