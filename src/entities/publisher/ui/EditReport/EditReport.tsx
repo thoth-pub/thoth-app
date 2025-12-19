@@ -46,6 +46,7 @@ const EditReport = () => {
             id={PUBLISHER_REPORT.name}
             helperText={PUBLISHER_REPORT_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
+            isUrlField
           />
         </ContentWrapper>
       )}

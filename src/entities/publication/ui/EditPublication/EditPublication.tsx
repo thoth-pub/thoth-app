@@ -7,7 +7,7 @@ import {
   isAdditionalAccessibilityStandardAvailable,
   isDimensionsAvailable,
 } from '@/src/shared';
-import { TableFormsHeader, TableFormsWrapper, TableNewEntityFormWrapper } from '@/src/shared/ui';
+import { TableFormsHeader, TableFormsWrapper, TableNewEntityFormWrapper, Typography } from '@/src/shared/ui';
 
 import type { PublicationDimensionsForm, PublicationType } from '../../model/publication.types';
 import { EditAccessibilityAdditionalStandard } from './components/EditAccessibilityAdditionalStandard';
@@ -100,8 +100,13 @@ const EditPublication = (props: EditPublicationProps) => {
             onSubmit={onUpdateDimensions}
           />
         )}
+
+        {children}
         {isAccessabilitySectionAvailable && (
-          <>
+          <div className="flex flex-col gap-8">
+            <Typography component="h2" variant="h2">
+              Accessibility
+            </Typography>
             <Activity mode={isAdditionalStandardAvailable ? 'hidden' : 'visible'}>
               <EditAccessibilityStandard
                 standard={accessibilityStandard}
@@ -126,9 +131,8 @@ const EditPublication = (props: EditPublicationProps) => {
             />
 
             <EditAccessibilityReport report={accessibilityReportUrl} onSubmit={onUpdateAccessibilityReport} />
-          </>
+          </div>
         )}
-        {children}
       </TableFormsWrapper>
     </TableNewEntityFormWrapper>
   );

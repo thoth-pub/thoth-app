@@ -417,9 +417,9 @@ export const FORM_FIELDS = {
     type: InputTypes.NUMBER,
   },
   PUBLICATION_ACCESSIBILITY_STANDARD: {
-    label: 'Standard',
+    label: 'Specification',
     name: 'accessibilityStandard',
-    placeholder: 'Accessibility Standard',
+    placeholder: 'Specification',
     type: InputTypes.TEXT,
   },
   PUBLICATION_ACCESSIBILITY_EXCEPTION: {
@@ -429,15 +429,15 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   PUBLICATION_ACCESSIBILITY_REPORT_URL: {
-    label: 'Report',
+    label: 'Report URL',
     name: 'accessibilityReportUrl',
-    placeholder: 'Accessibility Report',
+    placeholder: 'Report URL',
     type: InputTypes.URL,
   },
   PUBLICATION_ACCESSIBILITY_ADDITIONAL_STANDARD: {
-    label: 'Additional Standard',
+    label: 'Specification',
     name: 'accessibilityAdditionalStandard',
-    placeholder: 'Accessibility Additional Standard',
+    placeholder: 'Specification',
     type: InputTypes.TEXT,
   },
   PRICES: {
@@ -596,9 +596,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   PUBLISHER_REPORT: {
-    label: 'Report',
+    label: 'Report URL',
     name: 'report',
-    placeholder: 'Report',
+    placeholder: 'Report URL',
     type: InputTypes.TEXT,
   },
   PUBLISHER_STATEMENT: {

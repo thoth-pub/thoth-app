@@ -43,6 +43,7 @@ export const EditAccessibilityReport = (props: EditAccessibilityReportProps) => 
             id={PUBLICATION_ACCESSIBILITY_REPORT_URL.name}
             helperText={PUBLICATION_ACCESSIBILITY_REPORT_URL_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
+            isUrlField
           />
         </ContentWrapper>
       )}
