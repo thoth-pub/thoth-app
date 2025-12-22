@@ -3,6 +3,7 @@ export * from './accessibility';
 export * from './filter';
 export * from './languages';
 export * from './markdown';
+export * from './onix-data';
 export * from './parsers';
 export * from './titles';
 export * from './ui';

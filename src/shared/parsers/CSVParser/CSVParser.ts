@@ -109,6 +109,7 @@ export class CSVParser {
     const workId = this.generateId();
 
     const { frontmatterCount, backmatterCount } = this.parsePageBreakdownField(row, CSV_KEYS.PAGE_BREAKDOWN, rowNumber);
+    const contributions = await this.parseContributors(row, workId);
 
     const parsedWork = getDefaultWork({
       id: workId,
@@ -149,7 +150,7 @@ export class CSVParser {
         CSV_KEYS.KEYWORDS,
       ),
       publications: this.parsePublication(row),
-      contributions: await this.parseContributors(row, workId),
+      contributions,
     });
 
     this.parsedWorks.push(parsedWork);

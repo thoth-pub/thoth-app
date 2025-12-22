@@ -155,8 +155,6 @@ export const CSVParse = (props: CSVParseProps) => {
 
   if (isDataEmpty) return null;
 
-  console.log('multipleFoundedContributors', multipleFoundedContributors);
-
   return (
     <div className="flex w-full flex-col gap-4">
       {showContributorsSelection && (

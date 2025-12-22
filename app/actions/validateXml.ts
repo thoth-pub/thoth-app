@@ -2,7 +2,7 @@
 
 import { parse } from '@5stones/onix';
 
-import type { OnixData } from '@/src/widgets/AllWorks/components/utils/types';
+import type { OnixData } from '@/src/shared';
 
 export type ValidationResult =
   | {
