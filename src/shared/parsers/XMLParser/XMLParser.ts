@@ -40,7 +40,6 @@ import {
   isValidPublicationForm,
   LanguageRelation,
   LanguageTypeAlt,
-  LocaleCodeType,
   LocationPlatforms,
   SeriesForUpdateItems,
   SubjectTypes,
@@ -65,6 +64,7 @@ class XMLParser {
   private serieses: SeriesEntity[] = [];
   private currencyOptions: FormFieldOption[] = [];
   private defaultId: string = appConfig.defaultId;
+  private doiPrefix: string = appConfig.validations.doiPrefix;
   private contributorService: ContributorService;
   private institutionService: InstitutionService;
 
@@ -125,6 +125,7 @@ class XMLParser {
         errors: [],
       };
     } catch (_error) {
+      console.error('ERROR: ', _error);
       return {
         status: 'failed',
         data: { works: [], series: {}, chapters: [], contributorsForSelection: {} },
@@ -161,11 +162,11 @@ class XMLParser {
       oclc: this.parseOclc(product),
       license: this.parseLicense(product, index),
       copyrightHolder: this.parseCopyrightHolder(product),
-      titles: this.parseTitle(product, languages),
+      titles: this.parseTitle(product),
       edition: this.parseEdition(product),
       bibliographyNote: this.parseBibliographyNote(product),
       generalNote: this.parseGeneralNote(product),
-      abstracts: this.parseAbstracts(product, languages),
+      abstracts: this.parseAbstracts(product),
       pageCount: this.parsePageCount(product),
       imageCount,
       tableCount,
@@ -205,7 +206,7 @@ class XMLParser {
       product.ProductIdentifier?.find((identifier) => identifier.ProductIDType === ProductIdentifierType._06)
         ?.IDValue ?? '';
 
-    return doi;
+    return doi.length > 0 ? this.doiPrefix + doi : '';
   }
 
   parseLccn(product: ExtendedProduct) {
@@ -224,31 +225,27 @@ class XMLParser {
     return oclc;
   }
 
-  parseTitle(product: ExtendedProduct, languages: LanguageEntity[]): TitleEntity[] {
+  parseTitle(product: ExtendedProduct): TitleEntity[] {
     const title = product.DescriptiveDetail?.TitleDetail?.TitleElement?.TitleText ?? '';
     const subtitle = product.DescriptiveDetail?.TitleDetail?.TitleElement?.Subtitle ?? '';
     const fullTitle = `${title} ${subtitle}`.trim();
-    const mainLanguage = languages.find((language) => language.relation === LanguageRelation.enum.Original);
-    const localeCode = mainLanguage?.code ?? LanguageTypeAlt.enum.En;
 
-    return [getDefaultTitle({ canonical: true, title, subtitle, fullTitle, localeCode: localeCode as LocaleCodeType })];
+    return [getDefaultTitle({ canonical: true, title, subtitle, fullTitle, localeCode: LanguageTypeAlt.enum.En })];
   }
 
   parseEdition(product: ExtendedProduct): number {
-    const edition = product.DescriptiveDetail?.Edition?.EditionNumber ?? 1;
+    const edition = parseInt(product.DescriptiveDetail?.Edition?.EditionNumber ?? '1');
 
     return edition;
   }
 
-  parseAbstracts(product: ExtendedProduct, languages: LanguageEntity[]): AbstractEntity[] {
+  parseAbstracts(product: ExtendedProduct): AbstractEntity[] {
     const collateralDetailTextContent = this.convertToArray(product.CollateralDetail?.TextContent);
     const longAbstract =
       collateralDetailTextContent.find((text) => text?.TextType === TextType._03)?.Text?.['#text'] ?? '';
     const shortAbstract =
       collateralDetailTextContent.find((text) => text?.TextType === TextType._02)?.Text?.['#text'] ?? '';
     const abstracts: AbstractEntity[] = [];
-    const mainLanguage = languages.find((language) => language.relation === LanguageRelation.enum.Original);
-    const localeCode = mainLanguage?.code ?? LanguageTypeAlt.enum.En;
 
     if (longAbstract.length > 0) {
       abstracts.push(
@@ -256,7 +253,7 @@ class XMLParser {
           content: longAbstract,
           type: AbstractTypes.enum.Long,
           canonical: true,
-          localeCode: localeCode as LocaleCodeType,
+          localeCode: LanguageTypeAlt.enum.En,
         }),
       );
     }
@@ -267,7 +264,7 @@ class XMLParser {
           content: shortAbstract,
           type: AbstractTypes.enum.Short,
           canonical: false,
-          localeCode: localeCode as LocaleCodeType,
+          localeCode: LanguageTypeAlt.enum.En,
         }),
       );
     }
@@ -446,12 +443,18 @@ class XMLParser {
       });
     });
 
-    return subjects;
+    const filteredSubjects = subjects.filter((subject) => subject.code.length > 0);
+
+    return filteredSubjects;
   }
 
   parseLanguages(product: ExtendedProduct) {
     const enteredLanguageCode = product.DescriptiveDetail?.Language?.LanguageCode ?? '';
-    const language = this.languages.find((option) => option.value.toLowerCase() === enteredLanguageCode.toLowerCase());
+    const language = this.languages.find(
+      (option) =>
+        option.label.toLowerCase() === enteredLanguageCode.toLowerCase() ||
+        option.value.toLowerCase() === enteredLanguageCode.toLowerCase(),
+    );
     const workLanguages: LanguageEntity[] = [];
 
     if (!language) {
@@ -858,10 +861,9 @@ class XMLParser {
       edition,
       publicationDate,
       withdrawnDate,
-      languages,
     } = relatedWork;
 
-    const chapterCollections = this.convertToArray(product.DescriptiveDetail?.Collection).filter(
+    const chapterCollections = this.convertToArray(product.ContentDetail?.ContentItem).filter(
       (collection) => !!collection,
     );
 
@@ -874,18 +876,24 @@ class XMLParser {
     );
 
     for (const chapter of sortedChapters) {
-      const chapterDoi = chapter?.ContentItem?.TextItem?.TextItemIdentifier?.IDValue ?? '';
-      const chapterTitleContent = chapter?.ContentItem?.TitleDetail?.TitleElement?.TitleText ?? '';
-      const chapterLanguage = languages.find((language) => language.relation === LanguageRelation.enum.Original);
-      const chapterLanguageCode = chapterLanguage?.code ?? LanguageTypeAlt.enum.En;
+      const chapterId = this.generateId();
+      const chapterDoi = chapter?.TextItem?.TextItemIdentifier?.IDValue ?? '';
+      const chapterTitleContent = chapter?.TitleDetail?.TitleElement?.TitleText ?? '';
 
       const newChapter = getDefaultChapter({
+        id: chapterId,
         status,
-        doi: chapterDoi,
+        doi: chapterDoi.length > 0 ? this.doiPrefix + chapterDoi : '',
         imprintId,
         license,
         copyrightHolder,
-        titles: [getDefaultTitle({ title: chapterTitleContent, localeCode: chapterLanguageCode as LocaleCodeType })],
+        titles: [
+          getDefaultTitle({
+            title: chapterTitleContent,
+            localeCode: LanguageTypeAlt.enum.En,
+            fullTitle: chapterTitleContent,
+          }),
+        ],
         edition,
         publicationDate,
         withdrawnDate,
@@ -896,7 +904,7 @@ class XMLParser {
         contributions: [],
       });
 
-      const chapterContributors = chapter.ContentItem?.Contributor ?? [];
+      const chapterContributors = chapter?.Contributor ?? [];
 
       const workContributions = await this.parseContributors(chapterContributors, newChapter.id);
 

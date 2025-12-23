@@ -460,15 +460,21 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return createdEdition;
   }
 
-  async bulkCreateWorks(token: string, works: WorkEntity[], serieses: SeriesForUpdateItems, _chapters: WorkEntity[]) {
+  async bulkCreateWorks(token: string, works: WorkEntity[], serieses: SeriesForUpdateItems, chapters: WorkEntity[]) {
     let count = 0;
 
     do {
       const work = works[count];
+      const initialId = work.id;
 
       const createdWork = await this.createWork(token, work);
 
       const foundedSeries = Object.entries(serieses).find(([_seriedId, works]) => works.some((w) => w.id === work.id));
+      const foundedChapters = chapters.filter((chapter) => chapter.relationId === initialId);
+
+      await Promise.all(
+        foundedChapters.map((chapter, index) => this.createChapter(token, chapter, createdWork.id, index + 1)),
+      );
 
       if (!foundedSeries || foundedSeries[1].length === 0) {
         count++;

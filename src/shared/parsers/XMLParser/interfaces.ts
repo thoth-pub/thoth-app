@@ -108,6 +108,12 @@ export interface ExtendedCollection extends Collection {
     LastPageNumber?: string;
   };
   NumberOfPages?: number;
+  TextItem?: {
+    TextItemIdentifier?: {
+      IDValue?: string;
+    };
+  };
+  Contributor?: ExtendedContributor;
 }
 
 export interface ExtendedDescriptiveDetail extends ProductDescriptiveDetail {
@@ -121,7 +127,7 @@ export interface ExtendedDescriptiveDetail extends ProductDescriptiveDetail {
     };
   };
   Edition?: {
-    EditionNumber?: number;
+    EditionNumber?: string;
   };
   IllustrationsNote?: {
     IllustrationsNoteText?: string;
@@ -146,4 +152,7 @@ export interface ExtendedProduct extends Product {
   DescriptiveDetail?: ExtendedDescriptiveDetail;
   PublishingDetail?: ExtendedPublishingDetail;
   ProductSupply?: ExtendedProductSupply;
+  ContentDetail?: {
+    ContentItem?: ExtendedCollection[];
+  };
 }

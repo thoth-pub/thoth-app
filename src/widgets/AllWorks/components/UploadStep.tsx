@@ -61,6 +61,7 @@ export const UploadStep = (props: UploadStepProps) => {
           imprints={imprintsOptions}
           serieses={serieses}
           onValidationFailure={setValidationErrors}
+          onSubmit={onSubmit}
         />
       )}
       {validationErrors.length > 0 && (
