@@ -40,6 +40,7 @@ type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
   chapters: WorkEntity[];
 };
 
+// TODO: ref
 const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const { chapters } = props;
 
@@ -131,7 +132,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
         // 4. For each affiliation, check if it exists in every other contribution in every other chapter
         // With the same contributor, with the same institution, order number and position
-        return contribution.affiliations.every((affiliation) => {
+        const isSameAffiliations = contribution.affiliations.every((affiliation) => {
           // 5. Map all chapters
           return chapters.every((chapter) => {
             // 6. Find same contribution
@@ -151,6 +152,30 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
             );
           });
         });
+
+        // 8. For each biography, check if it exists in every other contribution in every other chapter
+        const isSameBiographies = contribution.biographies.every((biography) => {
+          // 9. Map all chapters
+          return chapters.every((chapter) => {
+            // 10. Find same contribution
+            const contribution = chapter.contributions.find(
+              (contribution) => contribution.contributorId === contributorId && contribution.type === contributionType,
+            );
+            console.log('chapters', chapter);
+            if (!contribution) return false;
+
+            // 11. Check if the biography exists in the other contribution with the same contributor,
+            // with the same content and locale code
+            return contribution.biographies.some((contributionBiography) => {
+              return (
+                biography.content === contributionBiography.content &&
+                biography.localeCode === contributionBiography.localeCode
+              );
+            });
+          });
+        });
+
+        return isSameAffiliations && isSameBiographies;
       });
     });
   }, [chapters]);

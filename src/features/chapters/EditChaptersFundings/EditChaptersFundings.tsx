@@ -23,6 +23,7 @@ type EditChaptersFundingsProps = Omit<BaseEditSectionProps, 'workId'> & {
   chapters: WorkEntity[];
 };
 
+// TODO: ref
 const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   const { chapters } = props;
 

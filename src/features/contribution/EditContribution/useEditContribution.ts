@@ -182,8 +182,8 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
     );
 
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters, workId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   const updateOrcid = ({ orcid = '' }: OrcidForm) => {
