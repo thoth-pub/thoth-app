@@ -19,10 +19,18 @@ type EditChaptersContributionsProps = {
   onUpdateAffiliations: (data: AffiliationsForm, contributionId: ContributionId) => void;
   onDeleteAffiliation: (id: string, contributionId: ContributionId) => void;
   onAffiliationOrderUpdate: (data: AffiliationsForm['affiliations']) => void;
+  onBiographiesUpdate: (data: ContributionBiographyForm, contributionId: ContributionId) => void;
 };
 
 export const EditChaptersContributions = (props: EditChaptersContributionsProps) => {
-  const { showRecommendations, onUpdate, onUpdateAffiliations, onDeleteAffiliation, onAffiliationOrderUpdate } = props;
+  const {
+    showRecommendations,
+    onUpdate,
+    onUpdateAffiliations,
+    onDeleteAffiliation,
+    onAffiliationOrderUpdate,
+    onBiographiesUpdate,
+  } = props;
 
   const { activeContribution, close, update } = useContributionStateMachine();
   const { isAdmin } = usePublisherStateMachine();
@@ -61,16 +69,24 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     });
   };
 
-  const handleBiographyUpdate = ({ biographies: _ }: ContributionBiographyForm) => {
+  const handleBiographiesUpdate = ({ biographies }: ContributionBiographyForm) => {
     if (!activeContribution) return;
-    // TODO: update the biographies
-    // onUpdate(activeContribution.id, {
-    //   biography: contributorBiography,
-    // });
-    // update({
-    //   ...activeContribution,
-    //   biography: contributorBiography,
-    // });
+
+    const biographiesToUpdate = biographies
+      .map((biography, index) => ({
+        id: biography.biographyId,
+        canonical: index === 0,
+        content: biography.contributorBiography ?? '',
+        localeCode: biography.language.value,
+        contributionId: activeContribution.id,
+      }))
+      .filter((biography) => biography.content.length > 0);
+
+    onBiographiesUpdate({ biographies }, activeContribution.id);
+    update({
+      ...activeContribution,
+      biographies: biographiesToUpdate,
+    });
   };
 
   const handleOrcidUpdate = ({ orcid }: OrcidForm) => {
@@ -122,7 +138,7 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
       isAdmin={isAdmin}
       onNamesUpdate={handleNamesUpdate}
       onTypeUpdate={handleTypeUpdate}
-      onBiographyUpdate={handleBiographyUpdate}
+      onBiographiesUpdate={handleBiographiesUpdate}
       onOrcidUpdate={handleOrcidUpdate}
       onWebsiteUrlUpdate={handleWebsiteUrlUpdate}
       onAffiliationsUpdate={handleAffiliationsUpdate}

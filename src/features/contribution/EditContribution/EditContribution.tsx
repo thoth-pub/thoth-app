@@ -18,7 +18,7 @@ type EditContributionProps = BaseRecommendedSectionProps &
     isAdmin?: boolean;
     onNamesUpdate: (data: ContributionNamesForm) => void;
     onTypeUpdate: (data: ContributionTypeForm) => void;
-    onBiographyUpdate: (data: ContributionBiographyForm) => void;
+    onBiographiesUpdate: (data: ContributionBiographyForm) => void;
     onOrcidUpdate: (data: OrcidForm) => void;
     onWebsiteUrlUpdate: (data: WebsiteUrlForm) => void;
     onAffiliationsUpdate: (data: AffiliationsFormType) => void;
@@ -33,7 +33,7 @@ const EditContribution = (props: EditContributionProps) => {
     isAdmin,
     onNamesUpdate,
     onTypeUpdate,
-    onBiographyUpdate,
+    onBiographiesUpdate,
     onOrcidUpdate,
     onWebsiteUrlUpdate,
     onAffiliationsUpdate,
@@ -64,7 +64,7 @@ const EditContribution = (props: EditContributionProps) => {
     linkedPublishers: publishersIds,
     onNamesUpdate,
     onTypeUpdate,
-    onBiographyUpdate,
+    onBiographiesUpdate,
     onOrcidUpdate,
     onWebsiteUrlUpdate,
     onAffiliationsUpdate,

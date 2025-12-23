@@ -4,7 +4,7 @@ import { type Control, useFieldArray } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
-import { appConfig, HELPER_TEXT, isDefaultId } from '@/src/shared';
+import { appConfig, HELPER_TEXT } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import {
   AddButton,
@@ -25,7 +25,6 @@ type BiographyFormFieldsProps = {
   control: Control<ContributionBiographyForm>;
   recommended?: boolean;
   isHelperTextVisible?: boolean;
-  onDelete?: (biographyId: string) => void;
 };
 
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
@@ -37,7 +36,7 @@ export const fieldsDefaultValues = {
 };
 
 export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
-  const { control, recommended, isHelperTextVisible, onDelete } = props;
+  const { control, recommended, isHelperTextVisible } = props;
 
   const { t } = useTranslation();
 
@@ -71,9 +70,9 @@ export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
 
     if (!item) return;
 
-    if (item.biographyId && onDelete && !isDefaultId(item.biographyId)) {
-      onDelete?.(item.biographyId);
-    }
+    // if (item.biographyId && onDelete && !isDefaultId(item.biographyId)) {
+    //   onDelete?.(item.biographyId);
+    // }
 
     remove(index);
   };

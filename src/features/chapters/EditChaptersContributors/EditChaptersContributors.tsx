@@ -1,5 +1,6 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useMoveBulkAffiliation } from '@/src/entities/affiliation';
@@ -8,18 +9,26 @@ import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAf
 import {
   ChaptersContributionsTable,
   useContributionStateMachine,
+  useCreateBiography,
+  useDeleteBiography,
   useMoveContribution,
 } from '@/src/entities/contribution';
 import useContributionsBulkDelete from '@/src/entities/contribution/api/hooks/useContributionsBulkDelete';
 import useContributionsBulkUpdate from '@/src/entities/contribution/api/hooks/useContributionsBulkUpdate';
-import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import type { ContributionBiographyForm, WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import type {
   ContributionId,
   ContributionType,
   ContributorId,
 } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
-import { type BaseEditSectionProps, isAllContributionRecommendationsFilled, isDefaultId } from '@/src/shared';
+import {
+  appConfig,
+  type BaseEditSectionProps,
+  isAllContributionRecommendationsFilled,
+  isDefaultId,
+  QueryKeys,
+} from '@/src/shared';
 import { RecommendedSection, Typography } from '@/src/shared/ui';
 
 import AddContributionModal from '../../work/AddContributionModal/AddContributionModal';
@@ -36,7 +45,10 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
   const { activeContribution, edit, update, close } = useContributionStateMachine();
 
+  const queryClient = useQueryClient();
   const { deleteContributions } = useContributionsBulkDelete();
+  const { deleteBiography } = useDeleteBiography();
+  const { createBiography } = useCreateBiography();
   const { updateContributions } = useContributionsBulkUpdate();
   const { moveContribution } = useMoveContribution({ workId: '' });
   const { moveBulkAffiliation } = useMoveBulkAffiliation();
@@ -404,6 +416,77 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     setContributions(updatedUniqueContributions);
   };
 
+  const handleBiographiesUpdate = async (data: ContributionBiographyForm, contributionId: ContributionId) => {
+    const sameContributions = findAllSameContributions(contributionId, chapters, contributions);
+    const contributionsToUpdateIds = sameContributions.map((contribution) => contribution.id);
+    const updatedContributions: WorkContribution[] = [];
+
+    // TODO: retest after backend fix
+    if (sameContributions.length === 0) return;
+
+    const existingBiographies = sameContributions.flatMap((contribution) => contribution.biographies);
+
+    const deletePromises = existingBiographies.map((biography) => deleteBiography(biography.id));
+
+    await Promise.all(deletePromises);
+
+    const contributionsIds = sameContributions.map((contribution) => contribution.id);
+
+    for (contributionId of contributionsIds) {
+      const updatedBiographies = await Promise.all(
+        data.biographies.map((biography, index) =>
+          createBiography({
+            data: {
+              id: appConfig.defaultId,
+              canonical: index === 0,
+              content: biography.contributorBiography ?? '',
+              localeCode: biography.language.value,
+              contributionId: contributionId,
+            },
+            contributionId,
+          }),
+        ),
+      );
+
+      const contributionToUpdate = uniqueContributors.find((contribution) => contribution.id === contributionId);
+
+      if (!contributionToUpdate) continue;
+
+      updatedContributions.push({
+        ...contributionToUpdate,
+        biographies: updatedBiographies,
+      });
+    }
+
+    const updatedUniqueContributions = uniqueContributors.map((contribution) => {
+      if (!contributionsToUpdateIds.includes(contribution.id)) return contribution;
+
+      const foundedContribution = updatedContributions.find(
+        (updatedContribution) => updatedContribution.id === contribution.id,
+      );
+
+      if (!foundedContribution) return contribution;
+
+      return {
+        ...contribution,
+        biographies: foundedContribution.biographies,
+      };
+    });
+
+    setContributions(updatedUniqueContributions);
+
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+
+    const updatedActiveContribution = updatedContributions.find(
+      (contribution) => contribution.id === activeContribution?.id,
+    );
+
+    if (!updatedActiveContribution) return;
+
+    update(updatedActiveContribution);
+  };
+
   return (
     <RecommendedSection title="Contributors" isEmpty={isEmpty} isValid={isValid}>
       {({ showRecommendations }) => (
@@ -424,6 +507,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
                     onUpdateAffiliations={handleUpdateAffiliations}
                     onDeleteAffiliation={handleDeleteAffiliation}
                     onAffiliationOrderUpdate={handleAffiliationOrderUpdate}
+                    onBiographiesUpdate={handleBiographiesUpdate}
                   />
                 }
                 showRecommendations={showRecommendations}

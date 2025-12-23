@@ -1,10 +1,11 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
 import { useAffiliationsForm, useMoveAffiliation } from '@/src/entities/affiliation';
 import type { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
-import { useContributionStateMachine } from '@/src/entities/contribution';
+import { useContributionStateMachine, useCreateBiography, useDeleteBiography } from '@/src/entities/contribution';
 import type {
   ContributionBiographyForm,
   ContributionNamesForm,
@@ -15,7 +16,7 @@ import { useLinkedPublishers, useUpdateContributor } from '@/src/entities/contri
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { useWork } from '@/src/entities/work';
-import { type BaseEditSectionProps, NOTIFICATIONS, removePrefix } from '@/src/shared';
+import { appConfig, type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, removePrefix } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
@@ -25,7 +26,8 @@ type UseEditContributionProps = BaseEditSectionProps &
     linkedPublishers: PublisherId[];
     onNamesUpdate: (data: ContributionNamesForm) => void;
     onTypeUpdate: (data: ContributionTypeForm) => void;
-    onBiographyUpdate: (data: ContributionBiographyForm) => void;
+    onBiographiesUpdate: (data: ContributionBiographyForm) => void;
+    onDeleteBiography: (id: string) => void;
     onOrcidUpdate: (data: OrcidForm) => void;
     onWebsiteUrlUpdate: (data: WebsiteUrlForm) => void;
     onAffiliationsUpdate: (data: AffiliationsForm) => void;
@@ -40,7 +42,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     linkedPublishers = [],
     onNamesUpdate,
     onTypeUpdate,
-    // onBiographyUpdate,
+    onBiographiesUpdate,
     onOrcidUpdate,
     onWebsiteUrlUpdate,
     onAffiliationsUpdate,
@@ -73,6 +75,9 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       close();
     },
   });
+  const queryClient = useQueryClient();
+  const { createBiography } = useCreateBiography();
+  const { deleteBiography } = useDeleteBiography();
 
   const { contributedToPublishers } = useLinkedPublishers({ id: activeContribution?.contributorId });
   const { updateAffiliations, deleteAffiliation } = useAffiliationsForm({
@@ -86,13 +91,14 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
     if (!contribution) return;
 
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setContribution(contribution);
   }, [work]);
 
   useEffect(() => {
     if (!activeContribution) return;
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setContribution(activeContribution);
   }, [activeContribution]);
 
@@ -152,23 +158,32 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     });
   };
 
-  const updateBiography = ({ biographies: _ }: ContributionBiographyForm) => {
+  const updateBiography = async ({ biographies }: ContributionBiographyForm) => {
     if (!contribution) return;
 
-    // TODO: update the biographies
-    // if (onBiographyUpdate) {
-    //   onBiographyUpdate({ contributorBiography });
-    //   setContribution({
-    //     ...contribution,
-    //     biography: contributorBiography,
-    //   });
-    //   return;
-    // }
+    if (onBiographiesUpdate) {
+      onBiographiesUpdate({ biographies });
+      return;
+    }
 
-    // updateContribution({
-    //   ...contribution,
-    //   biography: contributorBiography,
-    // });
+    await Promise.all(contribution.biographies.map((biography) => deleteBiography(biography.id)));
+
+    const newBiographies = biographies
+      .map((biography, index) => ({
+        id: appConfig.defaultId,
+        canonical: index === 0,
+        content: biography.contributorBiography ?? '',
+        localeCode: biography.language.value,
+        contributionId: contribution.id,
+      }))
+      .filter((biography) => biography.content.length > 0);
+
+    await Promise.all(
+      newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
+    );
+
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters, workId] });
   };
 
   const updateOrcid = ({ orcid = '' }: OrcidForm) => {

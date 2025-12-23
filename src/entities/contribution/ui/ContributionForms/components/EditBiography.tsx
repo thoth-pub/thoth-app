@@ -52,7 +52,6 @@ export const EditBiography = (props: EditBiographyProps) => {
           control={control as unknown as Control<ContributionBiographyForm>}
           recommended={showPreviewIndicator}
           isHelperTextVisible={isHelperTextVisible}
-          onDelete={(data) => console.log(data)}
         />
       )}
       preview={({ disabled, onEdit }) => (
