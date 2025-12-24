@@ -16,11 +16,7 @@ import {
 import useContributionsBulkDelete from '@/src/entities/contribution/api/hooks/useContributionsBulkDelete';
 import useContributionsBulkUpdate from '@/src/entities/contribution/api/hooks/useContributionsBulkUpdate';
 import type { ContributionBiographyForm, WorkContribution } from '@/src/entities/contribution/model/contribution.types';
-import type {
-  ContributionId,
-  ContributionType,
-  ContributorId,
-} from '@/src/entities/contributor/model/contributor.types';
+import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 import {
   appConfig,
@@ -30,6 +26,7 @@ import {
   QueryKeys,
 } from '@/src/shared';
 import { RecommendedSection, Typography } from '@/src/shared/ui';
+import { isChaptersContributionsEqual } from '@/src/shared/utils/chapters';
 
 import AddContributionModal from '../../work/AddContributionModal/AddContributionModal';
 import { AddNewChaptersContribution } from './components/AddNewChaptersContribution';
@@ -54,23 +51,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const { moveContribution } = useMoveContribution({ workId: '' });
   const { moveBulkAffiliation } = useMoveBulkAffiliation();
 
-  const contributorsIds = chapters.flatMap((chapter) =>
-    chapter.contributions.map((contribution) => contribution.contributorId),
-  );
-
-  const contributorsRoles: Record<ContributorId, ContributionType[]> = {};
-
-  const uniqueContributorsIds = [...new Set(contributorsIds)];
-
-  const isContributorsRolesSame = Object.values(contributorsRoles).every((roles) => roles.length === 1);
-
-  const isSameContributors = chapters.every((chapter) => {
-    const chapterContributorsIds = chapter.contributions.map((contribution) => contribution.contributorId);
-
-    const isIdsSame = uniqueContributorsIds.every((contributorId) => chapterContributorsIds.includes(contributorId));
-
-    return isIdsSame;
-  });
+  const isContributionsEqual = isChaptersContributionsEqual(chapters);
 
   const affiliations = useMemo(() => {
     const contributions = chapters.flatMap((chapter) => chapter.contributions);
@@ -121,66 +102,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     setContributions(uniqueContributors);
   }, [uniqueContributors, affiliations]);
 
-  const isSameAffiliations = useMemo(() => {
-    // 1. Map all chapters
-    return chapters.every((chapter) => {
-      // 2. Map all contributions
-      return chapter.contributions.every((contribution) => {
-        // 3. For each contribution, get the contributor id
-        const contributorId = contribution.contributorId;
-        const contributionType = contribution.type;
-
-        // 4. For each affiliation, check if it exists in every other contribution in every other chapter
-        // With the same contributor, with the same institution, order number and position
-        const isSameAffiliations = contribution.affiliations.every((affiliation) => {
-          // 5. Map all chapters
-          return chapters.every((chapter) => {
-            // 6. Find same contribution
-            const contribution = chapter.contributions.find(
-              (contribution) => contribution.contributorId === contributorId && contribution.type === contributionType,
-            );
-
-            if (!contribution) return false;
-
-            // 7. Check if the affiliation exists in the other contribution with the same contributor,
-            // with the same institution, order number and position
-            return contribution.affiliations.some(
-              (contributionAffiliation) =>
-                affiliation.institutionId === contributionAffiliation.institutionId &&
-                affiliation.orderNumber === contributionAffiliation.orderNumber &&
-                affiliation.position === contributionAffiliation.position,
-            );
-          });
-        });
-
-        // 8. For each biography, check if it exists in every other contribution in every other chapter
-        const isSameBiographies = contribution.biographies.every((biography) => {
-          // 9. Map all chapters
-          return chapters.every((chapter) => {
-            // 10. Find same contribution
-            const contribution = chapter.contributions.find(
-              (contribution) => contribution.contributorId === contributorId && contribution.type === contributionType,
-            );
-
-            if (!contribution) return false;
-
-            // 11. Check if the biography exists in the other contribution with the same contributor,
-            // with the same content and locale code
-            return contribution.biographies.some((contributionBiography) => {
-              return (
-                biography.content === contributionBiography.content &&
-                biography.localeCode === contributionBiography.localeCode
-              );
-            });
-          });
-        });
-
-        return isSameAffiliations && isSameBiographies;
-      });
-    });
-  }, [chapters]);
-
-  const isSectionEnabled = isContributorsRolesSame && isSameContributors && isSameAffiliations;
+  const isSectionEnabled = isContributionsEqual;
 
   const isNewContribution = activeContribution ? isDefaultId(activeContribution.id) : false;
 
