@@ -1,0 +1,56 @@
+import { useUpdateFunding } from '@/src/entities/funding';
+import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
+import type { WorkEntity } from '@/src/entities/work/model/work.types';
+
+export const useChaptersFundingsGrantNumbers = ({
+  chapters,
+  fundings,
+}: {
+  chapters: WorkEntity[];
+  fundings: FundingEntity[];
+}) => {
+  const { updateFunding } = useUpdateFunding({ workId: '' });
+
+  const updateGrantNumbers = async (updatedFunding: FundingEntity) => {
+    const fundingsToUpdate = fundings.filter(
+      (funding) =>
+        funding.grantNumber !== updatedFunding.grantNumber &&
+        funding.program === updatedFunding.program &&
+        funding.projectName === updatedFunding.projectName &&
+        funding.projectShortname === updatedFunding.projectShortname &&
+        funding.jurisdiction === updatedFunding.jurisdiction &&
+        funding.institutionId === updatedFunding.institutionId,
+    );
+
+    if (fundingsToUpdate.length === 0) return;
+
+    const fundingsIds = fundingsToUpdate.map((funding) => funding.id);
+
+    chapters.forEach(async (chapter) => {
+      const chapterFundings = chapter.fundings.filter(
+        (funding) =>
+          funding.projectName === updatedFunding.projectName &&
+          funding.grantNumber !== updatedFunding.grantNumber &&
+          funding.program === updatedFunding.program &&
+          funding.projectShortname === updatedFunding.projectShortname &&
+          funding.jurisdiction === updatedFunding.jurisdiction &&
+          funding.institutionId === updatedFunding.institutionId,
+      );
+
+      if (chapterFundings.length === 0) return;
+      await updateFunding({ ...chapterFundings[0], grantNumber: updatedFunding.grantNumber }, chapter.id);
+    });
+
+    const updatedFundings = fundingsToUpdate.map((funding) => {
+      if (!fundingsIds.includes(funding.id)) {
+        return funding;
+      }
+
+      return { ...funding, grantNumber: updatedFunding.grantNumber };
+    });
+
+    return updatedFundings;
+  };
+
+  return { updateGrantNumbers };
+};
