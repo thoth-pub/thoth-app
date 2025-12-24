@@ -21,11 +21,11 @@ type ContributorsSelectionProps = {
   contributors: ContributorsForSelection;
   works: WorkEntity[];
   chapters: WorkEntity[];
-  onSubmit?: (works: WorkEntity[], chapters: WorkEntity[]) => void;
+  onPreview?: (works: WorkEntity[], chapters: WorkEntity[]) => void;
 };
 
 export const ContributorsSelection = (props: ContributorsSelectionProps) => {
-  const { contributors, works, chapters, onSubmit } = props;
+  const { contributors, works, chapters, onPreview } = props;
 
   const [multipleFoundedContributors, setMultipleFoundedContributors] =
     useState<ContributorsForSelection>(contributors);
@@ -93,7 +93,7 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
     const updatedWorksIds = filteredWorks.map((work) => work.id);
     const notUpdatedWorks = works.filter((work) => !updatedWorksIds.includes(work.id));
 
-    onSubmit?.([...notUpdatedWorks, ...filteredWorks], [...notUpdatedChapters, ...updatedChapters]);
+    onPreview?.([...notUpdatedWorks, ...filteredWorks], [...notUpdatedChapters, ...updatedChapters]);
   };
 
   return (
@@ -167,7 +167,7 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
         </>
       )}
       <Button variant="contained" color="primary" className="m-auto" onClick={handleSubmit}>
-        Submit
+        Preview
       </Button>
     </div>
   );

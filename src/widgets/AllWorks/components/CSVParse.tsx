@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useEffectEvent, useState } from 'react';
+import { Activity, useEffect, useEffectEvent, useState } from 'react';
 
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
-import { useBulkCreateWorks } from '@/src/entities/work';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { ContributorsForSelection, FormFieldOption, SeriesForUpdateItems, useServices } from '@/src/shared';
 import { licenseOptions } from '@/src/shared/constants/formFields';
 import { CSVParser } from '@/src/shared/parsers';
+import { CircularProgress } from '@/src/shared/ui';
 import { isCsv } from '@/src/shared/utils';
 
 import { getCsvConfig } from '../../../shared/parsers/CSVParser/getCsvConfig';
@@ -17,19 +17,19 @@ type CSVParseProps = {
   file: File;
   imprints: FormFieldOption[];
   serieses: SeriesEntity[];
-  onSubmit?: () => void;
+  onPreview?: (works: WorkEntity[], chapters: WorkEntity[], serieses: SeriesForUpdateItems) => void;
   onValidationFailure?: (errors: string[]) => void;
 };
 
 export type CSVFieldType = string | number | boolean;
 
 export const CSVParse = (props: CSVParseProps) => {
-  const { file, imprints, serieses, onValidationFailure, onSubmit } = props;
+  const { file, imprints, serieses, onValidationFailure, onPreview } = props;
 
   const { contributorService, institutionService } = useServices();
 
+  const [isValidatingFile, setIsValidatingFile] = useState(false);
   const [works, setWorks] = useState<WorkEntity[]>([]);
-  const { bulkCreateWorks } = useBulkCreateWorks();
   const [seriesForUpdate, setSeriesForUpdate] = useState<SeriesForUpdateItems>({});
   const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<ContributorsForSelection>({});
   const csvConfig = getCsvConfig(imprints, licenseOptions, serieses);
@@ -46,21 +46,26 @@ export const CSVParse = (props: CSVParseProps) => {
   const isFileUploaded = file && file.size > 0;
   const isCsvFile = isCsv(file);
 
+  const isDataEmpty = works.length === 0;
+
   const parseFile = useEffectEvent(async () => {
     setWorks([]);
     setSeriesForUpdate({});
     setMultipleFoundedContributors({});
+    setIsValidatingFile(true);
 
     const result = await csvParser.parse();
 
     if (result.status === 'failed') {
       onValidationFailure?.(result.errors);
+      setIsValidatingFile(false);
       return;
     }
 
     setWorks(result.data.works);
     setSeriesForUpdate(result.data.series);
     setMultipleFoundedContributors(result.data.contributorsForSelection);
+    setIsValidatingFile(false);
   });
 
   useEffect(() => {
@@ -69,26 +74,24 @@ export const CSVParse = (props: CSVParseProps) => {
     parseFile();
   }, [file]);
 
-  const isDataEmpty = works.length === 0;
-
   const handleSubmit = async (works: WorkEntity[]) => {
-    await bulkCreateWorks({
-      works,
-      serieses: seriesForUpdate,
-      chapters: [],
-    });
-
-    onSubmit?.();
+    onPreview?.(works, [], seriesForUpdate);
   };
 
-  if (isDataEmpty) return null;
-
   return (
-    <ContributorsSelection
-      contributors={multipleFoundedContributors}
-      works={works}
-      chapters={[]}
-      onSubmit={handleSubmit}
-    />
+    <>
+      <Activity mode={isValidatingFile ? 'visible' : 'hidden'}>
+        <CircularProgress />
+      </Activity>
+
+      {!isDataEmpty && (
+        <ContributorsSelection
+          contributors={multipleFoundedContributors}
+          works={works}
+          chapters={[]}
+          onPreview={handleSubmit}
+        />
+      )}
+    </>
   );
 };
