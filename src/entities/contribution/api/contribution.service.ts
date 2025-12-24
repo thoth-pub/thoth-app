@@ -132,24 +132,6 @@ export class ContributionService {
         firstName: data.firstName && data.firstName.length > 0 ? data.firstName : null,
       },
     });
-    // TODO: check if we need this logic for bio
-    // const biogpraphiesForUpdata = data.biographies;
-
-    // const deletedBiographiesPromises: Promise<void>[] = [];
-
-    // for (const biography of biogpraphiesForUpdata) {
-    //   if (isDefaultId(biography.id)) continue;
-
-    //   deletedBiographiesPromises.push(this.deleteBiography(token, biography.id));
-    // }
-
-    // await Promise.all(deletedBiographiesPromises);
-
-    // const createdBiographiesPromises = biogpraphiesForUpdata.map((biography) =>
-    //   this.createBiography(token, { ...biography, id: appConfig.defaultId }, data.id),
-    // );
-
-    // const createdBiographies = await Promise.all(createdBiographiesPromises);
 
     return {
       ...data,

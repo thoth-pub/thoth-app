@@ -161,7 +161,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
             const contribution = chapter.contributions.find(
               (contribution) => contribution.contributorId === contributorId && contribution.type === contributionType,
             );
-            console.log('chapters', chapter);
+
             if (!contribution) return false;
 
             // 11. Check if the biography exists in the other contribution with the same contributor,
@@ -446,7 +446,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     const contributionsToUpdateIds = sameContributions.map((contribution) => contribution.id);
     const updatedContributions: WorkContribution[] = [];
 
-    // TODO: retest after backend fix
     if (sameContributions.length === 0) return;
 
     const existingBiographies = sameContributions.flatMap((contribution) => contribution.biographies);
@@ -457,20 +456,19 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
     const contributionsIds = sameContributions.map((contribution) => contribution.id);
 
+    const biographiesToCreate = data.biographies
+      .map((biography, index) => ({
+        id: appConfig.defaultId,
+        canonical: index === 0,
+        content: biography.contributorBiography ?? '',
+        localeCode: biography.language.value,
+        contributionId: contributionId,
+      }))
+      .filter((biography) => biography.content.length > 0);
+
     for (contributionId of contributionsIds) {
       const updatedBiographies = await Promise.all(
-        data.biographies.map((biography, index) =>
-          createBiography({
-            data: {
-              id: appConfig.defaultId,
-              canonical: index === 0,
-              content: biography.contributorBiography ?? '',
-              localeCode: biography.language.value,
-              contributionId: contributionId,
-            },
-            contributionId,
-          }),
-        ),
+        biographiesToCreate.map((biography) => createBiography({ data: biography, contributionId })),
       );
 
       const contributionToUpdate = uniqueContributors.find((contribution) => contribution.id === contributionId);

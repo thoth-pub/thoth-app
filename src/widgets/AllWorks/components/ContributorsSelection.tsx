@@ -85,8 +85,6 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
       updatedWorks.push(updatedWork);
     });
 
-    console.log(updatedWorks);
-
     const updatedChapters = updatedWorks.filter((work) => work.type === WorkTypes.enum.BookChapter);
     const updatedChaptersIds = updatedChapters.map((chapter) => chapter.id);
     const notUpdatedChapters = chapters.filter((chapter) => !updatedChaptersIds.includes(chapter.id));

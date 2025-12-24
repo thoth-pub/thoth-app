@@ -26,6 +26,8 @@ export const useChaptersFundingsGrantNumbers = ({
 
     const fundingsIds = fundingsToUpdate.map((funding) => funding.id);
 
+    const promises: Promise<void>[] = [];
+
     chapters.forEach(async (chapter) => {
       const chapterFundings = chapter.fundings.filter(
         (funding) =>
@@ -38,8 +40,10 @@ export const useChaptersFundingsGrantNumbers = ({
       );
 
       if (chapterFundings.length === 0) return;
-      await updateFunding({ ...chapterFundings[0], grantNumber: updatedFunding.grantNumber }, chapter.id);
+      promises.push(updateFunding({ ...chapterFundings[0], grantNumber: updatedFunding.grantNumber }, chapter.id));
     });
+
+    await Promise.all(promises);
 
     const updatedFundings = fundingsToUpdate.map((funding) => {
       if (!fundingsIds.includes(funding.id)) {
