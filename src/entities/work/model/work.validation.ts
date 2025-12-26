@@ -1,12 +1,13 @@
 import z from 'zod';
 
-import { ERRORS, getStringValidation, numberOrRomanNumeralValidationOptional } from '@/src/shared';
+import { ERRORS, numberOrRomanNumeralValidationOptional } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import {
   doiValidation,
   getFileValidation,
   getRequiredStringValidation,
+  getStringValidation,
   languageValidation,
   optionalDateValidation,
   optionalPositiveIntValidation,

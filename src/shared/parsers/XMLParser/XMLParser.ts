@@ -125,7 +125,6 @@ class XMLParser {
         errors: [],
       };
     } catch (_error) {
-      console.error('ERROR: ', _error);
       return {
         status: 'failed',
         data: { works: [], series: {}, chapters: [], contributorsForSelection: {} },
@@ -134,7 +133,7 @@ class XMLParser {
     }
   }
 
-  convertToArray<T>(data: T | T[]): T[] {
+  private convertToArray<T>(data: T | T[]): T[] {
     if (!data) return [];
 
     const result = Array.isArray(data) ? data : [data];
@@ -142,7 +141,7 @@ class XMLParser {
     return result;
   }
 
-  async parseWork(product: ExtendedProduct, index: number, workType = WorkTypes.enum.EditedBook) {
+  private async parseWork(product: ExtendedProduct, index: number, workType = WorkTypes.enum.EditedBook) {
     const workId = this.generateId();
 
     const { imageCount, tableCount, audioCount, videoCount } = this.parseMedia(product);
@@ -189,7 +188,7 @@ class XMLParser {
     this.parseSeries(product, work);
   }
 
-  parseImprint(product: ExtendedProduct, index: number) {
+  private parseImprint(product: ExtendedProduct, index: number) {
     const xmlImprint = product.PublishingDetail?.Imprint?.ImprintName ?? '';
     const imprint = this.imprints.find((imprint) => imprint.label === xmlImprint);
 
@@ -201,7 +200,7 @@ class XMLParser {
     return imprint.value;
   }
 
-  parseDoi(product: ExtendedProduct) {
+  private parseDoi(product: ExtendedProduct) {
     const doi =
       product.ProductIdentifier?.find((identifier) => identifier.ProductIDType === ProductIdentifierType._06)
         ?.IDValue ?? '';
@@ -209,7 +208,7 @@ class XMLParser {
     return doi.length > 0 ? this.doiPrefix + doi : '';
   }
 
-  parseLccn(product: ExtendedProduct) {
+  private parseLccn(product: ExtendedProduct) {
     const lccn =
       product.ProductIdentifier?.find((identifier) => identifier.ProductIDType === ProductIdentifierType._13)
         ?.IDValue ?? '';
@@ -217,7 +216,7 @@ class XMLParser {
     return lccn;
   }
 
-  parseOclc(product: ExtendedProduct) {
+  private parseOclc(product: ExtendedProduct) {
     const oclc =
       product.ProductIdentifier?.find((identifier) => identifier.ProductIDType === ProductIdentifierType._23)
         ?.IDValue ?? '';
@@ -225,7 +224,7 @@ class XMLParser {
     return oclc;
   }
 
-  parseTitle(product: ExtendedProduct): TitleEntity[] {
+  private parseTitle(product: ExtendedProduct): TitleEntity[] {
     const title = product.DescriptiveDetail?.TitleDetail?.TitleElement?.TitleText ?? '';
     const subtitle = product.DescriptiveDetail?.TitleDetail?.TitleElement?.Subtitle ?? '';
     const fullTitle = `${title} ${subtitle}`.trim();
@@ -233,13 +232,13 @@ class XMLParser {
     return [getDefaultTitle({ canonical: true, title, subtitle, fullTitle, localeCode: LanguageTypeAlt.enum.En })];
   }
 
-  parseEdition(product: ExtendedProduct): number {
+  private parseEdition(product: ExtendedProduct): number {
     const edition = parseInt(product.DescriptiveDetail?.Edition?.EditionNumber ?? '1');
 
     return edition;
   }
 
-  parseAbstracts(product: ExtendedProduct): AbstractEntity[] {
+  private parseAbstracts(product: ExtendedProduct): AbstractEntity[] {
     const collateralDetailTextContent = this.convertToArray(product.CollateralDetail?.TextContent);
     const longAbstract =
       collateralDetailTextContent.find((text) => text?.TextType === TextType._03)?.Text?.['#text'] ?? '';
@@ -272,7 +271,7 @@ class XMLParser {
     return abstracts;
   }
 
-  parseLicense(product: ExtendedProduct, index: number) {
+  private parseLicense(product: ExtendedProduct, index: number) {
     const enteredLicense =
       product.DescriptiveDetail?.EpubLicense?.EpubLicenseExpression?.EpubLicenseExpressionLink ?? '';
     const license = this.licenses.find((option) => option.value.startsWith(enteredLicense));
@@ -285,20 +284,20 @@ class XMLParser {
     return license.value;
   }
 
-  parseBibliographyNote(product: ExtendedProduct): string {
+  private parseBibliographyNote(product: ExtendedProduct): string {
     const note = product.DescriptiveDetail?.IllustrationsNote?.IllustrationsNoteText ?? '';
 
     return note;
   }
 
-  parseGeneralNote(product: ExtendedProduct): string {
+  private parseGeneralNote(product: ExtendedProduct): string {
     const collateralDetailTextContent = this.convertToArray(product.CollateralDetail?.TextContent);
     const note = collateralDetailTextContent.find((text) => text?.TextType === TextType._13)?.Text?.['#text'] ?? '';
 
     return note;
   }
 
-  parseNumber(value: string): number {
+  private parseNumber(value: string): number {
     const parsedValue = parseInt(value);
 
     if (isNaN(parsedValue)) {
@@ -308,13 +307,13 @@ class XMLParser {
     return parsedValue;
   }
 
-  parsePageCount(product: ExtendedProduct): number {
+  private parsePageCount(product: ExtendedProduct): number {
     const pageCount = product.DescriptiveDetail?.Extent?.ExtentValue ?? '';
 
     return this.parseNumber(pageCount);
   }
 
-  parseMedia(product: ExtendedProduct) {
+  private parseMedia(product: ExtendedProduct) {
     const ancillaryContent = this.convertToArray(product.DescriptiveDetail?.AncillaryContent).filter(
       (ancillary) => !!ancillary,
     );
@@ -332,7 +331,7 @@ class XMLParser {
     };
   }
 
-  parseWorkStatus(product: ExtendedProduct): WorkStatus {
+  private parseWorkStatus(product: ExtendedProduct): WorkStatus {
     const workStatus = product.PublishingDetail?.PublishingStatus
       ? getWorkStatusFromXml(product.PublishingDetail?.PublishingStatus)
       : WorkStatuses.enum.Forthcoming;
@@ -340,7 +339,7 @@ class XMLParser {
     return workStatus;
   }
 
-  parseDates(product: ExtendedProduct) {
+  private parseDates(product: ExtendedProduct) {
     const publicationDates = this.convertToArray(product.PublishingDetail?.PublishingDate).filter((date) => !!date);
 
     const publicationDate =
@@ -355,13 +354,13 @@ class XMLParser {
     };
   }
 
-  parseCopyrightHolder(product: ExtendedProduct): string {
+  private parseCopyrightHolder(product: ExtendedProduct): string {
     const copyrightHolder = product.PublishingDetail?.CopyrightStatement?.CopyrightOwner?.PersonName ?? '';
 
     return copyrightHolder;
   }
 
-  parseLandingPage(product: ExtendedProduct): string {
+  private parseLandingPage(product: ExtendedProduct): string {
     const publishers = this.convertToArray(product.PublishingDetail?.Publisher).filter((publisher) => !!publisher);
     const publishersWithWebsites = publishers.filter(
       (publisher) => publisher?.Website && publisher.Website?.length > 0,
@@ -378,7 +377,7 @@ class XMLParser {
     return landingPage;
   }
 
-  parseSubjects(product: ExtendedProduct) {
+  private parseSubjects(product: ExtendedProduct) {
     const subjects: SubjectEntity[] = [];
     const xmlSubjects = this.convertToArray(product.DescriptiveDetail?.Subject).filter((subject) => !!subject);
 
@@ -448,7 +447,7 @@ class XMLParser {
     return filteredSubjects;
   }
 
-  parseLanguages(product: ExtendedProduct) {
+  private parseLanguages(product: ExtendedProduct) {
     const enteredLanguageCode = product.DescriptiveDetail?.Language?.LanguageCode ?? '';
     const language = this.languages.find(
       (option) =>
@@ -475,7 +474,7 @@ class XMLParser {
     return workLanguages;
   }
 
-  async parseFundings(product: ExtendedProduct) {
+  private async parseFundings(product: ExtendedProduct) {
     const fundings: FundingEntity[] = [];
     const publishers = this.convertToArray(product.PublishingDetail?.Publisher).filter((publisher) => !!publisher);
     const publishersWithFundings = publishers.filter((publisher) => publisher.PublishingRole === '16');
@@ -535,7 +534,7 @@ class XMLParser {
     return fundings;
   }
 
-  parsePublications(product: ExtendedProduct) {
+  private parsePublications(product: ExtendedProduct) {
     const publications: PublicationEntity[] = [];
     const descriptiveDetail = product.DescriptiveDetail;
 
@@ -654,7 +653,7 @@ class XMLParser {
     return publications;
   }
 
-  parseSeries(product: ExtendedProduct, work: WorkEntity) {
+  private parseSeries(product: ExtendedProduct, work: WorkEntity) {
     const seriesCollections = this.convertToArray(product.DescriptiveDetail?.Collection).filter(
       (collection) => !!collection,
     );
@@ -678,7 +677,7 @@ class XMLParser {
     this.parsedSeries[existingSeries.id] = [...existingData, { ...work, orderNumber }];
   }
 
-  parseReferences(product: ExtendedProduct) {
+  private parseReferences(product: ExtendedProduct) {
     const references: ReferenceEntity[] = [];
     const relatedMaterials = product.RelatedMaterial;
     const relatedWorks = this.convertToArray(relatedMaterials?.RelatedWork).filter((relatedWork) => !!relatedWork);
@@ -728,7 +727,7 @@ class XMLParser {
     return references;
   }
 
-  async parseContributors(contributors: ExtendedContributor[] | ExtendedContributor, workId: WorkId) {
+  private async parseContributors(contributors: ExtendedContributor[] | ExtendedContributor, workId: WorkId) {
     const xmlContributors = this.convertToArray(contributors).filter((contributor) => !!contributor);
 
     if (xmlContributors.length === 0) return [];
@@ -851,7 +850,7 @@ class XMLParser {
     return workContributions;
   }
 
-  async parseChapters(product: ExtendedProduct, relatedWork: WorkEntity) {
+  private async parseChapters(product: ExtendedProduct, relatedWork: WorkEntity) {
     const {
       id: workId,
       status,
@@ -916,27 +915,7 @@ class XMLParser {
     this.parsedChapters = [...this.parsedChapters, ...newChapters[workId]];
   }
 
-  getErrors() {
-    return this.errors;
-  }
-
-  getParsedWorks() {
-    return this.parsedWorks;
-  }
-
-  getParsedChapters() {
-    return this.parsedChapters;
-  }
-
-  getParsedSeries() {
-    return this.parsedSeries;
-  }
-
-  getContributorsForSelection() {
-    return this.contributorsForSelection;
-  }
-
-  generateId() {
+  private generateId() {
     return uuidv4();
   }
 }

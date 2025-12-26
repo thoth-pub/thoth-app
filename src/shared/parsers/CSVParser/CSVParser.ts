@@ -105,7 +105,7 @@ export class CSVParser {
     }
   }
 
-  async parseRow(row: Row, rowNumber: number) {
+  private async parseRow(row: Row, rowNumber: number) {
     const workId = this.generateId();
 
     const { frontmatterCount, backmatterCount } = this.parsePageBreakdownField(row, CSV_KEYS.PAGE_BREAKDOWN, rowNumber);
@@ -157,7 +157,7 @@ export class CSVParser {
     this.parseSeries(row, parsedWork);
   }
 
-  parseStringField(row: Row, field: keyof Row, rowNumber?: number) {
+  private parseStringField(row: Row, field: keyof Row, rowNumber?: number) {
     const value = row[field];
 
     if (typeof value !== 'string') {
@@ -169,7 +169,7 @@ export class CSVParser {
     return value;
   }
 
-  parseNumberField(row: Row, field: keyof Row, rowNumber?: number) {
+  private parseNumberField(row: Row, field: keyof Row, rowNumber?: number) {
     const value = this.parseStringField(row, field, rowNumber);
 
     if (value.length === 0) {
@@ -187,7 +187,7 @@ export class CSVParser {
     return numberValue;
   }
 
-  parseImprint(row: Row, rowNumber: number) {
+  private parseImprint(row: Row, rowNumber: number) {
     const imprintName = this.parseStringField(row, CSV_KEYS.IMPRINT, rowNumber);
 
     const imprint = this.imprints.find((imprint) => imprint.label === imprintName);
@@ -200,7 +200,7 @@ export class CSVParser {
     return imprint.value;
   }
 
-  parsePageBreakdownField(row: Row, field: keyof Row, rowNumber: number) {
+  private parsePageBreakdownField(row: Row, field: keyof Row, rowNumber: number) {
     const value = this.parseStringField(row, field, rowNumber);
 
     const [frontmatterCount = '', totalPages = '', backmatterCount = ''] = value.split('+');
@@ -212,7 +212,7 @@ export class CSVParser {
     };
   }
 
-  parseTitles(row: Row, rowNumber: number): TitleEntity[] {
+  private parseTitles(row: Row, rowNumber: number): TitleEntity[] {
     const title = this.parseStringField(row, CSV_KEYS.TITLE, rowNumber);
     const subtitle = this.parseStringField(row, CSV_KEYS.SUBTITLE, rowNumber);
     const fullTitle = this.parseStringField(row, CSV_KEYS.TITLE, rowNumber);
@@ -220,7 +220,7 @@ export class CSVParser {
     return [getDefaultTitle({ canonical: true, title, subtitle, fullTitle })];
   }
 
-  parseAbstracts(row: Row, rowNumber: number): AbstractEntity[] {
+  private parseAbstracts(row: Row, rowNumber: number): AbstractEntity[] {
     const longAbstract = this.parseStringField(row, CSV_KEYS.LONG_ABSTRACT, rowNumber);
     const shortAbstract = this.parseStringField(row, CSV_KEYS.SHORT_ABSTRACT, rowNumber);
     const abstracts: AbstractEntity[] = [];
@@ -236,7 +236,7 @@ export class CSVParser {
     return abstracts;
   }
 
-  parseLicenseField(row: Row, field: keyof Row, rowNumber: number) {
+  private parseLicenseField(row: Row, field: keyof Row, rowNumber: number) {
     const value = this.parseStringField(row, field, rowNumber);
 
     if (value.length === 0) {
@@ -254,7 +254,7 @@ export class CSVParser {
     return license.value;
   }
 
-  parseLanguages(
+  private parseLanguages(
     row: Row,
     originalLanguage: keyof Row,
     translatedFromLanguage: keyof Row,
@@ -296,7 +296,7 @@ export class CSVParser {
     return languages;
   }
 
-  parseSubjects(
+  private parseSubjects(
     row: Row,
     themeSubjects: keyof Row,
     bicSubjects: keyof Row,
@@ -379,7 +379,7 @@ export class CSVParser {
     return subjects;
   }
 
-  parsePublication(row: Row) {
+  private parsePublication(row: Row) {
     const publications: PublicationEntity[] = [];
 
     const paperbackIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_PAPERBACK_ISBN);
@@ -459,7 +459,7 @@ export class CSVParser {
     return publications;
   }
 
-  parseSeries(row: Row, work: WorkEntity) {
+  private parseSeries(row: Row, work: WorkEntity) {
     const seriesName = this.parseStringField(row, CSV_KEYS.SERIES_NAME);
 
     if (seriesName.length === 0) {
@@ -480,7 +480,7 @@ export class CSVParser {
     this.parsedSeries[existingSeries.id] = [...existingData, { ...work, orderNumber }];
   }
 
-  async parseContributors(row: Row, workId: WorkId) {
+  private async parseContributors(row: Row, workId: WorkId) {
     const contributors = new Array(appConfig.maxCsvContributorsCount).fill(null).map((_, index) => {
       const {
         FIRST_NAME,
@@ -618,23 +618,7 @@ export class CSVParser {
     return workContributions;
   }
 
-  getErrors() {
-    return this.errors;
-  }
-
-  getParsedWorks() {
-    return this.parsedWorks;
-  }
-
-  getParsedSeries() {
-    return this.parsedSeries;
-  }
-
-  getContributorsForSelection() {
-    return this.contributorsForSelection;
-  }
-
-  generateId() {
+  private generateId() {
     return uuidv4();
   }
 }

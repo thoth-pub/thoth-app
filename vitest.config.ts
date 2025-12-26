@@ -7,4 +7,9 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
   },
+  css: {
+    postcss: {
+      plugins: [],
+    },
+  },
 });
