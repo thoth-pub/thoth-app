@@ -8,6 +8,7 @@ import {
   WorkIdentifierType,
 } from '@5stones/onix/dist/enums';
 import { ONIXMessageRoot, Product } from '@5stones/onix/dist/interfaces';
+import isbn3 from 'isbn3';
 import { v4 as uuidv4 } from 'uuid';
 
 import { CurrencyCode, LanguageCode, LocaleCode } from '@/gql/graphql';
@@ -307,6 +308,16 @@ class XMLParser {
     return parsedValue;
   }
 
+  private parseFloatNumber(value: string): number {
+    const parsedValue = parseFloat(value);
+
+    if (isNaN(parsedValue)) {
+      return 0;
+    }
+
+    return parsedValue;
+  }
+
   private parsePageCount(product: ExtendedProduct): number {
     const pageCount = product.DescriptiveDetail?.Extent?.ExtentValue ?? '';
 
@@ -583,18 +594,19 @@ class XMLParser {
     const isbn =
       product.ProductIdentifier?.find((identifier) => identifier.ProductIDType === ProductIdentifierType._15)
         ?.IDValue ?? '';
+    const isValidIsbn = isbn3.parse(isbn)?.isValid ?? false;
 
     const publication = getDefaultPublication({
-      isbn,
+      isbn: isValidIsbn ? isbn : '',
       type: getPublicationType(productForm),
-      width: Number(width),
-      widthIn: Number(widthIn),
-      height: Number(height),
-      heightIn: Number(heightIn),
-      depth: Number(depth),
-      depthIn: Number(depthIn),
-      weight: Number(weight),
-      weightOz: Number(weightOz),
+      width: this.parseFloatNumber(width.toString()),
+      widthIn: this.parseFloatNumber(widthIn.toString()),
+      height: this.parseFloatNumber(height.toString()),
+      heightIn: this.parseFloatNumber(heightIn.toString()),
+      depth: this.parseFloatNumber(depth.toString()),
+      depthIn: this.parseFloatNumber(depthIn.toString()),
+      weight: this.parseFloatNumber(weight.toString()),
+      weightOz: this.parseFloatNumber(weightOz.toString()),
       prices: [],
       locations: [],
     });
@@ -624,7 +636,7 @@ class XMLParser {
       publication.prices.push({
         id: this.defaultId,
         currencyCode: currencyCode as CurrencyCode,
-        unitPrice: this.parseNumber(price?.PriceAmount ?? '0'),
+        unitPrice: this.parseFloatNumber(price?.PriceAmount ?? '0'),
       });
     });
 
@@ -639,8 +651,9 @@ class XMLParser {
     const fullTextUrl =
       productSupply.SupplyDetail.Supplier.Website?.find((website) => website.WebsiteRole === '29')?.WebsiteLink ?? '';
     const locationPlatform =
-      LocationPlatforms.options.find((option) => option === productSupply.Market?.Territory?.RegionsIncluded) ??
-      LocationPlatforms.enum.Other;
+      LocationPlatforms.options.find(
+        (option) => option.toLowerCase() === productSupply.Market?.Territory?.RegionsIncluded?.toLowerCase(),
+      ) ?? LocationPlatforms.enum.Other;
 
     publication.locations.push({
       id: this.defaultId,
@@ -649,6 +662,8 @@ class XMLParser {
       fullTextUrl,
       locationPlatform,
     });
+
+    publications.push(publication);
 
     return publications;
   }

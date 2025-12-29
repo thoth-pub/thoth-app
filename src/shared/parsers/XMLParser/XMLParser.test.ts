@@ -1,5 +1,7 @@
 /* eslint-disable simple-import-sort/imports */
 import {
+  MeasureType,
+  MeasureUnit,
   ProductForm,
   ProductIdentifierType,
   PublishingDateRole,
@@ -18,9 +20,27 @@ import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import XMLParser from './XMLParser';
 import { currencyOptions, languageOptions, licenseOptions } from '../../constants/formFields';
 import { SeriesType } from '../../constants/series';
-import { ExtendedDescriptiveDetail, ExtendedPublishingDetail } from './interfaces';
-import { appConfig, LanguageTypeAlt, SubjectTypes, WorkStatuses } from '../..';
+import {
+  ExtendedCollection,
+  ExtendedDescriptiveDetail,
+  ExtendedProduct,
+  ExtendedProductSupply,
+  ExtendedPublishingDetail,
+} from './interfaces';
+import {
+  appConfig,
+  ContributorsForSelection,
+  ContributorTypes,
+  LanguageRelation,
+  LanguageTypeAlt,
+  LocationPlatforms,
+  PublicationType,
+  SeriesForUpdateItems,
+  SubjectTypes,
+  WorkStatuses,
+} from '../..';
 import { AbstractTypes } from '../../constants/abstracts';
+import { WorkId } from '@/src/entities/work/model/work.types';
 
 describe('XMLParser', () => {
   let mockContributorService: ContributorService;
@@ -2035,6 +2055,1790 @@ describe('XMLParser', () => {
       expect(result.data.works[0].subjects[1].code).toBe(subjectText1);
       expect(result.data.works[0].subjects[1].type).toBe(SubjectTypes.enum.Custom);
       expect(result.data.works[0].subjects[1].ordinal).toBe(2);
+    });
+
+    it('should return error if language is not provided', async () => {
+      const title = faker.lorem.sentence();
+      const imprint = imprints[0];
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.errors.some((e) => e.includes('Language'))).toBe(true);
+      expect(result.data.works).toHaveLength(0);
+    });
+
+    it('should return error if language is not found', async () => {
+      const language = faker.string.sample();
+      const title = faker.lorem.sentence();
+      const imprint = imprints[0];
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.errors.some((e) => e.includes('Language'))).toBe(true);
+      expect(result.data.works).toHaveLength(0);
+    });
+
+    it('should parse language if language is valid', async () => {
+      const language = languages[0].value;
+      const title = faker.lorem.sentence();
+      const imprint = imprints[0];
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].languages).toHaveLength(1);
+      expect(result.data.works[0].languages[0].code).toBe(language);
+      expect(result.data.works[0].languages[0].relation).toBe(LanguageRelation.enum.Original);
+      expect(result.data.works[0].languages[0].isMain).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should return empty fundings if ror of institution is not found', async () => {
+      const language = languages[0].value;
+      const title = faker.lorem.sentence();
+      const imprint = imprints[0];
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].fundings).toHaveLength(0);
+    });
+
+    it('should parse funding if institution is found by ror', async () => {
+      const institutionRor = faker.string.sample();
+      const mockInstitution = {
+        id: faker.string.sample(),
+        name: faker.lorem.sentence(),
+        ror: institutionRor,
+        doi: faker.string.sample(),
+        countryCode: faker.string.sample(),
+        updatedAt: faker.date.recent().toISOString(),
+      };
+      vi.mocked(mockInstitutionService.getInstitutions).mockResolvedValue([mockInstitution]);
+      const language = languages[0].value;
+      const title = faker.lorem.sentence();
+      const imprint = imprints[0];
+      const program = faker.lorem.sentence();
+      const projectName = faker.lorem.sentence();
+      const projectShortname = faker.lorem.sentence();
+      const grantNumber = faker.lorem.sentence();
+      const jurisdiction = faker.lorem.sentence();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+                Publisher: [
+                  {
+                    PublishingRole: '16',
+                    PublisherIdentifier: {
+                      PublisherIDType: '40',
+                      IDValue: institutionRor,
+                    },
+                    Funding: [
+                      {
+                        FundingIdentifier: [
+                          {
+                            FundingIDType: '01',
+                            IDTypeName: 'programname',
+                            IDValue: program,
+                          },
+                          {
+                            FundingIDType: '01',
+                            IDTypeName: 'projectname',
+                            IDValue: projectName,
+                          },
+                          {
+                            FundingIDType: '01',
+                            IDTypeName: 'projectshortname',
+                            IDValue: projectShortname,
+                          },
+                          {
+                            FundingIDType: '01',
+                            IDTypeName: 'grantnumber',
+                            IDValue: grantNumber,
+                          },
+                          {
+                            FundingIDType: '01',
+                            IDTypeName: 'jurisdiction',
+                            IDValue: jurisdiction,
+                          },
+                        ],
+                      },
+                    ],
+                  },
+                ],
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].fundings).toHaveLength(1);
+      expect(result.data.works[0].fundings[0].institutionId).toBe(mockInstitution.id);
+      expect(result.data.works[0].fundings[0].institutionName).toBe(mockInstitution.name);
+      expect(result.data.works[0].fundings[0].institutionRor).toBe(mockInstitution.ror);
+      expect(result.data.works[0].fundings[0].program).toBe(program);
+      expect(result.data.works[0].fundings[0].projectName).toBe(projectName);
+      expect(result.data.works[0].fundings[0].projectShortname).toBe(projectShortname);
+      expect(result.data.works[0].fundings[0].grantNumber).toBe(grantNumber);
+      expect(result.data.works[0].fundings[0].jurisdiction).toBe(jurisdiction);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should parse publication', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const height = faker.number.int(1000).toString();
+      const heightIn = faker.number.int(1000).toString();
+      const width = faker.number.int(1000).toString();
+      const widthIn = faker.number.int(1000).toString();
+      const depth = faker.number.int(1000).toString();
+      const depthIn = faker.number.int(1000).toString();
+      const weight = faker.number.int(1000).toString();
+      const weightOz = faker.number.int(1000).toString();
+      const measures = [
+        { MeasureType: MeasureType._01, MeasureUnitCode: MeasureUnit.mm, Measurement: height },
+        { MeasureType: MeasureType._01, MeasureUnitCode: MeasureUnit.in, Measurement: heightIn },
+        { MeasureType: MeasureType._02, MeasureUnitCode: MeasureUnit.mm, Measurement: width },
+        { MeasureType: MeasureType._02, MeasureUnitCode: MeasureUnit.in, Measurement: widthIn },
+        { MeasureType: MeasureType._03, MeasureUnitCode: MeasureUnit.mm, Measurement: depth },
+        { MeasureType: MeasureType._03, MeasureUnitCode: MeasureUnit.in, Measurement: depthIn },
+        { MeasureType: MeasureType._08, MeasureUnitCode: MeasureUnit.gr, Measurement: weight },
+        { MeasureType: MeasureType._08, MeasureUnitCode: MeasureUnit.oz, Measurement: weightOz },
+      ];
+      const isbn = '978-3-033-00960-8';
+      const landingPage = faker.internet.url();
+      const fullTextUrl = faker.internet.url();
+      const locationPlatform = LocationPlatforms.options[0];
+      const currencyCode = currencyOptions[0].value;
+      const priceAmount = faker.number.int(1000).toString();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Measure: measures,
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+              ProductIdentifier: [{ ProductIDType: ProductIdentifierType._15, IDValue: isbn }],
+              ProductSupply: {
+                SupplyDetail: {
+                  Price: [{ CurrencyCode: currencyCode, PriceAmount: priceAmount }],
+                  Supplier: {
+                    Website: [
+                      {
+                        WebsiteRole: '02',
+                        WebsiteLink: landingPage,
+                      },
+                      {
+                        WebsiteRole: '29',
+                        WebsiteLink: fullTextUrl,
+                      },
+                    ],
+                  },
+                },
+                Market: {
+                  Territory: {
+                    RegionsIncluded: locationPlatform,
+                  },
+                },
+              } as ExtendedProductSupply,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].publications).toHaveLength(1);
+      expect(result.data.works[0].publications[0].height.toString()).toBe(height);
+      expect(result.data.works[0].publications[0].heightIn.toString()).toBe(heightIn);
+      expect(result.data.works[0].publications[0].width.toString()).toBe(width);
+      expect(result.data.works[0].publications[0].widthIn.toString()).toBe(widthIn);
+      expect(result.data.works[0].publications[0].depth.toString()).toBe(depth);
+      expect(result.data.works[0].publications[0].depthIn.toString()).toBe(depthIn);
+      expect(result.data.works[0].publications[0].weight.toString()).toBe(weight);
+      expect(result.data.works[0].publications[0].weightOz.toString()).toBe(weightOz);
+      expect(result.data.works[0].publications[0].isbn).toBe(isbn);
+      expect(result.data.works[0].publications[0].prices).toHaveLength(1);
+      expect(result.data.works[0].publications[0].prices[0].currencyCode).toBe(currencyCode);
+      expect(result.data.works[0].publications[0].prices[0].unitPrice.toString()).toBe(priceAmount);
+      expect(result.data.works[0].publications[0].locations).toHaveLength(1);
+      expect(result.data.works[0].publications[0].locations[0].landingPage).toBe(landingPage);
+      expect(result.data.works[0].publications[0].locations[0].fullTextUrl).toBe(fullTextUrl);
+      expect(result.data.works[0].publications[0].locations[0].locationPlatform).toBe(locationPlatform);
+    });
+
+    it('should exclude isbn if it is not valid', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const isbn = faker.string.sample();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+              ProductIdentifier: [{ ProductIDType: ProductIdentifierType._15, IDValue: isbn }],
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].publications).toHaveLength(1);
+      expect(result.data.works[0].publications[0].isbn).toBe('');
+    });
+
+    it('should parse float numbers', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const height = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }).toString();
+      const heightIn = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }).toString();
+      const width = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }).toString();
+      const widthIn = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }).toString();
+      const depth = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }).toString();
+      const depthIn = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }).toString();
+      const weight = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }).toString();
+      const weightOz = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }).toString();
+      const measures = [
+        { MeasureType: MeasureType._01, MeasureUnitCode: MeasureUnit.mm, Measurement: height },
+        { MeasureType: MeasureType._01, MeasureUnitCode: MeasureUnit.in, Measurement: heightIn },
+        { MeasureType: MeasureType._02, MeasureUnitCode: MeasureUnit.mm, Measurement: width },
+        { MeasureType: MeasureType._02, MeasureUnitCode: MeasureUnit.in, Measurement: widthIn },
+        { MeasureType: MeasureType._03, MeasureUnitCode: MeasureUnit.mm, Measurement: depth },
+        { MeasureType: MeasureType._03, MeasureUnitCode: MeasureUnit.in, Measurement: depthIn },
+        { MeasureType: MeasureType._08, MeasureUnitCode: MeasureUnit.gr, Measurement: weight },
+        { MeasureType: MeasureType._08, MeasureUnitCode: MeasureUnit.oz, Measurement: weightOz },
+      ];
+      const landingPage = faker.internet.url();
+      const fullTextUrl = faker.internet.url();
+      const locationPlatform = LocationPlatforms.options[0];
+      const currencyCode = currencyOptions[0].value;
+      const priceAmount = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }).toString();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Measure: measures,
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+              ProductSupply: {
+                SupplyDetail: {
+                  Price: [{ CurrencyCode: currencyCode, PriceAmount: priceAmount }],
+                  Supplier: {
+                    Website: [
+                      {
+                        WebsiteRole: '02',
+                        WebsiteLink: landingPage,
+                      },
+                      {
+                        WebsiteRole: '29',
+                        WebsiteLink: fullTextUrl,
+                      },
+                    ],
+                  },
+                },
+                Market: {
+                  Territory: {
+                    RegionsIncluded: locationPlatform,
+                  },
+                },
+              } as ExtendedProductSupply,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].publications).toHaveLength(1);
+      expect(result.data.works[0].publications[0].height.toString()).toBe(height);
+      expect(result.data.works[0].publications[0].heightIn.toString()).toBe(heightIn);
+      expect(result.data.works[0].publications[0].width.toString()).toBe(width);
+      expect(result.data.works[0].publications[0].widthIn.toString()).toBe(widthIn);
+      expect(result.data.works[0].publications[0].depth.toString()).toBe(depth);
+      expect(result.data.works[0].publications[0].depthIn.toString()).toBe(depthIn);
+      expect(result.data.works[0].publications[0].weight.toString()).toBe(weight);
+      expect(result.data.works[0].publications[0].weightOz.toString()).toBe(weightOz);
+      expect(result.data.works[0].publications[0].prices).toHaveLength(1);
+      expect(result.data.works[0].publications[0].prices[0].currencyCode).toBe(currencyCode);
+      expect(result.data.works[0].publications[0].prices[0].unitPrice.toString()).toBe(priceAmount);
+      expect(result.data.works[0].publications[0].locations).toHaveLength(1);
+      expect(result.data.works[0].publications[0].locations[0].landingPage).toBe(landingPage);
+      expect(result.data.works[0].publications[0].locations[0].fullTextUrl).toBe(fullTextUrl);
+      expect(result.data.works[0].publications[0].locations[0].locationPlatform).toBe(locationPlatform);
+    });
+
+    it('should parse AJ publication', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._AJ,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].publications).toHaveLength(1);
+      expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Mp3);
+    });
+
+    it('should parse BB publication', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BB,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].publications).toHaveLength(1);
+      expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Hardback);
+    });
+
+    it('should parse BC publication', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].publications).toHaveLength(1);
+      expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Paperback);
+    });
+
+    it('should parse ED publication', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._ED,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].publications).toHaveLength(1);
+      expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Pdf);
+    });
+
+    it('should return empty publications if product form is not valid', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: faker.string.sample(),
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].publications).toHaveLength(0);
+    });
+
+    it('should parse series', async () => {
+      const seriesName = serieses[0].name;
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Collection: [
+                  {
+                    TitleDetail: { TitleElement: { TitleText: seriesName } },
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            },
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(Object.keys(result.data.series)).toHaveLength(1);
+      expect((result.data.series as SeriesForUpdateItems)[serieses[0].id]?.length).toBe(1);
+      expect((result.data.series as SeriesForUpdateItems)[serieses[0].id]?.[0].orderNumber).toBe(1);
+      expect((result.data.series as SeriesForUpdateItems)[serieses[0].id]?.[0].id).toBe(result.data.works[0].id);
+      expect((result.data.series as SeriesForUpdateItems)[serieses[0].id]?.[0].titles[0].title).toBe(title);
+    });
+
+    it('should parser references', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const relatedWorkDoi = faker.string.sample();
+      const relatedProductDoi = faker.string.sample();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+              RelatedMaterial: {
+                RelatedWork: [
+                  {
+                    WorkIdentifier: {
+                      WorkIDType: '06',
+                      IDValue: relatedWorkDoi,
+                    },
+                  },
+                ],
+                RelatedProduct: [
+                  {
+                    ProductIdentifier: {
+                      ProductIDType: '06',
+                      IDValue: relatedProductDoi,
+                    },
+                  },
+                ],
+              },
+            },
+          ] as ExtendedProduct[],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].references).toHaveLength(2);
+      expect(result.data.works[0].references[0].doi).toBe(relatedWorkDoi);
+      expect(result.data.works[0].references[1].doi).toBe(relatedProductDoi);
+    });
+
+    it('should parse contributors', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorLastName = faker.person.fullName();
+      const contributorFirstName = faker.person.fullName();
+      const contributorFullName = faker.person.fullName();
+      const contributorOrcid = faker.string.sample();
+      const contributorWebsite = faker.internet.url();
+      const biography = faker.lorem.sentence();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A19',
+                    PersonName: contributorFullName,
+                    KeyNames: contributorLastName,
+                    NamesBeforeKey: contributorFirstName,
+                    NameIdentifier: {
+                      IDValue: contributorOrcid,
+                    },
+                    Website: {
+                      WebsiteLink: contributorWebsite,
+                    },
+                    BiographicalNote: biography,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].lastName).toBe(contributorLastName);
+      expect(result.data.works[0].contributions[0].firstName).toBe(contributorFirstName);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].orcidId).toBe(contributorOrcid);
+      expect(result.data.works[0].contributions[0].website).toBe(contributorWebsite);
+      expect(result.data.works[0].contributions[0].biographies[0].content).toBe(biography);
+    });
+
+    it('should parse A19 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A19',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.AfterwordBy);
+    });
+
+    it('should parse A01 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A01',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Author);
+    });
+
+    it('should parse A32 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A32',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.ContributionsBy);
+    });
+
+    it('should parse B01 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'B01',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Editor);
+    });
+
+    it('should parse A23 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A23',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.ForewordBy);
+    });
+
+    it('should parse A12 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A12',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Illustrator);
+    });
+
+    it('should parse A34 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A34',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Indexer);
+    });
+
+    it('should parse A24 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A24',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.IntroductionBy);
+    });
+
+    it('should parse A06 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A06',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.MusicEditor);
+    });
+
+    it('should parse A08 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A08',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Photographer);
+    });
+
+    it('should parse A15 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A15',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.PrefaceBy);
+    });
+
+    it('should parse A51 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A51',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.ResearchBy);
+    });
+
+    it('should parse A30 contributor role', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A30',
+                    PersonName: contributorFullName,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.SoftwareBy);
+    });
+
+    it('should parse affiliation if institution is found by ror id', async () => {
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const contributorAffiliationRor = faker.string.sample();
+      const affiliationPosition = faker.lorem.sentence();
+      const mockInstitution = {
+        id: faker.string.sample(),
+        name: faker.lorem.sentence(),
+        ror: contributorAffiliationRor,
+        doi: faker.string.sample(),
+        countryCode: faker.string.sample(),
+        updatedAt: faker.date.recent().toISOString(),
+      };
+      vi.mocked(mockInstitutionService.getInstitutions).mockResolvedValue([mockInstitution]);
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A01',
+                    PersonName: contributorFullName,
+                    ProfessionalAffiliation: {
+                      AffiliationIdentifier: { IDValue: contributorAffiliationRor },
+                      ProfessionalPosition: affiliationPosition,
+                    },
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Author);
+      expect(result.data.works[0].contributions[0].affiliations).toHaveLength(1);
+      expect(result.data.works[0].contributions[0].affiliations[0].position).toBe(affiliationPosition);
+      expect(result.data.works[0].contributions[0].affiliations[0].institutionName).toBe(mockInstitution.name);
+      expect(result.data.works[0].contributions[0].affiliations[0].rorId).toBe(contributorAffiliationRor);
+    });
+
+    it('should parse multiple contributors', async () => {
+      const mockContributor = {
+        id: faker.string.sample(),
+        name: faker.lorem.sentence(),
+        ror: faker.string.sample(),
+        orcid: faker.string.sample(),
+        lastName: faker.person.fullName(),
+        firstName: faker.person.fullName(),
+        fullName: faker.person.fullName(),
+        website: faker.internet.url(),
+        lastContributionTitle: faker.lorem.sentence(),
+        doi: faker.string.sample(),
+        countryCode: faker.string.sample(),
+        updatedAt: faker.date.recent().toISOString(),
+      };
+      vi.mocked(mockContributorService.getContributors).mockResolvedValue([mockContributor]);
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorLastName = faker.person.fullName();
+      const contributorFirstName = faker.person.fullName();
+      const contributorFullName = faker.person.fullName();
+      const contributorOrcid = faker.string.sample();
+      const contributorWebsite = faker.internet.url();
+      const biography = faker.lorem.sentence();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+                Contributor: [
+                  {
+                    ContributorRole: 'A19',
+                    PersonName: contributorFullName,
+                    KeyNames: contributorLastName,
+                    NamesBeforeKey: contributorFirstName,
+                    NameIdentifier: {
+                      IDValue: contributorOrcid,
+                    },
+                    Website: {
+                      WebsiteLink: contributorWebsite,
+                    },
+                    BiographicalNote: biography,
+                  },
+                ],
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works[0].contributions).toHaveLength(2);
+      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.works[0].contributions[1].fullName).toBe(mockContributor.fullName);
+
+      const workId = result.data.works[0].id as WorkId;
+      const contributorsForSelection = result.data.contributorsForSelection as ContributorsForSelection;
+      const workContributorsForSelection = contributorsForSelection[workId];
+
+      expect(Object.values(workContributorsForSelection)[0].length).toBe(2);
+    });
+
+    it('should parse chapters', async () => {
+      const chapterTitle = faker.lorem.sentence();
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const chapterDoi = faker.string.sample();
+      const chapterPageCount = faker.number.int(100);
+      const chapterFirstPage = faker.number.int(100);
+      const chapterLastPage = faker.number.int(100);
+
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+              ContentDetail: {
+                ContentItem: [
+                  {
+                    LevelSequenceNumber: '1',
+                    TitleDetail: { TitleElement: { TitleText: chapterTitle } },
+                    TextItem: {
+                      TextItemIdentifier: {
+                        IDValue: chapterDoi,
+                      },
+                    },
+                    NumberOfPages: chapterPageCount,
+                    PageRun: {
+                      FirstPageNumber: chapterFirstPage.toString(),
+                      LastPageNumber: chapterLastPage.toString(),
+                    },
+                  },
+                ] as unknown as ExtendedCollection[],
+              },
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works).toHaveLength(1);
+      expect(result.data.chapters).toHaveLength(1);
+      expect(result.data.chapters[0].titles[0].title).toBe(chapterTitle);
+      expect(result.data.chapters[0].doi).toBe(appConfig.validations.doiPrefix + chapterDoi);
+      expect(result.data.chapters[0].pageCount).toBe(chapterPageCount);
+      expect(result.data.chapters[0].firstPage).toBe(chapterFirstPage.toString());
+      expect(result.data.chapters[0].lastPage).toBe(chapterLastPage.toString());
+    });
+
+    it('should parse chapters with contributors', async () => {
+      const chapterTitle = faker.lorem.sentence();
+      const title = faker.lorem.sentence();
+      const language = languages[0].value;
+      const imprint = imprints[0];
+      const contributorFullName = faker.person.fullName();
+      const xml: ONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            {
+              DescriptiveDetail: {
+                ProductForm: ProductForm._BC,
+                TitleDetail: { TitleElement: { TitleText: title } },
+                Language: { LanguageCode: language },
+              } as ExtendedDescriptiveDetail,
+              PublishingDetail: {
+                Imprint: { ImprintName: imprint.label },
+                PublishingStatus: '04',
+              } as ExtendedPublishingDetail,
+              ContentDetail: {
+                ContentItem: [
+                  {
+                    LevelSequenceNumber: '1',
+                    TitleDetail: { TitleElement: { TitleText: chapterTitle } },
+                    Contributor: [
+                      {
+                        ContributorRole: 'A19',
+                        PersonName: contributorFullName,
+                      },
+                    ],
+                  },
+                ] as unknown as ExtendedCollection[],
+              },
+            } as ExtendedProduct,
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toHaveLength(0);
+      expect(result.data.works).toHaveLength(1);
+      expect(result.data.chapters).toHaveLength(1);
+      expect(result.data.chapters[0].titles[0].title).toBe(chapterTitle);
+      expect(result.data.chapters[0].contributions).toHaveLength(1);
+      expect(result.data.chapters[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.chapters[0].contributions[0].type).toBe(ContributorTypes.enum.AfterwordBy);
     });
   });
 });
