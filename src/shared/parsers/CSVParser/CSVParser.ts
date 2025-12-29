@@ -187,6 +187,24 @@ export class CSVParser {
     return numberValue;
   }
 
+  private parseFloatNumberField(row: Row, field: keyof Row, rowNumber?: number) {
+    const value = this.parseStringField(row, field, rowNumber);
+
+    if (value.length === 0) {
+      return 0;
+    }
+
+    const numberValue = parseFloat(value);
+
+    if (isNaN(numberValue)) {
+      this.errors.push(`${field} is not a number ${rowNumber ? `in row ${rowNumber}` : ''}`);
+
+      return 0;
+    }
+
+    return numberValue;
+  }
+
   private parseImprint(row: Row, rowNumber: number) {
     const imprintName = this.parseStringField(row, CSV_KEYS.IMPRINT, rowNumber);
 
@@ -384,11 +402,11 @@ export class CSVParser {
 
     const paperbackIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_PAPERBACK_ISBN);
     const paperbackCurrencyCode = this.parseStringField(row, CSV_KEYS.PUBLICATION_PAPERBACK_PRICE_1_CURRENCY_CODE);
-    const paperbackUnitPrice = this.parseNumberField(row, CSV_KEYS.PUBLICATION_PAPERBACK_PRICE_1_UNIT_PRICE);
+    const paperbackUnitPrice = this.parseFloatNumberField(row, CSV_KEYS.PUBLICATION_PAPERBACK_PRICE_1_UNIT_PRICE);
     const isPaperbackPriceFilled = paperbackCurrencyCode.length !== 0 && paperbackUnitPrice !== 0;
     const hardbackIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_HARDBACK_ISBN);
     const hardbackCurrencyCode = this.parseStringField(row, CSV_KEYS.PUBLICATION_HARDBACK_PRICE_1_CURRENCY_CODE);
-    const hardbackUnitPrice = this.parseNumberField(row, CSV_KEYS.PUBLICATION_HARDBACK_PRICE_1_UNIT_PRICE);
+    const hardbackUnitPrice = this.parseFloatNumberField(row, CSV_KEYS.PUBLICATION_HARDBACK_PRICE_1_UNIT_PRICE);
     const isHardbackPriceFilled = hardbackCurrencyCode.length !== 0 && hardbackUnitPrice !== 0;
     const pdfIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_PDF_ISBN);
     const pdfLocationLandingPage = this.parseStringField(row, CSV_KEYS.PUBLICATION_PDF_LOCATION_LANDING_PAGE);

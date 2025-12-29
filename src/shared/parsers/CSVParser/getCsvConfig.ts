@@ -1,3 +1,4 @@
+import isbn3 from 'isbn3';
 import z from 'zod';
 
 import { LocationPlatform } from '@/gql/graphql';
@@ -1166,7 +1167,18 @@ export const getCsvConfig = (
       { name: 'bisac_subjects', inputName: BISAC_SUBJECTS, required: false },
       { name: 'lcc_subjects', inputName: LCC_SUBJECTS, required: false },
       { name: 'keywords', inputName: KEYWORDS, required: false },
-      { name: 'publication_paperback_isbn', inputName: PUBLICATION_PAPERBACK_ISBN, required: false },
+      {
+        name: 'publication_paperback_isbn',
+        inputName: PUBLICATION_PAPERBACK_ISBN,
+        required: false,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return isbn3.parse(data)?.isValid ?? false;
+        },
+      },
       {
         name: 'publication_paperback_price_1_currency_code',
         inputName: PUBLICATION_PAPERBACK_PRICE_1_CURRENCY_CODE,
@@ -1187,7 +1199,18 @@ export const getCsvConfig = (
         inputName: PUBLICATION_PAPERBACK_PRICE_1_UNIT_PRICE,
         required: false,
       },
-      { name: 'publication_hardback_isbn', inputName: PUBLICATION_HARDBACK_ISBN, required: false },
+      {
+        name: 'publication_hardback_isbn',
+        inputName: PUBLICATION_HARDBACK_ISBN,
+        required: false,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return isbn3.parse(data)?.isValid ?? false;
+        },
+      },
       {
         name: 'publication_hardback_price_1_currency_code',
         inputName: PUBLICATION_HARDBACK_PRICE_1_CURRENCY_CODE,
@@ -1208,7 +1231,18 @@ export const getCsvConfig = (
         inputName: PUBLICATION_HARDBACK_PRICE_1_UNIT_PRICE,
         required: false,
       },
-      { name: 'publication_pdf_isbn', inputName: PUBLICATION_PDF_ISBN, required: false },
+      {
+        name: 'publication_pdf_isbn',
+        inputName: PUBLICATION_PDF_ISBN,
+        required: false,
+        validate: (field: CSVFieldType) => {
+          const data = `${field}`.trim();
+
+          if (data.length === 0) return true;
+
+          return isbn3.parse(data)?.isValid ?? false;
+        },
+      },
       {
         name: 'publication_pdf_location_landing_page',
         inputName: PUBLICATION_PDF_LOCATION_LANDING_PAGE,
