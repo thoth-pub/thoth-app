@@ -48,8 +48,8 @@ const EditFundings = (props: BaseEditSectionProps) => {
             onEdit={(id) => editFunding(id)}
           />
           {isNewFunding && <AddFunding workId={workId} />}
-          <AddButton className="px-7 capitalize" onAdd={addFunding} disabled={isNewFunding}>
-            {t('add funding')}
+          <AddButton className="px-4 capitalize" onAdd={addFunding} disabled={isNewFunding}>
+            {t('add new funding')}
           </AddButton>
         </>
       )}

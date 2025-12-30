@@ -51,7 +51,9 @@ export const Header = (props: HeaderProps) => {
   return (
     <ContentSection>
       <div className="flex items-center justify-between gap-2">
-        <Typography variant="h1">Books</Typography>
+        <Typography variant="h1" className="pl-3">
+          Books
+        </Typography>
         <TextField
           slotProps={{
             input: {

@@ -32,7 +32,7 @@ const FundingsTable = (props: FundingsTableProps) => {
     <TableWrapper>
       <TableHeader
         cells={['Project', 'Program', 'Institution', 'Grant']}
-        cellStyles={['min-w-[120px]', 'min-w-[120px]', 'min-w-[250px]', 'min-w-[120px]']}
+        cellStyles={['min-w-[120px] pl-4', 'min-w-[120px]', 'min-w-[250px]', 'min-w-[120px]']}
       />
       <TableBody>
         {fundings.map(({ id, projectName, program, institutionName, institutionRor, grantNumber }) => (
@@ -42,7 +42,7 @@ const FundingsTable = (props: FundingsTableProps) => {
             ) : (
               <TableRow className="group">
                 <TableCell className="firstCell">
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1 pl-1">
                     {projectName}
                     {showRecommendations && grantNumber.length === 0 && <Indicator />}
                   </div>

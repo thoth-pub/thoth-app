@@ -182,7 +182,7 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
                 {data.map(({ subjects }, index) => (
                   <PreviewList key={index} subjects={subjects} onDelete={deleteSubject} onDragEnd={handleMove} />
                 ))}
-                <AddButton onAdd={handleModalState} className="capitalize">
+                <AddButton onAdd={handleModalState} className="capitalize xl:-ml-4">
                   add new subject
                 </AddButton>
                 <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />

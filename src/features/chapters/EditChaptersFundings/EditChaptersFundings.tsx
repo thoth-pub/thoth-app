@@ -168,8 +168,8 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
               }
             />
             {isNewFunding && <AddFunding workId="" onCreate={createFunding} />}
-            <AddButton className="px-7 capitalize" onAdd={addFunding} disabled={isNewFunding}>
-              {t('add funding')}
+            <AddButton className="px-4 capitalize" onAdd={addFunding} disabled={isNewFunding}>
+              {t('add new funding')}
             </AddButton>
           </Activity>
 

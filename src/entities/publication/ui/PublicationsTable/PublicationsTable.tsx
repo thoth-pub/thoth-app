@@ -18,7 +18,7 @@ const PublicationsTable = (props: PublicationsTableProps) => {
 
   return (
     <TableWrapper>
-      <TableHeader cells={['Publication Type', 'ISBN']} cellStyles={['min-w-[250px]', 'min-w-[250px]']} />
+      <TableHeader cells={['Publication Type', 'ISBN']} cellStyles={['min-w-[250px] pl-4', 'min-w-[250px]']} />
       <TableBody>
         {publications.map(
           ({ id, type, isbn, width, widthIn, height, heightIn, depth, depthIn, weight, weightOz, prices }) => (

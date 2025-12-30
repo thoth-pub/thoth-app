@@ -129,7 +129,7 @@ export const FormFields = (props: FormFieldsProps) => {
         <InputLabel className={`${fields.length === 0 ? 'opacity-1' : 'opacity-0'}`} component="span">
           {PRICES.label}
         </InputLabel>
-        <AddButton type="button" className="mt-[2rem] mr-auto capitalize" onAdd={handleAdd}>
+        <AddButton type="button" className="mt-4 mr-auto capitalize xl:mt-8" onAdd={handleAdd}>
           {t('add new price')}
         </AddButton>
       </FormFieldWrapper>

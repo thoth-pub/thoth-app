@@ -85,7 +85,7 @@ export const FormFields = (props: FormFieldsProps) => {
         <InputLabel className={`${fields.length === 0 ? 'opacity-1' : 'opacity-0'}`} component="span">
           {AFFILIATIONS.label}
         </InputLabel>
-        <AddButton type="button" className="mt-[2rem] mr-auto capitalize" onAdd={handleAdd}>
+        <AddButton type="button" className="mt-4 mr-auto pl-0 capitalize xl:mt-8" onAdd={handleAdd}>
           {t('add new affiliation')}
         </AddButton>
       </FormFieldWrapper>

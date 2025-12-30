@@ -140,7 +140,7 @@ const AddSeries = ({ imprintOptions }: AddSeriesProps) => {
       <Modal open={open} onClose={close}>
         <ModalWrapper>
           <div className="flex justify-between">
-            <Typography variant="h2" component="h3" className="text-[var(--color-typography)] capitalize">
+            <Typography variant="h2" component="h3" className="pl-4 text-[var(--color-typography)] capitalize">
               Add New Series
             </Typography>
             <div className="flex gap-2">

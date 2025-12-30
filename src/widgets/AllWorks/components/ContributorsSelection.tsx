@@ -100,13 +100,13 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
     <div className="flex w-full flex-col gap-4">
       {showContributorsSelection && (
         <>
-          <Typography variant="h1" component="h2">
+          <Typography variant="h1" component="h2" className="pl-4">
             Multiple contributors found
           </Typography>
           <TableWrapper>
             <TableHeader
               cells={['Work', 'Search Value', 'Contributors']}
-              cellStyles={['min-w-[210px]', 'min-w-[210px]', 'min-w-[210px]']}
+              cellStyles={['min-w-[210px] pl-4', 'min-w-[210px]', 'min-w-[210px]']}
             />
             <TableBody>
               {Object.entries(multipleFoundedContributors).map(([workId, data]) => {
@@ -123,7 +123,7 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
 
                   return (
                     <TableRow key={`${workId}-${itemId}-${index}`} className="group">
-                      <TableCell className="firstCell">{getMainTitle(work.titles).title}</TableCell>
+                      <TableCell className="firstCell pl-4">{getMainTitle(work.titles).title}</TableCell>
                       <TableCell className="middleCell">{defaultContributor?.fullName ?? ''}</TableCell>
                       <TableCell className="lastCell">
                         {contributions.map(({ id, fullName, orcidId, contributorId, lastContribution, selected }) => (

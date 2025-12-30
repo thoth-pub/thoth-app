@@ -18,7 +18,7 @@ export const PreviewItem = (props: PreviewItemProps) => {
       {({ attributes, listeners, style, ref }) => (
         <Typography
           component="li"
-          className="flex min-h-6 items-center gap-2 hover:[&>button>span>svg]:opacity-100 hover:[&>svg]:opacity-100"
+          className="flex min-h-6 items-center group-hover:gap-2 hover:[&>button>span>svg]:opacity-100 hover:[&>svg]:opacity-100"
           ref={ref}
           style={style}
           {...attributes}

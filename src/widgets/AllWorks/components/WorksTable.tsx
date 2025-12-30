@@ -41,7 +41,7 @@ export const WorksTable = (props: WorksTableProps) => {
         <TableHeader
           cells={['ID', 'Title', 'Status', 'Type', 'Contributors', 'Updated At']}
           cellStyles={[
-            'min-w-[90px]',
+            'min-w-[90px] pl-3',
             'min-w-[210px]',
             'min-w-[120px]',
             'min-w-[120px]',

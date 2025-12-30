@@ -43,7 +43,7 @@ const SeriesTable = (props: SeriesTableProps) => {
       <TableWrapper>
         <TableHeader
           cells={['Name', 'Description', 'Type', 'ISSN', 'Updated At']}
-          cellStyles={['w-[210px]', 'w-[210px]', 'w-[210px]', 'w-[110px]', 'w-[110px]']}
+          cellStyles={['w-[210px] pl-3', 'w-[210px]', 'w-[210px]', 'w-[110px]', 'w-[110px]']}
         />
         <TableBody>
           {!loading && serieses.length === 0 && (

@@ -42,7 +42,7 @@ const Series = ({ imprintOptions }: SeriesProps) => {
         changeDirection={changeDirection}
         changeOrderBy={changeOrderBy}
       />
-      <ContentSection title="Series">
+      <ContentSection>
         <SeriesTable
           loading={loading}
           serieses={serieses}

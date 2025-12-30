@@ -192,14 +192,14 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                   {isMultipleChapters && (
                     <Checkbox
                       size="small"
-                      className="mr-2"
+                      className="mr-1 xl:mr-0.5"
                       checked={selectedChapters.length > 0 && selectedChapters.length === chapters.length}
                       onChange={handleSelectAllChapters}
                     />
                   )}
                 </div>,
               ]}
-              cellStyles={['min-w-[210px]', 'min-w-[120px]']}
+              cellStyles={['min-w-[210px] pl-4', 'min-w-[120px]']}
             />
             <TableBody>
               {chapters.map((chapter) => (

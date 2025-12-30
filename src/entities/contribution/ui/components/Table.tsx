@@ -34,7 +34,7 @@ export const ContributionsTable = (props: ContributionsTableProps) => {
         <TableWrapper isOverflowHidden={isDragStarted}>
           <TableHeader
             cells={['Name', 'Type', 'Institution', 'Biography']}
-            cellStyles={['min-w-[250px]', 'min-w-[120px]', 'min-w-[250px]', 'min-w-[200px]']}
+            cellStyles={['min-w-[250px] pl-4', 'min-w-[120px]', 'min-w-[250px]', 'min-w-[200px]']}
           />
           <TableBody>
             {contributions.map((contribution) => (

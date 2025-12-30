@@ -57,7 +57,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
       {({ attributes, listeners, style, ref }) => (
         <TableRow ref={ref} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
           <TableCell className="firstCell">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 group-hover:gap-2">
               <DragAndDropListener
                 isDisabled={totalChaptersCount < appConfig.minItemsCountForDragAndDrop}
                 listeners={listeners}

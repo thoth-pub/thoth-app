@@ -30,13 +30,13 @@ const FullScreenModal = (props: FullScreenModalProps) => {
 
   return (
     <Modal open={isOpen} onClose={onClose}>
-      <div className="relative h-dvh w-dvw overflow-auto bg-[var(--color-modal-content-background)] px-8 py-2 lg:px-5 lg:py-3">
-        <div className="m-auto flex h-full max-w-[var(--max-width)] flex-row">
+      <div className="relative h-dvh w-dvw overflow-auto bg-(--color-modal-content-background) px-8 py-2 lg:px-5 lg:py-3">
+        <div className="m-auto flex h-full flex-row">
           <Navigation linkedPublishers={publishers} isSuperAdmin={isAdmin} />
-          <div className="flex grow flex-col gap-[var(--default-gap)] px-8 py-[12px]">
+          <div className="flex grow flex-col gap-(--default-gap) px-8 py-[12px]">
             <ContentSection>
               <div className="flex justify-between">
-                <Typography variant="h1" component="h3" className={`text-[var(--color-typography)]`}>
+                <Typography variant="h1" component="h3" className="pl-4 text-(--color-typography)">
                   {t(title)}
                 </Typography>
                 <div className="flex gap-2">

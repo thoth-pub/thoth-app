@@ -345,6 +345,7 @@ export const theme = createTheme({
           '& .MuiTableCell-root.MuiTableCell-body': {
             verticalAlign: 'top',
             borderColor: 'transparent',
+            padding: '12px',
           },
           '& .MuiTableBody-root': {
             '& .MuiTableRow-root:hover': {

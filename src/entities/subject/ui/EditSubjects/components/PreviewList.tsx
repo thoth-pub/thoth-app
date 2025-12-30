@@ -18,7 +18,7 @@ export const PreviewList = ({ subjects, onDelete, onDragEnd }: PreviewListProps)
     <DragAndDropWrapper items={subjects} onDragEnd={onDragEnd}>
       {() => (
         <>
-          {firstSubject && <Typography className="ml-2 max-w-max font-bold">{firstSubject.type}</Typography>}
+          {firstSubject && <Typography className="max-w-max font-bold">{firstSubject.type}</Typography>}
           {subjects.map((subject, index) => (
             <ListItem
               key={`${subject.id}-${index}`}

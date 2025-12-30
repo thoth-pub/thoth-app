@@ -43,13 +43,13 @@ const Preview = (props: PreviewProps) => {
       <FormFieldLabel component="div" label={label} recommended={recommended} tooltip={tooltip} />
       <div className="flex justify-between">
         {children && children}
-        {!children && value && <Typography className={`lg:ml-2 ${capitalize ? 'capitalize' : ''}`}>{value}</Typography>}
+        {!children && value && <Typography className={capitalize ? 'capitalize' : ''}>{value}</Typography>}
         {!value && (
           <Button
             disabled={disabled}
             endIcon={<AddIcon className="opacity-0 group-hover:opacity-100" />}
             onClick={onEdit}
-            className="mr-2 w-full justify-between p-0 lg:ml-2"
+            className="mr-2 w-full justify-between p-0"
             sx={{
               textTransform: 'capitalize',
             }}

@@ -8,19 +8,19 @@ const Profile = () => {
   return (
     <>
       <ContentSection>
-        <Typography component="h1" variant="h1">
+        <Typography component="h1" variant="h1" className="pl-4">
           Profile
         </Typography>
       </ContentSection>
       <ContentSection>
-        <Typography component="h2" variant="h2">
+        <Typography component="h2" variant="h2" className="pl-4">
           Settings
         </Typography>
-        <InputLabel>Language</InputLabel>
-        <InputLabel>Currency</InputLabel>
+        <InputLabel className="pl-4">Language</InputLabel>
+        <InputLabel className="pl-4">Currency</InputLabel>
       </ContentSection>
       <ContentSection>
-        <Typography component="h2" variant="h2">
+        <Typography component="h2" variant="h2" className="pl-4">
           Accessibility
         </Typography>
         <EditContact />

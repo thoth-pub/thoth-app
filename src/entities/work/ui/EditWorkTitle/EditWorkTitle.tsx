@@ -154,7 +154,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
           onEdit={onEdit}
           recommended={showIndicator}
         >
-          <Typography className={placeholder.length > 0 ? 'lg:ml-2' : ''} component="span">
+          <Typography component="span">
             <MarkdownPreview source={placeholder} />
           </Typography>
         </Preview>

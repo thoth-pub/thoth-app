@@ -16,7 +16,7 @@ import type {
 } from '@/src/entities/funding/model/funding.types';
 import { EditInstitutionForm } from '@/src/entities/institution';
 import { InstitutionFormType } from '@/src/entities/institution/model/institution.types';
-import { TableFormsHeader, TableFormsWrapper, TableNewEntityFormWrapper } from '@/src/shared/ui';
+import { TableFormsHeader, TableFormsWrapper } from '@/src/shared/ui';
 
 type EditFundingProps = {
   grantNumber: string;
@@ -56,24 +56,19 @@ const EditFundingForm = (props: EditFundingProps) => {
   } = props;
 
   return (
-    <TableNewEntityFormWrapper>
-      <TableFormsWrapper>
-        <TableFormsHeader title="Funding" onDone={onDone} onClose={onClose} />
-        <EditInstitutionForm defaultValue={institution} onUpdate={(data) => onInstitutionUpdate?.(data)} />
-        <EditProjectNameForm defaultValue={projectName} onUpdate={(data) => onProjectUpdate?.(data)} />
-        <EditProjectShortNameForm
-          defaultValue={projectShortname}
-          onUpdate={(data) => onProjectShortNameUpdate?.(data)}
-        />
-        <EditJurisdictionForm defaultValue={jurisdiction} onUpdate={(data) => onJurisdictionUpdate?.(data)} />
-        <EditProgramForm defaultValue={program} onUpdate={(data) => onProgramUpdate?.(data)} />
-        <EditGrantNumberForm
-          defaultValue={grantNumber}
-          recommended={recommended}
-          onUpdate={(data) => onGrantNumberUpdate?.(data)}
-        />
-      </TableFormsWrapper>
-    </TableNewEntityFormWrapper>
+    <TableFormsWrapper>
+      <TableFormsHeader title="Funding" onDone={onDone} onClose={onClose} />
+      <EditInstitutionForm defaultValue={institution} onUpdate={(data) => onInstitutionUpdate?.(data)} />
+      <EditProjectNameForm defaultValue={projectName} onUpdate={(data) => onProjectUpdate?.(data)} />
+      <EditProjectShortNameForm defaultValue={projectShortname} onUpdate={(data) => onProjectShortNameUpdate?.(data)} />
+      <EditJurisdictionForm defaultValue={jurisdiction} onUpdate={(data) => onJurisdictionUpdate?.(data)} />
+      <EditProgramForm defaultValue={program} onUpdate={(data) => onProgramUpdate?.(data)} />
+      <EditGrantNumberForm
+        defaultValue={grantNumber}
+        recommended={recommended}
+        onUpdate={(data) => onGrantNumberUpdate?.(data)}
+      />
+    </TableFormsWrapper>
   );
 };
 

@@ -15,7 +15,7 @@ const Dashboard = () => {
     <>
       <ContentSection>
         <div className="flex justify-between">
-          <Typography component="h1" variant="h1">
+          <Typography component="h1" variant="h1" className="-ml-1">
             Dashboard
           </Typography>
           <NextLink href={ROUTES.NEW_WORK} passHref>

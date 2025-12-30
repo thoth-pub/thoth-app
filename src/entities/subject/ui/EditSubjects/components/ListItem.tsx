@@ -34,7 +34,7 @@ const ListItem = ({ subject, totalSubjectsCount, onDelete }: ListItemProps) => {
         <li
           ref={ref}
           style={style}
-          className="group flex items-center gap-1 rounded-xl border-1 border-transparent p-2 group-hover:bg-[var(--color-form-background)] hover:border-[var(--color-form-border)]"
+          className="group -ml-4 flex items-center gap-1 rounded-xl border-1 border-transparent p-2 group-hover:bg-[var(--color-form-background)] hover:border-[var(--color-form-border)]"
           {...attributes}
         >
           <DragAndDropListener isDisabled={isDragAndDropDisabled(totalSubjectsCount)} listeners={listeners} />

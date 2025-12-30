@@ -56,8 +56,8 @@ const EditPublications = (props: BaseEditSectionProps) => {
           onDelete={deletePublication}
         />
         {isNewPublication && <AddNewPublication workId={workId} isDimensionFormHidden={isDimensionFormHidden} />}
-        <AddButton className="px-7 capitalize" onAdd={addPublication} disabled={isNewPublication}>
-          {t('add publication')}
+        <AddButton className="px-4 capitalize" onAdd={addPublication} disabled={isNewPublication}>
+          {t('add new publication')}
         </AddButton>
       </>
     </ContentSection>

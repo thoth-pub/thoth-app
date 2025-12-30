@@ -72,14 +72,14 @@ const AddContributionModal = () => {
 
   return (
     <>
-      <AddButton onAdd={handleModalState} className="mt-3 pr-6 pl-7 capitalize" disabled={!!activeContribution}>
-        {t('add contributor')}
+      <AddButton onAdd={handleModalState} className="mt-3 pr-6 pl-4 capitalize" disabled={!!activeContribution}>
+        {t('add new contributor')}
       </AddButton>
       <Modal open={open} onClose={handleModalState}>
         <ModalWrapper>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="text-[var(--color-typography)] capitalize">
-              {t('add contributor')}
+              {t('add new contributor')}
             </Typography>
             <CloseButton onClose={handleModalState} />
           </div>
@@ -134,7 +134,7 @@ const AddContributionModal = () => {
               onClick={handleAdd}
               disabled={!selectedContributorRecord}
             >
-              {t('add contributor')}
+              {t('add new contributor')}
             </Button>
             <Button variant="text" onClick={handleCreate}>
               Create new

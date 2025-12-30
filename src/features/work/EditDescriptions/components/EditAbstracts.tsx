@@ -44,7 +44,9 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const longAbstractContent = longAbstract?.content ?? '';
 
   const placeholderValue =
-    shortAbstractContent.length > 0 ? `${longAbstractContent} \n ${shortAbstractContent}` : longAbstractContent;
+    shortAbstractContent.length > 0
+      ? `${longAbstractContent.replace(/<[^>]+>/g, '').trim()} \n ${shortAbstractContent.replace(/<[^>]+>/g, '').trim()}`
+      : longAbstractContent;
 
   const defaultValues = longAbstracts.map(({ id, localeCode, content }) => {
     const language = languageOptionsAlt.find((option) => option.value.toLowerCase() === localeCode.toLowerCase());

@@ -1,6 +1,6 @@
 'use client';
 
-import { TableFormsHeader, TableFormsWrapper, TableNewEntityFormWrapper } from '@/src/shared/ui';
+import { TableFormsHeader, TableFormsWrapper } from '@/src/shared/ui';
 
 import { EditReferenceCitation } from '../EditReferenceCitation/EditReferenceCitation';
 import { EditReferenceDoi } from '../EditReferenceDoi/EditReferenceDoi';
@@ -18,26 +18,15 @@ type EditReferenceFormProps = {
 };
 
 const EditReferenceForm = (props: EditReferenceFormProps) => {
-  const {
-    url,
-    doi,
-    citation,
-    onUrlUpdate,
-    onDoiUpdate,
-    onCitationUpdate,
-    onDone,
-    onClose,
-  } = props;
+  const { url, doi, citation, onUrlUpdate, onDoiUpdate, onCitationUpdate, onDone, onClose } = props;
 
   return (
-    <TableNewEntityFormWrapper>
-      <TableFormsWrapper>
-        <TableFormsHeader title="Reference" onDone={onDone} onClose={onClose} />
-        <EditReferenceDoi defaultValue={doi} onUpdate={onDoiUpdate} />
-        <EditReferenceCitation defaultValue={citation} onUpdate={onCitationUpdate} />
-        <EditReferenceUrl defaultValue={url} onUpdate={onUrlUpdate} />
-      </TableFormsWrapper>
-    </TableNewEntityFormWrapper>
+    <TableFormsWrapper>
+      <TableFormsHeader title="Reference" onDone={onDone} onClose={onClose} />
+      <EditReferenceDoi defaultValue={doi} onUpdate={onDoiUpdate} />
+      <EditReferenceCitation defaultValue={citation} onUpdate={onCitationUpdate} />
+      <EditReferenceUrl defaultValue={url} onUpdate={onUrlUpdate} />
+    </TableFormsWrapper>
   );
 };
 

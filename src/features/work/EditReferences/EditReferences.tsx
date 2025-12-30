@@ -95,8 +95,8 @@ const EditReferences = (props: BaseEditSectionProps) => {
           onDragEnd={dragEnd}
         />
         {isNewReference && <AddReference workId={workId} />}
-        <AddButton className="px-7 capitalize" onAdd={addReference} disabled={isNewReference}>
-          {t('add reference')}
+        <AddButton className="px-4 capitalize" onAdd={addReference} disabled={isNewReference}>
+          {t('add new reference')}
         </AddButton>
       </>
     </ContentSection>

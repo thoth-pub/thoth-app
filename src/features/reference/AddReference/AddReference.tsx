@@ -6,6 +6,7 @@ import { EditReferenceForm, useCreateReference, useReferencesStateMachine } from
 import type { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import { useWork } from '@/src/entities/work';
 import { type BaseRecommendedSectionProps } from '@/src/shared';
+import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
 const AddReference = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
@@ -50,16 +51,18 @@ const AddReference = (props: BaseRecommendedSectionProps) => {
   const { url, doi, unstructuredCitation } = reference;
 
   return (
-    <EditReferenceForm
-      url={url}
-      doi={doi}
-      citation={unstructuredCitation}
-      onUrlUpdate={updateUrl}
-      onDoiUpdate={updateDoi}
-      onCitationUpdate={updateCitation}
-      onDone={create}
-      onClose={close}
-    />
+    <TableNewEntityFormWrapper>
+      <EditReferenceForm
+        url={url}
+        doi={doi}
+        citation={unstructuredCitation}
+        onUrlUpdate={updateUrl}
+        onDoiUpdate={updateDoi}
+        onCitationUpdate={updateCitation}
+        onDone={create}
+        onClose={close}
+      />
+    </TableNewEntityFormWrapper>
   );
 };
 

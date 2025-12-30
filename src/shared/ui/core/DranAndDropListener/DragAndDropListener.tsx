@@ -11,7 +11,7 @@ const DragAndDropListener = (props: DragAndDropListenerProps) => {
 
   return (
     <DragIndicatorIcon
-      className={`my-auto ${isDisabled ? '!opacity-0' : 'opacity-0 group-hover:opacity-100'}`}
+      className={`my-auto ${isDisabled ? '!w-0 !opacity-0' : 'w-0 opacity-0 transition-all duration-300 ease-in-out group-hover:w-max group-hover:opacity-100'}`}
       color="primary"
       fontSize="small"
       {...(isDisabled ? undefined : listeners)}

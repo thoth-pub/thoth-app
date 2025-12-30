@@ -46,7 +46,9 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
   return (
     <ContentSection>
       <div className="flex items-center justify-between gap-2">
-        <Typography variant="h1">Series</Typography>
+        <Typography variant="h1" className="pl-3">
+          Series
+        </Typography>
         <TextField
           slotProps={{
             input: {

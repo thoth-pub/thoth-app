@@ -82,7 +82,7 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
   return (
     <ContentWrapper>
       <FormFieldLabel recommended={recommended} label={label} id={metricFieldName} />
-      <div className="grid grid-cols-[15rem_3rem_15rem] items-center">
+      <div className="grid grid-cols-[1fr_3rem_1fr] items-center">
         <FormTextField
           control={control}
           name={metricFieldName}

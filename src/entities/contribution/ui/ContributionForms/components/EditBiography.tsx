@@ -63,7 +63,7 @@ export const EditBiography = (props: EditBiographyProps) => {
           recommended={showPreviewIndicator}
         >
           {placeholder.length > 0 && (
-            <Typography component="span" className="lg:ml-2">
+            <Typography component="span">
               <MarkdownPreview source={placeholder} />
             </Typography>
           )}

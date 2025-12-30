@@ -179,7 +179,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
           onEdit={onEdit}
         >
           {(chapterPlaceholder.length > 0 || workPlaceholder.length > 0) && (
-            <Typography className="lg:ml-2">{isChapter ? chapterPlaceholder : workPlaceholder}</Typography>
+            <Typography>{isChapter ? chapterPlaceholder : workPlaceholder}</Typography>
           )}
         </Preview>
       )}

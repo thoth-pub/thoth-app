@@ -32,14 +32,14 @@ export const PreviewStep = (props: PreviewStepProps) => {
   return (
     <>
       <TableWrapper>
-        <TableHeader cells={['Title', 'Status', 'Type', 'Contributors', 'Doi']} />
+        <TableHeader cells={['Title', 'Status', 'Type', 'Contributors', 'Doi']} cellStyles={['pl-4']} />
         <TableBody>
           {works.map((work) => {
             const title = getMainTitle(work.titles);
 
             return (
               <TableRow key={work.id}>
-                <TableCell>{title.title}</TableCell>
+                <TableCell className="pl-4">{title.title}</TableCell>
                 <TableCell>{convertOptionToString(work.status)}</TableCell>
                 <TableCell>{convertOptionToString(work.type)}</TableCell>
                 <TableCell>{work.contributions.map((contribution) => contribution.fullName).join(', ')}</TableCell>

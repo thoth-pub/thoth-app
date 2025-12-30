@@ -37,7 +37,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
   });
 
   return (
-    <ContentSection className="px-8 py-4">
+    <ContentSection className="px-8 lg:px-11 lg:py-4">
       <div className="flex flex-col justify-between gap-3">
         <Typography variant="h1" component="h1" className="max-w-[90%]">
           {title}

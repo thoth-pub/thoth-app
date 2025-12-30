@@ -112,7 +112,7 @@ export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
                 </div>
                 {index === fields.length - 1 && (
                   <AddButton type="button" className="mr-auto pl-2 capitalize" onAdd={handleAdd}>
-                    {t('add translation')}
+                    {t('add new translation')}
                   </AddButton>
                 )}
               </div>

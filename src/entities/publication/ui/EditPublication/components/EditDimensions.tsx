@@ -120,7 +120,7 @@ export const EditDimensions = (props: EditSizesProps) => {
       onSubmit={handleSubmit}
       formFields={({ control, isHelperTextVisible, setValue }) => (
         <MultipleContentWrapper>
-          <div className="grid max-w-max min-w-[512px] grid-cols-[16.5rem_16.5rem] border-b border-[var(--color-table-border)] pb-2 lg:pl-[11.25rem]">
+          <div className="grid grid-cols-[1fr_1fr] border-b border-(--color-table-border) pb-2 lg:pl-45">
             <Typography>Metric</Typography>
             <Typography className="pl-6">Imperial</Typography>
           </div>

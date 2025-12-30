@@ -7,7 +7,7 @@ import {
   isAdditionalAccessibilityStandardAvailable,
   isDimensionsAvailable,
 } from '@/src/shared';
-import { TableFormsHeader, TableFormsWrapper, TableNewEntityFormWrapper, Typography } from '@/src/shared/ui';
+import { TableFormsHeader, TableFormsWrapper, Typography } from '@/src/shared/ui';
 
 import type { PublicationDimensionsForm, PublicationType } from '../../model/publication.types';
 import { EditAccessibilityAdditionalStandard } from './components/EditAccessibilityAdditionalStandard';
@@ -82,59 +82,57 @@ const EditPublication = (props: EditPublicationProps) => {
   const isAdditionalStandardAvailable = isAdditionalAccessibilityStandardAvailable(publicationType);
 
   return (
-    <TableNewEntityFormWrapper>
-      <TableFormsWrapper>
-        <TableFormsHeader title={publicationType} onDone={onDone} onClose={onClose} />
-        <EditPublicationType publicationType={publicationType} onSubmit={onUpdateType} />
-        <EditIsbn isbn={isbn} onSubmit={onUpdateIsbn} />
-        {!isDimensionsHidden && (
-          <EditDimensions
-            width={width}
-            widthIn={widthIn}
-            height={height}
-            heightIn={heightIn}
-            depth={depth}
-            depthIn={depthIn}
-            weight={weight}
-            weightOz={weightOz}
-            onSubmit={onUpdateDimensions}
-          />
-        )}
+    <TableFormsWrapper>
+      <TableFormsHeader title={publicationType} onDone={onDone} onClose={onClose} />
+      <EditPublicationType publicationType={publicationType} onSubmit={onUpdateType} />
+      <EditIsbn isbn={isbn} onSubmit={onUpdateIsbn} />
+      {!isDimensionsHidden && (
+        <EditDimensions
+          width={width}
+          widthIn={widthIn}
+          height={height}
+          heightIn={heightIn}
+          depth={depth}
+          depthIn={depthIn}
+          weight={weight}
+          weightOz={weightOz}
+          onSubmit={onUpdateDimensions}
+        />
+      )}
 
-        {children}
-        {isAccessabilitySectionAvailable && (
-          <div className="flex flex-col gap-8">
-            <Typography component="h2" variant="h2">
-              Accessibility
-            </Typography>
-            <Activity mode={isAdditionalStandardAvailable ? 'hidden' : 'visible'}>
-              <EditAccessibilityStandard
-                standard={accessibilityStandard}
-                onSubmit={onUpdateAccessibilityStandard}
-                onDelete={onDeleteAccessibility}
-              />
-            </Activity>
-
-            <Activity mode={isAdditionalStandardAvailable ? 'visible' : 'hidden'}>
-              <EditAccessibilityAdditionalStandard
-                publicationType={publicationType}
-                standard={accessibilityAdditionalStandard}
-                onSubmit={onUpdateAccessibilityAdditionalStandard}
-                onDelete={onDeleteAccessibility}
-              />
-            </Activity>
-
-            <EditAccessibilityException
-              exception={accessibilityException}
-              onSubmit={onUpdateAccessibilityException}
+      {children}
+      {isAccessabilitySectionAvailable && (
+        <div className="flex flex-col gap-8">
+          <Typography component="h2" variant="h2">
+            Accessibility
+          </Typography>
+          <Activity mode={isAdditionalStandardAvailable ? 'hidden' : 'visible'}>
+            <EditAccessibilityStandard
+              standard={accessibilityStandard}
+              onSubmit={onUpdateAccessibilityStandard}
               onDelete={onDeleteAccessibility}
             />
+          </Activity>
 
-            <EditAccessibilityReport report={accessibilityReportUrl} onSubmit={onUpdateAccessibilityReport} />
-          </div>
-        )}
-      </TableFormsWrapper>
-    </TableNewEntityFormWrapper>
+          <Activity mode={isAdditionalStandardAvailable ? 'visible' : 'hidden'}>
+            <EditAccessibilityAdditionalStandard
+              publicationType={publicationType}
+              standard={accessibilityAdditionalStandard}
+              onSubmit={onUpdateAccessibilityAdditionalStandard}
+              onDelete={onDeleteAccessibility}
+            />
+          </Activity>
+
+          <EditAccessibilityException
+            exception={accessibilityException}
+            onSubmit={onUpdateAccessibilityException}
+            onDelete={onDeleteAccessibility}
+          />
+
+          <EditAccessibilityReport report={accessibilityReportUrl} onSubmit={onUpdateAccessibilityReport} />
+        </div>
+      )}
+    </TableFormsWrapper>
   );
 };
 

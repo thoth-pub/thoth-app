@@ -15,7 +15,7 @@ type LanguageFieldProps = {
 const LanguageField = (props: LanguageFieldProps) => {
   const { control, languageFieldName } = props;
   return (
-    <div className="flex grow-0 lg:ml-2">
+    <div className="flex grow-0">
       <Typography color="primary" className="mt-0.75 mr-1 font-semibold xl:mt-auto">
         Language
       </Typography>

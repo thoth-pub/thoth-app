@@ -80,8 +80,8 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
 
   return (
     <>
-      <AddButton className="px-7 capitalize" onAdd={openModal} disabled={isOpen}>
-        {t('add chapter')}
+      <AddButton className="px-4 capitalize" onAdd={openModal} disabled={isOpen}>
+        {t('add new chapter')}
       </AddButton>
       <FullScreenModal title="add new chapter" isOpen={isOpen} isSubmitHidden onClose={closeModal}>
         <InheritedDataForm onSubmit={handleInheritedDataSubmit} />

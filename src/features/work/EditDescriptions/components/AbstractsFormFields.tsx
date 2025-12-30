@@ -114,20 +114,17 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
                 helperText={isHelperTextVisible ? WORK_SHORT_ABSTRACT_HELPER_TEXT : ''}
                 disableLineBreaks
               />
-            </ContentWrapper>
-            <ContentWrapper>
               <br />
-              <div className="flex flex-col gap-2">
-                <div className="max-w-min">
-                  <LanguageField control={control} languageFieldName={getLanguageFieldName(index)} />
-                </div>
-                {index === fields.length - 1 && (
-                  <AddButton type="button" className="mr-auto capitalize" onAdd={handleAdd}>
-                    {t('add translation')}
-                  </AddButton>
-                )}
-              </div>
+              <LanguageField control={control} languageFieldName={getLanguageFieldName(index)} />
             </ContentWrapper>
+            {index === fields.length - 1 && (
+              <ContentWrapper>
+                <br />
+                <AddButton type="button" className="mr-auto capitalize" onAdd={handleAdd}>
+                  {t('add new translation')}
+                </AddButton>
+              </ContentWrapper>
+            )}
           </li>
         ))}
       </ul>

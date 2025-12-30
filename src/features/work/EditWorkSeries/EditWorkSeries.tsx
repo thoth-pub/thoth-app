@@ -95,7 +95,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
       preview={({ disabled, onEdit }) => (
         <Preview label={WORK_SERIES.label} value={placeholder} disabled={disabled} onEdit={onEdit}>
           {work.issues.length > 0 && (
-            <div className="flex w-full items-center justify-between gap-2 lg:ml-2">
+            <div className="flex w-full items-center justify-between gap-2">
               <Typography className="self-start">{placeholder}</Typography>
               <DeleteButton
                 disabled={isNew}
