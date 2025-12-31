@@ -725,17 +725,22 @@ class XMLParser {
         relatedProduct.ProductIdentifier?.IDValue
           ? relatedProduct.ProductIdentifier.IDValue
           : '';
+      const citation =
+        relatedProduct.ProductIdentifier?.ProductIDType === ProductIdentifierType._01 &&
+        relatedProduct.ProductIdentifier?.IDValue
+          ? relatedProduct.ProductIdentifier.IDValue
+          : '';
 
       references.push({
         id: this.defaultId,
-        doi,
+        doi: doi.startsWith(this.doiPrefix) ? doi : this.doiPrefix + doi,
         journalTitle: '',
         articleTitle: '',
         seriesTitle: '',
         volumeTitle: '',
         url: '',
         orderNumber: references.length + 1,
-        unstructuredCitation: '',
+        unstructuredCitation: citation,
       });
     });
 

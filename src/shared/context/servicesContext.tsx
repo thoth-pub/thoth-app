@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, type ReactNode, useContext } from 'react';
+import { createContext, type ReactNode, use } from 'react';
 
 import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.service';
 import { BookService } from '@/src/entities/book/api/book.service';
@@ -66,11 +66,11 @@ const ServicesContext = createContext({
 });
 
 export function ServicesProvider({ children }: { children: Readonly<ReactNode> }) {
-  return <ServicesContext.Provider value={defaultServices}>{children}</ServicesContext.Provider>;
+  return <ServicesContext value={defaultServices}>{children}</ServicesContext>;
 }
 
 export function useServices(): ServicesMap {
-  const context = useContext(ServicesContext);
+  const context = use(ServicesContext);
 
   return context;
 }

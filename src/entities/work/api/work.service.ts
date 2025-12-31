@@ -16,6 +16,7 @@ import { FundingService } from '../../funding/api/funding.service';
 import { LanguageService } from '../../language/api/service';
 import { PublicationService } from '../../publication/api/publication.service';
 import { PublisherId } from '../../publisher/model/publisher.types';
+import { ReferenceService } from '../../reference/api/reference.service';
 import { SeriesService } from '../../series';
 import { SubjectService } from '../../subject/api/subject.service';
 import { WorkDtoMapper } from '../model/work.mapper';
@@ -51,6 +52,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   private readonly publicationService: PublicationService;
   private readonly languageService: LanguageService;
   private readonly seriesService: SeriesService;
+  private readonly referenceService: ReferenceService;
 
   constructor(
     mapper = new WorkDtoMapper(),
@@ -60,6 +62,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     publicationService = new PublicationService(),
     languageService = new LanguageService(),
     seriesService = new SeriesService(),
+    referenceService = new ReferenceService(),
   ) {
     super(mapper);
     this.fundingService = fundingService;
@@ -68,6 +71,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     this.publicationService = publicationService;
     this.languageService = languageService;
     this.seriesService = seriesService;
+    this.referenceService = referenceService;
   }
 
   async createWork(token: string, data: WorkEntity): Promise<WorkEntity> {
@@ -80,6 +84,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const shouldCreateLanguages = data.languages.length > 0;
     const shouldCreateTitles = data.titles.length > 0;
     const shouldCreateAbstracts = data.abstracts.length > 0;
+    const shouldCreateReferences = data.references.length > 0;
 
     const response = await this.graphqlService.mutation(token, CREATE_WORK, {
       data: dto,
@@ -151,6 +156,16 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       const createdLanguages = await Promise.all(languagesPromises);
 
       work.languages = createdLanguages;
+    }
+
+    if (shouldCreateReferences) {
+      const referencesPromises = data.references.map((reference) =>
+        this.referenceService.createReference(token, reference, work.id),
+      );
+
+      const createdReferences = await Promise.all(referencesPromises);
+
+      work.references = createdReferences;
     }
 
     return work;
