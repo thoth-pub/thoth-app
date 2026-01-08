@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import { AccessibilityStandard } from '@/gql/graphql';
 import { useCreateLocation } from '@/src/entities/locations';
 import type { LocationsForm } from '@/src/entities/locations/model/location.types';
 import { useCreatePrice } from '@/src/entities/price';
@@ -17,8 +18,12 @@ import {
   AccessibilityStandardType,
   type BaseEditSectionProps,
   isAccessibilityStandardAvailable,
-  isAdditionalAccessibilityStandardAvailable,
 } from '@/src/shared';
+import {
+  accessibilityAdditionalStandards,
+  accessibilityStandards,
+  getAccessibilityStandardOptions,
+} from '@/src/shared/constants/formFields';
 
 export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const { workId } = props;
@@ -74,21 +79,23 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const updateType = (type: PublicationType) => {
     if (!publication) return;
 
-    const isAdditionalStandardAvailable = isAdditionalAccessibilityStandardAvailable(type);
     const isAccessibilityAvailable = isAccessibilityStandardAvailable(type);
+    const availableAccessibilityStandards = getAccessibilityStandardOptions(type);
+    const defaultAccessibilityStandard = availableAccessibilityStandards.find(
+      (standard) => standard.value === publication?.accessibilityStandard,
+    );
+    const defaultAccessibilityAdditionalStandard = availableAccessibilityStandards.find(
+      (standard) => standard.value === publication?.accessibilityAdditionalStandard,
+    );
 
-    if (isAdditionalStandardAvailable) {
+    if (isAccessibilityAvailable) {
       setPublication({
         ...publication,
         type,
-        accessibilityStandard: null,
+        accessibilityStandard: (defaultAccessibilityStandard?.value as AccessibilityStandard) ?? null,
+        accessibilityAdditionalStandard:
+          (defaultAccessibilityAdditionalStandard?.value as AccessibilityStandard) ?? null,
       });
-
-      return;
-    }
-
-    if (isAccessibilityAvailable) {
-      setPublication({ ...publication, type });
       return;
     }
 
@@ -175,24 +182,16 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, locations: updatedLocations });
   };
 
-  const updateAccessibilityStandard = (standard: AccessibilityStandardType) => {
-    if (!publication) return;
+  const updateAccessibilityStandards = (standards: AccessibilityStandardType[]) => {
+    if (!publication || standards.length === 0) return;
+
+    const standard = standards.find((standard) => accessibilityStandards.includes(standard));
+    const additionalStandard = standards.find((standard) => accessibilityAdditionalStandards.includes(standard));
 
     setPublication({
       ...publication,
-      accessibilityStandard: standard,
-      accessibilityAdditionalStandard: null,
-      accessibilityException: null,
-    });
-  };
-
-  const updateAccessibilityAdditionalStandard = (standard: AccessibilityStandardType) => {
-    if (!publication) return;
-
-    setPublication({
-      ...publication,
-      accessibilityStandard: null,
-      accessibilityAdditionalStandard: standard,
+      accessibilityStandard: standard ?? null,
+      accessibilityAdditionalStandard: additionalStandard && standard ? additionalStandard : null,
       accessibilityException: null,
     });
   };
@@ -235,8 +234,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     updateDimensions,
     updatePrices,
     updateLocations,
-    updateAccessibilityStandard,
-    updateAccessibilityAdditionalStandard,
+    updateAccessibilityStandards,
     updateAccessibilityException,
     updateAccessibilityReport,
     deleteAccessibility,

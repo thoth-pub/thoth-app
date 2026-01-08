@@ -70,7 +70,3 @@ export const isAccessibilityStandardAvailable = (publicationType: TPublicationTy
 
   return ebookTypes.includes(publicationType);
 };
-
-export const isAdditionalAccessibilityStandardAvailable = (publicationType: TPublicationType): boolean => {
-  return publicationType === PublicationType.enum.Pdf || publicationType === PublicationType.enum.Epub;
-};

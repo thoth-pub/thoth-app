@@ -6,7 +6,7 @@ import MenuItem from '../MenuItem/MenuItem';
 
 export type TextFieldProps = MuiTextFieldProps & { options?: FormFieldOption[] };
 
-const TextFieldComponent = ({ options, ...props }: TextFieldProps) => {
+const TextFieldComponent = ({ options, children, ...props }: TextFieldProps) => {
   return (
     <TextField {...props}>
       {options &&
@@ -15,6 +15,7 @@ const TextFieldComponent = ({ options, ...props }: TextFieldProps) => {
             {option.label}
           </MenuItem>
         ))}
+      {children}
     </TextField>
   );
 };

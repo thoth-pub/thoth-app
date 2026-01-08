@@ -22,6 +22,7 @@ export { default as Indicator } from './core/Indicator/Indicator';
 export { default as InputAdornment } from './core/InputAdornment/InputAdornment';
 export { default as Link } from './core/Link/Link';
 export { default as LinkTooltip } from './core/LinkTooltip/LinkTooltip';
+export { default as ListSubheader, type ListSubheaderComponentProps } from './core/ListSubheader/ListSubheader';
 export { default as MarkdownEditor, type MarkdownEditorProps } from './core/MarkdownEditor/MarkdownEditor';
 export { default as MarkdownPreview } from './core/MarkdownPreview/MarkdownPreview';
 export { default as MenuItem } from './core/MenuItem/MenuItem';

@@ -24,8 +24,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
     updateDimensions,
     updatePrices,
     updateLocations,
-    updateAccessibilityStandard,
-    updateAccessibilityAdditionalStandard,
+    updateAccessibilityStandards,
     updateAccessibilityException,
     updateAccessibilityReport,
     deleteAccessibility,
@@ -53,6 +52,10 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
     accessibilityReportUrl,
   } = publication;
 
+  const accessibilityStandards = [accessibilityStandard, accessibilityAdditionalStandard].filter(
+    (standard) => !!standard,
+  );
+
   return (
     <TableNewEntityFormWrapper>
       <EditPublication
@@ -67,8 +70,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         depthIn={depthIn}
         weight={weight}
         weightOz={weightOz}
-        accessibilityStandard={accessibilityStandard}
-        accessibilityAdditionalStandard={accessibilityAdditionalStandard}
+        accessibilityStandards={accessibilityStandards}
         accessibilityException={accessibilityException}
         accessibilityReportUrl={accessibilityReportUrl}
         onUpdateIsbn={updateIsbn}
@@ -76,8 +78,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         onClose={close}
         onDone={create}
         onUpdateDimensions={updateDimensions}
-        onUpdateAccessibilityStandard={updateAccessibilityStandard}
-        onUpdateAccessibilityAdditionalStandard={updateAccessibilityAdditionalStandard}
+        onUpdateAccessibilityStandards={updateAccessibilityStandards}
         onUpdateAccessibilityException={updateAccessibilityException}
         onUpdateAccessibilityReport={updateAccessibilityReport}
         onDeleteAccessibility={deleteAccessibility}

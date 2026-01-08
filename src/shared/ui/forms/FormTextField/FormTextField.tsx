@@ -44,6 +44,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     isUrlField = false,
     isRorField = false,
     isOrcidField = false,
+    children,
     ...restProps
   } = props;
 
@@ -140,7 +141,9 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
           }}
           options={options}
           {...restProps}
-        />
+        >
+          {children}
+        </TextField>
       )}
     />
   );

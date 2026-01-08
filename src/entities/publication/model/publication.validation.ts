@@ -5,7 +5,7 @@ import {
   accessibilityStandardValidation,
   isbnValidation,
   optionalPositiveIntValidation,
-  optionalStringValidation,
+  optionalUrlValidation,
   publicationTypeValidation,
 } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
@@ -24,7 +24,6 @@ const {
   PUBLICATION_ACCESSIBILITY_STANDARD,
   PUBLICATION_ACCESSIBILITY_EXCEPTION,
   PUBLICATION_ACCESSIBILITY_REPORT_URL,
-  PUBLICATION_ACCESSIBILITY_ADDITIONAL_STANDARD,
 } = FORM_FIELDS;
 
 const widthValidation = optionalPositiveIntValidation;
@@ -48,17 +47,13 @@ export const dimensionsValidationSchema = z.object({
 });
 
 export const accessibilityStandardValidationSchema = z.object({
-  [PUBLICATION_ACCESSIBILITY_STANDARD.name]: accessibilityStandardValidation,
+  [PUBLICATION_ACCESSIBILITY_STANDARD.name]: z.array(accessibilityStandardValidation).min(0),
 });
 
 export const accessibilityExceptionValidationSchema = z.object({
   [PUBLICATION_ACCESSIBILITY_EXCEPTION.name]: accessibilityExceptionValidation,
 });
 
-export const accessibilityAdditionalStandardValidationSchema = z.object({
-  [PUBLICATION_ACCESSIBILITY_ADDITIONAL_STANDARD.name]: accessibilityStandardValidation,
-});
-
 export const accessibilityReportUrlValidationSchema = z.object({
-  [PUBLICATION_ACCESSIBILITY_REPORT_URL.name]: optionalStringValidation,
+  [PUBLICATION_ACCESSIBILITY_REPORT_URL.name]: optionalUrlValidation,
 });

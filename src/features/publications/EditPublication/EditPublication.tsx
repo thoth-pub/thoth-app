@@ -23,8 +23,7 @@ const EditPublication = (props: EditPublicationProps) => {
     updatePrices,
     updateLocations,
     deleteLocation,
-    updateAccessibilityStandard,
-    updateAccessibilityAdditionalStandard,
+    updateAccessibilityStandards,
     updateAccessibilityException,
     updateAccessibilityReport,
     deleteAccessibility,
@@ -34,6 +33,11 @@ const EditPublication = (props: EditPublicationProps) => {
   });
 
   if (!activePublication) return null;
+
+  const accessibilityStandards = [
+    activePublication.accessibilityStandard,
+    activePublication.accessibilityAdditionalStandard,
+  ].filter((standard) => !!standard);
 
   return (
     <EditPublicationForm
@@ -48,8 +52,7 @@ const EditPublication = (props: EditPublicationProps) => {
       depthIn={activePublication.depthIn}
       weight={activePublication.weight}
       weightOz={activePublication.weightOz}
-      accessibilityStandard={activePublication.accessibilityStandard}
-      accessibilityAdditionalStandard={activePublication.accessibilityAdditionalStandard}
+      accessibilityStandards={accessibilityStandards}
       accessibilityException={activePublication.accessibilityException}
       accessibilityReportUrl={activePublication.accessibilityReportUrl}
       onUpdateIsbn={updateIsbn}
@@ -57,8 +60,7 @@ const EditPublication = (props: EditPublicationProps) => {
       onDone={close}
       onClose={close}
       onUpdateDimensions={updateSizes}
-      onUpdateAccessibilityStandard={updateAccessibilityStandard}
-      onUpdateAccessibilityAdditionalStandard={updateAccessibilityAdditionalStandard}
+      onUpdateAccessibilityStandards={updateAccessibilityStandards}
       onUpdateAccessibilityException={updateAccessibilityException}
       onUpdateAccessibilityReport={updateAccessibilityReport}
       onDeleteAccessibility={deleteAccessibility}

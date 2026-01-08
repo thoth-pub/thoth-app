@@ -4,13 +4,11 @@ import {
   AccessibilityExceptionType,
   AccessibilityStandardType,
   isAccessibilityStandardAvailable,
-  isAdditionalAccessibilityStandardAvailable,
   isDimensionsAvailable,
 } from '@/src/shared';
 import { TableFormsHeader, TableFormsWrapper, Typography } from '@/src/shared/ui';
 
 import type { PublicationDimensionsForm, PublicationType } from '../../model/publication.types';
-import { EditAccessibilityAdditionalStandard } from './components/EditAccessibilityAdditionalStandard';
 import { EditAccessibilityException } from './components/EditAccessibilityException';
 import { EditAccessibilityReport } from './components/EditAccessibilityReport';
 import { EditAccessibilityStandard } from './components/EditAccessibilityStandard';
@@ -29,8 +27,7 @@ type EditPublicationProps = {
   depthIn: number;
   weight: number;
   weightOz: number;
-  accessibilityStandard: AccessibilityStandardType | null;
-  accessibilityAdditionalStandard: AccessibilityStandardType | null;
+  accessibilityStandards: AccessibilityStandardType[];
   accessibilityException: AccessibilityExceptionType | null;
   accessibilityReportUrl: string;
   isDimensionFormHidden: boolean;
@@ -40,8 +37,7 @@ type EditPublicationProps = {
   onUpdateType?: (type: PublicationType) => void;
   onUpdateIsbn?: (isbn: string) => void;
   onUpdateDimensions?: (dimensions: PublicationDimensionsForm) => void;
-  onUpdateAccessibilityStandard?: (standard: AccessibilityStandardType) => void;
-  onUpdateAccessibilityAdditionalStandard?: (standard: AccessibilityStandardType) => void;
+  onUpdateAccessibilityStandards?: (standards: AccessibilityStandardType[]) => void;
   onUpdateAccessibilityException?: (exception: AccessibilityExceptionType) => void;
   onUpdateAccessibilityReport?: (report: string) => void;
   onDeleteAccessibility?: () => void;
@@ -60,8 +56,7 @@ const EditPublication = (props: EditPublicationProps) => {
     weight,
     weightOz,
     isDimensionFormHidden,
-    accessibilityStandard,
-    accessibilityAdditionalStandard,
+    accessibilityStandards = [],
     accessibilityException,
     accessibilityReportUrl,
     children,
@@ -70,8 +65,7 @@ const EditPublication = (props: EditPublicationProps) => {
     onUpdateType,
     onUpdateIsbn,
     onUpdateDimensions,
-    onUpdateAccessibilityStandard,
-    onUpdateAccessibilityAdditionalStandard,
+    onUpdateAccessibilityStandards,
     onUpdateAccessibilityException,
     onUpdateAccessibilityReport,
     onDeleteAccessibility,
@@ -79,7 +73,6 @@ const EditPublication = (props: EditPublicationProps) => {
 
   const isDimensionsHidden = isDimensionFormHidden || !isDimensionsAvailable(publicationType);
   const isAccessabilitySectionAvailable = isAccessibilityStandardAvailable(publicationType);
-  const isAdditionalStandardAvailable = isAdditionalAccessibilityStandardAvailable(publicationType);
 
   return (
     <TableFormsWrapper>
@@ -101,27 +94,19 @@ const EditPublication = (props: EditPublicationProps) => {
       )}
 
       {children}
-      {isAccessabilitySectionAvailable && (
+
+      <Activity mode={isAccessabilitySectionAvailable ? 'visible' : 'hidden'}>
         <div className="flex flex-col gap-8">
           <Typography component="h2" variant="h2">
             Accessibility
           </Typography>
-          <Activity mode={isAdditionalStandardAvailable ? 'hidden' : 'visible'}>
-            <EditAccessibilityStandard
-              standard={accessibilityStandard}
-              onSubmit={onUpdateAccessibilityStandard}
-              onDelete={onDeleteAccessibility}
-            />
-          </Activity>
 
-          <Activity mode={isAdditionalStandardAvailable ? 'visible' : 'hidden'}>
-            <EditAccessibilityAdditionalStandard
-              publicationType={publicationType}
-              standard={accessibilityAdditionalStandard}
-              onSubmit={onUpdateAccessibilityAdditionalStandard}
-              onDelete={onDeleteAccessibility}
-            />
-          </Activity>
+          <EditAccessibilityStandard
+            publicationType={publicationType}
+            standards={accessibilityStandards}
+            onSubmit={onUpdateAccessibilityStandards}
+            onDelete={onDeleteAccessibility}
+          />
 
           <EditAccessibilityException
             exception={accessibilityException}
@@ -131,7 +116,7 @@ const EditPublication = (props: EditPublicationProps) => {
 
           <EditAccessibilityReport report={accessibilityReportUrl} onSubmit={onUpdateAccessibilityReport} />
         </div>
-      )}
+      </Activity>
     </TableFormsWrapper>
   );
 };

@@ -1,3 +1,4 @@
+import { PublicationType as TPublicationType } from '@/src/entities/publication/model/publication.types';
 import {
   AccessibilityExceptions,
   AccessibilityStandards,
@@ -12,7 +13,8 @@ import {
   WorkStatuses,
 } from '@/src/shared/constants';
 
-import { convertFormFieldsToSelectFieldOptions, convertLanguageCode } from '../utils';
+import { FormFieldOption } from '../interfaces';
+import { convertFormFieldsToSelectFieldOptions, convertLanguageCode, isAccessibilityStandardAvailable } from '../utils';
 import { FILTER_DIRECTION_OPTIONS, FILTER_SERIES_ORDER_BY_OPTIONS, FILTER_WORK_ORDER_BY_OPTIONS } from './filter';
 import { LOCALES } from './locales';
 
@@ -2594,28 +2596,54 @@ export const seriesOrderByOptions = [
 export const contactTypeOptions = [{ value: ContactTypes.enum.Accessibility, label: 'Accessibility' }];
 
 export const accessibilityStandardOptions = [
-  // { value: AccessibilityStandards.enum.EpubA11Y10Aa, label: 'EPUB Accessibility Specification 1.0 AA' },
-  // { value: AccessibilityStandards.enum.EpubA11Y10Aaa, label: 'EPUB Accessibility Specification 1.0 AAA' },
-  // { value: AccessibilityStandards.enum.EpubA11Y11Aa, label: 'EPUB Accessibility Specification 1.1 AA' },
-  // { value: AccessibilityStandards.enum.EpubA11Y11Aaa, label: 'EPUB Accessibility Specification 1.1 AAA' },
-  // { value: AccessibilityStandards.enum.PdfUa1, label: 'PDF/UA-1' },
-  // { value: AccessibilityStandards.enum.PdfUa2, label: 'PDF/UA-2' },
   { value: AccessibilityStandards.enum.Wcag21Aa, label: 'WCAG 2.1 AA' },
   { value: AccessibilityStandards.enum.Wcag21Aaa, label: 'WCAG 2.1 AAA' },
   { value: AccessibilityStandards.enum.Wcag22Aa, label: 'WCAG 2.2 AA' },
   { value: AccessibilityStandards.enum.Wcag22Aaa, label: 'WCAG 2.2 AAA' },
 ];
 
+export const accessibilityStandards = [
+  AccessibilityStandards.enum.Wcag21Aa,
+  AccessibilityStandards.enum.Wcag21Aaa,
+  AccessibilityStandards.enum.Wcag22Aa,
+  AccessibilityStandards.enum.Wcag22Aaa,
+];
+
+export const accessibilityAdditionalStandards = [
+  AccessibilityStandards.enum.EpubA11Y10Aa,
+  AccessibilityStandards.enum.EpubA11Y10Aaa,
+  AccessibilityStandards.enum.EpubA11Y11Aa,
+  AccessibilityStandards.enum.EpubA11Y11Aaa,
+  AccessibilityStandards.enum.PdfUa1,
+  AccessibilityStandards.enum.PdfUa2,
+];
+
 export const accessibilityAdditionalPDFStandardOptions = [
-  { value: AccessibilityStandards.enum.PdfUa1, label: 'PDF/UA-1' },
-  { value: AccessibilityStandards.enum.PdfUa2, label: 'PDF/UA-2' },
+  { value: AccessibilityStandards.enum.PdfUa1, label: 'PDF/UA-1', group: 'Additional Standards' },
+  { value: AccessibilityStandards.enum.PdfUa2, label: 'PDF/UA-2', group: 'Additional Standards' },
 ];
 
 export const accessibilityAdditionalEpubStandardOptions = [
-  { value: AccessibilityStandards.enum.EpubA11Y10Aa, label: 'EPUB Accessibility Specification 1.0 AA' },
-  { value: AccessibilityStandards.enum.EpubA11Y10Aaa, label: 'EPUB Accessibility Specification 1.0 AAA' },
-  { value: AccessibilityStandards.enum.EpubA11Y11Aa, label: 'EPUB Accessibility Specification 1.1 AA' },
-  { value: AccessibilityStandards.enum.EpubA11Y11Aaa, label: 'EPUB Accessibility Specification 1.1 AAA' },
+  {
+    value: AccessibilityStandards.enum.EpubA11Y10Aa,
+    label: 'EPUB Accessibility Specification 1.0 AA',
+    group: 'Additional Standards',
+  },
+  {
+    value: AccessibilityStandards.enum.EpubA11Y10Aaa,
+    label: 'EPUB Accessibility Specification 1.0 AAA',
+    group: 'Additional Standards',
+  },
+  {
+    value: AccessibilityStandards.enum.EpubA11Y11Aa,
+    label: 'EPUB Accessibility Specification 1.1 AA',
+    group: 'Additional Standards',
+  },
+  {
+    value: AccessibilityStandards.enum.EpubA11Y11Aaa,
+    label: 'EPUB Accessibility Specification 1.1 AAA',
+    group: 'Additional Standards',
+  },
 ];
 
 export const accessibilityExceptionOptions = [
@@ -2629,3 +2657,19 @@ export const accessibilityExceptionOptions = [
   },
   { value: AccessibilityExceptions.enum.MicroEnterprises, label: 'Micro Enterprises' },
 ];
+
+export const getAccessibilityStandardOptions = (publicationType: TPublicationType): FormFieldOption[] => {
+  const isStandardAvailable = isAccessibilityStandardAvailable(publicationType);
+
+  if (!isStandardAvailable) return [];
+
+  if (publicationType === PublicationType.enum.Pdf) {
+    return [...accessibilityStandardOptions, ...accessibilityAdditionalPDFStandardOptions];
+  }
+
+  if (publicationType === PublicationType.enum.Epub) {
+    return [...accessibilityStandardOptions, ...accessibilityAdditionalEpubStandardOptions];
+  }
+
+  return accessibilityStandardOptions;
+};

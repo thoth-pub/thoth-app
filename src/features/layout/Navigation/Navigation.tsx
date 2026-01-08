@@ -52,6 +52,7 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
                 width={170}
                 height={97}
                 priority
+                fetchPriority="high"
               />
             ) : (
               <Image
@@ -61,6 +62,7 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
                 width={40}
                 height={42}
                 priority
+                fetchPriority="high"
               />
             )}
           </Link>

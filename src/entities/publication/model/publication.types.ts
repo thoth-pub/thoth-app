@@ -6,7 +6,6 @@ import { AccessibilityExceptionType, AccessibilityStandardType, TitleEntity } fr
 import type { LocationDto, LocationEntity } from '../../locations/model/location.types';
 import type { PriceDto, PriceEntity } from '../../price/model/price.types';
 import {
-  accessibilityAdditionalStandardValidationSchema,
   accessibilityExceptionValidationSchema,
   accessibilityReportUrlValidationSchema,
   accessibilityStandardValidationSchema,
@@ -76,7 +75,3 @@ export type PublicationAccessibilityStandardForm = z.infer<typeof accessibilityS
 export type PublicationAccessibilityExceptionForm = z.infer<typeof accessibilityExceptionValidationSchema>;
 
 export type PublicationAccessibilityReportUrlForm = z.infer<typeof accessibilityReportUrlValidationSchema>;
-
-export type PublicationAccessibilityAdditionalStandardForm = z.infer<
-  typeof accessibilityAdditionalStandardValidationSchema
->;
