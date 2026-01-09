@@ -33,7 +33,7 @@ export class PublisherDtoMapper implements BaseMapper<PublisherEntity, Publisher
     return {
       publisherId: id,
       publisherName: name,
-      publisherShortname: shortName,
+      publisherShortname: shortName && shortName.length > 0 ? shortName : null,
       publisherUrl: url,
       accessibilityReportUrl: accessibilityReportUrl.length > 0 ? accessibilityReportUrl : null,
       accessibilityStatement: accessibilityStatement.length > 0 ? accessibilityStatement : null,

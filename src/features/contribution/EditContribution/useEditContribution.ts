@@ -17,6 +17,7 @@ import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { useWork } from '@/src/entities/work';
 import { appConfig, type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, removePrefix } from '@/src/shared';
+import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
@@ -158,13 +159,15 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     });
   };
 
-  const updateBiography = async ({ biographies }: ContributionBiographyForm) => {
+  const updateBiography = async ({ biographies, markdownFormat = false }: ContributionBiographyForm) => {
     if (!contribution) return;
 
     if (onBiographiesUpdate) {
       onBiographiesUpdate({ biographies });
       return;
     }
+
+    const markupFormat = markdownFormat ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
 
     await Promise.all(contribution.biographies.map((biography) => deleteBiography(biography.id)));
 
@@ -179,7 +182,9 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       .filter((biography) => biography.content.length > 0);
 
     await Promise.all(
-      newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
+      newBiographies.map((biography) =>
+        createBiography({ data: biography, contributionId: contribution.id, markupFormat }),
+      ),
     );
 
     queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });

@@ -1,12 +1,10 @@
-import type { BiographyEntity } from '@/src/entities/contribution/model/contribution.types';
 import type { WorkEntity, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 
 import { appConfig } from '../../config';
 import { LanguageTypeAlt } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
-import { MarkdownFormats } from '../../constants/markdown';
-import { AbstractEntity, MarkdownFormat, TitleEntity } from '../../types';
+import { AbstractEntity, TitleEntity } from '../../types';
 
 export const isBookChapter = (workType: WorkType) => workType === WorkTypes.enum.BookChapter;
 
@@ -114,123 +112,8 @@ export const getMainTitle = (titles: TitleEntity[]) => {
   return mainTitle ?? defaultTitle;
 };
 
-export const isMarkdown = (text: string): boolean => {
-  const markdownPatterns = [
-    // Headers: # Header, ## Header, etc.
-    /^#{1,6}\s+.+/m,
-    // Bold: **text** or __text__
-    /\*\*.+\*\*|__.+__/,
-    // Italic: *text* or _text_ (but not in URLs)
-    /(?<![\w/:])\*[^*\s].+?[^*\s]\*(?![\w/:])|\b_[^_\s].+?[^_\s]_\b/,
-    // Links: [text](url) or [text][ref]
-    /\[.+?\]\(.+?\)|\[.+?\]\[.+?\]/,
-    // Images: ![alt](url)
-    /!\[.*?\]\(.+?\)/,
-    // Code: `code` or ```code blocks```
-    /`[^`]+`|```[\s\S]*?```/,
-    // Lists: - item, * item, + item, or numbered lists
-    /^\s*[-*+]\s+.+/m,
-    /^\s*\d+\.\s+.+/m,
-    // Blockquotes: > text
-    /^>\s+.+/m,
-    // Horizontal rules: ---, ***, ___
-    /^(?:[-*_]){3,}\s*$/m,
-    // Strikethrough: ~~text~~
-    /~~.+~~/,
-    // Tables: | header | header |
-    /\|.+\|/,
-  ];
+export const isTextContainsAnyMarkdownTag = (text: string): boolean => {
+  const tagPattern = /<[^>]+>/;
 
-  return markdownPatterns.some((pattern) => pattern.test(text));
-};
-
-export const isHtmlText = (text: string): boolean => {
-  const htmlTags = [
-    '<p>',
-    '<br>',
-    '<ul>',
-    '<ol>',
-    '<li>',
-    '<a>',
-    '<img>',
-    '<strong>',
-    '<em>',
-    '<blockquote>',
-    '<code>',
-    '<pre>',
-    '<hr>',
-    '<table>',
-    '<tr>',
-    '<td>',
-    '<th>',
-    '<span>',
-  ];
-
-  return htmlTags.some((tag) => text.includes(tag));
-};
-
-export const getTitleMarkupFormat = (title: TitleEntity): MarkdownFormat => {
-  const { fullTitle } = title;
-
-  const hasJatsXml = fullTitle.includes('<article-title>');
-  const hasHtml = ['h1', 'h2', 'h3', 'h4', 'h5', 'h6'].some((tag) => fullTitle.includes(tag));
-  const hasMarkdown = isMarkdown(fullTitle);
-
-  if (hasJatsXml) {
-    return MarkdownFormats.enum.JATS_XML;
-  }
-
-  if (hasHtml) {
-    return MarkdownFormats.enum.HTML;
-  }
-
-  if (hasMarkdown) {
-    return MarkdownFormats.enum.MARKDOWN;
-  }
-
-  return MarkdownFormats.enum.PLAIN_TEXT;
-};
-
-export const getAbstractMarkupFormat = (abstract: AbstractEntity): MarkdownFormat => {
-  const { content } = abstract;
-
-  const hasJatsXml = content.startsWith('<abstract>');
-  const hasHtml = isHtmlText(content);
-  const hasMarkdown = isMarkdown(content);
-
-  if (hasJatsXml) {
-    return MarkdownFormats.enum.JATS_XML;
-  }
-
-  if (hasHtml) {
-    return MarkdownFormats.enum.HTML;
-  }
-
-  if (hasMarkdown) {
-    return MarkdownFormats.enum.MARKDOWN;
-  }
-
-  return MarkdownFormats.enum.PLAIN_TEXT;
-};
-
-export const getBiographyMarkupFormat = (biography: BiographyEntity): MarkdownFormat => {
-  const { content } = biography;
-
-  const hasJatsXml = content.startsWith('<bio>');
-  const hasHtml = isHtmlText(content);
-  const hasMarkdown = isMarkdown(content);
-
-  if (hasJatsXml) {
-    return MarkdownFormats.enum.JATS_XML;
-  }
-
-  if (hasHtml) {
-    return MarkdownFormats.enum.HTML;
-  }
-
-  if (hasMarkdown) {
-    return MarkdownFormats.enum.MARKDOWN;
-  }
-
-  return MarkdownFormats.enum.PLAIN_TEXT;
+  return tagPattern.test(text);
 };

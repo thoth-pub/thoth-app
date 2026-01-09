@@ -40,7 +40,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
     <ContentSection className="px-8 lg:px-11 lg:py-4">
       <div className="flex flex-col justify-between gap-3">
         <Typography variant="h1" component="h1" className="max-w-[90%]">
-          {title}
+          {title.replace(/<[^>]+>/g, '').trim()}
         </Typography>
 
         <Breadcrumbs aria-label="breadcrumb">

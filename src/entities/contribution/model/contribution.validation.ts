@@ -8,8 +8,16 @@ import {
   optionalStringValidation,
 } from '@/src/shared/utils/validations';
 
-const { FULL_NAME, FIRST_NAME, LAST_NAME, CONTRIBUTOR_TYPE, LANGUAGE, BIOGRAPHIES, CONTRIBUTOR_BIOGRAPHY } =
-  FORM_FIELDS;
+const {
+  FULL_NAME,
+  FIRST_NAME,
+  LAST_NAME,
+  CONTRIBUTOR_TYPE,
+  LANGUAGE,
+  BIOGRAPHIES,
+  CONTRIBUTOR_BIOGRAPHY,
+  MARKDOWN_FORMAT,
+} = FORM_FIELDS;
 
 const fullNameValidation = getRequiredStringValidation();
 
@@ -38,4 +46,5 @@ export const contributorBiographyValidationSchema = z.object({
       }),
     }),
   ),
+  [MARKDOWN_FORMAT.name]: z.boolean().optional(),
 });

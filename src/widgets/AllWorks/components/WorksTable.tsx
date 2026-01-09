@@ -70,7 +70,11 @@ export const WorksTable = (props: WorksTableProps) => {
               {works.map((work) => (
                 <TableRow key={work.id} className="group" onDoubleClick={() => navigateToWork(work.id)}>
                   <TableCell className="firstCell">{work.reference}</TableCell>
-                  <TableCell className="middleCell">{getMainTitle(work.titles).title}</TableCell>
+                  <TableCell className="middleCell">
+                    {getMainTitle(work.titles)
+                      .title.replace(/<[^>]+>/g, '')
+                      .trim()}
+                  </TableCell>
                   <TableCell className="middleCell">{<Chip label={convertOptionToString(work.status)} />}</TableCell>
                   <TableCell className="middleCell">{convertOptionToString(work.type)}</TableCell>
                   <TableCell className="middleCell">{work.contributorsNames.join(', ')}</TableCell>

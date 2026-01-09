@@ -51,7 +51,7 @@ const EditReport = () => {
         </ContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (
-        <Preview capitalize label={PUBLISHER_REPORT.label} value={defaultValue} disabled={disabled} onEdit={onEdit} />
+        <Preview label={PUBLISHER_REPORT.label} value={defaultValue} disabled={disabled} onEdit={onEdit} />
       )}
     />
   );

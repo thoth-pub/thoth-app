@@ -8,8 +8,9 @@ import type { WorkContribution } from '@/src/entities/contribution/model/contrib
 import { useContributor, useUpdateContributor } from '@/src/entities/contributor';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { AddNewContribution } from '@/src/features/contribution';
-import { type BaseRecommendedSectionProps } from '@/src/shared';
+import { type BaseRecommendedSectionProps,isTextContainsAnyMarkdownTag } from '@/src/shared';
 import { QueryKeys } from '@/src/shared';
+import { MarkdownFormats } from '@/src/shared/constants/markdown';
 
 type AddNewChaptersContributionProps = BaseRecommendedSectionProps & {
   chapters: WorkEntity[];
@@ -68,6 +69,9 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
           orderNumber: lastOrderNumber + 1,
         },
         relatedWorkId: chapter.id,
+        markupFormat: contribution.biographies.some((biography) => isTextContainsAnyMarkdownTag(biography.content))
+          ? MarkdownFormats.enum.JATS_XML
+          : MarkdownFormats.enum.PLAIN_TEXT,
       });
     });
 

@@ -1,4 +1,4 @@
-import { GraphqlService, isDefaultId, QueryToken } from '@/src/shared';
+import { GraphqlService, isDefaultId, MarkdownFormat, QueryToken } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 
 import { AffiliationService } from '../../affiliation/api/affiliation.service';
@@ -40,6 +40,7 @@ export class ContributionService {
     token: QueryToken,
     data: WorkContribution,
     relatedWorkId: string,
+    markupFormat: MarkdownFormat,
   ): Promise<WorkContribution> {
     const isNewContributor = isDefaultId(data.contributorId);
     let contributorId = data.contributorId;
@@ -77,7 +78,7 @@ export class ContributionService {
     const contribution = response.createContribution;
 
     const biographiesPromises = data.biographies.map((biography) =>
-      this.createBiography(token, biography, contribution.contributionId),
+      this.createBiography(token, biography, contribution.contributionId, markupFormat),
     );
 
     const biographies = await Promise.all(biographiesPromises);
@@ -156,11 +157,9 @@ export class ContributionService {
     token: QueryToken,
     data: BiographyEntity,
     contributionId: ContributionId,
+    markupFormat: MarkdownFormat,
   ): Promise<BiographyEntity> {
-    const {
-      dto: { biographyId: _, contributionId: _contributionId, ...dto },
-      markupFormat,
-    } = this.biographyDtoMapper.toDto(data);
+    const { biographyId: _, contributionId: _contributionId, ...dto } = this.biographyDtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_BIOGRAPHY, {
       data: { contributionId, ...dto },
@@ -172,8 +171,12 @@ export class ContributionService {
     return biography;
   }
 
-  async updateBiography(token: QueryToken, data: BiographyEntity): Promise<BiographyEntity> {
-    const { dto, markupFormat } = this.biographyDtoMapper.toDto(data);
+  async updateBiography(
+    token: QueryToken,
+    data: BiographyEntity,
+    markupFormat: MarkdownFormat,
+  ): Promise<BiographyEntity> {
+    const dto = this.biographyDtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, UPDATE_BIOGRAPHY, {
       data: {

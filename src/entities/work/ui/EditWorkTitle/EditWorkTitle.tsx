@@ -4,8 +4,17 @@ import type { Control } from 'react-hook-form';
 import { useCreateTitle, useDeleteTitle, useUpdateTitle, useWork } from '@/src/entities/work';
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { workTitlesValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseRecommendedSectionProps, getMainTitle, HELPER_TEXT, IDs, QueryKeys, TitleEntity } from '@/src/shared';
+import {
+  type BaseRecommendedSectionProps,
+  getMainTitle,
+  HELPER_TEXT,
+  IDs,
+  isTextContainsAnyMarkdownTag,
+  QueryKeys,
+  TitleEntity,
+} from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import type { LocaleCodeType } from '@/src/shared/types/languages';
 import {
   ContentWrapper,
@@ -20,7 +29,7 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 
 import { TitlesFormFields } from './components/TitlesFormFields';
 
-const { WORK_TITLE, EDITION, TITLES, SUBTITLE, LANGUAGE } = FORM_FIELDS;
+const { WORK_TITLE, EDITION, TITLES, SUBTITLE, LANGUAGE, MARKDOWN_FORMAT } = FORM_FIELDS;
 const { EDITION: EDITION_HELPER_TEXT } = HELPER_TEXT;
 
 type EditWorkTitleProps = BaseRecommendedSectionProps &
@@ -32,6 +41,10 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
   const { workId, recommended = false, withEdition = true } = props;
 
   const { work, updateWork } = useWork(workId);
+  const isAnyTitleContainsMarkdownTag = work.titles.some((title) => isTextContainsAnyMarkdownTag(title.title));
+  const isAnySubtitleContainsMarkdownTag = work.titles.some((title) => isTextContainsAnyMarkdownTag(title.subtitle));
+  const isMarkdownFormat = isAnyTitleContainsMarkdownTag || isAnySubtitleContainsMarkdownTag;
+
   const queryClient = useQueryClient();
   const { createTitle } = useCreateTitle();
   const { updateTitle } = useUpdateTitle();
@@ -49,10 +62,13 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
   const defaultValues = {
     [TITLES.name]: titlesDefaultValues,
     [EDITION.name]: work?.edition ?? 1,
+    [MARKDOWN_FORMAT.name]: isMarkdownFormat,
   };
 
   const updateTitles = async (data: WorkTitlesForm) => {
-    const { [TITLES.name]: titles, [EDITION.name]: edition } = data;
+    const { [TITLES.name]: titles, [EDITION.name]: edition, [MARKDOWN_FORMAT.name]: markdownFormat } = data;
+
+    const markupFormat = markdownFormat ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
 
     if (edition !== work.edition) {
       updateWork({ ...work, edition });
@@ -75,6 +91,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
             fullTitle: `${workTitle} ${subtitle}`,
           },
           relatedWorkId: work.id,
+          markupFormat,
         }),
       );
     });
@@ -95,6 +112,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
             fullTitle: `${workTitle} ${subtitle}`,
           },
           relatedWorkId: work.id,
+          markupFormat,
         }),
       );
     });

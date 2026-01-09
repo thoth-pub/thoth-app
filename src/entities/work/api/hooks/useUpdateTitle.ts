@@ -1,7 +1,7 @@
 'use client';
 import { useMutation } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, type TitleEntity, useServices } from '@/src/shared';
+import { MarkdownFormat, NOTIFICATIONS, type TitleEntity, useServices } from '@/src/shared';
 import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import type { WorkId } from '../../model/work.types';
@@ -14,8 +14,16 @@ const useUpdateTitle = () => {
   const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async ({ data, relatedWorkId }: { data: TitleEntity; relatedWorkId: WorkId }) => {
-      return workService.updateTitle(queryToken, data, relatedWorkId);
+    mutationFn: async ({
+      data,
+      relatedWorkId,
+      markupFormat,
+    }: {
+      data: TitleEntity;
+      relatedWorkId: WorkId;
+      markupFormat: MarkdownFormat;
+    }) => {
+      return workService.updateTitle(queryToken, data, relatedWorkId, markupFormat);
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? TITLE_UPDATE_FAILED);

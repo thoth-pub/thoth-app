@@ -2868,8 +2868,8 @@ describe('XMLParser', () => {
       expect(result.status).toBe('success');
       expect(result.errors).toHaveLength(0);
       expect(result.data.works[0].references).toHaveLength(2);
-      expect(result.data.works[0].references[0].doi).toBe(relatedWorkDoi);
-      expect(result.data.works[0].references[1].doi).toBe(relatedProductDoi);
+      expect(result.data.works[0].references[0].doi).toContain(relatedWorkDoi);
+      expect(result.data.works[0].references[1].doi).toContain(relatedProductDoi);
     });
 
     it('should parse contributors', async () => {

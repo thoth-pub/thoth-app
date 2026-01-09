@@ -1,6 +1,6 @@
 import { Control } from 'react-hook-form';
 
-import { IDs } from '@/src/shared';
+import { IDs, isTextContainsAnyMarkdownTag } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import { MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -9,7 +9,7 @@ import { BiographyEntity, ContributionBiographyForm } from '../../../model/contr
 import { contributorBiographyValidationSchema } from '../../../model/contribution.validation';
 import { BiographyFormFields } from './BiographyFormFields';
 
-const { BIOGRAPHIES } = FORM_FIELDS;
+const { BIOGRAPHIES, MARKDOWN_FORMAT } = FORM_FIELDS;
 
 type EditBiographyProps = {
   contributionId: string;
@@ -22,6 +22,7 @@ export const EditBiography = (props: EditBiographyProps) => {
   const { contributionId, biographies, recommended = false, onSubmit } = props;
 
   const filteredBiographies = biographies.filter((biography) => biography.contributionId === contributionId);
+  const isMarkdownFormat = filteredBiographies.some((biography) => isTextContainsAnyMarkdownTag(biography.content));
 
   const showPreviewIndicator = recommended && filteredBiographies.length === 0;
 
@@ -43,7 +44,7 @@ export const EditBiography = (props: EditBiographyProps) => {
     <EditableContent
       isTableVariant
       formId={IDs.CONTRIBUTOR_BIOGRAPHY}
-      defaultValues={{ [BIOGRAPHIES.name]: defaultValues }}
+      defaultValues={{ [BIOGRAPHIES.name]: defaultValues, [MARKDOWN_FORMAT.name]: isMarkdownFormat }}
       validationSchema={contributorBiographyValidationSchema}
       onSubmit={onSubmit}
       borderTransparent

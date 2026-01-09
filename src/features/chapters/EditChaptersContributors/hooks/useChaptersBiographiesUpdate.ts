@@ -5,6 +5,7 @@ import type { ContributionBiographyForm, WorkContribution } from '@/src/entities
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { appConfig, QueryKeys } from '@/src/shared';
+import { MarkdownFormats } from '@/src/shared/constants/markdown';
 
 import { findAllSameContributions } from '../components/utils';
 
@@ -30,6 +31,8 @@ export const useChaptersBiographiesUpdate = () => {
     const contributionsToUpdateIds = sameContributions.map((contribution) => contribution.id);
     const updatedContributions: WorkContribution[] = [];
 
+    const markupFormat = data.markdownFormat ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+
     if (sameContributions.length === 0) return [];
 
     const existingBiographies = sameContributions.flatMap((contribution) => contribution.biographies);
@@ -52,7 +55,13 @@ export const useChaptersBiographiesUpdate = () => {
 
     for (contributionId of contributionsIds) {
       const updatedBiographies = await Promise.all(
-        biographiesToCreate.map((biography) => createBiography({ data: biography, contributionId })),
+        biographiesToCreate.map((biography) =>
+          createBiography({
+            data: biography,
+            contributionId,
+            markupFormat,
+          }),
+        ),
       );
 
       const contributionToUpdate = uniqueContributors.find((contribution) => contribution.id === contributionId);
@@ -84,16 +93,6 @@ export const useChaptersBiographiesUpdate = () => {
     queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
 
     return updatedUniqueContributions;
-
-    // setContributions(updatedUniqueContributions);
-
-    // const updatedActiveContribution = updatedContributions.find(
-    //   (contribution) => contribution.id === activeContribution?.id,
-    // );
-
-    // if (!updatedActiveContribution) return;
-
-    // update(updatedActiveContribution);
   };
 
   return {

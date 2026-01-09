@@ -176,6 +176,12 @@ export const FORM_FIELDS = {
     placeholder: 'Edition',
     type: InputTypes.NUMBER,
   },
+  MARKDOWN_FORMAT: {
+    label: 'Markdown Format',
+    name: 'markdownFormat',
+    placeholder: 'Markdown Format',
+    type: InputTypes.TEXT,
+  },
   COVER_URL: {
     label: 'Cover URL',
     name: 'coverUrl',

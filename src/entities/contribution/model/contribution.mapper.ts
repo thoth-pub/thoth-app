@@ -1,5 +1,3 @@
-import { getBiographyMarkupFormat, type MarkdownFormat } from '@/src/shared';
-
 import { BiographyDto, BiographyEntity } from './contribution.types';
 
 export class BiographyDtoMapper {
@@ -9,10 +7,9 @@ export class BiographyDtoMapper {
     return { id: biographyId, canonical, content, localeCode, contributionId };
   }
 
-  toDto(entity: BiographyEntity): { dto: BiographyDto; markupFormat: MarkdownFormat } {
+  toDto(entity: BiographyEntity): BiographyDto {
     const { id, canonical, content, localeCode, contributionId } = entity;
-    const markupFormat = getBiographyMarkupFormat(entity);
 
-    return { dto: { biographyId: id, canonical, content, localeCode, contributionId }, markupFormat };
+    return { biographyId: id, canonical, content, localeCode, contributionId };
   }
 }
