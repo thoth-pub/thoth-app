@@ -3,7 +3,7 @@
 import { Typography } from '@mui/material';
 
 import { isDragAndDropDisabled } from '@/src/shared';
-import { DeleteButton, DragAndDropListener, DraggableComponent } from '@/src/shared/ui';
+import { DeleteButton, DragAndDropListener, DraggableComponent, MarkdownRenderer } from '@/src/shared/ui';
 
 type ListItemProps = {
   id: string;
@@ -22,13 +22,13 @@ export const ListItem = (props: ListItemProps) => {
       {({ attributes, listeners, style, ref }) => (
         <Typography
           component="li"
-          className="flex w-full items-center gap-2 rounded-xl border-1 border-transparent p-4 hover:border-[var(--color-form-border)]"
+          className="-ml-2 flex w-full items-center gap-2 rounded-xl border border-transparent py-2 hover:border-(--color-form-border)"
           ref={ref}
           style={style}
           {...attributes}
         >
           <DragAndDropListener isDisabled={isDragAndDropDisabled(totalItemsCount)} listeners={listeners} />
-          {orderNumber}. {name}
+          {orderNumber}. <MarkdownRenderer markdown={name} />
           {withDelete && (
             <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
           )}

@@ -6,6 +6,7 @@ export * from './constants';
 export * from './context';
 export * from './i18n';
 export * from './interfaces';
+export * from './services';
 export * from './store';
 export * from './theme';
 export * from './types';

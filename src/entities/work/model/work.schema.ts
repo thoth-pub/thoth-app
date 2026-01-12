@@ -10,6 +10,7 @@ export const GET_WORKS = graphql(`
     $workStatus: WorkStatus
     $filter: String
     $workTypes: [WorkType!]
+    $markupFormat: MarkupFormat = JATS_XML
   ) {
     works(
       offset: $offset
@@ -26,7 +27,7 @@ export const GET_WORKS = graphql(`
 `);
 
 export const GET_WORK = graphql(`
-  query GetWork($workId: Uuid!) {
+  query GetWork($workId: Uuid!, $markupFormat: MarkupFormat = JATS_XML) {
     work(workId: $workId) {
       ...WorkFragment
     }
@@ -34,7 +35,7 @@ export const GET_WORK = graphql(`
 `);
 
 export const UPDATE_WORK = graphql(`
-  mutation UpdateWork($data: PatchWork!) {
+  mutation UpdateWork($data: PatchWork!, $markupFormat: MarkupFormat = JATS_XML) {
     updateWork(data: $data) {
       ...WorkFragment
     }
@@ -56,7 +57,7 @@ export const GET_WORKS_COUNT = graphql(`
 `);
 
 export const GET_WORK_CHAPTERS = graphql(`
-  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int) {
+  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int, $markupFormat: MarkupFormat = JATS_XML) {
     work(workId: $workId) {
       relations(
         relationTypes: HAS_CHILD
@@ -74,7 +75,7 @@ export const GET_WORK_CHAPTERS = graphql(`
 `);
 
 export const GET_WORK_TRANSLATIONS = graphql(`
-  query GetWorkTranslations($workId: Uuid!, $limit: Int, $offset: Int) {
+  query GetWorkTranslations($workId: Uuid!, $limit: Int, $offset: Int, $markupFormat: MarkupFormat = JATS_XML) {
     work(workId: $workId) {
       relations(
         relationTypes: HAS_TRANSLATION
@@ -92,7 +93,7 @@ export const GET_WORK_TRANSLATIONS = graphql(`
 `);
 
 export const GET_WORK_EDITIONS = graphql(`
-  query GetWorkEditions($workId: Uuid!, $limit: Int, $offset: Int) {
+  query GetWorkEditions($workId: Uuid!, $limit: Int, $offset: Int, $markupFormat: MarkupFormat = JATS_XML) {
     work(workId: $workId) {
       relations(
         relationTypes: IS_REPLACED_BY
@@ -110,7 +111,7 @@ export const GET_WORK_EDITIONS = graphql(`
 `);
 
 export const GET_WORK_PREV_EDITIONS = graphql(`
-  query GetWorkPrevEditions($workId: Uuid!, $limit: Int, $offset: Int) {
+  query GetWorkPrevEditions($workId: Uuid!, $limit: Int, $offset: Int, $markupFormat: MarkupFormat = JATS_XML) {
     work(workId: $workId) {
       relations(
         relationTypes: REPLACES
@@ -128,7 +129,7 @@ export const GET_WORK_PREV_EDITIONS = graphql(`
 `);
 
 export const GET_TRANSLATED_WORKS = graphql(`
-  query GetTranslatedWorks($workId: Uuid!, $limit: Int, $offset: Int) {
+  query GetTranslatedWorks($workId: Uuid!, $limit: Int, $offset: Int, $markupFormat: MarkupFormat = JATS_XML) {
     work(workId: $workId) {
       relations(
         relationTypes: IS_TRANSLATION_OF

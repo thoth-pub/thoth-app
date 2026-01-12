@@ -10,6 +10,7 @@ export const GET_BOOKS = graphql(`
     $workStatus: WorkStatus
     $field: WorkField = UPDATED_AT_WITH_RELATIONS
     $updatedAtWithRelations: TimeExpression
+    $markupFormat: MarkupFormat = JATS_XML
   ) {
     books(
       offset: $offset

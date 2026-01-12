@@ -20,7 +20,7 @@ import { AbstractTypes } from '@/src/shared/constants/abstracts';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
-import { Preview } from '@/src/shared/ui';
+import { MarkdownRenderer, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { AbstractsFormFields } from './AbstractsFormFields';
@@ -41,17 +41,13 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const shortAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Short);
   const isMarkdownFormat = work.abstracts.some((abstract) => isTextContainsAnyMarkdownTag(abstract.content));
 
-  console.log('isMarkdownFormat', isMarkdownFormat);
-
   const longAbstract = longAbstracts.find((abstract) => abstract.canonical);
   const shortAbstract = shortAbstracts.find((abstract) => abstract.canonical);
   const shortAbstractContent = shortAbstract?.content ?? '';
   const longAbstractContent = longAbstract?.content ?? '';
 
   const placeholderValue =
-    shortAbstractContent.length > 0
-      ? `${longAbstractContent.replace(/<[^>]+>/g, '').trim()} \n ${shortAbstractContent.replace(/<[^>]+>/g, '').trim()}`
-      : longAbstractContent;
+    shortAbstractContent.length > 0 ? `${longAbstractContent} \n ${shortAbstractContent}` : longAbstractContent;
 
   const defaultValues = longAbstracts.map(({ id, localeCode, content }) => {
     const language = languageOptionsAlt.find((option) => option.value.toLowerCase() === localeCode.toLowerCase());
@@ -218,7 +214,11 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
           onDelete={deleteAbstracts}
         />
       )}
-      preview={({ onEdit }) => <Preview label={WORK_ABSTRACTS.label} value={placeholderValue} onEdit={onEdit} />}
+      preview={({ onEdit }) => (
+        <Preview label={WORK_ABSTRACTS.label} value={placeholderValue} onEdit={onEdit}>
+          <MarkdownRenderer markdown={placeholderValue} />
+        </Preview>
+      )}
     />
   );
 };

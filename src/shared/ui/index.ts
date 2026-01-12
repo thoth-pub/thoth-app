@@ -25,6 +25,7 @@ export { default as LinkTooltip } from './core/LinkTooltip/LinkTooltip';
 export { default as ListSubheader, type ListSubheaderComponentProps } from './core/ListSubheader/ListSubheader';
 export { default as MarkdownEditor, type MarkdownEditorProps } from './core/MarkdownEditor/MarkdownEditor';
 export { default as MarkdownPreview } from './core/MarkdownPreview/MarkdownPreview';
+export { default as MarkdownRenderer } from './core/MarkdownRenderer/MarkdownRenderer';
 export { default as MenuItem } from './core/MenuItem/MenuItem';
 export { default as Modal } from './core/Modal/Modal';
 export { default as ModalWrapper } from './core/ModalWrapper/ModalWrapper';

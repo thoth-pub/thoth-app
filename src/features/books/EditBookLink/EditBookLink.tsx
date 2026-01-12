@@ -1,6 +1,7 @@
 'use client';
 
 import NextLink from 'next/link';
+import removeMd from 'remove-markdown';
 
 import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { useWorkRecommendations } from '@/src/entities/work';
@@ -53,7 +54,7 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
           <div className="flex max-w-[190px] grow flex-col justify-between pl-2 xl:max-w-[410px]">
             <div className="flex items-center justify-between">
               <Typography variant="h2" component="h3" className="grow truncate">
-                {getMainTitle(titles).title}
+                {removeMd(getMainTitle(titles).title)}
               </Typography>
               <DataIndicator
                 isEmpty={isEmpty}

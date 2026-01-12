@@ -6,7 +6,7 @@ export const WORK_FRAGMENT = graphql(`
     lccn
     oclc
     workId
-    titles {
+    titles(markupFormat: $markupFormat) {
       canonical
       fullTitle
       localeCode
@@ -14,7 +14,7 @@ export const WORK_FRAGMENT = graphql(`
       title
       titleId
     }
-    abstracts {
+    abstracts(markupFormat: $markupFormat) {
       abstractId
       abstractType
       canonical
@@ -58,7 +58,7 @@ export const WORK_FRAGMENT = graphql(`
       contributionType
       mainContribution
       contributionOrdinal
-      biographies {
+      biographies(markupFormat: $markupFormat) {
         biographyId
         canonical
         content

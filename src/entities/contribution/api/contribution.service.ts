@@ -1,4 +1,4 @@
-import { GraphqlService, isDefaultId, MarkdownFormat, QueryToken } from '@/src/shared';
+import { GraphqlService, isDefaultId, MarkdownFormat, PersistentStorage, QueryToken } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 
 import { AffiliationService } from '../../affiliation/api/affiliation.service';
@@ -23,17 +23,20 @@ export class ContributionService {
   private readonly contributorService: ContributorService;
   private readonly affiliationService: AffiliationService;
   private readonly biographyDtoMapper: BiographyDtoMapper;
+  private readonly persistentStorage: PersistentStorage;
 
   constructor(
     graphqlService: GraphqlService = new GraphqlService(),
     contributorService: ContributorService = new ContributorService(),
     affiliationService: AffiliationService = new AffiliationService(),
     biographyDtoMapper: BiographyDtoMapper = new BiographyDtoMapper(),
+    persistentStorage: PersistentStorage = new PersistentStorage(),
   ) {
     this.graphqlService = graphqlService;
     this.contributorService = contributorService;
     this.affiliationService = affiliationService;
     this.biographyDtoMapper = biographyDtoMapper;
+    this.persistentStorage = persistentStorage;
   }
 
   async createContribution(
@@ -160,6 +163,8 @@ export class ContributionService {
     markupFormat: MarkdownFormat,
   ): Promise<BiographyEntity> {
     const { biographyId: _, contributionId: _contributionId, ...dto } = this.biographyDtoMapper.toDto(data);
+    
+    await this.persistentStorage.set('markup_format', markupFormat);
 
     const response = await this.graphqlService.mutation(token, CREATE_BIOGRAPHY, {
       data: { contributionId, ...dto },
@@ -177,6 +182,8 @@ export class ContributionService {
     markupFormat: MarkdownFormat,
   ): Promise<BiographyEntity> {
     const dto = this.biographyDtoMapper.toDto(data);
+
+    await this.persistentStorage.set('markup_format', markupFormat);
 
     const response = await this.graphqlService.mutation(token, UPDATE_BIOGRAPHY, {
       data: {

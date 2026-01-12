@@ -3,7 +3,7 @@
 import NextLink from 'next/link';
 
 import { type BaseEditSectionProps, getMainTitle, ROUTES } from '@/src/shared';
-import { Breadcrumbs, InputLabel, Link, Typography } from '@/src/shared/ui';
+import { Breadcrumbs, InputLabel, Link, MarkdownRenderer, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import EditPublicationDate from '../EditPublicationDate/EditPublicationDate';
@@ -40,7 +40,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
     <ContentSection className="px-8 lg:px-11 lg:py-4">
       <div className="flex flex-col justify-between gap-3">
         <Typography variant="h1" component="h1" className="max-w-[90%]">
-          {title.replace(/<[^>]+>/g, '').trim()}
+          <MarkdownRenderer markdown={title} />
         </Typography>
 
         <Breadcrumbs aria-label="breadcrumb">

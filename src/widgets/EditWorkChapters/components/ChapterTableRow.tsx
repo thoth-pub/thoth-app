@@ -12,6 +12,7 @@ import {
   DraggableComponent,
   EditButton,
   IconButton,
+  MarkdownRenderer,
   TableCell,
   TableRow,
   Typography,
@@ -62,7 +63,9 @@ export const ChapterTableRow = (props: TableRowProps) => {
                 isDisabled={totalChaptersCount < appConfig.minItemsCountForDragAndDrop}
                 listeners={listeners}
               />
-              <Typography>{getMainTitle(titles).title}</Typography>
+              <Typography component="span">
+                <MarkdownRenderer markdown={getMainTitle(titles).title} />
+              </Typography>
             </div>
           </TableCell>
           <TableCell className="middleCell">

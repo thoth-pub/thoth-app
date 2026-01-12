@@ -199,7 +199,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                   )}
                 </div>,
               ]}
-              cellStyles={['min-w-[210px] pl-4', 'min-w-[120px]']}
+              cellStyles={['min-w-[250px] pl-4', 'min-w-[120px]']}
             />
             <TableBody>
               {chapters.map((chapter) => (

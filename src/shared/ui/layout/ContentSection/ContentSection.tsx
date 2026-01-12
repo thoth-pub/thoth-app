@@ -23,7 +23,9 @@ const ContentSection = ({ children, title, headerContent, className, id }: Conte
     >
       {title && (
         <div className="mb-9 flex items-center justify-between pl-4">
-          <Typography variant="h2">{title}</Typography>
+          <Typography variant="h2" className="text-1 xl:text-[1.5rem]">
+            {title}
+          </Typography>
           {headerContent}
         </div>
       )}

@@ -3,6 +3,7 @@ import isbn3 from 'isbn3';
 import { orcid } from 'orcid';
 import z from 'zod';
 
+import { MarkupFormat } from '@/gql/graphql';
 import { appConfig } from '@/src/shared/config';
 import {
   AccessibilityExceptions,
@@ -173,3 +174,11 @@ export const getFileValidation = (
     .refine((files) => files && filesFormat.includes(files[0].type), formatErrMessage);
 
 export const emailValidation = z.email();
+
+export const getMarkupFormat = (markupFormat: unknown) => {
+  if (markupFormat === MarkupFormat.JatsXml || markupFormat === MarkupFormat.PlainText) {
+    return markupFormat;
+  }
+
+  return MarkupFormat.JatsXml;
+};
