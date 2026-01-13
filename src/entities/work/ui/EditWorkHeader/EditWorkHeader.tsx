@@ -97,7 +97,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
                   <li key={work.id}>
                     <NextLink href={`${ROUTES.WORK_PAGE(work.id)}`} passHref>
                       <Link className="font-normal no-underline" component="span">
-                        {getMainTitle(work.titles).title}
+                        <MarkdownRenderer markdown={getMainTitle(work.titles).title} />
                       </Link>
                     </NextLink>
                   </li>
@@ -117,7 +117,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
                   <li key={work.id}>
                     <NextLink href={`${ROUTES.WORK_PAGE(work.id)}`} passHref>
                       <Link className="font-normal no-underline" component="span">
-                        {getMainTitle(work.titles).title}
+                        <MarkdownRenderer markdown={getMainTitle(work.titles).title} />
                       </Link>
                     </NextLink>
                   </li>
@@ -134,7 +134,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
 
               <NextLink href={`${ROUTES.WORK_PAGE(previousEdition.id)}`} passHref>
                 <Link className="font-normal no-underline" component="span">
-                  {getMainTitle(previousEdition.titles).title}
+                  <MarkdownRenderer markdown={getMainTitle(previousEdition.titles).title} />
                 </Link>
               </NextLink>
             </div>
@@ -148,7 +148,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
 
               <NextLink href={`${ROUTES.WORK_PAGE(latestEdition.id)}`} passHref>
                 <Link className="font-normal no-underline" component="span">
-                  {getMainTitle(latestEdition.titles).title}
+                  <MarkdownRenderer markdown={getMainTitle(latestEdition.titles).title} />
                 </Link>
               </NextLink>
             </div>
