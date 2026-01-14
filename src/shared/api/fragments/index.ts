@@ -8,5 +8,6 @@ export * from './price';
 export * from './publications';
 export * from './publisher';
 export * from './references';
+export * from './sets';
 export * from './subject';
 export * from './works';

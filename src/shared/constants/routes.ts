@@ -12,4 +12,5 @@ export const ROUTES = {
   SERIES: '/admin/series',
   PROFILE: '/admin/profile',
   NOT_FOUND: '/not-found',
+  BOOKS_SETS: '/admin/sets',
 } as const;
