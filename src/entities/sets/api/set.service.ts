@@ -1,15 +1,20 @@
-import { WorkField } from '@/gql/graphql';
+import { MarkupFormat, WorkField } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, Direction } from '@/src/shared';
+import { appConfig, Direction, QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
+import { WorkService } from '../../work/api/work.service';
 import { SetDtoMapper } from '../model/set.mapper';
-import { GET_SETS, GET_SETS_COUNT } from '../model/set.schema';
-import { SetDto, SetEntity } from '../model/set.types';
+import { CREATE_SET, DELETE_SET, UPDATE_SET } from '../model/set.mutations';
+import { GET_SET, GET_SETS, GET_SETS_COUNT } from '../model/set.schema';
+import { SetDto, SetEntity, SetId } from '../model/set.types';
 
-export class SetsService extends BaseService<SetEntity, SetDto> {
-  constructor(mapper = new SetDtoMapper()) {
+export class SetService extends BaseService<SetEntity, SetDto> {
+  private readonly workService: WorkService;
+
+  constructor(mapper = new SetDtoMapper(), workService = new WorkService()) {
     super(mapper);
+    this.workService = workService;
   }
 
   async getSets({
@@ -19,6 +24,7 @@ export class SetsService extends BaseService<SetEntity, SetDto> {
     filter,
     direction,
     field,
+    markupFormat,
   }: {
     publishersIds: PublisherId[];
     offset?: number;
@@ -26,6 +32,7 @@ export class SetsService extends BaseService<SetEntity, SetDto> {
     direction?: Direction;
     filter?: string;
     field?: WorkField;
+    markupFormat?: MarkupFormat;
   }): Promise<SetEntity[]> {
     const { works = [] } = await this.graphqlService.query(GET_SETS, {
       publishers: publishersIds,
@@ -34,11 +41,20 @@ export class SetsService extends BaseService<SetEntity, SetDto> {
       direction,
       filter,
       field,
+      markupFormat,
     });
 
     const res = works.map((work) => this.dtoMapper.toEntity(work as SetDto));
 
     return res;
+  }
+
+  async getSet(setId: SetId): Promise<SetEntity> {
+    const { work } = await this.graphqlService.query(GET_SET, {
+      workId: setId,
+    });
+
+    return this.dtoMapper.toEntity(work as SetDto);
   }
 
   async getSetsCount(publishersIds: PublisherId[]): Promise<number> {
@@ -70,40 +86,43 @@ export class SetsService extends BaseService<SetEntity, SetDto> {
     return sets;
   }
 
-  // async createSeries(token: string, data: SeriesEntity): Promise<SeriesEntity> {
-  //   const { issues: _issues, seriesId: _seriesId, updatedAt: _updatedAt, ...dto } = this.dtoMapper.toDto(data);
+  async createSet(token: QueryToken, data: SetEntity, markupFormat: MarkupFormat): Promise<SetEntity> {
+    const { workId: _workId, titles: _titles, updatedAt: _updatedAt, ...dto } = this.dtoMapper.toDto(data);
 
-  //   const { createSeries } = await this.graphqlService.mutation(token, CREATE_SERIES, {
-  //     data: {
-  //       ...dto,
-  //       imprintId: dto.imprintId ?? '',
-  //       seriesName: dto.seriesName ?? '',
-  //       seriesType: dto.seriesType ?? SeriesType.enum.BookSeries,
-  //     },
-  //   });
+    const response = await this.graphqlService.mutation(token, CREATE_SET, {
+      data: dto as SetDto,
+    });
 
-  //   return { ...data, id: createSeries?.seriesId ?? '' };
-  // }
+    const work = this.dtoMapper.toEntity(response.createWork as SetDto);
 
-  // async updateSeries(token: string, data: SeriesEntity): Promise<SeriesEntity> {
-  //   const { updatedAt: _updatedAt, issues: _issues, ...dto } = this.dtoMapper.toDto(data);
+    const promises = [];
 
-  //   await this.graphqlService.mutation(token, UPDATE_SERIES, {
-  //     data: {
-  //       ...dto,
-  //       imprintId: dto.imprintId ?? '',
-  //       seriesId: dto.seriesId ?? '',
-  //       seriesName: dto.seriesName ?? '',
-  //       seriesType: SeriesType.enum.BookSeries,
-  //     },
-  //   });
+    for (const title of data.titles) {
+      promises.push(this.workService.createTitle(token, title, work.id, markupFormat));
+    }
 
-  //   return data;
-  // }
+    const createdTitles = await Promise.all(promises);
 
-  // async deleteSeries(token: string, seriesId: string): Promise<void> {
-  //   await this.graphqlService.mutation(token, DELETE_SERIES, {
-  //     seriesId,
-  //   });
-  // }
+    work.titles = createdTitles;
+
+    return work;
+  }
+
+  async updateSet(token: QueryToken, data: SetEntity): Promise<SetEntity> {
+    const { updatedAt: _updatedAt, titles: _titles, ...dto } = this.dtoMapper.toDto(data) as SetDto;
+
+    const response = await this.graphqlService.mutation(token, UPDATE_SET, {
+      data: dto,
+    });
+
+    const set = this.dtoMapper.toEntity(response.updateWork as SetDto);
+
+    return set;
+  }
+
+  async deleteSet(token: QueryToken, setId: SetId): Promise<void> {
+    await this.graphqlService.mutation(token, DELETE_SET, {
+      workId: setId,
+    });
+  }
 }

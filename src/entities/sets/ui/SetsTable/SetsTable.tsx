@@ -4,20 +4,27 @@ import { Fragment } from 'react';
 
 import { convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared';
 import {
+  ButtonGroup,
   CircularProgress,
+  DeleteButton,
+  EditButton,
+  MarkdownRenderer,
   Pagination,
   TableBody,
   TableCell,
+  TableFormWrapper,
   TableHeader,
   TableRow,
   TableWrapper,
   Typography,
 } from '@/src/shared/ui';
 
+import { useDeleteSet } from '../../api/hooks/useDeleteSet';
 import { SetEntity } from '../../model/set.types';
+import useSetStateMachine from '../../store/hooks/useSetStateMachine';
 
 type SetsTableProps = {
-  // seriesForm: Readonly<React.ReactNode>;
+  form: React.ReactNode;
   loading: boolean;
   sets: SetEntity[];
   page: number;
@@ -26,22 +33,22 @@ type SetsTableProps = {
 };
 
 const SetsTable = (props: SetsTableProps) => {
-  const { loading, sets, page, pagesCount, onPageChange } = props;
+  const { form, loading, sets, page, pagesCount, onPageChange } = props;
 
-  // const { activeSeries, edit } = useSeriesesStateMachine();
+  const { activeSet, edit } = useSetStateMachine();
 
-  // const { deleteSeries } = useDeleteSeries();
+  const { deleteSet } = useDeleteSet();
 
   return (
     <>
       <TableWrapper>
-        <TableHeader cells={['Name', 'Updated At']} cellStyles={['w-[210px] pl-3', 'w-[110px]']} />
+        <TableHeader cells={['Title', 'Updated At']} cellStyles={['w-[210px] pl-3', 'w-[110px]']} />
         <TableBody>
           {!loading && sets.length === 0 && (
             <TableRow className="!cursor-auto hover:!bg-transparent">
               <TableCell colSpan={2} className="text-center">
                 <Typography variant="body1" component="span">
-                  No series found
+                  No sets found
                 </Typography>
               </TableCell>
             </TableRow>
@@ -54,65 +61,41 @@ const SetsTable = (props: SetsTableProps) => {
             </TableRow>
           ) : (
             <>
-              {sets.map(
-                ({
-                  id,
-                  titles,
-                  // type,
-                  // issnPrint,
-                  // issnDigital,
-                  // description,
-                  updatedAt,
-                  // imprintId,
-                  // imprintName,
-                  // url,
-                  // issues,
-                }) => (
-                  <Fragment key={id}>
-                    {/* {activeSeries && activeSeries.id === id ? (
-                      <TableFormWrapper colSpan={5}>{seriesForm}</TableFormWrapper>
-                    ) : ( */}
+              {sets.map(({ id, titles, type, updatedAt, imprintId, status, edition }) => (
+                <Fragment key={id}>
+                  {activeSet && activeSet.id === id ? (
+                    <TableFormWrapper colSpan={5}>{form}</TableFormWrapper>
+                  ) : (
                     <TableRow key={id} className="group">
-                      <TableCell className="firstCell">{getMainTitle(titles).title}</TableCell>
-                      {/* <TableCell className="middleCell">{description}</TableCell> */}
-                      {/* <TableCell className="middleCell">{convertOptionToString(type)}</TableCell> */}
-                      {/* <TableCell className="middleCell">
-                        <Typography>{issnPrint && issnPrint.length > 0 ? issnPrint : issnDigital}</Typography>
-                      </TableCell> */}
+                      <TableCell className="firstCell">
+                        <MarkdownRenderer markdown={getMainTitle(titles).title} />
+                      </TableCell>
                       <TableCell className="lastCell">
                         <div className="flex justify-between">
                           <Typography>{convertUpdatedAtToFormattedDate(updatedAt)}</Typography>
-                          {/* <ButtonGroup>
-                            <DeleteButton
-                                onClick={() => deleteSeries(id)}
-                                className="opacity-0 group-hover:opacity-100"
-                              />
+                          <ButtonGroup>
+                            <DeleteButton onClick={() => deleteSet(id)} className="opacity-0 group-hover:opacity-100" />
                             <EditButton
                               onClick={() => {
                                 edit({
                                   id,
-                                  name,
+                                  titles,
                                   type,
-                                  issnPrint,
-                                  issnDigital,
-                                  description,
                                   updatedAt,
                                   imprintId,
-                                  imprintName,
-                                  url,
-                                  issues,
+                                  status,
+                                  edition,
                                 });
                               }}
                               className="opacity-0 group-hover:opacity-100"
                             />
-                          </ButtonGroup> */}
+                          </ButtonGroup>
                         </div>
                       </TableCell>
                     </TableRow>
-                    {/* )} */}
-                  </Fragment>
-                ),
-              )}
+                  )}
+                </Fragment>
+              ))}
             </>
           )}
         </TableBody>

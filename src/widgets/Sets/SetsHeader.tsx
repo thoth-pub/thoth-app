@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 
 import type { WorkField } from '@/gql/graphql';
-import { AddSeries } from '@/src/features';
+import { AddSet } from '@/src/features/sets/AddSet/AddSet';
 import type { Direction, FormFieldOption } from '@/src/shared';
 import { directionOptions, seriesOrderByOptions } from '@/src/shared/constants/formFields';
 import { IconButton, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';
@@ -56,7 +56,7 @@ export const SetsHeader = (props: SetsHeaderProps) => {
           <IconButton onClick={handleFilterOpen}>
             <FilterAltIcon color="primary" />
           </IconButton>
-          <AddSeries imprintOptions={imprintOptions} />
+          <AddSet imprintOptions={imprintOptions} />
         </div>
       </div>
 

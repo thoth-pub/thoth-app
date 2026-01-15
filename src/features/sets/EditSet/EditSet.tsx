@@ -1,0 +1,105 @@
+import { useQueryClient } from '@tanstack/react-query';
+
+import { EditSetTitle, type SetId, SetTitleFormType, useUpdateSet } from '@/src/entities/sets';
+import useSet from '@/src/entities/sets/api/hooks/useSet';
+import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
+import EditSetImprint from '@/src/entities/sets/ui/EditSetImprint/EditSetImprint';
+import { useCreateTitle, useDeleteTitle, useUpdateTitle } from '@/src/entities/work';
+import { FormFieldOption, getMainTitle, LocaleCodeType, QueryKeys, TitleEntity } from '@/src/shared';
+import { MarkdownFormats } from '@/src/shared/constants/markdown';
+import { CloseButton, MarkdownRenderer, MultipleContentWrapper, Typography } from '@/src/shared/ui';
+
+type EditSetFormProps = {
+  setId: SetId;
+  imprintOptions: FormFieldOption[];
+};
+
+export const EditSetForm = (props: EditSetFormProps) => {
+  const { setId, imprintOptions } = props;
+
+  const { close } = useSetStateMachine();
+
+  const { set } = useSet(setId);
+  const { updateSet } = useUpdateSet();
+
+  const queryClient = useQueryClient();
+  const { createTitle } = useCreateTitle();
+  const { updateTitle } = useUpdateTitle();
+  const { deleteTitle } = useDeleteTitle(setId);
+
+  const updateImprint = (imprintId: string) => {
+    updateSet({ ...set, imprintId });
+  };
+
+  const updateTitles = async (data: SetTitleFormType) => {
+    const { titles, markdownFormat } = data;
+
+    const markupFormat = markdownFormat ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+    const newTitles = titles.filter((title) => !set.titles.some((setTitle) => setTitle.id === title.titleId));
+    const updatedTitles = titles.filter((title) => set.titles.some((setTitle) => setTitle.id === title.titleId));
+
+    const promises: Promise<TitleEntity>[] = [];
+
+    newTitles.forEach(({ titleId, workTitle, subtitle = '', language }, index) => {
+      promises.push(
+        createTitle({
+          data: {
+            id: titleId,
+            title: workTitle,
+            subtitle,
+            localeCode: language.value as LocaleCodeType,
+            canonical: set.titles.length === 0 && index === 0,
+            fullTitle: `${workTitle} ${subtitle}`,
+          },
+          relatedWorkId: set.id,
+          markupFormat,
+        }),
+      );
+    });
+
+    updatedTitles.forEach(({ titleId, workTitle, subtitle = '', language }) => {
+      const existingTitle = set.titles.find((title) => title.id === titleId);
+
+      if (!existingTitle) return;
+
+      promises.push(
+        updateTitle({
+          data: {
+            id: titleId,
+            title: workTitle,
+            subtitle,
+            localeCode: language.value as LocaleCodeType,
+            canonical: existingTitle.canonical ?? false,
+            fullTitle: `${workTitle} ${subtitle}`,
+          },
+          relatedWorkId: set.id,
+          markupFormat,
+        }),
+      );
+    });
+
+    await Promise.all(promises);
+
+    if (promises.length === 0) return;
+
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.sets] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.set, set.id] });
+  };
+
+  return (
+    <MultipleContentWrapper>
+      <div className="flex justify-between">
+        <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
+          <MarkdownRenderer markdown={getMainTitle(set.titles).title} />
+        </Typography>
+        <div className="flex gap-2">
+          <CloseButton onClose={close} />
+        </div>
+      </div>
+      <div className="flex flex-col gap-(--default-gap)">
+        <EditSetTitle set={set} onSubmit={updateTitles} onDelete={deleteTitle} />
+        <EditSetImprint imprintId={set.imprintId} imprintOptions={imprintOptions} onSubmit={updateImprint} />
+      </div>
+    </MultipleContentWrapper>
+  );
+};

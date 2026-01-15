@@ -4,8 +4,11 @@ export const SET_FRAGMENT = graphql(`
   fragment SetFragment on Work {
     workId
     workType
+    workStatus
     updatedAt
-    titles(markupFormat: PLAIN_TEXT) {
+    imprintId
+    edition
+    titles(markupFormat: $markupFormat) {
       canonical
       fullTitle
       localeCode

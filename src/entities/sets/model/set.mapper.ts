@@ -7,24 +7,30 @@ const workDtoMapper = new WorkDtoMapper();
 
 export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
   toEntity(dto: SetDto): SetEntity {
-    const { workId, workType, titles = [], updatedAt } = dto;
+    const { workId, workType, titles = [], updatedAt, imprintId, workStatus, edition } = dto;
 
     return {
       id: workId,
       type: workType,
       titles: titles.map(workDtoMapper.toEntityTitle),
       updatedAt,
+      imprintId,
+      status: workStatus,
+      edition: edition ?? 1,
     };
   }
 
-  toDto(entity: SetEntity): Partial<SetDto> {
-    const { id, type, titles, updatedAt } = entity;
+  toDto(entity: SetEntity): SetDto {
+    const { id, type, titles, updatedAt, imprintId, status, edition } = entity;
 
     return {
       workId: id,
       workType: type,
       titles: titles.map(workDtoMapper.toDtoTitle),
       updatedAt,
+      imprintId,
+      workStatus: status,
+      edition,
     };
   }
 }

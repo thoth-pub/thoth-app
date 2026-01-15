@@ -84,4 +84,8 @@ export const NOTIFICATIONS = {
   BIOGRAPHY_CREATION_FAILED: 'Failed to create biography',
   BIOGRAPHY_UPDATE_FAILED: 'Failed to update biography',
   BIOGRAPHY_DELETE_FAILED: 'Failed to delete biography',
+  // Sets
+  SET_CREATION_FAILED: 'Failed to create set',
+  SET_UPDATE_FAILED: 'Failed to update set',
+  SET_DELETE_FAILED: 'Failed to delete set',
 } as const;

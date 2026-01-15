@@ -23,7 +23,7 @@ export const PAGES = [
     icon: LibraryBooksRoundedIcon,
   },
   {
-    name: 'Books sets',
+    name: 'Sets',
     href: ROUTES.BOOKS_SETS,
     icon: Filter1Icon,
   },

@@ -16,7 +16,7 @@ const useSets = (props: UseSeriesProps) => {
   const { offset = 0, limit = appConfig.data.itemsPerRequestLimit, filter = '', field, direction } = props;
 
   const { activePublisher } = usePublisherStateMachine();
-  const { setsService } = useServices();
+  const { setService } = useServices();
 
   const publisherId = activePublisher ? [activePublisher] : [];
 
@@ -26,7 +26,7 @@ const useSets = (props: UseSeriesProps) => {
     isLoading,
   } = useQuery({
     queryKey: [QueryKeys.sets, publisherId, filter, offset, limit, direction, field],
-    queryFn: () => setsService.getSets({ publishersIds: publisherId, offset, limit, filter, direction, field }),
+    queryFn: () => setService.getSets({ publishersIds: publisherId, offset, limit, filter, direction, field }),
   });
 
   return { sets, error, loading: isLoading };

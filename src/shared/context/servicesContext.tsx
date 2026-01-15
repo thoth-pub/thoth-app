@@ -16,7 +16,7 @@ import { PublicationService } from '@/src/entities/publication/api/publication.s
 import { PublisherService } from '@/src/entities/publisher/api/publisher.service';
 import { ReferenceService } from '@/src/entities/reference/api/reference.service';
 import { SeriesService } from '@/src/entities/series';
-import { SetsService } from '@/src/entities/sets/api/set.service';
+import { SetService } from '@/src/entities/sets/api/set.service';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
 
@@ -31,7 +31,7 @@ type ServicesMap = {
   contributionService: ContributionService;
   subjectService: SubjectService;
   seriesService: SeriesService;
-  setsService: SetsService;
+  setService: SetService;
   referenceService: ReferenceService;
   publicationService: PublicationService;
   locationService: LocationService;
@@ -52,7 +52,7 @@ const defaultServices: ServicesMap = {
   contributionService: new ContributionService(),
   subjectService: new SubjectService(),
   seriesService: new SeriesService(),
-  setsService: new SetsService(),
+  setService: new SetService(),
   referenceService: new ReferenceService(),
   publicationService: new PublicationService(),
   locationService: new LocationService(),

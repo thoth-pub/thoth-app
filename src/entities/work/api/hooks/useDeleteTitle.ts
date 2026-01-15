@@ -20,6 +20,7 @@ const useDeleteTitle = (workId: WorkId) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.set, workId] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters, workId] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workTranslations, workId] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.translatedWorks, workId] });
@@ -31,6 +32,7 @@ const useDeleteTitle = (workId: WorkId) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.publishedBooksCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.sets] });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? TITLE_DELETE_FAILED);

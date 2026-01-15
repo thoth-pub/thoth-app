@@ -615,6 +615,12 @@ export const FORM_FIELDS = {
     placeholder: 'Statement',
     type: InputTypes.TEXT,
   },
+  SET_TITLE: {
+    label: 'Title',
+    name: 'setTitle',
+    placeholder: 'Title',
+    type: InputTypes.TEXT,
+  },
 } as const;
 
 export const workStatusOptions = [
