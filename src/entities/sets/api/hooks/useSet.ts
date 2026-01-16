@@ -12,7 +12,7 @@ const useSet = (setId: SetId) => {
   const { setService } = useServices();
 
   const {
-    data = getDefaultWork({ type: WorkTypes.enum.BookSet }) as SetEntity,
+    data = { ...getDefaultWork({ type: WorkTypes.enum.BookSet }), volumesCount: 0 } as SetEntity,
     isLoading,
     error,
   } = useQuery({

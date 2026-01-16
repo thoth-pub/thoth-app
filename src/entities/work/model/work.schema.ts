@@ -153,3 +153,18 @@ export const CREATE_WORK_RELATION = graphql(`
     }
   }
 `);
+
+export const GET_WORK_SET = graphql(`
+  query GetWorkSet($workId: Uuid!) {
+    work(workId: $workId) {
+      relations(relationTypes: IS_PART_OF) {
+        workRelationId
+        relatedWork {
+          titles(markupFormat: PLAIN_TEXT) {
+            ...TitleFragment
+          }
+        }
+      }
+    }
+  }
+`);

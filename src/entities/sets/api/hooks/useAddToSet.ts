@@ -8,7 +8,7 @@ import { SetId } from '../../model/set.types';
 
 const { SET_ADD_TO_FAILED } = NOTIFICATIONS;
 
-export const useAddToSet = (setId: SetId) => {
+export const useAddToSet = (setId?: SetId) => {
   const { setService } = useServices();
 
   const queryToken = useQueryToken();
@@ -20,8 +20,12 @@ export const useAddToSet = (setId: SetId) => {
       return setService.addBookToSet(queryToken, setId, bookId, ordinal);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.set, setId] });
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.bookSetWorks, setId] });
+      if (setId) {
+        queryClient.invalidateQueries({ queryKey: [QueryKeys.set, setId] });
+        queryClient.invalidateQueries({ queryKey: [QueryKeys.bookSetWorks, setId] });
+      }
+
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workSet] });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? SET_ADD_TO_FAILED);

@@ -5,6 +5,7 @@ import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
+import removeMd from 'remove-markdown';
 
 import { useBooks } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
@@ -61,7 +62,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
   const filteredBooks = books.filter((book) => book.issues.length === 0);
 
   const options = filteredBooks.map((book) => ({
-    label: getMainTitle(book.titles).title,
+    label: removeMd(getMainTitle(book.titles).title),
     value: book.id,
   }));
 

@@ -16,5 +16,8 @@ export const SET_FRAGMENT = graphql(`
       title
       titleId
     }
+    relations(relationTypes: HAS_PART, order: { field: WORK_RELATION_ID, direction: DESC }) {
+      relationOrdinal
+    }
   }
 `);

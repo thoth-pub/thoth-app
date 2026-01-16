@@ -29,6 +29,7 @@ export type SetEntity = {
   imprintId: string;
   status: WorkStatus;
   edition: number;
+  volumesCount: number;
 };
 
 export type SetWorkEntity = {

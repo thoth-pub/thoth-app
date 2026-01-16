@@ -44,6 +44,7 @@ const AddSet = ({ imprintOptions }: AddSetProps) => {
     imprintId: imprintOptions[0].value,
     status: WorkStatuses.enum.Forthcoming,
     edition: 1,
+    volumesCount: 0,
   };
 
   const submit = () => {

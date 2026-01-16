@@ -1,21 +1,38 @@
 'use client';
 
+import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
 import { Chip, Typography } from '@mui/material';
+import { useRouter } from 'next/navigation';
 
-import { isDragAndDropDisabled } from '@/src/shared';
-import { DeleteButton, DragAndDropListener, DraggableComponent, MarkdownRenderer } from '@/src/shared/ui';
+import type { WorkId } from '@/src/entities/work/model/work.types';
+import { isDragAndDropDisabled, ROUTES } from '@/src/shared';
+import {
+  ButtonGroup,
+  DeleteButton,
+  DragAndDropListener,
+  DraggableComponent,
+  IconButton,
+  MarkdownRenderer,
+} from '@/src/shared/ui';
 
 type ListItemProps = {
   id: string;
   name: string;
   totalItemsCount: number;
   orderNumber: number;
+  workId: WorkId;
   withDelete?: boolean;
   onDelete?: (id: string) => void;
 };
 
 export const ListItem = (props: ListItemProps) => {
-  const { id, name, orderNumber, totalItemsCount, withDelete = false, onDelete } = props;
+  const { id, name, orderNumber, totalItemsCount, workId, withDelete = false, onDelete } = props;
+
+  const router = useRouter();
+
+  const navigateToWork = (id: string) => {
+    router.push(ROUTES.WORK_PAGE(id));
+  };
 
   return (
     <DraggableComponent id={id}>
@@ -30,9 +47,14 @@ export const ListItem = (props: ListItemProps) => {
           <DragAndDropListener isDisabled={isDragAndDropDisabled(totalItemsCount)} listeners={listeners} />
           <Chip label={orderNumber.toString()} size="small" className="mr-4" />
           <MarkdownRenderer markdown={name} />
-          {withDelete && (
-            <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
-          )}
+          <ButtonGroup className="ml-auto">
+            <IconButton onClick={() => navigateToWork(workId)}>
+              <ArrowOutwardIcon />
+            </IconButton>
+            {withDelete && (
+              <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
+            )}
+          </ButtonGroup>
         </Typography>
       )}
     </DraggableComponent>

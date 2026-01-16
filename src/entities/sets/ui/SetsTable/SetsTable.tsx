@@ -61,7 +61,7 @@ const SetsTable = (props: SetsTableProps) => {
             </TableRow>
           ) : (
             <>
-              {sets.map(({ id, titles, type, updatedAt, imprintId, status, edition }) => (
+              {sets.map(({ id, titles, type, updatedAt, imprintId, status, edition, volumesCount }) => (
                 <Fragment key={id}>
                   {activeSet && activeSet.id === id ? (
                     <TableFormWrapper colSpan={5}>{form}</TableFormWrapper>
@@ -86,6 +86,7 @@ const SetsTable = (props: SetsTableProps) => {
                                   imprintId,
                                   status,
                                   edition,
+                                  volumesCount,
                                 });
                               }}
                               className="opacity-0 group-hover:opacity-100"

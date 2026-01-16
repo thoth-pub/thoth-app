@@ -29,6 +29,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
     previousEdition,
     translations,
     translatedWorks,
+    workSet,
     changeWorkStatus,
     changePublicationDate,
     changeWithdrawnDate,
@@ -151,6 +152,24 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
                   <MarkdownRenderer markdown={getMainTitle(latestEdition.titles).title} />
                 </Link>
               </NextLink>
+            </div>
+          )}
+
+          {workSet.length > 0 && (
+            <div className="flex gap-2">
+              <InputLabel component="span" className="min-w-42 shrink-0">
+                Volume of
+              </InputLabel>
+
+              <ul className="w-full">
+                {workSet
+                  .filter(({ canonical }) => canonical)
+                  .map((title) => (
+                    <Typography key={title.id} component="li">
+                      <MarkdownRenderer markdown={title.title} />
+                    </Typography>
+                  ))}
+              </ul>
             </div>
           )}
         </div>

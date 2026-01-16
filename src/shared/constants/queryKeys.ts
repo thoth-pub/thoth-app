@@ -13,6 +13,7 @@ export const QueryKeys = {
   workPrevEditions: 'workPrevEditions',
   translatedWorks: 'translatedWorks',
   workTranslations: 'workTranslations',
+  workSet: 'workSet',
   // PUBLISHERS
   publisher: 'publisher',
   publishers: 'publishers',

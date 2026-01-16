@@ -43,6 +43,7 @@ import {
   GET_WORK_CHAPTERS,
   GET_WORK_EDITIONS,
   GET_WORK_PREV_EDITIONS,
+  GET_WORK_SET,
   GET_WORK_TRANSLATIONS,
   GET_WORKS,
   GET_WORKS_COUNT,
@@ -657,5 +658,15 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     await this.graphqlService.mutation(token, DELETE_ABSTRACT, {
       abstractId,
     });
+  }
+
+  async getWorkSet(workId: WorkId): Promise<TitleEntity[]> {
+    const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_SET, {
+      workId,
+    });
+
+    return relations.flatMap((relation) =>
+      relation.relatedWork.titles.map((title) => this.dtoMapper.toEntityTitle(title as TitleDto)),
+    );
   }
 }

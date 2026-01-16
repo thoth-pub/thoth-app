@@ -7,7 +7,7 @@ const workDtoMapper = new WorkDtoMapper();
 
 export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
   toEntity(dto: SetDto): SetEntity {
-    const { workId, workType, titles = [], updatedAt, imprintId, workStatus, edition } = dto;
+    const { workId, workType, titles = [], updatedAt, imprintId, workStatus, edition, relations } = dto;
 
     return {
       id: workId,
@@ -17,6 +17,7 @@ export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
       imprintId,
       status: workStatus,
       edition: edition ?? 1,
+      volumesCount: relations.length ?? 0,
     };
   }
 
@@ -31,6 +32,7 @@ export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
       imprintId,
       workStatus: status,
       edition,
+      relations: [],
     };
   }
 

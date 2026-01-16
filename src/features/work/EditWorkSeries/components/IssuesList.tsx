@@ -41,11 +41,12 @@ export const IssuesList = (props: IssuesListProps) => {
       <DragAndDropWrapper items={issues} onDragEnd={handleDragEnd}>
         {() => (
           <ul className="group flex w-full flex-col gap-2">
-            {issues.map(({ id, title, ordinal }) => (
+            {issues.map(({ id, title, ordinal, workId }) => (
               <ListItem
                 key={id}
                 id={id}
                 name={title}
+                workId={workId}
                 orderNumber={ordinal}
                 totalItemsCount={issues.length}
                 withDelete={withDelete}

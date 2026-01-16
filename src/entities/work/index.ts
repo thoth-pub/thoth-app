@@ -22,6 +22,7 @@ export { default as useWorkMoveRelation } from './api/hooks/useWorkMoveRelation'
 export { default as useWorkRecommendations } from './api/hooks/useWorkRecommendations';
 export { default as useWorks } from './api/hooks/useWorks';
 export { default as useWorksCount } from './api/hooks/useWorksCount';
+export { default as useWorkSet } from './api/hooks/useWorkSet';
 export { default as useWorkTranslations } from './api/hooks/useWorkTranslations';
 
 // UI
