@@ -2,7 +2,7 @@
 
 import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
 import SetsTable from '@/src/entities/sets/ui/SetsTable/SetsTable';
-import { EditSetForm } from '@/src/features/sets/EditSet/EditSet';
+import { EditSet } from '@/src/features';
 import { FormFieldOption } from '@/src/shared';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
@@ -50,7 +50,7 @@ const Sets = (props: SetsProps) => {
           page={activePage}
           pagesCount={totalPagesCount}
           onPageChange={changePage}
-          form={<EditSetForm setId={activeSet?.id ?? ''} imprintOptions={imprintOptions} />}
+          form={<EditSet setId={activeSet?.id ?? ''} imprintOptions={imprintOptions} />}
         />
       </ContentSection>
     </>

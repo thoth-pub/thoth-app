@@ -1,7 +1,7 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
 
 import { WorkDtoMapper } from '../../work/model/work.mapper';
-import { SetDto, SetEntity } from './set.types';
+import { SetDto, SetEntity, SetWorkDto, SetWorkEntity } from './set.types';
 
 const workDtoMapper = new WorkDtoMapper();
 
@@ -32,5 +32,16 @@ export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
       workStatus: status,
       edition,
     };
+  }
+
+  toEntitySetWorks(dto: SetWorkDto): SetWorkEntity[] {
+    const { relations } = dto;
+
+    return relations.map(({ workRelationId, relatedWorkId, relationOrdinal, relatedWork: { titles } }) => ({
+      id: workRelationId,
+      workId: relatedWorkId,
+      ordinal: relationOrdinal,
+      titles: titles.map(workDtoMapper.toEntityTitle),
+    }));
   }
 }

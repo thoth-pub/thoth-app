@@ -15,6 +15,8 @@ export { default as EditPublication } from './publications/EditPublication/EditP
 export { default as ChangeActivePublisher } from './publisher/ui/ChangeActivePublisher/ChangeActivePublisher';
 export { default as AddSeries } from './series/AddSeries/AddSeries';
 export { default as EditSeries } from './series/EditSeries/EditSeries';
+export { default as AddSet } from './sets/AddSet/AddSet';
+export { default as EditSet } from './sets/EditSet/EditSet';
 export { default as AddChapterModal } from './work/AddChapterModal/AddChapterModal';
 export { default as AddContributionModal } from './work/AddContributionModal/AddContributionModal';
 export { default as EditBasicDetails } from './work/EditBasicDetails/EditBasicDetails';

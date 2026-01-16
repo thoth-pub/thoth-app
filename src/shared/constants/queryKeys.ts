@@ -35,4 +35,5 @@ export const QueryKeys = {
   sets: 'sets',
   setsCount: 'setsCount',
   set: 'set',
+  bookSetWorks: 'bookSetWorks',
 } as const;

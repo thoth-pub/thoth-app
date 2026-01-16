@@ -1,3 +1,5 @@
+'use client';
+
 import AddIcon from '@mui/icons-material/Add';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
 import { Activity, useState } from 'react';
@@ -22,7 +24,7 @@ type AddSetProps = {
   imprintOptions: FormFieldOption[];
 };
 
-export const AddSet = ({ imprintOptions }: AddSetProps) => {
+const AddSet = ({ imprintOptions }: AddSetProps) => {
   const { activeSet, edit, close } = useSetStateMachine();
 
   const { createSet } = useCreateSet();
@@ -59,8 +61,6 @@ export const AddSet = ({ imprintOptions }: AddSetProps) => {
 
   const updateTitles = (titles: TitleEntity[], newMarkupFormat: MarkupFormat.JatsXml | MarkupFormat.PlainText) => {
     if (!set) return;
-
-    console.log('update titles', titles, newMarkupFormat);
 
     setSet({
       ...set,
@@ -131,3 +131,5 @@ export const AddSet = ({ imprintOptions }: AddSetProps) => {
     </>
   );
 };
+
+export default AddSet;

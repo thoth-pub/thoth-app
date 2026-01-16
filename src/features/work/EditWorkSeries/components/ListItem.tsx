@@ -1,6 +1,6 @@
 'use client';
 
-import { Typography } from '@mui/material';
+import { Chip, Typography } from '@mui/material';
 
 import { isDragAndDropDisabled } from '@/src/shared';
 import { DeleteButton, DragAndDropListener, DraggableComponent, MarkdownRenderer } from '@/src/shared/ui';
@@ -28,7 +28,8 @@ export const ListItem = (props: ListItemProps) => {
           {...attributes}
         >
           <DragAndDropListener isDisabled={isDragAndDropDisabled(totalItemsCount)} listeners={listeners} />
-          {orderNumber}. <MarkdownRenderer markdown={name} />
+          <Chip label={orderNumber.toString()} size="small" className="mr-4" />
+          <MarkdownRenderer markdown={name} />
           {withDelete && (
             <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
           )}

@@ -2,7 +2,7 @@
 
 import { useDeleteIssue, useMoveIssue } from '@/src/entities/series';
 import type { SeriesEntity, SeriesId } from '@/src/entities/series/model/series.types';
-import { DragAndDropWrapper } from '@/src/shared/ui';
+import { DragAndDropWrapper, Typography } from '@/src/shared/ui';
 
 import { ListItem } from './ListItem';
 
@@ -36,22 +36,25 @@ export const IssuesList = (props: IssuesListProps) => {
   if (issues.length === 0) return null;
 
   return (
-    <DragAndDropWrapper items={issues} onDragEnd={handleDragEnd}>
-      {() => (
-        <ul className="group flex w-full flex-col gap-2">
-          {issues.map(({ id, title, ordinal }) => (
-            <ListItem
-              key={id}
-              id={id}
-              name={title}
-              orderNumber={ordinal}
-              totalItemsCount={issues.length}
-              withDelete={withDelete}
-              onDelete={deleteIssue}
-            />
-          ))}
-        </ul>
-      )}
-    </DragAndDropWrapper>
+    <div>
+      <Typography fontWeight="bold">Titles</Typography>
+      <DragAndDropWrapper items={issues} onDragEnd={handleDragEnd}>
+        {() => (
+          <ul className="group flex w-full flex-col gap-2">
+            {issues.map(({ id, title, ordinal }) => (
+              <ListItem
+                key={id}
+                id={id}
+                name={title}
+                orderNumber={ordinal}
+                totalItemsCount={issues.length}
+                withDelete={withDelete}
+                onDelete={deleteIssue}
+              />
+            ))}
+          </ul>
+        )}
+      </DragAndDropWrapper>
+    </div>
   );
 };

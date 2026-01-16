@@ -36,3 +36,25 @@ export const GET_SETS_COUNT = graphql(`
     workCount(publishers: $publishers, workTypes: [BOOK_SET])
   }
 `);
+
+export const GET_BOOK_SET_WORKS = graphql(`
+  query GetBookSetWorks($setId: Uuid!, $markupFormat: MarkupFormat = PLAIN_TEXT) {
+    work(workId: $setId) {
+      relations(relationTypes: HAS_PART, order: { field: WORK_RELATION_ID, direction: DESC }) {
+        relationOrdinal
+        workRelationId
+        relatedWorkId
+        relatedWork {
+          titles(markupFormat: $markupFormat) {
+            canonical
+            fullTitle
+            localeCode
+            subtitle
+            title
+            titleId
+          }
+        }
+      }
+    }
+  }
+`);

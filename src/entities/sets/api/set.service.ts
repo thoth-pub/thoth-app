@@ -1,15 +1,23 @@
-import { MarkupFormat, WorkField } from '@/gql/graphql';
+import { MarkupFormat, RelationType, WorkField } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
 import { appConfig, Direction, QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { WorkService } from '../../work/api/work.service';
+import { WorkId } from '../../work/model/work.types';
 import { SetDtoMapper } from '../model/set.mapper';
-import { CREATE_SET, DELETE_SET, UPDATE_SET } from '../model/set.mutations';
-import { GET_SET, GET_SETS, GET_SETS_COUNT } from '../model/set.schema';
-import { SetDto, SetEntity, SetId } from '../model/set.types';
+import {
+  ADD_BOOK_TO_SET,
+  CREATE_SET,
+  DELETE_BOOK_FROM_SET,
+  DELETE_SET,
+  MOVE_BOOK_IN_SET,
+  UPDATE_SET,
+} from '../model/set.mutations';
+import { GET_BOOK_SET_WORKS, GET_SET, GET_SETS, GET_SETS_COUNT } from '../model/set.schema';
+import { SetDto, SetEntity, SetId, SetWorkDto, SetWorkEntity } from '../model/set.types';
 
-export class SetService extends BaseService<SetEntity, SetDto> {
+export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
   private readonly workService: WorkService;
 
   constructor(mapper = new SetDtoMapper(), workService = new WorkService()) {
@@ -123,6 +131,38 @@ export class SetService extends BaseService<SetEntity, SetDto> {
   async deleteSet(token: QueryToken, setId: SetId): Promise<void> {
     await this.graphqlService.mutation(token, DELETE_SET, {
       workId: setId,
+    });
+  }
+
+  async getBookSetWorks(setId: SetId): Promise<SetWorkEntity[]> {
+    const { work } = await this.graphqlService.query(GET_BOOK_SET_WORKS, {
+      setId,
+    });
+
+    return this.dtoMapper.toEntitySetWorks(work as SetWorkDto);
+  }
+
+  addBookToSet(token: QueryToken, setId: SetId, bookId: WorkId, ordinal: number) {
+    return this.graphqlService.mutation(token, ADD_BOOK_TO_SET, {
+      data: {
+        relatorWorkId: bookId,
+        relatedWorkId: setId,
+        relationOrdinal: ordinal,
+        relationType: RelationType.IsPartOf,
+      },
+    });
+  }
+
+  async deleteBookFromSet(token: QueryToken, relationId: string) {
+    return this.graphqlService.mutation(token, DELETE_BOOK_FROM_SET, {
+      workRelationId: relationId,
+    });
+  }
+
+  moveBookInSet(token: QueryToken, relationId: string, newOrdinal: number) {
+    return this.graphqlService.mutation(token, MOVE_BOOK_IN_SET, {
+      workRelationId: relationId,
+      newOrdinal,
     });
   }
 }

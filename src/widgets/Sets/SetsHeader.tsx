@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 
 import type { WorkField } from '@/gql/graphql';
-import { AddSet } from '@/src/features/sets/AddSet/AddSet';
+import { AddSet } from '@/src/features';
 import type { Direction, FormFieldOption } from '@/src/shared';
 import { directionOptions, seriesOrderByOptions } from '@/src/shared/constants/formFields';
 import { IconButton, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';

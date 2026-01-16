@@ -76,6 +76,7 @@ const SetsTable = (props: SetsTableProps) => {
                           <ButtonGroup>
                             <DeleteButton onClick={() => deleteSet(id)} className="opacity-0 group-hover:opacity-100" />
                             <EditButton
+                              disabled={!!activeSet}
                               onClick={() => {
                                 edit({
                                   id,

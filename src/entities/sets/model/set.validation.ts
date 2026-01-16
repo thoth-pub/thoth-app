@@ -7,7 +7,7 @@ import {
   optionalStringValidation,
 } from '@/src/shared/utils/validations';
 
-const { WORK_TITLE, MARKDOWN_FORMAT, SUBTITLE, LANGUAGE, TITLES, TITLE, IMPRINT } = FORM_FIELDS;
+const { WORK_TITLE, MARKDOWN_FORMAT, SUBTITLE, LANGUAGE, TITLES, TITLE, IMPRINT, SET_WORK } = FORM_FIELDS;
 
 const titleLanguageValidation = z.object({
   value: languageValidation,
@@ -33,4 +33,11 @@ export const setTitleValidationSchema = z.object({
 
 export const setImprintValidationSchema = z.object({
   [IMPRINT.name]: imprintValidation,
+});
+
+export const setWorkValidationSchema = z.object({
+  [SET_WORK.name]: z.object({
+    value: getRequiredStringValidation(),
+    label: getRequiredStringValidation(),
+  }),
 });

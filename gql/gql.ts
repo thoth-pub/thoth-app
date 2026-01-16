@@ -76,16 +76,18 @@ type Documents = {
     "\n  mutation CreateSet($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...SetFragment\n    }\n  }\n": typeof types.CreateSetDocument,
     "\n  mutation UpdateSet($data: PatchWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateWork(data: $data) {\n      ...SetFragment\n    }\n  }\n": typeof types.UpdateSetDocument,
     "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n": typeof types.DeleteWorkDocument,
-    "\n  mutation MoveSetRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n": typeof types.MoveSetRelationDocument,
+    "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n": typeof types.MoveWorkRelationDocument,
+    "\n  mutation AddBookToSet($data: NewWorkRelation!) {\n    createWorkRelation(data: $data) {\n      workRelationId\n    }\n  }\n": typeof types.AddBookToSetDocument,
+    "\n  mutation DeleteBookFromSet($workRelationId: Uuid!) {\n    deleteWorkRelation(workRelationId: $workRelationId) {\n      workRelationId\n    }\n  }\n": typeof types.DeleteBookFromSetDocument,
     "\n  query GetSets(\n    $publishers: [Uuid!]!\n    $filter: String\n    $offset: Int\n    $limit: Int\n    $direction: Direction = ASC\n    $field: WorkField = UPDATED_AT_WITH_RELATIONS\n    $markupFormat: MarkupFormat = JATS_XML\n  ) {\n    works(\n      publishers: $publishers\n      filter: $filter\n      offset: $offset\n      limit: $limit\n      order: { direction: $direction, field: $field }\n      workTypes: [BOOK_SET]\n    ) {\n      ...SetFragment\n    }\n  }\n": typeof types.GetSetsDocument,
     "\n  query GetSet($workId: Uuid!, $markupFormat: MarkupFormat = JATS_XML) {\n    work(workId: $workId) {\n      ...SetFragment\n    }\n  }\n": typeof types.GetSetDocument,
     "\n  query GetSetsCount($publishers: [Uuid!]!) {\n    workCount(publishers: $publishers, workTypes: [BOOK_SET])\n  }\n": typeof types.GetSetsCountDocument,
+    "\n  query GetBookSetWorks($setId: Uuid!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    work(workId: $setId) {\n      relations(relationTypes: HAS_PART, order: { field: WORK_RELATION_ID, direction: DESC }) {\n        relationOrdinal\n        workRelationId\n        relatedWorkId\n        relatedWork {\n          titles(markupFormat: $markupFormat) {\n            canonical\n            fullTitle\n            localeCode\n            subtitle\n            title\n            titleId\n          }\n        }\n      }\n    }\n  }\n": typeof types.GetBookSetWorksDocument,
     "\n  mutation CreateSubject($data: NewSubject!) {\n    createSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.CreateSubjectDocument,
     "\n  mutation UpdateSubject($data: PatchSubject!) {\n    updateSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.UpdateSubjectDocument,
     "\n  mutation DeleteSubject($subjectId: Uuid!) {\n    deleteSubject(subjectId: $subjectId) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.DeleteSubjectDocument,
     "\n  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {\n    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {\n      subjectId\n    }\n  }\n": typeof types.MoveSubjectDocument,
     "\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": typeof types.CreateWorkDocument,
-    "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n": typeof types.MoveWorkRelationDocument,
     "\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = JATS_XML) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": typeof types.CreateTitleDocument,
     "\n  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": typeof types.UpdateTitleDocument,
     "\n  mutation DeleteTitle($titleId: Uuid!) {\n    deleteTitle(titleId: $titleId) {\n      titleId\n    }\n  }\n": typeof types.DeleteTitleDocument,
@@ -182,16 +184,18 @@ const documents: Documents = {
     "\n  mutation CreateSet($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...SetFragment\n    }\n  }\n": types.CreateSetDocument,
     "\n  mutation UpdateSet($data: PatchWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateWork(data: $data) {\n      ...SetFragment\n    }\n  }\n": types.UpdateSetDocument,
     "\n  mutation DeleteWork($workId: Uuid!) {\n    deleteWork(workId: $workId) {\n      workId\n    }\n  }\n": types.DeleteWorkDocument,
-    "\n  mutation MoveSetRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n": types.MoveSetRelationDocument,
+    "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n": types.MoveWorkRelationDocument,
+    "\n  mutation AddBookToSet($data: NewWorkRelation!) {\n    createWorkRelation(data: $data) {\n      workRelationId\n    }\n  }\n": types.AddBookToSetDocument,
+    "\n  mutation DeleteBookFromSet($workRelationId: Uuid!) {\n    deleteWorkRelation(workRelationId: $workRelationId) {\n      workRelationId\n    }\n  }\n": types.DeleteBookFromSetDocument,
     "\n  query GetSets(\n    $publishers: [Uuid!]!\n    $filter: String\n    $offset: Int\n    $limit: Int\n    $direction: Direction = ASC\n    $field: WorkField = UPDATED_AT_WITH_RELATIONS\n    $markupFormat: MarkupFormat = JATS_XML\n  ) {\n    works(\n      publishers: $publishers\n      filter: $filter\n      offset: $offset\n      limit: $limit\n      order: { direction: $direction, field: $field }\n      workTypes: [BOOK_SET]\n    ) {\n      ...SetFragment\n    }\n  }\n": types.GetSetsDocument,
     "\n  query GetSet($workId: Uuid!, $markupFormat: MarkupFormat = JATS_XML) {\n    work(workId: $workId) {\n      ...SetFragment\n    }\n  }\n": types.GetSetDocument,
     "\n  query GetSetsCount($publishers: [Uuid!]!) {\n    workCount(publishers: $publishers, workTypes: [BOOK_SET])\n  }\n": types.GetSetsCountDocument,
+    "\n  query GetBookSetWorks($setId: Uuid!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    work(workId: $setId) {\n      relations(relationTypes: HAS_PART, order: { field: WORK_RELATION_ID, direction: DESC }) {\n        relationOrdinal\n        workRelationId\n        relatedWorkId\n        relatedWork {\n          titles(markupFormat: $markupFormat) {\n            canonical\n            fullTitle\n            localeCode\n            subtitle\n            title\n            titleId\n          }\n        }\n      }\n    }\n  }\n": types.GetBookSetWorksDocument,
     "\n  mutation CreateSubject($data: NewSubject!) {\n    createSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": types.CreateSubjectDocument,
     "\n  mutation UpdateSubject($data: PatchSubject!) {\n    updateSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": types.UpdateSubjectDocument,
     "\n  mutation DeleteSubject($subjectId: Uuid!) {\n    deleteSubject(subjectId: $subjectId) {\n      ...SubjectFragment\n    }\n  }\n": types.DeleteSubjectDocument,
     "\n  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {\n    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {\n      subjectId\n    }\n  }\n": types.MoveSubjectDocument,
     "\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": types.CreateWorkDocument,
-    "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n": types.MoveWorkRelationDocument,
     "\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = JATS_XML) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": types.CreateTitleDocument,
     "\n  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": types.UpdateTitleDocument,
     "\n  mutation DeleteTitle($titleId: Uuid!) {\n    deleteTitle(titleId: $titleId) {\n      titleId\n    }\n  }\n": types.DeleteTitleDocument,
@@ -491,7 +495,15 @@ export function graphql(source: "\n  mutation DeleteWork($workId: Uuid!) {\n    
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation MoveSetRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n"): (typeof documents)["\n  mutation MoveSetRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n"];
+export function graphql(source: "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n"): (typeof documents)["\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation AddBookToSet($data: NewWorkRelation!) {\n    createWorkRelation(data: $data) {\n      workRelationId\n    }\n  }\n"): (typeof documents)["\n  mutation AddBookToSet($data: NewWorkRelation!) {\n    createWorkRelation(data: $data) {\n      workRelationId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteBookFromSet($workRelationId: Uuid!) {\n    deleteWorkRelation(workRelationId: $workRelationId) {\n      workRelationId\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteBookFromSet($workRelationId: Uuid!) {\n    deleteWorkRelation(workRelationId: $workRelationId) {\n      workRelationId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -504,6 +516,10 @@ export function graphql(source: "\n  query GetSet($workId: Uuid!, $markupFormat:
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  query GetSetsCount($publishers: [Uuid!]!) {\n    workCount(publishers: $publishers, workTypes: [BOOK_SET])\n  }\n"): (typeof documents)["\n  query GetSetsCount($publishers: [Uuid!]!) {\n    workCount(publishers: $publishers, workTypes: [BOOK_SET])\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GetBookSetWorks($setId: Uuid!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    work(workId: $setId) {\n      relations(relationTypes: HAS_PART, order: { field: WORK_RELATION_ID, direction: DESC }) {\n        relationOrdinal\n        workRelationId\n        relatedWorkId\n        relatedWork {\n          titles(markupFormat: $markupFormat) {\n            canonical\n            fullTitle\n            localeCode\n            subtitle\n            title\n            titleId\n          }\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetBookSetWorks($setId: Uuid!, $markupFormat: MarkupFormat = PLAIN_TEXT) {\n    work(workId: $setId) {\n      relations(relationTypes: HAS_PART, order: { field: WORK_RELATION_ID, direction: DESC }) {\n        relationOrdinal\n        workRelationId\n        relatedWorkId\n        relatedWork {\n          titles(markupFormat: $markupFormat) {\n            canonical\n            fullTitle\n            localeCode\n            subtitle\n            title\n            titleId\n          }\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -524,10 +540,6 @@ export function graphql(source: "\n  mutation MoveSubject($subjectId: Uuid!, $ne
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n"): (typeof documents)["\n  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {\n    moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {\n      workRelationId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

@@ -24,9 +24,25 @@ export const DELETE_SET = graphql(`
   }
 `);
 
-export const MOVE_SET_RELATION = graphql(`
-  mutation MoveSetRelation($workRelationId: Uuid!, $newOrdinal: Int!) {
+export const MOVE_BOOK_IN_SET = graphql(`
+  mutation MoveWorkRelation($workRelationId: Uuid!, $newOrdinal: Int!) {
     moveWorkRelation(workRelationId: $workRelationId, newOrdinal: $newOrdinal) {
+      workRelationId
+    }
+  }
+`);
+
+export const ADD_BOOK_TO_SET = graphql(`
+  mutation AddBookToSet($data: NewWorkRelation!) {
+    createWorkRelation(data: $data) {
+      workRelationId
+    }
+  }
+`);
+
+export const DELETE_BOOK_FROM_SET = graphql(`
+  mutation DeleteBookFromSet($workRelationId: Uuid!) {
+    deleteWorkRelation(workRelationId: $workRelationId) {
       workRelationId
     }
   }

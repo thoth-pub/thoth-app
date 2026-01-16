@@ -9,12 +9,14 @@ import { FormFieldOption, getMainTitle, LocaleCodeType, QueryKeys, TitleEntity }
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { CloseButton, MarkdownRenderer, MultipleContentWrapper, Typography } from '@/src/shared/ui';
 
-type EditSetFormProps = {
+import { SetBooksList } from './components/SetBooksList';
+
+type EditSetProps = {
   setId: SetId;
   imprintOptions: FormFieldOption[];
 };
 
-export const EditSetForm = (props: EditSetFormProps) => {
+const EditSet = (props: EditSetProps) => {
   const { setId, imprintOptions } = props;
 
   const { close } = useSetStateMachine();
@@ -100,6 +102,9 @@ export const EditSetForm = (props: EditSetFormProps) => {
         <EditSetTitle set={set} onSubmit={updateTitles} onDelete={deleteTitle} />
         <EditSetImprint imprintId={set.imprintId} imprintOptions={imprintOptions} onSubmit={updateImprint} />
       </div>
+      <SetBooksList setId={setId} />
     </MultipleContentWrapper>
   );
 };
+
+export default EditSet;

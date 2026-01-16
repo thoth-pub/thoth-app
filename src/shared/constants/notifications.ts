@@ -88,4 +88,7 @@ export const NOTIFICATIONS = {
   SET_CREATION_FAILED: 'Failed to create set',
   SET_UPDATE_FAILED: 'Failed to update set',
   SET_DELETE_FAILED: 'Failed to delete set',
+  SET_ADD_TO_FAILED: 'Failed to add book to set',
+  SET_DELETE_FROM_FAILED: 'Failed to delete book from set',
+  SET_MOVE_RELATION_FAILED: 'Failed to change book order in set',
 } as const;
