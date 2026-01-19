@@ -37,4 +37,6 @@ export const QueryKeys = {
   setsCount: 'setsCount',
   set: 'set',
   bookSetWorks: 'bookSetWorks',
+  // METADATA
+  metadata: 'metadata',
 } as const;

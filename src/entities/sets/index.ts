@@ -4,11 +4,11 @@ export * from './api/hooks/useBookSetWorks';
 export * from './api/hooks/useCreateSet';
 export * from './api/hooks/useDeleteFromSet';
 export * from './api/hooks/useDeleteSet';
+export * from './api/hooks/useMoveSetRelation';
 export * from './api/hooks/useSet';
 export * from './api/hooks/useSets';
 export * from './api/hooks/useSetsCount';
 export * from './api/hooks/useUpdateSet';
-export * from './api/hooks/useMoveSetRelation';
 
 // STORE
 export * from './store/hooks/useSetStateMachine';

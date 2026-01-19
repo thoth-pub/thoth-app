@@ -12,6 +12,7 @@ export const appConfig = {
   thothLink: 'https://thoth.pub/',
   cc4Link: 'https://creativecommons.org/licenses/by/4.0/',
   publicDomainLink: 'https://creativecommons.org/public-domain/cc0/',
+  metaDataPrefix: 'https://export.thoth.pub/specifications/',
   supportedFileTypes: ['image/png', 'image/jpeg', 'image/jpg'],
   data: {
     itemsPerRequestLimit: 20,

@@ -20,6 +20,7 @@ export * from './helpers/isValidUUID';
 export * from './helpers/pages';
 export * from './helpers/protocolPrefix';
 export * from './helpers/truncateString';
+export * from './metadata';
 export * from './publications';
 export * from './publishers';
 export * from './styles';

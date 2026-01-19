@@ -11,6 +11,7 @@ import { ImprintService } from '@/src/entities/imprint';
 import { InstitutionService } from '@/src/entities/institution';
 import { LanguageService } from '@/src/entities/language/api/service';
 import { LocationService } from '@/src/entities/locations/api/location.service';
+import { MetadataService } from '@/src/entities/metadata/api/metadata.service';
 import { PriceService } from '@/src/entities/price/api/price.service';
 import { PublicationService } from '@/src/entities/publication/api/publication.service';
 import { PublisherService } from '@/src/entities/publisher/api/publisher.service';
@@ -41,6 +42,7 @@ type ServicesMap = {
   institutionService: InstitutionService;
   languageService: LanguageService;
   notificationService: NotificationService;
+  metadataService: MetadataService;
 };
 
 const defaultServices: ServicesMap = {
@@ -62,6 +64,7 @@ const defaultServices: ServicesMap = {
   institutionService: new InstitutionService(),
   languageService: new LanguageService(),
   notificationService: new NotificationService(),
+  metadataService: new MetadataService(),
 };
 
 const ServicesContext = createContext({

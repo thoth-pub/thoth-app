@@ -3,10 +3,12 @@
 import AddToPhotosIcon from '@mui/icons-material/AddToPhotos';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import PlusOneIcon from '@mui/icons-material/PlusOne';
+import SaveAltIcon from '@mui/icons-material/SaveAlt';
 import TranslateIcon from '@mui/icons-material/Translate';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
 import { useState } from 'react';
 
+import { MetadataModal, useMetaData } from '@/src/entities/metadata';
 import {
   useCreateNewWorkEdition,
   useCreateWorkTranslation,
@@ -39,7 +41,9 @@ const { BASIC_DETAILS, DESCRIPTIONS, CONTRIBUTIONS, FUNDINGS } = ANCHORS;
 const WorkSpeedDial = (props: WorkSpeedDialProps) => {
   const { workId } = props;
 
+  const { data: metadata } = useMetaData(workId);
   const [openAddVolume, setOpenAddVolume] = useState(false);
+  const [openMetaDialog, setOpenMetaDialog] = useState(false);
 
   const {
     isAllInformationFilled,
@@ -106,6 +110,15 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
     });
   }
 
+  const isMetaDataEmpty = Object.values(metadata).every((value) => Object.values(value).every((data) => data.status === 'error'));
+
+  if (Object.keys(metadata).length > 0 && !isMetaDataEmpty) {
+    actions.push({
+      icon: <SaveAltIcon color="primary" onClick={() => setOpenMetaDialog(true)} />,
+      name: 'Metadata',
+    },);
+  }
+
   return (
     <>
       <SpeedDial
@@ -127,57 +140,58 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
               tooltip:
                 action.name === 'Recommendations'
                   ? {
-                      title: (
-                        <ul className="flex flex-col gap-2 p-0 text-black">
-                          <Typography variant="body2" component="li">
-                            <a href={`#${BASIC_DETAILS}`}>
-                              <DataIndicator
-                                isEmpty={isBasicDetailsSectionEmpty}
-                                isValid={isBasicDetailsSectionFilled}
-                                sx={{ ...buttonItemStyle }}
-                              />
-                              Basic details
-                            </a>
-                          </Typography>
-                          <Typography variant="body2" component="li">
-                            <a href={`#${CONTRIBUTIONS}`}>
-                              <DataIndicator
-                                isEmpty={isContributionsEmpty}
-                                isValid={!isContributionsRequired}
-                                sx={{ ...buttonItemStyle }}
-                              />
-                              Contributions
-                            </a>
-                          </Typography>
-                          <Typography variant="body2" component="li">
-                            <a href={`#${DESCRIPTIONS}`}>
-                              <DataIndicator
-                                isEmpty={isDescriptionsSectionEmpty}
-                                isValid={isDescriptionsSectionFilled}
-                                sx={{ ...buttonItemStyle }}
-                              />
-                              Descriptions
-                            </a>
-                          </Typography>
-                          <Typography variant="body2" component="li">
-                            <a href={`#${FUNDINGS}`}>
-                              <DataIndicator
-                                isEmpty={isFundingsEmpty}
-                                isValid={!isFundingsRequired}
-                                sx={{ ...buttonItemStyle }}
-                              />
-                              Fundings
-                            </a>
-                          </Typography>
-                        </ul>
-                      ),
-                    }
+                    title: (
+                      <ul className="flex flex-col gap-2 p-0 text-black">
+                        <Typography variant="body2" component="li">
+                          <a href={`#${BASIC_DETAILS}`}>
+                            <DataIndicator
+                              isEmpty={isBasicDetailsSectionEmpty}
+                              isValid={isBasicDetailsSectionFilled}
+                              sx={{ ...buttonItemStyle }}
+                            />
+                            Basic details
+                          </a>
+                        </Typography>
+                        <Typography variant="body2" component="li">
+                          <a href={`#${CONTRIBUTIONS}`}>
+                            <DataIndicator
+                              isEmpty={isContributionsEmpty}
+                              isValid={!isContributionsRequired}
+                              sx={{ ...buttonItemStyle }}
+                            />
+                            Contributions
+                          </a>
+                        </Typography>
+                        <Typography variant="body2" component="li">
+                          <a href={`#${DESCRIPTIONS}`}>
+                            <DataIndicator
+                              isEmpty={isDescriptionsSectionEmpty}
+                              isValid={isDescriptionsSectionFilled}
+                              sx={{ ...buttonItemStyle }}
+                            />
+                            Descriptions
+                          </a>
+                        </Typography>
+                        <Typography variant="body2" component="li">
+                          <a href={`#${FUNDINGS}`}>
+                            <DataIndicator
+                              isEmpty={isFundingsEmpty}
+                              isValid={!isFundingsRequired}
+                              sx={{ ...buttonItemStyle }}
+                            />
+                            Fundings
+                          </a>
+                        </Typography>
+                      </ul>
+                    ),
+                  }
                   : { open: true, title: action.name },
             }}
           />
         ))}
       </SpeedDial>
       <AddVolume workId={workId} open={openAddVolume} onClose={() => setOpenAddVolume(false)} />
+      <MetadataModal open={openMetaDialog} workId={workId} onClose={() => setOpenMetaDialog(false)} />
     </>
   );
 };
