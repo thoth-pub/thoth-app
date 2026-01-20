@@ -196,6 +196,10 @@ export const theme = createTheme({
             height: '10px',
             textTransform: 'capitalize',
           },
+
+          '& .MuiInputAdornment-root': {
+            marginRight: '0',
+          }
         },
       },
     },

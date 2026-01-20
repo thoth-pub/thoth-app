@@ -22,7 +22,7 @@ export const EditImprint = ({ workId, imprintOptions, recommended = false }: Edi
   const placeValue = work?.place ?? '';
   const showIndicator = recommended && !value;
 
-  const placeholder = placeValue.length > 0 ? `${placeValue} : ${value}` : value;
+  const placeholder = placeValue.length > 0 ? `${placeValue} ${value}` : value;
 
   const updateImprint = ({ imprintId, place }: ImprintForm) => {
     updateWork({ ...work, imprintId, place: place ?? '' });

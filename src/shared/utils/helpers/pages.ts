@@ -6,7 +6,7 @@ export const getPagesPlaceholder = (firstPage: string, lastPage: string, pageCou
   }
 
   if (lastPage.length > 0 && result.length > 0) {
-    result += ` \u2014 ${lastPage}`;
+    result += `–${lastPage}`;
   }
 
   if (lastPage.length > 0 && result.length === 0) {

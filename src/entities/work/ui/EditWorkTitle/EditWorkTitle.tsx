@@ -50,7 +50,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
   const { updateTitle } = useUpdateTitle();
   const { deleteTitle } = useDeleteTitle(workId);
 
-  const placeholder = getMainTitle(work.titles).title;
+  const placeholder = getMainTitle(work.titles).fullTitle;
   const showIndicator = recommended && !placeholder;
 
   const titlesDefaultValues = work.titles.map(({ id, title, subtitle, localeCode }) => ({

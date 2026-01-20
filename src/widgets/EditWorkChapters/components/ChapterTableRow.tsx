@@ -63,7 +63,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
                 isDisabled={totalChaptersCount < appConfig.minItemsCountForDragAndDrop}
                 listeners={listeners}
               />
-              <Typography component="span">
+              <Typography component="span" className="normal-case">
                 <MarkdownRenderer markdown={getMainTitle(titles).title} />
               </Typography>
             </div>

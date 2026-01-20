@@ -30,6 +30,7 @@ const {
   MARKDOWN_FORMAT,
   COPYRIGHT_HOLDER,
   LANDING_PAGE,
+  INTERNAL_ID,
   COVER_URL,
   SUBTITLE,
   LANGUAGE,
@@ -142,6 +143,10 @@ export const workTypeValidationSchema = z.object({
 export const imprintValidationSchema = z.object({
   [IMPRINT.name]: imprintValidation,
   [PLACE.name]: optionalStringValidation,
+});
+
+export const internalIdValidationSchema = z.object({
+  [INTERNAL_ID.name]: optionalStringValidation,
 });
 
 export const landingPageValidationSchema = z.object({

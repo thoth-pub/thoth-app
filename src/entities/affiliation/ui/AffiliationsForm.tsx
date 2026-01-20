@@ -83,7 +83,7 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
                         <PreviewItem
                           key={id}
                           id={id}
-                          text={`${position} ${label}`}
+                          text={`${position}, ${label}`}
                           totalItemsCount={defaultValues.length}
                         />
                       ))}

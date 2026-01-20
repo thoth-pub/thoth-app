@@ -46,7 +46,7 @@ const EditPublicationDate = (props: EditPublicationDateProps) => {
           <InputLabel>{PUBLICATION_DATE.label}</InputLabel>
           <div className="group flex items-center gap-1">
             <Typography>{data?.publicationDate ? convertDateToFormattedDate(data.publicationDate) : ''}</Typography>
-            <EditButton disabled={disabled} onClick={onEdit} className="opacity-0 group-hover:opacity-100" />
+            <EditButton disabled={disabled} onClick={onEdit} className="ml-auto opacity-0 group-hover:opacity-100" />
           </div>
         </div>
       )}

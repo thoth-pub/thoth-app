@@ -85,6 +85,12 @@ export const FORM_FIELDS = {
     type: InputTypes.URL,
     defaultValue: '',
   },
+  INTERNAL_ID: {
+    label: 'Internal ID',
+    name: 'internalId',
+    placeholder: 'Internal ID',
+    type: InputTypes.TEXT,
+  },
   LANDING_PAGE: {
     label: 'Landing Page URL',
     name: 'landingPage',

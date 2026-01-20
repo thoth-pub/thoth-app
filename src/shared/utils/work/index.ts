@@ -62,6 +62,7 @@ export const getDefaultWork = (data?: Partial<WorkEntity>): WorkEntity => {
     pageCount: 0,
     frontmatterCount: 0,
     backmatterCount: 0,
+    reference: '',
     lastPage: '',
     firstPage: '',
     languages: [],

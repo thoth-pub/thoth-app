@@ -90,7 +90,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       status: workStatus,
       edition,
       license: license ?? null,
-      reference: reference ?? null,
+      reference: reference ?? '',
       copyrightHolder,
       landingPage,
       coverUrl,
@@ -259,6 +259,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       firstPage,
       lastPage,
       place,
+      reference,
     } = entity;
     const defaultEdition = edition ?? 1;
 
@@ -296,6 +297,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       lastPage: lastPage && lastPage.length > 0 ? lastPage : null,
       pageBreakdown: pageBreakdownValue.length > 0 ? pageBreakdownValue : null,
       place: place && place.length > 0 ? place : null,
+      reference: reference && reference.length > 0 ? reference : null,
     };
   }
 

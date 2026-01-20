@@ -72,7 +72,7 @@ export type WorkEntity = {
   coverUrl?: string | null;
   publicationDate: string | null;
   withdrawnDate: string | null;
-  reference?: string | null;
+  reference: string;
   contributions: WorkContribution[];
   imageCount: number;
   tableCount: number;

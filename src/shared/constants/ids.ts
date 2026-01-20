@@ -20,6 +20,7 @@ export const IDs = {
   WORK_SHORT_ABSTRACT: 'work_short_abstract',
   WORK_LCCN: 'work_lccn',
   WORK_OCLC: 'work_oclc',
+  WORK_INTERNAL_ID: 'work_internal_id',
   // CONTRIBUTIONS
   CONTRIBUTOR_NAMES: 'contributor_names',
   CONTRIBUTOR_TYPE: 'contributor_type',

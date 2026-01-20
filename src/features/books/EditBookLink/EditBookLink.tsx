@@ -4,12 +4,10 @@ import NextLink from 'next/link';
 import removeMd from 'remove-markdown';
 
 import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
-import { useWorkRecommendations } from '@/src/entities/work';
 import type { WorkStatus } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, getMainTitle, ROUTES, TitleEntity } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
 import { Chip, DashboardContentWrapper, Typography } from '@/src/shared/ui';
-import DataIndicator from '@/src/shared/ui/core/DataIndicator/DataIndicator';
 
 type EditBookLinkProps = {
   titles: TitleEntity[];
@@ -23,7 +21,6 @@ type EditBookLinkProps = {
 const EditBookLink = ({ titles, id, status, type, image = '', contributions }: EditBookLinkProps) => {
   const convertedType = convertOptionToString(type);
 
-  const { isAllInformationFilled, isEmpty } = useWorkRecommendations({ workId: id });
   const isDesktop = useIsDesktop();
 
   const mainContributor = contributions.find(({ isMain }) => isMain)?.fullName ?? '';
@@ -56,21 +53,6 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
               <Typography variant="h2" component="h3" className="grow truncate">
                 {removeMd(getMainTitle(titles).title)}
               </Typography>
-              <DataIndicator
-                isEmpty={isEmpty}
-                isValid={isAllInformationFilled}
-                component="div"
-                indicatorClassName="h-[10px] w-[10px] xl:h-5 xl:w-5"
-                className="shrink-0 p-0"
-                sx={{
-                  minWidth: '20px',
-                  minHeight: '20px',
-                  marginBottom: 'auto',
-                  '&.MuiButtonBase-root.MuiButton-root:hover': {
-                    boxShadow: 'none',
-                  },
-                }}
-              />
             </div>
             <div className="mt-auto flex flex-col gap-1">
               <Typography className="max-w-[240px] truncate xl:max-w-[360px]">{mainContributor}</Typography>

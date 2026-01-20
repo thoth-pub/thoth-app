@@ -68,4 +68,5 @@ export const HELPER_TEXT = {
   WORK_SERIES_ORDINAL: 'Enter the volume number of the work in the series.',
   WORK_LANGUAGE: 'Choose the language of the work.',
   WORK_LANGUAGE_RELATION: 'Choose the language relation of the work.',
+  WORK_INTERNAL_ID: 'Enter the internal ID of the work.',
 };

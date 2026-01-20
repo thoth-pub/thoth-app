@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import {
   type BaseEditSectionProps,
   getDateInFuture,
@@ -26,14 +28,22 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
   const { translations } = useWorkTranslations(workId);
   const { translatedWorks } = useTranslatedWorks(workId);
 
+  const [pendingStatus, setPendingStatus] = useState<WorkStatus | null>(null);
+
   const isPublicationDateDisabled = !isPublicationDateAvailable(work.status);
   const isWithdrawnDateRequired = isSupersededOrWithdrawn(work.status);
   const minDate = isPublicationDateShouldBeInFuture(work.status) ? getDateInFuture(0) : undefined;
 
-  const changeWorkStatus = async (workStatus: WorkStatus) => {
-    const isPublicationDateDisabled = !isPublicationDateAvailable(workStatus);
-    const isDateRequired = isPublicationDateRequired(workStatus);
-    const isWithdrawnDateRequired = isSupersededOrWithdrawn(workStatus);
+  const declineWorkStatusChange = () => {
+    setPendingStatus(null);
+  };
+
+  const applyWorkStatusChange = async () => {
+    if (!pendingStatus) return;
+
+    const isPublicationDateDisabled = !isPublicationDateAvailable(pendingStatus);
+    const isDateRequired = isPublicationDateRequired(pendingStatus);
+    const isWithdrawnDateRequired = isSupersededOrWithdrawn(pendingStatus);
 
     let publicationDate = isPublicationDateDisabled ? null : work.publicationDate;
     let withdrawnDate = isWithdrawnDateRequired ? work.withdrawnDate : null;
@@ -48,7 +58,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
 
     updateWork({
       ...work,
-      status: workStatus,
+      status: pendingStatus,
       publicationDate,
       withdrawnDate,
     });
@@ -56,13 +66,18 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
     const promises = chapters.map(async (chapter) => {
       return updateWork({
         ...chapter,
-        status: workStatus,
+        status: pendingStatus,
         publicationDate,
         withdrawnDate,
       });
     });
 
     await Promise.all(promises);
+    setPendingStatus(null);
+  }
+
+  const changeWorkStatus = async (workStatus: WorkStatus) => {
+    setPendingStatus(workStatus);
   };
 
   const changePublicationDate = async (publicationDate: string) => {
@@ -101,7 +116,6 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
 
   return {
     title: getMainTitle(work.titles).title,
-    id: work.reference,
     publicationDate: work.publicationDate,
     withdrawnDate: work.withdrawnDate,
     status: work.status,
@@ -114,9 +128,13 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
     translations,
     translatedWorks,
     workSet,
+    showChangeStatusModal: !!pendingStatus,
+    pendingStatus,
+    applyWorkStatusChange,
     changeWorkStatus,
     changePublicationDate,
     changeWithdrawnDate,
+    declineWorkStatusChange
   };
 };
 

@@ -8,7 +8,7 @@ import TranslateIcon from '@mui/icons-material/Translate';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
 import { useState } from 'react';
 
-import { MetadataModal, useMetaData } from '@/src/entities/metadata';
+import { MetadataModal } from '@/src/entities/metadata';
 import {
   useCreateNewWorkEdition,
   useCreateWorkTranslation,
@@ -41,7 +41,6 @@ const { BASIC_DETAILS, DESCRIPTIONS, CONTRIBUTIONS, FUNDINGS } = ANCHORS;
 const WorkSpeedDial = (props: WorkSpeedDialProps) => {
   const { workId } = props;
 
-  const { data: metadata } = useMetaData(workId);
   const [openAddVolume, setOpenAddVolume] = useState(false);
   const [openMetaDialog, setOpenMetaDialog] = useState(false);
 
@@ -101,6 +100,10 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
       icon: <TranslateIcon color="primary" onClick={onCreateTranslation} />,
       name: 'Translation',
     },
+    {
+      icon: <SaveAltIcon color="primary" onClick={() => setOpenMetaDialog(true)} />,
+      name: 'Metadata',
+    },
   ];
 
   if (workSet.length === 0) {
@@ -108,15 +111,6 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
       icon: <AddToPhotosIcon color="primary" onClick={addToSet} />,
       name: 'Extend',
     });
-  }
-
-  const isMetaDataEmpty = Object.values(metadata).every((value) => Object.values(value).every((data) => data.status === 'error'));
-
-  if (Object.keys(metadata).length > 0 && !isMetaDataEmpty) {
-    actions.push({
-      icon: <SaveAltIcon color="primary" onClick={() => setOpenMetaDialog(true)} />,
-      name: 'Metadata',
-    },);
   }
 
   return (
