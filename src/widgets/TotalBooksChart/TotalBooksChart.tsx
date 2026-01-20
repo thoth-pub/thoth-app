@@ -52,7 +52,7 @@ const TotalBooksChart = () => {
       <ChartWrapper>
         <div className="flex flex-col justify-between">
           <Typography component="h2" variant="h2" className="mb-2">
-            Catalogue Breakdown
+            catalogue summary
           </Typography>
           <ul className="flex list-disc flex-col gap-1 pl-4 xl:pl-8">
             {publishedBookCount > 0 && (

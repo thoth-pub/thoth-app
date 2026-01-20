@@ -13,6 +13,7 @@ import { FormField } from './FormField';
 
 type FormFieldsProps = {
   control: Control<AffiliationsForm>;
+  isHelperTextVisible?: boolean;
   onDelete?: (id: string) => void;
 };
 
@@ -28,7 +29,7 @@ export const fieldsDefaultValues = {
 };
 
 export const FormFields = (props: FormFieldsProps) => {
-  const { control, onDelete } = props;
+  const { isHelperTextVisible = false, control, onDelete } = props;
 
   const { t } = useTranslation();
 
@@ -77,6 +78,7 @@ export const FormFields = (props: FormFieldsProps) => {
               affiliationFieldName={getAffiliationFieldName(index)}
               positionFieldName={getPositionFieldName(index)}
               onRemove={() => handleRemove(index)}
+              isHelperTextVisible={isHelperTextVisible}
             />
           </li>
         ))}

@@ -149,7 +149,7 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
                               isValid={isBasicDetailsSectionFilled}
                               sx={{ ...buttonItemStyle }}
                             />
-                            Basic details
+                            Core details
                           </a>
                         </Typography>
                         <Typography variant="body2" component="li">

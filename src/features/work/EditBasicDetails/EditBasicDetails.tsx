@@ -33,7 +33,7 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
 
   return (
     <RecommendedSection
-      title="Basic details"
+      title="Core details"
       isEmpty={isBasicDetailsSectionEmpty}
       isValid={isBasicDetailsSectionFilled}
       id={ANCHORS.BASIC_DETAILS}

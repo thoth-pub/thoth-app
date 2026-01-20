@@ -20,6 +20,7 @@ type PreviewProps = {
   editButtonClassName?: string;
   capitalize?: boolean;
   tooltip?: string;
+  addButtonText?: string;
   onEdit?: () => void;
 };
 
@@ -33,6 +34,7 @@ const Preview = (props: PreviewProps) => {
     capitalize = false,
     tooltip,
     editButtonClassName,
+    addButtonText,
     onEdit,
   } = props;
 
@@ -54,7 +56,7 @@ const Preview = (props: PreviewProps) => {
               textTransform: 'capitalize',
             }}
           >
-            {t('add')} {label}
+            {t('add')} {addButtonText ?? label}
           </Button>
         )}
         {value && (

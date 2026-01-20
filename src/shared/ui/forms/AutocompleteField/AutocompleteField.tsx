@@ -28,6 +28,8 @@ const AutocompleteField = <T extends FieldValues>(props: AutocompleteFieldProps<
     icon,
     freeSolo = false,
     variant,
+    isHelperTextVisible = false,
+    helperText,
     ...restProps
   } = props;
 
@@ -52,6 +54,7 @@ const AutocompleteField = <T extends FieldValues>(props: AutocompleteFieldProps<
               <TextField
                 {...params}
                 variant={variant}
+                helperText={isHelperTextVisible ? helperText : undefined}
                 slotProps={{ input: { ...params.InputProps, startAdornment: icon } }}
               />
             )}

@@ -81,7 +81,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
       }}
       validationSchema={issueValidationSchema}
       onSubmit={editIssue}
-      formFields={({ control, setValue }) => (
+      formFields={({ control, setValue, isHelperTextVisible }) => (
         <FormFields
           control={control}
           options={options}
@@ -90,6 +90,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
           onChange={setSearchValue}
           onDelete={deleteExistingIssue}
           setValue={setValue}
+          isHelperTextVisible={isHelperTextVisible}
         />
       )}
       preview={({ disabled, onEdit }) => (

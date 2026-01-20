@@ -8,7 +8,7 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 import { doiValidationSchema } from '../../model/reference.validation';
 
 const { DOI } = FORM_FIELDS;
-const { REFERENCE_URL: DOI_HELPER_TEXT } = HELPER_TEXT;
+const { REFERENCE_DOI } = HELPER_TEXT;
 
 type EditReferenceDoiProps = {
   defaultValue?: string;
@@ -33,7 +33,7 @@ export const EditReferenceDoi = (props: EditReferenceDoiProps) => {
             control={control}
             name={DOI.name}
             id={DOI.name}
-            helperText={DOI_HELPER_TEXT}
+            helperText={REFERENCE_DOI}
             isHelperTextVisible={isHelperTextVisible}
             isDoiField
           />

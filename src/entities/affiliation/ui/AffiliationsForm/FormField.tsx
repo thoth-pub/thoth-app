@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { type Control } from 'react-hook-form';
 
 import { useInstitutions } from '@/src/entities/institution';
-import { appConfig, convertEntityToSelectFieldOptions } from '@/src/shared';
+import { appConfig, convertEntityToSelectFieldOptions, HELPER_TEXT } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
@@ -26,10 +26,11 @@ type FormFieldProps = {
   control: Control<AffiliationsForm>;
   affiliationFieldName: string;
   positionFieldName: string;
+  isHelperTextVisible?: boolean;
   onRemove: () => void;
 };
 
-export const FormField = ({ control, affiliationFieldName, positionFieldName, onRemove }: FormFieldProps) => {
+export const FormField = ({ control, affiliationFieldName, positionFieldName, isHelperTextVisible = false, onRemove }: FormFieldProps) => {
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { institutions = [], loading } = useInstitutions({ filter: debouncedValue });
@@ -50,6 +51,8 @@ export const FormField = ({ control, affiliationFieldName, positionFieldName, on
             options={options}
             onInputChange={(_, value) => setSearchValue(value)}
             loading={loading}
+            helperText={HELPER_TEXT.CONTRIBUTOR_AFFILIATION}
+            isHelperTextVisible={isHelperTextVisible}
             icon={
               <InputAdornment position="start">
                 <SearchIcon color="primary" />
@@ -66,6 +69,8 @@ export const FormField = ({ control, affiliationFieldName, positionFieldName, on
           fullWidth
           name={positionFieldName}
           control={control}
+          helperText={HELPER_TEXT.CONTRIBUTOR_AFFILIATION_POSITION}
+          isHelperTextVisible={isHelperTextVisible}
         />
       </FormFieldWrapper>
     </>

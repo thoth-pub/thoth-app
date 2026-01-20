@@ -52,8 +52,8 @@ const LanguagesForm = (props: LanguagesFormProps) => {
       validationSchema={languagesValidationSchema}
       onSubmit={(data) => onUpdate?.(data)}
       defaultValues={{ [LANGUAGES.name]: defaultValues }}
-      formFields={({ control }) => (
-        <FormFields control={control as unknown as Control<LanguagesFormType>} onDelete={onDelete} onClose={onClose} />
+      formFields={({ control, isHelperTextVisible }) => (
+        <FormFields isHelperTextVisible={isHelperTextVisible} control={control as unknown as Control<LanguagesFormType>} onDelete={onDelete} onClose={onClose} />
       )}
       preview={({ disabled, onEdit }) => (
         <Preview

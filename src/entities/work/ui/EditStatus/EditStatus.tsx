@@ -64,7 +64,7 @@ const EditStatus = (props: EditStatusProps) => {
             options={availableNewStatusOptions}
             helperText={WORK_STATUS_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
-            className="h-10"
+            className="min-h-10"
             disabled={isFieldDisable}
           />
         </div>

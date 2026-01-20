@@ -19,7 +19,7 @@ const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
   const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
 
   return (
-    <RecommendedSection title="Basic details" isEmpty={false} isValid={!isDoiRequired && !isLandingPageRequired}>
+    <RecommendedSection title="Core details" isEmpty={false} isValid={!isDoiRequired && !isLandingPageRequired}>
       {({ showRecommendations }) => (
         <div>
           {!isMultipleChaptersEdit && (

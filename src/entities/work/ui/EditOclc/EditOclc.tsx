@@ -1,7 +1,7 @@
 'use client';
 
 import { useWork } from '@/src/entities/work';
-import { type BaseEditSectionProps, IDs } from '@/src/shared';
+import { type BaseEditSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -10,6 +10,7 @@ import type { OclcForm } from '../../model/work.types';
 import { oclcValidationSchema } from '../../model/work.validation';
 
 const { OCLC } = FORM_FIELDS;
+const { WORK_OCLC } = HELPER_TEXT;
 
 const EditLccn = (props: BaseEditSectionProps) => {
   const { workId } = props;
@@ -28,10 +29,10 @@ const EditLccn = (props: BaseEditSectionProps) => {
       defaultValues={{ [OCLC.name]: oclcValue }}
       validationSchema={oclcValidationSchema}
       onSubmit={updateOclc}
-      formFields={({ control }) => (
+      formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={OCLC.label} id={OCLC.name} />
-          <FormTextField control={control} name={OCLC.name} id={OCLC.name} />
+          <FormTextField control={control} name={OCLC.name} id={OCLC.name} helperText={WORK_OCLC} isHelperTextVisible={isHelperTextVisible} />
         </ContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (

@@ -139,7 +139,7 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   WORK_ABSTRACTS: {
-    label: 'Abstracts',
+    label: 'Abstract',
     name: 'abstracts',
   },
   WORK_ABSTRACT: {
@@ -228,7 +228,7 @@ export const FORM_FIELDS = {
   },
   BIOGRAPHIES: {
     name: 'biographies',
-    label: 'Biographies',
+    label: 'Biography',
   },
   CONTRIBUTOR_BIOGRAPHY: {
     label: 'Biography',
@@ -273,7 +273,7 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   AFFILIATIONS: {
-    label: 'Affiliations',
+    label: 'Affiliation',
     name: 'affiliations',
   },
   POSITION: {
@@ -586,9 +586,9 @@ export const FORM_FIELDS = {
     placeholder: 'Imprint',
   },
   ISSUE_ORDINAL: {
-    label: 'Ordinal',
+    label: 'Number',
     name: 'ordinal',
-    placeholder: 'Ordinal',
+    placeholder: 'Number',
     type: InputTypes.NUMBER,
   },
   BULK_UPLOAD: {

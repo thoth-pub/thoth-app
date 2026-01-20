@@ -93,7 +93,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
           onClose={onClose}
           onInfo={handleShowInfo}
           className="items-end gap-1 bg-transparent p-0"
-          controlsClassName={showInfo ? 'my-auto' : 'mb-2.5 lg:mb-1'}
+          controlsClassName={showInfo ? 'm-0 self-start mt-6' : 'mb-2.5 xl:mb-1'}
         >
           {({ control, reset, setValue }) => formFields({ control, isHelperTextVisible: showInfo, reset, setValue })}
         </FormWrapper>

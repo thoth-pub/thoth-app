@@ -77,7 +77,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
         <form
           onSubmit={handleSubmitForm}
           className={mergeStyles(
-            `flex gap-1 ${borderTransparent ? '' : 'border-1 border-[var(--color-hover-border)]'} bg-[var(--color-form-background)] ${isTableVariant ? '' : 'rounded-xl p-4'} `,
+            `flex gap-1 ${borderTransparent ? '' : 'border border-(--color-hover-border)'} bg-(--color-form-background) ${isTableVariant ? '' : 'rounded-xl p-4'} `,
             className,
           )}
         >
@@ -94,7 +94,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
           <ModalWrapper>
             <form
               onSubmit={handleSubmitForm}
-              className={mergeStyles('flex gap-1 rounded-xl bg-[var(--color-form-background)] p-4', className)}
+              className={mergeStyles('flex gap-1 rounded-xl bg-(--color-form-background) p-4', className)}
             >
               <div className="grow">{children({ control: control as Control<FieldValues>, reset, setValue })}</div>
               <FormControlGroup
