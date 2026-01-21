@@ -1,6 +1,6 @@
 'use client';
 
-import { type Control, FieldValues, useFieldArray } from 'react-hook-form';
+import { type Control, useFieldArray } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
@@ -14,12 +14,11 @@ import {
   FormFieldWithControlsWrapper,
   LanguageField,
   MarkdownField,
-  MarkdownSwitch,
 } from '@/src/shared/ui';
 
 import type { ContributionBiographyForm } from '../../../model/contribution.types';
 
-const { BIOGRAPHIES, CONTRIBUTOR_BIOGRAPHY, LANGUAGE, MARKDOWN_FORMAT } = FORM_FIELDS;
+const { BIOGRAPHIES, CONTRIBUTOR_BIOGRAPHY, LANGUAGE } = FORM_FIELDS;
 const { CONTRIBUTOR_BIOGRAPHY: CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT } = HELPER_TEXT;
 
 type BiographyFormFieldsProps = {
@@ -97,16 +96,15 @@ export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
                   className="w-full"
                   helperText={isHelperTextVisible ? CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT : ''}
                   disableLineBreaks
-                >
-                  <MarkdownSwitch control={control as unknown as Control<FieldValues>} name={MARKDOWN_FORMAT.name} />
-                </MarkdownField>
+                  extendedToolbar
+                />
                 {index > 0 && <DeleteButton onClick={() => handleRemove(index)} />}
               </FormFieldWithControlsWrapper>
             </ContentWrapper>
             <ContentWrapper>
               <br />
               <div className="flex flex-col gap-2">
-                <div className="max-w-min">
+                <div className="max-w-min ml-auto">
                   <LanguageField control={control} languageFieldName={getLanguageFieldName(index)} />
                 </div>
                 {index === fields.length - 1 && (

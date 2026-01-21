@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { MarkdownFormat, QueryKeys, useServices } from '@/src/shared';
+import { QueryKeys, useServices } from '@/src/shared';
 import { useQueryToken } from '@/src/shared/hooks';
 
 import { WorkContribution } from '../../model/contribution.types';
@@ -14,13 +14,11 @@ export const useCreateContribution = () => {
     mutationFn: async ({
       data,
       relatedWorkId,
-      markupFormat,
     }: {
       data: WorkContribution;
       relatedWorkId: string;
-      markupFormat: MarkdownFormat;
     }) => {
-      return contributionService.createContribution(queryToken, data, relatedWorkId, markupFormat);
+      return contributionService.createContribution(queryToken, data, relatedWorkId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });

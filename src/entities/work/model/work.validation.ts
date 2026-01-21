@@ -27,7 +27,6 @@ const {
   PUBLICATION_DATE,
   WORK_TITLE,
   EDITION,
-  MARKDOWN_FORMAT,
   COPYRIGHT_HOLDER,
   LANDING_PAGE,
   INTERNAL_ID,
@@ -120,7 +119,6 @@ export const workTitlesValidationSchema = z.object({
       [LANGUAGE.name]: titleLanguageValidation,
     }),
   ),
-  [MARKDOWN_FORMAT.name]: z.boolean().optional(),
   [EDITION.name]: editionValidation,
 });
 
@@ -220,5 +218,4 @@ export const workAbstractsValidationSchema = z.object({
       [LANGUAGE.name]: titleLanguageValidation,
     }),
   ),
-  [MARKDOWN_FORMAT.name]: z.boolean().optional(),
 });

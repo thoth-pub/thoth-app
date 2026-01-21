@@ -1,6 +1,6 @@
 'use client';
 
-import { type Control, FieldValues, useFieldArray } from 'react-hook-form';
+import { type Control, useFieldArray } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
@@ -15,10 +15,9 @@ import {
   FormFieldWithControlsWrapper,
   LanguageField,
   MarkdownField,
-  MarkdownSwitch,
 } from '@/src/shared/ui';
 
-const { TITLES, WORK_TITLE, SUBTITLE, LANGUAGE, MARKDOWN_FORMAT } = FORM_FIELDS;
+const { TITLES, WORK_TITLE, SUBTITLE, LANGUAGE } = FORM_FIELDS;
 const { WORK_TITLE: WORK_TITLE_HELPER_TEXT, SUBTITLE: SUBTITLE_HELPER_TEXT } = HELPER_TEXT;
 
 type TitlesFormFieldsProps = {
@@ -105,11 +104,7 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
                   className="w-full"
                   helperText={isHelperTextVisible ? WORK_TITLE_HELPER_TEXT : ''}
                   disableLineBreaks
-                >
-                  {index === 0 && (
-                    <MarkdownSwitch control={control as unknown as Control<FieldValues>} name={MARKDOWN_FORMAT.name} />
-                  )}
-                </MarkdownField>
+                />
                 {index > 0 && <DeleteButton onClick={() => handleRemove(index)} />}
               </FormFieldWithControlsWrapper>
             </ContentWrapper>
@@ -123,7 +118,7 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
                 disableLineBreaks
               />
               <br />
-              <LanguageField control={control} languageFieldName={getLanguageFieldName(index)} />
+              <LanguageField className="ml-auto" control={control} languageFieldName={getLanguageFieldName(index)} />
             </ContentWrapper>
             {index === fields.length - 1 && (
               <ContentWrapper>

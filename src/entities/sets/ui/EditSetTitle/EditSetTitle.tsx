@@ -2,7 +2,7 @@ import { Control } from 'react-hook-form';
 
 import { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { TitlesFormFields } from '@/src/entities/work/ui/EditWorkTitle/components/TitlesFormFields';
-import { getMainTitle, IDs, isTextContainsAnyMarkdownTag } from '@/src/shared';
+import { getMainTitle, IDs } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import { Chip, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -16,13 +16,9 @@ type EditSetTitleProps = {
   onDelete: (titleId: string) => void;
 };
 
-const { WORK_TITLE, TITLES, SUBTITLE, LANGUAGE, MARKDOWN_FORMAT } = FORM_FIELDS;
+const { WORK_TITLE, TITLES, SUBTITLE, LANGUAGE } = FORM_FIELDS;
 
 export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => {
-  const isAnyTitleContainsMarkdownTag = set.titles.some((title) => isTextContainsAnyMarkdownTag(title.title));
-  const isAnySubtitleContainsMarkdownTag = set.titles.some((title) => isTextContainsAnyMarkdownTag(title.subtitle));
-  const isMarkdownFormat = isAnyTitleContainsMarkdownTag || isAnySubtitleContainsMarkdownTag;
-
   const titlesDefaultValues = set.titles.map(({ id, title, subtitle, localeCode }) => ({
     titleId: id,
     [WORK_TITLE.name]: title,
@@ -31,7 +27,6 @@ export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => 
   }));
   const defaultValues = {
     [TITLES.name]: titlesDefaultValues,
-    [MARKDOWN_FORMAT.name]: isMarkdownFormat,
   };
 
   const placeholder = getMainTitle(set.titles).title;

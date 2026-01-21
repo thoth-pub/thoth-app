@@ -1,6 +1,4 @@
-import { MarkupFormat } from '@/gql/graphql';
 import { FormFieldOption, LocaleCodeType, TitleEntity } from '@/src/shared';
-import { MarkdownFormats } from '@/src/shared/constants/markdown';
 
 import { SetEntity, SetTitleFormType } from '../../model/set.types';
 import EditSetImprint from '../EditSetImprint/EditSetImprint';
@@ -10,7 +8,7 @@ type AddNewSetFormProps = {
   set: SetEntity;
   imprintOptions: FormFieldOption[];
   onUpdateImprint: (imprintId: string) => void;
-  onUpdateTitles: (titles: TitleEntity[], markupFormat: MarkupFormat.JatsXml | MarkupFormat.PlainText) => void;
+  onUpdateTitles: (titles: TitleEntity[]) => void;
   onDeleteTitle: (titleId: string) => void;
 };
 
@@ -22,9 +20,7 @@ export const AddNewSetForm = (props: AddNewSetFormProps) => {
   };
 
   const updateTitles = (data: SetTitleFormType) => {
-    const { titles, markdownFormat } = data;
-
-    const markupFormat = markdownFormat ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+    const { titles } = data;
 
     onUpdateTitles(
       titles.map(({ titleId, workTitle, subtitle = '', language }, index) => ({
@@ -35,7 +31,6 @@ export const AddNewSetForm = (props: AddNewSetFormProps) => {
         canonical: index === 0,
         fullTitle: `${workTitle} ${subtitle}`,
       })),
-      markupFormat,
     );
   };
 

@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { MarkdownFormat, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import { BiographyEntity } from '../../model/contribution.types';
@@ -16,8 +16,8 @@ export const useUpdateBiography = (workId: WorkId) => {
   const { contributionService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async ({ data, markupFormat }: { data: BiographyEntity; markupFormat: MarkdownFormat }) => {
-      return contributionService.updateBiography(queryToken, data, markupFormat);
+    mutationFn: async ({ data }: { data: BiographyEntity }) => {
+      return contributionService.updateBiography(queryToken, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

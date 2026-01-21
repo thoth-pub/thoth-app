@@ -17,7 +17,6 @@ import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { useWork } from '@/src/entities/work';
 import { appConfig, type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, removePrefix } from '@/src/shared';
-import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
@@ -159,15 +158,13 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     });
   };
 
-  const updateBiography = async ({ biographies, markdownFormat = false }: ContributionBiographyForm) => {
+  const updateBiography = async ({ biographies }: ContributionBiographyForm) => {
     if (!contribution) return;
 
     if (onBiographiesUpdate) {
       onBiographiesUpdate({ biographies });
       return;
     }
-
-    const markupFormat = markdownFormat ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
 
     await Promise.all(contribution.biographies.map((biography) => deleteBiography(biography.id)));
 
@@ -183,7 +180,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
     await Promise.all(
       newBiographies.map((biography) =>
-        createBiography({ data: biography, contributionId: contribution.id, markupFormat }),
+        createBiography({ data: biography, contributionId: contribution.id }),
       ),
     );
 

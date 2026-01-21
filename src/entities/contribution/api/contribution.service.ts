@@ -1,5 +1,6 @@
-import { GraphqlService, isDefaultId, MarkdownFormat, PersistentStorage, QueryToken } from '@/src/shared';
+import { GraphqlService, isDefaultId, isTextContainsAnyMarkdownTag, QueryToken } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
+import { MarkdownFormats } from '@/src/shared/constants/markdown';
 
 import { AffiliationService } from '../../affiliation/api/affiliation.service';
 import { ContributorService } from '../../contributor';
@@ -23,27 +24,23 @@ export class ContributionService {
   private readonly contributorService: ContributorService;
   private readonly affiliationService: AffiliationService;
   private readonly biographyDtoMapper: BiographyDtoMapper;
-  private readonly persistentStorage: PersistentStorage;
 
   constructor(
     graphqlService: GraphqlService = new GraphqlService(),
     contributorService: ContributorService = new ContributorService(),
     affiliationService: AffiliationService = new AffiliationService(),
     biographyDtoMapper: BiographyDtoMapper = new BiographyDtoMapper(),
-    persistentStorage: PersistentStorage = new PersistentStorage(),
   ) {
     this.graphqlService = graphqlService;
     this.contributorService = contributorService;
     this.affiliationService = affiliationService;
     this.biographyDtoMapper = biographyDtoMapper;
-    this.persistentStorage = persistentStorage;
   }
 
   async createContribution(
     token: QueryToken,
     data: WorkContribution,
     relatedWorkId: string,
-    markupFormat: MarkdownFormat,
   ): Promise<WorkContribution> {
     const isNewContributor = isDefaultId(data.contributorId);
     let contributorId = data.contributorId;
@@ -81,7 +78,7 @@ export class ContributionService {
     const contribution = response.createContribution;
 
     const biographiesPromises = data.biographies.map((biography) =>
-      this.createBiography(token, biography, contribution.contributionId, markupFormat),
+      this.createBiography(token, biography, contribution.contributionId),
     );
 
     const biographies = await Promise.all(biographiesPromises);
@@ -160,11 +157,9 @@ export class ContributionService {
     token: QueryToken,
     data: BiographyEntity,
     contributionId: ContributionId,
-    markupFormat: MarkdownFormat,
   ): Promise<BiographyEntity> {
     const { biographyId: _, contributionId: _contributionId, ...dto } = this.biographyDtoMapper.toDto(data);
-    
-    await this.persistentStorage.set('markup_format', markupFormat);
+    const markupFormat = isTextContainsAnyMarkdownTag(data.content) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, CREATE_BIOGRAPHY, {
       data: { contributionId, ...dto },
@@ -179,11 +174,9 @@ export class ContributionService {
   async updateBiography(
     token: QueryToken,
     data: BiographyEntity,
-    markupFormat: MarkdownFormat,
   ): Promise<BiographyEntity> {
     const dto = this.biographyDtoMapper.toDto(data);
-
-    await this.persistentStorage.set('markup_format', markupFormat);
+    const markupFormat = isTextContainsAnyMarkdownTag(data.content) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, UPDATE_BIOGRAPHY, {
       data: {

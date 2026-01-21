@@ -1,5 +1,5 @@
 'use client';
-import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
+import EditSquareIcon from '@mui/icons-material/EditSquare';
 import { useRouter } from 'next/navigation';
 
 import { SetId, SetWorkEntity, useBookSetWorks, useDeleteFromSet, useMoveSetRelation } from '@/src/entities/sets';
@@ -69,7 +69,7 @@ export const SetBooksList = ({ setId }: { setId: SetId }) => {
                     </span>
                     <ButtonGroup>
                       <IconButton onClick={() => navigateToWork(workId)}>
-                        <ArrowOutwardIcon />
+                        <EditSquareIcon />
                       </IconButton>
                       <DeleteButton className="ml-auto" onClick={() => deleteFromSet(id)} />
                     </ButtonGroup>

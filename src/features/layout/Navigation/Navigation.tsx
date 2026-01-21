@@ -3,7 +3,6 @@
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
 import ArrowDropDownRoundedIcon from '@mui/icons-material/ArrowDropDownRounded';
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded';
-import PermIdentityRoundedIcon from '@mui/icons-material/PermIdentityRounded';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -99,10 +98,9 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
         <div
           className={`mt-auto flex gap-2 rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)] py-2 ${isExpanded ? 'px-4' : 'h-[2.5rem] w-[2.5rem] px-1.5'}`}
         >
-          <PermIdentityRoundedIcon color="primary" className="m-auto shrink-0" />
           {isExpanded && (
             <div
-              className={`flex max-w-[85%] flex-col gap-1 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
+              className={`flex max-w-full flex-col gap-1 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
             >
               <div className="flex items-center justify-between gap-1">
                 <Typography color="primary" component="span" className="max-w-[85%] truncate font-semibold">

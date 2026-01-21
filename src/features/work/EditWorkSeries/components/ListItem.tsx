@@ -1,6 +1,6 @@
 'use client';
 
-import ArrowOutwardIcon from '@mui/icons-material/ArrowOutward';
+import EditSquareIcon from '@mui/icons-material/EditSquare';
 import { Chip, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
 
@@ -49,7 +49,7 @@ export const ListItem = (props: ListItemProps) => {
           <MarkdownRenderer markdown={name} />
           <ButtonGroup className="ml-auto">
             <IconButton onClick={() => navigateToWork(workId)}>
-              <ArrowOutwardIcon />
+              <EditSquareIcon />
             </IconButton>
             {withDelete && (
               <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />

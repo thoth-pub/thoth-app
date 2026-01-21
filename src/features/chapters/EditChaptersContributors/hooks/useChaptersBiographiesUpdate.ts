@@ -5,7 +5,6 @@ import type { ContributionBiographyForm, WorkContribution } from '@/src/entities
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { appConfig, QueryKeys } from '@/src/shared';
-import { MarkdownFormats } from '@/src/shared/constants/markdown';
 
 import { findAllSameContributions } from '../components/utils';
 
@@ -30,8 +29,6 @@ export const useChaptersBiographiesUpdate = () => {
     const sameContributions = findAllSameContributions(contributionId, chapters, contributions);
     const contributionsToUpdateIds = sameContributions.map((contribution) => contribution.id);
     const updatedContributions: WorkContribution[] = [];
-
-    const markupFormat = data.markdownFormat ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
 
     if (sameContributions.length === 0) return [];
 
@@ -59,7 +56,6 @@ export const useChaptersBiographiesUpdate = () => {
           createBiography({
             data: biography,
             contributionId,
-            markupFormat,
           }),
         ),
       );

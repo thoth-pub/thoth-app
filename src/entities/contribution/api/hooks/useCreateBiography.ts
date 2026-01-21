@@ -2,7 +2,7 @@
 import { useMutation } from '@tanstack/react-query';
 
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
-import { MarkdownFormat, NOTIFICATIONS, useServices } from '@/src/shared';
+import { NOTIFICATIONS, useServices } from '@/src/shared';
 import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import { BiographyEntity } from '../../model/contribution.types';
@@ -18,15 +18,13 @@ export const useCreateBiography = () => {
     mutationFn: async ({
       data,
       contributionId,
-      markupFormat,
     }: {
       data: BiographyEntity;
       contributionId: ContributionId;
-      markupFormat: MarkdownFormat;
     }) => {
-      return contributionService.createBiography(queryToken, data, contributionId, markupFormat);
+      return contributionService.createBiography(queryToken, data, contributionId);
     },
-    onSuccess: () => {},
+    onSuccess: () => { },
     onError: (error) => {
       sendErrorNotification(error?.message ?? BIOGRAPHY_CREATION_FAILED);
     },

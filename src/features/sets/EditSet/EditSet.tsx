@@ -6,7 +6,6 @@ import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachi
 import EditSetImprint from '@/src/entities/sets/ui/EditSetImprint/EditSetImprint';
 import { useCreateTitle, useDeleteTitle, useUpdateTitle } from '@/src/entities/work';
 import { FormFieldOption, getMainTitle, LocaleCodeType, QueryKeys, TitleEntity } from '@/src/shared';
-import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { CloseButton, MarkdownRenderer, MultipleContentWrapper, Typography } from '@/src/shared/ui';
 
 import { SetBooksList } from './components/SetBooksList';
@@ -34,9 +33,8 @@ const EditSet = (props: EditSetProps) => {
   };
 
   const updateTitles = async (data: SetTitleFormType) => {
-    const { titles, markdownFormat } = data;
+    const { titles } = data;
 
-    const markupFormat = markdownFormat ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
     const newTitles = titles.filter((title) => !set.titles.some((setTitle) => setTitle.id === title.titleId));
     const updatedTitles = titles.filter((title) => set.titles.some((setTitle) => setTitle.id === title.titleId));
 
@@ -54,7 +52,6 @@ const EditSet = (props: EditSetProps) => {
             fullTitle: `${workTitle} ${subtitle}`,
           },
           relatedWorkId: set.id,
-          markupFormat,
         }),
       );
     });
@@ -75,7 +72,6 @@ const EditSet = (props: EditSetProps) => {
             fullTitle: `${workTitle} ${subtitle}`,
           },
           relatedWorkId: set.id,
-          markupFormat,
         }),
       );
     });

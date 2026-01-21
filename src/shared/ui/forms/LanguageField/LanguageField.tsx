@@ -6,16 +6,19 @@ import type { ContributionBiographyForm } from '@/src/entities/contribution/mode
 import type { WorkAbstractsForm, WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { languageOptionsAlt } from '@/src/shared/constants/formFields';
 import { AutocompleteField, Typography } from '@/src/shared/ui';
+import { mergeStyles } from '@/src/shared/utils';
 
 type LanguageFieldProps = {
   control: Control<WorkAbstractsForm> | Control<WorkTitlesForm> | Control<ContributionBiographyForm>;
   languageFieldName: string;
+  className?: string;
 };
 
 const LanguageField = (props: LanguageFieldProps) => {
-  const { control, languageFieldName } = props;
+  const { control, languageFieldName, className } = props;
+
   return (
-    <div className="flex grow-0">
+    <div className={mergeStyles('flex grow-0', className)}>
       <Typography color="primary" className="mt-0.75 mr-1 font-semibold xl:mt-auto">
         Language
       </Typography>

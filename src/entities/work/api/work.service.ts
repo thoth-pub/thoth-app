@@ -4,10 +4,7 @@ import {
   AbstractEntity,
   appConfig,
   getDateInFuture,
-  getMarkupFormat,
   isTextContainsAnyMarkdownTag,
-  MarkdownFormat,
-  PersistentStorage,
   SeriesForUpdateItems,
   TitleDto,
   TitleEntity,
@@ -59,7 +56,6 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   private readonly languageService: LanguageService;
   private readonly seriesService: SeriesService;
   private readonly referenceService: ReferenceService;
-  private readonly persistentStorage: PersistentStorage;
 
   constructor(
     mapper = new WorkDtoMapper(),
@@ -70,7 +66,6 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     languageService = new LanguageService(),
     seriesService = new SeriesService(),
     referenceService = new ReferenceService(),
-    persistentStorage = new PersistentStorage(),
   ) {
     super(mapper);
     this.fundingService = fundingService;
@@ -80,7 +75,6 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     this.languageService = languageService;
     this.seriesService = seriesService;
     this.referenceService = referenceService;
-    this.persistentStorage = persistentStorage;
   }
 
   async createWork(token: string, data: WorkEntity): Promise<WorkEntity> {
@@ -95,23 +89,15 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const shouldCreateAbstracts = data.abstracts.length > 0;
     const shouldCreateReferences = data.references.length > 0;
 
-    const preferredMarkupFormat = await this.persistentStorage.get('markup_format');
-    const markupFormat = getMarkupFormat(preferredMarkupFormat);
-
     const response = await this.graphqlService.mutation(token, CREATE_WORK, {
       data: dto,
-      markupFormat,
+      markupFormat: MarkdownFormats.enum.JATS_XML,
     });
 
     const work = this.dtoMapper.toEntity(response.createWork as WorkDto);
 
     if (shouldCreateTitles) {
-      const isSomeTitleContainsMarkdown = data.titles.some((title) => isTextContainsAnyMarkdownTag(title.title));
-      const markupFormat = isSomeTitleContainsMarkdown
-        ? MarkdownFormats.enum.JATS_XML
-        : MarkdownFormats.enum.PLAIN_TEXT;
-
-      const titlesPromises = data.titles.map((title) => this.createTitle(token, title, work.id, markupFormat));
+      const titlesPromises = data.titles.map((title) => this.createTitle(token, title, work.id));
 
       const createdTitles = await Promise.all(titlesPromises);
 
@@ -119,15 +105,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     }
 
     if (shouldCreateAbstracts) {
-      const isSomeAbstractContainsMarkdown = data.abstracts.some((abstract) =>
-        isTextContainsAnyMarkdownTag(abstract.content),
-      );
-      const markupFormat = isSomeAbstractContainsMarkdown
-        ? MarkdownFormats.enum.JATS_XML
-        : MarkdownFormats.enum.PLAIN_TEXT;
-
       const abstractsPromises = data.abstracts.map((abstract) =>
-        this.createAbstract(token, abstract, work.id, markupFormat),
+        this.createAbstract(token, abstract, work.id),
       );
 
       const createdAbstracts = await Promise.all(abstractsPromises);
@@ -156,15 +135,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     }
 
     if (shouldCreateContributions) {
-      const isSomeContributionContainsMarkdown = data.contributions.some((contribution) =>
-        contribution.biographies.some((biography) => isTextContainsAnyMarkdownTag(biography.content)),
-      );
-      const markupFormat = isSomeContributionContainsMarkdown
-        ? MarkdownFormats.enum.JATS_XML
-        : MarkdownFormats.enum.PLAIN_TEXT;
-
       const contributionsPromises = data.contributions.map((contribution) =>
-        this.contributionService.createContribution(token, contribution, work.id, markupFormat),
+        this.contributionService.createContribution(token, contribution, work.id),
       );
 
       const createdContributions = await Promise.all(contributionsPromises);
@@ -235,12 +207,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   async updateWork(token: string, data: WorkEntity): Promise<WorkEntity> {
     const dto = this.dtoMapper.toDto(data) as WorkDto;
 
-    const preferredMarkupFormat = await this.persistentStorage.get('markup_format');
-    const markupFormat = getMarkupFormat(preferredMarkupFormat);
-
     const response = await this.graphqlService.mutation(token, UPDATE_WORK, {
       data: dto,
-      markupFormat,
     });
 
     const work = this.dtoMapper.toEntity(response.updateWork as WorkDto);
@@ -255,12 +223,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   }
 
   async getWork(workId: WorkId): Promise<WorkEntity> {
-    const preferredMarkupFormat = await this.persistentStorage.get('markup_format');
-    const markupFormat = getMarkupFormat(preferredMarkupFormat);
-
     const { work } = await this.graphqlService.query(GET_WORK, {
       workId,
-      markupFormat,
+      markupFormat: MarkdownFormats.enum.JATS_XML,
     });
 
     return this.dtoMapper.toEntity(work as WorkDto);
@@ -270,15 +235,13 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const allChapters: WorkEntity[] = [];
     let offset = 0;
     let fetchedCount = 0;
-    const preferredMarkupFormat = await this.persistentStorage.get('markup_format');
-    const markupFormat = getMarkupFormat(preferredMarkupFormat);
 
     do {
       const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_CHAPTERS, {
         workId,
         limit: this.limit,
         offset,
-        markupFormat,
+        markupFormat: MarkdownFormats.enum.JATS_XML,
       });
 
       const chapters = relations.map((relation) =>
@@ -297,15 +260,13 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const allTranslations: WorkEntity[] = [];
     let offset = 0;
     let fetchedCount = 0;
-    const preferredMarkupFormat = await this.persistentStorage.get('markup_format');
-    const markupFormat = getMarkupFormat(preferredMarkupFormat);
 
     do {
       const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_TRANSLATIONS, {
         workId,
         limit: this.limit,
         offset,
-        markupFormat,
+        markupFormat: MarkdownFormats.enum.JATS_XML,
       });
 
       const translations = relations.map((relation) =>
@@ -324,15 +285,13 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const allEditions: WorkEntity[] = [];
     let offset = 0;
     let fetchedCount = 0;
-    const preferredMarkupFormat = await this.persistentStorage.get('markup_format');
-    const markupFormat = getMarkupFormat(preferredMarkupFormat);
 
     do {
       const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_EDITIONS, {
         workId,
         limit: this.limit,
         offset,
-        markupFormat,
+        markupFormat: MarkdownFormats.enum.JATS_XML,
       });
 
       const editions = relations.map((relation) =>
@@ -351,15 +310,13 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const allPrevEditions: WorkEntity[] = [];
     let offset = 0;
     let fetchedCount = 0;
-    const preferredMarkupFormat = await this.persistentStorage.get('markup_format');
-    const markupFormat = getMarkupFormat(preferredMarkupFormat);
 
     do {
       const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_PREV_EDITIONS, {
         workId,
         limit: this.limit,
         offset,
-        markupFormat,
+        markupFormat: MarkdownFormats.enum.JATS_XML,
       });
 
       const editions = relations.map((relation) =>
@@ -378,15 +335,13 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const allTranslations: WorkEntity[] = [];
     let offset = 0;
     let fetchedCount = 0;
-    const preferredMarkupFormat = await this.persistentStorage.get('markup_format');
-    const markupFormat = getMarkupFormat(preferredMarkupFormat);
 
     do {
       const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_TRANSLATED_WORKS, {
         workId,
         limit: this.limit,
         offset,
-        markupFormat,
+        markupFormat: MarkdownFormats.enum.JATS_XML,
       });
 
       const translations = relations.map((relation) =>
@@ -420,9 +375,6 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     workTypes?: WorkType[];
     field?: WorkField;
   }): Promise<WorkEntity[]> {
-    const preferredMarkupFormat = await this.persistentStorage.get('markup_format');
-    const markupFormat = getMarkupFormat(preferredMarkupFormat);
-
     const { works = [] } = await this.graphqlService.query(GET_WORKS, {
       publishers: publishersIds,
       offset,
@@ -432,7 +384,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       workStatus,
       workTypes,
       field,
-      markupFormat,
+      markupFormat: MarkdownFormats.enum.JATS_XML,
     });
 
     const data = works.map((work) => this.dtoMapper.toEntity(work as WorkDto));
@@ -572,11 +524,10 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     token: string,
     data: TitleEntity,
     relatedWorkId: WorkId,
-    markupFormat: MarkdownFormat,
   ): Promise<TitleEntity> {
     const { titleId: _, ...dto } = this.dtoMapper.toDtoTitle(data);
 
-    await this.persistentStorage.set('markup_format', markupFormat);
+    const markupFormat = isTextContainsAnyMarkdownTag(data.title) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, CREATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
@@ -592,11 +543,11 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     token: string,
     data: TitleEntity,
     relatedWorkId: WorkId,
-    markupFormat: MarkdownFormat,
   ): Promise<TitleEntity> {
     const dto = this.dtoMapper.toDtoTitle(data);
 
-    await this.persistentStorage.set('markup_format', markupFormat);
+    const markupFormat = isTextContainsAnyMarkdownTag(data.title) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+
 
     const response = await this.graphqlService.mutation(token, UPDATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
@@ -618,11 +569,10 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     token: string,
     data: AbstractEntity,
     relatedWorkId: WorkId,
-    markupFormat: MarkdownFormat,
   ): Promise<AbstractEntity> {
     const { abstractId: _, ...dto } = this.dtoMapper.toDtoAbstract(data);
 
-    await this.persistentStorage.set('markup_format', markupFormat);
+    const markupFormat = isTextContainsAnyMarkdownTag(data.content) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, CREATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },
@@ -638,11 +588,10 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     token: string,
     data: AbstractEntity,
     relatedWorkId: WorkId,
-    markupFormat: MarkdownFormat,
   ): Promise<AbstractEntity> {
     const dto = this.dtoMapper.toDtoAbstract(data);
 
-    await this.persistentStorage.set('markup_format', markupFormat);
+    const markupFormat = isTextContainsAnyMarkdownTag(data.content) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, UPDATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },

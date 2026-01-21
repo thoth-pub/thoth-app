@@ -11,8 +11,7 @@ import type {
 import { useContributor, useUpdateContributor } from '@/src/entities/contributor';
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import { useWork } from '@/src/entities/work';
-import { type BaseEditSectionProps,isTextContainsAnyMarkdownTag } from '@/src/shared';
-import { MarkdownFormats } from '@/src/shared/constants/markdown';
+import { type BaseEditSectionProps } from '@/src/shared';
 
 type UseAddNewContributionProps = BaseEditSectionProps & {
   onCreate?: (contribution: WorkContribution) => void;
@@ -112,17 +111,10 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
     }
 
     const lastOrderNumber = work.contributions.sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber || 1;
-    const isSomeBiographyContainsMarkdown = activeContribution.biographies.some((biography) =>
-      isTextContainsAnyMarkdownTag(biography.content),
-    );
-    const markupFormat = isSomeBiographyContainsMarkdown
-      ? MarkdownFormats.enum.JATS_XML
-      : MarkdownFormats.enum.PLAIN_TEXT;
 
     createContribution({
       data: { ...activeContribution, isMain: true, orderNumber: lastOrderNumber + 1 },
       relatedWorkId: workId,
-      markupFormat,
     });
 
     close();

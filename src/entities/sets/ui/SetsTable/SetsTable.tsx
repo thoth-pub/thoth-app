@@ -67,7 +67,7 @@ const SetsTable = (props: SetsTableProps) => {
                     <TableFormWrapper colSpan={5}>{form}</TableFormWrapper>
                   ) : (
                     <TableRow key={id} className="group">
-                      <TableCell className="firstCell">
+                      <TableCell className="firstCell normal-case">
                         <MarkdownRenderer markdown={getMainTitle(titles).title} />
                       </TableCell>
                       <TableCell className="lastCell">

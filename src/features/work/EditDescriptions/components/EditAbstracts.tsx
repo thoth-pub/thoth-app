@@ -12,20 +12,18 @@ import {
   type BaseRecommendedSectionProps,
   IDs,
   isDefaultId,
-  isTextContainsAnyMarkdownTag,
   LocaleCodeType,
   QueryKeys,
 } from '@/src/shared';
 import { AbstractTypes } from '@/src/shared/constants/abstracts';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
-import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import { Chip, MarkdownRenderer, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { AbstractsFormFields } from './AbstractsFormFields';
 
-const { WORK_ABSTRACTS, MARKDOWN_FORMAT } = FORM_FIELDS;
+const { WORK_ABSTRACTS } = FORM_FIELDS;
 
 export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
@@ -39,7 +37,6 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
 
   const longAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Long);
   const shortAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Short);
-  const isMarkdownFormat = work.abstracts.some((abstract) => isTextContainsAnyMarkdownTag(abstract.content));
 
   const longAbstract = longAbstracts.find((abstract) => abstract.canonical);
   const shortAbstract = shortAbstracts.find((abstract) => abstract.canonical);
@@ -71,11 +68,9 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   });
 
   const handleSubmit = async (data: WorkAbstractsForm) => {
-    const { abstracts = [], markdownFormat } = data;
+    const { abstracts = [] } = data;
 
     if (abstracts.length === 0) return;
-
-    const markupFormat = markdownFormat ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
 
     const newLongAbstracts = abstracts.filter(
       ({ longAbstractId, abstract }) => isDefaultId(longAbstractId) && abstract && abstract.length > 0,
@@ -105,7 +100,6 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
             type: AbstractTypes.enum.Long,
             canonical: longAbstracts.length === 0 && index === 0,
           },
-          markupFormat,
         }),
       );
     });
@@ -122,7 +116,6 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
             type: AbstractTypes.enum.Short,
             canonical: false,
           },
-          markupFormat,
         }),
       );
     });
@@ -146,7 +139,6 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
             type: AbstractTypes.enum.Long,
             canonical: existingLongAbstract.canonical,
           },
-          markupFormat,
         }),
       );
     });
@@ -170,7 +162,6 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
             type: AbstractTypes.enum.Short,
             canonical: existingShortAbstract.canonical,
           },
-          markupFormat,
         }),
       );
     });
@@ -203,7 +194,6 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
       formId={IDs.WORK_ABSTRACT}
       defaultValues={{
         [WORK_ABSTRACTS.name]: defaultValues,
-        [MARKDOWN_FORMAT.name]: isMarkdownFormat,
       }}
       validationSchema={workAbstractsValidationSchema}
       onSubmit={handleSubmit}

@@ -4,13 +4,11 @@ import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import { Activity, ChangeEvent, useState } from 'react';
 
-import { MarkupFormat } from '@/gql/graphql';
 import { EditSetTitle, SetEntity, SetId, SetTitleFormType, useAddToSet, useCreateSet } from '@/src/entities/sets';
 import useSets from '@/src/entities/sets/api/hooks/useSets';
 import { useWork } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig, getMainTitle, LocaleCodeType, WorkStatuses, WorkTypes } from '@/src/shared';
-import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
   Button,
@@ -57,9 +55,6 @@ export const AddVolume = (props: AddVolumeProps) => {
 
   const [selected, setSelected] = useState<(typeof STEPS)[keyof typeof STEPS]>(STEPS.EXISTING);
   const [set, setSet] = useState(defaultSet);
-  const [markupFormat, setMarkupFormat] = useState<MarkupFormat.JatsXml | MarkupFormat.PlainText>(
-    MarkdownFormats.enum.JATS_XML,
-  );
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { sets, loading } = useSets({ filter: debouncedValue });
@@ -69,9 +64,7 @@ export const AddVolume = (props: AddVolumeProps) => {
   const isExistingStep = selected === STEPS.EXISTING;
 
   const updateTitles = (data: SetTitleFormType) => {
-    const { titles, markdownFormat } = data;
-
-    const markupFormat = markdownFormat ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+    const { titles } = data;
 
     setSet({
       ...set,
@@ -84,7 +77,6 @@ export const AddVolume = (props: AddVolumeProps) => {
         fullTitle: `${workTitle} ${subtitle}`,
       })),
     });
-    setMarkupFormat(markupFormat);
   };
 
   const deleteTitle = (titleId: string) => {
@@ -94,7 +86,7 @@ export const AddVolume = (props: AddVolumeProps) => {
   };
 
   const createNewSet = async () => {
-    const createdSet = await createSet({ data: { ...set, imprintId: work?.imprintId ?? '' }, markupFormat });
+    const createdSet = await createSet({ data: { ...set, imprintId: work?.imprintId ?? '' } });
     await addToSet({ setId: createdSet.id, bookId: workId, ordinal: 1 });
     setSelected(STEPS.EXISTING);
     onClose();
@@ -164,7 +156,7 @@ export const AddVolume = (props: AddVolumeProps) => {
             ) : (
               <ul className="flex w-full flex-col overflow-y-scroll">
                 {searchValue.length === 0 && (
-                  <li className="w-full p-2 text-center text-[var(--color-placeholder)]">
+                  <li className="w-full p-2 text-center text-(--color-placeholder)">
                     <Typography variant="body1" component="span">
                       Type to search for set
                     </Typography>
@@ -175,7 +167,7 @@ export const AddVolume = (props: AddVolumeProps) => {
                     <li
                       onClick={() => handleSelect(set.id)}
                       key={set.id}
-                      className={`w-full cursor-pointer rounded p-2 hover:bg-[var(--color-hover)] ${selectedSet === set.id ? 'bg-[var(--color-list-item-selected)]' : ''}`}
+                      className={`w-full cursor-pointer rounded p-2 hover:bg-(--color-hover) ${selectedSet === set.id ? 'bg-[var(--color-list-item-selected)]' : ''}`}
                     >
                       <button type="button">
                         <Typography variant="body1" component="span">

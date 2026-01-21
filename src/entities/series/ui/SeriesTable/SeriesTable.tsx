@@ -82,7 +82,7 @@ const SeriesTable = (props: SeriesTableProps) => {
                       <TableFormWrapper colSpan={5}>{seriesForm}</TableFormWrapper>
                     ) : (
                       <TableRow key={id} className="group">
-                        <TableCell className="firstCell">{name}</TableCell>
+                        <TableCell className="firstCell normal-case">{name}</TableCell>
                         <TableCell className="middleCell">{description}</TableCell>
                         <TableCell className="middleCell">{convertOptionToString(type)}</TableCell>
                         <TableCell className="middleCell">

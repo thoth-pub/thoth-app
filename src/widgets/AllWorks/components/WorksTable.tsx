@@ -1,6 +1,6 @@
 'use client';
 
-import FileOpenIcon from '@mui/icons-material/FileOpen';
+import EditSquareIcon from '@mui/icons-material/EditSquare';
 import PlusOneIcon from '@mui/icons-material/PlusOne';
 import TranslateIcon from '@mui/icons-material/Translate';
 
@@ -88,7 +88,7 @@ export const WorksTable = (props: WorksTableProps) => {
                           <TranslateIcon className="opacity-0 group-hover:opacity-100" />
                         </IconButton>
                         <IconButton onClick={() => navigateToWork(work.id)}>
-                          <FileOpenIcon className="opacity-0 group-hover:opacity-100" />
+                          <EditSquareIcon className="opacity-0 group-hover:opacity-100" />
                         </IconButton>
                       </ButtonGroup>
                     </div>

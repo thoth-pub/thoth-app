@@ -16,7 +16,6 @@ const {
   LANGUAGE,
   BIOGRAPHIES,
   CONTRIBUTOR_BIOGRAPHY,
-  MARKDOWN_FORMAT,
 } = FORM_FIELDS;
 
 const fullNameValidation = getRequiredStringValidation();
@@ -46,5 +45,4 @@ export const contributorBiographyValidationSchema = z.object({
       }),
     }),
   ),
-  [MARKDOWN_FORMAT.name]: z.boolean().optional(),
 });

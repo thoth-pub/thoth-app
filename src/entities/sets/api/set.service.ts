@@ -94,8 +94,8 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     return sets;
   }
 
-  async createSet(token: QueryToken, data: SetEntity, markupFormat: MarkupFormat): Promise<SetEntity> {
-    const { workId: _workId, titles: _titles, updatedAt: _updatedAt, ...dto } = this.dtoMapper.toDto(data);
+  async createSet(token: QueryToken, data: SetEntity): Promise<SetEntity> {
+    const { workId: _workId, titles: _titles, updatedAt: _updatedAt, relations: _relations, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_SET, {
       data: dto as SetDto,
@@ -106,7 +106,7 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     const promises = [];
 
     for (const title of data.titles) {
-      promises.push(this.workService.createTitle(token, title, work.id, markupFormat));
+      promises.push(this.workService.createTitle(token, title, work.id));
     }
 
     const createdTitles = await Promise.all(promises);

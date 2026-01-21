@@ -1,7 +1,7 @@
 'use client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { type AbstractEntity, MarkdownFormat, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { type AbstractEntity, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import type { WorkId } from '../../model/work.types';
@@ -15,8 +15,8 @@ const useCreateAbstract = (workId: WorkId) => {
   const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async ({ data, markupFormat }: { data: AbstractEntity; markupFormat: MarkdownFormat }) => {
-      return workService.createAbstract(queryToken, data, workId, markupFormat);
+    mutationFn: async ({ data }: { data: AbstractEntity; }) => {
+      return workService.createAbstract(queryToken, data, workId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

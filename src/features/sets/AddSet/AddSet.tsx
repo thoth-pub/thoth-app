@@ -4,12 +4,10 @@ import AddIcon from '@mui/icons-material/Add';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
 import { Activity, useState } from 'react';
 
-import { MarkupFormat } from '@/gql/graphql';
 import { type SetEntity, useCreateSet } from '@/src/entities/sets';
 import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
 import { AddNewSetForm } from '@/src/entities/sets/ui/AddNewSetForm/AddNewSetForm';
 import { appConfig, FormFieldOption, isDefaultId, TitleEntity, WorkStatuses, WorkTypes } from '@/src/shared';
-import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import {
   CloseButton,
   Modal,
@@ -30,9 +28,6 @@ const AddSet = ({ imprintOptions }: AddSetProps) => {
   const { createSet } = useCreateSet();
 
   const [set, setSet] = useState(activeSet);
-  const [markupFormat, setMarkupFormat] = useState<MarkupFormat.JatsXml | MarkupFormat.PlainText>(
-    MarkdownFormats.enum.JATS_XML,
-  );
 
   const open = activeSet && isDefaultId(activeSet.id) ? true : false;
 
@@ -50,7 +45,7 @@ const AddSet = ({ imprintOptions }: AddSetProps) => {
   const submit = () => {
     if (!set || set.titles.length === 0) return;
 
-    createSet({ data: set, markupFormat });
+    createSet({ data: set });
     close();
   };
 
@@ -60,14 +55,13 @@ const AddSet = ({ imprintOptions }: AddSetProps) => {
     setSet({ ...set, imprintId });
   };
 
-  const updateTitles = (titles: TitleEntity[], newMarkupFormat: MarkupFormat.JatsXml | MarkupFormat.PlainText) => {
+  const updateTitles = (titles: TitleEntity[]) => {
     if (!set) return;
 
     setSet({
       ...set,
       titles,
     });
-    setMarkupFormat(newMarkupFormat);
   };
 
   const deleteTitle = (titleId: string) => {

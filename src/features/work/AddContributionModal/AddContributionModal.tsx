@@ -78,7 +78,7 @@ const AddContributionModal = () => {
       <Modal open={open} onClose={handleModalState}>
         <ModalWrapper>
           <div className="flex justify-between">
-            <Typography variant="h2" component="h3" className="text-[var(--color-typography)] capitalize">
+            <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
               {t('add new contributor')}
             </Typography>
             <CloseButton onClose={handleModalState} />
@@ -104,7 +104,7 @@ const AddContributionModal = () => {
             ) : (
               <ul className="flex w-full flex-col overflow-y-scroll">
                 {isInitial && (
-                  <li className="w-full p-2 text-center text-[var(--color-placeholder)]">
+                  <li className="w-full p-2 text-center text-(--color-placeholder)">
                     <Typography variant="body1" component="span">
                       Type to search for a contributor
                     </Typography>
@@ -114,11 +114,11 @@ const AddContributionModal = () => {
                   <li
                     onClick={() => handleSelect(contributor.id as unknown as ContributorId)}
                     key={contributor.id}
-                    className={`w-full cursor-pointer rounded p-2 hover:bg-[var(--color-hover)] ${selected === contributor.id ? 'bg-[var(--color-list-item-selected)]' : ''}`}
+                    className={`w-full cursor-pointer rounded p-2 hover:bg-(--color-hover) ${selected === contributor.id ? 'bg-(--color-list-item-selected)' : ''}`}
                   >
                     <button type="button">
-                      <Typography variant="body1" component="span">
-                        {contributor.name}
+                      <Typography variant="body1" className='flex gap-2' component="span">
+                        {contributor.name} {contributor.orcid.length > 0 && `(ORCID iD: ${contributor.orcid})`}
                       </Typography>
                     </button>
                   </li>

@@ -1,6 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { MarkupFormat } from '@/gql/graphql';
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
 import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
@@ -16,8 +15,8 @@ export const useCreateSet = () => {
   const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async ({ data, markupFormat }: { data: SetEntity; markupFormat: MarkupFormat }) => {
-      return setService.createSet(queryToken, data, markupFormat);
+    mutationFn: async ({ data }: { data: SetEntity; }) => {
+      return setService.createSet(queryToken, data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.sets] });
