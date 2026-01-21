@@ -20,7 +20,6 @@ const AddFunding = (props: AddFundingProps) => {
     create,
     updateProject,
     updateProjectShortName,
-    updateJurisdiction,
     updateProgram,
     updateGrantNumber,
     updateInstitution,
@@ -28,20 +27,18 @@ const AddFunding = (props: AddFundingProps) => {
 
   if (!funding) return null;
 
-  const { grantNumber, jurisdiction, program, projectName, projectShortname, institutionId, institutionName } = funding;
+  const { grantNumber, program, projectName, projectShortname, institutionId, institutionName } = funding;
 
   return (
     <TableNewEntityFormWrapper>
       <EditFundingForm
         grantNumber={grantNumber}
         institution={{ value: institutionId, label: institutionName }}
-        jurisdiction={jurisdiction}
         program={program}
         projectName={projectName}
         projectShortname={projectShortname}
         onProjectUpdate={updateProject}
         onProjectShortNameUpdate={updateProjectShortName}
-        onJurisdictionUpdate={updateJurisdiction}
         onProgramUpdate={updateProgram}
         onGrantNumberUpdate={updateGrantNumber}
         onInstitutionUpdate={updateInstitution}

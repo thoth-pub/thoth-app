@@ -9,7 +9,6 @@ import { useEditFunding } from './useEditFunding';
 type EditFundingProps = BaseRecommendedSectionProps & {
   onProjectUpdate?: (funding: FundingEntity) => void;
   onProjectShortNameUpdate?: (funding: FundingEntity) => void;
-  onJurisdictionUpdate?: (funding: FundingEntity) => void;
   onProgramUpdate?: (funding: FundingEntity) => void;
   onGrantNumberUpdate?: (funding: FundingEntity) => void;
   onInstitutionUpdate?: (funding: FundingEntity) => void;
@@ -21,7 +20,6 @@ const EditFunding = (props: EditFundingProps) => {
     recommended = false,
     onProjectUpdate,
     onProjectShortNameUpdate,
-    onJurisdictionUpdate,
     onProgramUpdate,
     onGrantNumberUpdate,
     onInstitutionUpdate,
@@ -32,7 +30,6 @@ const EditFunding = (props: EditFundingProps) => {
     close,
     updateProject,
     updateProjectShortName,
-    updateJurisdiction,
     updateProgram,
     updateGrantNumber,
     updateInstitution,
@@ -40,7 +37,6 @@ const EditFunding = (props: EditFundingProps) => {
     workId,
     onProjectUpdate,
     onProjectShortNameUpdate,
-    onJurisdictionUpdate,
     onProgramUpdate,
     onGrantNumberUpdate,
     onInstitutionUpdate,
@@ -48,7 +44,7 @@ const EditFunding = (props: EditFundingProps) => {
 
   if (!activeFunding) return null;
 
-  const { grantNumber, jurisdiction, program, projectName, projectShortname, institutionId, institutionName } =
+  const { grantNumber, program, projectName, projectShortname, institutionId, institutionName } =
     activeFunding;
 
   return (
@@ -56,13 +52,11 @@ const EditFunding = (props: EditFundingProps) => {
       recommended={recommended}
       grantNumber={grantNumber}
       institution={{ value: institutionId, label: institutionName }}
-      jurisdiction={jurisdiction}
       program={program}
       projectName={projectName}
       projectShortname={projectShortname}
       onProjectUpdate={updateProject}
       onProjectShortNameUpdate={updateProjectShortName}
-      onJurisdictionUpdate={updateJurisdiction}
       onProgramUpdate={updateProgram}
       onGrantNumberUpdate={updateGrantNumber}
       onInstitutionUpdate={updateInstitution}

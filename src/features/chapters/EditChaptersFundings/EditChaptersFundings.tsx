@@ -16,7 +16,6 @@ import {
   useChaptersFundings,
   useChaptersFundingsGrantNumbers,
   useChaptersFundingsInstitutions,
-  useChaptersFundingsJurisdiction,
   useChaptersFundingsProgram,
 } from './hooks';
 import { useChaptersFundingsProjects } from './hooks';
@@ -37,7 +36,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
 
   const [fundings, setFundings] = useState<FundingEntity[]>(uniqueFundings);
   const { updateProjects, updateProjectsShortName } = useChaptersFundingsProjects({ chapters, fundings });
-  const { updateJurisdictions } = useChaptersFundingsJurisdiction({ chapters, fundings });
   const { updatePrograms } = useChaptersFundingsProgram({ chapters, fundings });
   const { updateGrantNumbers } = useChaptersFundingsGrantNumbers({ chapters, fundings });
   const { updateInstitutions } = useChaptersFundingsInstitutions({ chapters, fundings });
@@ -85,15 +83,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
 
   const updateProjectShortName = async (updatedFunding: FundingEntity) => {
     const updatedFundings = await updateProjectsShortName(updatedFunding);
-    update(updatedFunding);
-
-    if (!updatedFundings) return;
-
-    setFundings(updatedFundings);
-  };
-
-  const updateJurisdiction = async (updatedFunding: FundingEntity) => {
-    const updatedFundings = await updateJurisdictions(updatedFunding);
     update(updatedFunding);
 
     if (!updatedFundings) return;
@@ -160,7 +149,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
                   workId=""
                   onProjectUpdate={updateProject}
                   onProjectShortNameUpdate={updateProjectShortName}
-                  onJurisdictionUpdate={updateJurisdiction}
                   onProgramUpdate={updateProgram}
                   onGrantNumberUpdate={updateGrantNumber}
                   onInstitutionUpdate={updateInstitution}

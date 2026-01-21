@@ -2,14 +2,12 @@
 
 import {
   EditGrantNumberForm,
-  EditJurisdictionForm,
   EditProgramForm,
   EditProjectNameForm,
   EditProjectShortNameForm,
 } from '@/src/entities/funding';
 import type {
   FundingGrantNumberFormType,
-  FundingJurisdictionFormType,
   FundingProgramFormType,
   FundingProjectNameFormType,
   FundingProjectShortNameFormType,
@@ -21,13 +19,11 @@ import { TableFormsHeader, TableFormsWrapper } from '@/src/shared/ui';
 type EditFundingProps = {
   grantNumber: string;
   institution: { value: string; label: string };
-  jurisdiction: string;
   program: string;
   projectName: string;
   projectShortname: string;
   onProjectUpdate?: (data: FundingProjectNameFormType) => void;
   onProjectShortNameUpdate?: (data: FundingProjectShortNameFormType) => void;
-  onJurisdictionUpdate?: (data: FundingJurisdictionFormType) => void;
   onProgramUpdate?: (data: FundingProgramFormType) => void;
   onGrantNumberUpdate?: (data: FundingGrantNumberFormType) => void;
   onInstitutionUpdate?: (data: InstitutionFormType) => void;
@@ -39,7 +35,6 @@ type EditFundingProps = {
 const EditFundingForm = (props: EditFundingProps) => {
   const {
     institution,
-    jurisdiction,
     program,
     projectName,
     projectShortname,
@@ -48,7 +43,6 @@ const EditFundingForm = (props: EditFundingProps) => {
     onDone,
     onProjectUpdate,
     onProjectShortNameUpdate,
-    onJurisdictionUpdate,
     onProgramUpdate,
     onGrantNumberUpdate,
     onInstitutionUpdate,
@@ -59,10 +53,9 @@ const EditFundingForm = (props: EditFundingProps) => {
     <TableFormsWrapper>
       <TableFormsHeader title="Funding" onDone={onDone} onClose={onClose} />
       <EditInstitutionForm defaultValue={institution} onUpdate={(data) => onInstitutionUpdate?.(data)} />
+      <EditProgramForm defaultValue={program} onUpdate={(data) => onProgramUpdate?.(data)} />
       <EditProjectNameForm defaultValue={projectName} onUpdate={(data) => onProjectUpdate?.(data)} />
       <EditProjectShortNameForm defaultValue={projectShortname} onUpdate={(data) => onProjectShortNameUpdate?.(data)} />
-      <EditJurisdictionForm defaultValue={jurisdiction} onUpdate={(data) => onJurisdictionUpdate?.(data)} />
-      <EditProgramForm defaultValue={program} onUpdate={(data) => onProgramUpdate?.(data)} />
       <EditGrantNumberForm
         defaultValue={grantNumber}
         recommended={recommended}

@@ -6,7 +6,6 @@ import { useCreateFunding, useFundingsStateMachine } from '@/src/entities/fundin
 import type {
   FundingEntity,
   FundingGrantNumberFormType,
-  FundingJurisdictionFormType,
   FundingProgramFormType,
   FundingProjectNameFormType,
   FundingProjectShortNameFormType,
@@ -53,12 +52,6 @@ export const useAddFunding = (props: UseAddFundingProps) => {
     setFunding({ ...funding, projectShortname });
   };
 
-  const updateJurisdiction = ({ jurisdiction }: FundingJurisdictionFormType) => {
-    if (!funding || !jurisdiction) return;
-
-    setFunding({ ...funding, jurisdiction });
-  };
-
   const updateProgram = ({ program }: FundingProgramFormType) => {
     if (!funding || !program) return;
 
@@ -83,7 +76,6 @@ export const useAddFunding = (props: UseAddFundingProps) => {
     create,
     updateProject,
     updateProjectShortName,
-    updateJurisdiction,
     updateProgram,
     updateGrantNumber,
     updateInstitution,

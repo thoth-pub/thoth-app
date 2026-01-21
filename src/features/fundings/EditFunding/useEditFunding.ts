@@ -4,7 +4,6 @@ import { useFundingsStateMachine, useUpdateFunding } from '@/src/entities/fundin
 import type {
   FundingEntity,
   FundingGrantNumberFormType,
-  FundingJurisdictionFormType,
   FundingProgramFormType,
   FundingProjectNameFormType,
   FundingProjectShortNameFormType,
@@ -15,7 +14,6 @@ import { type BaseEditSectionProps } from '@/src/shared';
 type UseEditFundingProps = BaseEditSectionProps & {
   onProjectUpdate?: (funding: FundingEntity) => void;
   onProjectShortNameUpdate?: (funding: FundingEntity) => void;
-  onJurisdictionUpdate?: (funding: FundingEntity) => void;
   onProgramUpdate?: (funding: FundingEntity) => void;
   onGrantNumberUpdate?: (funding: FundingEntity) => void;
   onInstitutionUpdate?: (funding: FundingEntity) => void;
@@ -26,7 +24,6 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     workId,
     onProjectUpdate,
     onProjectShortNameUpdate,
-    onJurisdictionUpdate,
     onProgramUpdate,
     onGrantNumberUpdate,
     onInstitutionUpdate,
@@ -63,21 +60,6 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     }
 
     updateFunding(updatedFunding);
-  };
-
-  const updateJurisdiction = ({ jurisdiction }: FundingJurisdictionFormType) => {
-    if (!activeFunding || !jurisdiction) return;
-
-    const updatedFunding = { ...activeFunding, jurisdiction };
-
-    update(updatedFunding);
-
-    if (onJurisdictionUpdate) {
-      onJurisdictionUpdate(updatedFunding);
-      return;
-    }
-
-    updateFunding({ ...activeFunding, jurisdiction });
   };
 
   const updateProgram = ({ program }: FundingProgramFormType) => {
@@ -130,7 +112,6 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     close,
     updateProject,
     updateProjectShortName,
-    updateJurisdiction,
     updateProgram,
     updateGrantNumber,
     updateInstitution,
