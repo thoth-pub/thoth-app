@@ -12,6 +12,7 @@ export const IDs = {
   WORK_PAGES_COUNT: 'work_pages_count',
   WORK_LANGUAGES: 'work_languages',
   WORK_SUBJECTS: 'work_subjects',
+  WORK_SUBJECT: 'work_subject',
   WORK_STATUS: 'work_status',
   WORK_SERIES: 'work_series',
   WORK_LANDING_PAGE: 'work_landing_page',

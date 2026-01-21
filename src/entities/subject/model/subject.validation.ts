@@ -5,6 +5,17 @@ import { getRequiredStringValidation, optionalStringValidation, subjectTypeValid
 
 const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 
+export const subjectValidationSchema = z.object({
+  [SUBJECT_CODE.name]: z.object({
+    value: getRequiredStringValidation(),
+    label: getRequiredStringValidation(),
+  }),
+});
+
+export const subjectAltValidationSchema = z.object({
+  [SUBJECT_CODE_ALT.name]: optionalStringValidation,
+});
+
 export const subjectsValidationSchema = z.object({
   [SUBJECTS.name]: z.array(
     z.object({

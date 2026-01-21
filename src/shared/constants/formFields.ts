@@ -649,7 +649,10 @@ export const workStatusOptionsAlt = [
 
 export const seriesTypeOptions = convertFormFieldsToSelectFieldOptions(SeriesType.options);
 
-export const subjectTypeOptions = convertFormFieldsToSelectFieldOptions(SubjectTypes.options);
+export const subjectTypeOptions = convertFormFieldsToSelectFieldOptions(SubjectTypes.options).map((subjectOption) => ({
+  ...subjectOption,
+  label: subjectOption.label.toUpperCase(),
+}));
 
 export const publicationTypeOptions = convertFormFieldsToSelectFieldOptions(PublicationType.options);
 

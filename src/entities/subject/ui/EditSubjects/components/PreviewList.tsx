@@ -1,17 +1,22 @@
 'use client';
 
+import { WorkId } from '@/src/entities/work/model/work.types';
 import { DragAndDropWrapper, Typography } from '@/src/shared/ui';
 
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 import ListItem from './ListItem';
 
 type PreviewListProps = {
+  workId: WorkId;
+  activeSubjectId: SubjectId;
+  isEditDisabled: boolean;
   subjects: SubjectEntity[];
   onDragEnd?: (subjects: SubjectEntity[]) => void;
   onDelete?: (id: SubjectId) => void;
+  onEdit?: (id: SubjectId) => void;
 };
 
-export const PreviewList = ({ subjects, onDelete, onDragEnd }: PreviewListProps) => {
+export const PreviewList = ({ workId, activeSubjectId, isEditDisabled, subjects, onDelete, onDragEnd, onEdit }: PreviewListProps) => {
   const firstSubject = subjects[0];
 
   return (
@@ -22,9 +27,13 @@ export const PreviewList = ({ subjects, onDelete, onDragEnd }: PreviewListProps)
           {subjects.map((subject, index) => (
             <ListItem
               key={`${subject.id}-${index}`}
+              workId={workId}
+              activeSubjectId={activeSubjectId}
+              isEditDisabled={isEditDisabled}
               subject={subject}
               totalSubjectsCount={subjects.length}
               onDelete={onDelete}
+              onEdit={onEdit}
             />
           ))}
         </>

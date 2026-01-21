@@ -1,62 +1,25 @@
 'use client';
 
 import { useState } from 'react';
-import type { Control } from 'react-hook-form';
 
-import { type BaseRecommendedSectionProps, convertOptionToString, IDs, SubjectTypes } from '@/src/shared';
+import { type BaseRecommendedSectionProps, convertOptionToString, SubjectTypes } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { AddButton, Preview } from '@/src/shared/ui';
-import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
-import { BIC_CODES } from '@/src/shared/utils/subjects/bic-codes';
-import { BISAC_CODES } from '@/src/shared/utils/subjects/bisac-codes';
-import { THEMA_CODES } from '@/src/shared/utils/subjects/thema-codes';
+import { AddButton, ContentWrapper, InputLabel } from '@/src/shared/ui';
 
 import useMoveSubjects from '../../api/hooks/useMoveSubjects';
-import type { SubjectEntity, SubjectsFormType, SubjectType } from '../../model/subject.types';
-import { subjectsValidationSchema } from '../../model/subject.validation';
-import { FormFields } from './components/FormFields';
+import type { SubjectEntity, SubjectType } from '../../model/subject.types';
 import { NewSubjectModal } from './components/NewSubjectModal';
 import { PreviewList } from './components/PreviewList';
 import { useEditSubjects } from './useEditSubjects';
 
-const { SUBJECTS, SUBJECT_TYPE, SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
-
-const codes = {
-  [SubjectTypes.enum.Bic]: BIC_CODES,
-  [SubjectTypes.enum.Bisac]: BISAC_CODES,
-  [SubjectTypes.enum.Thema]: THEMA_CODES,
-};
+const { SUBJECTS } = FORM_FIELDS;
 
 const EditSubjects = (props: BaseRecommendedSectionProps) => {
-  const { workId, recommended = false } = props;
+  const { workId } = props;
 
-  const { subjects, update, deleteSubject, close, create } = useEditSubjects({ workId });
+  const { editDisabled, activeSubject, subjects, deleteSubject, create, edit } = useEditSubjects({ workId });
   const { moveSubjects } = useMoveSubjects({ workId });
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const defaultValues = subjects.map((subject) => {
-    const category = codes[subject.type as keyof typeof codes];
-
-    const defaultSubject = {
-      subjectId: subject.id,
-      [SUBJECT_TYPE.name]: subject.type as SubjectType,
-      [SUBJECT_CODE.name]: { value: subject.code, label: subject.code },
-      [SUBJECT_CODE_ALT.name]: subject.code,
-    };
-
-    if (!category) {
-      return defaultSubject;
-    }
-
-    const label = `${category[subject.code as keyof typeof category]} (${subject.code})`;
-
-    return {
-      subjectId: subject.id,
-      [SUBJECT_TYPE.name]: subject.type as SubjectType,
-      [SUBJECT_CODE.name]: { value: subject.code, label },
-      [SUBJECT_CODE_ALT.name]: subject.code,
-    };
-  });
 
   const placeholder =
     subjects.length > 0
@@ -114,14 +77,6 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
     },
   ].sort((a, b) => b.subjects.length - a.subjects.length);
 
-  const handleDelete = (id: string) => {
-    if (subjects.length === 1) {
-      setIsModalOpen(false);
-      close();
-    }
-    deleteSubject(id);
-  };
-
   const handleModalState = () => {
     setIsModalOpen((prev) => !prev);
   };
@@ -153,46 +108,36 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
   };
 
   return (
-    <EditableContent
-      formId={IDs.WORK_SUBJECTS}
-      validationSchema={subjectsValidationSchema}
-      onSubmit={update}
-      defaultValues={{ [SUBJECTS.name]: defaultValues }}
-      formFields={({ control }) => (
-        <FormFields
-          recommended={recommended}
-          control={control as unknown as Control<SubjectsFormType>}
-          onClose={close}
-          onDelete={handleDelete}
-        />
+    <ContentWrapper className='p-4 gap-y-[var(--default-gap)]'>
+      <InputLabel>{SUBJECTS.label}</InputLabel>
+      {placeholder ? (
+        <div className="flex w-full flex-col gap-(--default-gap)">
+          <ul className="flex w-full flex-col gap-0">
+            {data.map(({ subjects }, index) => (
+              <PreviewList
+                workId={workId}
+                activeSubjectId={activeSubject?.id ?? ''}
+                isEditDisabled={editDisabled}
+                key={index}
+                subjects={subjects}
+                onDelete={deleteSubject}
+                onDragEnd={handleMove}
+                onEdit={edit}
+              />
+            ))}
+            <AddButton onAdd={handleModalState} className="capitalize xl:-ml-4">
+              add new subject
+            </AddButton>
+          </ul>
+        </div>
+      ) : (
+        <AddButton onAdd={handleModalState} className="capitalize xl:-ml-4 py-0">
+          add new subject
+        </AddButton>
       )}
-      preview={({ disabled, onEdit }) => (
-        <Preview
-          label={SUBJECTS.label}
-          onEdit={onEdit}
-          disabled={disabled}
-          value={placeholder}
-          recommended={recommended}
-          tooltip="Theme subject is recommended"
-          editButtonClassName="mt-3.5 lg:mt-2"
-        >
-          {placeholder && (
-            <div className="flex w-full flex-col gap-[var(--default-gap)]">
-              <ul className="flex w-full flex-col gap-0">
-                {data.map(({ subjects }, index) => (
-                  <PreviewList key={index} subjects={subjects} onDelete={deleteSubject} onDragEnd={handleMove} />
-                ))}
-                <AddButton onAdd={handleModalState} className="capitalize xl:-ml-4">
-                  add new subject
-                </AddButton>
-                <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />
-              </ul>
-            </div>
-          )}
-        </Preview>
-      )}
-    />
-  );
-};
+      <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />
+    </ContentWrapper>
+  )
+}
 
 export default EditSubjects;
