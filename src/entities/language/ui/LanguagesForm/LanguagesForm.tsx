@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LanguageRelation } from '@/gql/graphql';
 import { convertOptionToString, IDs } from '@/src/shared';
 import { FORM_FIELDS, languageOptions } from '@/src/shared/constants/formFields';
-import { ButtonGroup, Chip, DeleteButton, FavoriteButton, Preview, Typography } from '@/src/shared/ui';
+import { Chip, DeleteButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import type { LanguageEntity, LanguagesForm as LanguagesFormType } from '../../model/language.types';
@@ -18,14 +18,13 @@ type LanguagesFormProps = Partial<{
   languages: LanguageEntity[];
   onUpdate: (data: LanguagesFormType) => void;
   onDelete: (id: string) => void;
-  onSelectAsMain: (id: string) => void;
   onClose?: () => void;
 }>;
 
 const { LANGUAGE, LANGUAGE_RELATION } = FORM_FIELDS;
 
 const LanguagesForm = (props: LanguagesFormProps) => {
-  const { showRecommendations = false, languages = [], onUpdate, onDelete, onSelectAsMain, onClose } = props;
+  const { showRecommendations = false, languages = [], onUpdate, onDelete, onClose } = props;
 
   const placeholder = languages.length > 0 ? languages.map(({ code }) => code).join(', ') : undefined;
   const { t } = useTranslation();
@@ -62,23 +61,20 @@ const LanguagesForm = (props: LanguagesFormProps) => {
           disabled={disabled}
           value={placeholder}
           recommended={showRecommendations}
-          editButtonClassName="mt-1.5 lg:mt-0"
+          editButtonClassName="mt-1.5 xl:mt-0"
         >
           {placeholder && (
-            <ul className="flex w-full flex-col gap-[var(--default-gap)]">
-              {defaultValues.map(({ languageId, language: { label, value }, languageRelation, isMain }) => (
+            <ul className="flex w-full flex-col gap-(--default-gap)">
+              {defaultValues.map(({ languageId, language: { label, value }, languageRelation }) => (
                 <li key={languageId} className="flex items-center gap-1">
                   <Chip label={value} size="small" component="span" />
                   <Typography>
                     {label} ({t(convertOptionToString(languageRelation).toLowerCase())})
                   </Typography>
-                  <ButtonGroup className="ml-auto">
-                    <DeleteButton
-                      onClick={() => onDelete?.(languageId)}
-                      className="opacity-0 group-hover:opacity-100"
-                    />
-                    <FavoriteButton isFavorite={isMain} onClick={() => onSelectAsMain?.(languageId)} />
-                  </ButtonGroup>
+                  <DeleteButton
+                    onClick={() => onDelete?.(languageId)}
+                    className="opacity-0 group-hover:opacity-100 ml-auto"
+                  />
                 </li>
               ))}
             </ul>

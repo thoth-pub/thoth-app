@@ -18,7 +18,6 @@ type EditDescriptionsProps = BaseEditSectionProps &
     isMultipleChaptersEdit: boolean;
     onLanguagesUpdate: (data: LanguagesForm) => void;
     onLanguagesDelete: (id: string) => void;
-    onLanguagesSelectAsMain: (id: string) => void;
   }>;
 
 const EditDescriptions = (props: EditDescriptionsProps) => {
@@ -28,7 +27,6 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
     isMultipleChaptersEdit = false,
     onLanguagesUpdate,
     onLanguagesDelete,
-    onLanguagesSelectAsMain,
   } = props;
 
   const { work } = useWork(workId);
@@ -56,7 +54,6 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
             recommended={showRecommendations && isLanguagesRequired}
             onUpdate={onLanguagesUpdate}
             onDelete={onLanguagesDelete}
-            onSelectAsMain={onLanguagesSelectAsMain}
           />
           {!isMultipleChaptersEdit && (
             <EditSubjects workId={workId} recommended={showRecommendations && isSubjectsRequired} />

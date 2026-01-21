@@ -7,7 +7,7 @@ import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
 import { LanguageEntity, LanguagesForm } from '../../../entities/language/model/language.types';
 
-const { LANGUAGE_CREATION_FAILED, LANGUAGE_DELETE_FAILED, LANGUAGE_UPDATE_FAILED } = NOTIFICATIONS;
+const { LANGUAGE_CREATION_FAILED, LANGUAGE_DELETE_FAILED } = NOTIFICATIONS;
 
 export const useChaptersLanguages = () => {
   const { activeWorkChapters } = useWorkChaptersStateMachine();
@@ -23,15 +23,6 @@ export const useChaptersLanguages = () => {
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? LANGUAGE_CREATION_FAILED);
-    },
-  });
-
-  const { mutateAsync: updateLanguage, isPending: isUpdatingLanguage } = useMutation({
-    mutationFn: async ({ language, chapterId }: { language: LanguageEntity; chapterId: string }) => {
-      return languageService.updateLanguage(queryToken, language, chapterId);
-    },
-    onError: (error) => {
-      sendErrorNotification(error?.message ?? LANGUAGE_UPDATE_FAILED);
     },
   });
 
@@ -56,13 +47,13 @@ export const useChaptersLanguages = () => {
     await Promise.all(deletionPromises);
 
     const creationPromises = activeWorkChapters.map((chapter) => {
-      return data.languages.map(({ language: { value }, languageRelation }, index) => {
+      return data.languages.map(({ language: { value }, languageRelation }) => {
         return createLanguage({
           language: {
             id: '',
             code: value as LanguageCode,
             relation: languageRelation,
-            isMain: index === 0,
+            isMain: true,
           },
           chapterId: chapter.id,
         });
@@ -101,31 +92,9 @@ export const useChaptersLanguages = () => {
     queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
   };
 
-  const changeLanguagesMainStatus = async (languageId: string) => {
-    if (!activeWorkChapters) return;
-
-    const sameLanguages = findSameLanguages(languageId);
-
-    const promises: Promise<LanguageEntity>[] = [];
-
-    sameLanguages.forEach((language) => {
-      const chapterId = activeWorkChapters.find((chapter) => chapter.languages.some((l) => l.id === language.id))?.id;
-
-      if (!chapterId) return;
-
-      promises.push(updateLanguage({ language: { ...language, isMain: !language.isMain }, chapterId }));
-    });
-
-    await Promise.all(promises);
-
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
-  };
-
   return {
     updateLanguages,
     deleteLanguages,
-    changeLanguagesMainStatus,
-    loading: isCreatingLanguage || isDeletingLanguage || isUpdatingLanguage,
+    loading: isCreatingLanguage || isDeletingLanguage,
   };
 };

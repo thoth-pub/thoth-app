@@ -10,11 +10,10 @@ import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMach
 type useEditLanguagesProps = BaseRecommendedSectionProps & {
   onUpdate?: (data: LanguagesFormType) => void;
   onDelete?: (id: string) => void;
-  onSelectAsMain?: (id: string) => void;
 };
 
 export const useEditLanguages = (props: useEditLanguagesProps) => {
-  const { workId, recommended, onUpdate, onDelete, onSelectAsMain } = props;
+  const { workId, recommended, onUpdate, onDelete } = props;
 
   const { work } = useWork(workId);
   const { close } = useFormStateMachine();
@@ -50,18 +49,18 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
         id: '',
         code: value as LanguageCode,
         relation: languageRelation,
-        isMain: false,
+        isMain: true,
       });
     });
 
-    existingLanguages.forEach(({ languageId, language: { value }, languageRelation, isMain }) => {
+    existingLanguages.forEach(({ languageId, language: { value }, languageRelation }) => {
       newCodes.push(value as LanguageCode);
 
       updateLanguage({
         id: languageId,
         code: value as LanguageCode,
         relation: languageRelation,
-        isMain,
+        isMain: true,
       });
     });
 
@@ -87,30 +86,11 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
     deleteLanguageMutation(id);
   };
 
-  const selectAsMain = async (id: string) => {
-    if (onSelectAsMain) {
-      onSelectAsMain(id);
-      return;
-    }
-
-    const item = work.languages.find((item) => item.id === id);
-
-    if (!item) return;
-
-    updateLanguage({
-      id: id,
-      code: item.code,
-      relation: item.relation,
-      isMain: !item.isMain,
-    });
-  };
-
   return {
     showIndicator,
     languages: work.languages ?? [],
     update,
     deleteLanguage,
-    selectAsMain,
     close,
   };
 };

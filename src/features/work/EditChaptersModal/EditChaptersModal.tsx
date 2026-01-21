@@ -26,7 +26,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   const { activeWorkChapters, isMultipleChaptersSelected, update, close } = useWorkChaptersStateMachine();
   const { close: closeContribution } = useContributionStateMachine();
-  const { updateLanguages, deleteLanguages, changeLanguagesMainStatus } = useChaptersLanguages();
+  const { updateLanguages, deleteLanguages } = useChaptersLanguages();
 
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
   const [chapters, setChapters] = useState(initValue);
@@ -97,7 +97,6 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
         isMultipleChaptersEdit
         onLanguagesUpdate={updateLanguages}
         onLanguagesDelete={deleteLanguages}
-        onLanguagesSelectAsMain={changeLanguagesMainStatus}
       />
       <EditChaptersContributors chapters={chapters} />
       <EditChaptersFundings chapters={chapters} />

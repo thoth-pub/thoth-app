@@ -21,7 +21,7 @@ const PublicationsTable = (props: PublicationsTableProps) => {
       <TableHeader cells={['Publication Type', 'ISBN']} cellStyles={['min-w-[250px] pl-4', 'min-w-[250px]']} />
       <TableBody>
         {publications.map(
-          ({ id, type, isbn, width, widthIn, height, heightIn, depth, depthIn, weight, weightOz, prices }) => (
+          ({ id, type, isbn, width, widthIn, height, heightIn, depth, depthIn, weight, weightOz, prices, locations }) => (
             <Fragment key={id}>
               {activePublication?.id === id ? (
                 <TableFormWrapper colSpan={3}>{form}</TableFormWrapper>
@@ -40,6 +40,7 @@ const PublicationsTable = (props: PublicationsTableProps) => {
                         {prices.map(({ currencyCode, id }) => (
                           <Chip key={id} label={currencyCode} size="small" className="lowercase" />
                         ))}
+                        {locations.length > 0 && <Chip label={`${locations.length} location` + (locations.length > 1 ? 's' : '')} size="small" className="lowercase" />}
                       </div>
                     </div>
                   </TableCell>

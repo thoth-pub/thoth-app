@@ -20,7 +20,7 @@ import { AbstractTypes } from '@/src/shared/constants/abstracts';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
-import { MarkdownRenderer, Preview } from '@/src/shared/ui';
+import { Chip, MarkdownRenderer, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { AbstractsFormFields } from './AbstractsFormFields';
@@ -216,7 +216,14 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
       )}
       preview={({ onEdit }) => (
         <Preview label={WORK_ABSTRACTS.label} value={placeholderValue} onEdit={onEdit}>
-          <MarkdownRenderer markdown={placeholderValue} />
+          <div className="flex flex-col gap-2">
+            <MarkdownRenderer markdown={placeholderValue} />
+            <ul className="flex flex-wrap gap-1">
+              {longAbstracts.map(({ id, localeCode }) => (
+                <Chip key={id} label={localeCode} size="small" component="li" />
+              ))}
+            </ul>
+          </div>
         </Preview>
       )}
     />

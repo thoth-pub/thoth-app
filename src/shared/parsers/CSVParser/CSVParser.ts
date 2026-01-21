@@ -298,7 +298,7 @@ export class CSVParser {
         id: this.defaultId,
         code: translatedFromLanguageValue as LanguageCode,
         relation: LanguageRelation.enum.TranslatedFrom,
-        isMain: false,
+        isMain: true,
       });
     }
 
@@ -307,7 +307,7 @@ export class CSVParser {
         id: this.defaultId,
         code: translatedIntoLanguageValue as LanguageCode,
         relation: LanguageRelation.enum.TranslatedInto,
-        isMain: false,
+        isMain: true,
       });
     }
 
@@ -423,12 +423,12 @@ export class CSVParser {
 
       const prices = isPaperbackPriceFilled
         ? [
-            {
-              id: this.defaultId,
-              currencyCode: paperbackCurrencyCode as CurrencyCode,
-              unitPrice: paperbackUnitPrice,
-            },
-          ]
+          {
+            id: this.defaultId,
+            currencyCode: paperbackCurrencyCode as CurrencyCode,
+            unitPrice: paperbackUnitPrice,
+          },
+        ]
         : [];
 
       publications.push({ ...publication, prices });
@@ -442,12 +442,12 @@ export class CSVParser {
 
       const prices = isHardbackPriceFilled
         ? [
-            {
-              id: this.defaultId,
-              currencyCode: hardbackCurrencyCode as CurrencyCode,
-              unitPrice: hardbackUnitPrice,
-            },
-          ]
+          {
+            id: this.defaultId,
+            currencyCode: hardbackCurrencyCode as CurrencyCode,
+            unitPrice: hardbackUnitPrice,
+          },
+        ]
         : [];
 
       publications.push({ ...publication, prices });
@@ -461,14 +461,14 @@ export class CSVParser {
 
       const locations = isPdfLocationFilled
         ? [
-            {
-              canonical: true,
-              id: this.defaultId,
-              landingPage: pdfLocationLandingPage,
-              fullTextUrl: pdfLocationFullTextUrl,
-              locationPlatform: pdfLocationPlatform as LocationPlatform,
-            },
-          ]
+          {
+            canonical: true,
+            id: this.defaultId,
+            landingPage: pdfLocationLandingPage,
+            fullTextUrl: pdfLocationFullTextUrl,
+            locationPlatform: pdfLocationPlatform as LocationPlatform,
+          },
+        ]
         : [];
 
       publications.push({ ...publication, locations });
@@ -562,11 +562,11 @@ export class CSVParser {
 
       const affiliation = institution
         ? getDefaultAffiliation({
-            institutionId: institution.id,
-            institutionName: institution.name,
-            rorId: institution.ror,
-            position: affiliationPosition || '',
-          })
+          institutionId: institution.id,
+          institutionName: institution.name,
+          rorId: institution.ror,
+          position: affiliationPosition || '',
+        })
         : null;
 
       const orderNumber = i + 1;
@@ -574,14 +574,14 @@ export class CSVParser {
       const biographies =
         biography.length > 0
           ? [
-              {
-                id: this.defaultId,
-                canonical: true,
-                content: biography,
-                localeCode: LocaleCode.En,
-                contributionId: this.defaultId,
-              },
-            ]
+            {
+              id: this.defaultId,
+              canonical: true,
+              content: biography,
+              localeCode: LocaleCode.En,
+              contributionId: this.defaultId,
+            },
+          ]
           : [];
 
       const contributionWithNewContributor = getDefaultContribution({

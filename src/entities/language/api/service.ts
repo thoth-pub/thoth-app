@@ -22,7 +22,7 @@ export class LanguageService extends BaseService<LanguageEntity, LanguageDto> {
         workId,
         languageCode: data.code as LanguageCode,
         languageRelation: data.relation as LanguageRelation,
-        mainLanguage: data.isMain as boolean,
+        mainLanguage: true,
       },
     });
 
@@ -39,7 +39,7 @@ export class LanguageService extends BaseService<LanguageEntity, LanguageDto> {
         languageId: dto.languageId ?? '',
         languageCode: dto.languageCode as LanguageCode,
         languageRelation: dto.languageRelation as LanguageRelation,
-        mainLanguage: dto.mainLanguage as boolean,
+        mainLanguage: true,
         workId,
       },
     });

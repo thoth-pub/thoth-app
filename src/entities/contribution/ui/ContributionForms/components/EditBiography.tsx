@@ -2,7 +2,7 @@ import { Control } from 'react-hook-form';
 
 import { IDs, isTextContainsAnyMarkdownTag } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
-import { MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
+import { Chip, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { BiographyEntity, ContributionBiographyForm } from '../../../model/contribution.types';
@@ -64,9 +64,16 @@ export const EditBiography = (props: EditBiographyProps) => {
           recommended={showPreviewIndicator}
         >
           {placeholder.length > 0 && (
-            <Typography component="span">
-              <MarkdownPreview source={placeholder} />
-            </Typography>
+            <div className="flex flex-col gap-2">
+              <Typography component="span">
+                <MarkdownPreview source={placeholder} />
+              </Typography>
+              <ul className="flex flex-wrap gap-1">
+                {filteredBiographies.map(({ id, localeCode }) => (
+                  <Chip key={id} label={localeCode} size="small" component="li" className="" />
+                ))}
+              </ul>
+            </div>
           )}
         </Preview>
       )}

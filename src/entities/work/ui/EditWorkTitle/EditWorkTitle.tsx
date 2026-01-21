@@ -17,6 +17,7 @@ import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFiel
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import type { LocaleCodeType } from '@/src/shared/types/languages';
 import {
+  Chip,
   ContentWrapper,
   FormFieldLabel,
   FormTextField,
@@ -172,9 +173,16 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
           onEdit={onEdit}
           recommended={showIndicator}
         >
-          <Typography component="span">
-            <MarkdownPreview source={placeholder} />
-          </Typography>
+          <div className="flex flex-col gap-2">
+            <Typography component="span">
+              <MarkdownPreview source={placeholder} />
+            </Typography>
+            <ul className="flex flex-wrap gap-1">
+              {work.titles.map(({ id, localeCode }) => (
+                <Chip key={id} label={localeCode} size="small" component="li" />
+              ))}
+            </ul>
+          </div>
         </Preview>
       )}
     />
