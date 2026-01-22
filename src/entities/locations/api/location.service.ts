@@ -38,6 +38,8 @@ export class LocationService extends BaseService<LocationEntity, LocationDto> {
         publicationId,
         canonical: dto.canonical as boolean,
         locationPlatform: dto.locationPlatform as LocationPlatform,
+        fullTextUrl: dto.fullTextUrl ?? null,
+        landingPage: dto.landingPage ?? null,
       },
     });
 

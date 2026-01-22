@@ -2,11 +2,12 @@ import { useMemo } from 'react';
 
 import { HELPER_TEXT, IDs, WorkStatuses } from '@/src/shared';
 import { FORM_FIELDS, workStatusOptions, workStatusOptionsAlt } from '@/src/shared/constants/formFields';
-import { EditButton, FormFieldLabel, FormTextField, InputLabel, Typography } from '@/src/shared/ui';
+import { EditButton, FormFieldLabel, FormTextField, InputLabel } from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
 
 import { WorkStatus } from '../../model/work.types';
 import { workStatusValidationSchema } from '../../model/work.validation';
+import WorkStatusChip from '../WorkStatusChip/WorkStatusChip';
 
 const { WORK_STATUS } = FORM_FIELDS;
 const { WORK_STATUS: WORK_STATUS_HELPER_TEXT } = HELPER_TEXT;
@@ -80,7 +81,7 @@ const EditStatus = (props: EditStatusProps) => {
           <div className="flex flex-col gap-2">
             <InputLabel>{WORK_STATUS.label}</InputLabel>
             <div className="group flex items-center gap-1">
-              <Typography>{option.label}</Typography>
+              <WorkStatusChip status={defaultValue} />
               <EditButton onClick={onEdit} disabled={disabled} className="opacity-0 group-hover:opacity-100" />
             </div>
           </div>

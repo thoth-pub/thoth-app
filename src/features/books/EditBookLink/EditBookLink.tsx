@@ -4,10 +4,11 @@ import NextLink from 'next/link';
 import removeMd from 'remove-markdown';
 
 import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import { WorkStatusChip } from '@/src/entities/work';
 import type { WorkStatus } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, getMainTitle, ROUTES, TitleEntity } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
-import { Chip, DashboardContentWrapper, Typography } from '@/src/shared/ui';
+import { DashboardContentWrapper, Typography } from '@/src/shared/ui';
 
 type EditBookLinkProps = {
   titles: TitleEntity[];
@@ -58,7 +59,7 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
               <Typography className="max-w-[240px] truncate xl:max-w-[360px]">{mainContributor}</Typography>
               <div className="flex items-center gap-4">
                 <Typography className="truncate">{convertOptionToString(convertedType)}</Typography>
-                <Chip label={convertOptionToString(status)} size="small" component="span" />
+                <WorkStatusChip status={status} />
               </div>
             </div>
           </div>

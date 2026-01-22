@@ -24,11 +24,11 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
     updateDimensions,
     updatePrices,
     updateLocations,
+    deleteLocation,
     updateAccessibilityStandards,
     updateAccessibilityException,
     updateAccessibilityReport,
     deleteAccessibility,
-    selectAsCanonical,
   } = useAddNewPublication({
     workId,
   });
@@ -87,8 +87,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         <EditLocations
           locations={publication.locations}
           onUpdate={updateLocations}
-          onClose={close}
-          onSelectAsCanonical={selectAsCanonical}
+          onDelete={deleteLocation}
         />
       </EditPublication>
     </TableNewEntityFormWrapper>

@@ -1,5 +1,5 @@
 import { createTheme } from '@mui/material';
-import type {} from '@mui/x-date-pickers/themeAugmentation';
+import type { } from '@mui/x-date-pickers/themeAugmentation';
 
 export const theme = createTheme({
   typography: {
@@ -75,6 +75,9 @@ export const theme = createTheme({
     },
     secondary: {
       main: '#fff2d9',
+    },
+    warning: {
+      main: '#ffdd75',
     },
   },
   components: {
@@ -317,10 +320,6 @@ export const theme = createTheme({
 
           '& .MuiChip-label': {
             padding: '0',
-
-            '@media (min-width: 1280px)': {
-              padding: '0 0.75rem',
-            },
           },
         },
       },
@@ -328,16 +327,16 @@ export const theme = createTheme({
     MuiTable: {
       styleOverrides: {
         root: {
+          fontSize: '0.75rem',
+          lineHeight: '1.5rem',
           borderColor: 'var(--color-table-border)',
+          '@media (min-width: 1280px)': {
+            fontSize: '1rem',
+          },
+
           '& .MuiTableCell-root': {
             borderColor: 'var(--color-table-border)',
             color: 'var(--color-table-text)',
-            fontSize: '0.75rem',
-            lineHeight: '1.5rem',
-
-            '@media (min-width: 1280px)': {
-              fontSize: '1rem',
-            },
           },
           '& .MuiTableHead-root .MuiTableCell-root': {
             padding: '8px',

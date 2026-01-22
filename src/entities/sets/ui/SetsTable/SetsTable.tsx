@@ -45,7 +45,7 @@ const SetsTable = (props: SetsTableProps) => {
         <TableHeader cells={['Title', 'Updated At']} cellStyles={['w-[210px] pl-3', 'w-[110px]']} />
         <TableBody>
           {!loading && sets.length === 0 && (
-            <TableRow className="!cursor-auto hover:!bg-transparent">
+            <TableRow className="cursor-auto! hover:bg-transparent!">
               <TableCell colSpan={2} className="text-center">
                 <Typography variant="body1" component="span">
                   No sets found
@@ -54,7 +54,7 @@ const SetsTable = (props: SetsTableProps) => {
             </TableRow>
           )}
           {loading ? (
-            <TableRow className="!cursor-auto hover:!bg-transparent">
+            <TableRow className="cursor-auto! hover:bg-transparent!">
               <TableCell colSpan={2} className="text-center">
                 <CircularProgress className="my-[10rem]" />
               </TableCell>
@@ -72,8 +72,8 @@ const SetsTable = (props: SetsTableProps) => {
                       </TableCell>
                       <TableCell className="lastCell">
                         <div className="flex justify-between">
-                          <Typography>{convertUpdatedAtToFormattedDate(updatedAt)}</Typography>
-                          <ButtonGroup>
+                          {convertUpdatedAtToFormattedDate(updatedAt)}
+                          <ButtonGroup className='-mt-2'>
                             <DeleteButton onClick={() => deleteSet(id)} className="opacity-0 group-hover:opacity-100" />
                             <EditButton
                               disabled={!!activeSet}

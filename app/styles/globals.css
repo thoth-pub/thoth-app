@@ -76,6 +76,7 @@
   --green-opacity-50: rgba(66, 176, 114, 0.5);
   --red: #ff0000;
   --color-blue: #394963;
+  --warning: #ffdd75;
 
   --max-width: 1920px;
 
@@ -108,6 +109,7 @@
   --color-hover-border: var(--purple-opacity-25);
   --color-placeholder: var(--gray);
   --color-icon: var(--purple);
+  --color-warning: var(--warning);
 
   /* Tier 3 */
   --header-height: 5.625rem;

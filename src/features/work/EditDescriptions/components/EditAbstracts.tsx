@@ -33,7 +33,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const { createAbstract } = useCreateAbstract(workId);
   const { updateAbstract } = useUpdateAbstract(workId);
   const { deleteAbstract } = useDeleteAbstract();
-  const { close } = useFormStateMachine();
+  const { activeFormId, close } = useFormStateMachine();
 
   const longAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Long);
   const shortAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Short);
@@ -205,7 +205,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
         />
       )}
       preview={({ onEdit }) => (
-        <Preview label={WORK_ABSTRACTS.label} value={placeholderValue} onEdit={onEdit}>
+        <Preview label={WORK_ABSTRACTS.label} value={placeholderValue} onEdit={onEdit} disabled={!!activeFormId}>
           <div className="flex flex-col gap-2">
             <MarkdownRenderer markdown={placeholderValue} />
             <ul className="flex flex-wrap gap-1">

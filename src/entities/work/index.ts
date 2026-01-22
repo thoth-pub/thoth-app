@@ -39,6 +39,7 @@ export { default as EditWithdrawDate } from './ui/EditWithdrawDate/EditWithdrawD
 export { default as EditWorkHeader } from './ui/EditWorkHeader/EditWorkHeader';
 export { default as EditWorkTitle } from './ui/EditWorkTitle/EditWorkTitle';
 export { default as EditWorkType } from './ui/EditWorkType/EditWorkType';
+export { default as WorkStatusChip } from './ui/WorkStatusChip/WorkStatusChip';
 
 // Store
 export { default as useWorkChaptersStateMachine } from './store/hooks/useWorkChaptersStateMachine';

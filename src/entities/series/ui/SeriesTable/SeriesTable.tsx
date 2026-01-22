@@ -86,12 +86,12 @@ const SeriesTable = (props: SeriesTableProps) => {
                         <TableCell className="middleCell">{description}</TableCell>
                         <TableCell className="middleCell">{convertOptionToString(type)}</TableCell>
                         <TableCell className="middleCell">
-                          <Typography>{issnPrint && issnPrint.length > 0 ? issnPrint : issnDigital}</Typography>
+                          {issnPrint && issnPrint.length > 0 ? issnPrint : issnDigital}
                         </TableCell>
                         <TableCell className="lastCell">
                           <div className="flex justify-between">
-                            <Typography>{convertUpdatedAtToFormattedDate(updatedAt)}</Typography>
-                            <ButtonGroup>
+                            {convertUpdatedAtToFormattedDate(updatedAt)}
+                            <ButtonGroup className='-mt-2'>
                               <DeleteButton
                                 onClick={() => deleteSeries(id)}
                                 className="opacity-0 group-hover:opacity-100"

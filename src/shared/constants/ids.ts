@@ -39,6 +39,7 @@ export const IDs = {
   PUBLICATION_ACCESSIBILITY_ADDITIONAL_STANDARD: 'publication_accessibility_additional_standard',
   PRICES: 'publication_prices',
   LOCATIONS: 'publication_locations',
+  LOCATION_PLATFORM: 'location_platform',
   // FUNDINGS
   FUNDING: 'funding',
   FUNDING_PROJECT_NAME: 'funding_project_name',

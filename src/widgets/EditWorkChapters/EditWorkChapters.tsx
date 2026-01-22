@@ -175,20 +175,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                 'Title',
                 'Contributors',
                 <div key="page-range" className="flex items-center justify-between">
-                  <Typography
-                    variant="h2"
-                    component="span"
-                    className="max-w-[300px]"
-                    sx={{
-                      fontFamily: 'unset',
-                      fontWeight: 'unset',
-                      textTransform: 'unset',
-                      fontSize: '1rem',
-                      '@media (min-width: 1280px)': { fontSize: '1.375rem' },
-                    }}
-                  >
-                    Page Range
-                  </Typography>
+                  Page Range
                   {isMultipleChapters && (
                     <Checkbox
                       size="small"

@@ -24,7 +24,7 @@ const fieldsOptions = {
   [SubjectTypes.enum.Lcc]: [],
 };
 
-const formStyles = 'w-full flex gap-2';
+const formStyles = 'w-full flex gap-2 bg-(--color-form-background) rounded-xl p-2 border border-(--color-form-border)';
 
 export const EditSubject = ({ workId }: BaseEditSectionProps) => {
   const { activeSubject, close } = useSubjectStateMachine();

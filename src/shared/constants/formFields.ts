@@ -31,6 +31,7 @@ const {
 } = ERRORS;
 
 export const InputTypes = {
+  CHECKBOX: 'checkbox',
   EMAIL: 'email',
   PASSWORD: 'password',
   TEXT: 'text',
@@ -473,6 +474,12 @@ export const FORM_FIELDS = {
     name: 'platform',
     placeholder: 'Platform',
     type: InputTypes.TEXT,
+  },
+  CANONICAL: {
+    label: 'Canonical',
+    name: 'canonical',
+    placeholder: 'Canonical',
+    type: InputTypes.CHECKBOX,
   },
   FULL_TEXT_URL: {
     label: 'Full Text URL',

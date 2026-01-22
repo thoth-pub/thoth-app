@@ -118,7 +118,7 @@ const AddContributionModal = () => {
                   >
                     <button type="button">
                       <Typography variant="body1" className='flex gap-2' component="span">
-                        {contributor.name} {contributor.orcid.length > 0 && `(ORCID iD: ${contributor.orcid})`}
+                        {contributor.name} {contributor.orcid.length > 0 && `(${contributor.orcid})`}
                       </Typography>
                     </button>
                   </li>

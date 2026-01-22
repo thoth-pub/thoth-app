@@ -35,7 +35,7 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     const shouldCreateLocations = data.locations.length > 0;
 
     if (shouldCreatePrices) {
-      const pricesPromises = publication.prices.map((price) =>
+      const pricesPromises = data.prices.map((price) =>
         this.priceService.createPrice(token, price, publication.id),
       );
 
@@ -45,7 +45,7 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     }
 
     if (shouldCreateLocations) {
-      const locationsPromises = publication.locations.map((location) =>
+      const locationsPromises = data.locations.map((location) =>
         this.locationService.createLocation(token, location, publication.id),
       );
 
@@ -68,8 +68,6 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
         publicationId: publicationId,
       },
     });
-
-    // const publication = this.dtoMapper.toEntity(response.updatePublication as PublicationDto);
 
     const shouldUpdatePrices = data.prices.filter(({ id }) => isDefaultId(id)).length > 0;
     const shouldUpdateLocations = data.locations.filter(({ id }) => isDefaultId(id)).length > 0;

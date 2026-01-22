@@ -25,15 +25,15 @@ const TotalBooksChart = () => {
   const chartData: { label: string; value: number; color: string }[] = [];
 
   if (publishedBookCount > 0) {
-    chartData.push({ label: 'Active', value: publishedBookCount, color: 'var(--color-chart-4)' });
+    chartData.push({ label: 'Active', value: publishedBookCount, color: 'var(--color-success)' });
   }
 
   if (forthcomingBookCount > 0) {
-    chartData.push({ label: 'Forthcoming', value: forthcomingBookCount, color: 'var(--color-chart-1)' });
+    chartData.push({ label: 'Forthcoming', value: forthcomingBookCount, color: 'var(--color-warning)' });
   }
 
   if (otherBooksCount > 0) {
-    chartData.push({ label: 'Other', value: otherBooksCount, color: 'var(--color-chart-3)' });
+    chartData.push({ label: 'Other', value: otherBooksCount, color: 'var(--color-error)' });
   }
 
   const settings = {
@@ -56,17 +56,17 @@ const TotalBooksChart = () => {
           </Typography>
           <ul className="flex list-disc flex-col gap-1 pl-4 xl:pl-8">
             {publishedBookCount > 0 && (
-              <Typography component="li" className="list-item marker:text-[var(--color-chart-4)]">
+              <Typography component="li" className="list-item marker:text-(--color-success)">
                 {publishedBookCount} Active
               </Typography>
             )}
             {forthcomingBookCount > 0 && (
-              <Typography component="li" className="list-item marker:text-[var(--color-chart-1)]">
+              <Typography component="li" className="list-item marker:text-(--color-warning)">
                 {forthcomingBookCount} Forthcoming
               </Typography>
             )}
             {otherBooksCount > 0 && (
-              <Typography component="li" className="list-item marker:text-[var(--color-chart-3)]">
+              <Typography component="li" className="list-item marker:text-(--color-error)">
                 {otherBooksCount} Other
               </Typography>
             )}

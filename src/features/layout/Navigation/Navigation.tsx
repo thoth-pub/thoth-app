@@ -72,11 +72,11 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
 
         <ChangeActivePublisher linkedPublishers={linkedPublishers} isSuperAdmin={isSuperAdmin} isHidden={!isExpanded} />
         <nav>
-          <ul className="flex flex-col rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)]">
+          <ul className="flex flex-col rounded-(--border-nav-radius) border border-(--color-nav-border)">
             {PAGES.map(({ name, href, icon: Icon }) => (
               <li
                 key={href}
-                className={`py-2 duration-300 hover:bg-[var(--color-hover)] ${isExpanded ? 'px-4' : 'px-1.5'}`}
+                className={`py-2 duration-300 hover:bg-(--color-hover) ${isExpanded ? 'px-4' : 'px-1.5'}`}
               >
                 <Link href={href} className="flex shrink-0 items-center gap-2">
                   <Icon color="primary" className={`${!isExpanded && 'm-auto'}`} />
@@ -95,10 +95,11 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
           </ul>
         </nav>
 
-        <div
-          className={`mt-auto flex gap-2 rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)] py-2 ${isExpanded ? 'px-4' : 'h-[2.5rem] w-[2.5rem] px-1.5'}`}
-        >
-          {isExpanded && (
+        {isExpanded && (
+          <div
+            className={`mt-auto flex gap-2 rounded-(--border-nav-radius) border border-(--color-nav-border) py-2 ${isExpanded ? 'px-4' : 'h-10 w-10 px-1.5'}`}
+          >
+
             <div
               className={`flex max-w-full flex-col gap-1 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
             >
@@ -116,10 +117,10 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
               </Typography>
               {isUserMenuOpen && <ContentLanguage />}
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        <div className="flex justify-center">
+        <div className={`flex justify-center ${!isExpanded ? 'mt-auto' : ''}`}>
           <SignOutButton />
         </div>
       </motion.div>

@@ -37,9 +37,9 @@ const PublicationsTable = (props: PublicationsTableProps) => {
                         {[weight, weightOz].some((value) => value) && (
                           <Chip label="g/oz" size="small" className="lowercase" />
                         )}
-                        {prices.map(({ currencyCode, id }) => (
-                          <Chip key={id} label={currencyCode} size="small" className="lowercase" />
-                        ))}
+                        {prices.length > 0 && (
+                          <Chip label={`${prices.length} price` + (prices.length > 1 ? 's' : '')} size="small" className="lowercase" />
+                        )}
                         {locations.length > 0 && <Chip label={`${locations.length} location` + (locations.length > 1 ? 's' : '')} size="small" className="lowercase" />}
                       </div>
                     </div>

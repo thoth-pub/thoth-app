@@ -3,7 +3,7 @@ import z from 'zod';
 import type { LocationFragmentFragment } from '@/gql/graphql';
 import { LocationPlatforms } from '@/src/shared';
 
-import { locationsValidationSchema } from './location.validation';
+import { locationPlatformValidationSchema, locationsValidationSchema } from './location.validation';
 
 export type LocationsForm = z.infer<typeof locationsValidationSchema>;
 
@@ -20,3 +20,5 @@ export type LocationEntity = {
   locationPlatform: LocationPlatform;
   id: LocationId;
 };
+
+export type LocationForm = z.infer<typeof locationPlatformValidationSchema>;

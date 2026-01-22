@@ -3,9 +3,7 @@
 import { useState } from 'react';
 
 import { AccessibilityStandard } from '@/gql/graphql';
-import { useCreateLocation } from '@/src/entities/locations';
-import type { LocationsForm } from '@/src/entities/locations/model/location.types';
-import { useCreatePrice } from '@/src/entities/price';
+import type { LocationEntity } from '@/src/entities/locations/model/location.types';
 import type { PricesForm } from '@/src/entities/price/model/price.types';
 import { useCreatePublication, usePublicationsStateMachine } from '@/src/entities/publication';
 import type {
@@ -31,41 +29,9 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const { activePublication, close } = usePublicationsStateMachine();
 
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
-  const { createPrice } = useCreatePrice({
-    workId,
-  });
-  const { createLocation } = useCreateLocation({
-    workId,
-  });
   const { createPublication } = useCreatePublication({
     workId,
     onCompleted: () => {
-      if (!publication) return close();
-
-      publication.prices.forEach(({ id, currencyCode, unitPrice }) => {
-        createPrice({
-          id,
-          publicationId: id,
-          currencyCode,
-          unitPrice,
-        });
-      });
-
-      const sortedLocations = publication.locations.sort((a) => (a.canonical ? -1 : 1));
-
-      if (sortedLocations.length > 0) sortedLocations[0].canonical = true;
-
-      sortedLocations.forEach(({ id, locationPlatform, canonical, fullTextUrl, landingPage }) => {
-        createLocation({
-          id,
-          publicationId: id,
-          locationPlatform,
-          canonical,
-          fullTextUrl,
-          landingPage,
-        });
-      });
-
       close();
     },
   });
@@ -153,22 +119,18 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, prices });
   };
 
-  const updateLocations = (data: LocationsForm) => {
+  const updateLocations = (locations: LocationEntity[]) => {
     if (!publication) return;
 
-    const locations = data.locations.map(({ platformId, platform, fullTextUrl, landingPage }) => {
-      const canonical = publication.locations.find(({ id }) => id === platformId)?.canonical ?? false;
-
-      return {
-        id: platformId,
-        locationPlatform: platform.value,
-        canonical,
-        fullTextUrl: fullTextUrl ?? '',
-        landingPage: landingPage ?? '',
-      };
-    });
-
     setPublication({ ...publication, locations });
+  };
+
+  const deleteLocation = (platformId: string) => {
+    if (!publication) return;
+
+    const updatedLocations = publication.locations.filter(({ id }) => id !== platformId);
+
+    setPublication({ ...publication, locations: updatedLocations });
   };
 
   const selectAsCanonical = (platformId: string) => {
@@ -234,6 +196,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     updateDimensions,
     updatePrices,
     updateLocations,
+    deleteLocation,
     updateAccessibilityStandards,
     updateAccessibilityException,
     updateAccessibilityReport,

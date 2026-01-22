@@ -2,6 +2,7 @@
 
 import { ContributionStateMachineContext } from '@/src/entities/contribution';
 import { FundingStateMachineContext } from '@/src/entities/funding';
+import { LocationStateMachineContext } from '@/src/entities/locations/store/location.provider';
 import { PublicationsStateMachineContext } from '@/src/entities/publication';
 import { PublisherStateMachineContext } from '@/src/entities/publisher';
 import { ReferenceStateMachineContext } from '@/src/entities/reference';
@@ -26,7 +27,9 @@ const StoreProvider = ({ children }: Readonly<{ children: React.ReactNode }>) =>
                     <WorkChaptersStateMachineContext.Provider>
                       <SetStateMachineContext.Provider>
                         <SubjectStateMachineContext.Provider>
-                          <ServicesProvider>{children}</ServicesProvider>
+                          <LocationStateMachineContext.Provider>
+                            <ServicesProvider>{children}</ServicesProvider>
+                          </LocationStateMachineContext.Provider>
                         </SubjectStateMachineContext.Provider>
                       </SetStateMachineContext.Provider>
                     </WorkChaptersStateMachineContext.Provider>

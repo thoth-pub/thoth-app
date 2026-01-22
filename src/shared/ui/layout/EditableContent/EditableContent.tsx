@@ -105,7 +105,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
       ) : (
         <div
           onDoubleClick={handleEdit}
-          className={`group cursor-pointer ${borderTransparent ? '' : 'border-1 border-[transparent] hover:border-[var(--color-hover-border)]'} duration-300 hover:bg-[var(--color-hover-alt)] ${isTableVariant ? '' : 'rounded-xl p-4'}`}
+          className={`group cursor-pointer ${borderTransparent ? '' : 'border border-transparent hover:border-(--color-hover-border)'} duration-300 hover:bg-(--color-hover-alt) ${isTableVariant ? '' : 'rounded-xl p-4'}`}
         >
           {preview({ data: formData as T, disabled: !!activeFormId && !isActive, onEdit: handleEdit })}
         </div>

@@ -4,11 +4,11 @@ import EditSquareIcon from '@mui/icons-material/EditSquare';
 import PlusOneIcon from '@mui/icons-material/PlusOne';
 import TranslateIcon from '@mui/icons-material/Translate';
 
+import { WorkStatusChip } from '@/src/entities/work';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared';
 import {
   ButtonGroup,
-  Chip,
   IconButton,
   MarkdownRenderer,
   Pagination,
@@ -74,7 +74,7 @@ export const WorksTable = (props: WorksTableProps) => {
                   <TableCell className="middleCell">
                     <MarkdownRenderer markdown={getMainTitle(work.titles).title} />
                   </TableCell>
-                  <TableCell className="middleCell">{<Chip label={convertOptionToString(work.status)} />}</TableCell>
+                  <TableCell className="middleCell"><WorkStatusChip status={work.status} /></TableCell>
                   <TableCell className="middleCell">{convertOptionToString(work.type)}</TableCell>
                   <TableCell className="middleCell">{work.contributorsNames.join(', ')}</TableCell>
                   <TableCell className="lastCell">

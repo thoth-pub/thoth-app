@@ -1,84 +1,99 @@
+'use client';
+
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
-import type { Control } from 'react-hook-form';
 
-import { IDs } from '@/src/shared';
-import { FORM_FIELDS, locationPlatformOptions } from '@/src/shared/constants/formFields';
-import { ButtonGroup, Chip, DeleteButton, FavoriteButton, Preview, Typography } from '@/src/shared/ui';
-import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { LocationPlatform } from '@/gql/graphql';
+import { appConfig, convertOptionToString, IDs, isDefaultId } from '@/src/shared';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import { AddButton, ButtonGroup, Chip, ContentWrapper, DeleteButton, EditButton, InputLabel, Typography } from '@/src/shared/ui';
 
-import type { LocationEntity, LocationsForm } from '../../model/location.types';
-import { locationsValidationSchema } from '../../model/location.validation';
-import { FormFields } from './components/FormFields';
+import type { LocationEntity } from '../../model/location.types';
+import useLocationStateMachine from '../../store/hooks/useLocationStateMachine';
+import { LocationForm } from '../LocationForm/LocationForm';
 
-const { LOCATIONS, PLATFORM, FULL_TEXT_URL, LANDING_PAGE } = FORM_FIELDS;
+const { LOCATIONS } = FORM_FIELDS;
 
 type EditLocationsProps = {
   locations: LocationEntity[];
-  onUpdate: (data: LocationsForm) => void;
+  onUpdate: (data: LocationEntity[]) => void;
   onDelete?: (id: string) => void;
-  onClose?: () => void;
-  onSelectAsCanonical?: (id: string) => void;
 };
 
 const EditLocations = (props: EditLocationsProps) => {
-  const { locations, onUpdate, onDelete, onClose, onSelectAsCanonical } = props;
+  const { locations, onUpdate, onDelete } = props;
 
-  const defaultValues = locations.map(({ id, locationPlatform, fullTextUrl, landingPage, canonical }) => {
-    const platformOption = locationPlatformOptions.find(
-      (option) => option.value.toLowerCase() === locationPlatform.toLowerCase(),
-    );
+  const { activeLocation, edit, close } = useLocationStateMachine();
+  const { edit: editForm, close: closeForm } = useFormStateMachine();
 
-    return {
-      platformId: id,
-      [PLATFORM.name]: {
-        value: locationPlatform,
-        label: platformOption ? platformOption.label : locationPlatform,
-      },
-      canonical,
-      [FULL_TEXT_URL.name]: fullTextUrl,
-      [LANDING_PAGE.name]: landingPage,
-    };
-  });
+  const isEditingNewLocation = activeLocation && isDefaultId(activeLocation.id);
+  const isLocationsFilled = locations.length > 0;
+  const isEditingExistingLocation = activeLocation && locations.some((location) => location.id === activeLocation.id);
 
-  const placeholder =
-    locations.length > 0 ? locations.map(({ locationPlatform }) => locationPlatform).join(', ') : undefined;
+  const handleEditLocation = (location: LocationEntity) => {
+    editForm(IDs.LOCATION_PLATFORM);
+    edit(location);
+  };
+
+  const handleAddNewLocation = () => {
+    editForm(IDs.LOCATION_PLATFORM);
+    edit({
+      locationPlatform: LocationPlatform.Other,
+      fullTextUrl: '',
+      landingPage: '',
+      canonical: false,
+      id: `${appConfig.defaultId}-${locations.length + 1}`
+    });
+  };
+
+  const handleSubmitNewLocation = (location: LocationEntity) => {
+    onUpdate?.([...locations, location]);
+    close();
+    closeForm();
+  };
+
+  const handleSubmitLocation = (location: LocationEntity) => {
+    const filteredLocations = locations.filter((loc) => loc.id !== location.id);
+
+    onUpdate?.([...filteredLocations, location]);
+    close();
+    closeForm();
+  };
 
   return (
-    <EditableContent
-      formId={IDs.LOCATIONS}
-      defaultValues={{ [LOCATIONS.name]: defaultValues }}
-      validationSchema={locationsValidationSchema}
-      borderTransparent
-      isTableVariant
-      onSubmit={(data) => onUpdate?.(data)}
-      formFields={({ control, isHelperTextVisible }) => (
-        <FormFields
-          control={control as unknown as Control<LocationsForm>}
-          isHelperTextVisible={isHelperTextVisible}
-          onDelete={onDelete}
-          onClose={onClose}
-        />
-      )}
-      preview={({ disabled, onEdit }) => (
-        <Preview label={LOCATIONS.label} value={placeholder} disabled={disabled} onEdit={onEdit}>
-          {locations.length > 0 && (
-            <ul className="flex w-full flex-col gap-[var(--default-gap)]">
-              {defaultValues.map(({ platformId, platform: { label }, fullTextUrl, landingPage, canonical }) => (
-                <li key={platformId} className="flex items-center gap-1">
-                  <Chip label={label} size="small" component="span" />
-                  <Typography>{landingPage}</Typography>
-                  {fullTextUrl && fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
-                  <ButtonGroup className="ml-auto">
-                    <DeleteButton onClick={() => onDelete?.(platformId)} />
-                    <FavoriteButton isFavorite={canonical} onClick={() => onSelectAsCanonical?.(platformId)} />
-                  </ButtonGroup>
-                </li>
-              ))}
-            </ul>
+    <>
+      <ContentWrapper>
+        <InputLabel component="span">{LOCATIONS.label}</InputLabel>
+        {!activeLocation && !isLocationsFilled && <AddButton onAdd={handleAddNewLocation} className="p-0 mr-auto capitalize">
+          add new location
+        </AddButton>}
+      </ContentWrapper>
+
+      {isLocationsFilled && (
+        <ul className="flex w-full flex-col gap-(--default-gap)">
+          {locations.map((location) => (
+            activeLocation?.id === location.id ? <LocationForm key={location.id} location={location} onClose={close} onSubmit={handleSubmitLocation} /> :
+              (<li key={location.id} className="flex items-center gap-1">
+                <Chip label={convertOptionToString(location.locationPlatform)} size="small" component="span" />
+                <Typography className="max-w-[30%] truncate">{location.landingPage}</Typography>
+                {location.fullTextUrl && location.fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
+                <ButtonGroup className="ml-auto">
+                  <DeleteButton onClick={() => onDelete?.(location.id)} />
+                  <EditButton onClick={() => handleEditLocation(location)} />
+                </ButtonGroup>
+              </li>))
           )}
-        </Preview>
+        </ul>
       )}
-    />
+
+      {isEditingNewLocation && !isEditingExistingLocation && <LocationForm location={activeLocation} onClose={close} onSubmit={handleSubmitNewLocation} />}
+
+      {isLocationsFilled && (
+        <AddButton onAdd={handleAddNewLocation} className="mt-4 mr-auto capitalize">
+          add new location
+        </AddButton>
+      )}
+    </>
   );
 };
 

@@ -27,7 +27,6 @@ const EditPublication = (props: EditPublicationProps) => {
     updateAccessibilityException,
     updateAccessibilityReport,
     deleteAccessibility,
-    selectAsCanonical,
   } = useEditPublication({
     workId,
   });
@@ -69,9 +68,7 @@ const EditPublication = (props: EditPublicationProps) => {
       <EditLocations
         locations={activePublication.locations}
         onUpdate={updateLocations}
-        onClose={close}
         onDelete={deleteLocation}
-        onSelectAsCanonical={selectAsCanonical}
       />
     </EditPublicationForm>
   );

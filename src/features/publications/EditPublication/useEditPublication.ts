@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { AccessibilityStandard } from '@/gql/graphql';
 import { useCreateLocation, useDeleteLocation, useUpdateLocation } from '@/src/entities/locations';
-import type { LocationEntity, LocationsForm } from '@/src/entities/locations/model/location.types';
+import type { LocationEntity } from '@/src/entities/locations/model/location.types';
 import { useCreatePrice, useDeletePrice, useUpdatePrice } from '@/src/entities/price';
 import type { CurrencyCode, PricesForm } from '@/src/entities/price/model/price.types';
 import { usePublicationsStateMachine, useUpdatePublication } from '@/src/entities/publication';
@@ -198,25 +198,14 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, prices });
   };
 
-  const updateLocations = async (data: LocationsForm) => {
+  const updateLocations = async (locations: LocationEntity[]) => {
     if (!publication) return;
-
-    const locations = data.locations.map(({ platformId, platform, fullTextUrl, landingPage }) => {
-      const canonical = publication.locations.find(({ id }) => id === platformId)?.canonical ?? false;
-
-      return {
-        id: platformId,
-        locationPlatform: platform.value,
-        canonical,
-        fullTextUrl: fullTextUrl ?? '',
-        landingPage: landingPage ?? '',
-      };
-    });
 
     const newLocations = locations.filter(({ id }) => isDefaultId(id));
     const existingLocations = locations.filter(({ id }) => !isDefaultId(id));
     const notUpdatedLocations: LocationEntity[] = [];
-    const updatedLocations = publication.locations.filter((location) => {
+
+    const updatedLocations = locations.filter((location) => {
       const existingLocation = existingLocations.find(({ id }) => id === location.id);
 
       if (!existingLocation) return false;
@@ -261,7 +250,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
     const item = publication.locations.find(({ id }) => id === platformId);
 
-    if (!item) return;
+    if (!item || isDefaultId(item.id)) return;
 
     const updatedLocations = publication.locations.filter(({ id }) => id !== platformId);
 
