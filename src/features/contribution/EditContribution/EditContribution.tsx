@@ -24,6 +24,7 @@ type EditContributionProps = BaseRecommendedSectionProps &
     onAffiliationsUpdate: (data: AffiliationsFormType) => void;
     onDeleteAffiliation: (id: string) => void;
     onAffiliationOrderUpdate: (data: AffiliationsFormType['affiliations']) => void;
+    onIsMainSubmit: (isMain: boolean) => void;
   }>;
 
 const EditContribution = (props: EditContributionProps) => {
@@ -39,6 +40,7 @@ const EditContribution = (props: EditContributionProps) => {
     onAffiliationsUpdate,
     onDeleteAffiliation,
     onAffiliationOrderUpdate,
+    onIsMainSubmit,
   } = props;
 
   const { linkedPublishers } = usePublisherStateMachine();
@@ -53,6 +55,7 @@ const EditContribution = (props: EditContributionProps) => {
     updateNames,
     updateType,
     updateBiography,
+    updateCanonical,
     updateOrcid,
     updateWebsiteUrl,
     updateAffiliations,
@@ -70,6 +73,7 @@ const EditContribution = (props: EditContributionProps) => {
     onAffiliationsUpdate,
     onDeleteAffiliation,
     onMoveAffiliation: onAffiliationOrderUpdate,
+    onIsMainSubmit,
   });
 
   if (!contribution) return null;
@@ -85,6 +89,7 @@ const EditContribution = (props: EditContributionProps) => {
       onNamesSubmit={updateNames}
       onContributorTypeSubmit={updateType}
       onBiographySubmit={updateBiography}
+      onIsMainSubmit={updateCanonical}
     >
       <EditOrcid orcidId={contribution.orcidId} disabled={isOrchidEditionDisabled} onSubmit={updateOrcid} />
       <EditWebsite

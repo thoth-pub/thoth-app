@@ -131,6 +131,18 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     onAffiliationOrderUpdate(data);
   };
 
+  const handleIsMainSubmit = (isMain: boolean) => {
+    if (!activeContribution) return;
+
+    onUpdate(activeContribution.id, {
+      isMain,
+    });
+    update({
+      ...activeContribution,
+      isMain,
+    });
+  };
+
   return (
     <EditContribution
       recommended={showRecommendations}
@@ -144,6 +156,7 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
       onAffiliationsUpdate={handleAffiliationsUpdate}
       onDeleteAffiliation={handleDeleteAffiliation}
       onAffiliationOrderUpdate={handleAffiliationOrderUpdate}
+      onIsMainSubmit={handleIsMainSubmit}
     />
   );
 };

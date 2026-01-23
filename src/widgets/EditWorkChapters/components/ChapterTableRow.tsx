@@ -15,7 +15,6 @@ import {
   MarkdownRenderer,
   TableCell,
   TableRow,
-  Typography,
 } from '@/src/shared/ui';
 
 type TableRowProps = {
@@ -63,26 +62,22 @@ export const ChapterTableRow = (props: TableRowProps) => {
                 isDisabled={totalChaptersCount < appConfig.minItemsCountForDragAndDrop}
                 listeners={listeners}
               />
-              <Typography component="span" className="normal-case">
-                <MarkdownRenderer markdown={getMainTitle(titles).title} />
-              </Typography>
+              <MarkdownRenderer markdown={getMainTitle(titles).title} />
             </div>
           </TableCell>
           <TableCell className="middleCell">
-            <Typography>{contributions.map((contribution) => contribution.fullName).join(', ') ?? ''}</Typography>
+            {contributions.map((contribution) => contribution.fullName).join(', ') ?? ''}
           </TableCell>
           <TableCell className="lastCell">
             <div className="flex justify-between">
-              <Typography>{getPagesPlaceholder(firstPage, lastPage, pageCount)}</Typography>
-              {!isButtonsDisabled && (
-                <ButtonGroup className="mb-auto ml-auto">
-                  <DeleteButton className="opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
-                  <EditButton className="opacity-0 group-hover:opacity-100" onClick={() => onEdit?.(id)} />
-                  <IconButton className="opacity-0 group-hover:opacity-100" onClick={() => onCopy?.(id)}>
-                    <ContentCopyIcon />
-                  </IconButton>
-                </ButtonGroup>
-              )}
+              {getPagesPlaceholder(firstPage, lastPage, pageCount)}
+              <ButtonGroup className="mb-auto ml-auto" disabled={isButtonsDisabled}>
+                <DeleteButton className="opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
+                <EditButton className="opacity-0 group-hover:opacity-100" onClick={() => onEdit?.(id)} />
+                <IconButton className="opacity-0 group-hover:opacity-100" onClick={() => onCopy?.(id)}>
+                  <ContentCopyIcon />
+                </IconButton>
+              </ButtonGroup>
               <Checkbox size="small" sx={{ paddingTop: '6px' }} checked={selected} onChange={handleSelect} />
             </div>
           </TableCell>

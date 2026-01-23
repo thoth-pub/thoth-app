@@ -1,6 +1,5 @@
 'use client';
 
-import DeselectIcon from '@mui/icons-material/Deselect';
 import { useEffect, useState } from 'react';
 
 import {
@@ -19,7 +18,6 @@ import {
   DeleteButton,
   DragAndDropWrapper,
   EditButton,
-  IconButton,
   TableBody,
   TableHeader,
   TableWrapper,
@@ -97,11 +95,6 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
     edit(chapters.filter((chapter) => selectedChapters.includes(chapter.id)));
   };
 
-  const handleClearSelection = () => {
-    setSelectedChapters([]);
-    close();
-  };
-
   const handleCopyChapter = (id: string) => {
     const chapter = chapters.find((chapter) => chapter.id === id);
 
@@ -157,11 +150,8 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                 component="span"
                 className="max-w-[300px]"
               >{`${selectedChaptersTitle} chapters selected`}</Typography>
-              <DeleteButton onClick={handleBulkDelete} />
-              <EditButton onClick={handleEditChapters} />
-              <IconButton onClick={handleClearSelection}>
-                <DeselectIcon fontSize="large" />
-              </IconButton>
+              <DeleteButton onClick={handleBulkDelete} className='p-1' />
+              <EditButton onClick={handleEditChapters} className='p-1' />
             </>
           )}
         </div>
@@ -186,7 +176,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                   )}
                 </div>,
               ]}
-              cellStyles={['min-w-[250px] pl-4', 'min-w-[120px]']}
+              cellStyles={['min-w-[250px] pl-4', 'min-w-[210px]']}
             />
             <TableBody>
               {chapters.map((chapter) => (

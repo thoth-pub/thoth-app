@@ -108,7 +108,7 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
   };
 
   return (
-    <ContentWrapper className='p-4 gap-y-[var(--default-gap)]'>
+    <ContentWrapper className='p-4 gap-y-(--default-gap)'>
       <InputLabel>{SUBJECTS.label}</InputLabel>
       {placeholder ? (
         <div className="flex w-full flex-col gap-(--default-gap)">

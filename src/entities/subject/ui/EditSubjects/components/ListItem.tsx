@@ -6,6 +6,7 @@ import {
   convertBisacSubjectCodeToReadableFormat,
   convertThemaSubjectCodeToReadableFormat,
   isDragAndDropDisabled,
+  mergeStyles,
   SubjectTypes,
 } from '@/src/shared';
 import { ButtonGroup, Chip, DeleteButton, DragAndDropListener, DraggableComponent, EditButton, Typography } from '@/src/shared/ui';
@@ -19,11 +20,14 @@ type ListItemProps = {
   isEditDisabled: boolean;
   subject: SubjectEntity;
   totalSubjectsCount: number;
+  className?: string;
   onEdit?: (id: SubjectId) => void;
   onDelete?: (id: SubjectId) => void;
 };
 
-const ListItem = ({ workId, activeSubjectId, isEditDisabled, subject, totalSubjectsCount, onDelete, onEdit }: ListItemProps) => {
+const ListItem = (props: ListItemProps) => {
+  const { workId, activeSubjectId, isEditDisabled, subject, totalSubjectsCount, className, onDelete, onEdit } = props;
+
   const { id } = subject;
 
   const isBisac = subject.type === SubjectTypes.enum.Bisac;
@@ -42,7 +46,7 @@ const ListItem = ({ workId, activeSubjectId, isEditDisabled, subject, totalSubje
             <li
               ref={ref}
               style={style}
-              className="group -ml-4 flex items-center gap-1 rounded-xl border border-transparent p-2 hover:bg-(--color-form-background) hover:border-(--color-form-border)"
+              className={mergeStyles("group -ml-4 flex items-center gap-1 rounded-xl border border-transparent p-2 hover:bg-(--color-form-background) hover:border-(--color-form-border)", className)}
               {...attributes}
             >
               <DragAndDropListener isDisabled={isDragAndDropDisabled(totalSubjectsCount)} listeners={listeners} />

@@ -85,6 +85,15 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
     });
   };
 
+  const updateCanonical = (isMain: boolean) => {
+    if (!activeContribution) return;
+
+    updateContribution({
+      ...activeContribution,
+      isMain,
+    });
+  };
+
   const create = () => {
     if (!activeContribution) return;
 
@@ -184,5 +193,6 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
     updateAffiliations: updateContributionAffiliations,
     deleteAffiliation,
     moveAffiliation,
+    updateCanonical,
   };
 };

@@ -24,7 +24,6 @@ export const ContributionsTable = (props: ContributionsTableProps) => {
     showRecommendations = false,
     onEdit,
     onDelete,
-    onSelectAsMain,
     onDragEnd,
   } = props;
 
@@ -48,7 +47,6 @@ export const ContributionsTable = (props: ContributionsTableProps) => {
                 showRecommendations={showRecommendations}
                 onEdit={onEdit}
                 onDelete={onDelete}
-                onSelectAsMain={onSelectAsMain}
               />
             ))}
           </TableBody>

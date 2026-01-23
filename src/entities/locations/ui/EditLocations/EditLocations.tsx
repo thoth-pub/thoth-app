@@ -24,7 +24,7 @@ const EditLocations = (props: EditLocationsProps) => {
   const { locations, onUpdate, onDelete } = props;
 
   const { activeLocation, edit, close } = useLocationStateMachine();
-  const { edit: editForm, close: closeForm } = useFormStateMachine();
+  const { activeFormId, edit: editForm, close: closeForm } = useFormStateMachine();
 
   const isEditingNewLocation = activeLocation && isDefaultId(activeLocation.id);
   const isLocationsFilled = locations.length > 0;
@@ -64,7 +64,7 @@ const EditLocations = (props: EditLocationsProps) => {
     <>
       <ContentWrapper>
         <InputLabel component="span">{LOCATIONS.label}</InputLabel>
-        {!activeLocation && !isLocationsFilled && <AddButton onAdd={handleAddNewLocation} className="p-0 mr-auto capitalize">
+        {!activeLocation && !isLocationsFilled && <AddButton onAdd={handleAddNewLocation} className="p-0 mr-auto capitalize" disabled={!!activeFormId}>
           add new location
         </AddButton>}
       </ContentWrapper>
@@ -79,7 +79,7 @@ const EditLocations = (props: EditLocationsProps) => {
                 {location.fullTextUrl && location.fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
                 <ButtonGroup className="ml-auto">
                   <DeleteButton onClick={() => onDelete?.(location.id)} />
-                  <EditButton onClick={() => handleEditLocation(location)} />
+                  <EditButton onClick={() => handleEditLocation(location)} disabled={!!activeFormId} />
                 </ButtonGroup>
               </li>))
           )}
@@ -89,7 +89,7 @@ const EditLocations = (props: EditLocationsProps) => {
       {isEditingNewLocation && !isEditingExistingLocation && <LocationForm location={activeLocation} onClose={close} onSubmit={handleSubmitNewLocation} />}
 
       {isLocationsFilled && (
-        <AddButton onAdd={handleAddNewLocation} className="mt-4 mr-auto capitalize">
+        <AddButton onAdd={handleAddNewLocation} className="mt-4 mr-auto capitalize" disabled={!!activeFormId}>
           add new location
         </AddButton>
       )}

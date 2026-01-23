@@ -1,6 +1,7 @@
 'use client';
 
-import { TableFormsWrapper } from '@/src/shared/ui';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { Checkbox, ContentWrapper, InputLabel, TableFormsWrapper } from '@/src/shared/ui';
 
 import type { WorkContribution } from '../../model/contribution.types';
 import { ContributionBiographyForm, ContributionNamesForm, ContributionTypeForm } from '../../model/contribution.types';
@@ -20,7 +21,10 @@ type ContributionFormsProps = {
   onNamesSubmit: (data: ContributionNamesForm) => void;
   onContributorTypeSubmit: (data: ContributionTypeForm) => void;
   onBiographySubmit: (data: ContributionBiographyForm) => void;
+  onIsMainSubmit: (isMain: boolean) => void;
 };
+
+const { CANONICAL } = FORM_FIELDS;
 
 const ContributionForms = (props: ContributionFormsProps) => {
   const {
@@ -30,11 +34,16 @@ const ContributionForms = (props: ContributionFormsProps) => {
     onNamesSubmit,
     onContributorTypeSubmit,
     onBiographySubmit,
+    onIsMainSubmit,
     onDone,
     onClose,
   } = props;
 
-  const { fullName, firstName, lastName, type, biographies, orcidId, id } = contribution;
+  const { fullName, firstName, lastName, type, biographies, orcidId, id, isMain } = contribution;
+
+  const handleIsMainSubmit = (isMain: boolean) => {
+    onIsMainSubmit(isMain);
+  };
 
   return (
     <TableFormsWrapper>
@@ -54,6 +63,14 @@ const ContributionForms = (props: ContributionFormsProps) => {
         onSubmit={onBiographySubmit}
       />
       {children}
+      <ContentWrapper>
+        <InputLabel component="span">{CANONICAL.label}</InputLabel>
+        <Checkbox
+          checked={isMain}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleIsMainSubmit(e.target.checked)}
+          className="mr-auto p-0"
+        />
+      </ContentWrapper>
     </TableFormsWrapper>
   );
 };

@@ -38,12 +38,11 @@ type ContributionsTableRowProps = {
   showRecommendations: boolean;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
-  onSelectAsMain?: (id: string) => void;
 };
 
 export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
   const {
-    contributor: { id, fullName, type, isMain, orcidId, biographies, affiliations },
+    contributor: { id, fullName, type, orcidId, biographies, affiliations },
     form,
     isEditing,
     isEditable = true,
@@ -51,7 +50,6 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
     totalContributionsCount,
     onEdit,
     onDelete,
-    onSelectAsMain,
   } = props;
   const { t } = useTranslation();
 
@@ -107,10 +105,8 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
                   <Typography>{truncatedBiography}</Typography>
                   <RowButtonGroup
                     className="ml-auto"
-                    isSelected={isMain}
                     isDisabled={!isEditable}
                     onEdit={() => onEdit?.(id)}
-                    onSelectAsMain={() => onSelectAsMain?.(id)}
                     onDelete={() => onDelete?.(id)}
                   />
                 </div>

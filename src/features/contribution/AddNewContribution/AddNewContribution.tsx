@@ -25,6 +25,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
     updateWebsiteUrl,
     updateAffiliations,
     moveAffiliation,
+    updateCanonical,
   } = useAddNewContribution({ workId, onCreate });
 
   if (!contribution) return null;
@@ -37,6 +38,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
         onNamesSubmit={updateNames}
         onContributorTypeSubmit={updateContributorType}
         onBiographySubmit={updateBiography}
+        onIsMainSubmit={updateCanonical}
         onDone={create}
         onClose={close}
       >

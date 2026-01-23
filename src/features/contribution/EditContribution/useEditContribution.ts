@@ -33,6 +33,7 @@ type UseEditContributionProps = BaseEditSectionProps &
     onAffiliationsUpdate: (data: AffiliationsForm) => void;
     onDeleteAffiliation: (id: string) => void;
     onMoveAffiliation: (data: AffiliationsForm['affiliations']) => void;
+    onIsMainSubmit: (isMain: boolean) => void;
   }>;
 
 export const useEditContribution = (props: UseEditContributionProps) => {
@@ -48,6 +49,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     onAffiliationsUpdate,
     onDeleteAffiliation,
     onMoveAffiliation,
+    onIsMainSubmit,
   } = props;
 
   const { activeContribution, close } = useContributionStateMachine();
@@ -238,6 +240,20 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     });
   };
 
+  const updateCanonical = (isMain: boolean) => {
+    if (!contribution) return;
+
+    if (onIsMainSubmit) {
+      onIsMainSubmit(isMain);
+      return;
+    }
+
+    updateContribution({
+      ...contribution,
+      isMain,
+    });
+  };
+
   const updateContributionAffiliations = async (data: AffiliationsForm) => {
     if (onAffiliationsUpdate) {
       onAffiliationsUpdate(data);
@@ -299,5 +315,6 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     updateAffiliations: updateContributionAffiliations,
     deleteAffiliation: deleteContributionAffiliation,
     moveAffiliation: moveContributionAffiliation,
+    updateCanonical,
   };
 };

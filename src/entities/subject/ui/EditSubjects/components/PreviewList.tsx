@@ -26,6 +26,7 @@ export const PreviewList = ({ workId, activeSubjectId, isEditDisabled, subjects,
           {firstSubject && <Typography className="max-w-max font-bold">{firstSubject.type}</Typography>}
           {subjects.map((subject, index) => (
             <ListItem
+              className={index === subjects.length - 1 ? 'mb-6' : ''}
               key={`${subject.id}-${index}`}
               workId={workId}
               activeSubjectId={activeSubjectId}
