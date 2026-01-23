@@ -6,7 +6,7 @@ const FormFieldWrapper = ({ children, className }: { children: Readonly<ReactNod
   return (
     <div
       className={mergeStyles(
-        'grid min-h-[2.75rem] w-full grid-cols-1 items-start gap-y-2 lg:grid-cols-[11.25rem_1fr]',
+        'grid min-h-11 w-full grid-cols-1 items-start gap-y-2 lg:grid-cols-[11.25rem_1fr]',
         className,
       )}
     >

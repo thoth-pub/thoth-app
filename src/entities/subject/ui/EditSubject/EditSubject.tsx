@@ -6,8 +6,9 @@ import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { themaFormFields } from '@/src/shared/constants/themaFormFields';
+import { useIsDesktop } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
-import { AutocompleteField, CloseButton, FormTextField, SubmitButton } from '@/src/shared/ui';
+import { AutocompleteField, CloseButton, FormTextField, Modal, ModalWrapper, SubmitButton } from '@/src/shared/ui';
 
 import useUpdateSubject from '../../api/hooks/useUpdateSubject';
 import { subjectAltValidationSchema, subjectValidationSchema } from '../../model/subject.validation';
@@ -24,7 +25,8 @@ const fieldsOptions = {
   [SubjectTypes.enum.Lcc]: [],
 };
 
-const formStyles = 'w-full flex gap-2 bg-(--color-form-background) rounded-xl p-2 border border-(--color-form-border)';
+const formStyles =
+  'w-full flex gap-2 bg-(--color-form-background) rounded-xl p-2 lg:border lg:border-(--color-form-border)';
 
 export const EditSubject = ({ workId }: BaseEditSectionProps) => {
   const { activeSubject, close } = useSubjectStateMachine();
@@ -34,7 +36,7 @@ export const EditSubject = ({ workId }: BaseEditSectionProps) => {
   const fieldOptions = activeSubject ? fieldsOptions[activeSubject.type] : fieldsOptions[SubjectTypes.enum.Custom];
 
   const codeOptions = fieldOptions.find((option) => option.value === activeSubject?.code);
-
+  const isDesktop = useIsDesktop(980);
   const { control, handleSubmit } = useForm({
     resolver: zodResolver(subjectValidationSchema),
     defaultValues: {
@@ -68,7 +70,7 @@ export const EditSubject = ({ workId }: BaseEditSectionProps) => {
     onClose();
   };
 
-  return (
+  const formComponent = (
     <>
       {fieldOptions.length > 0 ? (
         <form className={formStyles} onSubmit={handleSubmit(onSubmit)}>
@@ -89,6 +91,18 @@ export const EditSubject = ({ workId }: BaseEditSectionProps) => {
           <SubmitButton type="submit" />
           <CloseButton onClose={onClose} />
         </form>
+      )}
+    </>
+  );
+
+  return (
+    <>
+      {isDesktop ? (
+        formComponent
+      ) : (
+        <Modal open>
+          <ModalWrapper>{formComponent}</ModalWrapper>
+        </Modal>
       )}
     </>
   );

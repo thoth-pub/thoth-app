@@ -7,6 +7,7 @@ import { useForm } from 'react-hook-form';
 
 import { getProtocolPrefix, HELPER_TEXT } from '@/src/shared';
 import { FORM_FIELDS, locationPlatformOptions } from '@/src/shared/constants/formFields';
+import { useIsDesktop } from '@/src/shared/hooks';
 import {
   AutocompleteField,
   AutocompleteGroup,
@@ -18,6 +19,8 @@ import {
   FormFieldWrapper,
   FormTextField,
   IconButton,
+  Modal,
+  ModalWrapper,
   SubmitButton,
 } from '@/src/shared/ui';
 
@@ -66,7 +69,9 @@ export const LocationForm = (props: LocationFormProps) => {
     });
   };
 
-  return (
+  const isDesktop = useIsDesktop(980);
+
+  const formComponent = (
     <form onSubmit={handleSubmit(handleSubmitForm)} className="flex flex-col gap-(--default-gap)">
       <FormFieldWrapper>
         <FormFieldLabel label={PLATFORM.label} id={PLATFORM.name} />
@@ -124,5 +129,17 @@ export const LocationForm = (props: LocationFormProps) => {
         <CheckboxFormField control={control} name={CANONICAL.name} id={CANONICAL.name} className="mr-auto p-0" />
       </FormFieldWrapper>
     </form>
+  );
+
+  return (
+    <>
+      {isDesktop ? (
+        formComponent
+      ) : (
+        <Modal open>
+          <ModalWrapper>{formComponent}</ModalWrapper>
+        </Modal>
+      )}
+    </>
   );
 };

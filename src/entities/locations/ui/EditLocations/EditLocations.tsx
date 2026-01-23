@@ -39,6 +39,11 @@ const EditLocations = (props: EditLocationsProps) => {
   const isLocationsFilled = locations.length > 0;
   const isEditingExistingLocation = activeLocation && locations.some((location) => location.id === activeLocation.id);
 
+  const handleClose = () => {
+    close();
+    closeForm();
+  };
+
   const handleEditLocation = (location: LocationEntity) => {
     editForm(IDs.LOCATION_PLATFORM);
     edit(location);
@@ -57,16 +62,14 @@ const EditLocations = (props: EditLocationsProps) => {
 
   const handleSubmitNewLocation = (location: LocationEntity) => {
     onUpdate?.([...locations, location]);
-    close();
-    closeForm();
+    handleClose();
   };
 
   const handleSubmitLocation = (location: LocationEntity) => {
     const filteredLocations = locations.filter((loc) => loc.id !== location.id);
 
     onUpdate?.([...filteredLocations, location]);
-    close();
-    closeForm();
+    handleClose();
   };
 
   return (
@@ -84,7 +87,12 @@ const EditLocations = (props: EditLocationsProps) => {
         <ul className="flex w-full flex-col gap-(--default-gap)">
           {locations.map((location) =>
             activeLocation?.id === location.id ? (
-              <LocationForm key={location.id} location={location} onClose={close} onSubmit={handleSubmitLocation} />
+              <LocationForm
+                key={location.id}
+                location={location}
+                onClose={handleClose}
+                onSubmit={handleSubmitLocation}
+              />
             ) : (
               <li key={location.id} className="flex items-center gap-1">
                 <Chip label={convertOptionToString(location.locationPlatform)} size="small" component="span" />
@@ -101,7 +109,7 @@ const EditLocations = (props: EditLocationsProps) => {
       )}
 
       {isEditingNewLocation && !isEditingExistingLocation && (
-        <LocationForm location={activeLocation} onClose={close} onSubmit={handleSubmitNewLocation} />
+        <LocationForm location={activeLocation} onClose={handleClose} onSubmit={handleSubmitNewLocation} />
       )}
 
       {isLocationsFilled && (
