@@ -32,7 +32,13 @@ const EditOclc = (props: BaseEditSectionProps) => {
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={LCCN.label} id={LCCN.name} />
-          <FormTextField control={control} name={LCCN.name} id={LCCN.name} helperText={WORK_LCCN} isHelperTextVisible={isHelperTextVisible} />
+          <FormTextField
+            control={control}
+            name={LCCN.name}
+            id={LCCN.name}
+            helperText={WORK_LCCN}
+            isHelperTextVisible={isHelperTextVisible}
+          />
         </ContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (

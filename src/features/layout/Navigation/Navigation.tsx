@@ -74,10 +74,7 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
         <nav>
           <ul className="flex flex-col rounded-(--border-nav-radius) border border-(--color-nav-border)">
             {PAGES.map(({ name, href, icon: Icon }) => (
-              <li
-                key={href}
-                className={`py-2 duration-300 hover:bg-(--color-hover) ${isExpanded ? 'px-4' : 'px-1.5'}`}
-              >
+              <li key={href} className={`py-2 duration-300 hover:bg-(--color-hover) ${isExpanded ? 'px-4' : 'px-1.5'}`}>
                 <Link href={href} className="flex shrink-0 items-center gap-2">
                   <Icon color="primary" className={`${!isExpanded && 'm-auto'}`} />
                   {isExpanded && (
@@ -99,7 +96,6 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
           <div
             className={`mt-auto flex gap-2 rounded-(--border-nav-radius) border border-(--color-nav-border) py-2 ${isExpanded ? 'px-4' : 'h-10 w-10 px-1.5'}`}
           >
-
             <div
               className={`flex max-w-full flex-col gap-1 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
             >

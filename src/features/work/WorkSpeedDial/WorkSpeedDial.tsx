@@ -134,51 +134,51 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
               tooltip:
                 action.name === 'Recommendations'
                   ? {
-                    title: (
-                      <ul className="flex flex-col gap-2 p-0 text-black">
-                        <Typography variant="body2" component="li">
-                          <a href={`#${BASIC_DETAILS}`}>
-                            <DataIndicator
-                              isEmpty={isBasicDetailsSectionEmpty}
-                              isValid={isBasicDetailsSectionFilled}
-                              sx={{ ...buttonItemStyle }}
-                            />
-                            Core details
-                          </a>
-                        </Typography>
-                        <Typography variant="body2" component="li">
-                          <a href={`#${CONTRIBUTIONS}`}>
-                            <DataIndicator
-                              isEmpty={isContributionsEmpty}
-                              isValid={!isContributionsRequired}
-                              sx={{ ...buttonItemStyle }}
-                            />
-                            Contributions
-                          </a>
-                        </Typography>
-                        <Typography variant="body2" component="li">
-                          <a href={`#${DESCRIPTIONS}`}>
-                            <DataIndicator
-                              isEmpty={isDescriptionsSectionEmpty}
-                              isValid={isDescriptionsSectionFilled}
-                              sx={{ ...buttonItemStyle }}
-                            />
-                            Descriptions
-                          </a>
-                        </Typography>
-                        <Typography variant="body2" component="li">
-                          <a href={`#${FUNDINGS}`}>
-                            <DataIndicator
-                              isEmpty={isFundingsEmpty}
-                              isValid={!isFundingsRequired}
-                              sx={{ ...buttonItemStyle }}
-                            />
-                            Fundings
-                          </a>
-                        </Typography>
-                      </ul>
-                    ),
-                  }
+                      title: (
+                        <ul className="flex flex-col gap-2 p-0 text-black">
+                          <Typography variant="body2" component="li">
+                            <a href={`#${BASIC_DETAILS}`}>
+                              <DataIndicator
+                                isEmpty={isBasicDetailsSectionEmpty}
+                                isValid={isBasicDetailsSectionFilled}
+                                sx={{ ...buttonItemStyle }}
+                              />
+                              Core details
+                            </a>
+                          </Typography>
+                          <Typography variant="body2" component="li">
+                            <a href={`#${CONTRIBUTIONS}`}>
+                              <DataIndicator
+                                isEmpty={isContributionsEmpty}
+                                isValid={!isContributionsRequired}
+                                sx={{ ...buttonItemStyle }}
+                              />
+                              Contributions
+                            </a>
+                          </Typography>
+                          <Typography variant="body2" component="li">
+                            <a href={`#${DESCRIPTIONS}`}>
+                              <DataIndicator
+                                isEmpty={isDescriptionsSectionEmpty}
+                                isValid={isDescriptionsSectionFilled}
+                                sx={{ ...buttonItemStyle }}
+                              />
+                              Descriptions
+                            </a>
+                          </Typography>
+                          <Typography variant="body2" component="li">
+                            <a href={`#${FUNDINGS}`}>
+                              <DataIndicator
+                                isEmpty={isFundingsEmpty}
+                                isValid={!isFundingsRequired}
+                                sx={{ ...buttonItemStyle }}
+                              />
+                              Fundings
+                            </a>
+                          </Typography>
+                        </ul>
+                      ),
+                    }
                   : { open: true, title: action.name },
             }}
           />

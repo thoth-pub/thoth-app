@@ -104,7 +104,7 @@ export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
             <ContentWrapper>
               <br />
               <div className="flex flex-col gap-2">
-                <div className="max-w-min ml-auto">
+                <div className="ml-auto max-w-min">
                   <LanguageField control={control} languageFieldName={getLanguageFieldName(index)} />
                 </div>
                 {index === fields.length - 1 && (

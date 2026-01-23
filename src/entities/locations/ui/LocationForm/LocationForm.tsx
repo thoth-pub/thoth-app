@@ -1,16 +1,28 @@
 'use client';
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { zodResolver } from '@hookform/resolvers/zod';
 import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
-import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useState } from 'react';
+import { useForm } from 'react-hook-form';
 
-import { getProtocolPrefix, HELPER_TEXT } from "@/src/shared";
-import { FORM_FIELDS, locationPlatformOptions } from "@/src/shared/constants/formFields";
-import { AutocompleteField, AutocompleteGroup, ButtonGroup, CheckboxFormField, CloseButton, FormFieldLabel, FormFieldWithControlsWrapper, FormFieldWrapper, FormTextField, IconButton, SubmitButton } from "@/src/shared/ui";
+import { getProtocolPrefix, HELPER_TEXT } from '@/src/shared';
+import { FORM_FIELDS, locationPlatformOptions } from '@/src/shared/constants/formFields';
+import {
+  AutocompleteField,
+  AutocompleteGroup,
+  ButtonGroup,
+  CheckboxFormField,
+  CloseButton,
+  FormFieldLabel,
+  FormFieldWithControlsWrapper,
+  FormFieldWrapper,
+  FormTextField,
+  IconButton,
+  SubmitButton,
+} from '@/src/shared/ui';
 
-import type { LocationEntity, LocationForm as LocationFormType, LocationPlatform } from "../../model/location.types";
-import { locationPlatformValidationSchema } from "../../model/location.validation";
+import type { LocationEntity, LocationForm as LocationFormType, LocationPlatform } from '../../model/location.types';
+import { locationPlatformValidationSchema } from '../../model/location.validation';
 
 type LocationFormProps = {
   location: LocationEntity;
@@ -109,12 +121,7 @@ export const LocationForm = (props: LocationFormProps) => {
       </FormFieldWrapper>
       <FormFieldWrapper>
         <FormFieldLabel label={CANONICAL.label} id={CANONICAL.name} />
-        <CheckboxFormField
-          control={control}
-          name={CANONICAL.name}
-          id={CANONICAL.name}
-          className="mr-auto p-0"
-        />
+        <CheckboxFormField control={control} name={CANONICAL.name} id={CANONICAL.name} className="mr-auto p-0" />
       </FormFieldWrapper>
     </form>
   );

@@ -5,7 +5,9 @@ import { LocationEntity } from '../../model/location.types';
 import { LocationStateMachineContext } from '../location.provider';
 
 const useLocationStateMachine = () => {
-  const activeLocation: LocationEntity | null = LocationStateMachineContext.useSelector((state) => state.context.activeLocation);
+  const activeLocation: LocationEntity | null = LocationStateMachineContext.useSelector(
+    (state) => state.context.activeLocation,
+  );
   const actorRef = LocationStateMachineContext.useActorRef();
 
   const edit = useCallback(

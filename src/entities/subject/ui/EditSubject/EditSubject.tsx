@@ -1,17 +1,17 @@
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm } from 'react-hook-form';
 
-import { BaseEditSectionProps, SubjectTypes } from "@/src/shared";
-import { bicFormFields } from "@/src/shared/constants/bicFormFields";
-import { bisacFormFields } from "@/src/shared/constants/bisacFormFields";
-import { FORM_FIELDS } from "@/src/shared/constants/formFields";
-import { themaFormFields } from "@/src/shared/constants/themaFormFields";
-import useFormStateMachine from "@/src/shared/store/forms/hooks/useFormStateMachine";
-import { AutocompleteField, CloseButton, FormTextField, SubmitButton } from "@/src/shared/ui";
+import { BaseEditSectionProps, SubjectTypes } from '@/src/shared';
+import { bicFormFields } from '@/src/shared/constants/bicFormFields';
+import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
+import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { themaFormFields } from '@/src/shared/constants/themaFormFields';
+import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import { AutocompleteField, CloseButton, FormTextField, SubmitButton } from '@/src/shared/ui';
 
-import useUpdateSubject from "../../api/hooks/useUpdateSubject";
-import { subjectAltValidationSchema, subjectValidationSchema } from "../../model/subject.validation";
-import useSubjectStateMachine from "../../store/hooks/useSubjectStateMachine";
+import useUpdateSubject from '../../api/hooks/useUpdateSubject';
+import { subjectAltValidationSchema, subjectValidationSchema } from '../../model/subject.validation';
+import useSubjectStateMachine from '../../store/hooks/useSubjectStateMachine';
 
 const { SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 
@@ -54,21 +54,19 @@ export const EditSubject = ({ workId }: BaseEditSectionProps) => {
     close();
   };
 
-  const onSubmit = (data: { subjectCode: { value: string; label: string; }; }) => {
+  const onSubmit = (data: { subjectCode: { value: string; label: string } }) => {
     if (!activeSubject) return;
 
     updateSubject({ ...activeSubject, code: data.subjectCode.value });
     onClose();
   };
 
-  const onSubmitAlt = (data: { subjectCodeAlt?: string | undefined; }) => {
+  const onSubmitAlt = (data: { subjectCodeAlt?: string | undefined }) => {
     if (!activeSubject) return;
 
     updateSubject({ ...activeSubject, code: data.subjectCodeAlt ?? '' });
     onClose();
   };
-
-
 
   return (
     <>
@@ -87,17 +85,11 @@ export const EditSubject = ({ workId }: BaseEditSectionProps) => {
         </form>
       ) : (
         <form className={formStyles} onSubmit={handleSubmitAlt(onSubmitAlt)}>
-          <FormTextField
-            name={SUBJECT_CODE_ALT.name}
-            control={controlAlt}
-            id={SUBJECT_CODE_ALT.name}
-            fullWidth
-          />
+          <FormTextField name={SUBJECT_CODE_ALT.name} control={controlAlt} id={SUBJECT_CODE_ALT.name} fullWidth />
           <SubmitButton type="submit" />
           <CloseButton onClose={onClose} />
         </form>
-      )
-      }
+      )}
     </>
   );
 };

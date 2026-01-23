@@ -4,14 +4,7 @@ import type { Control } from 'react-hook-form';
 import { useCreateTitle, useDeleteTitle, useUpdateTitle, useWork } from '@/src/entities/work';
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { workTitlesValidationSchema } from '@/src/entities/work/model/work.validation';
-import {
-  type BaseRecommendedSectionProps,
-  getMainTitle,
-  HELPER_TEXT,
-  IDs,
-  QueryKeys,
-  TitleEntity,
-} from '@/src/shared';
+import { type BaseRecommendedSectionProps, getMainTitle, HELPER_TEXT, IDs, QueryKeys, TitleEntity } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import type { LocaleCodeType } from '@/src/shared/types/languages';
 import {

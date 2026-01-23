@@ -15,7 +15,7 @@ export const useCreateSet = () => {
   const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async ({ data }: { data: SetEntity; }) => {
+    mutationFn: async ({ data }: { data: SetEntity }) => {
       return setService.createSet(queryToken, data);
     },
     onSuccess: () => {

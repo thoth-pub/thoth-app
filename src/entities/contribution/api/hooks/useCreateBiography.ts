@@ -15,16 +15,9 @@ export const useCreateBiography = () => {
   const { contributionService } = useServices();
 
   const { mutateAsync: createBiography, isPending } = useMutation({
-    mutationFn: async ({
-      data,
-      contributionId,
-    }: {
-      data: BiographyEntity;
-      contributionId: ContributionId;
-    }) => {
+    mutationFn: async ({ data, contributionId }: { data: BiographyEntity; contributionId: ContributionId }) => {
       return contributionService.createBiography(queryToken, data, contributionId);
     },
-    onSuccess: () => { },
     onError: (error) => {
       sendErrorNotification(error?.message ?? BIOGRAPHY_CREATION_FAILED);
     },

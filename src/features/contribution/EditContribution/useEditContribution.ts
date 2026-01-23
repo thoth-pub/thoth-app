@@ -181,9 +181,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       .filter((biography) => biography.content.length > 0);
 
     await Promise.all(
-      newBiographies.map((biography) =>
-        createBiography({ data: biography, contributionId: contribution.id }),
-      ),
+      newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
     );
 
     queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });

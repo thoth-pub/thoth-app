@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from "react";
+import { useState } from 'react';
 
-import type { WorkId } from "@/src/entities/work/model/work.types";
-import { CloseButton, Modal, Tab, TabPanel, Tabs, Typography } from "@/src/shared/ui";
+import type { WorkId } from '@/src/entities/work/model/work.types';
+import { CloseButton, Modal, Tab, TabPanel, Tabs, Typography } from '@/src/shared/ui';
 
-import { useMetaData } from "../../api/hooks/useMetaData";
-import { FORMAT_IDS } from "../../model/metadata.types";
-import { LinksList } from "./components/LinksList";
+import { useMetaData } from '../../api/hooks/useMetaData';
+import { FORMAT_IDS } from '../../model/metadata.types';
+import { LinksList } from './components/LinksList';
 
 type MetadataModalProps = {
   open: boolean;
@@ -16,15 +16,15 @@ type MetadataModalProps = {
 };
 
 const METADATA_TABS = [
-  { label: "ONIX 3.1", value: "1", key: FORMAT_IDS.ONIX_3_1 },
-  { label: "ONIX 3.0", value: "2", key: FORMAT_IDS.ONIX_3_0 },
-  { label: "ONIX 2.1", value: "3", key: FORMAT_IDS.ONIX_2_1 },
-  { label: "CSV", value: "4", key: FORMAT_IDS.CSV },
-  { label: "JSON", value: "5", key: FORMAT_IDS.JSON },
-  { label: "KBART", value: "6", key: FORMAT_IDS.KBART },
-  { label: "BibTex", value: "7", key: FORMAT_IDS.BIBTEX },
-  { label: "DOIdeposit", value: "8", key: FORMAT_IDS.DOIDEPOSIT },
-  { label: "MARC 21", value: "9", key: FORMAT_IDS.MARC21 },
+  { label: 'ONIX 3.1', value: '1', key: FORMAT_IDS.ONIX_3_1 },
+  { label: 'ONIX 3.0', value: '2', key: FORMAT_IDS.ONIX_3_0 },
+  { label: 'ONIX 2.1', value: '3', key: FORMAT_IDS.ONIX_2_1 },
+  { label: 'CSV', value: '4', key: FORMAT_IDS.CSV },
+  { label: 'JSON', value: '5', key: FORMAT_IDS.JSON },
+  { label: 'KBART', value: '6', key: FORMAT_IDS.KBART },
+  { label: 'BibTex', value: '7', key: FORMAT_IDS.BIBTEX },
+  { label: 'DOIdeposit', value: '8', key: FORMAT_IDS.DOIDEPOSIT },
+  { label: 'MARC 21', value: '9', key: FORMAT_IDS.MARC21 },
 ] as const;
 
 const MetadataModal = (props: MetadataModalProps) => {
@@ -71,7 +71,7 @@ const MetadataModal = (props: MetadataModalProps) => {
         </div>
       </div>
     </Modal>
-  )
-}
+  );
+};
 
 export default MetadataModal;

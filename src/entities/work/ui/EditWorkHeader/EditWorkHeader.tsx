@@ -3,7 +3,17 @@
 import NextLink from 'next/link';
 
 import { type BaseEditSectionProps, getMainTitle, ROUTES, WorkStatuses } from '@/src/shared';
-import { Breadcrumbs, CloseButton, InputLabel, Link, MarkdownRenderer, Modal, ModalWrapper, SubmitButton, Typography } from '@/src/shared/ui';
+import {
+  Breadcrumbs,
+  CloseButton,
+  InputLabel,
+  Link,
+  MarkdownRenderer,
+  Modal,
+  ModalWrapper,
+  SubmitButton,
+  Typography,
+} from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import EditInternalId from '../EditInternalId/EditInternalId';
@@ -18,11 +28,16 @@ const itemStyles = 'flex flex-col gap-2';
 
 const STATUS_WARNINGS = {
   [WorkStatuses.enum.Active]: 'Changing the status to Active will update the publication date to the current date.',
-  [WorkStatuses.enum.Forthcoming]: 'Changing the status to Forthcoming will update the publication date to the current date.',
-  [WorkStatuses.enum.PostponedIndefinitely]: 'Changing the status to Postponed Indefinitely will update the publication date to the current date.',
-  [WorkStatuses.enum.Cancelled]: 'Changing the status to Cancelled will update the publication date to the current date.',
-  [WorkStatuses.enum.Superseded]: 'Changing the status to Superseded will update the publication date to the current date.',
-  [WorkStatuses.enum.Withdrawn]: 'Changing the status to Withdrawn will update the publication date to the current date.',
+  [WorkStatuses.enum.Forthcoming]:
+    'Changing the status to Forthcoming will update the publication date to the current date.',
+  [WorkStatuses.enum.PostponedIndefinitely]:
+    'Changing the status to Postponed Indefinitely will update the publication date to the current date.',
+  [WorkStatuses.enum.Cancelled]:
+    'Changing the status to Cancelled will update the publication date to the current date.',
+  [WorkStatuses.enum.Superseded]:
+    'Changing the status to Superseded will update the publication date to the current date.',
+  [WorkStatuses.enum.Withdrawn]:
+    'Changing the status to Withdrawn will update the publication date to the current date.',
 } as const;
 
 const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
@@ -75,7 +90,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
           <Typography>Edit book</Typography>
         </Breadcrumbs>
 
-        <div className="grid grid-cols-2 gap-4 lg:grid-col-2">
+        <div className="lg:grid-col-2 grid grid-cols-2 gap-4">
           <div className={itemStyles}>
             <EditInternalId workId={workId} />
           </div>
@@ -197,9 +212,7 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
               <CloseButton onClose={declineWorkStatusChange} />
             </div>
           </div>
-          <Typography className="pl-4">
-            {pendingStatus && STATUS_WARNINGS[pendingStatus]}
-          </Typography>
+          <Typography className="pl-4">{pendingStatus && STATUS_WARNINGS[pendingStatus]}</Typography>
         </ModalWrapper>
       </Modal>
     </ContentSection>

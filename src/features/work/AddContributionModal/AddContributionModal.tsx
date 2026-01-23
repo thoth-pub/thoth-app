@@ -117,7 +117,7 @@ const AddContributionModal = () => {
                     className={`w-full cursor-pointer rounded p-2 hover:bg-(--color-hover) ${selected === contributor.id ? 'bg-(--color-list-item-selected)' : ''}`}
                   >
                     <button type="button">
-                      <Typography variant="body1" className='flex gap-2' component="span">
+                      <Typography variant="body1" className="flex gap-2" component="span">
                         {contributor.name} {contributor.orcid.length > 0 && `(${contributor.orcid})`}
                       </Typography>
                     </button>

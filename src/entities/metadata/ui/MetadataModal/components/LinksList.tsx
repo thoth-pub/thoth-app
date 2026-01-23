@@ -1,11 +1,11 @@
 import DownloadIcon from '@mui/icons-material/Download';
 import WarningIcon from '@mui/icons-material/Warning';
-import { Activity } from "react";
+import { Activity } from 'react';
 
-import { getSpecificationPlaceholder } from "@/src/shared";
-import { Button, Tooltip, Typography } from "@/src/shared/ui";
+import { getSpecificationPlaceholder } from '@/src/shared';
+import { Button, Tooltip, Typography } from '@/src/shared/ui';
 
-import { SpecificationResult } from "../../../model/metadata.types";
+import { SpecificationResult } from '../../../model/metadata.types';
 
 type LinksListProps = {
   links: Record<string, SpecificationResult>;
@@ -19,20 +19,34 @@ export const LinksList = (props: LinksListProps) => {
   const isEmpty = Object.keys(links).length === 0;
 
   if (isEmpty) {
-    return <Typography className="text-(--color-typography) text-center">Metadata not available</Typography>;
+    return <Typography className="text-center text-(--color-typography)">Metadata not available</Typography>;
   }
 
   return (
-    <ul className="flex flex-wrap gap-x-2 gap-y-4 w-full">
+    <ul className="flex w-full flex-wrap gap-x-2 gap-y-4">
       {Object.entries(links).map(([key, { status, data }], index) => (
         <li key={index}>
           <Activity mode={status === 'success' ? 'visible' : 'hidden'}>
-            <Button className={itemStyles} variant="outlined" component='a' color="primary" href={data} rel="noopener noreferrer" endIcon={<DownloadIcon />}>
+            <Button
+              className={itemStyles}
+              variant="outlined"
+              component="a"
+              color="primary"
+              href={data}
+              rel="noopener noreferrer"
+              endIcon={<DownloadIcon />}
+            >
               {getSpecificationPlaceholder(key)}
             </Button>
           </Activity>
           <Activity mode={status === 'error' ? 'visible' : 'hidden'}>
-            <Tooltip title={<Typography component="span" color='error' className='text-sm'>{data.replaceAll('"', '')}</Typography>}>
+            <Tooltip
+              title={
+                <Typography component="span" color="error" className="text-sm">
+                  {data.replaceAll('"', '')}
+                </Typography>
+              }
+            >
               <span>
                 <Button className={itemStyles} color="error" variant="outlined" disabled endIcon={<WarningIcon />}>
                   {getSpecificationPlaceholder(key)}

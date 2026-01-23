@@ -15,7 +15,7 @@ const useUpdateAbstract = (workId: WorkId) => {
   const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async ({ data }: { data: AbstractEntity; }) => {
+    mutationFn: async ({ data }: { data: AbstractEntity }) => {
       return workService.updateAbstract(queryToken, data, workId);
     },
     onSuccess: () => {

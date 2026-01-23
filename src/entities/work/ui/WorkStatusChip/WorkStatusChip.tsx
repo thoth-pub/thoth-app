@@ -7,7 +7,7 @@ import type { WorkStatus } from '../../model/work.types';
 
 type WorkStatusChipProps = {
   status: WorkStatus;
-}
+};
 
 export const WorkStatusChip = (props: WorkStatusChipProps) => {
   const { status } = props;
@@ -31,11 +31,11 @@ export const WorkStatusChip = (props: WorkStatusChipProps) => {
           fontSize: '1.5rem',
           pr: '0.25rem',
           color: indicatiorColor,
-        }
+        },
       }}
       label={convertOptionToString(status)}
     />
-  )
-}
+  );
+};
 
 export default WorkStatusChip;

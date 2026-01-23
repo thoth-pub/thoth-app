@@ -84,11 +84,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         onDeleteAccessibility={deleteAccessibility}
       >
         <EditPrice onUpdate={updatePrices} onClose={close} prices={publication.prices} />
-        <EditLocations
-          locations={publication.locations}
-          onUpdate={updateLocations}
-          onDelete={deleteLocation}
-        />
+        <EditLocations locations={publication.locations} onUpdate={updateLocations} onDelete={deleteLocation} />
       </EditPublication>
     </TableNewEntityFormWrapper>
   );

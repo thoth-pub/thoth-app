@@ -6,7 +6,16 @@ import { LocationPlatform } from '@/gql/graphql';
 import { appConfig, convertOptionToString, IDs, isDefaultId } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
-import { AddButton, ButtonGroup, Chip, ContentWrapper, DeleteButton, EditButton, InputLabel, Typography } from '@/src/shared/ui';
+import {
+  AddButton,
+  ButtonGroup,
+  Chip,
+  ContentWrapper,
+  DeleteButton,
+  EditButton,
+  InputLabel,
+  Typography,
+} from '@/src/shared/ui';
 
 import type { LocationEntity } from '../../model/location.types';
 import useLocationStateMachine from '../../store/hooks/useLocationStateMachine';
@@ -42,7 +51,7 @@ const EditLocations = (props: EditLocationsProps) => {
       fullTextUrl: '',
       landingPage: '',
       canonical: false,
-      id: `${appConfig.defaultId}-${locations.length + 1}`
+      id: `${appConfig.defaultId}-${locations.length + 1}`,
     });
   };
 
@@ -64,16 +73,20 @@ const EditLocations = (props: EditLocationsProps) => {
     <>
       <ContentWrapper>
         <InputLabel component="span">{LOCATIONS.label}</InputLabel>
-        {!activeLocation && !isLocationsFilled && <AddButton onAdd={handleAddNewLocation} className="p-0 mr-auto capitalize" disabled={!!activeFormId}>
-          add new location
-        </AddButton>}
+        {!activeLocation && !isLocationsFilled && (
+          <AddButton onAdd={handleAddNewLocation} className="mr-auto p-0 capitalize" disabled={!!activeFormId}>
+            add new location
+          </AddButton>
+        )}
       </ContentWrapper>
 
       {isLocationsFilled && (
         <ul className="flex w-full flex-col gap-(--default-gap)">
-          {locations.map((location) => (
-            activeLocation?.id === location.id ? <LocationForm key={location.id} location={location} onClose={close} onSubmit={handleSubmitLocation} /> :
-              (<li key={location.id} className="flex items-center gap-1">
+          {locations.map((location) =>
+            activeLocation?.id === location.id ? (
+              <LocationForm key={location.id} location={location} onClose={close} onSubmit={handleSubmitLocation} />
+            ) : (
+              <li key={location.id} className="flex items-center gap-1">
                 <Chip label={convertOptionToString(location.locationPlatform)} size="small" component="span" />
                 <Typography className="max-w-[30%] truncate">{location.landingPage}</Typography>
                 {location.fullTextUrl && location.fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
@@ -81,12 +94,15 @@ const EditLocations = (props: EditLocationsProps) => {
                   <DeleteButton onClick={() => onDelete?.(location.id)} />
                   <EditButton onClick={() => handleEditLocation(location)} disabled={!!activeFormId} />
                 </ButtonGroup>
-              </li>))
+              </li>
+            ),
           )}
         </ul>
       )}
 
-      {isEditingNewLocation && !isEditingExistingLocation && <LocationForm location={activeLocation} onClose={close} onSubmit={handleSubmitNewLocation} />}
+      {isEditingNewLocation && !isEditingExistingLocation && (
+        <LocationForm location={activeLocation} onClose={close} onSubmit={handleSubmitNewLocation} />
+      )}
 
       {isLocationsFilled && (
         <AddButton onAdd={handleAddNewLocation} className="mt-4 mr-auto capitalize" disabled={!!activeFormId}>

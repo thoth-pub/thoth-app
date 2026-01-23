@@ -150,8 +150,8 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                 component="span"
                 className="max-w-[300px]"
               >{`${selectedChaptersTitle} chapters selected`}</Typography>
-              <DeleteButton onClick={handleBulkDelete} className='p-1' />
-              <EditButton onClick={handleEditChapters} className='p-1' />
+              <DeleteButton onClick={handleBulkDelete} className="p-1" />
+              <EditButton onClick={handleEditChapters} className="p-1" />
             </>
           )}
         </div>

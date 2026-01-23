@@ -32,7 +32,13 @@ const EditInternalId = (props: BaseEditSectionProps) => {
       formFields={({ control, isHelperTextVisible }) => (
         <div className="flex flex-col gap-2">
           <FormFieldLabel label={INTERNAL_ID.label} id={INTERNAL_ID.name} />
-          <FormTextField control={control} name={INTERNAL_ID.name} id={INTERNAL_ID.name} isHelperTextVisible={isHelperTextVisible} helperText={WORK_INTERNAL_ID} />
+          <FormTextField
+            control={control}
+            name={INTERNAL_ID.name}
+            id={INTERNAL_ID.name}
+            isHelperTextVisible={isHelperTextVisible}
+            helperText={WORK_INTERNAL_ID}
+          />
         </div>
       )}
       preview={({ disabled, onEdit }) => (

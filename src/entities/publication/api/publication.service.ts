@@ -35,9 +35,7 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     const shouldCreateLocations = data.locations.length > 0;
 
     if (shouldCreatePrices) {
-      const pricesPromises = data.prices.map((price) =>
-        this.priceService.createPrice(token, price, publication.id),
-      );
+      const pricesPromises = data.prices.map((price) => this.priceService.createPrice(token, price, publication.id));
 
       const createdPrices = await Promise.all(pricesPromises);
 

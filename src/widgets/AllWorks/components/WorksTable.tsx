@@ -74,7 +74,9 @@ export const WorksTable = (props: WorksTableProps) => {
                   <TableCell className="middleCell">
                     <MarkdownRenderer markdown={getMainTitle(work.titles).title} />
                   </TableCell>
-                  <TableCell className="middleCell"><WorkStatusChip status={work.status} /></TableCell>
+                  <TableCell className="middleCell">
+                    <WorkStatusChip status={work.status} />
+                  </TableCell>
                   <TableCell className="middleCell">{convertOptionToString(work.type)}</TableCell>
                   <TableCell className="middleCell">{work.contributorsNames.join(', ')}</TableCell>
                   <TableCell className="lastCell">

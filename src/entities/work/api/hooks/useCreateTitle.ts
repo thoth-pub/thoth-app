@@ -14,13 +14,7 @@ const useCreateTitle = () => {
   const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async ({
-      data,
-      relatedWorkId,
-    }: {
-      data: TitleEntity;
-      relatedWorkId: WorkId;
-    }) => {
+    mutationFn: async ({ data, relatedWorkId }: { data: TitleEntity; relatedWorkId: WorkId }) => {
       return workService.createTitle(queryToken, data, relatedWorkId);
     },
     onError: (error) => {

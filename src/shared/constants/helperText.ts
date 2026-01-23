@@ -23,7 +23,8 @@ export const HELPER_TEXT = {
   CONTRIBUTOR_ORCID: 'Enter the ORCID of the contributor.',
   CONTRIBUTOR_WEBSITE_URL: 'Enter the website URL of the contributor.',
   CONTRIBUTOR_AFFILIATION: 'Choose the affiliated institution of the contributor at the point of publication.',
-  CONTRIBUTOR_AFFILIATION_POSITION: 'Enter the position of the contributor at the affiliated institution at the point of publication.',
+  CONTRIBUTOR_AFFILIATION_POSITION:
+    'Enter the position of the contributor at the affiliated institution at the point of publication.',
   WORK_TABLE_COUNT: 'Enter the table count of the work.',
   WORK_IMAGE_COUNT: 'Enter the image count of the work.',
   WORK_AUDIO_COUNT: 'Enter the audio count of the work.',

@@ -1,7 +1,13 @@
 import { normalizeMetaDataPrefix } from '@/src/shared';
 
 import { WorkId } from '../../work/model/work.types';
-import { FORMAT_IDS, FormatDto, MetadataEntity, SPECIFICATION_STATUS, SpecificationResult } from '../model/metadata.types';
+import {
+  FORMAT_IDS,
+  FormatDto,
+  MetadataEntity,
+  SPECIFICATION_STATUS,
+  SpecificationResult,
+} from '../model/metadata.types';
 
 export class MetadataService {
   async getAvailableFormats(): Promise<FormatDto[]> {
@@ -16,7 +22,7 @@ export class MetadataService {
         return [];
       }
 
-      const data = await response.json() as FormatDto[];
+      const data = (await response.json()) as FormatDto[];
 
       return data.map((format) => ({ ...format, specifications: format.specifications.map(normalizeMetaDataPrefix) }));
     } catch {
@@ -24,7 +30,10 @@ export class MetadataService {
     }
   }
 
-  async getAllFormatSpecifications(workId: WorkId, specifications: string[]): Promise<Record<string, SpecificationResult>> {
+  async getAllFormatSpecifications(
+    workId: WorkId,
+    specifications: string[],
+  ): Promise<Record<string, SpecificationResult>> {
     const result: Record<string, SpecificationResult> = {};
 
     for (const specification of specifications) {
@@ -43,14 +52,15 @@ export class MetadataService {
           continue;
         }
 
-        const data = await response.json() as string;
+        const data = (await response.json()) as string;
 
         result[specification] = { status: SPECIFICATION_STATUS.SUCCESS, data };
-
       } catch (error: unknown) {
-        result[specification] = { status: SPECIFICATION_STATUS.ERROR, data: `${error instanceof Error ? error.message : 'Failed to fetch specification'}` };
+        result[specification] = {
+          status: SPECIFICATION_STATUS.ERROR,
+          data: `${error instanceof Error ? error.message : 'Failed to fetch specification'}`,
+        };
       }
-
     }
 
     return result;
@@ -83,7 +93,6 @@ export class MetadataService {
           result[FORMAT_IDS.MARC21] = { ...result[FORMAT_IDS.MARC21], ...res };
         }
       }
-
     } catch {
       return result;
     }

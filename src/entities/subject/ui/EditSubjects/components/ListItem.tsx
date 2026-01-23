@@ -9,7 +9,15 @@ import {
   mergeStyles,
   SubjectTypes,
 } from '@/src/shared';
-import { ButtonGroup, Chip, DeleteButton, DragAndDropListener, DraggableComponent, EditButton, Typography } from '@/src/shared/ui';
+import {
+  ButtonGroup,
+  Chip,
+  DeleteButton,
+  DragAndDropListener,
+  DraggableComponent,
+  EditButton,
+  Typography,
+} from '@/src/shared/ui';
 
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 import { EditSubject } from '../../EditSubject/EditSubject';
@@ -36,23 +44,31 @@ const ListItem = (props: ListItemProps) => {
 
   const isDefault = !isBisac && !isBic && !isThema;
 
-  const showChip = subject.type !== SubjectTypes.enum.Custom && subject.type !== SubjectTypes.enum.Keyword && subject.type !== SubjectTypes.enum.Lcc;
+  const showChip =
+    subject.type !== SubjectTypes.enum.Custom &&
+    subject.type !== SubjectTypes.enum.Keyword &&
+    subject.type !== SubjectTypes.enum.Lcc;
 
   return (
     <>
-      {activeSubjectId === id ? <EditSubject workId={workId} /> : (
+      {activeSubjectId === id ? (
+        <EditSubject workId={workId} />
+      ) : (
         <DraggableComponent id={id}>
           {({ attributes, listeners, style, ref }) => (
             <li
               ref={ref}
               style={style}
-              className={mergeStyles("group -ml-4 flex items-center gap-1 rounded-xl border border-transparent p-2 hover:bg-(--color-form-background) hover:border-(--color-form-border)", className)}
+              className={mergeStyles(
+                'group -ml-4 flex items-center gap-1 rounded-xl border border-transparent p-2 hover:border-(--color-form-border) hover:bg-(--color-form-background)',
+                className,
+              )}
               {...attributes}
             >
               <DragAndDropListener isDisabled={isDragAndDropDisabled(totalSubjectsCount)} listeners={listeners} />
               <Typography className="flex items-center gap-1">
                 {showChip && <Chip label={subject.code} size="small" component="span" />}
-                <Typography className='ml-1' component="span">
+                <Typography className="ml-1" component="span">
                   {isDefault && subject.code}
                   {isBisac && convertBisacSubjectCodeToReadableFormat(subject.code, false)}
                   {isBic && convertBicSubjectCodeToReadableFormat(subject.code, false)}
@@ -61,11 +77,16 @@ const ListItem = (props: ListItemProps) => {
               </Typography>
               <ButtonGroup className="ml-auto">
                 <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
-                <EditButton className="ml-auto opacity-0 group-hover:opacity-100" disabled={isEditDisabled} onClick={() => onEdit?.(id)} />
+                <EditButton
+                  className="ml-auto opacity-0 group-hover:opacity-100"
+                  disabled={isEditDisabled}
+                  onClick={() => onEdit?.(id)}
+                />
               </ButtonGroup>
             </li>
           )}
-        </DraggableComponent>)}
+        </DraggableComponent>
+      )}
     </>
   );
 };

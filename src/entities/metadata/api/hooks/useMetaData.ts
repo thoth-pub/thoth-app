@@ -1,9 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery } from '@tanstack/react-query';
 
-import { WorkId } from "@/src/entities/work/model/work.types";
-import { isDefaultId, QueryKeys, useServices } from "@/src/shared";
+import { WorkId } from '@/src/entities/work/model/work.types';
+import { isDefaultId, QueryKeys, useServices } from '@/src/shared';
 
-import { FORMAT_IDS, MetadataEntity } from "../../model/metadata.types";
+import { FORMAT_IDS, MetadataEntity } from '../../model/metadata.types';
 
 const defaultMetadata: MetadataEntity = {
   [FORMAT_IDS.ONIX_3_1]: {},
@@ -25,7 +25,11 @@ export const useMetaData = (workId: WorkId) => {
 
   const { metadataService } = useServices();
 
-  const { data = defaultMetadata, isLoading, error } = useQuery({
+  const {
+    data = defaultMetadata,
+    isLoading,
+    error,
+  } = useQuery({
     queryKey: [QueryKeys.metadata, workId],
     queryFn: () => metadataService.getAllSpecifications(workId),
     enabled: isValid,

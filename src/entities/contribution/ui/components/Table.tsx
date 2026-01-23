@@ -17,15 +17,7 @@ type ContributionsTableProps = {
 };
 
 export const ContributionsTable = (props: ContributionsTableProps) => {
-  const {
-    contributions,
-    activeContribution,
-    form,
-    showRecommendations = false,
-    onEdit,
-    onDelete,
-    onDragEnd,
-  } = props;
+  const { contributions, activeContribution, form, showRecommendations = false, onEdit, onDelete, onDragEnd } = props;
 
   return (
     <DragAndDropWrapper items={contributions} onDragEnd={onDragEnd}>

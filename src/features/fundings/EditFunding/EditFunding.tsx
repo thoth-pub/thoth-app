@@ -44,8 +44,7 @@ const EditFunding = (props: EditFundingProps) => {
 
   if (!activeFunding) return null;
 
-  const { grantNumber, program, projectName, projectShortname, institutionId, institutionName } =
-    activeFunding;
+  const { grantNumber, program, projectName, projectShortname, institutionId, institutionName } = activeFunding;
 
   return (
     <EditFundingForm

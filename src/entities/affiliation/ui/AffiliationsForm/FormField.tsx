@@ -30,7 +30,13 @@ type FormFieldProps = {
   onRemove: () => void;
 };
 
-export const FormField = ({ control, affiliationFieldName, positionFieldName, isHelperTextVisible = false, onRemove }: FormFieldProps) => {
+export const FormField = ({
+  control,
+  affiliationFieldName,
+  positionFieldName,
+  isHelperTextVisible = false,
+  onRemove,
+}: FormFieldProps) => {
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { institutions = [], loading } = useInstitutions({ filter: debouncedValue });

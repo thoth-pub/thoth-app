@@ -108,7 +108,7 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
   };
 
   return (
-    <ContentWrapper className='p-4 gap-y-(--default-gap)'>
+    <ContentWrapper className="gap-y-(--default-gap) p-4">
       <InputLabel>{SUBJECTS.label}</InputLabel>
       {placeholder ? (
         <div className="flex w-full flex-col gap-(--default-gap)">
@@ -131,13 +131,13 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
           </ul>
         </div>
       ) : (
-        <AddButton onAdd={handleModalState} className="capitalize xl:-ml-4 py-0">
+        <AddButton onAdd={handleModalState} className="py-0 capitalize xl:-ml-4">
           add new subject
         </AddButton>
       )}
       <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />
     </ContentWrapper>
-  )
-}
+  );
+};
 
 export default EditSubjects;

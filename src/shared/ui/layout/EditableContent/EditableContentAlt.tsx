@@ -1,13 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import type {
-  Control,
-  FieldValues,
-  UseFormReset,
-  UseFormSetValue,
-  ValidationMode,
-} from 'react-hook-form';
+import type { Control, FieldValues, UseFormReset, UseFormSetValue, ValidationMode } from 'react-hook-form';
 
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -89,7 +83,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
           onClose={onClose}
           onInfo={handleShowInfo}
           className="items-end gap-1 bg-transparent p-0"
-          controlsClassName='self-start mt-6'
+          controlsClassName="self-start mt-6"
         >
           {({ control, reset, setValue }) => formFields({ control, isHelperTextVisible: showInfo, reset, setValue })}
         </FormWrapper>

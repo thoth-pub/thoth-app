@@ -2,7 +2,6 @@ import { assign, setup } from 'xstate';
 
 import type { SubjectEntity } from '../model/subject.types';
 
-
 type SubjectContext = {
   activeSubject: SubjectEntity | null;
 };

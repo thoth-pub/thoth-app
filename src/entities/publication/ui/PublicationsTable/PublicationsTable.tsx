@@ -21,7 +21,21 @@ const PublicationsTable = (props: PublicationsTableProps) => {
       <TableHeader cells={['Publication Type', 'ISBN']} cellStyles={['min-w-[250px] pl-4', 'min-w-[250px]']} />
       <TableBody>
         {publications.map(
-          ({ id, type, isbn, width, widthIn, height, heightIn, depth, depthIn, weight, weightOz, prices, locations }) => (
+          ({
+            id,
+            type,
+            isbn,
+            width,
+            widthIn,
+            height,
+            heightIn,
+            depth,
+            depthIn,
+            weight,
+            weightOz,
+            prices,
+            locations,
+          }) => (
             <Fragment key={id}>
               {activePublication?.id === id ? (
                 <TableFormWrapper colSpan={3}>{form}</TableFormWrapper>
@@ -38,9 +52,19 @@ const PublicationsTable = (props: PublicationsTableProps) => {
                           <Chip label="g/oz" size="small" className="lowercase" />
                         )}
                         {prices.length > 0 && (
-                          <Chip label={`${prices.length} price` + (prices.length > 1 ? 's' : '')} size="small" className="lowercase" />
+                          <Chip
+                            label={`${prices.length} price` + (prices.length > 1 ? 's' : '')}
+                            size="small"
+                            className="lowercase"
+                          />
                         )}
-                        {locations.length > 0 && <Chip label={`${locations.length} location` + (locations.length > 1 ? 's' : '')} size="small" className="lowercase" />}
+                        {locations.length > 0 && (
+                          <Chip
+                            label={`${locations.length} location` + (locations.length > 1 ? 's' : '')}
+                            size="small"
+                            className="lowercase"
+                          />
+                        )}
                       </div>
                     </div>
                   </TableCell>

@@ -111,9 +111,7 @@ const PublishedBooksChart = () => {
               position: 'none',
               colorMap: {
                 type: 'ordinal',
-                colors: [
-                  'var(--color-chart-4)',
-                ],
+                colors: ['var(--color-chart-4)'],
               },
             },
           ]}

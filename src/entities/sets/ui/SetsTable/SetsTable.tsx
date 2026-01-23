@@ -73,7 +73,7 @@ const SetsTable = (props: SetsTableProps) => {
                       <TableCell className="lastCell">
                         <div className="flex justify-between">
                           {convertUpdatedAtToFormattedDate(updatedAt)}
-                          <ButtonGroup className='-mt-2'>
+                          <ButtonGroup className="-mt-2">
                             <DeleteButton onClick={() => deleteSet(id)} className="opacity-0 group-hover:opacity-100" />
                             <EditButton
                               disabled={!!activeSet}

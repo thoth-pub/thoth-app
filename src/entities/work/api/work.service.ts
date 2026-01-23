@@ -105,9 +105,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     }
 
     if (shouldCreateAbstracts) {
-      const abstractsPromises = data.abstracts.map((abstract) =>
-        this.createAbstract(token, abstract, work.id),
-      );
+      const abstractsPromises = data.abstracts.map((abstract) => this.createAbstract(token, abstract, work.id));
 
       const createdAbstracts = await Promise.all(abstractsPromises);
 
@@ -520,14 +518,12 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     } while (count < works.length);
   }
 
-  async createTitle(
-    token: string,
-    data: TitleEntity,
-    relatedWorkId: WorkId,
-  ): Promise<TitleEntity> {
+  async createTitle(token: string, data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
     const { titleId: _, ...dto } = this.dtoMapper.toDtoTitle(data);
 
-    const markupFormat = isTextContainsAnyMarkdownTag(data.title) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+    const markupFormat = isTextContainsAnyMarkdownTag(data.title)
+      ? MarkdownFormats.enum.JATS_XML
+      : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, CREATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
@@ -539,15 +535,12 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return title;
   }
 
-  async updateTitle(
-    token: string,
-    data: TitleEntity,
-    relatedWorkId: WorkId,
-  ): Promise<TitleEntity> {
+  async updateTitle(token: string, data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
     const dto = this.dtoMapper.toDtoTitle(data);
 
-    const markupFormat = isTextContainsAnyMarkdownTag(data.title) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
-
+    const markupFormat = isTextContainsAnyMarkdownTag(data.title)
+      ? MarkdownFormats.enum.JATS_XML
+      : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, UPDATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
@@ -565,14 +558,12 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     });
   }
 
-  async createAbstract(
-    token: string,
-    data: AbstractEntity,
-    relatedWorkId: WorkId,
-  ): Promise<AbstractEntity> {
+  async createAbstract(token: string, data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
     const { abstractId: _, ...dto } = this.dtoMapper.toDtoAbstract(data);
 
-    const markupFormat = isTextContainsAnyMarkdownTag(data.content) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+    const markupFormat = isTextContainsAnyMarkdownTag(data.content)
+      ? MarkdownFormats.enum.JATS_XML
+      : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, CREATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },
@@ -584,14 +575,12 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return abstract;
   }
 
-  async updateAbstract(
-    token: string,
-    data: AbstractEntity,
-    relatedWorkId: WorkId,
-  ): Promise<AbstractEntity> {
+  async updateAbstract(token: string, data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
     const dto = this.dtoMapper.toDtoAbstract(data);
 
-    const markupFormat = isTextContainsAnyMarkdownTag(data.content) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+    const markupFormat = isTextContainsAnyMarkdownTag(data.content)
+      ? MarkdownFormats.enum.JATS_XML
+      : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, UPDATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },

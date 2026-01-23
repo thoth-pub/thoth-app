@@ -5,7 +5,9 @@ import { SubjectEntity } from '../../model/subject.types';
 import { SubjectStateMachineContext } from '../subject.provider';
 
 const useSubjectStateMachine = () => {
-  const activeSubject: SubjectEntity | null = SubjectStateMachineContext.useSelector((state) => state.context.activeSubject);
+  const activeSubject: SubjectEntity | null = SubjectStateMachineContext.useSelector(
+    (state) => state.context.activeSubject,
+  );
   const actorRef = SubjectStateMachineContext.useActorRef();
 
   const edit = useCallback(

@@ -3,7 +3,7 @@ type TabPanelProps = {
   activeValue: string;
   value: string;
   index: number;
-}
+};
 
 const TabPanel = (props: TabPanelProps) => {
   const { children, value, activeValue } = props;
@@ -20,6 +20,6 @@ const TabPanel = (props: TabPanelProps) => {
       {children}
     </div>
   );
-}
+};
 
 export default TabPanel;

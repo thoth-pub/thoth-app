@@ -159,7 +159,9 @@ export class ContributionService {
     contributionId: ContributionId,
   ): Promise<BiographyEntity> {
     const { biographyId: _, contributionId: _contributionId, ...dto } = this.biographyDtoMapper.toDto(data);
-    const markupFormat = isTextContainsAnyMarkdownTag(data.content) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+    const markupFormat = isTextContainsAnyMarkdownTag(data.content)
+      ? MarkdownFormats.enum.JATS_XML
+      : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, CREATE_BIOGRAPHY, {
       data: { contributionId, ...dto },
@@ -171,12 +173,11 @@ export class ContributionService {
     return biography;
   }
 
-  async updateBiography(
-    token: QueryToken,
-    data: BiographyEntity,
-  ): Promise<BiographyEntity> {
+  async updateBiography(token: QueryToken, data: BiographyEntity): Promise<BiographyEntity> {
     const dto = this.biographyDtoMapper.toDto(data);
-    const markupFormat = isTextContainsAnyMarkdownTag(data.content) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+    const markupFormat = isTextContainsAnyMarkdownTag(data.content)
+      ? MarkdownFormats.enum.JATS_XML
+      : MarkdownFormats.enum.PLAIN_TEXT;
 
     const response = await this.graphqlService.mutation(token, UPDATE_BIOGRAPHY, {
       data: {

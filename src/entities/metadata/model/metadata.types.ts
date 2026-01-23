@@ -13,7 +13,7 @@ export const FORMAT_IDS = {
   MARC21: 'marc21',
 } as const;
 
-export type FormatId = typeof FORMAT_IDS[keyof typeof FORMAT_IDS];
+export type FormatId = (typeof FORMAT_IDS)[keyof typeof FORMAT_IDS];
 
 export type FormatDto = {
   id: FormatId;
@@ -28,9 +28,8 @@ export const SPECIFICATION_STATUS = {
 } as const;
 
 export type SpecificationResult = {
-  status: typeof SPECIFICATION_STATUS[keyof typeof SPECIFICATION_STATUS];
+  status: (typeof SPECIFICATION_STATUS)[keyof typeof SPECIFICATION_STATUS];
   data: string;
 };
-
 
 export type MetadataEntity = Record<FormatId, Record<string, SpecificationResult>>;

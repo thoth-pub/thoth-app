@@ -633,7 +633,7 @@ export const FORM_FIELDS = {
     name: 'work',
     placeholder: 'Work',
     type: InputTypes.TEXT,
-  }
+  },
 } as const;
 
 export const workStatusOptions = [

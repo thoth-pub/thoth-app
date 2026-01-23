@@ -11,13 +11,7 @@ export const useCreateContribution = () => {
   const { contributionService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async ({
-      data,
-      relatedWorkId,
-    }: {
-      data: WorkContribution;
-      relatedWorkId: string;
-    }) => {
+    mutationFn: async ({ data, relatedWorkId }: { data: WorkContribution; relatedWorkId: string }) => {
       return contributionService.createContribution(queryToken, data, relatedWorkId);
     },
     onSuccess: () => {

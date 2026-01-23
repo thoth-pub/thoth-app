@@ -95,7 +95,13 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
   }
 
   async createSet(token: QueryToken, data: SetEntity): Promise<SetEntity> {
-    const { workId: _workId, titles: _titles, updatedAt: _updatedAt, relations: _relations, ...dto } = this.dtoMapper.toDto(data);
+    const {
+      workId: _workId,
+      titles: _titles,
+      updatedAt: _updatedAt,
+      relations: _relations,
+      ...dto
+    } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(token, CREATE_SET, {
       data: dto as SetDto,

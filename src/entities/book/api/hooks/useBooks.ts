@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { Expression, WorkField, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, type Direction,QueryKeys, useServices } from '@/src/shared';
+import { appConfig, type Direction, QueryKeys, useServices } from '@/src/shared';
 
 type UseBooksProps = {
   publishersIds: PublisherId[];

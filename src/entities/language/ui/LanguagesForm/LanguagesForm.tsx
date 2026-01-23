@@ -52,7 +52,12 @@ const LanguagesForm = (props: LanguagesFormProps) => {
       onSubmit={(data) => onUpdate?.(data)}
       defaultValues={{ [LANGUAGES.name]: defaultValues }}
       formFields={({ control, isHelperTextVisible }) => (
-        <FormFields isHelperTextVisible={isHelperTextVisible} control={control as unknown as Control<LanguagesFormType>} onDelete={onDelete} onClose={onClose} />
+        <FormFields
+          isHelperTextVisible={isHelperTextVisible}
+          control={control as unknown as Control<LanguagesFormType>}
+          onDelete={onDelete}
+          onClose={onClose}
+        />
       )}
       preview={({ disabled, onEdit }) => (
         <Preview
@@ -73,7 +78,7 @@ const LanguagesForm = (props: LanguagesFormProps) => {
                   </Typography>
                   <DeleteButton
                     onClick={() => onDelete?.(languageId)}
-                    className="opacity-0 group-hover:opacity-100 ml-auto"
+                    className="ml-auto opacity-0 group-hover:opacity-100"
                   />
                 </li>
               ))}

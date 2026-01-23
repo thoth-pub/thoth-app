@@ -64,7 +64,11 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
         defaultValues={{ [AFFILIATIONS.name]: defaultValues }}
         borderTransparent
         formFields={({ control, isHelperTextVisible }) => (
-          <FormFields isHelperTextVisible={isHelperTextVisible} control={control as unknown as Control<AffiliationsFormType>} onDelete={onDelete} />
+          <FormFields
+            isHelperTextVisible={isHelperTextVisible}
+            control={control as unknown as Control<AffiliationsFormType>}
+            onDelete={onDelete}
+          />
         )}
         preview={({ disabled, onEdit }) => (
           <Preview

@@ -16,7 +16,15 @@ type PreviewListProps = {
   onEdit?: (id: SubjectId) => void;
 };
 
-export const PreviewList = ({ workId, activeSubjectId, isEditDisabled, subjects, onDelete, onDragEnd, onEdit }: PreviewListProps) => {
+export const PreviewList = ({
+  workId,
+  activeSubjectId,
+  isEditDisabled,
+  subjects,
+  onDelete,
+  onDragEnd,
+  onEdit,
+}: PreviewListProps) => {
   const firstSubject = subjects[0];
 
   return (

@@ -74,7 +74,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
 
     await Promise.all(promises);
     setPendingStatus(null);
-  }
+  };
 
   const changeWorkStatus = async (workStatus: WorkStatus) => {
     setPendingStatus(workStatus);
@@ -134,7 +134,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
     changeWorkStatus,
     changePublicationDate,
     changeWithdrawnDate,
-    declineWorkStatusChange
+    declineWorkStatusChange,
   };
 };
 
