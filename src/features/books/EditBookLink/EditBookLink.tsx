@@ -8,7 +8,7 @@ import { WorkStatusChip } from '@/src/entities/work';
 import type { WorkStatus } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, getMainTitle, ROUTES, TitleEntity } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
-import { DashboardContentWrapper, Typography } from '@/src/shared/ui';
+import { DashboardContentWrapper, ImageWithFallback, Typography } from '@/src/shared/ui';
 
 type EditBookLinkProps = {
   titles: TitleEntity[];
@@ -31,22 +31,14 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
       <DashboardContentWrapper className="shrink-0">
         <div className="flex h-full w-full">
           <div className="cover relative h-full shrink-0">
-            <img
-              src="/placeholder.svg"
+            <ImageWithFallback
+              fallback="/placeholder.svg"
+              src={image}
               width={isDesktop ? 85 : 75}
               height={isDesktop ? 135 : 100}
               alt="image placeholder"
               className="h-full w-full rounded object-cover object-center"
             />
-            {image && image.length > 0 && (
-              <img
-                alt="book cover"
-                src={image}
-                width={isDesktop ? 85 : 75}
-                height={isDesktop ? 135 : 100}
-                className="absolute top-0 left-0 z-10 h-full w-full object-contain object-center"
-              />
-            )}
           </div>
 
           <div className="flex max-w-[190px] grow flex-col justify-between pl-2 xl:max-w-[410px]">

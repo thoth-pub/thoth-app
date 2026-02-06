@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { QueryKeys, useServices } from '@/src/shared';
 
 import type { PublisherId } from '../../model/publisher.types';
-
+// TODO: publishers
 const usePublishers = (publisherIds: PublisherId[], isAdmin: boolean) => {
   const { publisherService } = useServices();
 
@@ -16,7 +16,7 @@ const usePublishers = (publisherIds: PublisherId[], isAdmin: boolean) => {
   } = useQuery({
     queryKey: [QueryKeys.publishers, publisherIds],
     queryFn: () => publisherService.getPublishers(publisherIds),
-    enabled: publisherIds.length > 0 && !isAdmin,
+    enabled: (publisherIds.length > 0 && !isAdmin) || isAdmin,
   });
 
   return {

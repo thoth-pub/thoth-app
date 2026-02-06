@@ -26,7 +26,7 @@ const Dashboard = () => {
         </div>
       </ContentSection>
 
-      <div className="flex min-h-[7.5rem] w-full flex-wrap gap-[15px] xl:min-h-[10rem]">
+      <div className="flex min-h-30 w-full flex-wrap gap-[15px] xl:min-h-40">
         <Suspense fallback={<DashboardChartSkeleton />}>
           <TotalBooksChart />
         </Suspense>

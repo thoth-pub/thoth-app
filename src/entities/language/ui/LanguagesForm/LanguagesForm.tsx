@@ -67,6 +67,7 @@ const LanguagesForm = (props: LanguagesFormProps) => {
           value={placeholder}
           recommended={showRecommendations}
           editButtonClassName="mt-1.5 xl:mt-0"
+          addButtonText="Language"
         >
           {placeholder && (
             <ul className="flex w-full flex-col gap-(--default-gap)">

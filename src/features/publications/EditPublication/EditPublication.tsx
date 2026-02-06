@@ -64,8 +64,17 @@ const EditPublication = (props: EditPublicationProps) => {
       onUpdateAccessibilityReport={updateAccessibilityReport}
       onDeleteAccessibility={deleteAccessibility}
     >
-      <EditPrice prices={activePublication.prices} onUpdate={updatePrices} onClose={close} />
-      <EditLocations locations={activePublication.locations} onUpdate={updateLocations} onDelete={deleteLocation} />
+      {(isFullTextUrlHidden) => (
+        <>
+          <EditPrice prices={activePublication.prices} onUpdate={updatePrices} onClose={close} />
+          <EditLocations
+            locations={activePublication.locations}
+            isFullTextUrlHidden={isFullTextUrlHidden}
+            onUpdate={updateLocations}
+            onDelete={deleteLocation}
+          />
+        </>
+      )}
     </EditPublicationForm>
   );
 };

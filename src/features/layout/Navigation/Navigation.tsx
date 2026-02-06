@@ -6,9 +6,10 @@ import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRound
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { Activity, useState } from 'react';
 
 import { PAGES, ROUTES } from '@/src/shared/constants';
+import { useUserInfo } from '@/src/shared/hooks';
 import useUIStateMachine from '@/src/shared/store/ui/hooks/useUIStateMachine';
 import { IconButton, Paper, Typography } from '@/src/shared/ui';
 
@@ -25,7 +26,8 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const { isExpanded, update } = useUIStateMachine();
-
+  const { userInfo, error } = useUserInfo();
+  console.log('userInfo', userInfo, error);
   const handleUserMenuOpen = () => {
     setIsUserMenuOpen((prev) => !prev);
   };
@@ -34,36 +36,38 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
     <Paper
       component="aside"
       elevation={3}
-      className="sticky top-2 max-h-[calc(100dvh-2rem)] shrink-0 rounded-[var(--border-nav-radius)] border-1 border-[var(--color-nav-border)] bg-[var(--color-nav-background)] p-3 lg:top-3"
+      className="sticky top-2 max-h-[calc(100dvh-2rem)] shrink-0 rounded-(--border-nav-radius) border border-(--color-nav-border) bg-(--color-nav-background) p-3 lg:top-3"
     >
       <motion.div
         initial={false}
         animate={{ width: isExpanded ? '15rem' : '2.5rem' }}
-        className="flex h-full max-w-[15rem] flex-col gap-2 overflow-hidden duration-300"
+        className="flex h-full max-w-60 flex-col gap-2 overflow-hidden duration-300"
       >
         <div className={`flex items-center justify-between gap-4 ${isExpanded ? 'flex-row' : 'flex-col'}`}>
           <Link className="cursor-pointer" href={ROUTES.DASHBOARD}>
-            {isExpanded ? (
+            <Activity mode={isExpanded ? 'visible' : 'hidden'}>
               <Image
                 src="/logo.png"
                 alt="Thoth Open Metadata logo"
-                className="block min-h-[97px] min-w-[170px] shrink-0"
+                className="animate-fade-in block min-h-[97px] min-w-[170px] shrink-0"
                 width={170}
                 height={97}
                 priority
                 fetchPriority="high"
               />
-            ) : (
+            </Activity>
+
+            <Activity mode={isExpanded ? 'hidden' : 'visible'}>
               <Image
                 src="/logo_small.png"
                 alt="Thoth Open Metadata logo"
-                className="block min-h-[42px] min-w-[40px] shrink-0"
+                className="animate-fade-in block min-h-[42px] min-w-[40px] shrink-0"
                 width={40}
                 height={42}
                 priority
                 fetchPriority="high"
               />
-            )}
+            </Activity>
           </Link>
           <IconButton onClick={update} className={`${isExpanded && 'self-start'}`}>
             {!isExpanded ? <ArrowForwardIosRoundedIcon /> : <ArrowBackIosNewRoundedIcon />}
@@ -97,11 +101,11 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
             className={`mt-auto flex gap-2 rounded-(--border-nav-radius) border border-(--color-nav-border) py-2 ${isExpanded ? 'px-4' : 'h-10 w-10 px-1.5'}`}
           >
             <div
-              className={`flex max-w-full flex-col gap-1 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
+              className={`flex max-w-full flex-1 flex-col gap-1 transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
             >
               <div className="flex items-center justify-between gap-1">
                 <Typography color="primary" component="span" className="max-w-[85%] truncate font-semibold">
-                  John DoeDoeDoeDoe
+                  {userInfo.name}
                 </Typography>
                 <IconButton className="shrink-0 p-0" onClick={handleUserMenuOpen}>
                   <ArrowDropDownRoundedIcon className={isUserMenuOpen ? 'rotate-180' : 'rotate-0'} />
@@ -109,8 +113,9 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
               </div>
 
               <Typography color="primary" component="span" variant="body2" className="overflow-hidden text-ellipsis">
-                john.doelongmail@example.com
+                {userInfo.email}
               </Typography>
+              {/* TODO: should we track locale? */}
               {isUserMenuOpen && <ContentLanguage />}
             </div>
           </div>

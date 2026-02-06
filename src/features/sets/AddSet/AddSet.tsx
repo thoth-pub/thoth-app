@@ -36,7 +36,7 @@ const AddSet = ({ imprintOptions }: AddSetProps) => {
     titles: [],
     type: WorkTypes.enum.BookSet,
     updatedAt: '',
-    imprintId: imprintOptions[0].value,
+    imprintId: imprintOptions.length > 0 ? imprintOptions[0].value : '',
     status: WorkStatuses.enum.Forthcoming,
     edition: 1,
     volumesCount: 0,

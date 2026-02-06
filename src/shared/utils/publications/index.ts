@@ -1,5 +1,7 @@
-import { PublicationEntity } from '@/src/entities/publication/model/publication.types';
-import { PublicationType as TPublicationType } from '@/src/entities/publication/model/publication.types';
+import {
+  PublicationEntity,
+  PublicationType as TPublicationType,
+} from '@/src/entities/publication/model/publication.types';
 
 import { appConfig } from '../../config';
 import { PublicationType } from '../../constants';
@@ -33,6 +35,10 @@ export const getDefaultPublication = (data?: Partial<PublicationEntity>): Public
 
 export const isDimensionsAvailable = (publicationType: TPublicationType) => {
   return publicationType === PublicationType.enum.Hardback || publicationType === PublicationType.enum.Paperback;
+};
+
+export const isFullTextUrlAvailable = (publicationType: TPublicationType) => {
+  return publicationType !== PublicationType.enum.Paperback && publicationType !== PublicationType.enum.Hardback;
 };
 
 export const isValidPublicationForm = (publicationForm: string) => {

@@ -238,15 +238,15 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   FIRST_NAME: {
-    label: 'First Name',
+    label: 'Given Name',
     name: 'firstName',
-    placeholder: 'First Name',
+    placeholder: 'Given Name',
     type: InputTypes.TEXT,
   },
   LAST_NAME: {
-    label: 'Last Name',
+    label: 'Family Name',
     name: 'lastName',
-    placeholder: 'Last Name',
+    placeholder: 'Family Name',
     type: InputTypes.TEXT,
   },
   FULL_NAME: {
@@ -661,7 +661,12 @@ export const subjectTypeOptions = convertFormFieldsToSelectFieldOptions(SubjectT
   label: subjectOption.label.toUpperCase(),
 }));
 
-export const publicationTypeOptions = convertFormFieldsToSelectFieldOptions(PublicationType.options);
+export const publicationTypeOptions = convertFormFieldsToSelectFieldOptions(PublicationType.options).map(
+  (publicationOption) => ({
+    ...publicationOption,
+    label: publicationOption.label.toUpperCase().replaceAll(' ', ''),
+  }),
+);
 
 export const lengthUnitOptions = convertFormFieldsToSelectFieldOptions([LengthUnit.enum.Mm, LengthUnit.enum.In]);
 

@@ -17,6 +17,7 @@ import {
   ContentWrapper,
   FormFieldLabel,
   FormTextField,
+  ImageWithFallback,
   Modal,
   ModalWrapper,
   SubmitButton,
@@ -67,10 +68,20 @@ export const CoverForm = (props: BaseEditSectionProps) => {
         <button
           className="absolute flex h-full w-full cursor-pointer flex-col items-center justify-center gap-1"
           onClick={handleModalState}
+          type="button"
         >
           <PlaceholderLogo />
           <Typography className="text-center font-semibold">Add Cover</Typography>
-          {work.coverUrl && <img src={work.coverUrl} alt="Cover" className="absolute h-full w-full object-contain" />}
+          {work.coverUrl && (
+            <ImageWithFallback
+              fallback="/transparent.png"
+              placeholderOpacity={0}
+              src={work.coverUrl}
+              alt="Cover"
+              className="absolute h-full w-full object-contain"
+              fill
+            />
+          )}
           {work.coverUrl && (
             <IconButton className="absolute top-0 right-0 h-12 w-12 p-0" onClick={handleCopyToClipboard}>
               <ContentCopyIcon color="primary" />

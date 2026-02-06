@@ -34,7 +34,7 @@ const EditPrice = (props: EditPriceProps) => {
         value: currencyCode,
         label: currencyOption ? currencyOption.label : currencyCode,
       },
-      [VALUE.name]: unitPrice,
+      [VALUE.name]: +unitPrice.toFixed(2),
     };
   });
 

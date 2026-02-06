@@ -31,41 +31,44 @@ const FundingsTable = (props: FundingsTableProps) => {
   return (
     <TableWrapper>
       <TableHeader
-        cells={['Project', 'Program', 'Institution', 'Grant']}
+        cells={['Project', 'Program', 'Institution', 'Grant No.']}
         cellStyles={['min-w-[120px] pl-4', 'min-w-[120px]', 'min-w-[250px]', 'min-w-[120px]']}
       />
       <TableBody>
-        {fundings.map(({ id, projectName, program, institutionName, institutionRor, grantNumber }) => (
-          <Fragment key={id}>
-            {activeFunding?.id === id ? (
-              <TableFormWrapper colSpan={5}>{form}</TableFormWrapper>
-            ) : (
-              <TableRow className="group">
-                <TableCell className="firstCell">
-                  <div className="flex items-center gap-1 pl-1">
-                    {projectName}
-                    {showRecommendations && grantNumber.length === 0 && <Indicator />}
-                  </div>
-                </TableCell>
-                <TableCell className="middleCell">{program}</TableCell>
-                <TableCell className="middleCell">
-                  {institutionName}
-                  {institutionRor && (
-                    <LinkTooltip link={institutionRor} linkText={convertRorIdToText(institutionRor)}>
-                      <RorLogo />
-                    </LinkTooltip>
-                  )}
-                </TableCell>
-                <TableCell className="lastCell">
-                  <div className="flex justify-between">
-                    {grantNumber}
-                    <RowButtonGroup className="ml-auto" onDelete={() => onDelete?.(id)} onEdit={() => onEdit?.(id)} />
-                  </div>
-                </TableCell>
-              </TableRow>
-            )}
-          </Fragment>
-        ))}
+        {fundings.map(
+          ({ id, projectName, projectShortname, program, institutionName, institutionRor, grantNumber }) => (
+            <Fragment key={id}>
+              {activeFunding?.id === id ? (
+                <TableFormWrapper colSpan={5}>{form}</TableFormWrapper>
+              ) : (
+                <TableRow className="group">
+                  <TableCell className="firstCell">
+                    <div className="flex items-center gap-1 pl-1">
+                      {projectName}
+                      {projectShortname.length > 0 && ` (${projectShortname})`}
+                      {showRecommendations && grantNumber.length === 0 && <Indicator />}
+                    </div>
+                  </TableCell>
+                  <TableCell className="middleCell">{program}</TableCell>
+                  <TableCell className="middleCell">
+                    {institutionName}
+                    {institutionRor && (
+                      <LinkTooltip link={institutionRor} linkText={convertRorIdToText(institutionRor)}>
+                        <RorLogo />
+                      </LinkTooltip>
+                    )}
+                  </TableCell>
+                  <TableCell className="lastCell">
+                    <div className="flex justify-between">
+                      {grantNumber}
+                      <RowButtonGroup className="ml-auto" onDelete={() => onDelete?.(id)} onEdit={() => onEdit?.(id)} />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )}
+            </Fragment>
+          ),
+        )}
       </TableBody>
     </TableWrapper>
   );

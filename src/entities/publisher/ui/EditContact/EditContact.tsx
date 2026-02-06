@@ -2,7 +2,7 @@
 
 import { appConfig, ContactTypes, convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
 import { contactTypeOptions, FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { useUserEmail } from '@/src/shared/hooks';
+import { useUserInfo } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import {
   ContentWrapper,
@@ -30,7 +30,7 @@ const EditContact = () => {
   const publisherId = activePublisher ?? '';
   const { publisher } = usePublisher(publisherId);
   // TODO: change email logic after auth update
-  const email = useUserEmail();
+  const { userInfo } = useUserInfo();
   const { createContact } = useCreateContact(publisherId);
   const { deleteContact } = useDeleteContact(publisherId);
   const { close } = useFormStateMachine();
@@ -47,7 +47,10 @@ const EditContact = () => {
 
     if (existingContact) return;
 
-    createContact({ data: { type: contact, email, id: appConfig.defaultId }, publisherId: activePublisher });
+    createContact({
+      data: { type: contact, email: userInfo.email, id: appConfig.defaultId },
+      publisherId: activePublisher,
+    });
   };
 
   const handleDelete = () => {

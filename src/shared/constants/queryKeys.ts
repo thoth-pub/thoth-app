@@ -39,4 +39,6 @@ export const QueryKeys = {
   bookSetWorks: 'bookSetWorks',
   // METADATA
   metadata: 'metadata',
+  // USER
+  userInfo: 'userInfo',
 } as const;

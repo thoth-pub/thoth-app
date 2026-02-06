@@ -2,7 +2,9 @@ import { WorkCopyVariant } from '../types';
 
 export const ROUTES = {
   ROOT: '/',
+  ADMIN: '/admin',
   LOGIN: '/auth/login',
+  LOGOUT_ERROR: '/auth/logout/error',
   DASHBOARD: '/admin/dashboard',
   NEW_WORK: '/admin/works/new',
   COPY_WORK: (variant: WorkCopyVariant) => `/admin/works/copy?type=${variant}`,

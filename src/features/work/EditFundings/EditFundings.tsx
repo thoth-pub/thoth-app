@@ -36,7 +36,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
   };
 
   return (
-    <RecommendedSection title="Fundings" isEmpty={isFundingsEmpty} isValid={!isFundingsRequired} id={ANCHORS.FUNDINGS}>
+    <RecommendedSection title="Funding" isEmpty={isFundingsEmpty} isValid={!isFundingsRequired} id={ANCHORS.FUNDINGS}>
       {({ showRecommendations }) => (
         <>
           <FundingsTable

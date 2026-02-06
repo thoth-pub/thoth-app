@@ -25,12 +25,13 @@ const { LOCATIONS } = FORM_FIELDS;
 
 type EditLocationsProps = {
   locations: LocationEntity[];
+  isFullTextUrlHidden: boolean;
   onUpdate: (data: LocationEntity[]) => void;
   onDelete?: (id: string) => void;
 };
 
 const EditLocations = (props: EditLocationsProps) => {
-  const { locations, onUpdate, onDelete } = props;
+  const { locations, isFullTextUrlHidden, onUpdate, onDelete } = props;
 
   const { activeLocation, edit, close } = useLocationStateMachine();
   const { activeFormId, edit: editForm, close: closeForm } = useFormStateMachine();
@@ -90,6 +91,7 @@ const EditLocations = (props: EditLocationsProps) => {
               <LocationForm
                 key={location.id}
                 location={location}
+                isFullTextUrlHidden={isFullTextUrlHidden}
                 onClose={handleClose}
                 onSubmit={handleSubmitLocation}
               />
@@ -109,7 +111,12 @@ const EditLocations = (props: EditLocationsProps) => {
       )}
 
       {isEditingNewLocation && !isEditingExistingLocation && (
-        <LocationForm location={activeLocation} onClose={handleClose} onSubmit={handleSubmitNewLocation} />
+        <LocationForm
+          location={activeLocation}
+          isFullTextUrlHidden={isFullTextUrlHidden}
+          onClose={handleClose}
+          onSubmit={handleSubmitNewLocation}
+        />
       )}
 
       {isLocationsFilled && (

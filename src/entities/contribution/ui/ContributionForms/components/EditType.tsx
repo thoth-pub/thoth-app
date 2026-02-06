@@ -3,7 +3,7 @@
 import { useTranslation } from 'react-i18next';
 
 import type { ContributionType } from '@/src/entities/contributor/model/contributor.types';
-import { getContributorTypeOptions, HELPER_TEXT, IDs } from '@/src/shared';
+import { convertContributorTypeOptions, getContributorTypeOptions, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
@@ -24,6 +24,7 @@ export const EditType = (props: EditTypeProps) => {
   const { contributorType, onSubmit } = props;
   const { t, i18n } = useTranslation();
   const contributorTypeOptions = getContributorTypeOptions(i18n.language);
+  const convertedContributorTypeOptions = convertContributorTypeOptions(contributorTypeOptions);
 
   const defaultValue =
     contributorTypeOptions.find((option) => option.value === contributorType) ?? contributorTypeOptions[0];
@@ -43,10 +44,21 @@ export const EditType = (props: EditTypeProps) => {
             control={control}
             name={CONTRIBUTOR_TYPE.name}
             select
-            options={contributorTypeOptions}
+            options={convertedContributorTypeOptions}
             id={CONTRIBUTOR_TYPE.name}
             helperText={CONTRIBUTOR_TYPE_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
+            slotProps={{
+              select: {
+                MenuProps: {
+                  sx: {
+                    '& .MuiMenuItem-root': {
+                      textTransform: 'none',
+                    },
+                  },
+                },
+              },
+            }}
           />
         </ContentWrapper>
       )}

@@ -5,8 +5,9 @@ import {
   AccessibilityStandardType,
   isAccessibilityStandardAvailable,
   isDimensionsAvailable,
+  isFullTextUrlAvailable,
 } from '@/src/shared';
-import { TableFormsHeader, TableFormsWrapper, Typography } from '@/src/shared/ui';
+import { TableFormsHeader, TableFormsWrapper } from '@/src/shared/ui';
 
 import type { PublicationDimensionsForm, PublicationType } from '../../model/publication.types';
 import { EditAccessibilityException } from './components/EditAccessibilityException';
@@ -31,7 +32,7 @@ type EditPublicationProps = {
   accessibilityException: AccessibilityExceptionType | null;
   accessibilityReportUrl: string;
   isDimensionFormHidden: boolean;
-  children?: Readonly<React.ReactNode>;
+  children?: (isFullTextUrlHidden: boolean) => Readonly<React.ReactNode>;
   onDone?: () => void;
   onClose?: () => void;
   onUpdateType?: (type: PublicationType) => void;
@@ -72,6 +73,7 @@ const EditPublication = (props: EditPublicationProps) => {
   } = props;
 
   const isDimensionsHidden = isDimensionFormHidden || !isDimensionsAvailable(publicationType);
+  const isFullTextUrlHidden = !isFullTextUrlAvailable(publicationType);
   const isAccessabilitySectionAvailable = isAccessibilityStandardAvailable(publicationType);
 
   return (
@@ -93,29 +95,23 @@ const EditPublication = (props: EditPublicationProps) => {
         />
       )}
 
-      {children}
+      {children?.(isFullTextUrlHidden)}
 
       <Activity mode={isAccessabilitySectionAvailable ? 'visible' : 'hidden'}>
-        <div className="flex flex-col gap-8">
-          <Typography component="h2" variant="h2">
-            Accessibility
-          </Typography>
+        <EditAccessibilityStandard
+          publicationType={publicationType}
+          standards={accessibilityStandards}
+          onSubmit={onUpdateAccessibilityStandards}
+          onDelete={onDeleteAccessibility}
+        />
 
-          <EditAccessibilityStandard
-            publicationType={publicationType}
-            standards={accessibilityStandards}
-            onSubmit={onUpdateAccessibilityStandards}
-            onDelete={onDeleteAccessibility}
-          />
+        <EditAccessibilityException
+          exception={accessibilityException}
+          onSubmit={onUpdateAccessibilityException}
+          onDelete={onDeleteAccessibility}
+        />
 
-          <EditAccessibilityException
-            exception={accessibilityException}
-            onSubmit={onUpdateAccessibilityException}
-            onDelete={onDeleteAccessibility}
-          />
-
-          <EditAccessibilityReport report={accessibilityReportUrl} onSubmit={onUpdateAccessibilityReport} />
-        </div>
+        <EditAccessibilityReport report={accessibilityReportUrl} onSubmit={onUpdateAccessibilityReport} />
       </Activity>
     </TableFormsWrapper>
   );

@@ -1,4 +1,5 @@
 import { ContributorTypes, LOCALES } from '../../constants';
+import { FormFieldOption } from '../../interfaces';
 
 const contributorTypeOptions = [
   { value: ContributorTypes.enum.AfterwordBy, label: 'afterword by' },
@@ -43,4 +44,15 @@ export const getContributorTypeOptions = (locale: string) => {
   const selectedOptions = options[locale as keyof typeof options];
 
   return selectedOptions ?? options[LOCALES.enum.en];
+};
+
+export const convertContributorTypeOptions = (options: FormFieldOption[]) => {
+  return options.map((option) => ({
+    ...option,
+    label: option.label
+      .split(' ')
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+      .join(' ')
+      .replaceAll('By', 'by'),
+  }));
 };

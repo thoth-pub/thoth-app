@@ -58,7 +58,7 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
             <Checkbox className={itemStyles} checked disabled />
           </div>
           <div className="flex items-center gap-2">
-            <FormFieldLabel label="Landing page" className="min-w-30 lg:min-w-40" />
+            <FormFieldLabel label="Landing Page" className="min-w-30 lg:min-w-40" />
             <CheckboxFormField control={control} name="landingPage" className={itemStyles} />
           </div>
           <div className="flex items-center gap-2">
@@ -66,7 +66,7 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
             <CheckboxFormField control={control} name="license" className={itemStyles} />
           </div>
           <div className="flex items-center gap-2">
-            <FormFieldLabel label="Copyright holder" className="min-w-30 lg:min-w-40" />
+            <FormFieldLabel label="Copyright Holder" className="min-w-30 lg:min-w-40" />
             <CheckboxFormField control={control} name="copyrightHolder" className={itemStyles} />
           </div>
           <div className="flex items-center gap-2">
@@ -78,7 +78,7 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
             <CheckboxFormField control={control} name="contributors" className={itemStyles} />
           </div>
           <div className="flex items-center gap-2">
-            <FormFieldLabel label="Fundings" className="min-w-30 lg:min-w-40" />
+            <FormFieldLabel label="Funding" className="min-w-30 lg:min-w-40" />
             <CheckboxFormField control={control} name="fundings" className={itemStyles} />
           </div>
         </ul>

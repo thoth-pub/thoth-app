@@ -29,6 +29,7 @@ import { locationPlatformValidationSchema } from '../../model/location.validatio
 
 type LocationFormProps = {
   location: LocationEntity;
+  isFullTextUrlHidden: boolean;
   onSubmit?: (data: LocationEntity) => void;
   onClose?: () => void;
 };
@@ -37,7 +38,7 @@ const { PLATFORM, LANDING_PAGE, FULL_TEXT_URL, CANONICAL } = FORM_FIELDS;
 const { LOCATION_PLATFORM, LANDING_PAGE_HELPER_TEXT, LOCATION_URL_HELPER_TEXT } = HELPER_TEXT;
 
 export const LocationForm = (props: LocationFormProps) => {
-  const { location, onSubmit, onClose } = props;
+  const { location, isFullTextUrlHidden, onSubmit, onClose } = props;
 
   const platformOption = locationPlatformOptions.find(
     (option) => option.value.toLowerCase() === location.locationPlatform.toLowerCase(),
@@ -112,18 +113,20 @@ export const LocationForm = (props: LocationFormProps) => {
           predefinedPrefix={getProtocolPrefix(location.landingPage ?? '')}
         />
       </FormFieldWrapper>
-      <FormFieldWrapper>
-        <FormFieldLabel label={FULL_TEXT_URL.label} id={FULL_TEXT_URL.name} />
-        <FormTextField
-          control={control}
-          name={FULL_TEXT_URL.name}
-          id={FULL_TEXT_URL.name}
-          helperText={LOCATION_URL_HELPER_TEXT}
-          isHelperTextVisible={isHelperTextVisible}
-          isUrlField
-          predefinedPrefix={getProtocolPrefix(location.fullTextUrl ?? '')}
-        />
-      </FormFieldWrapper>
+      {!isFullTextUrlHidden && (
+        <FormFieldWrapper>
+          <FormFieldLabel label={FULL_TEXT_URL.label} id={FULL_TEXT_URL.name} />
+          <FormTextField
+            control={control}
+            name={FULL_TEXT_URL.name}
+            id={FULL_TEXT_URL.name}
+            helperText={LOCATION_URL_HELPER_TEXT}
+            isHelperTextVisible={isHelperTextVisible}
+            isUrlField
+            predefinedPrefix={getProtocolPrefix(location.fullTextUrl ?? '')}
+          />
+        </FormFieldWrapper>
+      )}
       <FormFieldWrapper>
         <FormFieldLabel label={CANONICAL.label} id={CANONICAL.name} />
         <CheckboxFormField control={control} name={CANONICAL.name} id={CANONICAL.name} className="mr-auto p-0" />

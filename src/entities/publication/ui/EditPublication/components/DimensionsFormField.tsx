@@ -1,7 +1,8 @@
 'use client';
 
 import InsertLinkIcon from '@mui/icons-material/InsertLink';
-import { useEffect, useState } from 'react';
+import LinkOffIcon from '@mui/icons-material/LinkOff';
+import { Activity, useEffect, useState } from 'react';
 import { Control, FieldValues, useWatch } from 'react-hook-form';
 
 import { convertGToOz, convertInToMm, convertMmToIn, convertOzToG, type FormFieldName } from '@/src/shared';
@@ -93,18 +94,13 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
           min={0}
           step="0.01"
         />
-        <IconButton
-          onClick={handleAutoConvert}
-          className="m-auto"
-          sx={{
-            backgroundColor: autoConvert ? 'var(--color-primary)' : 'transparent',
-            fill: 'red',
-            '&:hover': {
-              backgroundColor: autoConvert ? 'var(--color-primary)' : 'transparent',
-            },
-          }}
-        >
-          <InsertLinkIcon color={autoConvert ? 'secondary' : 'primary'} />
+        <IconButton onClick={handleAutoConvert} className="m-auto">
+          <Activity mode={autoConvert ? 'visible' : 'hidden'}>
+            <InsertLinkIcon color="primary" />
+          </Activity>
+          <Activity mode={autoConvert ? 'hidden' : 'visible'}>
+            <LinkOffIcon color="primary" />
+          </Activity>
         </IconButton>
         <FormTextField control={control} name={imperialFieldName} type="number" min={0} step="0.01" />
       </div>

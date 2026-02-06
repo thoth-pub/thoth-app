@@ -83,8 +83,17 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         onUpdateAccessibilityReport={updateAccessibilityReport}
         onDeleteAccessibility={deleteAccessibility}
       >
-        <EditPrice onUpdate={updatePrices} onClose={close} prices={publication.prices} />
-        <EditLocations locations={publication.locations} onUpdate={updateLocations} onDelete={deleteLocation} />
+        {(isFullTextUrlHidden) => (
+          <>
+            <EditPrice onUpdate={updatePrices} onClose={close} prices={publication.prices} />
+            <EditLocations
+              locations={publication.locations}
+              onUpdate={updateLocations}
+              onDelete={deleteLocation}
+              isFullTextUrlHidden={isFullTextUrlHidden}
+            />
+          </>
+        )}
       </EditPublication>
     </TableNewEntityFormWrapper>
   );

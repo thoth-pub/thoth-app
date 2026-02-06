@@ -78,6 +78,10 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
 
   const actions = [
     {
+      icon: <SaveAltIcon color="primary" onClick={() => setOpenMetaDialog(true)} />,
+      name: 'Metadata',
+    },
+    {
       icon: (
         <DataIndicator
           isEmpty={isEmpty}
@@ -99,10 +103,6 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
     {
       icon: <TranslateIcon color="primary" onClick={onCreateTranslation} />,
       name: 'Translation',
-    },
-    {
-      icon: <SaveAltIcon color="primary" onClick={() => setOpenMetaDialog(true)} />,
-      name: 'Metadata',
     },
   ];
 
