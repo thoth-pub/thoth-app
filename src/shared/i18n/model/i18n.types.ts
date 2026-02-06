@@ -26,6 +26,8 @@ const accessibilityExceptionLabels = z.enum(
 const workStatusLabels = z.enum(getWorkStatusOptions(LOCALES.enum.en).map((option) => option.label.toLowerCase()));
 const seriesTypeLabels = z.enum(getSeriesTypeOptions(LOCALES.enum.en).map((option) => option.label.toLowerCase()));
 
+export const NAMESPACES = z.enum(['common', 'dashboard']);
+
 export const RESOURCES = z.enum([
   'dashboard',
   'books',
@@ -215,3 +217,6 @@ export const RESOURCES = z.enum([
   ...workStatusLabels.options,
   ...seriesTypeLabels.options,
 ]);
+
+export type Namespace = z.infer<typeof NAMESPACES>;
+export type Resource = z.infer<typeof RESOURCES>;

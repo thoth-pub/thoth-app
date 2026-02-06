@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 
 import { convertOptionToString, WorkStatuses } from '@/src/shared';
-import { Chip } from '@/src/shared/ui';
+import { Chip, TranslatedContent } from '@/src/shared/ui';
 
 import type { WorkStatus } from '../../model/work.types';
 
@@ -25,6 +25,7 @@ export const WorkStatusChip = (props: WorkStatusChipProps) => {
 
   return (
     <Chip
+      className="capitalize"
       sx={{
         '&:before': {
           content: `"• "`,
@@ -33,7 +34,7 @@ export const WorkStatusChip = (props: WorkStatusChipProps) => {
           color: indicatiorColor,
         },
       }}
-      label={convertOptionToString(status)}
+      label={<TranslatedContent content={`statuses.${convertOptionToString(status).toLowerCase()}`} />}
     />
   );
 };

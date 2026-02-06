@@ -1,7 +1,6 @@
 'use client';
 
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import DataIndicator from '../../core/DataIndicator/DataIndicator';
 import ContentSection from '../ContentSection/ContentSection';
@@ -19,7 +18,6 @@ const RecommendedSection = (props: RecommendedSectionProps) => {
   const { title, isEmpty, isValid, id, className, children } = props;
 
   const [showRecommendations, setShowRecommendations] = useState(false);
-  const { t } = useTranslation();
 
   const handleRecommendations = () => {
     setShowRecommendations((prev) => !prev);
@@ -27,7 +25,7 @@ const RecommendedSection = (props: RecommendedSectionProps) => {
 
   return (
     <ContentSection
-      title={t(title)}
+      title={title}
       id={id}
       className={className}
       headerContent={

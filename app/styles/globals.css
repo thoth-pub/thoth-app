@@ -54,6 +54,9 @@
     font-family: var(--font-open-sans), sans-serif;
     font-display: swap;
   }
+  html[lang='de'] .capitalize {
+    text-transform: none !important;
+  }
 }
 
 :root {

@@ -14,6 +14,7 @@ const ContentLanguage = () => {
   const handleChange = (value: Locale) => {
     i18n.changeLanguage(value);
     setLocale(value);
+    document.documentElement.lang = value;
   };
 
   return (

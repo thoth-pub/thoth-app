@@ -1,7 +1,6 @@
 'use client';
 
 import { Activity, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { FundingsTable, useCreateFunding, useFundingsStateMachine } from '@/src/entities/funding';
 import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
@@ -17,8 +16,8 @@ import {
   useChaptersFundingsGrantNumbers,
   useChaptersFundingsInstitutions,
   useChaptersFundingsProgram,
+  useChaptersFundingsProjects,
 } from './hooks';
-import { useChaptersFundingsProjects } from './hooks';
 
 type EditChaptersFundingsProps = Omit<BaseEditSectionProps, 'workId'> & {
   chapters: WorkEntity[];
@@ -28,8 +27,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   const { chapters } = props;
 
   const { activeFunding, edit, close, update } = useFundingsStateMachine();
-
-  const { t } = useTranslation();
 
   const isAllFundingsEmpty = chapters.every((chapter) => chapter.fundings.length === 0);
   const { uniqueFundings, deleteFundings } = useChaptersFundings(chapters);
@@ -157,7 +154,7 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
             />
             {isNewFunding && <AddFunding workId="" onCreate={createFunding} />}
             <AddButton className="px-4 capitalize" onAdd={addFunding} disabled={isNewFunding}>
-              {t('add new funding')}
+              add new funding
             </AddButton>
           </Activity>
 

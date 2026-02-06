@@ -2608,6 +2608,8 @@ export const locationPlatformOptions = [
 export const contentLanguageOptions = [
   { value: LOCALES.enum.en, label: 'English' },
   { value: LOCALES.enum.es, label: 'Spanish' },
+  { value: LOCALES.enum.pt, label: 'Portuguese' },
+  { value: LOCALES.enum.de, label: 'German' },
 ];
 
 export const directionOptions = [

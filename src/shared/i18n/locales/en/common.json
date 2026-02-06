@@ -1,0 +1,20 @@
+{
+  "actions": {
+    "new": "new"
+  },
+  "statuses": {
+    "active": "active",
+    "forthcoming": "forthcoming",
+    "cancelled": "cancelled",
+    "postponed indefinitely": "postponed indefinitely",
+    "superseded": "superseded",
+    "withdrawn": "withdrawn",
+    "other": "other"
+  },
+  "workTypes": {
+    "edited book": "edited book",
+    "journal issue": "journal issue",
+    "monograph": "monograph",
+    "textbook": "textbook"
+  }
+}

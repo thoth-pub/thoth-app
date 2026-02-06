@@ -1,0 +1,13 @@
+{
+  "dashboard": "panel",
+  "widgets": {
+    "catalogue summary": "vista general del catálogo",
+    "published": "publicado",
+    "this year": "this year",
+    "prev year": "prev year",
+    "last 12 months": "últimos 12 meses",
+    "previous 12 months": "12 meses anteriores",
+    "recently updated": "actualizado recientemente",
+    "recently published": "publicado recientemente"
+  }
+}

@@ -61,6 +61,7 @@ export { default as TableFormsWrapper } from './forms/TableFormsWrapper/TableFor
 export { default as TableNewEntityFormWrapper } from './forms/TableNewEntityFormWrapper/TableNewEntityFormWrapper';
 
 // Forms
+export { default as TranslatedContent } from './core/TranslatedContent/TranslatedContent';
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
 export { default as CheckboxFormField } from './forms/CheckboxFormField/CheckboxFormField';
 export { default as DateField } from './forms/DateField/DateField';
@@ -77,7 +78,6 @@ export { default as MarkdownField } from './forms/MarkdownField/MarkdownField';
 export { default as MarkdownSwitch } from './forms/MarkdownSwitch/MarkdownSwitch';
 export { default as SubmitButton } from './forms/SubmitButton/SubmitButton';
 export { default as DashboardChartSkeleton } from './layout/DashboardChartSkeleton/DashboardChartSkeleton';
-
 // Icons
 export { default as DoiLogo } from './icons/DoiLogo/DoiLogo';
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';

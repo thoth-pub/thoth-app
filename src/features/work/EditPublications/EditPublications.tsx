@@ -1,7 +1,5 @@
 'use client';
 
-import { useTranslation } from 'react-i18next';
-
 import { PublicationsTable, usePublicationsStateMachine } from '@/src/entities/publication';
 import useDeletePublication from '@/src/entities/publication/api/hooks/useDeletePublication';
 import { useWork } from '@/src/entities/work';
@@ -15,7 +13,6 @@ const EditPublications = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
   const { activePublication, close, edit } = usePublicationsStateMachine();
-  const { t } = useTranslation();
   const { work } = useWork(workId);
   const { deletePublication: deletePublicationMutation } = useDeletePublication({ workId });
 
@@ -57,7 +54,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
         />
         {isNewPublication && <AddNewPublication workId={workId} isDimensionFormHidden={isDimensionFormHidden} />}
         <AddButton className="px-4 capitalize" onAdd={addPublication} disabled={isNewPublication}>
-          {t('add new publication')}
+          add new publication
         </AddButton>
       </>
     </ContentSection>

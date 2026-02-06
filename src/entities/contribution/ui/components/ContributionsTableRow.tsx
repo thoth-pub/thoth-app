@@ -1,7 +1,6 @@
 'use client';
 
 import { AnimatePresence } from 'motion/react';
-import { useTranslation } from 'react-i18next';
 import removeMd from 'remove-markdown';
 
 import {
@@ -51,7 +50,6 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
     onEdit,
     onDelete,
   } = props;
-  const { t } = useTranslation();
 
   const canonicalBiography =
     biographies.filter((bio) => bio.contributionId === id).find((bio) => bio.canonical)?.content ?? '';
@@ -83,7 +81,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="middleCell">{t(type.toLowerCase().replace('_', ' '))}</TableCell>
+              <TableCell className="middleCell">{type.toLowerCase().replace('_', ' ')}</TableCell>
               <TableCell className="middleCell">
                 <div className="flex rounded-tr-2xl rounded-br-2xl">
                   <ul className="flex flex-col gap-1">

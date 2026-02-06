@@ -3,7 +3,8 @@ import NextLink from 'next/link';
 import { Suspense } from 'react';
 
 import { ROUTES } from '@/src/shared/constants';
-import { Button, DashboardChartSkeleton, Typography } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { Button, DashboardChartSkeleton, TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { PublishedBooksChart, TotalBooksChart } from '@/src/widgets';
 
@@ -16,11 +17,11 @@ const Dashboard = () => {
       <ContentSection>
         <div className="flex justify-between">
           <Typography component="h1" variant="h1" className="-ml-1">
-            Dashboard
+            <TranslatedContent content="dashboard" namespace={NAMESPACES.enum.dashboard} />
           </Typography>
           <NextLink href={ROUTES.NEW_WORK} passHref>
-            <Button startIcon={<AddIcon />} variant="contained" component="span">
-              New
+            <Button startIcon={<AddIcon />} className="capitalize" variant="contained" component="span">
+              <TranslatedContent content="actions.new" />
             </Button>
           </NextLink>
         </div>

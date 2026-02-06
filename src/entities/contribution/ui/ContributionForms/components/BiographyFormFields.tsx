@@ -1,7 +1,6 @@
 'use client';
 
 import { type Control, useFieldArray } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
 import { appConfig, HELPER_TEXT } from '@/src/shared';
@@ -37,8 +36,6 @@ export const fieldsDefaultValues = {
 
 export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
   const { control, recommended, isHelperTextVisible } = props;
-
-  const { t } = useTranslation();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -109,7 +106,7 @@ export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
                 </div>
                 {index === fields.length - 1 && (
                   <AddButton type="button" className="mr-auto pl-2 capitalize" onAdd={handleAdd}>
-                    {t('add new translation')}
+                    add new translation
                   </AddButton>
                 )}
               </div>

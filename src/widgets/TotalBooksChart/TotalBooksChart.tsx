@@ -10,7 +10,8 @@ import {
 } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useIsDesktop } from '@/src/shared/hooks';
-import { DashboardContentWrapper, Typography } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
 
 const TotalBooksChart = () => {
   const { activePublisher } = usePublisherStateMachine();
@@ -52,22 +53,23 @@ const TotalBooksChart = () => {
       <ChartWrapper>
         <div className="flex flex-col justify-between">
           <Typography component="h2" variant="h2" className="mb-2">
-            catalogue summary
+            <TranslatedContent content="widgets.catalogue summary" namespace={NAMESPACES.enum.dashboard} />
           </Typography>
           <ul className="flex list-disc flex-col gap-1 pl-4 xl:pl-8">
             {publishedBookCount > 0 && (
-              <Typography component="li" className="list-item marker:text-(--color-success)">
-                {publishedBookCount} Active
+              <Typography component="li" className="list-item capitalize marker:text-(--color-success)">
+                {publishedBookCount} <TranslatedContent content="statuses.active" namespace={NAMESPACES.enum.common} />
               </Typography>
             )}
             {forthcomingBookCount > 0 && (
-              <Typography component="li" className="list-item marker:text-(--color-warning)">
-                {forthcomingBookCount} Forthcoming
+              <Typography component="li" className="list-item capitalize marker:text-(--color-warning)">
+                {forthcomingBookCount}{' '}
+                <TranslatedContent content="statuses.forthcoming" namespace={NAMESPACES.enum.common} />
               </Typography>
             )}
             {otherBooksCount > 0 && (
-              <Typography component="li" className="list-item marker:text-(--color-error)">
-                {otherBooksCount} Other
+              <Typography component="li" className="list-item capitalize marker:text-(--color-error)">
+                {otherBooksCount} <TranslatedContent content="statuses.other" namespace={NAMESPACES.enum.common} />
               </Typography>
             )}
           </ul>

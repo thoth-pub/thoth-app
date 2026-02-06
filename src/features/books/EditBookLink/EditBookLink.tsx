@@ -8,7 +8,7 @@ import { WorkStatusChip } from '@/src/entities/work';
 import type { WorkStatus } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, getMainTitle, ROUTES, TitleEntity } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
-import { DashboardContentWrapper, ImageWithFallback, Typography } from '@/src/shared/ui';
+import { DashboardContentWrapper, ImageWithFallback, TranslatedContent, Typography } from '@/src/shared/ui';
 
 type EditBookLinkProps = {
   titles: TitleEntity[];
@@ -50,7 +50,9 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
             <div className="mt-auto flex flex-col gap-1">
               <Typography className="max-w-[240px] truncate xl:max-w-[360px]">{mainContributor}</Typography>
               <div className="flex items-center gap-4">
-                <Typography className="truncate">{convertOptionToString(convertedType)}</Typography>
+                <Typography className="truncate capitalize">
+                  <TranslatedContent content={`workTypes.${convertOptionToString(convertedType).toLowerCase()}`} />
+                </Typography>
                 <WorkStatusChip status={status} />
               </div>
             </div>

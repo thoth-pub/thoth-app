@@ -8,7 +8,8 @@ import { ChartWrapper } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { getMonthName, getStartOfTheCurrentMonthDate, substractMonthesFromDate } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
-import { DashboardContentWrapper, Typography } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { useBooksCountByMonth } from './useBooksCountByMonth';
 
@@ -91,15 +92,23 @@ const PublishedBooksChart = () => {
       <ChartWrapper>
         <div className="flex flex-col justify-between">
           <Typography component="h2" variant="h2" className="mb-2">
-            Published
+            <TranslatedContent content="widgets.published" namespace={NAMESPACES.enum.dashboard} />
           </Typography>
           <ul className="flex flex-col gap-1">
-            <Typography component="li" variant="body1">
-              {isDesktop ? 'Last 12 months:' : 'This year:'} {currentYearBooksCount}{' '}
+            <Typography component="li" className="capitalize">
+              <TranslatedContent
+                content={isDesktop ? 'widgets.last 12 months' : 'widgets.this year'}
+                namespace={NAMESPACES.enum.dashboard}
+              />
+              : {currentYearBooksCount}{' '}
               {diff > 0 && <ArrowDropUpRoundedIcon color="success" fontSize={isDesktop ? 'large' : 'small'} />}
             </Typography>
-            <Typography component="li" variant="body1">
-              {isDesktop ? 'Previous 12 months:' : 'Prev year:'} {diff}
+            <Typography component="li" className="capitalize">
+              <TranslatedContent
+                content={isDesktop ? 'widgets.previous 12 months' : 'widgets.prev year'}
+                namespace={NAMESPACES.enum.dashboard}
+              />
+              : {diff}
             </Typography>
           </ul>
         </div>

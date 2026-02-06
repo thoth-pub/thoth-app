@@ -1,7 +1,5 @@
 'use client';
 
-import { useTranslation } from 'react-i18next';
-
 import { FundingsTable, useDeleteFunding, useFundingsStateMachine } from '@/src/entities/funding';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { ANCHORS, isDefaultId } from '@/src/shared';
@@ -15,7 +13,6 @@ import EditFunding from '../../fundings/EditFunding/EditFunding';
 const EditFundings = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
-  const { t } = useTranslation();
   const { work } = useWork(workId);
   const { activeFunding, edit } = useFundingsStateMachine();
   const { isFundingsRequired, isFundingsEmpty } = useWorkRecommendations({ workId });
@@ -49,7 +46,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
           />
           {isNewFunding && <AddFunding workId={workId} />}
           <AddButton className="px-4 capitalize" onAdd={addFunding} disabled={isNewFunding}>
-            {t('add new funding')}
+            add new funding
           </AddButton>
         </>
       )}

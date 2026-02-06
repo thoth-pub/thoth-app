@@ -2,7 +2,6 @@
 
 import SearchIcon from '@mui/icons-material/Search';
 import { type ChangeEvent, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useContributors } from '@/src/entities/contributor';
@@ -26,7 +25,6 @@ const defaultContribution = getDefaultContribution({ isMain: false });
 
 const AddContributionModal = () => {
   const [searchValue, setSearchValue] = useState('');
-  const { t } = useTranslation();
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { contributors, loading } = useContributors({ filter: debouncedValue });
   const { activeContribution, edit } = useContributionStateMachine();
@@ -73,13 +71,13 @@ const AddContributionModal = () => {
   return (
     <>
       <AddButton onAdd={handleModalState} className="mt-3 pr-6 pl-4 capitalize" disabled={!!activeContribution}>
-        {t('add new contributor')}
+        add new contributor
       </AddButton>
       <Modal open={open} onClose={handleModalState}>
         <ModalWrapper>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
-              {t('add new contributor')}
+              add new contributor
             </Typography>
             <CloseButton onClose={handleModalState} />
           </div>
@@ -134,7 +132,7 @@ const AddContributionModal = () => {
               onClick={handleAdd}
               disabled={!selectedContributorRecord}
             >
-              {t('add new contributor')}
+              add new contributor
             </Button>
             <Button variant="text" onClick={handleCreate}>
               Create new

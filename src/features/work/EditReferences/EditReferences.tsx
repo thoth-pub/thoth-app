@@ -1,7 +1,5 @@
 'use client';
 
-import { useTranslation } from 'react-i18next';
-
 import {
   ReferencesTable,
   useDeleteReference,
@@ -35,7 +33,6 @@ const defaultReference: ReferenceEntity = {
 const EditReferences = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
-  const { t } = useTranslation();
   const { work } = useWork(workId);
   const { activeReference, edit } = useReferencesStateMachine();
   const { deleteReference } = useDeleteReference();
@@ -96,7 +93,7 @@ const EditReferences = (props: BaseEditSectionProps) => {
         />
         {isNewReference && <AddReference workId={workId} />}
         <AddButton className="px-4 capitalize" onAdd={addReference} disabled={isNewReference}>
-          {t('add new reference')}
+          add new reference
         </AddButton>
       </>
     </ContentSection>

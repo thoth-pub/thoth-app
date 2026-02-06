@@ -1,7 +1,6 @@
 'use client';
 
 import AddIcon from '@mui/icons-material/Add';
-import { useTranslation } from 'react-i18next';
 
 import { mergeStyles } from '@/src/shared';
 
@@ -38,8 +37,6 @@ const Preview = (props: PreviewProps) => {
     onEdit,
   } = props;
 
-  const { t } = useTranslation();
-
   return (
     <ContentWrapper>
       <FormFieldLabel component="div" label={label} recommended={recommended} tooltip={tooltip} />
@@ -56,7 +53,7 @@ const Preview = (props: PreviewProps) => {
               textTransform: 'capitalize',
             }}
           >
-            {t('add')} {addButtonText ?? label}
+            add {addButtonText ?? label}
           </Button>
         )}
         {value && (

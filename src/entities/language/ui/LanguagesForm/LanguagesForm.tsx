@@ -1,5 +1,4 @@
 import { Control } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
 
 import { LanguageRelation } from '@/gql/graphql';
 import { convertOptionToString, IDs } from '@/src/shared';
@@ -27,7 +26,6 @@ const LanguagesForm = (props: LanguagesFormProps) => {
   const { showRecommendations = false, languages = [], onUpdate, onDelete, onClose } = props;
 
   const placeholder = languages.length > 0 ? languages.map(({ code }) => code).join(', ') : undefined;
-  const { t } = useTranslation();
 
   const defaultValues = languages
     .map(({ code, relation, id, isMain }) => {
@@ -75,7 +73,7 @@ const LanguagesForm = (props: LanguagesFormProps) => {
                 <li key={languageId} className="flex items-center gap-1">
                   <Chip label={value} size="small" component="span" />
                   <Typography>
-                    {label} ({t(convertOptionToString(languageRelation).toLowerCase())})
+                    {label} ({convertOptionToString(languageRelation).toLowerCase()})
                   </Typography>
                   <DeleteButton
                     onClick={() => onDelete?.(languageId)}

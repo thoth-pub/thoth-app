@@ -23,7 +23,7 @@ type NavigationProps = {
 };
 
 const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationProps) => {
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(true);
 
   const { isExpanded, update } = useUIStateMachine();
   const { userInfo, error } = useUserInfo();
@@ -115,7 +115,6 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
               <Typography color="primary" component="span" variant="body2" className="overflow-hidden text-ellipsis">
                 {userInfo.email}
               </Typography>
-              {/* TODO: should we track locale? */}
               {isUserMenuOpen && <ContentLanguage />}
             </div>
           </div>

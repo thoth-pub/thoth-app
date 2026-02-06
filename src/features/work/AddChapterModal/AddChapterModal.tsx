@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useTranslation } from 'react-i18next';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useCreateWorkChapter, useWork, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
@@ -17,8 +16,6 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
 
   const { work } = useWork(workId);
   const { chapters } = useWorkChapters({ workId });
-
-  const { t } = useTranslation();
 
   const { edit } = useWorkChaptersStateMachine();
   const { close: closeContribution } = useContributionStateMachine();
@@ -81,7 +78,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   return (
     <>
       <AddButton className="px-4 capitalize" onAdd={openModal} disabled={isOpen}>
-        {t('add new chapter')}
+        add new chapter
       </AddButton>
       <FullScreenModal title="add new chapter" isOpen={isOpen} isSubmitHidden onClose={closeModal}>
         <InheritedDataForm onSubmit={handleInheritedDataSubmit} />

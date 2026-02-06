@@ -1,7 +1,6 @@
 'use client';
 
 import { type Control, useFieldArray } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
@@ -38,8 +37,6 @@ export const fieldsDefaultValues = {
 
 export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
   const { control, recommended, isHelperTextVisible, onDelete } = props;
-
-  const { t } = useTranslation();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -124,7 +121,7 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
               <ContentWrapper>
                 <br />
                 <AddButton type="button" className="mr-auto capitalize" onAdd={handleAdd}>
-                  {t('add new translation')}
+                  add new translation
                 </AddButton>
               </ContentWrapper>
             )}

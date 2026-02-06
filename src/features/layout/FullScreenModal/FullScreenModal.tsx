@@ -1,7 +1,5 @@
 'use client';
 
-import { useTranslation } from 'react-i18next';
-
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { Navigation } from '@/src/features';
 import { CloseButton, Modal, SubmitButton, Typography } from '@/src/shared/ui';
@@ -19,8 +17,6 @@ type FullScreenModalProps = {
 const FullScreenModal = (props: FullScreenModalProps) => {
   const { title, isOpen, children, isSubmitHidden = false, onClose, onDone } = props;
 
-  const { t } = useTranslation();
-
   const { linkedPublishers, isAdmin } = usePublisherStateMachine();
 
   const publishers = linkedPublishers.map((publisher) => ({
@@ -37,7 +33,7 @@ const FullScreenModal = (props: FullScreenModalProps) => {
             <ContentSection>
               <div className="flex justify-between">
                 <Typography variant="h1" component="h3" className="pl-4 text-(--color-typography)">
-                  {t(title)}
+                  {title}
                 </Typography>
                 <div className="flex gap-2">
                   {!isSubmitHidden && <SubmitButton onClick={onDone} />}
