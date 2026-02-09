@@ -1,6 +1,11 @@
 {
   "actions": {
     "new": "new",
-    "add": "add"
-  }
+    "add": "add",
+    "addNewTranslation": "Add New Translation",
+    "addBook": "add book",
+    "addSet": "add new set"
+  },
+  "title": "Title",
+  "updatedAt": "Updated At"
 }

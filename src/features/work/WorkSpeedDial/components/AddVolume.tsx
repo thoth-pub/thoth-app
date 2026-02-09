@@ -20,6 +20,7 @@ import {
   ModalWrapper,
   SubmitButton,
   TextField,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 
@@ -118,8 +119,8 @@ export const AddVolume = (props: AddVolumeProps) => {
     <Modal open={open} onClose={onClose}>
       <ModalWrapper>
         <div className="flex justify-between">
-          <Typography variant="h2" component="h3" className="text-(--color-typography)">
-            {isNewStep ? 'Add New Set' : 'Add Volume'}
+          <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
+            {isNewStep ? <TranslatedContent content="actions.addSet" /> : 'Add Volume'}
           </Typography>
           <ButtonGroup className="gap-2">
             <Activity mode={isNewStep ? 'visible' : 'hidden'}>
@@ -187,7 +188,7 @@ export const AddVolume = (props: AddVolumeProps) => {
             onClick={() => setSelected(STEPS.NEW)}
             startIcon={<AddIcon />}
           >
-            add new set
+            <TranslatedContent content="actions.addSet" />
           </Button>
           <Button disabled={isExistingStep} className="capitalize" onClick={() => setSelected(STEPS.EXISTING)}>
             select

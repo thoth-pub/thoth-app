@@ -14,8 +14,16 @@ import { setWorkValidationSchema } from '@/src/entities/sets/model/set.validatio
 import { appConfig, getMainTitle } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useDebouncedValue } from '@/src/shared/hooks';
-import { AutocompleteField, Button, CloseButton, InputAdornment, ModalWrapper, Typography } from '@/src/shared/ui';
-import { Modal } from '@/src/shared/ui';
+import {
+  AutocompleteField,
+  Button,
+  CloseButton,
+  InputAdornment,
+  Modal,
+  ModalWrapper,
+  TranslatedContent,
+  Typography,
+} from '@/src/shared/ui';
 
 const { SET_WORK } = FORM_FIELDS;
 
@@ -60,19 +68,19 @@ export const AddBookModal = ({ setId, totalBooks }: { setId: SetId; totalBooks: 
 
   return (
     <>
-      <Button startIcon={<AddIcon />} className="max-w-fit" onClick={() => setOpen(true)}>
-        Add Book
+      <Button startIcon={<AddIcon />} className="max-w-fit capitalize" onClick={() => setOpen(true)}>
+        <TranslatedContent content="actions.addBook" />
       </Button>
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalWrapper>
-          <div className="flex flex-col justify-between gap-[var(--default-gap)]">
+          <div className="flex flex-col justify-between gap-(--default-gap)">
             <div className="flex justify-between">
-              <Typography variant="h2" component="h3" className="text-[var(--color-typography)] capitalize">
-                Add Book
+              <Typography variant="h2" component="h3" className="text-(--color-typography) uppercase">
+                <TranslatedContent content="actions.addBook" />
               </Typography>
               <CloseButton onClose={() => setOpen(false)} />
             </div>
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-[var(--default-gap)]">
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-(--default-gap)">
               <AutocompleteField
                 freeSolo
                 disableClearable
@@ -88,8 +96,13 @@ export const AddBookModal = ({ setId, totalBooks }: { setId: SetId; totalBooks: 
                 }
               />
 
-              <Button startIcon={<AddIcon />} className="max-w-fit" disabled={!isValid || !isDirty} type="submit">
-                Add Book
+              <Button
+                startIcon={<AddIcon />}
+                className="max-w-fit capitalize"
+                disabled={!isValid || !isDirty}
+                type="submit"
+              >
+                <TranslatedContent content="actions.addBook" />
               </Button>
             </form>
           </div>

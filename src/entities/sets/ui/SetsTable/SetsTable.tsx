@@ -3,6 +3,7 @@
 import { Fragment } from 'react';
 
 import { convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   ButtonGroup,
   CircularProgress,
@@ -16,6 +17,7 @@ import {
   TableHeader,
   TableRow,
   TableWrapper,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 
@@ -42,13 +44,13 @@ const SetsTable = (props: SetsTableProps) => {
   return (
     <>
       <TableWrapper>
-        <TableHeader cells={['Title', 'Updated At']} cellStyles={['w-[210px] pl-3', 'w-[110px]']} />
+        <TableHeader cells={['title', 'updatedAt']} cellStyles={['w-[210px] pl-3', 'w-[110px]']} />
         <TableBody>
           {!loading && sets.length === 0 && (
             <TableRow className="cursor-auto! hover:bg-transparent!">
               <TableCell colSpan={2} className="text-center">
                 <Typography variant="body1" component="span">
-                  No sets found
+                  <TranslatedContent content="emptyTable" namespace={NAMESPACES.enum.sets} />
                 </Typography>
               </TableCell>
             </TableRow>
@@ -56,7 +58,7 @@ const SetsTable = (props: SetsTableProps) => {
           {loading ? (
             <TableRow className="cursor-auto! hover:bg-transparent!">
               <TableCell colSpan={2} className="text-center">
-                <CircularProgress className="my-[10rem]" />
+                <CircularProgress className="my-40" />
               </TableCell>
             </TableRow>
           ) : (

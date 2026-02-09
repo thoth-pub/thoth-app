@@ -13,5 +13,22 @@
   "statement": {
     "label": "Statement",
     "helperText": "Enter the accessibility statement of the publisher for readers with impairments."
+  },
+  "title": {
+    "helperText": "Den Titel des Werkes eingeben."
+  },
+  "subtitle": {
+    "label": "Subtitel",
+    "helperText": "Subtitel einfügen."
+  },
+  "titles": {
+    "label": "Titles"
+  },
+  "language": {
+    "label": "Sprache"
+  },
+  "imprint": {
+    "label": "Wortmarke",
+    "helperText": "Wortmarke auswählen, unter welcher der Titel erscheint."
   }
 }

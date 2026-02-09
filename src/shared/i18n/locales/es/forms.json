@@ -13,5 +13,22 @@
   "statement": {
     "label": "Declaración",
     "helperText": "Introduzca la declaración de accesibilidad de la editorial para lectores con discapacidad."
+  },
+  "title": {
+    "helperText": "Introduzca el título de la obra."
+  },
+  "subtitle": {
+    "label": "Subtítulo",
+    "helperText": "Introduzca el subtítulo de la obra."
+  },
+  "titles": {
+    "label": "Titles"
+  },
+  "language": {
+    "label": "Idioma"
+  },
+  "imprint": {
+    "label": "Sello Editorial",
+    "helperText": "Elija el sello editorial de la obra."
   }
 }

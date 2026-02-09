@@ -4,6 +4,7 @@ import { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { TitlesFormFields } from '@/src/entities/work/ui/EditWorkTitle/components/TitlesFormFields';
 import { getMainTitle, IDs } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
@@ -52,7 +53,13 @@ export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => 
           />
         )}
         preview={({ disabled, onEdit }) => (
-          <Preview label={WORK_TITLE.label} value={placeholder ?? ''} disabled={disabled} onEdit={onEdit}>
+          <Preview
+            label={WORK_TITLE.label}
+            value={placeholder ?? ''}
+            namespace={NAMESPACES.enum.common}
+            disabled={disabled}
+            onEdit={onEdit}
+          >
             <div className="flex flex-col gap-2">
               <Typography component="span">
                 <MarkdownPreview source={placeholder} />

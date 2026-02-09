@@ -56,9 +56,9 @@ export const FORM_FIELDS = {
     type: InputTypes.PASSWORD,
   },
   TITLE: {
-    label: 'Title',
+    label: 'title',
     name: 'title',
-    placeholder: 'Title',
+    placeholder: 'title',
     errorMessage: TITLE_REQUIRED,
     type: InputTypes.TEXT,
     defaultValue: '',
@@ -72,7 +72,7 @@ export const FORM_FIELDS = {
     defaultValue: LanguageTypeAlt.enum.En,
   },
   SUBTITLE: {
-    label: 'Subtitle',
+    label: 'subtitle.label',
     name: 'subtitle',
     placeholder: 'Subtitle',
     type: InputTypes.TEXT,
@@ -118,7 +118,7 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   IMPRINT: {
-    label: 'Imprint',
+    label: 'imprint.label',
     name: 'imprintId',
     placeholder: 'Imprint',
     errorMessage: IMPRINT_REQUIRED,
@@ -172,9 +172,8 @@ export const FORM_FIELDS = {
     placeholder: 'Withdrawn Date',
   },
   WORK_TITLE: {
-    label: 'Title',
+    label: 'title',
     name: 'workTitle',
-    placeholder: 'Title',
     type: InputTypes.TEXT,
   },
   EDITION: {
@@ -212,7 +211,7 @@ export const FORM_FIELDS = {
     name: 'languages',
   },
   TITLES: {
-    label: 'Titles',
+    label: 'forms.titles.label',
     name: 'titles',
   },
   CONTRIBUTOR_FULLNAME: {
@@ -620,9 +619,8 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   SET_TITLE: {
-    label: 'Title',
+    label: 'title',
     name: 'setTitle',
-    placeholder: 'Title',
     type: InputTypes.TEXT,
   },
   SET_WORK: {

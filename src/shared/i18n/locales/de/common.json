@@ -1,6 +1,11 @@
 {
   "actions": {
     "new": "Neu",
-    "add": "hinzufügen"
-  }
+    "add": "hinzufügen",
+    "addNewTranslation": "Neue Übersetzung hinzufügen",
+    "addBook": "Titel hinzufügen",
+    "addSet": "Add new set"
+  },
+  "title": "Titel",
+  "updatedAt": "Aktualisiert am"
 }

@@ -4,7 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 
 import { mergeStyles } from '@/src/shared';
 import useIsGermanLocale from '@/src/shared/hooks/useIsDeutchLocale';
-import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { Namespace, NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 
 import FormFieldLabel from '../../forms/FormFieldLabel/FormFieldLabel';
 import ContentWrapper from '../../layout/ContentWrapper/ContentWrapper';
@@ -23,6 +23,7 @@ type PreviewProps = {
   capitalize?: boolean;
   tooltip?: string;
   addButtonText?: string;
+  namespace?: Namespace;
   onEdit?: () => void;
 };
 
@@ -37,16 +38,15 @@ const Preview = (props: PreviewProps) => {
     tooltip,
     editButtonClassName,
     addButtonText,
+    namespace = NAMESPACES.enum.forms,
     onEdit,
   } = props;
 
   const isGermanLocale = useIsGermanLocale();
 
-  console.log(isGermanLocale);
-
   return (
     <ContentWrapper>
-      <FormFieldLabel component="div" label={label} recommended={recommended} tooltip={tooltip} />
+      <FormFieldLabel component="div" label={label} recommended={recommended} tooltip={tooltip} namespace={namespace} />
       <div className="flex justify-between">
         {children && children}
         {!children && value && <Typography className={capitalize ? 'capitalize' : ''}>{value}</Typography>}
@@ -62,10 +62,10 @@ const Preview = (props: PreviewProps) => {
           >
             <span className={`flex gap-1 ${isGermanLocale ? 'flex-row-reverse' : 'flex-row'}`}>
               <span>
-                <TranslatedContent content="actions.add" namespace={NAMESPACES.enum.common} />
+                <TranslatedContent content="actions.add" />
               </span>
               <span>
-                <TranslatedContent content={`${addButtonText ?? label}`} namespace={NAMESPACES.enum.forms} />
+                <TranslatedContent content={`${addButtonText ?? label}`} namespace={namespace} />
               </span>
             </span>
           </Button>

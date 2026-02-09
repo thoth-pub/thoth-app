@@ -2,7 +2,8 @@
 
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
-import { useWorkTypeOptions } from '@/src/shared/hooks';
+import { useTypedTranslation, useWorkTypeOptions } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { FormFieldOption } from '@/src/shared/interfaces';
 import { AutocompleteGroup, Button, CircularProgress, PageHeader } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
@@ -21,6 +22,7 @@ type CreateWorkFormProps = {
 
 const CreateWorkForm = ({ imprintOptions, licenseOptions }: CreateWorkFormProps) => {
   const workTypeOptions = useWorkTypeOptions();
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
   const { control, isImprintVisible, isSubmitDisabled, isLoading, availableNewWorkOptions, submit } = useCreateWorkForm(
     {
@@ -45,12 +47,12 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions }: CreateWorkFormProps)
         </Button>
       </PageHeader>
       <ContentSection>
-        <form id={CREATE_WORK} onSubmit={submit} className="flex flex-col gap-[var(--default-gap)]">
+        <form id={CREATE_WORK} onSubmit={submit} className="flex flex-col gap-(--default-gap)">
           <div className="grid grid-cols-[1fr_25%] gap-2">
             <CreateWorkFormField
               label={TITLE.label}
               name={TITLE.name}
-              placeholder={TITLE.placeholder}
+              placeholder={t(TITLE.placeholder)}
               control={control}
               type={TITLE.type}
             />

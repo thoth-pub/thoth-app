@@ -5,7 +5,8 @@ import type { Control, FieldValues } from 'react-hook-form';
 import type { ContributionBiographyForm } from '@/src/entities/contribution/model/contribution.types';
 import type { WorkAbstractsForm, WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { languageOptionsAlt } from '@/src/shared/constants/formFields';
-import { AutocompleteField, Typography } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { AutocompleteField, TranslatedContent, Typography } from '@/src/shared/ui';
 import { mergeStyles } from '@/src/shared/utils';
 
 type LanguageFieldProps = {
@@ -20,14 +21,14 @@ const LanguageField = (props: LanguageFieldProps) => {
   return (
     <div className={mergeStyles('flex grow-0', className)}>
       <Typography color="primary" className="mt-0.75 mr-1 font-semibold xl:mt-auto">
-        Language
+        <TranslatedContent content="language.label" namespace={NAMESPACES.enum.forms} />
       </Typography>
       <AutocompleteField
         control={control as unknown as Control<FieldValues>}
         name={languageFieldName}
         options={languageOptionsAlt}
         variant="standard"
-        className="min-w-[13rem]"
+        className="min-w-52"
         sx={{
           marginTop: 'auto',
           position: 'relative',

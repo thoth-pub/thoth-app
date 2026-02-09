@@ -6,6 +6,8 @@ import { useEffectOnce } from 'react-use';
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { appConfig, HELPER_TEXT, isDefaultId, TitleId } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AddButton,
   ContentWrapper,
@@ -14,6 +16,7 @@ import {
   FormFieldWithControlsWrapper,
   LanguageField,
   MarkdownField,
+  TranslatedContent,
 } from '@/src/shared/ui';
 
 const { TITLES, WORK_TITLE, SUBTITLE, LANGUAGE } = FORM_FIELDS;
@@ -42,6 +45,7 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
     control,
     name: TITLES.name,
   });
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
 
   useEffectOnce(() => {
     if (fields.length !== 0) return;
@@ -92,14 +96,19 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
         {fields.map((field, index) => (
           <li key={field.id} className={itemsStyle}>
             <ContentWrapper>
-              <FormFieldLabel label={WORK_TITLE.label} id={WORK_TITLE.name} recommended={recommended} />
+              <FormFieldLabel
+                label={WORK_TITLE.label}
+                id={WORK_TITLE.name}
+                recommended={recommended}
+                namespace={NAMESPACES.enum.common}
+              />
               <FormFieldWithControlsWrapper>
                 <MarkdownField
                   control={control}
                   name={getTitleFieldName(index)}
                   id={getTitleFieldName(index)}
                   className="w-full"
-                  helperText={isHelperTextVisible ? WORK_TITLE_HELPER_TEXT : ''}
+                  helperText={isHelperTextVisible ? t(WORK_TITLE_HELPER_TEXT) : ''}
                   disableLineBreaks
                 />
                 {index > 0 && <DeleteButton onClick={() => handleRemove(index)} />}
@@ -111,7 +120,7 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
                 control={control}
                 name={getSubtitleFieldName(index)}
                 id={getSubtitleFieldName(index)}
-                helperText={isHelperTextVisible ? SUBTITLE_HELPER_TEXT : ''}
+                helperText={isHelperTextVisible ? t(SUBTITLE_HELPER_TEXT) : ''}
                 disableLineBreaks
               />
               <br />
@@ -120,8 +129,8 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
             {index === fields.length - 1 && (
               <ContentWrapper>
                 <br />
-                <AddButton type="button" className="mr-auto capitalize" onAdd={handleAdd}>
-                  add new translation
+                <AddButton type="button" className="mr-auto px-0 capitalize" onAdd={handleAdd}>
+                  <TranslatedContent content="actions.addNewTranslation" />
                 </AddButton>
               </ContentWrapper>
             )}

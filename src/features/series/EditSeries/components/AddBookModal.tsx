@@ -21,10 +21,11 @@ import {
   CloseButton,
   FormTextField,
   InputAdornment,
+  Modal,
   ModalWrapper,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
-import { Modal } from '@/src/shared/ui';
 
 const { WORK_SERIES, ISSUE_ORDINAL } = FORM_FIELDS;
 
@@ -83,19 +84,19 @@ export const AddBookModal = (props: AddBookModalProps) => {
 
   return (
     <>
-      <Button startIcon={<AddIcon />} className="max-w-fit" onClick={() => setOpen(true)}>
-        Add Book
+      <Button startIcon={<AddIcon />} className="max-w-fit capitalize" onClick={() => setOpen(true)}>
+        <TranslatedContent content="actions.addBook" />
       </Button>
       <Modal open={open} onClose={() => setOpen(false)}>
         <ModalWrapper>
-          <div className="flex flex-col justify-between gap-[var(--default-gap)]">
+          <div className="flex flex-col justify-between gap-(--default-gap)">
             <div className="flex justify-between">
-              <Typography variant="h2" component="h3" className="text-[var(--color-typography)] capitalize">
-                Add Book
+              <Typography variant="h2" component="h3" className="text-(--color-typography) uppercase">
+                <TranslatedContent content="actions.addBook" />
               </Typography>
               <CloseButton onClose={() => setOpen(false)} />
             </div>
-            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-[var(--default-gap)]">
+            <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-(--default-gap)">
               <div className="flex gap-1">
                 <AutocompleteField
                   freeSolo
@@ -122,8 +123,13 @@ export const AddBookModal = (props: AddBookModalProps) => {
                 />
               </div>
 
-              <Button startIcon={<AddIcon />} className="max-w-fit" disabled={!isValid || !isDirty} type="submit">
-                Add Book
+              <Button
+                startIcon={<AddIcon />}
+                className="max-w-fit capitalize"
+                disabled={!isValid || !isDirty}
+                type="submit"
+              >
+                <TranslatedContent content="actions.addBook" />
               </Button>
             </form>
           </div>

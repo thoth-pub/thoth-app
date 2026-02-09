@@ -9,7 +9,9 @@ import type { WorkField } from '@/gql/graphql';
 import { AddSet } from '@/src/features';
 import type { Direction, FormFieldOption } from '@/src/shared';
 import { directionOptions, seriesOrderByOptions } from '@/src/shared/constants/formFields';
-import { IconButton, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';
+import { useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { IconButton, InputAdornment, InputLabel, TextField, TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 type SetsHeaderProps = {
@@ -27,6 +29,8 @@ export const SetsHeader = (props: SetsHeaderProps) => {
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.filters });
+
   const handleFilterOpen = () => {
     setIsFilterOpen(!isFilterOpen);
   };
@@ -35,7 +39,7 @@ export const SetsHeader = (props: SetsHeaderProps) => {
     <ContentSection>
       <div className="flex items-center justify-between gap-2">
         <Typography variant="h1" className="pl-3">
-          Sets
+          <TranslatedContent content="sets" namespace={NAMESPACES.enum.navigation} />
         </Typography>
         <TextField
           slotProps={{
@@ -48,7 +52,7 @@ export const SetsHeader = (props: SetsHeaderProps) => {
             },
           }}
           value={searchValue}
-          placeholder="Search by name"
+          placeholder={t('searchByTitle')}
           fullWidth
           onChange={(e) => onSearch(e.target.value)}
         />
@@ -70,7 +74,9 @@ export const SetsHeader = (props: SetsHeaderProps) => {
             className="grid grid-cols-2 gap-2 transition-all duration-1000 lg:grid-cols-4"
           >
             <div className="flex flex-col gap-2">
-              <InputLabel>Order by</InputLabel>
+              <InputLabel>
+                <TranslatedContent content="orderBy" namespace={NAMESPACES.enum.filters} />
+              </InputLabel>
               <TextField
                 select
                 options={seriesOrderByOptions}
@@ -80,7 +86,9 @@ export const SetsHeader = (props: SetsHeaderProps) => {
             </div>
 
             <div className="flex flex-col gap-2">
-              <InputLabel>Direction</InputLabel>
+              <InputLabel>
+                <TranslatedContent content="direction" namespace={NAMESPACES.enum.filters} />
+              </InputLabel>
               <TextField
                 select
                 options={directionOptions}

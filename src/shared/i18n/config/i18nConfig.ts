@@ -8,30 +8,38 @@ import { LOCALES } from '../../constants';
 // Deutsch
 import commonDe from '../locales/de/common.json';
 import dashboardDe from '../locales/de/dashboard.json';
+import filtersDe from '../locales/de/filters.json';
 import formsDe from '../locales/de/forms.json';
 import navigationDe from '../locales/de/navigation.json';
 import profileDe from '../locales/de/profile.json';
+import setsDe from '../locales/de/sets.json';
 import workDe from '../locales/de/work.json';
 // English
 import commonEn from '../locales/en/common.json';
 import dashboardEn from '../locales/en/dashboard.json';
+import filtersEn from '../locales/en/filters.json';
 import formsEn from '../locales/en/forms.json';
 import navigationEn from '../locales/en/navigation.json';
 import profileEn from '../locales/en/profile.json';
+import setsEn from '../locales/en/sets.json';
 import workEn from '../locales/en/work.json';
 // Spanish
 import commonEs from '../locales/es/common.json';
 import dashboardEs from '../locales/es/dashboard.json';
+import filtersEs from '../locales/es/filters.json';
 import formsEs from '../locales/es/forms.json';
 import navigationEs from '../locales/es/navigation.json';
 import profileEs from '../locales/es/profile.json';
+import setsEs from '../locales/es/sets.json';
 import workEs from '../locales/es/work.json';
 // Portuguese
 import commonPt from '../locales/pt/common.json';
 import dashboardPt from '../locales/pt/dashboard.json';
+import filtersPt from '../locales/pt/filters.json';
 import formsPt from '../locales/pt/forms.json';
 import navigationPt from '../locales/pt/navigation.json';
 import profilePt from '../locales/pt/profile.json';
+import setsPt from '../locales/pt/sets.json';
 import workPt from '../locales/pt/work.json';
 import { NAMESPACES } from '../model/i18n.types';
 
@@ -47,6 +55,8 @@ i18n
         work: workEn,
         profile: profileEn,
         forms: formsEn,
+        filters: filtersEn,
+        sets: setsEn,
       },
       [LOCALES.enum.pt]: {
         common: commonPt,
@@ -55,6 +65,8 @@ i18n
         work: workPt,
         profile: profilePt,
         forms: formsPt,
+        filters: filtersPt,
+        sets: setsPt,
       },
       [LOCALES.enum.es]: {
         common: commonEs,
@@ -63,6 +75,8 @@ i18n
         work: workEs,
         profile: profileEs,
         forms: formsEs,
+        filters: filtersEs,
+        sets: setsEs,
       },
       [LOCALES.enum.de]: {
         common: commonDe,
@@ -71,6 +85,8 @@ i18n
         work: workDe,
         profile: profileDe,
         forms: formsDe,
+        filters: filtersDe,
+        sets: setsDe,
       },
     },
     // debug: true,
@@ -84,8 +100,8 @@ i18n
       escapeValue: false,
     },
     saveMissing: process.env.NODE_ENV === 'development',
-    parseMissingKeyHandler: (key) => {
-      console.warn(`Missing translation: ${key}`);
+    parseMissingKeyHandler: (key, _defaultValue, options) => {
+      console.warn(`Missing translation: ${key}, ${options}`);
       return key;
     },
     defaultNS: NAMESPACES.enum.common,

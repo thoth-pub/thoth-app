@@ -1,4 +1,4 @@
-import { TableCell, TableHead, TableRow } from '@/src/shared/ui';
+import { TableCell, TableHead, TableRow, TranslatedContent } from '@/src/shared/ui';
 
 type TableHeaderProps = {
   cells: (string | Readonly<React.ReactNode>)[];
@@ -11,7 +11,7 @@ const TableHeader = ({ cells, cellStyles = [] }: TableHeaderProps) => {
       <TableRow>
         {cells.map((cell, index) => (
           <TableCell key={index} className={cellStyles[index]}>
-            <>{cell}</>
+            <>{typeof cell === 'string' ? <TranslatedContent content={cell} /> : cell}</>
           </TableCell>
         ))}
       </TableRow>
