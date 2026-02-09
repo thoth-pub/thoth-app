@@ -69,4 +69,9 @@ export const HELPER_TEXT = {
   WORK_LANGUAGE: 'Choose the language of the work.',
   WORK_LANGUAGE_RELATION: 'Choose the language relation of the work.',
   WORK_INTERNAL_ID: 'Enter the internal ID of the work.',
+  SERIES_NAME: 'seriesName.helperText',
+  SERIES_TYPE: 'seriesType.helperText',
+  ISSN: 'issn.helperText',
+  SERIES_URL: 'seriesUrl.helperText',
+  SERIES_DESCRIPTION: 'seriesDescription.helperText',
 };

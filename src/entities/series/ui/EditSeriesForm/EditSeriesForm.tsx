@@ -2,8 +2,9 @@
 
 import type { Control } from 'react-hook-form';
 
-import { convertOptionToString, FormFieldOption, IDs, SeriesType } from '@/src/shared';
+import { convertOptionToString, FormFieldOption, HELPER_TEXT, IDs, SeriesType } from '@/src/shared';
 import { FORM_FIELDS, seriesTypeOptions } from '@/src/shared/constants/formFields';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
@@ -34,6 +35,15 @@ const {
   SERIES_URL,
   SERIES_DESCRIPTION,
 } = FORM_FIELDS;
+
+const {
+  SERIES_NAME: SERIES_NAME_HELPER_TEXT,
+  SERIES_TYPE: SERIES_TYPE_HELPER_TEXT,
+  IMPRINT: IMPRINT_HELPER_TEXT,
+  ISSN: ISSN_HELPER_TEXT,
+  SERIES_URL: SERIES_URL_HELPER_TEXT,
+  SERIES_DESCRIPTION: SERIES_DESCRIPTION_HELPER_TEXT,
+} = HELPER_TEXT;
 
 type EditSeriesFormProps = {
   imprintOptions: FormFieldOption[];
@@ -81,19 +91,27 @@ const EditSeriesForm = ({
         onSubmit={onNameChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control }) => (
+        formFields={({ control, isHelperTextVisible }) => (
           <ContentWrapper>
-            <FormFieldLabel label={SERIES_NAME.label} id={SERIES_NAME.name} />
+            <FormFieldLabel label={SERIES_NAME.label} id={SERIES_NAME.name} namespace={NAMESPACES.enum.common} />
             <FormTextField
               control={control as unknown as Control<SeriesNameFormType>}
               name={SERIES_NAME.name}
               id={SERIES_NAME.name}
               placeholder={SERIES_NAME.placeholder}
+              helperText={SERIES_NAME_HELPER_TEXT}
+              isHelperTextVisible={isHelperTextVisible}
             />
           </ContentWrapper>
         )}
         preview={({ disabled, onEdit }) => (
-          <Preview label={SERIES_NAME.label} disabled={disabled} onEdit={onEdit} value={name} />
+          <Preview
+            label={SERIES_NAME.label}
+            namespace={NAMESPACES.enum.common}
+            disabled={disabled}
+            onEdit={onEdit}
+            value={name}
+          />
         )}
       />
 
@@ -104,7 +122,7 @@ const EditSeriesForm = ({
         onSubmit={onTypeChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control }) => (
+        formFields={({ control, isHelperTextVisible }) => (
           <ContentWrapper>
             <FormFieldLabel label={SERIES_TYPE.label} id={SERIES_TYPE.name} />
             <FormTextField
@@ -113,11 +131,18 @@ const EditSeriesForm = ({
               id={SERIES_TYPE.name}
               select
               options={seriesTypeOptions}
+              helperText={SERIES_TYPE_HELPER_TEXT}
+              isHelperTextVisible={isHelperTextVisible}
             />
           </ContentWrapper>
         )}
         preview={({ disabled, onEdit }) => (
-          <Preview label={SERIES_TYPE.label} disabled={disabled} onEdit={onEdit} value={convertOptionToString(type)} />
+          <Preview
+            label={SERIES_TYPE.label}
+            disabled={disabled}
+            onEdit={onEdit}
+            value={convertOptionToString(type).toLowerCase()}
+          />
         )}
       />
 
@@ -128,7 +153,7 @@ const EditSeriesForm = ({
         onSubmit={onImprintChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control }) => (
+        formFields={({ control, isHelperTextVisible }) => (
           <ContentWrapper>
             <FormFieldLabel label={SERIES_IMPRINT.label} id={SERIES_IMPRINT.name} />
             <FormTextField
@@ -137,6 +162,8 @@ const EditSeriesForm = ({
               id={SERIES_IMPRINT.name}
               select
               options={imprintOptions}
+              helperText={IMPRINT_HELPER_TEXT}
+              isHelperTextVisible={isHelperTextVisible}
             />
           </ContentWrapper>
         )}
@@ -152,7 +179,7 @@ const EditSeriesForm = ({
         onSubmit={onIssnChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control }) => (
+        formFields={({ control, isHelperTextVisible }) => (
           <ContentWrapper>
             <FormFieldLabel label="ISSN" id={SERIES_ISSN_PRINT.name} />
             <div className="flex flex-col gap-2 lg:flex-row">
@@ -162,6 +189,8 @@ const EditSeriesForm = ({
                 id={SERIES_ISSN_DIGITAL.name}
                 placeholder={SERIES_ISSN_DIGITAL.placeholder}
                 fullWidth
+                helperText={ISSN_HELPER_TEXT}
+                isHelperTextVisible={isHelperTextVisible}
               />
               <FormTextField
                 control={control as unknown as Control<SeriesIssnFormType>}
@@ -185,7 +214,7 @@ const EditSeriesForm = ({
         onSubmit={onUrlChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control }) => (
+        formFields={({ control, isHelperTextVisible }) => (
           <ContentWrapper>
             <FormFieldLabel label={SERIES_URL.label} id={SERIES_URL.name} />
             <FormTextField
@@ -194,6 +223,8 @@ const EditSeriesForm = ({
               id={SERIES_URL.name}
               placeholder={SERIES_URL.placeholder}
               isUrlField
+              helperText={SERIES_URL_HELPER_TEXT}
+              isHelperTextVisible={isHelperTextVisible}
             />
           </ContentWrapper>
         )}
@@ -209,7 +240,7 @@ const EditSeriesForm = ({
         onSubmit={onDescriptionChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control }) => (
+        formFields={({ control, isHelperTextVisible }) => (
           <ContentWrapper>
             <FormFieldLabel
               label={SERIES_DESCRIPTION.label}
@@ -221,6 +252,8 @@ const EditSeriesForm = ({
               name={SERIES_DESCRIPTION.name}
               id={SERIES_DESCRIPTION.name}
               placeholder={SERIES_DESCRIPTION.placeholder}
+              helperText={SERIES_DESCRIPTION_HELPER_TEXT}
+              isHelperTextVisible={isHelperTextVisible}
               multiline
               maxRows={4}
               sx={{

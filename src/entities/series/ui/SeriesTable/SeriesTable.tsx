@@ -3,6 +3,7 @@
 import { Fragment } from 'react';
 
 import { convertOptionToString, convertUpdatedAtToFormattedDate } from '@/src/shared';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   ButtonGroup,
   CircularProgress,
@@ -15,6 +16,7 @@ import {
   TableHeader,
   TableRow,
   TableWrapper,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 
@@ -42,23 +44,29 @@ const SeriesTable = (props: SeriesTableProps) => {
     <>
       <TableWrapper>
         <TableHeader
-          cells={['Name', 'Description', 'Type', 'ISSN', 'Updated At']}
-          cellStyles={['w-[210px] pl-3', 'w-[210px]', 'w-[210px]', 'w-[110px]', 'w-[110px]']}
+          cells={['name', 'description', 'type', 'issn', 'updatedAt']}
+          cellStyles={[
+            'w-[210px] pl-3 capitalize',
+            'w-[210px] capitalize',
+            'w-[210px] capitalize',
+            'w-[110px] capitalize',
+            'w-[110px] capitalize',
+          ]}
         />
         <TableBody>
           {!loading && serieses.length === 0 && (
-            <TableRow className="!cursor-auto hover:!bg-transparent">
+            <TableRow className="cursor-auto! hover:bg-transparent!">
               <TableCell colSpan={5} className="text-center">
                 <Typography variant="body1" component="span">
-                  No series found
+                  <TranslatedContent content="emptyTable" namespace={NAMESPACES.enum.series} />
                 </Typography>
               </TableCell>
             </TableRow>
           )}
           {loading ? (
-            <TableRow className="!cursor-auto hover:!bg-transparent">
+            <TableRow className="cursor-auto! hover:bg-transparent!">
               <TableCell colSpan={5} className="text-center">
-                <CircularProgress className="my-[10rem]" />
+                <CircularProgress className="my-40" />
               </TableCell>
             </TableRow>
           ) : (

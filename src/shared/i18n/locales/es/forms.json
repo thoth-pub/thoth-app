@@ -30,5 +30,26 @@
   "imprint": {
     "label": "Sello Editorial",
     "helperText": "Elija el sello editorial de la obra."
+  },
+  "seriesName": {
+    "helperText": "Enter the name of the series."
+  },
+  "seriesType": {
+    "label": "Tipo de serie",
+    "helperText": "Elija el tipo de obra."
+  },
+  "issn": {
+    "label": "ISSN",
+    "helperText": "Enter the ISSN of the work."
+  },
+  "seriesUrl": {
+    "helperText": "Enter the URL of the series."
+  },
+  "seriesDescription": {
+    "label": "Descripción",
+    "helperText": "Enter the description of the series."
+  },
+  "number": {
+    "label": "Número"
   }
 }

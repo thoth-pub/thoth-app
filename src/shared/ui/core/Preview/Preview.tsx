@@ -24,6 +24,7 @@ type PreviewProps = {
   tooltip?: string;
   addButtonText?: string;
   namespace?: Namespace;
+  valueNamespace?: Namespace;
   onEdit?: () => void;
 };
 
@@ -39,6 +40,7 @@ const Preview = (props: PreviewProps) => {
     editButtonClassName,
     addButtonText,
     namespace = NAMESPACES.enum.forms,
+    valueNamespace = NAMESPACES.enum.fieldOptions,
     onEdit,
   } = props;
 
@@ -49,7 +51,11 @@ const Preview = (props: PreviewProps) => {
       <FormFieldLabel component="div" label={label} recommended={recommended} tooltip={tooltip} namespace={namespace} />
       <div className="flex justify-between">
         {children && children}
-        {!children && value && <Typography className={capitalize ? 'capitalize' : ''}>{value}</Typography>}
+        {!children && value && (
+          <Typography className={capitalize ? 'capitalize' : ''}>
+            {<TranslatedContent content={value} namespace={valueNamespace} />}
+          </Typography>
+        )}
         {!value && (
           <Button
             disabled={disabled}

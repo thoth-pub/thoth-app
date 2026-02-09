@@ -72,7 +72,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
             error ? (
               error.message
             ) : (
-              <TranslatedContent content={helperText?.toString() ?? ''} namespace={NAMESPACES.enum.forms} />
+              <TranslatedContent content={helperText as string ?? ''} namespace={NAMESPACES.enum.forms} />
             )
           }
           value={typeof value === 'string' ? removePrefix(value) : value}

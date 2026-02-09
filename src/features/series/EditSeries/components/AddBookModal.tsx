@@ -14,7 +14,8 @@ import type { IssueValidationSchema, SeriesEntity } from '@/src/entities/series/
 import { issueValidationSchema } from '@/src/entities/series/model/series.validation';
 import { appConfig, getMainTitle } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { useDebouncedValue } from '@/src/shared/hooks';
+import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AutocompleteField,
   Button,
@@ -61,6 +62,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
   const { createIssue } = useCreateIssue();
 
   const filteredBooks = books.filter((book) => book.issues.length === 0);
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
 
   const options = filteredBooks.map((book) => ({
     label: removeMd(getMainTitle(book.titles).title),
@@ -115,8 +117,8 @@ export const AddBookModal = (props: AddBookModalProps) => {
                 <FormTextField
                   control={control}
                   name={ISSUE_ORDINAL.name}
-                  label={ISSUE_ORDINAL.label}
-                  placeholder={ISSUE_ORDINAL.placeholder}
+                  label={t(ISSUE_ORDINAL.label)}
+                  placeholder={t(ISSUE_ORDINAL.placeholder)}
                   type={ISSUE_ORDINAL.type}
                   min={1}
                   step="1"

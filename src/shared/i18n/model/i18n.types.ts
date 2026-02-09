@@ -26,7 +26,18 @@ const accessibilityExceptionLabels = z.enum(
 const workStatusLabels = z.enum(getWorkStatusOptions(LOCALES.enum.en).map((option) => option.label.toLowerCase()));
 const seriesTypeLabels = z.enum(getSeriesTypeOptions(LOCALES.enum.en).map((option) => option.label.toLowerCase()));
 
-export const NAMESPACES = z.enum(['common', 'dashboard', 'navigation', 'work', 'profile', 'forms', 'filters', 'sets']);
+export const NAMESPACES = z.enum([
+  'common',
+  'dashboard',
+  'navigation',
+  'work',
+  'profile',
+  'forms',
+  'filters',
+  'sets',
+  'series',
+  'fieldOptions',
+]);
 
 export const RESOURCES = z.enum([
   'dashboard',

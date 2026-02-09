@@ -9,7 +9,9 @@ import type { SeriesField, SeriesType } from '@/gql/graphql';
 import { AddSeries } from '@/src/features';
 import type { Direction, FormFieldOption } from '@/src/shared';
 import { directionOptions, seriesOrderByOptions, seriesTypeOptions } from '@/src/shared/constants/formFields';
-import { IconButton, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';
+import { useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { IconButton, InputAdornment, InputLabel, TextField, TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 type SeriesHeaderProps = {
@@ -38,6 +40,7 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
   } = props;
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.filters });
 
   const handleFilterOpen = () => {
     setIsFilterOpen(!isFilterOpen);
@@ -47,7 +50,7 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
     <ContentSection>
       <div className="flex items-center justify-between gap-2">
         <Typography variant="h1" className="pl-3">
-          Series
+          <TranslatedContent content="series" namespace={NAMESPACES.enum.navigation} />
         </Typography>
         <TextField
           slotProps={{
@@ -60,7 +63,7 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
             },
           }}
           value={searchValue}
-          placeholder="Search by name"
+          placeholder={t('searchByTitle')}
           fullWidth
           onChange={(e) => onSearch(e.target.value)}
         />
@@ -82,7 +85,9 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
             className="grid grid-cols-2 gap-2 transition-all duration-1000 lg:grid-cols-4"
           >
             <div className="flex flex-col gap-2">
-              <InputLabel>Type</InputLabel>
+              <InputLabel className='capitalize'>
+                <TranslatedContent content="type" />
+              </InputLabel>
               <TextField
                 select
                 options={[...seriesTypeOptions, { value: 'All', label: 'All' }]}

@@ -22,6 +22,7 @@ import {
   SpeedDial,
   SpeedDialActions,
   SubmitButton,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 
@@ -140,8 +141,8 @@ const AddSeries = ({ imprintOptions }: AddSeriesProps) => {
       <Modal open={open} onClose={close}>
         <ModalWrapper>
           <div className="flex justify-between">
-            <Typography variant="h2" component="h3" className="pl-4 text-[var(--color-typography)] capitalize">
-              Add New Series
+            <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) uppercase">
+              <TranslatedContent content="actions.addSeries" />
             </Typography>
             <div className="flex gap-2">
               <SubmitButton onClick={submit} />

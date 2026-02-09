@@ -4,8 +4,13 @@
     "add": "add",
     "addNewTranslation": "Add New Translation",
     "addBook": "add book",
-    "addSet": "add new set"
+    "addSet": "add new set",
+    "addSeries": "add new series"
   },
   "title": "Title",
-  "updatedAt": "Updated At"
+  "updatedAt": "Updated At",
+  "type": "type",
+  "name": "Name",
+  "description": "description",
+  "issn": "ISSN"
 }

@@ -557,14 +557,14 @@ export const FORM_FIELDS = {
     placeholder: 'Subject Code',
   },
   SERIES_TYPE: {
-    label: 'Series Type',
+    label: 'seriesType.label',
     name: 'seriesType',
-    placeholder: 'Series Type',
+    placeholder: 'seriesType.label',
   },
   SERIES_NAME: {
-    label: 'Name',
+    label: 'name',
     name: 'seriesName',
-    placeholder: 'Name',
+    placeholder: 'name',
   },
   SERIES_ISSN_PRINT: {
     label: 'ISSN Print',
@@ -582,19 +582,19 @@ export const FORM_FIELDS = {
     placeholder: 'URL',
   },
   SERIES_DESCRIPTION: {
-    label: 'Description',
+    label: 'seriesDescription.label',
     name: 'description',
-    placeholder: 'Description',
+    placeholder: 'seriesDescription.label',
   },
   SERIES_IMPRINT: {
-    label: 'Imprint',
+    label: 'imprint.label',
     name: 'imprintId',
-    placeholder: 'Imprint',
+    placeholder: 'imprint.label',
   },
   ISSUE_ORDINAL: {
-    label: 'Number',
+    label: 'number.label',
     name: 'ordinal',
-    placeholder: 'Number',
+    placeholder: 'number.label',
     type: InputTypes.NUMBER,
   },
   BULK_UPLOAD: {
