@@ -10,8 +10,9 @@ import { Activity, useState } from 'react';
 
 import { PAGES, ROUTES } from '@/src/shared/constants';
 import { useUserInfo } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import useUIStateMachine from '@/src/shared/store/ui/hooks/useUIStateMachine';
-import { IconButton, Paper, Typography } from '@/src/shared/ui';
+import { IconButton, Paper, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { SignOutButton } from '../../auth';
 import ContentLanguage from '../../i18n/ContentLanguage';
@@ -85,9 +86,9 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
                     <Typography
                       color="primary"
                       component="span"
-                      className={`transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
+                      className={`capitalize transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
                     >
-                      {name}
+                      <TranslatedContent content={name} namespace={NAMESPACES.enum.navigation} />
                     </Typography>
                   )}
                 </Link>

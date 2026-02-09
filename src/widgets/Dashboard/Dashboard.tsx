@@ -17,7 +17,7 @@ const Dashboard = () => {
       <ContentSection>
         <div className="flex justify-between">
           <Typography component="h1" variant="h1" className="-ml-1">
-            <TranslatedContent content="dashboard" namespace={NAMESPACES.enum.dashboard} />
+            <TranslatedContent content="dashboard" namespace={NAMESPACES.enum.navigation} />
           </Typography>
           <NextLink href={ROUTES.NEW_WORK} passHref>
             <Button startIcon={<AddIcon />} className="capitalize" variant="contained" component="span">

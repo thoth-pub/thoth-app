@@ -8,9 +8,11 @@ import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
 import { appConfig, removePrefix } from '@/src/shared';
 import { InputTypes } from '@/src/shared/constants/formFields';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
 
 import TextField, { type TextFieldProps } from '../../core/TextField/TextField';
+import TranslatedContent from '../../core/TranslatedContent/TranslatedContent';
 
 export type FormTextFieldComponentProps<T extends FieldValues> = {
   min?: number;
@@ -66,7 +68,13 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
         <TextField
           {...field}
           error={!!error}
-          helperText={error ? error.message : helperText}
+          helperText={
+            error ? (
+              error.message
+            ) : (
+              <TranslatedContent content={helperText?.toString() ?? ''} namespace={NAMESPACES.enum.forms} />
+            )
+          }
           value={typeof value === 'string' ? removePrefix(value) : value}
           type={showPassword ? 'text' : type}
           onChange={(e) => {

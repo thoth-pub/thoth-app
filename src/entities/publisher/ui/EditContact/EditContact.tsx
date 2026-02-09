@@ -29,7 +29,6 @@ const EditContact = () => {
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher ?? '';
   const { publisher } = usePublisher(publisherId);
-  // TODO: change email logic after auth update
   const { userInfo } = useUserInfo();
   const { createContact } = useCreateContact(publisherId);
   const { deleteContact } = useDeleteContact(publisherId);

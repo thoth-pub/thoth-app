@@ -1,20 +1,6 @@
 {
   "actions": {
-    "new": "Neu"
-  },
-  "statuses": {
-    "active": "Aktiv",
-    "forthcoming": "im Erscheinen",
-    "cancelled": "cancelled",
-    "postponed indefinitely": "Auf unbestimmte Zeit verschoben",
-    "superseded": "Neue Version verfügbar",
-    "withdrawn": "widerrufen",
-    "other": "other"
-  },
-  "workTypes": {
-    "edited book": "Sammelband",
-    "journal issue": "Journal Issue",
-    "monograph": "Monografie",
-    "textbook": "Lehrwerk"
+    "new": "Neu",
+    "add": "hinzufügen"
   }
 }

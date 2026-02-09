@@ -1,0 +1,17 @@
+{
+  "accessibility": {
+    "accessibility": "accesibilidad"
+  },
+  "contact": {
+    "label": "Contacto",
+    "helperText": "Elija el contacto de la editorial."
+  },
+  "report": {
+    "label": "URL Del Informe",
+    "helperText": "Introduzca el informe de accesibilidad o la URL del informe de la editorial para lectores con discapacidad."
+  },
+  "statement": {
+    "label": "Declaración",
+    "helperText": "Introduzca la declaración de accesibilidad de la editorial para lectores con discapacidad."
+  }
+}

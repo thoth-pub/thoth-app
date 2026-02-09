@@ -1,0 +1,17 @@
+{
+  "statuses": {
+    "active": "ativo",
+    "forthcoming": "no prelo",
+    "cancelled": "cancelado",
+    "postponed indefinitely": "adiado por tempo indeterminado",
+    "superseded": "substituído",
+    "withdrawn": "retirado",
+    "other": "other"
+  },
+  "types": {
+    "edited book": "livro organizado",
+    "journal issue": "fascículo do periódico",
+    "monograph": "monografia",
+    "textbook": "livro didático"
+  }
+}

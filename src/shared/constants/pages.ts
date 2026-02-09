@@ -8,27 +8,27 @@ import { ROUTES } from './routes';
 
 export const PAGES = [
   {
-    name: 'Dashboard',
+    name: 'dashboard',
     href: ROUTES.DASHBOARD,
     icon: HomeRoundedIcon,
   },
   {
-    name: 'Books',
+    name: 'books',
     href: ROUTES.WORKS,
     icon: MenuBookRoundedIcon,
   },
   {
-    name: 'Series',
+    name: 'series',
     href: ROUTES.SERIES,
     icon: LibraryBooksRoundedIcon,
   },
   {
-    name: 'Sets',
+    name: 'sets',
     href: ROUTES.BOOKS_SETS,
     icon: Filter1Icon,
   },
   {
-    name: 'Profile',
+    name: 'profile',
     href: ROUTES.PROFILE,
     icon: PermIdentityRoundedIcon,
   },

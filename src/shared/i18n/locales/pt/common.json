@@ -1,20 +1,6 @@
 {
   "actions": {
-    "new": "novo"
-  },
-  "statuses": {
-    "active": "ativo",
-    "forthcoming": "no prelo",
-    "cancelled": "cancelado",
-    "postponed indefinitely": "adiado por tempo indeterminado",
-    "superseded": "substituído",
-    "withdrawn": "retirado",
-    "other": "other"
-  },
-  "workTypes": {
-    "edited book": "livro organizado",
-    "journal issue": "fascículo do periódico",
-    "monograph": "monografia",
-    "textbook": "livro didático"
+    "new": "novo",
+    "add": "adicionar"
   }
 }

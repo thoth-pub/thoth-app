@@ -58,18 +58,18 @@ const TotalBooksChart = () => {
           <ul className="flex list-disc flex-col gap-1 pl-4 xl:pl-8">
             {publishedBookCount > 0 && (
               <Typography component="li" className="list-item capitalize marker:text-(--color-success)">
-                {publishedBookCount} <TranslatedContent content="statuses.active" namespace={NAMESPACES.enum.common} />
+                {publishedBookCount} <TranslatedContent content="statuses.active" namespace={NAMESPACES.enum.work} />
               </Typography>
             )}
             {forthcomingBookCount > 0 && (
               <Typography component="li" className="list-item capitalize marker:text-(--color-warning)">
                 {forthcomingBookCount}{' '}
-                <TranslatedContent content="statuses.forthcoming" namespace={NAMESPACES.enum.common} />
+                <TranslatedContent content="statuses.forthcoming" namespace={NAMESPACES.enum.work} />
               </Typography>
             )}
             {otherBooksCount > 0 && (
               <Typography component="li" className="list-item capitalize marker:text-(--color-error)">
-                {otherBooksCount} <TranslatedContent content="statuses.other" namespace={NAMESPACES.enum.common} />
+                {otherBooksCount} <TranslatedContent content="statuses.other" namespace={NAMESPACES.enum.work} />
               </Typography>
             )}
           </ul>

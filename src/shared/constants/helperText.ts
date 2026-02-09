@@ -59,10 +59,9 @@ export const HELPER_TEXT = {
   REFERENCE_URL: 'Enter the URL of the reference.',
   REFERENCE_CITATION: 'Enter the citation text of the reference.',
   REFERENCE_DOI: 'Enter the DOI of the reference.',
-  PUBLISHER_CONTACT: 'Choose the contact of the publisher.',
-  PUBLISHER_REPORT:
-    'Enter the accessibility report or accessibility report URL of the publisher for readers with impairments.',
-  PUBLISHER_STATEMENT: 'Enter the accessibility statement of the publisher for readers with impairments.',
+  PUBLISHER_CONTACT: 'contact.helperText',
+  PUBLISHER_REPORT: 'report.helperText',
+  PUBLISHER_STATEMENT: 'statement.helperText',
   WORK_LCCN: 'Enter the LCCN of the work.',
   WORK_OCLC: 'Enter the OCLC number of the work.',
   WORK_SERIES: 'Choose the series the work belongs to.',

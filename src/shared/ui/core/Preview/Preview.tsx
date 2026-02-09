@@ -3,11 +3,14 @@
 import AddIcon from '@mui/icons-material/Add';
 
 import { mergeStyles } from '@/src/shared';
+import useIsGermanLocale from '@/src/shared/hooks/useIsDeutchLocale';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 
 import FormFieldLabel from '../../forms/FormFieldLabel/FormFieldLabel';
 import ContentWrapper from '../../layout/ContentWrapper/ContentWrapper';
 import Button from '../Button/Button';
 import EditButton from '../EditButton/EditButton';
+import TranslatedContent from '../TranslatedContent/TranslatedContent';
 import Typography from '../Typography/Typography';
 
 type PreviewProps = {
@@ -37,6 +40,10 @@ const Preview = (props: PreviewProps) => {
     onEdit,
   } = props;
 
+  const isGermanLocale = useIsGermanLocale();
+
+  console.log(isGermanLocale);
+
   return (
     <ContentWrapper>
       <FormFieldLabel component="div" label={label} recommended={recommended} tooltip={tooltip} />
@@ -50,10 +57,17 @@ const Preview = (props: PreviewProps) => {
             onClick={onEdit}
             className="mr-2 w-full justify-between p-0"
             sx={{
-              textTransform: 'capitalize',
+              textTransform: isGermanLocale ? 'none' : 'capitalize',
             }}
           >
-            add {addButtonText ?? label}
+            <span className={`flex gap-1 ${isGermanLocale ? 'flex-row-reverse' : 'flex-row'}`}>
+              <span>
+                <TranslatedContent content="actions.add" namespace={NAMESPACES.enum.common} />
+              </span>
+              <span>
+                <TranslatedContent content={`${addButtonText ?? label}`} namespace={NAMESPACES.enum.forms} />
+              </span>
+            </span>
           </Button>
         )}
         {value && (

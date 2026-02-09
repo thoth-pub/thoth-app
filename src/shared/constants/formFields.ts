@@ -605,21 +605,18 @@ export const FORM_FIELDS = {
     type: InputTypes.FILE,
   },
   PUBLISHER_CONTACT: {
-    label: 'Contact',
+    label: 'contact.label',
     name: 'contact',
-    placeholder: 'Contact',
     type: InputTypes.TEXT,
   },
   PUBLISHER_REPORT: {
-    label: 'Report URL',
+    label: 'report.label',
     name: 'report',
-    placeholder: 'Report URL',
     type: InputTypes.TEXT,
   },
   PUBLISHER_STATEMENT: {
-    label: 'Statement',
+    label: 'statement.label',
     name: 'statement',
-    placeholder: 'Statement',
     type: InputTypes.TEXT,
   },
   SET_TITLE: {
