@@ -173,7 +173,12 @@ const EditSeriesForm = ({
           </ContentWrapper>
         )}
         preview={({ disabled, onEdit }) => (
-          <Preview label={SERIES_IMPRINT.label} disabled={disabled} onEdit={onEdit} value={imprint} />
+          <Preview
+            label={SERIES_IMPRINT.label}
+            disabled={disabled || !isImprintEditable}
+            onEdit={onEdit}
+            value={imprint}
+          />
         )}
       />
 

@@ -52,7 +52,12 @@ export const EditSetImprint = ({ imprintId, imprintOptions, disabled = true, onS
         </ContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (
-        <Preview label={IMPRINT.label} value={imprint?.label ?? ''} disabled={disabled} onEdit={onEdit} />
+        <Preview
+          label={IMPRINT.label}
+          value={imprint?.label ?? ''}
+          disabled={disabled || isFieldDisable}
+          onEdit={onEdit}
+        />
       )}
     />
   );

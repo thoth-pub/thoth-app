@@ -89,7 +89,11 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
         </FormWrapper>
       ) : (
         <div onDoubleClick={handleEdit} className="cursor-pointer">
-          {preview({ data: defaultValues as T, disabled: !!activeFormId && !isActive, onEdit: handleEdit })}
+          {preview({
+            data: defaultValues as T,
+            disabled: (!!activeFormId && !isActive) || isDisabled,
+            onEdit: handleEdit,
+          })}
         </div>
       )}
     </>
