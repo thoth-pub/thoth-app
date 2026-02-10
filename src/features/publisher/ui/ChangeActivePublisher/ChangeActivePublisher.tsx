@@ -49,8 +49,6 @@ const ChangeActivePublisher = ({ isHidden = false }: ChangeActivePublisherProps)
     router.push(ROUTES.DASHBOARD);
   };
 
-  console.log(activePublisher);
-
   return (
     <TextField
       options={publishersOptions}
