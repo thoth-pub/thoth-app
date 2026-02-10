@@ -12,13 +12,14 @@ const { WITHDRAWN_DATE } = FORM_FIELDS;
 const { WITHDRAWN_DATE: WITHDRAWN_DATE_HELPER_TEXT } = HELPER_TEXT;
 
 type EditWithdrawDateProps = Partial<{
+  disabled?: boolean;
   defaultValue: string;
   minDate: string;
   onUpdate: (data: string) => void;
 }>;
 
 const EditWithdrawDate = (props: EditWithdrawDateProps) => {
-  const { defaultValue, minDate, onUpdate } = props;
+  const { disabled = true, defaultValue, minDate, onUpdate } = props;
 
   return (
     <EditableContentAlt
@@ -28,6 +29,7 @@ const EditWithdrawDate = (props: EditWithdrawDateProps) => {
       validationSchema={publicationDateValidationSchema}
       defaultValues={{ [WITHDRAWN_DATE.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.withdrawnDate ?? '')}
+      isDisabled={disabled}
       formFields={({ control, isHelperTextVisible }) => (
         <div className="flex flex-col gap-2">
           <FormFieldLabel label={WITHDRAWN_DATE.label} id={WITHDRAWN_DATE.name} />
@@ -37,6 +39,7 @@ const EditWithdrawDate = (props: EditWithdrawDateProps) => {
             slotProps={{ field: { id: WITHDRAWN_DATE.name } }}
             minDate={minDate ? dayjs(minDate) : undefined}
             className="h-10"
+            disabled={disabled}
           />
           {isHelperTextVisible && <FormHelperText>{WITHDRAWN_DATE_HELPER_TEXT}</FormHelperText>}
         </div>

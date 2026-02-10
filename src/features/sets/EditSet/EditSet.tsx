@@ -13,10 +13,11 @@ import { SetBooksList } from './components/SetBooksList';
 
 type EditSetProps = {
   setId: SetId;
+  isImprintEditable?: boolean;
 };
 
 const EditSet = (props: EditSetProps) => {
-  const { setId } = props;
+  const { setId, isImprintEditable = false } = props;
 
   const { userImprintsOptions } = useUser();
   const { close } = useSetStateMachine();
@@ -97,7 +98,12 @@ const EditSet = (props: EditSetProps) => {
       </div>
       <div className="flex flex-col gap-(--default-gap)">
         <EditSetTitle set={set} onSubmit={updateTitles} onDelete={deleteTitle} />
-        <EditSetImprint imprintId={set.imprintId} imprintOptions={userImprintsOptions} onSubmit={updateImprint} />
+        <EditSetImprint
+          disabled={!isImprintEditable}
+          imprintId={set.imprintId}
+          imprintOptions={userImprintsOptions}
+          onSubmit={updateImprint}
+        />
       </div>
       <SetBooksList setId={setId} />
     </MultipleContentWrapper>

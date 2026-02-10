@@ -1,5 +1,6 @@
 'use client';
 
+import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import { useUser } from '@/src/entities/user';
 import {
   EditDoi,
@@ -30,6 +31,7 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
     isBasicDetailsSectionEmpty,
   } = useWorkRecommendations({ workId });
   const { userImprintsOptions } = useUser();
+  const { isImprintEditable } = useActivePublisherPermissions();
 
   return (
     <RecommendedSection
@@ -47,6 +49,7 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
               workId={workId}
               imprintOptions={userImprintsOptions}
               recommended={showRecommendations && isLandingPageRequired}
+              disabled={!isImprintEditable}
             />
             <EditLicense workId={workId} />
             <EditDoi

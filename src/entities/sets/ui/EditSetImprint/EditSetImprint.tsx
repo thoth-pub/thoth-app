@@ -12,13 +12,16 @@ import { setImprintValidationSchema } from '../../model/set.validation';
 type EditSetImprintProps = {
   imprintId: string;
   imprintOptions: FormFieldOption[];
+  disabled?: boolean;
   onSubmit: (imprintId: string) => void;
 };
 
 const { IMPRINT } = FORM_FIELDS;
 
-export const EditSetImprint = ({ imprintId, imprintOptions, onSubmit }: EditSetImprintProps) => {
+export const EditSetImprint = ({ imprintId, imprintOptions, disabled = true, onSubmit }: EditSetImprintProps) => {
   const imprint = imprintOptions.find((option) => option.value === imprintId);
+
+  const isFieldDisable = disabled || imprintOptions.length < 1;
 
   const updateImprint = ({ imprintId }: SetImprintFormType) => {
     onSubmit(imprintId);
@@ -32,6 +35,7 @@ export const EditSetImprint = ({ imprintId, imprintOptions, onSubmit }: EditSetI
       onSubmit={updateImprint}
       isTableVariant
       borderTransparent
+      isDisabled={isFieldDisable}
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={IMPRINT.label} id={IMPRINT.name} />
@@ -43,6 +47,7 @@ export const EditSetImprint = ({ imprintId, imprintOptions, onSubmit }: EditSetI
             options={imprintOptions}
             helperText={HELPER_TEXT.IMPRINT}
             isHelperTextVisible={isHelperTextVisible}
+            disabled={isFieldDisable}
           />
         </ContentWrapper>
       )}

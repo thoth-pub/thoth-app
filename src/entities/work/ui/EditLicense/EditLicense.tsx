@@ -41,7 +41,7 @@ const EditLicense = (props: EditLicenseProps) => {
   const placeholderValue =
     appliedLicenseValue.label + `${appliedCopyrightHolderValue ? ` © ${appliedCopyrightHolderValue}` : ''}`;
 
-  const updateImprint = ({ license, copyrightHolder }: LicenseAndCopyrightHolderForm) => {
+  const updateLicense = ({ license, copyrightHolder }: LicenseAndCopyrightHolderForm) => {
     if (onUpdate) {
       onUpdate({ license, copyrightHolder });
       return;
@@ -57,7 +57,7 @@ const EditLicense = (props: EditLicenseProps) => {
       formId={IDs.WORK_LICENSE_AND_COPYRIGHT_HOLDER}
       defaultValues={{ [LICENSE.name]: appliedLicenseValue, [COPYRIGHT_HOLDER.name]: appliedCopyrightHolderValue }}
       validationSchema={licenseAndCopyrightHolderValidationSchema}
-      onSubmit={updateImprint}
+      onSubmit={updateLicense}
       formFields={({ control, isHelperTextVisible }) => (
         <MultipleContentWrapper>
           <ContentWrapper>

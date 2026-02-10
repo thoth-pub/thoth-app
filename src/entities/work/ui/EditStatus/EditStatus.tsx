@@ -13,12 +13,13 @@ const { WORK_STATUS } = FORM_FIELDS;
 const { WORK_STATUS: WORK_STATUS_HELPER_TEXT } = HELPER_TEXT;
 
 type EditStatusProps = {
+  disabled?: boolean;
   defaultValue: WorkStatus;
   onUpdate?: (data: WorkStatus) => void;
 };
 
 const EditStatus = (props: EditStatusProps) => {
-  const { defaultValue, onUpdate } = props;
+  const { disabled = true, defaultValue, onUpdate } = props;
 
   const availableNewStatusOptions = useMemo(() => {
     if (defaultValue === WorkStatuses.enum.Forthcoming) {
@@ -43,7 +44,7 @@ const EditStatus = (props: EditStatusProps) => {
     return [];
   }, [defaultValue]);
 
-  const isFieldDisable = availableNewStatusOptions.length < 1;
+  const isFieldDisable = disabled || availableNewStatusOptions.length < 1;
 
   return (
     <EditableContentAlt

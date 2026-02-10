@@ -22,7 +22,11 @@ import EditStatus from '../EditStatus/EditStatus';
 import EditWithdrawDate from '../EditWithdrawDate/EditWithdrawDate';
 import useEditWorkHeader from './useEditWorkHeader';
 
-type EditWorkHeaderProps = BaseEditSectionProps;
+type EditWorkHeaderProps = BaseEditSectionProps & {
+  isStatusEditable?: boolean;
+  isPublicationDateEditable?: boolean;
+  isWithdrawnDateEditable?: boolean;
+};
 
 const itemStyles = 'flex flex-col gap-2';
 
@@ -40,7 +44,9 @@ const STATUS_WARNINGS = {
     'Changing the status to Withdrawn will update the publication date to the current date.',
 } as const;
 
-const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
+const EditWorkHeader = (props: EditWorkHeaderProps) => {
+  const { workId, isStatusEditable = true, isPublicationDateEditable = true, isWithdrawnDateEditable = true } = props;
+  
   const {
     title,
     status,
@@ -95,11 +101,12 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
             <EditInternalId workId={workId} />
           </div>
           <div className={itemStyles}>
-            <EditStatus defaultValue={status} onUpdate={changeWorkStatus} />
+            <EditStatus disabled={!isStatusEditable} defaultValue={status} onUpdate={changeWorkStatus} />
           </div>
           {!isPublicationDateDisabled && (
             <div className={itemStyles}>
               <EditPublicationDate
+                disabled={!isPublicationDateEditable}
                 defaultValue={publicationDate ?? ''}
                 onUpdate={changePublicationDate}
                 minDate={minDate}
@@ -108,7 +115,12 @@ const EditWorkHeader = ({ workId }: EditWorkHeaderProps) => {
           )}
           {isWithdrawnDateRequired && (
             <div className={itemStyles}>
-              <EditWithdrawDate defaultValue={withdrawnDate ?? ''} onUpdate={changeWithdrawnDate} minDate={minDate} />
+              <EditWithdrawDate
+                disabled={!isWithdrawnDateEditable}
+                defaultValue={withdrawnDate ?? ''}
+                onUpdate={changeWithdrawnDate}
+                minDate={minDate}
+              />
             </div>
           )}
         </div>

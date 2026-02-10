@@ -14,7 +14,7 @@ import { getWorkTypeOptions } from '@/src/shared/utils';
 
 const { WORK_TYPE } = FORM_FIELDS;
 
-export const EditImprint = ({ workId }: BaseEditSectionProps) => {
+export const EditWorkType = ({ workId }: BaseEditSectionProps) => {
   const { work, updateWork } = useWork(workId);
   const { t, i18n } = useTranslation();
   const value = t(convertOptionToString(work?.type ?? '').toLowerCase());
@@ -52,4 +52,4 @@ export const EditImprint = ({ workId }: BaseEditSectionProps) => {
   );
 };
 
-export default EditImprint;
+export default EditWorkType;

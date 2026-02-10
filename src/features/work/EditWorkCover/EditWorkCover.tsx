@@ -2,6 +2,7 @@
 
 import { Activity } from 'react';
 
+import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import { useWork } from '@/src/entities/work';
 import { BaseEditSectionProps } from '@/src/shared';
 
@@ -13,16 +14,17 @@ type EditWorkCoverProps = BaseEditSectionProps & {
 };
 
 const EditWorkCover = (props: EditWorkCoverProps) => {
-  const { workId, isDragAndDropEnabled = false } = props;
+  const { workId } = props;
 
   const { work } = useWork(workId);
+  const { idDragAndDropEnabled } = useActivePublisherPermissions();
 
   return (
     <>
-      <Activity mode={isDragAndDropEnabled ? 'visible' : 'hidden'}>
+      <Activity mode={idDragAndDropEnabled ? 'visible' : 'hidden'}>
         <DragAndDropForm defaultValue={work.coverUrl ?? ''} />
       </Activity>
-      <Activity mode={isDragAndDropEnabled ? 'hidden' : 'visible'}>
+      <Activity mode={idDragAndDropEnabled ? 'hidden' : 'visible'}>
         <CoverForm workId={workId} />
       </Activity>
     </>

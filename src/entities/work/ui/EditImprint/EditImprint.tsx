@@ -10,12 +10,13 @@ import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel'
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 type EditImprintProps = {
+  disabled?: boolean;
   imprintOptions: FormFieldOption[];
 } & BaseRecommendedSectionProps;
 
 const { IMPRINT, PLACE } = FORM_FIELDS;
 
-export const EditImprint = ({ workId, imprintOptions, recommended = false }: EditImprintProps) => {
+export const EditImprint = ({ disabled = true, workId, imprintOptions, recommended = false }: EditImprintProps) => {
   const { work, updateWork } = useWork(workId);
 
   const value = work?.publisherName ?? '';
@@ -34,6 +35,7 @@ export const EditImprint = ({ workId, imprintOptions, recommended = false }: Edi
       defaultValues={{ [IMPRINT.name]: work.imprintId, [PLACE.name]: work.place }}
       validationSchema={imprintValidationSchema}
       onSubmit={updateImprint}
+      isDisabled={disabled}
       formFields={({ control, isHelperTextVisible }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
@@ -46,6 +48,7 @@ export const EditImprint = ({ workId, imprintOptions, recommended = false }: Edi
               options={imprintOptions}
               helperText={HELPER_TEXT.IMPRINT}
               isHelperTextVisible={isHelperTextVisible}
+              disabled={disabled}
             />
           </ContentWrapper>
           <ContentWrapper>
@@ -56,6 +59,7 @@ export const EditImprint = ({ workId, imprintOptions, recommended = false }: Edi
               id={PLACE.name}
               helperText={HELPER_TEXT.PLACE}
               isHelperTextVisible={isHelperTextVisible}
+              disabled={disabled}
             />
           </ContentWrapper>
         </MultipleContentWrapper>

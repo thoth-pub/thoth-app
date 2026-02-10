@@ -6,6 +6,7 @@ import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { workTitlesValidationSchema } from '@/src/entities/work/model/work.validation';
 import { type BaseRecommendedSectionProps, getMainTitle, HELPER_TEXT, IDs, QueryKeys, TitleEntity } from '@/src/shared';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { LocaleCodeType } from '@/src/shared/types/languages';
 import {
   Chip,
@@ -151,6 +152,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
       preview={({ disabled, onEdit }) => (
         <Preview
           label={WORK_TITLE.label}
+          namespace={NAMESPACES.enum.common}
           value={placeholder ?? ''}
           disabled={disabled}
           onEdit={onEdit}

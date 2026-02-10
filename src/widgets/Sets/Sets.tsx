@@ -1,5 +1,6 @@
 'use client';
 
+import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
 import SetsTable from '@/src/entities/sets/ui/SetsTable/SetsTable';
 import { EditSet } from '@/src/features';
@@ -25,6 +26,8 @@ const Sets = () => {
     changePage,
   } = useSetsTable();
 
+  const { isImprintEditable } = useActivePublisherPermissions();
+
   return (
     <>
       <SetsHeader
@@ -42,7 +45,7 @@ const Sets = () => {
           page={activePage}
           pagesCount={totalPagesCount}
           onPageChange={changePage}
-          form={<EditSet setId={activeSet?.id ?? ''} />}
+          form={<EditSet setId={activeSet?.id ?? ''} isImprintEditable={isImprintEditable} />}
         />
       </ContentSection>
     </>

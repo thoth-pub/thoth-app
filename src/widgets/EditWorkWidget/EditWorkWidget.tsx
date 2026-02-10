@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 
+import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import { EditWorkHeader } from '@/src/entities/work';
 import { EditBasicDetails, EditContributors, EditDescriptions, EditFundings, WorkSpeedDial } from '@/src/features';
 import EditPublications from '@/src/features/work/EditPublications/EditPublications';
@@ -19,6 +20,8 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
 
   const { close } = useFormStateMachine();
 
+  const { isStatusEditable, isPublicationDateEditable, isWithdrawnDateEditable } = useActivePublisherPermissions();
+
   useEffect(() => {
     return () => {
       close();
@@ -27,7 +30,12 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
 
   return (
     <div className="flex flex-col gap-8">
-      <EditWorkHeader workId={workId} />
+      <EditWorkHeader
+        workId={workId}
+        isStatusEditable={isStatusEditable}
+        isPublicationDateEditable={isPublicationDateEditable}
+        isWithdrawnDateEditable={isWithdrawnDateEditable}
+      />
       <EditBasicDetails workId={workId}>
         <EditWorkSeries workId={workId} />
       </EditBasicDetails>

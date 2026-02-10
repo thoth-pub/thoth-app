@@ -7,13 +7,14 @@ import { EditSetTitle } from '../EditSetTitle/EditSetTitle';
 type AddNewSetFormProps = {
   set: SetEntity;
   imprintOptions: FormFieldOption[];
+  isImprintEditable?: boolean;
   onUpdateImprint: (imprintId: string) => void;
   onUpdateTitles: (titles: TitleEntity[]) => void;
   onDeleteTitle: (titleId: string) => void;
 };
 
 export const AddNewSetForm = (props: AddNewSetFormProps) => {
-  const { set, imprintOptions, onUpdateImprint, onUpdateTitles, onDeleteTitle } = props;
+  const { set, imprintOptions, isImprintEditable = false, onUpdateImprint, onUpdateTitles, onDeleteTitle } = props;
 
   const updateImprint = (imprintId: string) => {
     onUpdateImprint(imprintId);
@@ -41,7 +42,12 @@ export const AddNewSetForm = (props: AddNewSetFormProps) => {
   return (
     <div className="flex flex-col gap-(--default-gap) pl-4">
       <EditSetTitle set={set} onSubmit={updateTitles} onDelete={deleteTitle} />
-      <EditSetImprint imprintId={set.imprintId} imprintOptions={imprintOptions} onSubmit={updateImprint} />
+      <EditSetImprint
+        disabled={!isImprintEditable}
+        imprintId={set.imprintId}
+        imprintOptions={imprintOptions}
+        onSubmit={updateImprint}
+      />
     </div>
   );
 };

@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
 import { Activity, useState } from 'react';
 
+import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import { type SetEntity, useCreateSet } from '@/src/entities/sets';
 import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
 import { AddNewSetForm } from '@/src/entities/sets/ui/AddNewSetForm/AddNewSetForm';
@@ -23,6 +24,7 @@ import {
 const AddSet = () => {
   const { activeSet, edit, close } = useSetStateMachine();
   const { userImprintsOptions } = useUser();
+  const { isImprintEditable } = useActivePublisherPermissions();
 
   const { createSet } = useCreateSet();
 
@@ -114,6 +116,7 @@ const AddSet = () => {
               <AddNewSetForm
                 set={set}
                 imprintOptions={userImprintsOptions}
+                isImprintEditable={isImprintEditable}
                 onUpdateImprint={updateImprint}
                 onUpdateTitles={updateTitles}
                 onDeleteTitle={deleteTitle}

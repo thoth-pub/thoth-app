@@ -56,6 +56,7 @@ type EditSeriesFormProps = {
   description?: string;
   isTableVariant?: boolean;
   borderTransparent?: boolean;
+  isImprintEditable?: boolean;
   onTypeChange: (type: SeriesTypeFormType) => void;
   onUrlChange: (url: SeriesUrlFormType) => void;
   onNameChange: (name: SeriesNameFormType) => void;
@@ -75,6 +76,7 @@ const EditSeriesForm = ({
   description = '',
   isTableVariant = false,
   borderTransparent = false,
+  isImprintEditable = false,
   onUrlChange,
   onTypeChange,
   onNameChange,
@@ -154,6 +156,7 @@ const EditSeriesForm = ({
         onSubmit={onImprintChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
+        isDisabled={!isImprintEditable}
         formFields={({ control, isHelperTextVisible }) => (
           <ContentWrapper>
             <FormFieldLabel label={SERIES_IMPRINT.label} id={SERIES_IMPRINT.name} />
@@ -165,6 +168,7 @@ const EditSeriesForm = ({
               options={imprintOptions}
               helperText={IMPRINT_HELPER_TEXT}
               isHelperTextVisible={isHelperTextVisible}
+              disabled={!isImprintEditable}
             />
           </ContentWrapper>
         )}

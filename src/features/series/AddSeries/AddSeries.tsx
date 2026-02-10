@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
 import { useState } from 'react';
 
+import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import { EditSeriesForm, useCreateSeries, useSeriesesStateMachine } from '@/src/entities/series';
 import type {
   SeriesDescriptionFormType,
@@ -33,6 +34,7 @@ const AddSeries = () => {
   const [series, setSeries] = useState(activeSeries);
   const { userImprintsOptions } = useUser();
   const { createSeries } = useCreateSeries();
+  const { isImprintEditable } = useActivePublisherPermissions();
 
   const open = activeSeries && isDefaultId(activeSeries.id) ? true : false;
 
@@ -158,6 +160,7 @@ const AddSeries = () => {
               imprint={series.imprintName}
               url={series.url}
               description={series.description}
+              isImprintEditable={isImprintEditable}
               onTypeChange={updateType}
               onNameChange={updateName}
               onIssnChange={updateIssn}

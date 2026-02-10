@@ -12,13 +12,14 @@ const { PUBLICATION_DATE: PUBLICATION_DATE_HELPER_TEXT } = HELPER_TEXT;
 const { PUBLICATION_DATE } = FORM_FIELDS;
 
 type EditPublicationDateProps = Partial<{
+  disabled?: boolean;
   defaultValue: string;
   minDate: string;
   onUpdate: (data: string) => void;
 }>;
 
 const EditPublicationDate = (props: EditPublicationDateProps) => {
-  const { defaultValue, minDate, onUpdate } = props;
+  const { disabled = true, defaultValue, minDate, onUpdate } = props;
 
   return (
     <EditableContentAlt
@@ -28,6 +29,7 @@ const EditPublicationDate = (props: EditPublicationDateProps) => {
       validationSchema={publicationDateValidationSchema}
       defaultValues={{ [PUBLICATION_DATE.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.publicationDate ?? '')}
+      isDisabled={disabled}
       formFields={({ control, isHelperTextVisible }) => (
         <div className="flex flex-col gap-2">
           <FormFieldLabel label={PUBLICATION_DATE.label} id={PUBLICATION_DATE.name} />
@@ -37,6 +39,7 @@ const EditPublicationDate = (props: EditPublicationDateProps) => {
             slotProps={{ field: { id: PUBLICATION_DATE.name } }}
             minDate={minDate ? dayjs(minDate) : undefined}
             className="h-10"
+            disabled={disabled}
           />
           {isHelperTextVisible && <FormHelperText>{PUBLICATION_DATE_HELPER_TEXT}</FormHelperText>}
         </div>

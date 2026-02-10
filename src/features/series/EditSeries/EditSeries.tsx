@@ -2,6 +2,7 @@
 
 import { Typography } from '@mui/material';
 
+import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import { EditSeriesForm, useSeries, useSeriesesStateMachine, useUpdateSeries } from '@/src/entities/series';
 import {
   SeriesDescriptionFormType,
@@ -22,6 +23,7 @@ const EditSeries = () => {
   const { userImprintsOptions } = useUser();
   const { series } = useSeries({ seriesId: activeSeries?.id ?? '' });
   const { updateSeries } = useUpdateSeries();
+  const { isImprintEditable } = useActivePublisherPermissions();
 
   const done = () => {
     close();
@@ -95,6 +97,7 @@ const EditSeries = () => {
       {series && (
         <>
           <EditSeriesForm
+            isImprintEditable={isImprintEditable}
             isTableVariant
             borderTransparent
             imprintOptions={userImprintsOptions}
