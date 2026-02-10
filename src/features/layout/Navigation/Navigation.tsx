@@ -8,8 +8,8 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Activity, useState } from 'react';
 
+import { useUser } from '@/src/entities/user';
 import { PAGES, ROUTES } from '@/src/shared/constants';
-import { useUserInfo } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import useUIStateMachine from '@/src/shared/store/ui/hooks/useUIStateMachine';
 import { IconButton, Paper, TranslatedContent, Typography } from '@/src/shared/ui';
@@ -18,17 +18,12 @@ import { SignOutButton } from '../../auth';
 import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
 
-type NavigationProps = {
-  linkedPublishers?: { publisherId: string; isAdmin: boolean }[];
-  isSuperAdmin?: boolean;
-};
-
-const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationProps) => {
+const Navigation = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(true);
 
   const { isExpanded, update } = useUIStateMachine();
-  const { userInfo, error } = useUserInfo();
-  console.log('userInfo', userInfo, error);
+  const { user } = useUser();
+
   const handleUserMenuOpen = () => {
     setIsUserMenuOpen((prev) => !prev);
   };
@@ -75,7 +70,7 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
           </IconButton>
         </div>
 
-        <ChangeActivePublisher linkedPublishers={linkedPublishers} isSuperAdmin={isSuperAdmin} isHidden={!isExpanded} />
+        <ChangeActivePublisher isHidden={!isExpanded} />
         <nav>
           <ul className="flex flex-col rounded-(--border-nav-radius) border border-(--color-nav-border)">
             {PAGES.map(({ name, href, icon: Icon }) => (
@@ -106,7 +101,7 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
             >
               <div className="flex items-center justify-between gap-1">
                 <Typography color="primary" component="span" className="max-w-[85%] truncate font-semibold">
-                  {userInfo.name}
+                  {user.firstName} {user.lastName}
                 </Typography>
                 <IconButton className="shrink-0 p-0" onClick={handleUserMenuOpen}>
                   <ArrowDropDownRoundedIcon className={isUserMenuOpen ? 'rotate-180' : 'rotate-0'} />
@@ -114,7 +109,7 @@ const Navigation = ({ linkedPublishers = [], isSuperAdmin = false }: NavigationP
               </div>
 
               <Typography color="primary" component="span" variant="body2" className="overflow-hidden text-ellipsis">
-                {userInfo.email}
+                {user.email}
               </Typography>
               {isUserMenuOpen && <ContentLanguage />}
             </div>

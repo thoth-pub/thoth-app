@@ -1,10 +1,18 @@
 import { assign, setup } from 'xstate';
 
-import type { AuthorizedPublisher, PublisherId } from '../model/publisher.types';
+import type { PublisherId } from '../model/publisher.types';
+
+type LinkedPublisher = {
+  id: PublisherId;
+  name: string;
+  publisherAdmin: boolean;
+  workLifecycle: boolean;
+  cdnWrite: boolean;
+};
 
 export type PublisherContext = {
   activePublisher: PublisherId | null;
-  linkedPublishers: AuthorizedPublisher[];
+  linkedPublishers: LinkedPublisher[];
   isSuperAdmin: boolean;
 };
 

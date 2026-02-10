@@ -2,17 +2,12 @@
 
 import { SeriesTable } from '@/src/entities/series';
 import { EditSeries } from '@/src/features';
-import { FormFieldOption } from '@/src/shared';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { SeriesHeader } from './SeriesHeader';
 import { useSeriesTable } from './useSeriesTable';
 
-type SeriesProps = {
-  imprintOptions: FormFieldOption[];
-};
-
-const Series = ({ imprintOptions }: SeriesProps) => {
+const Series = () => {
   const {
     loading,
     serieses,
@@ -32,7 +27,6 @@ const Series = ({ imprintOptions }: SeriesProps) => {
   return (
     <>
       <SeriesHeader
-        imprintOptions={imprintOptions}
         seriesType={seriesType}
         searchValue={searchValue}
         direction={direction}
@@ -49,7 +43,7 @@ const Series = ({ imprintOptions }: SeriesProps) => {
           page={activePage}
           pagesCount={totalPagesCount}
           onPageChange={changePage}
-          seriesForm={<EditSeries imprintOptions={imprintOptions} />}
+          seriesForm={<EditSeries />}
         />
       </ContentSection>
     </>

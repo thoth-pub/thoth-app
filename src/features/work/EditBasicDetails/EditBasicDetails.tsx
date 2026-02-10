@@ -1,5 +1,6 @@
 'use client';
 
+import { useUser } from '@/src/entities/user';
 import {
   EditDoi,
   EditImprint,
@@ -11,18 +12,16 @@ import {
   useWorkRecommendations,
 } from '@/src/entities/work';
 import { ANCHORS, type BaseEditSectionProps } from '@/src/shared';
-import type { FormFieldOption } from '@/src/shared/interfaces';
 import { RecommendedSection } from '@/src/shared/ui';
 
 import EditWorkCover from '../EditWorkCover/EditWorkCover';
 
 type EditWorkBasicDetailsProps = BaseEditSectionProps & {
-  imprintOptions: FormFieldOption[];
   children?: Readonly<React.ReactNode>;
 };
 
 const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
-  const { workId, imprintOptions, children } = props;
+  const { workId, children } = props;
   const {
     isDoiRequired,
     isLandingPageRequired,
@@ -30,6 +29,7 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
     isBasicDetailsSectionFilled,
     isBasicDetailsSectionEmpty,
   } = useWorkRecommendations({ workId });
+  const { userImprintsOptions } = useUser();
 
   return (
     <RecommendedSection
@@ -45,7 +45,7 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
             <EditWorkType workId={workId} />
             <EditImprint
               workId={workId}
-              imprintOptions={imprintOptions}
+              imprintOptions={userImprintsOptions}
               recommended={showRecommendations && isLandingPageRequired}
             />
             <EditLicense workId={workId} />

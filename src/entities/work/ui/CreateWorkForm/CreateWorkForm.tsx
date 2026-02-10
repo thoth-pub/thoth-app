@@ -1,10 +1,10 @@
 'use client';
 
+import { useUser } from '@/src/entities/user';
 import { IDs } from '@/src/shared/constants';
-import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, languageOptionsAlt, licenseOptions } from '@/src/shared/constants/formFields';
 import { useTypedTranslation, useWorkTypeOptions } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import type { FormFieldOption } from '@/src/shared/interfaces';
 import { AutocompleteGroup, Button, CircularProgress, PageHeader } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
@@ -15,18 +15,15 @@ import useCreateWorkForm from './useCreateWorkForm';
 const { TITLE, TITLE_LANGUAGE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 const { CREATE_WORK } = IDs;
 
-type CreateWorkFormProps = {
-  imprintOptions: FormFieldOption[];
-  licenseOptions: FormFieldOption[];
-};
+const CreateWorkForm = () => {
+  const { userImprintsOptions } = useUser();
 
-const CreateWorkForm = ({ imprintOptions, licenseOptions }: CreateWorkFormProps) => {
   const workTypeOptions = useWorkTypeOptions();
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
   const { control, isImprintVisible, isSubmitDisabled, isLoading, availableNewWorkOptions, submit } = useCreateWorkForm(
     {
-      imprintOptions,
+      imprintOptions: userImprintsOptions,
       workTypeOptions,
       licenseOptions,
     },
@@ -72,7 +69,7 @@ const CreateWorkForm = ({ imprintOptions, licenseOptions }: CreateWorkFormProps)
               placeholder={IMPRINT.placeholder}
               control={control}
               select
-              options={imprintOptions}
+              options={userImprintsOptions}
             />
           )}
           <CreateWorkFormField

@@ -32,6 +32,7 @@ export const QueryKeys = {
   series: 'series',
   serieses: 'serieses',
   seriesesCount: 'seriesesCount',
+  allUserSerieses: 'allUserSerieses',
   // SETS
   sets: 'sets',
   setsCount: 'setsCount',

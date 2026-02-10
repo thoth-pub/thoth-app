@@ -1,8 +1,8 @@
 'use client';
 
+import { useUser } from '@/src/entities/user';
 import { appConfig, ContactTypes, convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
 import { contactTypeOptions, FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { useUserInfo } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import {
   ContentWrapper,
@@ -29,7 +29,7 @@ const EditContact = () => {
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher ?? '';
   const { publisher } = usePublisher(publisherId);
-  const { userInfo } = useUserInfo();
+  const { user } = useUser();
   const { createContact } = useCreateContact(publisherId);
   const { deleteContact } = useDeleteContact(publisherId);
   const { close } = useFormStateMachine();
@@ -47,7 +47,7 @@ const EditContact = () => {
     if (existingContact) return;
 
     createContact({
-      data: { type: contact, email: userInfo.email, id: appConfig.defaultId },
+      data: { type: contact, email: user.email, id: appConfig.defaultId },
       publisherId: activePublisher,
     });
   };

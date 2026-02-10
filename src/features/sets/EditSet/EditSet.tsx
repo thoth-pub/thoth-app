@@ -4,20 +4,21 @@ import { EditSetTitle, type SetId, SetTitleFormType, useUpdateSet } from '@/src/
 import useSet from '@/src/entities/sets/api/hooks/useSet';
 import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
 import EditSetImprint from '@/src/entities/sets/ui/EditSetImprint/EditSetImprint';
+import { useUser } from '@/src/entities/user';
 import { useCreateTitle, useDeleteTitle, useUpdateTitle } from '@/src/entities/work';
-import { FormFieldOption, getMainTitle, LocaleCodeType, QueryKeys, TitleEntity } from '@/src/shared';
+import { getMainTitle, LocaleCodeType, QueryKeys, TitleEntity } from '@/src/shared';
 import { CloseButton, MarkdownRenderer, MultipleContentWrapper, Typography } from '@/src/shared/ui';
 
 import { SetBooksList } from './components/SetBooksList';
 
 type EditSetProps = {
   setId: SetId;
-  imprintOptions: FormFieldOption[];
 };
 
 const EditSet = (props: EditSetProps) => {
-  const { setId, imprintOptions } = props;
+  const { setId } = props;
 
+  const { userImprintsOptions } = useUser();
   const { close } = useSetStateMachine();
 
   const { set } = useSet(setId);
@@ -96,7 +97,7 @@ const EditSet = (props: EditSetProps) => {
       </div>
       <div className="flex flex-col gap-(--default-gap)">
         <EditSetTitle set={set} onSubmit={updateTitles} onDelete={deleteTitle} />
-        <EditSetImprint imprintId={set.imprintId} imprintOptions={imprintOptions} onSubmit={updateImprint} />
+        <EditSetImprint imprintId={set.imprintId} imprintOptions={userImprintsOptions} onSubmit={updateImprint} />
       </div>
       <SetBooksList setId={setId} />
     </MultipleContentWrapper>

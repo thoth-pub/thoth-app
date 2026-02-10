@@ -3,19 +3,12 @@
 import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
 import SetsTable from '@/src/entities/sets/ui/SetsTable/SetsTable';
 import { EditSet } from '@/src/features';
-import { FormFieldOption } from '@/src/shared';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { SetsHeader } from './SetsHeader';
 import { useSetsTable } from './useSetsTable';
 
-type SetsProps = {
-  imprintOptions: FormFieldOption[];
-};
-
-const Sets = (props: SetsProps) => {
-  const { imprintOptions } = props;
-
+const Sets = () => {
   const { activeSet } = useSetStateMachine();
 
   const {
@@ -35,7 +28,6 @@ const Sets = (props: SetsProps) => {
   return (
     <>
       <SetsHeader
-        imprintOptions={imprintOptions}
         searchValue={searchValue}
         direction={direction}
         orderBy={orderBy}
@@ -50,7 +42,7 @@ const Sets = (props: SetsProps) => {
           page={activePage}
           pagesCount={totalPagesCount}
           onPageChange={changePage}
-          form={<EditSet setId={activeSet?.id ?? ''} imprintOptions={imprintOptions} />}
+          form={<EditSet setId={activeSet?.id ?? ''} />}
         />
       </ContentSection>
     </>

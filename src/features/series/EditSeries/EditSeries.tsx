@@ -11,19 +11,15 @@ import {
   SeriesTypeFormType,
   SeriesUrlFormType,
 } from '@/src/entities/series/model/series.types';
-import type { FormFieldOption } from '@/src/shared';
+import { useUser } from '@/src/entities/user';
 import { CloseButton, MultipleContentWrapper, SubmitButton } from '@/src/shared/ui';
 
 import { IssuesList } from '../../work/EditWorkSeries/components/IssuesList';
 import { AddBookModal } from './components/AddBookModal';
 
-type EditSeriesProps = {
-  imprintOptions: FormFieldOption[];
-};
-
-const EditSeries = ({ imprintOptions }: EditSeriesProps) => {
+const EditSeries = () => {
   const { activeSeries, close } = useSeriesesStateMachine();
-
+  const { userImprintsOptions } = useUser();
   const { series } = useSeries({ seriesId: activeSeries?.id ?? '' });
   const { updateSeries } = useUpdateSeries();
 
@@ -58,7 +54,7 @@ const EditSeries = ({ imprintOptions }: EditSeriesProps) => {
   const updateImprint = (data: SeriesImprintFormType) => {
     if (!series) return;
 
-    const imprintOption = imprintOptions.find((option) => option.value === data.imprintId);
+    const imprintOption = userImprintsOptions.find((option) => option.value === data.imprintId);
 
     if (!imprintOption) return;
 
@@ -88,7 +84,7 @@ const EditSeries = ({ imprintOptions }: EditSeriesProps) => {
   return (
     <MultipleContentWrapper>
       <div className="flex justify-between">
-        <Typography variant="h2" component="h3" className="text-[var(--color-typography)] capitalize">
+        <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
           {series.name}
         </Typography>
         <div className="flex gap-2">
@@ -101,7 +97,7 @@ const EditSeries = ({ imprintOptions }: EditSeriesProps) => {
           <EditSeriesForm
             isTableVariant
             borderTransparent
-            imprintOptions={imprintOptions}
+            imprintOptions={userImprintsOptions}
             type={series.type}
             name={series.name}
             issnPrint={series.issnPrint}

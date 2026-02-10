@@ -7,7 +7,7 @@ import { useState } from 'react';
 
 import type { WorkField } from '@/gql/graphql';
 import { AddSet } from '@/src/features';
-import type { Direction, FormFieldOption } from '@/src/shared';
+import type { Direction } from '@/src/shared';
 import { directionOptions, seriesOrderByOptions } from '@/src/shared/constants/formFields';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
@@ -15,7 +15,6 @@ import { IconButton, InputAdornment, InputLabel, TextField, TranslatedContent, T
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 type SetsHeaderProps = {
-  imprintOptions: FormFieldOption[];
   searchValue: string;
   direction: Direction;
   orderBy: string;
@@ -25,7 +24,7 @@ type SetsHeaderProps = {
 };
 
 export const SetsHeader = (props: SetsHeaderProps) => {
-  const { imprintOptions, searchValue, direction, orderBy, onSearch, changeDirection, changeOrderBy } = props;
+  const { searchValue, direction, orderBy, onSearch, changeDirection, changeOrderBy } = props;
 
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
@@ -60,7 +59,7 @@ export const SetsHeader = (props: SetsHeaderProps) => {
           <IconButton onClick={handleFilterOpen}>
             <FilterAltIcon color="primary" />
           </IconButton>
-          <AddSet imprintOptions={imprintOptions} />
+          <AddSet />
         </div>
       </div>
 

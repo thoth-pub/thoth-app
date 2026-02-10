@@ -15,6 +15,7 @@ import type {
 import { useLinkedPublishers, useUpdateContributor } from '@/src/entities/contributor';
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
+import { useUser } from '@/src/entities/user';
 import { useWork } from '@/src/entities/work';
 import { appConfig, type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, removePrefix } from '@/src/shared';
 import { useNotifications } from '@/src/shared/hooks';
@@ -22,7 +23,6 @@ import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMach
 
 type UseEditContributionProps = BaseEditSectionProps &
   Partial<{
-    isAdmin: boolean;
     linkedPublishers: PublisherId[];
     onNamesUpdate: (data: ContributionNamesForm) => void;
     onTypeUpdate: (data: ContributionTypeForm) => void;
@@ -39,7 +39,6 @@ type UseEditContributionProps = BaseEditSectionProps &
 export const useEditContribution = (props: UseEditContributionProps) => {
   const {
     workId,
-    isAdmin = false,
     linkedPublishers = [],
     onNamesUpdate,
     onTypeUpdate,
@@ -55,7 +54,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   const { activeContribution, close } = useContributionStateMachine();
   const { close: closeForm } = useFormStateMachine();
   const [contribution, setContribution] = useState<WorkContribution | null>(activeContribution);
-
+  const { user } = useUser();
   const { moveAffiliation } = useMoveAffiliation({ workId });
   const { work, updateContribution: updateWorkContribution } = useWork(workId);
   const { sendErrorNotification } = useNotifications();
@@ -111,8 +110,10 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     return contributions.every((contribution) => linkedPublishers.includes(contribution));
   }, [contributedToPublishers, workId]);
 
-  const isOrchidEditionDisabled = !!activeContribution?.orcidId && !isAdmin && !isContributedOnlyToCurrentPublisher;
-  const isWebsiteUrlEditionDisabled = !!activeContribution?.website && !isAdmin && !isContributedOnlyToCurrentPublisher;
+  const isOrchidEditionDisabled =
+    !!activeContribution?.orcidId && !user.isSuperuser && !isContributedOnlyToCurrentPublisher;
+  const isWebsiteUrlEditionDisabled =
+    !!activeContribution?.website && !user.isSuperuser && !isContributedOnlyToCurrentPublisher;
 
   const updateContribution = (data: WorkContribution) => {
     setContribution(data);

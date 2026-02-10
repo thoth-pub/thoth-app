@@ -2,7 +2,6 @@
 export { default as useCreateContact } from './api/hooks/useCreateContact';
 export { default as useDeleteContact } from './api/hooks/useDeleteContact';
 export { default as usePublisher } from './api/hooks/usePublisher';
-export { default as usePublishers } from './api/hooks/usePublishers';
 export { default as useUpdateContact } from './api/hooks/useUpdateContact';
 export { default as useUpdatePublisher } from './api/hooks/useUpdatePublisher';
 

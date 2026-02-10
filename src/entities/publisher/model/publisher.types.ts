@@ -28,8 +28,6 @@ export type PublisherId = string;
 
 export type ContactId = string;
 
-export type AuthorizedPublisher = PublisherEntity & { isAdmin: boolean };
-
 export type ContactEntity = {
   id: ContactId;
   type: ContactType;

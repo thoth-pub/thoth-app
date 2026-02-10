@@ -15,7 +15,6 @@ import { useEditContribution } from './useEditContribution';
 
 type EditContributionProps = BaseRecommendedSectionProps &
   Partial<{
-    isAdmin?: boolean;
     onNamesUpdate: (data: ContributionNamesForm) => void;
     onTypeUpdate: (data: ContributionTypeForm) => void;
     onBiographiesUpdate: (data: ContributionBiographyForm) => void;
@@ -31,7 +30,6 @@ const EditContribution = (props: EditContributionProps) => {
   const {
     recommended = false,
     workId,
-    isAdmin,
     onNamesUpdate,
     onTypeUpdate,
     onBiographiesUpdate,
@@ -63,7 +61,6 @@ const EditContribution = (props: EditContributionProps) => {
     moveAffiliation,
   } = useEditContribution({
     workId,
-    isAdmin,
     linkedPublishers: publishersIds,
     onNamesUpdate,
     onTypeUpdate,

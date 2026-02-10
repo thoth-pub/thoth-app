@@ -6,11 +6,10 @@ import type {
   ContributionBiographyForm,
   ContributionNamesForm,
   ContributionTypeForm,
+  WorkContribution,
 } from '@/src/entities/contribution/model/contribution.types';
-import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { EditContribution } from '@/src/features/contribution';
 
 type EditChaptersContributionsProps = {
@@ -33,7 +32,6 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
   } = props;
 
   const { activeContribution, close, update } = useContributionStateMachine();
-  const { isAdmin } = usePublisherStateMachine();
 
   useEffect(() => {
     return () => {
@@ -147,7 +145,6 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     <EditContribution
       recommended={showRecommendations}
       workId=""
-      isAdmin={isAdmin}
       onNamesUpdate={handleNamesUpdate}
       onTypeUpdate={handleTypeUpdate}
       onBiographiesUpdate={handleBiographiesUpdate}

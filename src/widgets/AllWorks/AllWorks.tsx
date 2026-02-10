@@ -1,7 +1,6 @@
 'use client';
 
-import { SeriesEntity } from '@/src/entities/series/model/series.types';
-import { type FormFieldOption, WORK_COPY_VARIANTS } from '@/src/shared';
+import { WORK_COPY_VARIANTS } from '@/src/shared';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { Header } from './components/Header';
@@ -10,14 +9,7 @@ import { WorksSpeedDial } from './components/WorksSpeedDial';
 import { WorksTable } from './components/WorksTable';
 import { useAllWorks } from './useAllWorks';
 
-type AllWorksProps = {
-  imprintsOptions: FormFieldOption[];
-  serieses: SeriesEntity[];
-};
-
-const AllWorks = (props: AllWorksProps) => {
-  const { imprintsOptions, serieses } = props;
-
+const AllWorks = () => {
   const {
     loading,
     works,
@@ -75,8 +67,6 @@ const AllWorks = (props: AllWorksProps) => {
         onCreateNewEdition={() => navigateToCopyWork(WORK_COPY_VARIANTS.REISSUE)}
       />
       <UploadModal
-        imprintsOptions={imprintsOptions}
-        serieses={serieses}
         isOpen={isUploadModalOpen}
         onClose={closeUpload}
       />

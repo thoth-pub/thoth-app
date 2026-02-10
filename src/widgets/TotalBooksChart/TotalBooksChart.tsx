@@ -17,9 +17,11 @@ const TotalBooksChart = () => {
   const { activePublisher } = usePublisherStateMachine();
   const isDesktop = useIsDesktop(1280);
 
-  const { bookCount } = useSuspenseBooksCount({ publishersIds: activePublisher ? [activePublisher] : [] });
-  const { bookCount: publishedBookCount } = usePublishedBooksCount(activePublisher ? [activePublisher] : []);
-  const { bookCount: forthcomingBookCount } = useForthcomingBooksCount(activePublisher ? [activePublisher] : []);
+  const publishersIds = activePublisher ? [activePublisher] : [];
+
+  const { bookCount } = useSuspenseBooksCount({ publishersIds });
+  const { bookCount: publishedBookCount } = usePublishedBooksCount(publishersIds);
+  const { bookCount: forthcomingBookCount } = useForthcomingBooksCount(publishersIds);
 
   const otherBooksCount = bookCount - publishedBookCount - forthcomingBookCount;
 

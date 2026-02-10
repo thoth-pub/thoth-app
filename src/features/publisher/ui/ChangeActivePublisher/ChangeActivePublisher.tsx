@@ -2,40 +2,34 @@
 
 import { useEffect } from 'react';
 
-import { type PublisherId, usePublishers } from '@/src/entities/publisher';
+import { type PublisherId } from '@/src/entities/publisher';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
+import { useUser } from '@/src/entities/user';
 import { convertEntityToSelectFieldOptions } from '@/src/shared';
 import { TextField } from '@/src/shared/ui';
 
 type ChangeActivePublisherProps = {
   isHidden?: boolean;
-  linkedPublishers: { publisherId: string; isAdmin: boolean }[];
-  isSuperAdmin: boolean;
 };
 
-const ChangeActivePublisher = ({
-  linkedPublishers,
-  isSuperAdmin = false,
-  isHidden = false,
-}: ChangeActivePublisherProps) => {
-  const ids = linkedPublishers.map((publisher) => publisher.publisherId);
-
-  const { publishers } = usePublishers(ids, isSuperAdmin);
+const ChangeActivePublisher = ({ isHidden = false }: ChangeActivePublisherProps) => {
+  const { user, loading } = useUser();
 
   const { activePublisher, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
 
-  const publishersOptions = convertEntityToSelectFieldOptions(publishers, 'name');
+  const authorizedPublishers = user.linkedPublishers.map((publisher) => ({
+    ...publisher,
+    name: publisher.publisherName,
+    id: publisher.publisherId,
+  }));
+
+  const publishersOptions = convertEntityToSelectFieldOptions(authorizedPublishers, 'name');
 
   useEffect(() => {
-    if (publishers.length === 0 || activePublisher) return;
+    if (loading || user.linkedPublishers.length === 0) return;
 
-    const authorizedPublishers = publishers.map((publisher) => ({
-      ...publisher,
-      isAdmin: isSuperAdmin,
-    }));
-
-    setLinkedPublishers(authorizedPublishers, isSuperAdmin);
-  }, [publishers]);
+    setLinkedPublishers(authorizedPublishers, user.isSuperuser);
+  }, [loading]);
 
   const handleUpdatePublisher = (publisher: PublisherId) => {
     changeActivePublisher(publisher);
@@ -65,7 +59,7 @@ const ChangeActivePublisher = ({
         },
       }}
       onChange={(e) => handleUpdatePublisher(e.target.value)}
-      disabled={publishers.length === 1}
+      disabled={publishersOptions.length <= 1}
     />
   );
 };

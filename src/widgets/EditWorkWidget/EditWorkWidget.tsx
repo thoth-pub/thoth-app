@@ -7,18 +7,15 @@ import { EditBasicDetails, EditContributors, EditDescriptions, EditFundings, Wor
 import EditPublications from '@/src/features/work/EditPublications/EditPublications';
 import EditReferences from '@/src/features/work/EditReferences/EditReferences';
 import EditWorkSeries from '@/src/features/work/EditWorkSeries/EditWorkSeries';
-import type { BaseEditSectionProps, FormFieldOption } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
 import { EditWorkChapters } from '../EditWorkChapters/EditWorkChapters';
 
-type EditWorkWidgetProps = BaseEditSectionProps & {
-  imprintOptions: FormFieldOption[];
-  isAdmin?: boolean;
-};
+type EditWorkWidgetProps = BaseEditSectionProps;
 
 const EditWorkWidget = (props: EditWorkWidgetProps) => {
-  const { imprintOptions, workId, isAdmin = false } = props;
+  const { workId } = props;
 
   const { close } = useFormStateMachine();
 
@@ -31,11 +28,11 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
   return (
     <div className="flex flex-col gap-8">
       <EditWorkHeader workId={workId} />
-      <EditBasicDetails workId={workId} imprintOptions={imprintOptions}>
+      <EditBasicDetails workId={workId}>
         <EditWorkSeries workId={workId} />
       </EditBasicDetails>
       <EditDescriptions workId={workId} />
-      <EditContributors workId={workId} isAdmin={isAdmin} />
+      <EditContributors workId={workId} />
       <EditWorkChapters workId={workId} />
       <EditPublications workId={workId} />
       <EditFundings workId={workId} />

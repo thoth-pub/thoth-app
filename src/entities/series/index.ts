@@ -1,4 +1,5 @@
 // API
+export { default as useAllUserSerieses } from './api/hooks/useAllUserSerieses';
 export { default as useCreateIssue } from './api/hooks/useCreateIssue';
 export { default as useCreateSeries } from './api/hooks/useCreateSeries';
 export { default as useDeleteIssue } from './api/hooks/useDeleteIssue';

@@ -1,4 +1,3 @@
-export * from './auth/session';
 export * from './contributions';
 export * from './convertations/date';
 export * from './convertations/dimensions';

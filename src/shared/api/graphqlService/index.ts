@@ -7,11 +7,15 @@ export class GraphqlService {
   async query<TResult, TVariables extends Variables>(
     query: TypedDocumentNode<TResult, TVariables>,
     variables: TVariables,
+    token?: string,
   ): Promise<TResult> {
+    const headers = getAuthorizationHeaders(token ?? '');
+  
     return request<TResult>(
       process.env.NEXT_PUBLIC_THOTH_API_URL ?? '',
       query as RequestDocument,
       variables as Variables,
+      headers,
     );
   }
 

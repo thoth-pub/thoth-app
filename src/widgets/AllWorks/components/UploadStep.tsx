@@ -3,9 +3,10 @@
 import UploadIcon from '@mui/icons-material/Upload';
 import { Activity, useState } from 'react';
 
-import type { SeriesEntity } from '@/src/entities/series/model/series.types';
+import { useAllUserSerieses } from '@/src/entities/series';
+import { useUser } from '@/src/entities/user';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
-import { FormFieldOption, SeriesForUpdateItems } from '@/src/shared';
+import { SeriesForUpdateItems } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { Button, Typography } from '@/src/shared/ui';
 
@@ -15,14 +16,14 @@ import { XMLParse } from './XMLParse';
 const { BULK_UPLOAD } = FORM_FIELDS;
 
 type UploadStepProps = {
-  imprintsOptions: FormFieldOption[];
-  serieses: SeriesEntity[];
   onPreview?: (works: WorkEntity[], chapters: WorkEntity[], serieses: SeriesForUpdateItems) => void;
 };
 
 export const UploadStep = (props: UploadStepProps) => {
-  const { imprintsOptions, serieses, onPreview } = props;
+  const { onPreview } = props;
 
+  const { userImprintsOptions } = useUser();
+  const { serieses } = useAllUserSerieses();
   const [files, setFiles] = useState<FileList | null>(null);
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
@@ -57,7 +58,7 @@ export const UploadStep = (props: UploadStepProps) => {
       {isCsv && (
         <CSVParse
           file={files[0]}
-          imprints={imprintsOptions}
+          imprints={userImprintsOptions}
           serieses={serieses}
           onValidationFailure={handleErrors}
           onPreview={onPreview}
@@ -66,7 +67,7 @@ export const UploadStep = (props: UploadStepProps) => {
       {isXml && (
         <XMLParse
           file={files[0]}
-          imprints={imprintsOptions}
+          imprints={userImprintsOptions}
           serieses={serieses}
           onValidationFailure={handleErrors}
           onPreview={onPreview}

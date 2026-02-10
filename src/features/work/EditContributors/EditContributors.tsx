@@ -8,12 +8,10 @@ import { AddContributionModal, AddNewContribution, EditContribution } from '@/sr
 import { ANCHORS, type BaseEditSectionProps, isDefaultId } from '@/src/shared';
 import { RecommendedSection } from '@/src/shared/ui';
 
-type EditContributorsProps = BaseEditSectionProps & {
-  isAdmin?: boolean;
-};
+type EditContributorsProps = BaseEditSectionProps;
 
 const EditContributors = (props: EditContributorsProps) => {
-  const { workId, isAdmin = false } = props;
+  const { workId } = props;
   const { activeContribution, close } = useContributionStateMachine();
 
   const { work } = useWork(workId);
@@ -40,7 +38,7 @@ const EditContributors = (props: EditContributorsProps) => {
         <>
           <WorkContributionsTable
             workId={workId}
-            form={<EditContribution recommended={showRecommendations} workId={workId} isAdmin={isAdmin} />}
+            form={<EditContribution recommended={showRecommendations} workId={workId} />}
             showRecommendations={showRecommendations}
           />
           {isNewContribution && <AddNewContribution recommended={showRecommendations} workId={workId} />}

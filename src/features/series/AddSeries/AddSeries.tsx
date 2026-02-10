@@ -14,7 +14,8 @@ import type {
   SeriesTypeFormType,
   SeriesUrlFormType,
 } from '@/src/entities/series/model/series.types';
-import { appConfig, FormFieldOption, isDefaultId, SeriesType } from '@/src/shared';
+import { useUser } from '@/src/entities/user';
+import { appConfig, isDefaultId, SeriesType } from '@/src/shared';
 import {
   CloseButton,
   Modal,
@@ -26,14 +27,11 @@ import {
   Typography,
 } from '@/src/shared/ui';
 
-type AddSeriesProps = {
-  imprintOptions: FormFieldOption[];
-};
-
-const AddSeries = ({ imprintOptions }: AddSeriesProps) => {
+const AddSeries = () => {
   const { activeSeries, edit, close } = useSeriesesStateMachine();
 
   const [series, setSeries] = useState(activeSeries);
+  const { userImprintsOptions } = useUser();
   const { createSeries } = useCreateSeries();
 
   const open = activeSeries && isDefaultId(activeSeries.id) ? true : false;
@@ -45,8 +43,8 @@ const AddSeries = ({ imprintOptions }: AddSeriesProps) => {
     issnDigital: '',
     type: SeriesType.enum.BookSeries,
     issues: [],
-    imprintId: imprintOptions.length > 0 ? imprintOptions[0].value : '',
-    imprintName: imprintOptions.length > 0 ? imprintOptions[0].label : '',
+    imprintId: userImprintsOptions.length > 0 ? userImprintsOptions[0].value : '',
+    imprintName: userImprintsOptions.length > 0 ? userImprintsOptions[0].label : '',
     url: '',
     description: '',
     updatedAt: '',
@@ -95,7 +93,7 @@ const AddSeries = ({ imprintOptions }: AddSeriesProps) => {
   const updateImprint = (data: SeriesImprintFormType) => {
     if (!series) return;
 
-    const imprintOption = imprintOptions.find((option) => option.value === data.imprintId);
+    const imprintOption = userImprintsOptions.find((option) => option.value === data.imprintId);
 
     if (!imprintOption) return;
 
@@ -152,7 +150,7 @@ const AddSeries = ({ imprintOptions }: AddSeriesProps) => {
           {series && (
             <EditSeriesForm
               borderTransparent
-              imprintOptions={imprintOptions}
+              imprintOptions={userImprintsOptions}
               type={series.type}
               name={series.name}
               issnPrint={series.issnPrint}

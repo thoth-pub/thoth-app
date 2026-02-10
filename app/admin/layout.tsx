@@ -1,6 +1,5 @@
 import { Navigation } from '@/src/features';
 
-// TODO: publishers
 const AdminLayout = async ({
   children,
 }: Readonly<{
@@ -8,7 +7,7 @@ const AdminLayout = async ({
 }>) => {
   return (
     <>
-      <Navigation linkedPublishers={[]} isSuperAdmin={true} />
+      <Navigation />
       <div className="scrollbar-hidden flex-1 overflow-scroll">{children}</div>
     </>
   );

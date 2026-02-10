@@ -19,6 +19,7 @@ import { ReferenceService } from '@/src/entities/reference/api/reference.service
 import { SeriesService } from '@/src/entities/series';
 import { SetService } from '@/src/entities/sets/api/set.service';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
+import { UserService } from '@/src/entities/user';
 import { WorkService } from '@/src/entities/work/api/work.service';
 
 import { NotificationService } from '../notifications/notification.service';
@@ -43,6 +44,7 @@ type ServicesMap = {
   languageService: LanguageService;
   notificationService: NotificationService;
   metadataService: MetadataService;
+  userService: UserService;
 };
 
 const defaultServices: ServicesMap = {
@@ -65,6 +67,7 @@ const defaultServices: ServicesMap = {
   languageService: new LanguageService(),
   notificationService: new NotificationService(),
   metadataService: new MetadataService(),
+  userService: new UserService()
 };
 
 const ServicesContext = createContext({

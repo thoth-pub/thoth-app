@@ -7,7 +7,8 @@ import { Activity, useState } from 'react';
 import { type SetEntity, useCreateSet } from '@/src/entities/sets';
 import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
 import { AddNewSetForm } from '@/src/entities/sets/ui/AddNewSetForm/AddNewSetForm';
-import { appConfig, FormFieldOption, isDefaultId, TitleEntity, WorkStatuses, WorkTypes } from '@/src/shared';
+import { useUser } from '@/src/entities/user';
+import { appConfig, isDefaultId, TitleEntity, WorkStatuses, WorkTypes } from '@/src/shared';
 import {
   CloseButton,
   Modal,
@@ -19,12 +20,9 @@ import {
   Typography,
 } from '@/src/shared/ui';
 
-type AddSetProps = {
-  imprintOptions: FormFieldOption[];
-};
-
-const AddSet = ({ imprintOptions }: AddSetProps) => {
+const AddSet = () => {
   const { activeSet, edit, close } = useSetStateMachine();
+  const { userImprintsOptions } = useUser();
 
   const { createSet } = useCreateSet();
 
@@ -37,7 +35,7 @@ const AddSet = ({ imprintOptions }: AddSetProps) => {
     titles: [],
     type: WorkTypes.enum.BookSet,
     updatedAt: '',
-    imprintId: imprintOptions.length > 0 ? imprintOptions[0].value : '',
+    imprintId: userImprintsOptions.length > 0 ? userImprintsOptions[0].value : '',
     status: WorkStatuses.enum.Forthcoming,
     edition: 1,
     volumesCount: 0,
@@ -115,7 +113,7 @@ const AddSet = ({ imprintOptions }: AddSetProps) => {
             {set && (
               <AddNewSetForm
                 set={set}
-                imprintOptions={imprintOptions}
+                imprintOptions={userImprintsOptions}
                 onUpdateImprint={updateImprint}
                 onUpdateTitles={updateTitles}
                 onDeleteTitle={deleteTitle}

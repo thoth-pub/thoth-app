@@ -24,6 +24,7 @@ export type FormTextFieldComponentProps<T extends FieldValues> = {
   isRorField?: boolean;
   isOrcidField?: boolean;
   id?: string;
+  isOptionsWithTranslations?: boolean;
 } & BaseFieldProps<T> &
   TextFieldProps;
 
@@ -46,6 +47,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     isUrlField = false,
     isRorField = false,
     isOrcidField = false,
+    isOptionsWithTranslations = false,
     children,
     ...restProps
   } = props;
@@ -72,7 +74,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
             error ? (
               error.message
             ) : (
-              <TranslatedContent content={helperText as string ?? ''} namespace={NAMESPACES.enum.forms} />
+              <TranslatedContent content={(helperText as string) ?? ''} namespace={NAMESPACES.enum.forms} />
             )
           }
           value={typeof value === 'string' ? removePrefix(value) : value}
@@ -148,6 +150,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
             },
           }}
           options={options}
+          isOptionsWithTranslations={isOptionsWithTranslations}
           {...restProps}
         >
           {children}

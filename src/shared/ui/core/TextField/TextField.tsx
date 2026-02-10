@@ -6,9 +6,9 @@ import type { FormFieldOption } from '@/src/shared/interfaces';
 
 import MenuItem from '../MenuItem/MenuItem';
 
-export type TextFieldProps = MuiTextFieldProps & { options?: FormFieldOption[] };
+export type TextFieldProps = MuiTextFieldProps & { options?: FormFieldOption[]; isOptionsWithTranslations?: boolean };
 
-const TextFieldComponent = ({ options, children, ...props }: TextFieldProps) => {
+const TextFieldComponent = ({ options, children, isOptionsWithTranslations = false, ...props }: TextFieldProps) => {
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.fieldOptions });
 
   return (
@@ -16,7 +16,7 @@ const TextFieldComponent = ({ options, children, ...props }: TextFieldProps) => 
       {options &&
         options.map((option) => (
           <MenuItem key={option.value} value={option.value}>
-            {t(option.label.toLowerCase())}
+            {isOptionsWithTranslations ? t(option.label.toLowerCase()) : option.label}
           </MenuItem>
         ))}
       {children}

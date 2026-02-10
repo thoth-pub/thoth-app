@@ -6,10 +6,9 @@ import UploadIcon from '@mui/icons-material/Upload';
 import { useRouter } from 'next/navigation';
 import { Activity, useState } from 'react';
 
-import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
-import { FormFieldOption, ROUTES, SeriesForUpdateItems } from '@/src/shared';
+import { ROUTES, SeriesForUpdateItems } from '@/src/shared';
 import { Step, StepLabel, Stepper } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
@@ -33,14 +32,12 @@ const steps = [
 ];
 
 type UploadModalProps = {
-  imprintsOptions: FormFieldOption[];
-  serieses: SeriesEntity[];
   isOpen: boolean;
   onClose: () => void;
 };
 
 export const UploadModal = (props: UploadModalProps) => {
-  const { imprintsOptions, serieses, isOpen, onClose } = props;
+  const { isOpen, onClose } = props;
 
   const router = useRouter();
 
@@ -89,7 +86,7 @@ export const UploadModal = (props: UploadModalProps) => {
         </Stepper>
         <TemplateStep />
         <Activity mode={isDataEmpty ? 'visible' : 'hidden'}>
-          <UploadStep imprintsOptions={imprintsOptions} serieses={serieses} onPreview={handlePreview} />
+          <UploadStep onPreview={handlePreview} />
         </Activity>
         <Activity mode={!isDataEmpty ? 'visible' : 'hidden'}>
           <PreviewStep works={works} chapters={chapters} serieses={updatedSerieses} onSubmit={handleSubmit} />
