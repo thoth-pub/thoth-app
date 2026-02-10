@@ -1,21 +1,20 @@
 'use client';
 
 import { Direction, WorkField, WorkStatus } from '@/gql/graphql';
-import { useSuspenseBooks } from '@/src/entities/book';
+import { useBooks } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { EditBookLink } from '@/src/features';
 
 export const BooksList = () => {
-  const { activePublisher, isAdmin } = usePublisherStateMachine();
-  const publishersIds = activePublisher ? [activePublisher] : [];
+  const { activePublisher } = usePublisherStateMachine();
+  const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
-  const { books } = useSuspenseBooks({
+  const { books } = useBooks({
     publishersIds,
     workStatus: WorkStatus.Active,
     limit: 3,
     direction: Direction.Desc,
     field: WorkField.UpdatedAt,
-    isAdmin,
   });
 
   return (

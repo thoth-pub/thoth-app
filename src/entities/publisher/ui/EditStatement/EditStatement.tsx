@@ -17,7 +17,7 @@ const { PUBLISHER_STATEMENT: PUBLISHER_STATEMENT_HELPER_TEXT } = HELPER_TEXT;
 
 const EditStatement = () => {
   const { activePublisher } = usePublisherStateMachine();
-  const publisherId = activePublisher ?? '';
+  const publisherId = activePublisher && activePublisher.id ? activePublisher.id : '';
   const { publisher } = usePublisher(publisherId);
   const { updatePublisher } = useUpdatePublisher(publisherId);
 

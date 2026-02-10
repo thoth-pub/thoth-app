@@ -32,7 +32,7 @@ export const AddBookModal = ({ setId, totalBooks }: { setId: SetId; totalBooks: 
 
   const { addToSet } = useAddToSet(setId);
 
-  const { activePublisher, isAdmin } = usePublisherStateMachine();
+  const { activePublisher } = usePublisherStateMachine();
   const {
     control,
     formState: { isValid, isDirty },
@@ -42,11 +42,11 @@ export const AddBookModal = ({ setId, totalBooks }: { setId: SetId; totalBooks: 
     resolver: zodResolver(setWorkValidationSchema),
   });
 
-  const publishersIds = activePublisher ? [activePublisher] : [];
+  const publishersIds = activePublisher ? [activePublisher.id] : [];
 
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
-  const { books, isLoading } = useBooks({ publishersIds, filter: debouncedValue, isAdmin });
+  const { books, isLoading } = useBooks({ publishersIds, filter: debouncedValue });
 
   const filteredBooks = books.filter((book) => book.issues.length === 0);
 

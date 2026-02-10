@@ -1,7 +1,4 @@
-import { Suspense } from 'react';
-
 import { BooksListWrapper, SectionWrapper } from '@/src/entities/book';
-import { EditWorkSkeleton } from '@/src/features';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { TranslatedContent } from '@/src/shared/ui';
 
@@ -13,9 +10,7 @@ const RecentlyPublishedBooks = () => {
       title={<TranslatedContent content="widgets.recently published" namespace={NAMESPACES.enum.dashboard} />}
     >
       <BooksListWrapper>
-        <Suspense fallback={<EditWorkSkeleton />}>
-          <BooksList />
-        </Suspense>
+        <BooksList />
       </BooksListWrapper>
     </SectionWrapper>
   );

@@ -17,8 +17,8 @@ export const useAllWorks = () => {
   const { createNewWorkEdition } = useCreateNewWorkEdition();
   const { createWorkTranslation } = useCreateWorkTranslation();
 
-  const { activePublisher, isAdmin } = usePublisherStateMachine();
-  const publishers = activePublisher ? [activePublisher] : [];
+  const { activePublisher } = usePublisherStateMachine();
+  const publishers = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
   const [workStatus, setWorkStatus] = useState<WorkStatus | 'All'>('All');
   const [workType, setWorkType] = useState<WorkType | 'All'>('All');
@@ -32,7 +32,6 @@ export const useAllWorks = () => {
 
   const baseProps = {
     publishersIds: publishers,
-    isAdmin,
     filter: debouncedValue,
     workStatus: workStatus === 'All' ? undefined : workStatus,
     workTypes:

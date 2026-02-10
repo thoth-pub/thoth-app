@@ -2,10 +2,8 @@
 
 import { useCallback } from 'react';
 
-import { PublisherId } from '@/src/entities/publisher';
-
 import { PublisherStateMachineContext } from '../publisher.provider';
-import { PublisherContext } from '../publisher.state-machine';
+import { LinkedPublisher, PublisherContext } from '../publisher.state-machine';
 
 const usePublisherStateMachine = () => {
   const linkedPublishers: PublisherContext['linkedPublishers'] = PublisherStateMachineContext.useSelector(
@@ -13,9 +11,6 @@ const usePublisherStateMachine = () => {
   );
   const activePublisher: PublisherContext['activePublisher'] = PublisherStateMachineContext.useSelector(
     (state) => state.context.activePublisher,
-  );
-  const isAdmin: PublisherContext['isSuperAdmin'] = PublisherStateMachineContext.useSelector(
-    (state) => state.context.isAdmin,
   );
   const actorRef = PublisherStateMachineContext.useActorRef();
 
@@ -31,8 +26,8 @@ const usePublisherStateMachine = () => {
   }, [actorRef]);
 
   const changeActivePublisher = useCallback(
-    (publisherId: PublisherId) => {
-      actorRef.send({ type: 'activePublisher.update', publisherId });
+    (publisher: LinkedPublisher) => {
+      actorRef.send({ type: 'activePublisher.update', publisher });
     },
     [actorRef],
   );
@@ -40,7 +35,6 @@ const usePublisherStateMachine = () => {
   return {
     linkedPublishers,
     activePublisher,
-    isAdmin,
     resetLinkedPublishers,
     changeActivePublisher,
     setLinkedPublishers,

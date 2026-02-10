@@ -2,7 +2,7 @@ import { assign, setup } from 'xstate';
 
 import type { PublisherId } from '../model/publisher.types';
 
-type LinkedPublisher = {
+export type LinkedPublisher = {
   id: PublisherId;
   name: string;
   publisherAdmin: boolean;
@@ -11,9 +11,8 @@ type LinkedPublisher = {
 };
 
 export type PublisherContext = {
-  activePublisher: PublisherId | null;
+  activePublisher: LinkedPublisher | null;
   linkedPublishers: LinkedPublisher[];
-  isSuperAdmin: boolean;
 };
 
 export const publisherStateMachine = setup({
@@ -26,7 +25,7 @@ export const publisherStateMachine = setup({
         }
       | {
           type: 'activePublisher.update';
-          publisherId: PublisherId;
+          publisher: LinkedPublisher;
         }
       | { type: 'resetLinkedPublishers' },
   },
@@ -36,7 +35,6 @@ export const publisherStateMachine = setup({
   context: {
     activePublisher: null,
     linkedPublishers: [],
-    isSuperAdmin: false,
   } as PublisherContext,
   states: {
     init: {
@@ -45,7 +43,7 @@ export const publisherStateMachine = setup({
           target: 'authenticated',
           actions: assign({
             linkedPublishers: ({ event }) => event?.linkedPublishers ?? [],
-            activePublisher: ({ event }) => event?.linkedPublishers[0]?.id ?? null,
+            activePublisher: ({ event }) => event?.linkedPublishers[0] ?? null,
           }),
         },
       },
@@ -55,11 +53,11 @@ export const publisherStateMachine = setup({
       on: {
         resetLinkedPublishers: {
           target: 'init',
-          actions: assign({ activePublisher: () => null, linkedPublishers: () => [], isSuperAdmin: false }),
+          actions: assign({ activePublisher: () => null, linkedPublishers: () => [] }),
         },
         'activePublisher.update': {
           actions: assign({
-            activePublisher: ({ event }) => event?.publisherId ?? null,
+            activePublisher: ({ event }) => event?.publisher ?? null,
           }),
         },
       },

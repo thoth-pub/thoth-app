@@ -1,12 +1,14 @@
 'use client';
 
+import { usePathname, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 import { type PublisherId } from '@/src/entities/publisher';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { useUser } from '@/src/entities/user';
-import { convertEntityToSelectFieldOptions } from '@/src/shared';
+import { convertEntityToSelectFieldOptions, ROUTES } from '@/src/shared';
 import { TextField } from '@/src/shared/ui';
+import { isRouteIncludesUUID } from '@/src/shared/utils/routes';
 
 type ChangeActivePublisherProps = {
   isHidden?: boolean;
@@ -14,6 +16,8 @@ type ChangeActivePublisherProps = {
 
 const ChangeActivePublisher = ({ isHidden = false }: ChangeActivePublisherProps) => {
   const { user, loading } = useUser();
+  const pathname = usePathname();
+  const router = useRouter();
 
   const { activePublisher, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
 
@@ -31,14 +35,26 @@ const ChangeActivePublisher = ({ isHidden = false }: ChangeActivePublisherProps)
     setLinkedPublishers(authorizedPublishers, user.isSuperuser);
   }, [loading]);
 
-  const handleUpdatePublisher = (publisher: PublisherId) => {
+  const handleUpdatePublisher = (publisherId: PublisherId) => {
+    const publisher = authorizedPublishers.find((publisher) => publisher.id === publisherId);
+
+    if (!publisher) return;
+
     changeActivePublisher(publisher);
+
+    const isEditingWork = isRouteIncludesUUID(pathname);
+
+    if (!isEditingWork) return;
+
+    router.push(ROUTES.DASHBOARD);
   };
+
+  console.log(activePublisher);
 
   return (
     <TextField
       options={publishersOptions}
-      value={activePublisher}
+      value={activePublisher?.id ?? ''}
       fullWidth
       select
       className={`w-[240px] shrink-0 ${isHidden ? 'opacity-0' : 'opacity-100'}`}

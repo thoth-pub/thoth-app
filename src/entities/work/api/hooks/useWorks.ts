@@ -10,7 +10,6 @@ import { WorkType } from '../../model/work.types';
 
 type UseWorksProps = {
   publishersIds: PublisherId[];
-  isAdmin: boolean;
   offset?: number;
   limit?: number;
   direction?: Direction;
@@ -30,7 +29,6 @@ const useWorks = (props: UseWorksProps) => {
     workStatus,
     workTypes,
     field,
-    isAdmin = false,
   } = props;
 
   const { workService } = useServices();
@@ -40,20 +38,10 @@ const useWorks = (props: UseWorksProps) => {
     error,
     isLoading,
   } = useQuery({
-    queryKey: [
-      QueryKeys.works,
-      ...publishersIds,
-      isAdmin,
-      offset,
-      limit,
-      direction,
-      filter,
-      workStatus,
-      workTypes,
-      field,
-    ],
+    queryKey: [QueryKeys.works, ...publishersIds, offset, limit, direction, filter, workStatus, workTypes, field],
     queryFn: () =>
       workService.getWorks({ publishersIds, offset, limit, direction, filter, workStatus, workTypes, field }),
+    enabled: publishersIds.length > 0,
   });
 
   return { works, error, loading: isLoading };

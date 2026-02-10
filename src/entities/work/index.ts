@@ -10,7 +10,6 @@ export { default as useDeleteAbstract } from './api/hooks/useDeleteAbstract';
 export { default as useDeleteChapter } from './api/hooks/useDeleteChapter';
 export { default as useDeleteTitle } from './api/hooks/useDeleteTitle';
 export { default as useGetWork } from './api/hooks/useGetWork';
-export { default as useSuspendedWorks } from './api/hooks/useSuspendedWorks';
 export { default as useTranslatedWorks } from './api/hooks/useTranslatedWorks';
 export { default as useUpdateAbstract } from './api/hooks/useUpdateAbstract';
 export { default as useUpdateTitle } from './api/hooks/useUpdateTitle';

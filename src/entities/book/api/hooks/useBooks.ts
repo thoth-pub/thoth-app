@@ -6,7 +6,6 @@ import { appConfig, type Direction, QueryKeys, useServices } from '@/src/shared'
 
 type UseBooksProps = {
   publishersIds: PublisherId[];
-  isAdmin: boolean;
   offset?: number;
   limit?: number;
   direction?: Direction;
@@ -28,7 +27,6 @@ const useBooks = (props: UseBooksProps) => {
     startedAt,
     expression,
     field,
-    isAdmin = false,
   } = props;
 
   const { bookService } = useServices();
@@ -41,7 +39,6 @@ const useBooks = (props: UseBooksProps) => {
     queryKey: [
       QueryKeys.books,
       ...publishersIds,
-      isAdmin,
       offset,
       limit,
       direction,
@@ -63,6 +60,7 @@ const useBooks = (props: UseBooksProps) => {
         expression,
         field,
       }),
+    enabled: publishersIds.length > 0,
   });
 
   return { books, error, isLoading };

@@ -41,7 +41,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
 
   const lastIssueOrdinal = series.issues.sort((a, b) => a.ordinal - b.ordinal).at(-1)?.ordinal ?? 1;
 
-  const { activePublisher, isAdmin } = usePublisherStateMachine();
+  const { activePublisher } = usePublisherStateMachine();
   const {
     control,
     formState: { isValid, isDirty },
@@ -54,11 +54,11 @@ export const AddBookModal = (props: AddBookModalProps) => {
     resolver: zodResolver(issueValidationSchema),
   });
 
-  const publishersIds = activePublisher ? [activePublisher] : [];
+  const publishersIds = activePublisher ? [activePublisher.id] : [];
 
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
-  const { books, isLoading } = useBooks({ publishersIds, filter: debouncedValue, isAdmin });
+  const { books, isLoading } = useBooks({ publishersIds, filter: debouncedValue });
   const { createIssue } = useCreateIssue();
 
   const filteredBooks = books.filter((book) => book.issues.length === 0);

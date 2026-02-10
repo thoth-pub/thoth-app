@@ -12,8 +12,8 @@ import { useDebouncedValue } from '@/src/shared/hooks';
 const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 
 export const useSetsTable = () => {
-  const { activePublisher, isAdmin } = usePublisherStateMachine();
-  const publishers = activePublisher ? [activePublisher] : [];
+  const { activePublisher } = usePublisherStateMachine();
+  const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
   const [activePage, setActivePage] = useState(1);
   const [direction, setDirection] = useState(Direction.Asc);
@@ -22,8 +22,9 @@ export const useSetsTable = () => {
 
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
 
-  const { setsCount } = useSetsCount(publishers, isAdmin);
+  const { setsCount } = useSetsCount(publishersIds);
   const { sets, loading } = useSets({
+    publishersIds,
     offset: (activePage - 1) * ITEMS_PER_PAGE,
     limit: ITEMS_PER_PAGE,
     direction,

@@ -24,9 +24,9 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
   const { work } = useWork(workId);
   const [searchValue, setSearchValue] = useState(work.issues[0]?.seriesName ?? '');
   const { activePublisher } = usePublisherStateMachine();
-
+  const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
-  const { serieses, loading } = useSerieses({ filter: debouncedValue });
+  const { serieses, loading } = useSerieses({ publishersIds, filter: debouncedValue });
 
   const options = convertEntityToSelectFieldOptions(serieses, 'name');
 

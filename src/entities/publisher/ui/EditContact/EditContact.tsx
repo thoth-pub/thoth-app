@@ -27,7 +27,7 @@ const { PUBLISHER_CONTACT: PUBLISHER_CONTACT_HELPER_TEXT } = HELPER_TEXT;
 
 const EditContact = () => {
   const { activePublisher } = usePublisherStateMachine();
-  const publisherId = activePublisher ?? '';
+  const publisherId = activePublisher?.id ?? '';
   const { publisher } = usePublisher(publisherId);
   const { user } = useUser();
   const { createContact } = useCreateContact(publisherId);
@@ -44,11 +44,11 @@ const EditContact = () => {
 
     const existingContact = publisher.contacts.find(({ type }) => type === contact);
 
-    if (existingContact) return;
+    if (existingContact || publisherId === '') return;
 
     createContact({
       data: { type: contact, email: user.email, id: appConfig.defaultId },
-      publisherId: activePublisher,
+      publisherId,
     });
   };
 

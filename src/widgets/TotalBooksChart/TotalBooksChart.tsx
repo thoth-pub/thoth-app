@@ -2,12 +2,7 @@
 
 import { PieChart } from '@mui/x-charts';
 
-import {
-  ChartWrapper,
-  useForthcomingBooksCount,
-  usePublishedBooksCount,
-  useSuspenseBooksCount,
-} from '@/src/entities/book';
+import { ChartWrapper, useBooksCount, useForthcomingBooksCount, usePublishedBooksCount } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useIsDesktop } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
@@ -17,9 +12,9 @@ const TotalBooksChart = () => {
   const { activePublisher } = usePublisherStateMachine();
   const isDesktop = useIsDesktop(1280);
 
-  const publishersIds = activePublisher ? [activePublisher] : [];
+  const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
-  const { bookCount } = useSuspenseBooksCount({ publishersIds });
+  const { bookCount } = useBooksCount({ publishersIds });
   const { bookCount: publishedBookCount } = usePublishedBooksCount(publishersIds);
   const { bookCount: forthcomingBookCount } = useForthcomingBooksCount(publishersIds);
 

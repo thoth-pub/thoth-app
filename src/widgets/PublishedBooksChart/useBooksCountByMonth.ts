@@ -1,9 +1,12 @@
 import { Expression } from '@/gql/graphql';
-import { useSuspenseBooksCount } from '@/src/entities/book';
-import type { PublisherId } from '@/src/entities/publisher';
+import { useBooksCount } from '@/src/entities/book';
+import { usePublisherStateMachine } from '@/src/entities/publisher';
 
-export const useBooksCountByMonth = (publishersIds: PublisherId[], date: string) => {
-  const { bookCount = 0 } = useSuspenseBooksCount({
+export const useBooksCountByMonth = (date: string) => {
+  const { activePublisher } = usePublisherStateMachine();
+  const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
+
+  const { bookCount = 0 } = useBooksCount({
     publishersIds,
     publishedAt: date,
     expression: Expression.GreaterThan,

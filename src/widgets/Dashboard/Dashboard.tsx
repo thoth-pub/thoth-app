@@ -1,10 +1,9 @@
 import AddIcon from '@mui/icons-material/Add';
 import NextLink from 'next/link';
-import { Suspense } from 'react';
 
 import { ROUTES } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { Button, DashboardChartSkeleton, TranslatedContent, Typography } from '@/src/shared/ui';
+import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { PublishedBooksChart, TotalBooksChart } from '@/src/widgets';
 
@@ -28,12 +27,8 @@ const Dashboard = () => {
       </ContentSection>
 
       <div className="flex min-h-30 w-full flex-wrap gap-[15px] xl:min-h-40">
-        <Suspense fallback={<DashboardChartSkeleton />}>
-          <TotalBooksChart />
-        </Suspense>
-        <Suspense fallback={<DashboardChartSkeleton />}>
-          <PublishedBooksChart />
-        </Suspense>
+        <TotalBooksChart />
+        <PublishedBooksChart />
       </div>
 
       <RecentlyUpdatedBooks />

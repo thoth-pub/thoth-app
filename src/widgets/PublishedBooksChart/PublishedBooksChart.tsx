@@ -2,10 +2,8 @@
 
 import ArrowDropUpRoundedIcon from '@mui/icons-material/ArrowDropUpRounded';
 import { BarChart } from '@mui/x-charts';
-import { useMemo } from 'react';
 
 import { ChartWrapper } from '@/src/entities/book';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { getMonthName, getStartOfTheCurrentMonthDate, substractMonthesFromDate } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
@@ -15,9 +13,6 @@ import { useBooksCountByMonth } from './useBooksCountByMonth';
 
 const PublishedBooksChart = () => {
   const isDesktop = useIsDesktop(1280);
-
-  const { activePublisher } = usePublisherStateMachine();
-  const publishersIds = useMemo(() => (activePublisher ? [activePublisher] : []), [activePublisher]);
 
   const firstMonthDate = getStartOfTheCurrentMonthDate();
   const secondMonthDate = substractMonthesFromDate(firstMonthDate, 1);
@@ -33,19 +28,19 @@ const PublishedBooksChart = () => {
   const twelfthMonthDate = substractMonthesFromDate(eleventhMonthDate, 1);
   const prevYearBooksDate = substractMonthesFromDate(firstMonthDate, 24);
 
-  const { bookCount: firstMonthBooksCount } = useBooksCountByMonth(publishersIds, firstMonthDate);
-  const { bookCount: secondMonthBooksCount } = useBooksCountByMonth(publishersIds, secondMonthDate);
-  const { bookCount: thirdMonthBooksCount } = useBooksCountByMonth(publishersIds, thirdMonthDate);
-  const { bookCount: fourthMonthBooksCount } = useBooksCountByMonth(publishersIds, fourthMonthDate);
-  const { bookCount: fifthMonthBooksCount } = useBooksCountByMonth(publishersIds, fifthMonthDate);
-  const { bookCount: sixthMonthBooksCount } = useBooksCountByMonth(publishersIds, sixthMonthDate);
-  const { bookCount: seventhMonthBooksCount } = useBooksCountByMonth(publishersIds, seventhMonthDate);
-  const { bookCount: eighthMonthBooksCount } = useBooksCountByMonth(publishersIds, eighthMonthDate);
-  const { bookCount: ninthMonthBooksCount } = useBooksCountByMonth(publishersIds, ninthMonthDate);
-  const { bookCount: tenthMonthBooksCount } = useBooksCountByMonth(publishersIds, tenthMonthDate);
-  const { bookCount: eleventhMonthBooksCount } = useBooksCountByMonth(publishersIds, eleventhMonthDate);
-  const { bookCount: twelfthMonthBooksCount } = useBooksCountByMonth(publishersIds, twelfthMonthDate);
-  const { bookCount: prevYearBooksCount } = useBooksCountByMonth(publishersIds, prevYearBooksDate);
+  const { bookCount: firstMonthBooksCount } = useBooksCountByMonth(firstMonthDate);
+  const { bookCount: secondMonthBooksCount } = useBooksCountByMonth(secondMonthDate);
+  const { bookCount: thirdMonthBooksCount } = useBooksCountByMonth(thirdMonthDate);
+  const { bookCount: fourthMonthBooksCount } = useBooksCountByMonth(fourthMonthDate);
+  const { bookCount: fifthMonthBooksCount } = useBooksCountByMonth(fifthMonthDate);
+  const { bookCount: sixthMonthBooksCount } = useBooksCountByMonth(sixthMonthDate);
+  const { bookCount: seventhMonthBooksCount } = useBooksCountByMonth(seventhMonthDate);
+  const { bookCount: eighthMonthBooksCount } = useBooksCountByMonth(eighthMonthDate);
+  const { bookCount: ninthMonthBooksCount } = useBooksCountByMonth(ninthMonthDate);
+  const { bookCount: tenthMonthBooksCount } = useBooksCountByMonth(tenthMonthDate);
+  const { bookCount: eleventhMonthBooksCount } = useBooksCountByMonth(eleventhMonthDate);
+  const { bookCount: twelfthMonthBooksCount } = useBooksCountByMonth(twelfthMonthDate);
+  const { bookCount: prevYearBooksCount } = useBooksCountByMonth(prevYearBooksDate);
 
   const substractedSecondMonthBooksCount = secondMonthBooksCount - firstMonthBooksCount;
   const substractedThirdMonthBooksCount = thirdMonthBooksCount - secondMonthBooksCount;

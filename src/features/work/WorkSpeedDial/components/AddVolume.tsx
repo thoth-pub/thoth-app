@@ -4,6 +4,7 @@ import AddIcon from '@mui/icons-material/Add';
 import SearchIcon from '@mui/icons-material/Search';
 import { Activity, ChangeEvent, useState } from 'react';
 
+import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { EditSetTitle, SetEntity, SetId, SetTitleFormType, useAddToSet, useCreateSet } from '@/src/entities/sets';
 import useSets from '@/src/entities/sets/api/hooks/useSets';
 import { useWork } from '@/src/entities/work';
@@ -39,7 +40,8 @@ export const AddVolume = (props: AddVolumeProps) => {
   const { workId, open, onClose } = props;
 
   const { work } = useWork(workId);
-
+  const { activePublisher } = usePublisherStateMachine();
+  const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
   const defaultSet: SetEntity = {
     id: appConfig.defaultId,
     titles: [],
@@ -58,7 +60,7 @@ export const AddVolume = (props: AddVolumeProps) => {
   const [set, setSet] = useState(defaultSet);
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
-  const { sets, loading } = useSets({ filter: debouncedValue });
+  const { sets, loading } = useSets({ publishersIds, filter: debouncedValue });
   const [selectedSet, setSelectedSet] = useState<SetId | ''>('');
 
   const isNewStep = selected === STEPS.NEW;

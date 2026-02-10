@@ -26,7 +26,7 @@ const { WORK_COPY } = FORM_FIELDS;
 const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
   const { createWorkTranslation, loading: isCreatingWorkTranslation } = useCreateWorkTranslation();
   const { createNewWorkEdition, loading: isCreatingNewWorkEdition } = useCreateNewWorkEdition();
-  const { activePublisher, isAdmin } = usePublisherStateMachine();
+  const { activePublisher } = usePublisherStateMachine();
   const {
     control,
     formState: { isValid, isDirty },
@@ -35,14 +35,13 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
     resolver: zodResolver(workCopyValidationSchema),
   });
 
-  const publishersIds = activePublisher ? [activePublisher] : [];
+  const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { books, isLoading } = useBooks({
     publishersIds,
     filter: debouncedValue,
-    isAdmin,
   });
 
   const latestBooks = useRef<WorkEntity[]>([]);

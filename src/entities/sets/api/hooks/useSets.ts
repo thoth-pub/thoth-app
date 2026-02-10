@@ -1,10 +1,11 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { Direction, WorkField } from '@/gql/graphql';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
+import { PublisherId } from '@/src/entities/publisher';
 import { appConfig, QueryKeys, useServices } from '@/src/shared';
 
 type UseSeriesProps = {
+  publishersIds: PublisherId[];
   offset?: number;
   limit?: number;
   direction?: Direction;
@@ -13,20 +14,25 @@ type UseSeriesProps = {
 };
 
 const useSets = (props: UseSeriesProps) => {
-  const { offset = 0, limit = appConfig.data.itemsPerRequestLimit, filter = '', field, direction } = props;
+  const {
+    publishersIds,
+    offset = 0,
+    limit = appConfig.data.itemsPerRequestLimit,
+    filter = '',
+    field,
+    direction,
+  } = props;
 
-  const { activePublisher } = usePublisherStateMachine();
   const { setService } = useServices();
-
-  const publisherId = activePublisher ? [activePublisher] : [];
 
   const {
     data: sets = [],
     error,
     isLoading,
   } = useQuery({
-    queryKey: [QueryKeys.sets, publisherId, filter, offset, limit, direction, field],
-    queryFn: () => setService.getSets({ publishersIds: publisherId, offset, limit, filter, direction, field }),
+    queryKey: [QueryKeys.sets, ...publishersIds, filter, offset, limit, direction, field],
+    queryFn: () => setService.getSets({ publishersIds, offset, limit, filter, direction, field }),
+    enabled: publishersIds.length > 0,
   });
 
   return { sets, error, loading: isLoading };
