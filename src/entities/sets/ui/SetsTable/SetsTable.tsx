@@ -44,7 +44,7 @@ const SetsTable = (props: SetsTableProps) => {
   return (
     <>
       <TableWrapper>
-        <TableHeader cells={['title', 'updatedAt']} cellStyles={['w-[210px] pl-3', 'w-[110px]']} />
+        <TableHeader cells={['title', 'updated at']} cellStyles={['w-[210px] pl-3', 'w-[110px]']} />
         <TableBody>
           {!loading && sets.length === 0 && (
             <TableRow className="cursor-auto! hover:bg-transparent!">

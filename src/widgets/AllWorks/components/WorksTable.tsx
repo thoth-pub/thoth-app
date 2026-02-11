@@ -7,6 +7,7 @@ import TranslateIcon from '@mui/icons-material/Translate';
 import { WorkStatusChip } from '@/src/entities/work';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   ButtonGroup,
   CircularProgress,
@@ -18,6 +19,7 @@ import {
   TableHeader,
   TableRow,
   TableWrapper,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 
@@ -40,14 +42,14 @@ export const WorksTable = (props: WorksTableProps) => {
     <>
       <TableWrapper>
         <TableHeader
-          cells={['ID', 'Title', 'Status', 'Type', 'Contributors', 'Updated At']}
+          cells={['ID', 'title', 'status', 'type', 'contributors', 'updated at']}
           cellStyles={[
-            'min-w-[90px] pl-3',
-            'min-w-[210px]',
-            'min-w-[120px]',
-            'min-w-[120px]',
-            'min-w-[250px]',
-            'min-w-[250px]',
+            'min-w-[90px] pl-3 capitalize',
+            'min-w-[210px] capitalize',
+            'min-w-[120px] capitalize',
+            'min-w-[120px] capitalize',
+            'min-w-[250px] capitalize',
+            'min-w-[250px] capitalize',
           ]}
         />
         <TableBody>
@@ -55,7 +57,7 @@ export const WorksTable = (props: WorksTableProps) => {
             <TableRow className="cursor-auto! hover:bg-transparent!">
               <TableCell colSpan={6} className="text-center">
                 <Typography variant="body1" component="span">
-                  No books found
+                  <TranslatedContent content="emptyTable" namespace={NAMESPACES.enum.works} />
                 </Typography>
               </TableCell>
             </TableRow>

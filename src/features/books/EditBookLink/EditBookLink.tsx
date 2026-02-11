@@ -8,7 +8,6 @@ import { WorkStatusChip } from '@/src/entities/work';
 import type { WorkStatus } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, getMainTitle, ROUTES, TitleEntity } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
-import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { DashboardContentWrapper, ImageWithFallback, TranslatedContent, Typography } from '@/src/shared/ui';
 
 type EditBookLinkProps = {
@@ -52,10 +51,7 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
               <Typography className="max-w-[240px] truncate xl:max-w-[360px]">{mainContributor}</Typography>
               <div className="flex items-center gap-4">
                 <Typography className="truncate capitalize">
-                  <TranslatedContent
-                    content={`types.${convertOptionToString(convertedType).toLowerCase()}`}
-                    namespace={NAMESPACES.enum.work}
-                  />
+                  <TranslatedContent content={convertOptionToString(convertedType).toLowerCase()} />
                 </Typography>
                 <WorkStatusChip status={status} />
               </div>

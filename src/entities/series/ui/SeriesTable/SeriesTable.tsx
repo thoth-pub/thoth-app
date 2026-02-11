@@ -44,7 +44,7 @@ const SeriesTable = (props: SeriesTableProps) => {
     <>
       <TableWrapper>
         <TableHeader
-          cells={['name', 'description', 'type', 'issn', 'updatedAt']}
+          cells={['name', 'description', 'type', 'issn', 'updated at']}
           cellStyles={[
             'w-[210px] pl-3 capitalize',
             'w-[210px] capitalize',

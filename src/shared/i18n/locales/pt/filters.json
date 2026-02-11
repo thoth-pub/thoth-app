@@ -1,5 +1,6 @@
 {
   "orderBy": "Order by",
   "direction": "Direction",
-  "searchByTitle": "Buscar por título"
+  "searchByTitle": "Buscar por título",
+  "worksSearch": "Buscar por título, DOI, referência interna"
 }

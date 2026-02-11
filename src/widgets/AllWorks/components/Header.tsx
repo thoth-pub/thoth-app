@@ -9,8 +9,9 @@ import { WorkField } from '@/gql/graphql';
 import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
 import type { Direction } from '@/src/shared';
 import { directionOptions, workOrderByOptions, workStatusOptionsAlt } from '@/src/shared/constants/formFields';
-import { useWorkTypeOptions } from '@/src/shared/hooks';
-import { IconButton, InputAdornment, InputLabel, TextField, Typography } from '@/src/shared/ui';
+import { useTypedTranslation, useWorkTypeOptions } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { IconButton, InputAdornment, InputLabel, TextField, TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 type HeaderProps = {
@@ -41,7 +42,7 @@ export const Header = (props: HeaderProps) => {
   } = props;
 
   const workTypeOptions = useWorkTypeOptions();
-
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.filters });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const handleFilterOpen = () => {
@@ -52,7 +53,7 @@ export const Header = (props: HeaderProps) => {
     <ContentSection>
       <div className="flex items-center justify-between gap-2">
         <Typography variant="h1" className="pl-3">
-          Books
+          <TranslatedContent content="books" namespace={NAMESPACES.enum.navigation} />
         </Typography>
         <TextField
           slotProps={{
@@ -66,7 +67,7 @@ export const Header = (props: HeaderProps) => {
           }}
           value={searchValue}
           className="grow"
-          placeholder="Search by title, DOI, internal reference"
+          placeholder={t('worksSearch')}
           fullWidth
           onChange={(e) => onSearch(e.target.value)}
           autoFocus
@@ -86,34 +87,45 @@ export const Header = (props: HeaderProps) => {
             className="grid grid-cols-2 gap-2 transition-all duration-1000 lg:grid-cols-4"
           >
             <div className="flex flex-col gap-2">
-              <InputLabel>Status</InputLabel>
+              <InputLabel className="capitalize">
+                <TranslatedContent content="status" />
+              </InputLabel>
               <TextField
                 select
                 options={[...workStatusOptionsAlt, { value: 'All', label: 'All' }]}
                 value={workStatus}
                 onChange={(e) => changeWorkStatus(e.target.value as WorkStatus | 'All')}
+                translateOptions
               />
             </div>
             <div className="flex flex-col gap-2">
-              <InputLabel>Type</InputLabel>
+              <InputLabel className="capitalize">
+                <TranslatedContent content="type" />
+              </InputLabel>
               <TextField
                 select
                 options={[...workTypeOptions, { value: 'All', label: 'All' }]}
                 value={workType}
                 onChange={(e) => changeWorkType(e.target.value as WorkType | 'All')}
+                translateOptions
               />
             </div>
             <div className="flex flex-col gap-2">
-              <InputLabel>Order by</InputLabel>
+              <InputLabel className="capitalize">
+                <TranslatedContent content="orderBy" namespace={NAMESPACES.enum.filters} />
+              </InputLabel>
               <TextField
                 select
                 options={workOrderByOptions}
                 value={orderBy}
                 onChange={(e) => changeOrderBy(e.target.value as WorkField)}
+                translateOptions
               />
             </div>
             <div className="flex flex-col gap-2">
-              <InputLabel>Direction</InputLabel>
+              <InputLabel className="capitalize">
+                <TranslatedContent content="direction" namespace={NAMESPACES.enum.filters} />
+              </InputLabel>
               <TextField
                 select
                 options={directionOptions}

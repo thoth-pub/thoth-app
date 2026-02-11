@@ -40,7 +40,7 @@ const Preview = (props: PreviewProps) => {
     editButtonClassName,
     addButtonText,
     namespace = NAMESPACES.enum.forms,
-    valueNamespace = NAMESPACES.enum.fieldOptions,
+    valueNamespace = NAMESPACES.enum.common,
     onEdit,
   } = props;
 

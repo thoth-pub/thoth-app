@@ -11,7 +11,7 @@ import { CircularProgress, DashboardContentWrapper, TranslatedContent, Typograph
 const TotalBooksChart = () => {
   const { activePublisher } = usePublisherStateMachine();
   const isDesktop = useIsDesktop(1280);
-  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.work });
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
   const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
@@ -25,9 +25,9 @@ const TotalBooksChart = () => {
 
   const chartData: { label: string; value: number; color: string }[] = [];
 
-  const activeLabel = t('statuses.active')[0].toUpperCase() + t('statuses.active').slice(1);
-  const forthcomingLabel = t('statuses.forthcoming')[0].toUpperCase() + t('statuses.forthcoming').slice(1);
-  const otherLabel = t('statuses.other')[0].toUpperCase() + t('statuses.other').slice(1);
+  const activeLabel = t('active')[0].toUpperCase() + t('active').slice(1);
+  const forthcomingLabel = t('forthcoming')[0].toUpperCase() + t('forthcoming').slice(1);
+  const otherLabel = t('other')[0].toUpperCase() + t('other').slice(1);
 
   if (publishedBookCount > 0) {
     chartData.push({ label: activeLabel, value: publishedBookCount, color: 'var(--color-success)' });
@@ -87,18 +87,17 @@ const TotalBooksChart = () => {
           <ul className="flex list-disc flex-col gap-1 pl-4 xl:pl-8">
             {publishedBookCount > 0 && (
               <Typography component="li" className="list-item capitalize marker:text-(--color-success)">
-                {publishedBookCount} <TranslatedContent content="statuses.active" namespace={NAMESPACES.enum.work} />
+                {publishedBookCount} <TranslatedContent content="active" />
               </Typography>
             )}
             {forthcomingBookCount > 0 && (
               <Typography component="li" className="list-item capitalize marker:text-(--color-warning)">
-                {forthcomingBookCount}{' '}
-                <TranslatedContent content="statuses.forthcoming" namespace={NAMESPACES.enum.work} />
+                {forthcomingBookCount} <TranslatedContent content="forthcoming" />
               </Typography>
             )}
             {otherBooksCount > 0 && (
               <Typography component="li" className="list-item capitalize marker:text-(--color-error)">
-                {otherBooksCount} <TranslatedContent content="statuses.other" namespace={NAMESPACES.enum.work} />
+                {otherBooksCount} <TranslatedContent content="other" />
               </Typography>
             )}
           </ul>

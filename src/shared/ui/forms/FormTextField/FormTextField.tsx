@@ -8,7 +8,7 @@ import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
 import { appConfig, removePrefix } from '@/src/shared';
 import { InputTypes } from '@/src/shared/constants/formFields';
-import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { Namespace, NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
 
 import TextField, { type TextFieldProps } from '../../core/TextField/TextField';
@@ -24,7 +24,8 @@ export type FormTextFieldComponentProps<T extends FieldValues> = {
   isRorField?: boolean;
   isOrcidField?: boolean;
   id?: string;
-  isOptionsWithTranslations?: boolean;
+  translateOptions?: boolean;
+  namespace?: Namespace;
 } & BaseFieldProps<T> &
   TextFieldProps;
 
@@ -47,7 +48,8 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     isUrlField = false,
     isRorField = false,
     isOrcidField = false,
-    isOptionsWithTranslations = false,
+    translateOptions = false,
+    namespace,
     children,
     ...restProps
   } = props;
@@ -70,6 +72,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
         <TextField
           {...field}
           error={!!error}
+          namespace={namespace}
           helperText={
             error ? (
               error.message
@@ -150,7 +153,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
             },
           }}
           options={options}
-          isOptionsWithTranslations={isOptionsWithTranslations}
+          translateOptions={translateOptions}
           {...restProps}
         >
           {children}

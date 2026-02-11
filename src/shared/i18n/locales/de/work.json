@@ -1,17 +1,1 @@
-{
-  "statuses": {
-    "active": "Aktiv",
-    "forthcoming": "im Erscheinen",
-    "cancelled": "cancelled",
-    "postponed indefinitely": "Auf unbestimmte Zeit verschoben",
-    "superseded": "Neue Version verfügbar",
-    "withdrawn": "widerrufen",
-    "other": "other"
-  },
-  "types": {
-    "edited book": "Sammelband",
-    "journal issue": "Journal Issue",
-    "monograph": "Monografie",
-    "textbook": "Lehrwerk"
-  }
-}
+{}

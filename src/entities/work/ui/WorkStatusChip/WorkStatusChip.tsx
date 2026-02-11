@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 
 import { convertOptionToString, WorkStatuses } from '@/src/shared';
-import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, TranslatedContent } from '@/src/shared/ui';
 
 import type { WorkStatus } from '../../model/work.types';
@@ -35,12 +34,7 @@ export const WorkStatusChip = (props: WorkStatusChipProps) => {
           color: indicatiorColor,
         },
       }}
-      label={
-        <TranslatedContent
-          content={`statuses.${convertOptionToString(status).toLowerCase()}`}
-          namespace={NAMESPACES.enum.work}
-        />
-      }
+      label={<TranslatedContent content={convertOptionToString(status).toLowerCase()} />}
     />
   );
 };

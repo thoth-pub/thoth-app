@@ -8,11 +8,34 @@
     "addSeries": "agregar nueva serie"
   },
   "title": "Título",
-  "updatedAt": "Actualizado el",
+  "updated at": "Actualizado el",
   "type": "tipo",
+  "status": "Estado",
   "name": "Nombre",
   "description": "descripción",
+  "contributors": "colaboradores",
   "issn": "ISSN",
+  "book series": "Serie de libros",
+  "journal": "Revista",
+
+  "active": "activo",
+  "forthcoming": "próximo a publicarse",
+  "cancelled": "cancelado",
+  "postponed indefinitely": "pospuesto indefinidamente",
+  "superseded": "sustituido",
+  "withdrawn": "retirado",
+
+  "other": "other",
+  "all": "all",
+
+  "created at": "erstellt am",
+  "publication date": "Veröffentlichungsdatum",
+
+  "edited book": "libro editado",
+  "journal issue": "número de la revista",
+  "monograph": "monografía",
+  "textbook": "libro de texto",
+
   "Jan": "Ene",
   "Feb": "Feb",
   "Mar": "Mar",

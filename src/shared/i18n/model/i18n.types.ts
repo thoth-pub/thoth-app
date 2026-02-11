@@ -36,7 +36,7 @@ export const NAMESPACES = z.enum([
   'filters',
   'sets',
   'series',
-  'fieldOptions',
+  'works',
 ]);
 
 export const RESOURCES = z.enum([

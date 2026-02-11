@@ -135,7 +135,7 @@ const EditSeriesForm = ({
               options={seriesTypeOptions}
               helperText={SERIES_TYPE_HELPER_TEXT}
               isHelperTextVisible={isHelperTextVisible}
-              isOptionsWithTranslations
+              translateOptions
             />
           </ContentWrapper>
         )}
