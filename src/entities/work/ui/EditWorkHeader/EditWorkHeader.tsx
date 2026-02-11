@@ -33,17 +33,14 @@ type EditWorkHeaderProps = BaseEditSectionProps & {
 const itemStyles = 'flex flex-col gap-2';
 
 const STATUS_WARNINGS = {
-  [WorkStatuses.enum.Active]: 'Changing the status to Active will update the publication date to the current date.',
-  [WorkStatuses.enum.Forthcoming]:
-    'Changing the status to Forthcoming will update the publication date to the current date.',
-  [WorkStatuses.enum.PostponedIndefinitely]:
-    'Changing the status to Postponed Indefinitely will update the publication date to the current date.',
-  [WorkStatuses.enum.Cancelled]:
-    'Changing the status to Cancelled will update the publication date to the current date.',
-  [WorkStatuses.enum.Superseded]:
-    'Changing the status to Superseded will update the publication date to the current date.',
-  [WorkStatuses.enum.Withdrawn]:
-    'Changing the status to Withdrawn will update the publication date to the current date.',
+  [WorkStatuses.enum.Active]: <TranslatedContent content="active" namespace={NAMESPACES.enum.warnings} />,
+  [WorkStatuses.enum.Forthcoming]: <TranslatedContent content="forthcoming" namespace={NAMESPACES.enum.warnings} />,
+  [WorkStatuses.enum.PostponedIndefinitely]: (
+    <TranslatedContent content="postponed indefinitely" namespace={NAMESPACES.enum.warnings} />
+  ),
+  [WorkStatuses.enum.Cancelled]: <TranslatedContent content="cancelled" namespace={NAMESPACES.enum.warnings} />,
+  [WorkStatuses.enum.Superseded]: <TranslatedContent content="superseded" namespace={NAMESPACES.enum.warnings} />,
+  [WorkStatuses.enum.Withdrawn]: <TranslatedContent content="withdrawn" namespace={NAMESPACES.enum.warnings} />,
 } as const;
 
 const EditWorkHeader = (props: EditWorkHeaderProps) => {
@@ -132,8 +129,8 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
         <div className="flex flex-col gap-2">
           {translations.length > 0 && (
             <div className="flex gap-2">
-              <InputLabel component="span" className="min-w-42 shrink-0">
-                Translations
+              <InputLabel component="span" className="min-w-42 shrink-0 capitalize">
+                <TranslatedContent content="translated to" />
               </InputLabel>
 
               <ul className="w-full">
@@ -152,8 +149,8 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
 
           {translatedWorks.length > 0 && (
             <div className="flex gap-2">
-              <InputLabel component="span" className="min-w-42 shrink-0">
-                Translation of
+              <InputLabel component="span" className="min-w-42 shrink-0 capitalize">
+                <TranslatedContent content="translation of" />
               </InputLabel>
 
               <ul className="w-full">
@@ -172,8 +169,8 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
 
           {previousEdition && (
             <div className="flex gap-2">
-              <InputLabel component="span" className="min-w-42 shrink-0">
-                Previous Edition
+              <InputLabel component="span" className="min-w-42 shrink-0 capitalize">
+                <TranslatedContent content="previous edition" />
               </InputLabel>
 
               <NextLink href={`${ROUTES.WORK_PAGE(previousEdition.id)}`} passHref>
@@ -186,8 +183,8 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
 
           {latestEdition && (
             <div className="flex gap-2">
-              <InputLabel component="span" className="min-w-42 shrink-0">
-                New Edition
+              <InputLabel component="span" className="min-w-42 shrink-0 capitalize">
+                <TranslatedContent content="new edition" />
               </InputLabel>
 
               <NextLink href={`${ROUTES.WORK_PAGE(latestEdition.id)}`} passHref>
@@ -201,7 +198,7 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
           {workSet.length > 0 && (
             <div className="flex gap-2">
               <InputLabel component="span" className="min-w-42 shrink-0">
-                Volume of
+                <TranslatedContent content="volume of" />
               </InputLabel>
 
               <ul className="w-full">
@@ -221,7 +218,7 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
         <ModalWrapper>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) capitalize">
-              Status Change
+              <TranslatedContent content="status change" />
             </Typography>
             <div className="flex gap-2">
               <SubmitButton onClick={applyWorkStatusChange} />

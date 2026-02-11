@@ -14,6 +14,7 @@ import navigationDe from '../locales/de/navigation.json';
 import profileDe from '../locales/de/profile.json';
 import seriesDe from '../locales/de/series.json';
 import setsDe from '../locales/de/sets.json';
+import warningsDe from '../locales/de/warnings.json';
 import workDe from '../locales/de/work.json';
 import worksDe from '../locales/de/works.json';
 // English
@@ -25,6 +26,7 @@ import navigationEn from '../locales/en/navigation.json';
 import profileEn from '../locales/en/profile.json';
 import seriesEn from '../locales/en/series.json';
 import setsEn from '../locales/en/sets.json';
+import warningsEn from '../locales/en/warnings.json';
 import workEn from '../locales/en/work.json';
 import worksEn from '../locales/en/works.json';
 // Spanish
@@ -36,6 +38,7 @@ import navigationEs from '../locales/es/navigation.json';
 import profileEs from '../locales/es/profile.json';
 import seriesEs from '../locales/es/series.json';
 import setsEs from '../locales/es/sets.json';
+import warningsEs from '../locales/es/warnings.json';
 import workEs from '../locales/es/work.json';
 import worksEs from '../locales/es/works.json';
 // Portuguese
@@ -47,6 +50,7 @@ import navigationPt from '../locales/pt/navigation.json';
 import profilePt from '../locales/pt/profile.json';
 import seriesPt from '../locales/pt/series.json';
 import setsPt from '../locales/pt/sets.json';
+import warningsPt from '../locales/pt/warnings.json';
 import workPt from '../locales/pt/work.json';
 import worksPt from '../locales/pt/works.json';
 import { NAMESPACES } from '../model/i18n.types';
@@ -67,6 +71,7 @@ i18n
         sets: setsEn,
         series: seriesEn,
         works: worksEn,
+        warnings: warningsEn,
       },
       [LOCALES.enum.pt]: {
         common: commonPt,
@@ -79,6 +84,7 @@ i18n
         sets: setsPt,
         series: seriesPt,
         works: worksPt,
+        warnings: warningsPt,
       },
       [LOCALES.enum.es]: {
         common: commonEs,
@@ -91,6 +97,7 @@ i18n
         sets: setsEs,
         series: seriesEs,
         works: worksEs,
+        warnings: warningsEs,
       },
       [LOCALES.enum.de]: {
         common: commonDe,
@@ -103,6 +110,7 @@ i18n
         sets: setsDe,
         series: seriesDe,
         works: worksDe,
+        warnings: warningsDe,
       },
     },
     // debug: true,

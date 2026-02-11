@@ -34,7 +34,7 @@
   "other": "other",
   "all": "all",
 
-  "created at": "erstellt am",
+  "created at": "criado em",
   "publication date": "Data de publicação",
 
   "edited book": "livro organizado",
@@ -43,6 +43,12 @@
   "textbook": "livro didático",
 
   "core details": "Detalhes principais",
+
+  "translated to": "Traduzido para",
+  "translated from": "Traduzido de",
+  "previous edition": "previous edition",
+  "volume of": "volume of",
+  "status change": "status change",
 
   "Jan": "Jan",
   "Feb": "Fev",

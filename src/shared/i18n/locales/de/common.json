@@ -43,16 +43,22 @@
 
   "core details": "Kerninformationen",
 
+  "translated to": "Übersetzt nach",
+  "translated from": "Übersetzt aus",
+  "previous edition": "previous edition",
+  "volume of": "volume of",
+  "status change": "status change",
+
   "Jan": "Jan",
   "Feb": "Feb",
   "Mar": "Mar",
   "Apr": "Apr",
-  "May": "May",
+  "May": "Mai",
   "Jun": "Jun",
   "Jul": "Jul",
   "Aug": "Aug",
   "Sep": "Sep",
-  "Oct": "Oct",
+  "Oct": "Okt",
   "Nov": "Nov",
-  "Dec": "Dec"
+  "Dec": "Dez"
 }

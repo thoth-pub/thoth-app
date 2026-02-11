@@ -33,7 +33,7 @@
   "other": "other",
   "all": "all",
 
-  "created at": "erstellt am",
+  "created at": "created at",
   "publication date": "publication date",
 
   "edited book": "edited book",
@@ -43,16 +43,23 @@
 
   "core details": "core details",
 
+  "translated to": "translated to",
+  "translated from": "translated from",
+  "previous edition": "previous edition",
+  "volume of": "volume of",
+  "status change": "status change",
+
+
   "Jan": "Jan",
   "Feb": "Feb",
   "Mar": "Mar",
   "Apr": "Apr",
-  "May": "Mai",
+  "May": "May",
   "Jun": "Jun",
   "Jul": "Jul",
   "Aug": "Aug",
   "Sep": "Sep",
-  "Oct": "Okt",
+  "Oct": "Oct",
   "Nov": "Nov",
-  "Dec": "Dez"
+  "Dec": "Dec"
 }
