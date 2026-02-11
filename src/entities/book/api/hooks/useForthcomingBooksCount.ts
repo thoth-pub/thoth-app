@@ -10,13 +10,14 @@ const useForthcomingBooksCount = (publishersIds: PublisherId[]) => {
     data: bookCount = 0,
     error,
     isLoading,
+    isFetched,
   } = useQuery({
     queryKey: [QueryKeys.forthcomingBooksCount, ...publishersIds],
     queryFn: () => bookService.getBooksCount({ publishersIds, workStatus: WorkStatuses.enum.Forthcoming }),
     enabled: publishersIds.length > 0,
   });
 
-  return { bookCount, error, isLoading };
+  return { bookCount, error, isLoading, isFetched };
 };
 
 export default useForthcomingBooksCount;

@@ -1,20 +1,13 @@
 'use client';
 
-import { Direction } from '@/gql/graphql';
-import { useBooks } from '@/src/entities/book';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
+import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { EditBookLink } from '@/src/features';
 
-export const BooksList = () => {
-  const { activePublisher } = usePublisherStateMachine();
-  const publishersIds = activePublisher ? [activePublisher.id] : [];
+type BooksListProps = {
+  books: WorkEntity[];
+};
 
-  const { books } = useBooks({
-    publishersIds,
-    limit: 3,
-    direction: Direction.Desc,
-  });
-
+export const BooksList = ({ books }: BooksListProps) => {
   return (
     <>
       {books.map(({ id, titles, coverUrl, type, status, contributions }) => (

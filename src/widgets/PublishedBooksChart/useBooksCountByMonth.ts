@@ -6,11 +6,11 @@ export const useBooksCountByMonth = (date: string) => {
   const { activePublisher } = usePublisherStateMachine();
   const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
-  const { bookCount = 0 } = useBooksCount({
+  const { bookCount = 0, isFetched } = useBooksCount({
     publishersIds,
     publishedAt: date,
     expression: Expression.GreaterThan,
   });
 
-  return { bookCount };
+  return { bookCount, isFetched };
 };

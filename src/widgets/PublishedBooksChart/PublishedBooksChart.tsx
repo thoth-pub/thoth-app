@@ -7,7 +7,7 @@ import { ChartWrapper } from '@/src/entities/book';
 import { getMonthName, getStartOfTheCurrentMonthDate, substractMonthesFromDate } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
+import { CircularProgress, DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { useBooksCountByMonth } from './useBooksCountByMonth';
 
@@ -28,19 +28,32 @@ const PublishedBooksChart = () => {
   const twelfthMonthDate = substractMonthesFromDate(eleventhMonthDate, 1);
   const prevYearBooksDate = substractMonthesFromDate(firstMonthDate, 24);
 
-  const { bookCount: firstMonthBooksCount } = useBooksCountByMonth(firstMonthDate);
-  const { bookCount: secondMonthBooksCount } = useBooksCountByMonth(secondMonthDate);
-  const { bookCount: thirdMonthBooksCount } = useBooksCountByMonth(thirdMonthDate);
-  const { bookCount: fourthMonthBooksCount } = useBooksCountByMonth(fourthMonthDate);
-  const { bookCount: fifthMonthBooksCount } = useBooksCountByMonth(fifthMonthDate);
-  const { bookCount: sixthMonthBooksCount } = useBooksCountByMonth(sixthMonthDate);
-  const { bookCount: seventhMonthBooksCount } = useBooksCountByMonth(seventhMonthDate);
-  const { bookCount: eighthMonthBooksCount } = useBooksCountByMonth(eighthMonthDate);
-  const { bookCount: ninthMonthBooksCount } = useBooksCountByMonth(ninthMonthDate);
-  const { bookCount: tenthMonthBooksCount } = useBooksCountByMonth(tenthMonthDate);
-  const { bookCount: eleventhMonthBooksCount } = useBooksCountByMonth(eleventhMonthDate);
-  const { bookCount: twelfthMonthBooksCount } = useBooksCountByMonth(twelfthMonthDate);
-  const { bookCount: prevYearBooksCount } = useBooksCountByMonth(prevYearBooksDate);
+  const { bookCount: firstMonthBooksCount, isFetched: isFirstMonthBooksCountFetched } =
+    useBooksCountByMonth(firstMonthDate);
+  const { bookCount: secondMonthBooksCount, isFetched: isSecondMonthBooksCountFetched } =
+    useBooksCountByMonth(secondMonthDate);
+  const { bookCount: thirdMonthBooksCount, isFetched: isThirdMonthBooksCountFetched } =
+    useBooksCountByMonth(thirdMonthDate);
+  const { bookCount: fourthMonthBooksCount, isFetched: isFourthMonthBooksCountFetched } =
+    useBooksCountByMonth(fourthMonthDate);
+  const { bookCount: fifthMonthBooksCount, isFetched: isFifthMonthBooksCountFetched } =
+    useBooksCountByMonth(fifthMonthDate);
+  const { bookCount: sixthMonthBooksCount, isFetched: isSixthMonthBooksCountFetched } =
+    useBooksCountByMonth(sixthMonthDate);
+  const { bookCount: seventhMonthBooksCount, isFetched: isSeventhMonthBooksCountFetched } =
+    useBooksCountByMonth(seventhMonthDate);
+  const { bookCount: eighthMonthBooksCount, isFetched: isEighthMonthBooksCountFetched } =
+    useBooksCountByMonth(eighthMonthDate);
+  const { bookCount: ninthMonthBooksCount, isFetched: isNinthMonthBooksCountFetched } =
+    useBooksCountByMonth(ninthMonthDate);
+  const { bookCount: tenthMonthBooksCount, isFetched: isTenthMonthBooksCountFetched } =
+    useBooksCountByMonth(tenthMonthDate);
+  const { bookCount: eleventhMonthBooksCount, isFetched: isEleventhMonthBooksCountFetched } =
+    useBooksCountByMonth(eleventhMonthDate);
+  const { bookCount: twelfthMonthBooksCount, isFetched: isTwelfthMonthBooksCountFetched } =
+    useBooksCountByMonth(twelfthMonthDate);
+  const { bookCount: prevYearBooksCount, isFetched: isPrevYearBooksCountFetched } =
+    useBooksCountByMonth(prevYearBooksDate);
 
   const substractedSecondMonthBooksCount = secondMonthBooksCount - firstMonthBooksCount;
   const substractedThirdMonthBooksCount = thirdMonthBooksCount - secondMonthBooksCount;
@@ -73,13 +86,51 @@ const PublishedBooksChart = () => {
     [firstMonthDate]: { value: firstMonthBooksCount, month: getMonthName(firstMonthDate) },
   };
 
+  const isLoading =
+    !isFirstMonthBooksCountFetched ||
+    !isSecondMonthBooksCountFetched ||
+    !isThirdMonthBooksCountFetched ||
+    !isFourthMonthBooksCountFetched ||
+    !isFifthMonthBooksCountFetched ||
+    !isSixthMonthBooksCountFetched ||
+    !isSeventhMonthBooksCountFetched ||
+    !isEighthMonthBooksCountFetched ||
+    !isNinthMonthBooksCountFetched ||
+    !isTenthMonthBooksCountFetched ||
+    !isEleventhMonthBooksCountFetched ||
+    !isTwelfthMonthBooksCountFetched ||
+    !isPrevYearBooksCountFetched;
+
   const axisData = Object.values(chartData).map(({ month }) => month);
   const seriesData = Object.values(chartData).map(({ value }) => value);
 
   const isEmpty = seriesData.every((value) => value === 0);
 
+  if (isLoading) {
+    return (
+      <DashboardContentWrapper>
+        <ChartWrapper>
+          <CircularProgress className="m-auto h-full" />
+        </ChartWrapper>
+      </DashboardContentWrapper>
+    );
+  }
+
   if (isEmpty) {
-    return null;
+    return (
+      <DashboardContentWrapper>
+        <ChartWrapper>
+          <div className="flex w-full flex-col gap-1">
+            <Typography component="h2" variant="h2" className="mb-2">
+              <TranslatedContent content="widgets.published" namespace={NAMESPACES.enum.dashboard} />
+            </Typography>
+            <Typography className="m-auto">
+              <TranslatedContent content="widgets.empty" namespace={NAMESPACES.enum.dashboard} />
+            </Typography>
+          </div>
+        </ChartWrapper>
+      </DashboardContentWrapper>
+    );
   }
 
   return (

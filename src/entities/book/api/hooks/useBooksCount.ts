@@ -20,13 +20,14 @@ const useBooksCount = (props: UseBooksCountProps) => {
     data: bookCount = 0,
     error,
     isLoading,
+    isFetched,
   } = useQuery({
     queryKey: [QueryKeys.booksCount, ...publishersIds, filter, expression, publishedAt],
     queryFn: () => bookService.getBooksCount({ publishersIds, filter, expression, publishedAt }),
     enabled: publishersIds.length > 0,
   });
 
-  return { bookCount, error, isLoading };
+  return { bookCount, error, isLoading, isFetched };
 };
 
 export default useBooksCount;

@@ -6,7 +6,7 @@ import { ChartWrapper, useBooksCount, useForthcomingBooksCount, usePublishedBook
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useIsDesktop } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
+import { CircularProgress, DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
 
 const TotalBooksChart = () => {
   const { activePublisher } = usePublisherStateMachine();
@@ -14,9 +14,11 @@ const TotalBooksChart = () => {
 
   const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
-  const { bookCount } = useBooksCount({ publishersIds });
-  const { bookCount: publishedBookCount } = usePublishedBooksCount(publishersIds);
-  const { bookCount: forthcomingBookCount } = useForthcomingBooksCount(publishersIds);
+  const { bookCount, isFetched: isBooksCountFetched } = useBooksCount({ publishersIds });
+  const { bookCount: publishedBookCount, isFetched: isPublishedBooksCountFetched } =
+    usePublishedBooksCount(publishersIds);
+  const { bookCount: forthcomingBookCount, isFetched: isForthcomingBooksCountFetched } =
+    useForthcomingBooksCount(publishersIds);
 
   const otherBooksCount = bookCount - publishedBookCount - forthcomingBookCount;
 
@@ -41,8 +43,33 @@ const TotalBooksChart = () => {
     hideLegend: true,
   };
 
+  const isLoading = !isBooksCountFetched || !isPublishedBooksCountFetched || !isForthcomingBooksCountFetched;
+
+  if (isLoading) {
+    return (
+      <DashboardContentWrapper>
+        <ChartWrapper>
+          <CircularProgress className="m-auto h-full" />
+        </ChartWrapper>
+      </DashboardContentWrapper>
+    );
+  }
+
   if (chartData.length === 0) {
-    return null;
+    return (
+      <DashboardContentWrapper>
+        <ChartWrapper>
+          <div className="flex w-full flex-col gap-1">
+            <Typography component="h2" variant="h2" className="mb-2">
+              <TranslatedContent content="widgets.catalogue summary" namespace={NAMESPACES.enum.dashboard} />
+            </Typography>
+            <Typography className="m-auto">
+              <TranslatedContent content="widgets.empty" namespace={NAMESPACES.enum.dashboard} />
+            </Typography>
+          </div>
+        </ChartWrapper>
+      </DashboardContentWrapper>
+    );
   }
 
   return (
