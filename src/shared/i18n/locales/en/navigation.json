@@ -3,5 +3,7 @@
   "books": "books",
   "series": "series",
   "sets": "sets",
-  "profile": "profile"
+  "profile": "profile",
+  "home": "home",
+  "edit book": "Edit book"
 }

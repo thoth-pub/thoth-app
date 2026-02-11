@@ -5,7 +5,11 @@
     "addNewTranslation": "Neue Übersetzung hinzufügen",
     "addBook": "Titel hinzufügen",
     "addSet": "Add new set",
-    "addSeries": "Neue Reihe hinzufügen"
+    "addSeries": "Neue Reihe hinzufügen",
+    "create": "Erstellen",
+    "upload": "Upload",
+    "translation": "Übersetzung",
+    "reissue": "Neuauflage"
   },
   "title": "Titel",
   "updated at": "Aktualisiert am",
@@ -23,6 +27,8 @@
   "postponed indefinitely": "Auf unbestimmte Zeit verschoben",
   "superseded": "Neue Version verfügbar",
   "withdrawn": "widerrufen",
+  "new edition": "Neuer Sammelband",
+  "require remove": "require remove",
 
   "other": "other",
   "all": "all",
@@ -34,6 +40,8 @@
   "monograph": "Monografie",
   "textbook": "Lehrwerk",
   "issn": "ISSN",
+
+  "core details": "Kerninformationen",
 
   "Jan": "Jan",
   "Feb": "Feb",

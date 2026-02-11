@@ -87,9 +87,9 @@ export const FORM_FIELDS = {
     defaultValue: '',
   },
   INTERNAL_ID: {
-    label: 'Internal ID',
+    label: 'internalId.label',
     name: 'internalId',
-    placeholder: 'Internal ID',
+    placeholder: 'internalId.label',
     type: InputTypes.TEXT,
   },
   LANDING_PAGE: {
@@ -139,9 +139,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   WORK_STATUS: {
-    label: 'Status',
+    label: 'status',
     name: 'workStatus',
-    placeholder: 'Status',
+    placeholder: 'status',
     errorMessage: WORK_STATUS_REQUIRED,
     type: InputTypes.TEXT,
   },
@@ -162,9 +162,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   PUBLICATION_DATE: {
-    label: 'Publication Date',
+    label: 'publication date',
     name: 'publicationDate',
-    placeholder: 'Publication Date',
+    placeholder: 'publication date',
   },
   WITHDRAWN_DATE: {
     label: 'Withdrawn Date',
@@ -177,9 +177,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   EDITION: {
-    label: 'Edition',
+    label: 'edition.label',
     name: 'edition',
-    placeholder: 'Edition',
+    placeholder: 'edition.label',
     type: InputTypes.NUMBER,
   },
   COVER_URL: {

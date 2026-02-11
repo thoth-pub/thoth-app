@@ -2,7 +2,16 @@ import dayjs from 'dayjs';
 
 import { convertDateToFormattedDate, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { DateField, EditButton, FormFieldLabel, FormHelperText, InputLabel, Typography } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import {
+  DateField,
+  EditButton,
+  FormFieldLabel,
+  FormHelperText,
+  InputLabel,
+  TranslatedContent,
+  Typography,
+} from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
 
 import { publicationDateValidationSchema } from '../../model/work.validation';
@@ -31,22 +40,34 @@ const EditPublicationDate = (props: EditPublicationDateProps) => {
       onSubmit={(data) => onUpdate?.(data.publicationDate ?? '')}
       isDisabled={disabled}
       formFields={({ control, isHelperTextVisible }) => (
-        <div className="flex flex-col gap-2">
-          <FormFieldLabel label={PUBLICATION_DATE.label} id={PUBLICATION_DATE.name} />
-          <DateField
-            control={control}
-            name={PUBLICATION_DATE.name}
-            slotProps={{ field: { id: PUBLICATION_DATE.name } }}
-            minDate={minDate ? dayjs(minDate) : undefined}
-            className="h-10"
-            disabled={disabled}
-          />
-          {isHelperTextVisible && <FormHelperText>{PUBLICATION_DATE_HELPER_TEXT}</FormHelperText>}
-        </div>
+        <>
+          <div className="flex flex-col gap-2">
+            <FormFieldLabel
+              label={PUBLICATION_DATE.label}
+              id={PUBLICATION_DATE.name}
+              namespace={NAMESPACES.enum.common}
+            />
+            <DateField
+              control={control}
+              name={PUBLICATION_DATE.name}
+              slotProps={{ field: { id: PUBLICATION_DATE.name } }}
+              minDate={minDate ? dayjs(minDate) : undefined}
+              className="h-10"
+              disabled={disabled}
+            />
+          </div>
+          {isHelperTextVisible && (
+            <FormHelperText>
+              <TranslatedContent content={PUBLICATION_DATE_HELPER_TEXT} namespace={NAMESPACES.enum.forms} />
+            </FormHelperText>
+          )}
+        </>
       )}
       preview={({ data, disabled, onEdit }) => (
         <div className="flex flex-col gap-2">
-          <InputLabel>{PUBLICATION_DATE.label}</InputLabel>
+          <InputLabel className="capitalize">
+            <TranslatedContent content={PUBLICATION_DATE.label} />
+          </InputLabel>
           <div className="group flex items-center gap-1">
             <Typography>{data?.publicationDate ? convertDateToFormattedDate(data.publicationDate) : ''}</Typography>
             <EditButton disabled={disabled} onClick={onEdit} className="ml-auto opacity-0 group-hover:opacity-100" />

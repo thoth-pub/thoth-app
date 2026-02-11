@@ -51,5 +51,19 @@
   },
   "number": {
     "label": "Ordnungszahl"
+  },
+  "internalId": {
+    "label": "interne ID",
+    "helperText": "Enter the internal ID of the work."
+  },
+  "status": {
+    "helperText": "Den Bearbeitungsstatus des Werkes verändern."
+  },
+  "publicationDate": {
+    "helperText": "Veröffentlichungsdatum des Titels eingeben."
+  },
+  "edition": {
+    "label": "Ausgabe",
+    "helperText": "Ausgabe des Titels eingeben."
   }
 }

@@ -6,7 +6,7 @@ import DataIndicator from '../../core/DataIndicator/DataIndicator';
 import ContentSection from '../ContentSection/ContentSection';
 
 type RecommendedSectionProps = {
-  title: string;
+  title: string | React.ReactNode;
   isEmpty?: boolean;
   isValid?: boolean;
   id?: string;

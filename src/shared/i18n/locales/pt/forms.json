@@ -51,5 +51,19 @@
   },
   "number": {
     "label": "Número"
+  },
+  "internalId": {
+    "label": "ID Interno",
+    "helperText": "Enter the internal ID of the work."
+  },
+  "status": {
+    "helperText": "Alterar o status da obra."
+  },
+  "publicationDate": {
+    "helperText": "Insira a data de publicação da obra."
+  },
+  "edition": {
+    "label": "Edição",
+    "helperText": "Insira a edição da obra."
   }
 }

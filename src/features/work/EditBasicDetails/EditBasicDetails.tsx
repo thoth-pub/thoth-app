@@ -13,7 +13,7 @@ import {
   useWorkRecommendations,
 } from '@/src/entities/work';
 import { ANCHORS, type BaseEditSectionProps } from '@/src/shared';
-import { RecommendedSection } from '@/src/shared/ui';
+import { RecommendedSection, TranslatedContent } from '@/src/shared/ui';
 
 import EditWorkCover from '../EditWorkCover/EditWorkCover';
 
@@ -35,7 +35,7 @@ const EditBasicDetails = (props: EditWorkBasicDetailsProps) => {
 
   return (
     <RecommendedSection
-      title="Core details"
+      title={<TranslatedContent content="core details" />}
       isEmpty={isBasicDetailsSectionEmpty}
       isValid={isBasicDetailsSectionFilled}
       id={ANCHORS.BASIC_DETAILS}

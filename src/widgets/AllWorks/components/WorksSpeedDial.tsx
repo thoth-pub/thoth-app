@@ -7,7 +7,7 @@ import TranslateIcon from '@mui/icons-material/Translate';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
 
 import { ROUTES } from '@/src/shared/constants';
-import { Link, SpeedDial, SpeedDialActions } from '@/src/shared/ui';
+import { Link, SpeedDial, SpeedDialActions, TranslatedContent } from '@/src/shared/ui';
 
 type WorksSpeedDialProps = {
   onUpload: () => void;
@@ -21,15 +21,15 @@ export const WorksSpeedDial = (props: WorksSpeedDialProps) => {
   const actions = [
     {
       icon: <PlusOneIcon color="primary" onClick={onCreateNewEdition} />,
-      name: 'Reissue',
+      name: 'reissue',
     },
     {
       icon: <TranslateIcon color="primary" onClick={onCreateTranslation} />,
-      name: 'Translation',
+      name: 'translation',
     },
     {
       icon: <FileUploadIcon color="primary" onClick={onUpload} />,
-      name: 'Upload',
+      name: 'upload',
     },
     {
       icon: (
@@ -37,7 +37,7 @@ export const WorksSpeedDial = (props: WorksSpeedDialProps) => {
           <AddIcon color="primary" />
         </Link>
       ),
-      name: 'Create',
+      name: 'create',
     },
   ];
 
@@ -60,7 +60,11 @@ export const WorksSpeedDial = (props: WorksSpeedDialProps) => {
           slotProps={{
             tooltip: {
               open: true,
-              title: action.name,
+              title: (
+                <span className="capitalize">
+                  <TranslatedContent content={`actions.${action.name}`} />
+                </span>
+              ),
             },
           }}
         />

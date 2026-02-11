@@ -3,5 +3,7 @@
   "books": "livros",
   "series": "séries",
   "sets": "sets",
-  "profile": "perfil"
+  "profile": "perfil",
+  "home": "início",
+  "edit book": "Editar livro"
 }

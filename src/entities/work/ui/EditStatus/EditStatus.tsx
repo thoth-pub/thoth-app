@@ -2,7 +2,8 @@ import { useMemo } from 'react';
 
 import { HELPER_TEXT, IDs, WorkStatuses } from '@/src/shared';
 import { FORM_FIELDS, workStatusOptions, workStatusOptionsAlt } from '@/src/shared/constants/formFields';
-import { EditButton, FormFieldLabel, FormTextField, InputLabel } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { EditButton, FormFieldLabel, FormTextField, InputLabel, TranslatedContent } from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
 
 import { WorkStatus } from '../../model/work.types';
@@ -56,7 +57,7 @@ const EditStatus = (props: EditStatusProps) => {
       isDisabled={isFieldDisable}
       formFields={({ control, isHelperTextVisible }) => (
         <div className="flex flex-col gap-2">
-          <FormFieldLabel label={WORK_STATUS.label} id={WORK_STATUS.name} />
+          <FormFieldLabel label={WORK_STATUS.label} id={WORK_STATUS.name} namespace={NAMESPACES.enum.common} />
           <FormTextField
             control={control}
             name={WORK_STATUS.name}
@@ -68,6 +69,7 @@ const EditStatus = (props: EditStatusProps) => {
             isHelperTextVisible={isHelperTextVisible}
             className="min-h-10"
             disabled={isFieldDisable}
+            translateOptions
           />
         </div>
       )}
@@ -80,7 +82,9 @@ const EditStatus = (props: EditStatusProps) => {
 
         return (
           <div className="flex flex-col gap-2">
-            <InputLabel>{WORK_STATUS.label}</InputLabel>
+            <InputLabel>
+              <TranslatedContent content={WORK_STATUS.label} />
+            </InputLabel>
             <div className="group flex items-center gap-1">
               <WorkStatusChip status={defaultValue} />
               <EditButton onClick={onEdit} disabled={disabled} className="opacity-0 group-hover:opacity-100" />

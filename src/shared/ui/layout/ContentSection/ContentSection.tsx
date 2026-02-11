@@ -6,7 +6,7 @@ import { mergeStyles } from '@/src/shared';
 import Typography from '../../core/Typography/Typography';
 
 type ContentSectionProps = Partial<{
-  title: string;
+  title: string | React.ReactNode;
   children: Readonly<ReactNode>;
   className: string;
   headerContent: Readonly<ReactNode>;

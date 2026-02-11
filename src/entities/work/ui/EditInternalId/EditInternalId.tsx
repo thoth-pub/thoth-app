@@ -3,7 +3,8 @@
 import { useWork } from '@/src/entities/work';
 import { type BaseEditSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { EditButton, FormFieldLabel, FormTextField, InputLabel, Typography } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { EditButton, FormFieldLabel, FormTextField, InputLabel, TranslatedContent, Typography } from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
 
 import { internalIdValidationSchema } from '../../model/work.validation';
@@ -43,7 +44,9 @@ const EditInternalId = (props: BaseEditSectionProps) => {
       )}
       preview={({ disabled, onEdit }) => (
         <div className="flex flex-col gap-2">
-          <InputLabel>{INTERNAL_ID.label}</InputLabel>
+          <InputLabel>
+            <TranslatedContent content={INTERNAL_ID.label} namespace={NAMESPACES.enum.forms} />
+          </InputLabel>
           <div className="group flex items-center gap-1">
             <Typography>{work.reference}</Typography>
             <EditButton onClick={onEdit} disabled={disabled} className="ml-auto opacity-0 group-hover:opacity-100" />

@@ -3,6 +3,7 @@
 import NextLink from 'next/link';
 
 import { type BaseEditSectionProps, getMainTitle, ROUTES, WorkStatuses } from '@/src/shared';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   Breadcrumbs,
   CloseButton,
@@ -12,6 +13,7 @@ import {
   Modal,
   ModalWrapper,
   SubmitButton,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
@@ -46,7 +48,7 @@ const STATUS_WARNINGS = {
 
 const EditWorkHeader = (props: EditWorkHeaderProps) => {
   const { workId, isStatusEditable = true, isPublicationDateEditable = true, isWithdrawnDateEditable = true } = props;
-  
+
   const {
     title,
     status,
@@ -81,19 +83,21 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
         <Breadcrumbs aria-label="breadcrumb">
           <NextLink href={ROUTES.DASHBOARD} passHref>
             <Link color="inherit" className="no-underline" component="span">
-              <Typography component="span" color="inherit">
-                Home
+              <Typography component="span" color="inherit" className="capitalize">
+                <TranslatedContent content="home" namespace={NAMESPACES.enum.navigation} />
               </Typography>
             </Link>
           </NextLink>
           <NextLink href={ROUTES.WORKS} passHref>
             <Link color="inherit" className="no-underline" component="span">
-              <Typography component="span" color="inherit">
-                Books
+              <Typography component="span" color="inherit" className="capitalize">
+                <TranslatedContent content="books" namespace={NAMESPACES.enum.navigation} />
               </Typography>
             </Link>
           </NextLink>
-          <Typography>Edit book</Typography>
+          <Typography>
+            <TranslatedContent content="edit book" namespace={NAMESPACES.enum.navigation} />
+          </Typography>
         </Breadcrumbs>
 
         <div className="lg:grid-col-2 grid grid-cols-2 gap-4">
