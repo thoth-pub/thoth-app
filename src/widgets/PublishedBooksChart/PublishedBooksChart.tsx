@@ -4,8 +4,8 @@ import ArrowDropUpRoundedIcon from '@mui/icons-material/ArrowDropUpRounded';
 import { BarChart } from '@mui/x-charts';
 
 import { ChartWrapper } from '@/src/entities/book';
-import { getMonthName, getStartOfTheCurrentMonthDate, substractMonthesFromDate } from '@/src/shared';
-import { useIsDesktop } from '@/src/shared/hooks';
+import { getMonthName, getStartOfTheCurrentMonthDate, getYear, substractMonthesFromDate } from '@/src/shared';
+import { useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { CircularProgress, DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
 
@@ -13,6 +13,7 @@ import { useBooksCountByMonth } from './useBooksCountByMonth';
 
 const PublishedBooksChart = () => {
   const isDesktop = useIsDesktop(1280);
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
   const firstMonthDate = getStartOfTheCurrentMonthDate();
   const secondMonthDate = substractMonthesFromDate(firstMonthDate, 1);
@@ -72,18 +73,21 @@ const PublishedBooksChart = () => {
   const diff = prevYearBooksCount - currentYearBooksCount;
 
   const chartData: Record<string, { value: number; month: string }> = {
-    [twelfthMonthDate]: { value: substractedTwelfthMonthBooksCount, month: getMonthName(twelfthMonthDate) },
-    [eleventhMonthDate]: { value: substractedEleventhMonthBooksCount, month: getMonthName(eleventhMonthDate) },
-    [tenthMonthDate]: { value: substractedTenthMonthBooksCount, month: getMonthName(tenthMonthDate) },
-    [ninthMonthDate]: { value: substractedNinthMonthBooksCount, month: getMonthName(ninthMonthDate) },
-    [eighthMonthDate]: { value: substractedEighthMonthBooksCount, month: getMonthName(eighthMonthDate) },
-    [seventhMonthDate]: { value: substractedSeventhMonthBooksCount, month: getMonthName(seventhMonthDate) },
-    [sixthMonthDate]: { value: substractedSixthMonthBooksCount, month: getMonthName(sixthMonthDate) },
-    [fifthMonthDate]: { value: substractedFifthMonthBooksCount, month: getMonthName(fifthMonthDate) },
-    [fourthMonthDate]: { value: substractedFourthMonthBooksCount, month: getMonthName(fourthMonthDate) },
-    [thirdMonthDate]: { value: substractedThirdMonthBooksCount, month: getMonthName(thirdMonthDate) },
-    [secondMonthDate]: { value: substractedSecondMonthBooksCount, month: getMonthName(secondMonthDate) },
-    [firstMonthDate]: { value: firstMonthBooksCount, month: getMonthName(firstMonthDate) },
+    [twelfthMonthDate]: {
+      value: substractedTwelfthMonthBooksCount,
+      month: `${t(getMonthName(twelfthMonthDate))} ${getYear(twelfthMonthDate)}`,
+    },
+    [eleventhMonthDate]: { value: substractedEleventhMonthBooksCount, month: t(getMonthName(eleventhMonthDate)) },
+    [tenthMonthDate]: { value: substractedTenthMonthBooksCount, month: t(getMonthName(tenthMonthDate)) },
+    [ninthMonthDate]: { value: substractedNinthMonthBooksCount, month: t(getMonthName(ninthMonthDate)) },
+    [eighthMonthDate]: { value: substractedEighthMonthBooksCount, month: t(getMonthName(eighthMonthDate)) },
+    [seventhMonthDate]: { value: substractedSeventhMonthBooksCount, month: t(getMonthName(seventhMonthDate)) },
+    [sixthMonthDate]: { value: substractedSixthMonthBooksCount, month: t(getMonthName(sixthMonthDate)) },
+    [fifthMonthDate]: { value: substractedFifthMonthBooksCount, month: t(getMonthName(fifthMonthDate)) },
+    [fourthMonthDate]: { value: substractedFourthMonthBooksCount, month: t(getMonthName(fourthMonthDate)) },
+    [thirdMonthDate]: { value: substractedThirdMonthBooksCount, month: t(getMonthName(thirdMonthDate)) },
+    [secondMonthDate]: { value: substractedSecondMonthBooksCount, month: t(getMonthName(secondMonthDate)) },
+    [firstMonthDate]: { value: firstMonthBooksCount, month: t(getMonthName(firstMonthDate)) },
   };
 
   const isLoading =

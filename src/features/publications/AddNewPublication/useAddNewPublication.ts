@@ -22,6 +22,7 @@ import {
   accessibilityStandards,
   getAccessibilityStandardOptions,
 } from '@/src/shared/constants/formFields';
+import { selectCanonicalLocation } from '@/src/shared/utils/locations';
 
 export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const { workId } = props;
@@ -122,26 +123,18 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const updateLocations = (locations: LocationEntity[]) => {
     if (!publication) return;
 
-    setPublication({ ...publication, locations });
+    const updatedLocations = selectCanonicalLocation(locations);
+
+    setPublication({ ...publication, locations: updatedLocations });
   };
 
   const deleteLocation = (platformId: string) => {
     if (!publication) return;
 
     const updatedLocations = publication.locations.filter(({ id }) => id !== platformId);
+    const updatedLocationsWithCanonical = selectCanonicalLocation(updatedLocations);
 
-    setPublication({ ...publication, locations: updatedLocations });
-  };
-
-  const selectAsCanonical = (platformId: string) => {
-    if (!publication) return;
-
-    const updatedLocations = publication.locations.map((location) => ({
-      ...location,
-      canonical: location.id === platformId,
-    }));
-
-    setPublication({ ...publication, locations: updatedLocations });
+    setPublication({ ...publication, locations: updatedLocationsWithCanonical });
   };
 
   const updateAccessibilityStandards = (standards: AccessibilityStandardType[]) => {
@@ -201,6 +194,5 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     updateAccessibilityException,
     updateAccessibilityReport,
     deleteAccessibility,
-    selectAsCanonical,
   };
 };

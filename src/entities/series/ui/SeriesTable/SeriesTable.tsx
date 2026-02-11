@@ -50,7 +50,7 @@ const SeriesTable = (props: SeriesTableProps) => {
             'w-[210px] capitalize',
             'w-[210px] capitalize',
             'w-[110px] capitalize',
-            'w-[110px] capitalize',
+            'min-w-[200px] capitalize',
           ]}
         />
         <TableBody>

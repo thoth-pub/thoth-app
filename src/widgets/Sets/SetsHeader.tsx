@@ -41,6 +41,7 @@ export const SetsHeader = (props: SetsHeaderProps) => {
           <TranslatedContent content="sets" namespace={NAMESPACES.enum.navigation} />
         </Typography>
         <TextField
+          autoFocus
           slotProps={{
             input: {
               startAdornment: (

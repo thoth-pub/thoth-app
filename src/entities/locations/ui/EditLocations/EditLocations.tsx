@@ -1,6 +1,7 @@
 'use client';
 
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
+import StarIcon from '@mui/icons-material/Star';
 
 import { LocationPlatform } from '@/gql/graphql';
 import { appConfig, convertOptionToString, IDs, isDefaultId } from '@/src/shared';
@@ -73,6 +74,8 @@ const EditLocations = (props: EditLocationsProps) => {
     handleClose();
   };
 
+  const isThothLocationSelected = locations.some((location) => location.locationPlatform === LocationPlatform.Thoth);
+
   return (
     <>
       <ContentWrapper>
@@ -92,6 +95,7 @@ const EditLocations = (props: EditLocationsProps) => {
                 key={location.id}
                 location={location}
                 isFullTextUrlHidden={isFullTextUrlHidden}
+                isCheckboxDisabled={isThothLocationSelected}
                 onClose={handleClose}
                 onSubmit={handleSubmitLocation}
               />
@@ -100,6 +104,7 @@ const EditLocations = (props: EditLocationsProps) => {
                 <Chip label={convertOptionToString(location.locationPlatform)} size="small" component="span" />
                 <Typography className="max-w-[30%] truncate">{location.landingPage}</Typography>
                 {location.fullTextUrl && location.fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
+                {location.canonical && <StarIcon color="primary" />}
                 <ButtonGroup className="ml-auto">
                   <DeleteButton onClick={() => onDelete?.(location.id)} />
                   <EditButton onClick={() => handleEditLocation(location)} disabled={!!activeFormId} />
@@ -114,6 +119,7 @@ const EditLocations = (props: EditLocationsProps) => {
         <LocationForm
           location={activeLocation}
           isFullTextUrlHidden={isFullTextUrlHidden}
+          isCheckboxDisabled={isThothLocationSelected}
           onClose={handleClose}
           onSubmit={handleSubmitNewLocation}
         />

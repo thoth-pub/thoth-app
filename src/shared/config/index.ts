@@ -35,6 +35,7 @@ export const appConfig = {
   },
   dateFormat: 'YYYY-MM-DD',
   dateTimeFormat: 'YYYY-MM-DD HH:mm:ss',
+  tableDateFormat: 'YY-MM-DD HH:mm',
   defaultId: '0000-0000-0000-0000',
   tables: {
     maxPreviewLength: 150,

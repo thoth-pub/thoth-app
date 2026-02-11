@@ -69,6 +69,7 @@ export const Header = (props: HeaderProps) => {
           placeholder="Search by title, DOI, internal reference"
           fullWidth
           onChange={(e) => onSearch(e.target.value)}
+          autoFocus
         />
         <IconButton onClick={handleFilterOpen}>
           <FilterAltIcon color="primary" />

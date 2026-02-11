@@ -30,6 +30,7 @@ import { locationPlatformValidationSchema } from '../../model/location.validatio
 type LocationFormProps = {
   location: LocationEntity;
   isFullTextUrlHidden: boolean;
+  isCheckboxDisabled: boolean;
   onSubmit?: (data: LocationEntity) => void;
   onClose?: () => void;
 };
@@ -38,7 +39,7 @@ const { PLATFORM, LANDING_PAGE, FULL_TEXT_URL, CANONICAL } = FORM_FIELDS;
 const { LOCATION_PLATFORM, LANDING_PAGE_HELPER_TEXT, LOCATION_URL_HELPER_TEXT } = HELPER_TEXT;
 
 export const LocationForm = (props: LocationFormProps) => {
-  const { location, isFullTextUrlHidden, onSubmit, onClose } = props;
+  const { location, isFullTextUrlHidden, isCheckboxDisabled, onSubmit, onClose } = props;
 
   const platformOption = locationPlatformOptions.find(
     (option) => option.value.toLowerCase() === location.locationPlatform.toLowerCase(),
@@ -129,7 +130,13 @@ export const LocationForm = (props: LocationFormProps) => {
       )}
       <FormFieldWrapper>
         <FormFieldLabel label={CANONICAL.label} id={CANONICAL.name} />
-        <CheckboxFormField control={control} name={CANONICAL.name} id={CANONICAL.name} className="mr-auto p-0" />
+        <CheckboxFormField
+          disabled={isCheckboxDisabled}
+          control={control}
+          name={CANONICAL.name}
+          id={CANONICAL.name}
+          className="mr-auto p-0"
+        />
       </FormFieldWrapper>
     </form>
   );

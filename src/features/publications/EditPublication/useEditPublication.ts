@@ -25,6 +25,7 @@ import {
   accessibilityStandards,
   getAccessibilityStandardOptions,
 } from '@/src/shared/constants/formFields';
+import { selectCanonicalLocation } from '@/src/shared/utils/locations';
 
 export const useEditPublication = (props: BaseEditSectionProps) => {
   const { workId } = props;
@@ -198,8 +199,10 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, prices });
   };
 
-  const updateLocations = async (locations: LocationEntity[]) => {
+  const updateLocations = async (data: LocationEntity[]) => {
     if (!publication) return;
+
+    const locations = selectCanonicalLocation(data);
 
     const newLocations = locations.filter(({ id }) => isDefaultId(id));
     const existingLocations = locations.filter(({ id }) => !isDefaultId(id));
@@ -220,17 +223,6 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       return isUpdated;
     });
 
-    newLocations.forEach(({ id, locationPlatform, canonical, fullTextUrl, landingPage }) => {
-      createLocation({
-        id,
-        publicationId: publication.id,
-        locationPlatform,
-        canonical,
-        fullTextUrl,
-        landingPage,
-      });
-    });
-
     updatedLocations.forEach(({ id, locationPlatform, canonical, fullTextUrl, landingPage }) => {
       updateLocation({
         id,
@@ -239,6 +231,17 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
         fullTextUrl,
         landingPage,
         publicationId: publication.id,
+      });
+    });
+
+    newLocations.forEach(({ id, locationPlatform, canonical, fullTextUrl, landingPage }) => {
+      createLocation({
+        id,
+        publicationId: publication.id,
+        locationPlatform,
+        canonical,
+        fullTextUrl,
+        landingPage,
       });
     });
 
@@ -253,30 +256,12 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     if (!item || isDefaultId(item.id)) return;
 
     const updatedLocations = publication.locations.filter(({ id }) => id !== platformId);
+    const updatedLocationsWithCanonical = selectCanonicalLocation(updatedLocations);
+
+    updateLocations(updatedLocationsWithCanonical);
 
     deleteLocationMutation(platformId);
-    setPublication({ ...publication, locations: updatedLocations });
-  };
-
-  const selectAsCanonical = (platformId: string) => {
-    if (!publication) return;
-
-    const location = publication.locations.find(({ id }) => id === platformId);
-
-    if (!location) return;
-
-    const updatedLocations = publication.locations.map((location) => ({
-      ...location,
-      canonical: location.id === platformId,
-    }));
-
-    updateLocation({
-      ...location,
-      canonical: true,
-      publicationId: publication.id,
-    });
-
-    setPublication({ ...publication, locations: updatedLocations });
+    setPublication({ ...publication, locations: updatedLocationsWithCanonical });
   };
 
   return {
@@ -292,6 +277,5 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     updateAccessibilityException,
     updateAccessibilityReport,
     deleteAccessibility,
-    selectAsCanonical,
   };
 };

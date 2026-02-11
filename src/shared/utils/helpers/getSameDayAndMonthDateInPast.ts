@@ -15,3 +15,7 @@ export const getStartOfTheCurrentMonthDate = () => {
 export const substractMonthesFromDate = (date: string, months: number) => {
   return dayjs(date).subtract(months, 'month').toISOString();
 };
+
+export const getYear = (date: string) => {
+  return dayjs(date).format('YYYY');
+};

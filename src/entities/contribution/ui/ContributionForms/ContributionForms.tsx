@@ -24,7 +24,7 @@ type ContributionFormsProps = {
   onIsMainSubmit: (isMain: boolean) => void;
 };
 
-const { CANONICAL } = FORM_FIELDS;
+const { CANONICAL_CONTRIBUTOR } = FORM_FIELDS;
 
 const ContributionForms = (props: ContributionFormsProps) => {
   const {
@@ -64,7 +64,7 @@ const ContributionForms = (props: ContributionFormsProps) => {
       />
       {children}
       <ContentWrapper>
-        <InputLabel component="span">{CANONICAL.label}</InputLabel>
+        <InputLabel component="span">{CANONICAL_CONTRIBUTOR.label}</InputLabel>
         <Checkbox
           checked={isMain}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleIsMainSubmit(e.target.checked)}

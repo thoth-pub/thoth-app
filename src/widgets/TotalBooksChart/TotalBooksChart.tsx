@@ -4,13 +4,14 @@ import { PieChart } from '@mui/x-charts';
 
 import { ChartWrapper, useBooksCount, useForthcomingBooksCount, usePublishedBooksCount } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { useIsDesktop } from '@/src/shared/hooks';
+import { useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { CircularProgress, DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
 
 const TotalBooksChart = () => {
   const { activePublisher } = usePublisherStateMachine();
   const isDesktop = useIsDesktop(1280);
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.work });
 
   const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
@@ -24,16 +25,20 @@ const TotalBooksChart = () => {
 
   const chartData: { label: string; value: number; color: string }[] = [];
 
+  const activeLabel = t('statuses.active')[0].toUpperCase() + t('statuses.active').slice(1);
+  const forthcomingLabel = t('statuses.forthcoming')[0].toUpperCase() + t('statuses.forthcoming').slice(1);
+  const otherLabel = t('statuses.other')[0].toUpperCase() + t('statuses.other').slice(1);
+
   if (publishedBookCount > 0) {
-    chartData.push({ label: 'Active', value: publishedBookCount, color: 'var(--color-success)' });
+    chartData.push({ label: activeLabel, value: publishedBookCount, color: 'var(--color-success)' });
   }
 
   if (forthcomingBookCount > 0) {
-    chartData.push({ label: 'Forthcoming', value: forthcomingBookCount, color: 'var(--color-warning)' });
+    chartData.push({ label: forthcomingLabel, value: forthcomingBookCount, color: 'var(--color-warning)' });
   }
 
   if (otherBooksCount > 0) {
-    chartData.push({ label: 'Other', value: otherBooksCount, color: 'var(--color-error)' });
+    chartData.push({ label: otherLabel, value: otherBooksCount, color: 'var(--color-error)' });
   }
 
   const settings = {

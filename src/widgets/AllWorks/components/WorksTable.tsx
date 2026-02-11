@@ -9,6 +9,7 @@ import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared';
 import {
   ButtonGroup,
+  CircularProgress,
   IconButton,
   MarkdownRenderer,
   Pagination,
@@ -19,7 +20,6 @@ import {
   TableWrapper,
   Typography,
 } from '@/src/shared/ui';
-import { CircularProgress } from '@/src/shared/ui';
 
 type WorksTableProps = {
   loading: boolean;
@@ -47,12 +47,12 @@ export const WorksTable = (props: WorksTableProps) => {
             'min-w-[120px]',
             'min-w-[120px]',
             'min-w-[250px]',
-            'min-w-[175px]',
+            'min-w-[250px]',
           ]}
         />
         <TableBody>
           {!loading && works.length === 0 && (
-            <TableRow className="!cursor-auto hover:!bg-transparent">
+            <TableRow className="cursor-auto! hover:bg-transparent!">
               <TableCell colSpan={6} className="text-center">
                 <Typography variant="body1" component="span">
                   No books found
@@ -61,9 +61,9 @@ export const WorksTable = (props: WorksTableProps) => {
             </TableRow>
           )}
           {loading ? (
-            <TableRow className="!cursor-auto hover:!bg-transparent">
+            <TableRow className="cursor-auto! hover:bg-transparent!">
               <TableCell colSpan={6} className="text-center">
-                <CircularProgress className="my-[10rem]" />
+                <CircularProgress className="my-40" />
               </TableCell>
             </TableRow>
           ) : (

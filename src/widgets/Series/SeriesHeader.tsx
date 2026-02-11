@@ -43,6 +43,7 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
           <TranslatedContent content="series" namespace={NAMESPACES.enum.navigation} />
         </Typography>
         <TextField
+          autoFocus
           slotProps={{
             input: {
               startAdornment: (

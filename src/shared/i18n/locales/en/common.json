@@ -12,5 +12,17 @@
   "type": "type",
   "name": "Name",
   "description": "description",
-  "issn": "ISSN"
+  "issn": "ISSN",
+  "Jan": "Jan",
+  "Feb": "Feb",
+  "Mar": "Mar",
+  "Apr": "Apr",
+  "May": "Mai",
+  "Jun": "Jun",
+  "Jul": "Jul",
+  "Aug": "Aug",
+  "Sep": "Sep",
+  "Oct": "Okt",
+  "Nov": "Nov",
+  "Dec": "Dez"
 }

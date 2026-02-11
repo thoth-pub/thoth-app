@@ -474,6 +474,12 @@ export const FORM_FIELDS = {
     placeholder: 'Platform',
     type: InputTypes.TEXT,
   },
+  CANONICAL_CONTRIBUTOR: {
+    label: 'Lead Contributor',
+    name: 'canonical',
+    placeholder: 'Lead Contributor',
+    type: InputTypes.CHECKBOX,
+  },
   CANONICAL: {
     label: 'Canonical',
     name: 'canonical',
