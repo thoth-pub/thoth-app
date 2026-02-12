@@ -80,6 +80,7 @@ export const NOTIFICATIONS = {
   PUBLISHER_CONTACT_DELETION_FAILED: 'Failed to delete publisher contact',
   PUBLISHER_CONTACT_UPDATE_FAILED: 'Failed to update publisher contact',
   PUBLISHER_UPDATE_FAILED: 'Failed to update publisher',
+  PUBLISHER_CREATION_FAILED: 'Failed to create publisher',
   // Biographies
   BIOGRAPHY_CREATION_FAILED: 'Failed to create biography',
   BIOGRAPHY_UPDATE_FAILED: 'Failed to update biography',
@@ -91,4 +92,6 @@ export const NOTIFICATIONS = {
   SET_ADD_TO_FAILED: 'Failed to add book to set',
   SET_DELETE_FROM_FAILED: 'Failed to delete book from set',
   SET_MOVE_RELATION_FAILED: 'Failed to change book order in set',
+  // Imprints
+  IMPRINT_CREATION_FAILED: 'Failed to create imprint',
 } as const;

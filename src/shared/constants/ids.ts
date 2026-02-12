@@ -65,6 +65,7 @@ export const IDs = {
   PUBLISHER_CONTACT: 'publisher_contact',
   PUBLISHER_REPORT: 'publisher_report',
   PUBLISHER_STATEMENT: 'publisher_statement',
+  NEW_PUBLISHER: 'new_publisher',
   // SETS
   SET_TITLE: 'set_title',
   SET_IMPRINT: 'set_imprint',

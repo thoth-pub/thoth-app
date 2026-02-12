@@ -52,6 +52,7 @@ const CreateWorkForm = () => {
               placeholder={t(TITLE.placeholder)}
               control={control}
               type={TITLE.type}
+              namespace={NAMESPACES.enum.common}
             />
             <CreateWorkFormField
               name={TITLE_LANGUAGE.name}

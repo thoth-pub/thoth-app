@@ -30,7 +30,7 @@ const ChangeActivePublisher = ({ isHidden = false }: ChangeActivePublisherProps)
   const publishersOptions = convertEntityToSelectFieldOptions(authorizedPublishers, 'name');
 
   useEffect(() => {
-    if (loading || user.linkedPublishers.length === 0) return;
+    if (loading || user.linkedPublishers.length === 0 || activePublisher) return;
 
     setLinkedPublishers(authorizedPublishers, user.isSuperuser);
   }, [loading]);
@@ -49,13 +49,15 @@ const ChangeActivePublisher = ({ isHidden = false }: ChangeActivePublisherProps)
     router.push(ROUTES.DASHBOARD);
   };
 
+  const hideSelector = publishersOptions.length <= 1 || isHidden;
+
   return (
     <TextField
       options={publishersOptions}
       value={activePublisher?.id ?? ''}
       fullWidth
       select
-      className={`w-[240px] shrink-0 ${isHidden ? 'opacity-0' : 'opacity-100'}`}
+      className={`w-[240px] shrink-0 ${hideSelector ? 'opacity-0' : 'opacity-100'}`}
       slotProps={{
         select: {
           MenuProps: {

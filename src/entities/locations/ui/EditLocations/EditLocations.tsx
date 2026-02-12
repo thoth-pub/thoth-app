@@ -101,7 +101,12 @@ const EditLocations = (props: EditLocationsProps) => {
               />
             ) : (
               <li key={location.id} className="flex items-center gap-1">
-                <Chip label={convertOptionToString(location.locationPlatform)} size="small" component="span" />
+                <Chip
+                  label={convertOptionToString(location.locationPlatform)}
+                  size="small"
+                  component="span"
+                  className={`${location.locationPlatform === LocationPlatform.Thoth ? 'font-economica' : ''}`}
+                />
                 <Typography className="max-w-[30%] truncate">{location.landingPage}</Typography>
                 {location.fullTextUrl && location.fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
                 {location.canonical && <StarIcon color="primary" />}

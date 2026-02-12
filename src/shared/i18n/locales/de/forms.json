@@ -65,5 +65,9 @@
   "edition": {
     "label": "Ausgabe",
     "helperText": "Ausgabe des Titels eingeben."
+  },
+  "publisherName": {
+    "label": "Publisher Name",
+    "helperText": "Enter the name of the publisher."
   }
 }

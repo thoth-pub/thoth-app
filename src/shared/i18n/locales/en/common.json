@@ -9,7 +9,8 @@
     "create": "create",
     "upload": "upload",
     "translation": "translation",
-    "reissue": "reissue"
+    "reissue": "reissue",
+    "addPublisher": "Add Publisher"
   },
   "title": "Title",
   "updated at": "Updated at",

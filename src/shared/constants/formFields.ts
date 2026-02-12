@@ -624,6 +624,12 @@ export const FORM_FIELDS = {
     name: 'statement',
     type: InputTypes.TEXT,
   },
+  PUBLISHER_NAME: {
+    label: 'publisherName.label',
+    name: 'publisherName',
+    placeholder: 'publisherName.label',
+    type: InputTypes.TEXT,
+  },
   SET_TITLE: {
     label: 'title',
     name: 'setTitle',

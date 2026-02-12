@@ -1,8 +1,10 @@
 import { PublisherId } from '@/src/entities/publisher';
+import { QueryToken } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ImprintDtoMapper } from '../model/imprint.mapper';
+import { CREATE_IMPRINT } from '../model/imprint.mutations';
 import { GET_IMPRINTS, GET_IMPRINTS_COUNT } from '../model/imprint.schema';
 import type { ImprintDto, ImprintEntity } from '../model/imprint.types';
 
@@ -55,5 +57,9 @@ export class ImprintService extends BaseService<ImprintEntity, ImprintDto> {
     } while (offset < maxImprintsCount);
 
     return imprints;
+  }
+
+  async createImprint(token: QueryToken, data: { publisherId: PublisherId; imprintName: string }) {
+    await this.graphqlService.mutation(token, CREATE_IMPRINT, { data });
   }
 }

@@ -27,3 +27,11 @@ export const DELETE_CONTACT = graphql(`
     }
   }
 `);
+
+export const CREATE_PUBLISHER = graphql(`
+  mutation CreatePublisher($data: NewPublisher!) {
+    createPublisher(data: $data) {
+      publisherId
+    }
+  }
+`);

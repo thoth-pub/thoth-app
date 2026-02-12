@@ -36,6 +36,7 @@ type Documents = {
     "\n  mutation CreateFunding($data: NewFunding!) {\n    createFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n": typeof types.CreateFundingDocument,
     "\n  mutation UpdateFunding($data: PatchFunding!) {\n    updateFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n": typeof types.UpdateFundingDocument,
     "\n  mutation DeleteFunding($fundingId: Uuid!) {\n    deleteFunding(fundingId: $fundingId) {\n      ...FundingFragment\n    }\n  }\n": typeof types.DeleteFundingDocument,
+    "\n  mutation CreateImprint($data: NewImprint!) {\n    createImprint(data: $data) {\n      imprintId\n    }\n  }\n": typeof types.CreateImprintDocument,
     "\n  query GetImprintsCount($publishers: [Uuid!]!) {\n    imprintCount(publishers: $publishers)\n  }\n": typeof types.GetImprintsCountDocument,
     "\n  query GetImprints($offset: Int!, $limit: Int, $publishers: [Uuid!]!) {\n    imprints(offset: $offset, limit: $limit, publishers: $publishers) {\n      imprintId\n      imprintName\n      imprintUrl\n      updatedAt\n      publisher {\n        publisherName\n      }\n    }\n  }\n": typeof types.GetImprintsDocument,
     "\n  query GetInstitutions($offset: Int!, $limit: Int, $filter: String) {\n    institutions(offset: $offset, limit: $limit, filter: $filter) {\n      institutionId\n      institutionName\n      institutionDoi\n      ror\n      countryCode\n      updatedAt\n    }\n  }\n": typeof types.GetInstitutionsDocument,
@@ -56,6 +57,7 @@ type Documents = {
     "\n  mutation CreateContact($data: NewContact!) {\n    createContact(data: $data) {\n      contactId\n      contactType\n      email\n    }\n  }\n": typeof types.CreateContactDocument,
     "\n  mutation UpdateContact($data: PatchContact!) {\n    updateContact(data: $data) {\n      contactId\n      contactType\n      email\n    }\n  }\n": typeof types.UpdateContactDocument,
     "\n  mutation DeleteContact($contactId: Uuid!) {\n    deleteContact(contactId: $contactId) {\n      contactId\n    }\n  }\n": typeof types.DeleteContactDocument,
+    "\n  mutation CreatePublisher($data: NewPublisher!) {\n    createPublisher(data: $data) {\n      publisherId\n    }\n  }\n": typeof types.CreatePublisherDocument,
     "\n  query GetPublishers($publishers: [Uuid!]!, $offset: Int!, $limit: Int) {\n    publishers(publishers: $publishers, offset: $offset, limit: $limit) {\n      ...PublisherFragment\n    }\n  }\n": typeof types.GetPublishersDocument,
     "\n  query GetPublisher($publisherId: Uuid!) {\n    publisher(publisherId: $publisherId) {\n      ...PublisherFragment\n    }\n  }\n": typeof types.GetPublisherDocument,
     "\n  mutation UpdatePublisher($data: PatchPublisher!) {\n    updatePublisher(data: $data) {\n      ...PublisherFragment\n    }\n  }\n": typeof types.UpdatePublisherDocument,
@@ -146,6 +148,7 @@ const documents: Documents = {
     "\n  mutation CreateFunding($data: NewFunding!) {\n    createFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n": types.CreateFundingDocument,
     "\n  mutation UpdateFunding($data: PatchFunding!) {\n    updateFunding(data: $data) {\n      ...FundingFragment\n    }\n  }\n": types.UpdateFundingDocument,
     "\n  mutation DeleteFunding($fundingId: Uuid!) {\n    deleteFunding(fundingId: $fundingId) {\n      ...FundingFragment\n    }\n  }\n": types.DeleteFundingDocument,
+    "\n  mutation CreateImprint($data: NewImprint!) {\n    createImprint(data: $data) {\n      imprintId\n    }\n  }\n": types.CreateImprintDocument,
     "\n  query GetImprintsCount($publishers: [Uuid!]!) {\n    imprintCount(publishers: $publishers)\n  }\n": types.GetImprintsCountDocument,
     "\n  query GetImprints($offset: Int!, $limit: Int, $publishers: [Uuid!]!) {\n    imprints(offset: $offset, limit: $limit, publishers: $publishers) {\n      imprintId\n      imprintName\n      imprintUrl\n      updatedAt\n      publisher {\n        publisherName\n      }\n    }\n  }\n": types.GetImprintsDocument,
     "\n  query GetInstitutions($offset: Int!, $limit: Int, $filter: String) {\n    institutions(offset: $offset, limit: $limit, filter: $filter) {\n      institutionId\n      institutionName\n      institutionDoi\n      ror\n      countryCode\n      updatedAt\n    }\n  }\n": types.GetInstitutionsDocument,
@@ -166,6 +169,7 @@ const documents: Documents = {
     "\n  mutation CreateContact($data: NewContact!) {\n    createContact(data: $data) {\n      contactId\n      contactType\n      email\n    }\n  }\n": types.CreateContactDocument,
     "\n  mutation UpdateContact($data: PatchContact!) {\n    updateContact(data: $data) {\n      contactId\n      contactType\n      email\n    }\n  }\n": types.UpdateContactDocument,
     "\n  mutation DeleteContact($contactId: Uuid!) {\n    deleteContact(contactId: $contactId) {\n      contactId\n    }\n  }\n": types.DeleteContactDocument,
+    "\n  mutation CreatePublisher($data: NewPublisher!) {\n    createPublisher(data: $data) {\n      publisherId\n    }\n  }\n": types.CreatePublisherDocument,
     "\n  query GetPublishers($publishers: [Uuid!]!, $offset: Int!, $limit: Int) {\n    publishers(publishers: $publishers, offset: $offset, limit: $limit) {\n      ...PublisherFragment\n    }\n  }\n": types.GetPublishersDocument,
     "\n  query GetPublisher($publisherId: Uuid!) {\n    publisher(publisherId: $publisherId) {\n      ...PublisherFragment\n    }\n  }\n": types.GetPublisherDocument,
     "\n  mutation UpdatePublisher($data: PatchPublisher!) {\n    updatePublisher(data: $data) {\n      ...PublisherFragment\n    }\n  }\n": types.UpdatePublisherDocument,
@@ -339,6 +343,10 @@ export function graphql(source: "\n  mutation DeleteFunding($fundingId: Uuid!) {
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
+export function graphql(source: "\n  mutation CreateImprint($data: NewImprint!) {\n    createImprint(data: $data) {\n      imprintId\n    }\n  }\n"): (typeof documents)["\n  mutation CreateImprint($data: NewImprint!) {\n    createImprint(data: $data) {\n      imprintId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
 export function graphql(source: "\n  query GetImprintsCount($publishers: [Uuid!]!) {\n    imprintCount(publishers: $publishers)\n  }\n"): (typeof documents)["\n  query GetImprintsCount($publishers: [Uuid!]!) {\n    imprintCount(publishers: $publishers)\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -416,6 +424,10 @@ export function graphql(source: "\n  mutation UpdateContact($data: PatchContact!
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation DeleteContact($contactId: Uuid!) {\n    deleteContact(contactId: $contactId) {\n      contactId\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteContact($contactId: Uuid!) {\n    deleteContact(contactId: $contactId) {\n      contactId\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreatePublisher($data: NewPublisher!) {\n    createPublisher(data: $data) {\n      publisherId\n    }\n  }\n"): (typeof documents)["\n  mutation CreatePublisher($data: NewPublisher!) {\n    createPublisher(data: $data) {\n      publisherId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

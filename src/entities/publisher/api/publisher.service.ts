@@ -2,7 +2,7 @@ import type { QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublisherDtoMapper } from '../model/publisher.mapper';
-import { CREATE_CONTACT, DELETE_CONTACT, UPDATE_CONTACT } from '../model/publisher.mutations';
+import { CREATE_CONTACT, CREATE_PUBLISHER, DELETE_CONTACT, UPDATE_CONTACT } from '../model/publisher.mutations';
 import { GET_PUBLISHER, GET_PUBLISHERS, UPDATE_PUBLISHER } from '../model/publisher.schema';
 import type { ContactEntity, ContactId, PublisherDto, PublisherEntity, PublisherId } from '../model/publisher.types';
 
@@ -57,6 +57,16 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     const contact = this.dtoMapper.toEntityContact(createContact);
 
     return contact;
+  }
+
+  async createPublisher(token: QueryToken, publisherName: string): Promise<string> {
+    const { createPublisher } = await this.graphqlService.mutation(token, CREATE_PUBLISHER, {
+      data: {
+        publisherName,
+      },
+    });
+
+    return createPublisher?.publisherId ?? '';
   }
 
   async updateContact(token: QueryToken, data: ContactEntity, publisherId: PublisherId): Promise<ContactEntity> {

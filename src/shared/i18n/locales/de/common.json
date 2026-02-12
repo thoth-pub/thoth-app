@@ -9,7 +9,8 @@
     "create": "Erstellen",
     "upload": "Upload",
     "translation": "Übersetzung",
-    "reissue": "Neuauflage"
+    "reissue": "Neuauflage",
+    "addPublisher": "Add Publisher"
   },
   "title": "Titel",
   "updated at": "Aktualisiert am",

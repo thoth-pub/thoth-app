@@ -22,6 +22,7 @@ const useUser = () => {
     data: user = defaultUser,
     error,
     isLoading,
+    refetch,
   } = useQuery({
     queryKey: [QueryKeys.userInfo, token],
     queryFn: () => userService.getUser(token),
@@ -43,7 +44,7 @@ const useUser = () => {
 
   const userImprintsOptions = convertEntityToSelectFieldOptions(userImprints, 'name');
 
-  return { user, userImprintsOptions, error, loading: isLoading };
+  return { user, userImprintsOptions, error, loading: isLoading, refetch };
 };
 
 export default useUser;

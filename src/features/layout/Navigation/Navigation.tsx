@@ -8,6 +8,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Activity, useState } from 'react';
 
+import { AddNewPublisher } from '@/src/entities/publisher';
 import { useUser } from '@/src/entities/user';
 import { PAGES, ROUTES } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
@@ -71,6 +72,8 @@ const Navigation = () => {
         </div>
 
         <ChangeActivePublisher isHidden={!isExpanded} />
+        {user.isSuperuser && <AddNewPublisher className={`w-[240px] shrink-0 ${isExpanded ? 'px-3.5' : 'gap-3'}`} />}
+
         <nav>
           <ul className="flex flex-col rounded-(--border-nav-radius) border border-(--color-nav-border)">
             {PAGES.map(({ name, href, icon: Icon }) => (

@@ -198,6 +198,8 @@
 @theme inline {
   --animate-fade-in: fade-in 1s ease-in-out;
 
+  --font-economica: var(--font-economica), sans-serif;
+
   @keyframes fade-in {
     0% {
       opacity: 0;

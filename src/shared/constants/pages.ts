@@ -28,7 +28,7 @@ export const PAGES = [
     icon: Filter1Icon,
   },
   {
-    name: 'profile',
+    name: 'publisher',
     href: ROUTES.PROFILE,
     icon: PermIdentityRoundedIcon,
   },

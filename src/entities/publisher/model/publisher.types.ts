@@ -4,6 +4,7 @@ import type { Contact, Publisher } from '@/gql/graphql';
 import type { ContactType } from '@/src/shared';
 
 import {
+  newPublisherValidationSchema,
   publisherContactValidationSchema,
   publisherReportValidationSchema,
   publisherStatementValidationSchema,
@@ -50,3 +51,5 @@ export type PublisherContactForm = z.infer<typeof publisherContactValidationSche
 export type PublisherReportForm = z.infer<typeof publisherReportValidationSchema>;
 
 export type PublisherStatementForm = z.infer<typeof publisherStatementValidationSchema>;
+
+export type NewPublisherForm = z.infer<typeof newPublisherValidationSchema>;
