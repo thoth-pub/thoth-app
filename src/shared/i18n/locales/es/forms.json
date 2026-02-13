@@ -25,7 +25,8 @@
     "label": "Titles"
   },
   "language": {
-    "label": "Idioma"
+    "label": "Idioma",
+    "helperText": "Elija el idioma de la obra."
   },
   "imprint": {
     "label": "Sello Editorial",
@@ -69,5 +70,122 @@
   "publisherName": {
     "label": "Publisher Name",
     "helperText": "Enter the name of the publisher."
+  },
+  "wortType": {
+    "label": "Tipo de obra",
+    "helperText": "Elija el tipo de obra."
+  },
+  "license": {
+    "label": "Licencia",
+    "helperText": "Elija la licencia de la obra."
+  },
+  "copyrightHolder": {
+    "label": "Titular de los derechos de autor",
+    "helperText": "Elija el titular de los derechos de autor de la obra."
+  },
+  "doi": {
+    "label": "DOI",
+    "helperText": "Introduzca la URL del DOI de la obra."
+  },
+  "landingPage": {
+    "label": "URL de la página de destino",
+    "helperText": "Introduzca la URL de la página de destino de la obra."
+  },
+  "lccn": {
+    "label": "LCCN",
+    "helperText": "Introduzca el LCCN de la obra."
+  },
+  "oclc": {
+    "label": "Número OCLC",
+    "helperText": "Introduzca el número OCLC de la obra."
+  },
+  "workSeries": {
+    "label": "Series",
+    "helperText": "Elija la serie a la que pertenece la obra."
+  },
+  "workSeriesOrdinal": {
+    "helperText": "Introduzca el número del volumen de la obra en la serie."
+  },
+  "abstract": {
+    "label": "Resumen",
+    "helperText": "Introduzca el resumen de la obra."
+  },
+  "shortAbstract": {
+    "label": "Resumen Corto",
+    "helperText": "Introduzca el resumen corto de la obra."
+  },
+  "workPageCount": {
+    "label": "Número De Páginas"
+  },
+  "chapterPageCount": {
+    "label": "Rango De Páginas"
+  },
+  "totalPageCount": {
+    "label": "Número Total De Páginas",
+    "helperText": "Introduzca el número de páginas de la obra."
+  },
+  "frontmatterPageCount": {
+    "label": "Número De Elementos Iniciales",
+    "helperText": "Introduzca el número de páginas iniciales de la obra."
+  },
+  "backmatterPageCount": {
+    "label": "Número De Elementos Finales",
+    "helperText": "Introduzca el número de páginas finales de la obra."
+  },
+  "firstPage": {
+    "label": "First Page",
+    "helperText": "Enter the first page of the work."
+  },
+  "lastPage": {
+    "label": "Last Page",
+    "helperText": "Enter the last page of the work."
+  },
+  "notes": {
+    "label": "Notas",
+    "helperText": "Enter the notes of the work."
+  },
+  "generalNote": {
+    "label": "Nota General"
+  },
+  "bibliographyNote": {
+    "label": "Nota Bibliográfica",
+    "helperText": "Enter the bibliography note of the work."
+  },
+  "mediaCount": {
+    "label": "Número De Elementos Multimedia"
+  },
+  "tableCount": {
+    "label": "Número De Tablas",
+    "helperText": "Introduzca el número de tablas de la obra."
+  },
+  "imageCount": {
+    "label": "Número De Imágenes",
+    "helperText": "Introduzca el número de imágenes de la obra."
+  },
+  "audioCount": {
+    "label": "Número De Archivos De Audio",
+    "helperText": "Introduzca el número de archivos de audio de la obra."
+  },
+  "videoCount": {
+    "label": "Número De Vídeos",
+    "helperText": "Introduzca el número de vídeos de la obra."
+  },
+  "languages": {
+    "label": "Idiomas"
+  },
+  "languagesRelation": {
+    "label": "Relación De Idioma",
+    "helperText": "Elija la relación de idioma de la obra."
+  },
+  "subjects": {
+    "label": "Materias"
+  },
+  "subjectType": {
+    "label": "Tipo De Materia",
+    "helperText": "Choose the type of subject."
+  },
+  "subjectCode": {
+    "label": "Código De Materia",
+    "helperText": "Enter the code of the subject."
   }
 }

@@ -7,9 +7,9 @@ import { useState } from 'react';
 
 import { WorkField } from '@/gql/graphql';
 import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
-import type { Direction } from '@/src/shared';
+import { type Direction, workTypeOptions } from '@/src/shared';
 import { directionOptions, workOrderByOptions, workStatusOptionsAlt } from '@/src/shared/constants/formFields';
-import { useTypedTranslation, useWorkTypeOptions } from '@/src/shared/hooks';
+import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { IconButton, InputAdornment, InputLabel, TextField, TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
@@ -41,7 +41,6 @@ export const Header = (props: HeaderProps) => {
     changeOrderBy,
   } = props;
 
-  const workTypeOptions = useWorkTypeOptions();
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.filters });
   const [isFilterOpen, setIsFilterOpen] = useState(false);
 

@@ -99,7 +99,8 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
                   name={getAbstractFieldName(index)}
                   id={getAbstractFieldName(index)}
                   className="w-full"
-                  helperText={isHelperTextVisible ? WORK_ABSTRACT_HELPER_TEXT : ''}
+                  helperText={WORK_ABSTRACT_HELPER_TEXT}
+                  isHelperTextVisible={isHelperTextVisible}
                   disableLineBreaks
                   extendedToolbar
                 />
@@ -112,7 +113,8 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
                 control={control}
                 name={getShortAbstractFieldName(index)}
                 id={getShortAbstractFieldName(index)}
-                helperText={isHelperTextVisible ? WORK_SHORT_ABSTRACT_HELPER_TEXT : ''}
+                helperText={WORK_SHORT_ABSTRACT_HELPER_TEXT}
+                isHelperTextVisible={isHelperTextVisible}
                 disableLineBreaks
               />
               <br />

@@ -1,11 +1,10 @@
 'use client';
 
 import { Control, useFieldArray } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
 import type { LanguageRelation } from '@/gql/graphql';
-import { appConfig, getLanguageRelationOptions, HELPER_TEXT, isDefaultId } from '@/src/shared';
+import { appConfig, HELPER_TEXT, isDefaultId, languageRelationOptions } from '@/src/shared';
 import { FORM_FIELDS, languageOptions } from '@/src/shared/constants/formFields';
 import {
   AddButton,
@@ -16,6 +15,7 @@ import {
   FormFieldWrapper,
   FormTextField,
   InputLabel,
+  TranslatedContent,
 } from '@/src/shared/ui';
 
 import { LanguagesForm } from '../../model/language.types';
@@ -40,9 +40,6 @@ export const FormFields = (props: FormFieldsProps) => {
     control,
     name: LANGUAGES.name,
   });
-
-  const { t, i18n } = useTranslation();
-  const languageRelationOptions = getLanguageRelationOptions(i18n.language);
 
   const fieldsDefaultValues = {
     languageId: appConfig.defaultId,
@@ -100,7 +97,7 @@ export const FormFields = (props: FormFieldsProps) => {
                   control={control}
                   fullWidth
                   id={getLanguageFieldName(index)}
-                  options={languageOptions}
+                  options={languageRelationOptions}
                   isHelperTextVisible={isHelperTextVisible}
                   helperText={WORK_LANGUAGE_HELPER_TEXT}
                 />
@@ -118,6 +115,7 @@ export const FormFields = (props: FormFieldsProps) => {
                 options={languageRelationOptions}
                 isHelperTextVisible={isHelperTextVisible}
                 helperText={WORK_LANGUAGE_RELATION_HELPER_TEXT}
+                translateOptions
               />
             </FormFieldWrapper>
           </li>
@@ -129,7 +127,7 @@ export const FormFields = (props: FormFieldsProps) => {
           {LANGUAGES.label}
         </InputLabel>
         <AddButton type="button" className="mt-4 mr-auto capitalize xl:mt-8" onAdd={handleAdd}>
-          {t('add new language')}
+          <TranslatedContent content="actions.addLanguage" />
         </AddButton>
       </FormFieldWrapper>
     </>

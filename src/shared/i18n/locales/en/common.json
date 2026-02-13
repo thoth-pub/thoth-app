@@ -10,7 +10,9 @@
     "upload": "upload",
     "translation": "translation",
     "reissue": "reissue",
-    "addPublisher": "Add Publisher"
+    "addPublisher": "Add Publisher",
+    "addLanguage": "Add New Language",
+    "addSubject": "Add New Subject"
   },
   "title": "Title",
   "updated at": "Updated at",
@@ -30,27 +32,21 @@
   "withdrawn": "withdrawn",
   "new edition": "new edition",
   "require remove": "require remove",
-
   "other": "other",
   "all": "all",
-
   "created at": "created at",
   "publication date": "publication date",
-
   "edited book": "edited book",
   "journal issue": "journal issue",
   "monograph": "monograph",
   "textbook": "textbook",
-
   "core details": "core details",
-
+  "descriptions": "Descriptions",
   "translated to": "translated to",
   "translated from": "translated from",
   "previous edition": "previous edition",
   "volume of": "volume of",
   "status change": "status change",
-
-
   "Jan": "Jan",
   "Feb": "Feb",
   "Mar": "Mar",
@@ -62,5 +58,8 @@
   "Sep": "Sep",
   "Oct": "Oct",
   "Nov": "Nov",
-  "Dec": "Dec"
+  "Dec": "Dec",
+  "volumeOf": "vol. {{volumeNumber}} of {{seriesTitle}}",
+  "page": "page",
+  "pages": "pages"
 }

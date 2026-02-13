@@ -10,7 +10,9 @@
     "upload": "subir",
     "translation": "traducción",
     "reissue": "reedición",
-    "addPublisher": "Add Publisher"
+    "addPublisher": "Add Publisher",
+    "addLanguage": "Agregar nuevo idioma",
+    "addSubject": "Agregar Nuevo Tema"
   },
   "title": "Título",
   "updated at": "Actualizado el",
@@ -22,7 +24,6 @@
   "issn": "ISSN",
   "book series": "Serie de libros",
   "journal": "Revista",
-
   "active": "activo",
   "forthcoming": "próximo a publicarse",
   "cancelled": "cancelado",
@@ -31,26 +32,21 @@
   "withdrawn": "retirado",
   "new edition": "nueva edición",
   "require remove": "requiere eliminar",
-
   "other": "other",
   "all": "all",
-
   "created at": "creado en",
   "publication date": "Fecha de publicación",
-
   "edited book": "libro editado",
   "journal issue": "número de la revista",
   "monograph": "monografía",
   "textbook": "libro de texto",
-
   "core details": "Detalles principales",
-
+  "descriptions": "Descripciones",
   "translated to": "Traducido a",
   "translated from": "Traducido de",
   "previous edition": "previous edition",
   "volume of": "volume of",
   "status change": "status change",
-
   "Jan": "Ene",
   "Feb": "Feb",
   "Mar": "Mar",
@@ -62,5 +58,8 @@
   "Sep": "Sep",
   "Oct": "Oct",
   "Nov": "Nov",
-  "Dec": "Dic"
+  "Dec": "Dic",
+  "volumeOf": "vol. {{volumeNumber}} of {{seriesTitle}}",
+  "page": "página",
+  "pages": "páginas"
 }

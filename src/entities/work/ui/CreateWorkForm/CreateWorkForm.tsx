@@ -1,9 +1,10 @@
 'use client';
 
 import { useUser } from '@/src/entities/user';
+import { workTypeOptions } from '@/src/shared';
 import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS, languageOptionsAlt, licenseOptions } from '@/src/shared/constants/formFields';
-import { useTypedTranslation, useWorkTypeOptions } from '@/src/shared/hooks';
+import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { AutocompleteGroup, Button, CircularProgress, PageHeader } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
@@ -18,7 +19,6 @@ const { CREATE_WORK } = IDs;
 const CreateWorkForm = () => {
   const { userImprintsOptions } = useUser();
 
-  const workTypeOptions = useWorkTypeOptions();
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
   const { control, isImprintVisible, isSubmitDisabled, isLoading, availableNewWorkOptions, submit } = useCreateWorkForm(

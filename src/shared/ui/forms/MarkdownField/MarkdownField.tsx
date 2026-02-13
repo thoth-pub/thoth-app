@@ -2,8 +2,9 @@
 
 import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { BaseFieldProps } from '@/src/shared/interfaces';
-import { MarkdownEditor, type MarkdownEditorProps } from '@/src/shared/ui';
+import { MarkdownEditor, type MarkdownEditorProps, TranslatedContent } from '@/src/shared/ui';
 import { mergeStyles } from '@/src/shared/utils';
 
 import FormHelperText from '../../core/FormHelperText/FormHelperText';
@@ -12,8 +13,18 @@ type MarkdownFieldProps<T extends FieldValues> = { helperText?: string; classNam
   Omit<MarkdownEditorProps, 'value'>;
 
 const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T>) => {
-  const { control, name, defaultValue, children, id, disableLineBreaks, extendedToolbar, helperText, className } =
-    props;
+  const {
+    control,
+    name,
+    defaultValue,
+    children,
+    id,
+    disableLineBreaks,
+    extendedToolbar,
+    helperText = '',
+    isHelperTextVisible,
+    className,
+  } = props;
 
   return (
     <Controller
@@ -33,7 +44,11 @@ const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T>) => {
           >
             {children}
           </MarkdownEditor>
-          <FormHelperText className="mt-2">{helperText}</FormHelperText>
+          {isHelperTextVisible && (
+            <FormHelperText className="mt-4">
+              <TranslatedContent content={helperText} namespace={NAMESPACES.enum.forms} />
+            </FormHelperText>
+          )}
         </div>
       )}
     />

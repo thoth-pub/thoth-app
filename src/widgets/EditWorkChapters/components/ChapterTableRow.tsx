@@ -70,7 +70,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
           </TableCell>
           <TableCell className="lastCell">
             <div className="flex justify-between">
-              {getPagesPlaceholder(firstPage, lastPage, pageCount)}
+              {getPagesPlaceholder(firstPage, lastPage, pageCount, '', '')}
               <ButtonGroup className="mb-auto ml-auto" disabled={isButtonsDisabled}>
                 <DeleteButton className="opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
                 <EditButton className="opacity-0 group-hover:opacity-100" onClick={() => onEdit?.(id)} />

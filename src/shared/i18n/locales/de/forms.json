@@ -25,7 +25,8 @@
     "label": "Titles"
   },
   "language": {
-    "label": "Sprache"
+    "label": "Sprache",
+    "helperText": "Die Sprache des Werkes auswählen."
   },
   "imprint": {
     "label": "Wortmarke",
@@ -69,5 +70,122 @@
   "publisherName": {
     "label": "Publisher Name",
     "helperText": "Enter the name of the publisher."
+  },
+  "wortType": {
+    "label": "Werktyp",
+    "helperText": "Den Publikationstyp des Werkes auswählen."
+  },
+  "license": {
+    "label": "Lizenz",
+    "helperText": "Lizenz auswählen, unter welcher der Titel veröffentlicht wird."
+  },
+  "copyrightHolder": {
+    "label": "Urheberrechtsinhaber*in",
+    "helperText": "Urheberrechtsinhaber*in auswählen."
+  },
+  "doi": {
+    "label": "DOI",
+    "helperText": "DOI URL des Werkes einfügen."
+  },
+  "landingPage": {
+    "label": "URL zur Website des Titels",
+    "helperText": "URL zur Website des Titels eingeben."
+  },
+  "lccn": {
+    "label": "LCCN",
+    "helperText": "Die LCCN des Werkes eingeben."
+  },
+  "oclc": {
+    "label": "OCLC Nummer",
+    "helperText": "Die OCLC Nummer des Werkes eingeben."
+  },
+  "workSeries": {
+    "label": "Reihe",
+    "helperText": "Die Reihe auswählen, der das Werk zugeordnet ist."
+  },
+  "workSeriesOrdinal": {
+    "helperText": "Die Ausgabennummer des Werkes innerhalb der Reihe angeben."
+  },
+  "abstract": {
+    "label": "Abstract",
+    "helperText": "Abstract des Werks eingeben."
+  },
+  "shortAbstract": {
+    "label": "Kurzzusammenfassung",
+    "helperText": "Kurzbeschreibung des Werkes angeben."
+  },
+  "workPageCount": {
+    "label": "Seitenanzahl"
+  },
+  "chapterPageCount": {
+    "label": "Seitenumfang"
+  },
+  "totalPageCount": {
+    "label": "Seitenanzahl gesamt",
+    "helperText": "Gesamte Seitenanzahl des Werkes angeben."
+  },
+  "frontmatterPageCount": {
+    "label": "Titelei: Seitenanzahl",
+    "helperText": "Enter the frontmatter page count of the work."
+  },
+  "backmatterPageCount": {
+    "label": "Endbogen: Seitenanzahl",
+    "helperText": "Enter the backmatter page count of the work."
+  },
+  "firstPage": {
+    "label": "First Page",
+    "helperText": "Enter the first page of the work."
+  },
+  "lastPage": {
+    "label": "Last Page",
+    "helperText": "Enter the last page of the work."
+  },
+  "notes": {
+    "label": "Notizen"
+  },
+  "generalNote": {
+    "label": "Generelle Notiz",
+    "helperText": "Enter the general note of the work."
+  },
+  "bibliographyNote": {
+    "label": "Bibliographische Notiz",
+    "helperText": "Enter the bibliography note of the work."
+  },
+  "mediaCount": {
+    "label": "Gesamtanzahl genutzter Abbildungen"
+  },
+  "tableCount": {
+    "label": "Tabellen: Anzahl",
+    "helperText": "Anzahl von Tabellen eingeben, die im Werk verwendet werden."
+  },
+  "imageCount": {
+    "label": "Abbildungen: Anzahl",
+    "helperText": "Anzahl von Bildeinheiten eingeben, die im Werk verwendet werden."
+  },
+  "audioCount": {
+    "label": "Audio: Anzahl",
+    "helperText": "Anzahl von Audioeinheiten eingeben, die im Werk verwendet werden."
+  },
+  "videoCount": {
+    "label": "Video: Anzahl",
+    "helperText": "Anzahl von Videoeinheiten eingeben, die im Werk verwendet werden."
+  },
+  "languages": {
+    "label": "Sprachen"
+  },
+  "languagesRelation": {
+    "label": "Sprachrelation",
+    "helperText": "Die Sprachrelation des Werkes auswählen."
+  },
+  "subjects": {
+    "label": "Subjektklassifikationen"
+  },
+  "subjectType": {
+    "label": "Subjectklassifikation: Typ",
+    "helperText": "Choose the type of subject."
+  },
+  "subjectCode": {
+    "label": "Subjectklassifikation: Code",
+    "helperText": "Enter the code of the subject."
   }
 }

@@ -5,16 +5,19 @@ import type { AutocompleteProps } from '@mui/material/Autocomplete';
 import type { ReactNode } from 'react';
 import { Controller, type FieldValues, Path } from 'react-hook-form';
 
+import { Namespace, NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { FormFieldOption } from '@/src/shared/interfaces';
 
 import Autocomplete from '../../core/Autocomplete/Autocomplete';
 import TextField from '../../core/TextField/TextField';
+import TranslatedContent from '../../core/TranslatedContent/TranslatedContent';
 import { FormTextFieldComponentProps } from '../FormTextField/FormTextField';
 
 export type AutocompleteFieldProps<T extends FieldValues> = {
   freeSolo?: boolean;
   options: FormFieldOption[];
   icon?: ReactNode;
+  namespace?: Namespace;
 } & Omit<AutocompleteProps<FormFieldOption, true, false | true, true | false>, 'options' | 'renderInput'> &
   FormTextFieldComponentProps<T>;
 
@@ -30,6 +33,7 @@ const AutocompleteField = <T extends FieldValues>(props: AutocompleteFieldProps<
     variant,
     isHelperTextVisible = false,
     helperText,
+    namespace = NAMESPACES.enum.forms,
     ...restProps
   } = props;
 
@@ -54,7 +58,11 @@ const AutocompleteField = <T extends FieldValues>(props: AutocompleteFieldProps<
               <TextField
                 {...params}
                 variant={variant}
-                helperText={isHelperTextVisible ? helperText : undefined}
+                helperText={
+                  isHelperTextVisible ? (
+                    <TranslatedContent content={helperText as string} namespace={namespace} />
+                  ) : undefined
+                }
                 slotProps={{ input: { ...params.InputProps, startAdornment: icon } }}
               />
             )}

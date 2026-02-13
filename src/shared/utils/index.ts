@@ -22,6 +22,7 @@ export * from './helpers/truncateString';
 export * from './metadata';
 export * from './publications';
 export * from './publishers';
+export * from './strings';
 export * from './styles';
 export * from './subjects';
 export * from './validations';

@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 
+import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { convertEntityToSelectFieldOptions, QueryKeys, useServices } from '@/src/shared';
 import { useQueryToken } from '@/src/shared/hooks';
 
@@ -16,6 +17,7 @@ const defaultUser = {
 
 const useUser = () => {
   const { userService } = useServices();
+  const { activePublisher } = usePublisherStateMachine();
   const token = useQueryToken();
 
   const {
@@ -32,6 +34,8 @@ const useUser = () => {
   const userImprintsMap = new Map<string, { imprintId: string; imprintName: string }>();
 
   user.linkedPublishers.forEach((publisher) => {
+    if (!activePublisher || activePublisher.id !== publisher.publisherId) return;
+
     publisher.imprints.forEach((imprint) => {
       userImprintsMap.set(imprint.imprintId, imprint);
     });

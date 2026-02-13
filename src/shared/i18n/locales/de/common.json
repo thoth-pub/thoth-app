@@ -10,7 +10,9 @@
     "upload": "Upload",
     "translation": "Übersetzung",
     "reissue": "Neuauflage",
-    "addPublisher": "Add Publisher"
+    "addPublisher": "Add Publisher",
+    "addLanguage": "Neue Sprache hinzufügen",
+    "addSubject": "Neue Subjektklassifikation hinzufügen"
   },
   "title": "Titel",
   "updated at": "Aktualisiert am",
@@ -21,7 +23,6 @@
   "contributors": "Beitragende",
   "book series": "Buchreihe",
   "journal": "Journal",
-
   "active": "Aktiv",
   "forthcoming": "im Erscheinen",
   "cancelled": "cancelled",
@@ -30,10 +31,8 @@
   "withdrawn": "widerrufen",
   "new edition": "Neuer Sammelband",
   "require remove": "require remove",
-
   "other": "other",
   "all": "all",
-
   "created at": "erstellt am",
   "publication date": "Veröffentlichungsdatum",
   "edited book": "Sammelband",
@@ -41,15 +40,13 @@
   "monograph": "Monografie",
   "textbook": "Lehrwerk",
   "issn": "ISSN",
-
   "core details": "Kerninformationen",
-
+  "descriptions": "Beschreibungen",
   "translated to": "Übersetzt nach",
   "translated from": "Übersetzt aus",
   "previous edition": "previous edition",
   "volume of": "volume of",
   "status change": "status change",
-
   "Jan": "Jan",
   "Feb": "Feb",
   "Mar": "Mar",
@@ -61,5 +58,8 @@
   "Sep": "Sep",
   "Oct": "Okt",
   "Nov": "Nov",
-  "Dec": "Dez"
+  "Dec": "Dez",
+  "volumeOf": "vol. {{volumeNumber}} of {{seriesTitle}}",
+  "page": "seite",
+  "pages": "seiten"
 }

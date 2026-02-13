@@ -2,29 +2,23 @@ import { z } from 'zod';
 
 import { LOCALES } from '@/src/shared/constants';
 
+import { seriesTypeOptions } from '../../constants/formFields';
 import {
-  getAccessibilityExceptionOptions,
-  getContributorTypeOptions,
-  getLanguageRelationOptions,
-  getSeriesTypeOptions,
-  getWorkStatusOptions,
-  getWorkTypeOptions,
+  accessibilityExceptionOptions,
+  contributorTypeOptions,
+  languageRelationOptions,
+  workStatusOptions,
+  workTypeOptions,
 } from '../../utils';
 
 export type Locale = z.infer<typeof LOCALES>;
 
-const workTypesLabels = z.enum(getWorkTypeOptions(LOCALES.enum.en).map((option) => option.label.toLowerCase()));
-const contributorTypesLabels = z.enum(
-  getContributorTypeOptions(LOCALES.enum.en).map((option) => option.label.toLowerCase()),
-);
-const languageRelationLabels = z.enum(
-  getLanguageRelationOptions(LOCALES.enum.en).map((option) => option.label.toLowerCase()),
-);
-const accessibilityExceptionLabels = z.enum(
-  getAccessibilityExceptionOptions(LOCALES.enum.en).map((option) => option.label.toLowerCase()),
-);
-const workStatusLabels = z.enum(getWorkStatusOptions(LOCALES.enum.en).map((option) => option.label.toLowerCase()));
-const seriesTypeLabels = z.enum(getSeriesTypeOptions(LOCALES.enum.en).map((option) => option.label.toLowerCase()));
+const workTypesLabels = z.enum(workTypeOptions.map((option) => option.label.toLowerCase()));
+const contributorTypesLabels = z.enum(contributorTypeOptions.map((option) => option.label.toLowerCase()));
+const languageRelationLabels = z.enum(languageRelationOptions.map((option) => option.label.toLowerCase()));
+const accessibilityExceptionLabels = z.enum(accessibilityExceptionOptions.map((option) => option.label.toLowerCase()));
+const workStatusLabels = z.enum(workStatusOptions.map((option) => option.label.toLowerCase()));
+const seriesTypeLabels = z.enum(seriesTypeOptions.map((option) => option.label.toLowerCase()));
 
 export const NAMESPACES = z.enum([
   'common',

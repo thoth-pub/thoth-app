@@ -4,7 +4,7 @@ import { LanguagesForm } from '@/src/entities/language/model/language.types';
 import { EditSubjects } from '@/src/entities/subject';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { ANCHORS, type BaseEditSectionProps } from '@/src/shared';
-import { RecommendedSection } from '@/src/shared/ui';
+import { RecommendedSection, TranslatedContent } from '@/src/shared/ui';
 
 import { EditAbstracts } from './components/EditAbstracts';
 import { EditLanguages } from './components/EditLanguages';
@@ -36,7 +36,12 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
   const isEmpty = work.languages.length === 0 && work.pageCount === 0;
 
   return (
-    <RecommendedSection title="Descriptions" isEmpty={isEmpty} isValid={isValid} id={ANCHORS.DESCRIPTIONS}>
+    <RecommendedSection
+      title={<TranslatedContent content="descriptions" />}
+      isEmpty={isEmpty}
+      isValid={isValid}
+      id={ANCHORS.DESCRIPTIONS}
+    >
       {({ showRecommendations }) => (
         <>
           {!isMultipleChaptersEdit && <EditAbstracts workId={workId} />}

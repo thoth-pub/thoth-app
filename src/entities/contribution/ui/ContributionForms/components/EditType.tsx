@@ -3,7 +3,7 @@
 import { useTranslation } from 'react-i18next';
 
 import type { ContributionType } from '@/src/entities/contributor/model/contributor.types';
-import { convertContributorTypeOptions, getContributorTypeOptions, HELPER_TEXT, IDs } from '@/src/shared';
+import { contributorTypeOptions, convertContributorTypeOptions, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
@@ -22,8 +22,7 @@ type EditTypeProps = {
 
 export const EditType = (props: EditTypeProps) => {
   const { contributorType, onSubmit } = props;
-  const { t, i18n } = useTranslation();
-  const contributorTypeOptions = getContributorTypeOptions(i18n.language);
+  const { t } = useTranslation();
   const convertedContributorTypeOptions = convertContributorTypeOptions(contributorTypeOptions);
 
   const defaultValue =

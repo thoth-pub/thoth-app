@@ -3,6 +3,7 @@ import { Control } from 'react-hook-form';
 import { LanguageRelation } from '@/gql/graphql';
 import { convertOptionToString, IDs } from '@/src/shared';
 import { FORM_FIELDS, languageOptions } from '@/src/shared/constants/formFields';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, DeleteButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
@@ -65,7 +66,8 @@ const LanguagesForm = (props: LanguagesFormProps) => {
           value={placeholder}
           recommended={showRecommendations}
           editButtonClassName="mt-1.5 xl:mt-0"
-          addButtonText="Language"
+          addButtonText={LANGUAGE.label}
+          namespace={NAMESPACES.enum.forms}
         >
           {placeholder && (
             <ul className="flex w-full flex-col gap-(--default-gap)">

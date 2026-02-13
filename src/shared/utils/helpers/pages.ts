@@ -1,4 +1,10 @@
-export const getPagesPlaceholder = (firstPage: string, lastPage: string, pageCount: number) => {
+export const getPagesPlaceholder = (
+  firstPage: string,
+  lastPage: string,
+  pageCount: number,
+  pagePlaceholder: string,
+  pagesPlaceholder: string,
+) => {
   let result = '';
 
   if (firstPage.length > 0) {
@@ -14,7 +20,7 @@ export const getPagesPlaceholder = (firstPage: string, lastPage: string, pageCou
   }
 
   if (pageCount > 0) {
-    result += ` (${pageCount} ${pageCount > 1 ? 'pages' : 'page'})`;
+    result += ` (${pageCount} ${pageCount > 1 ? pagesPlaceholder : pagePlaceholder})`;
   }
 
   return result;

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useWork } from '@/src/entities/work';
 import type { PagesCountForm } from '@/src/entities/work/model/work.types';
@@ -23,8 +24,15 @@ import {
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-const { WORK_PAGES_COUNT, WORK_FRONTMATTER_COUNT, WORK_BACKMATTER_COUNT, WORK_FIRST_PAGE, WORK_LAST_PAGE } =
-  FORM_FIELDS;
+const {
+  WORK_PAGES_COUNT,
+  PAGES_COUNT,
+  PAGES_RANGE,
+  WORK_FRONTMATTER_COUNT,
+  WORK_BACKMATTER_COUNT,
+  WORK_FIRST_PAGE,
+  WORK_LAST_PAGE,
+} = FORM_FIELDS;
 
 const {
   WORK_PAGES_COUNT: WORK_PAGES_COUNT_HELPER_TEXT,
@@ -42,6 +50,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
   const { workId, recommended = false, isChapter = false } = props;
 
   const { work, updateWork } = useWork(workId);
+  const { t } = useTranslation();
 
   const { pageCount, frontmatterCount, backmatterCount, firstPage, lastPage } = work;
 
@@ -49,7 +58,9 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
   const backmatterValue = convertArabicToRoman(backmatterCount);
   const frontmatterValue = convertArabicToRoman(frontmatterCount);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
+  const pagePlaceholder = t('page');
+  const pagesPlaceholder = t('pages');
+
   const pageBreakdownValue = useMemo(() => {
     const res: string[] = [];
 
@@ -58,7 +69,9 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
     }
 
     if (pageCount) {
-      res.push(`${pageCount - frontmatterCount - backmatterCount} ${pageCount > 1 ? 'pages' : 'page'}`);
+      res.push(
+        `${pageCount - frontmatterCount - backmatterCount} ${pageCount > 1 ? pagesPlaceholder : pagePlaceholder}`,
+      );
     }
 
     if (backmatterCount) {
@@ -66,10 +79,12 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
     }
 
     return res.join(' + ').toLowerCase();
-  }, [pageCount, frontmatterCount, backmatterCount]);
+  }, [pageCount, frontmatterCount, backmatterCount, pagePlaceholder]);
 
-  const workPlaceholder = pageCount ? `${pageCount} ${pageCount > 1 ? 'pages' : 'page'} (${pageBreakdownValue})` : '';
-  const chapterPlaceholder = getPagesPlaceholder(firstPage, lastPage, pageCount);
+  const workPlaceholder = pageCount
+    ? `${pageCount} ${pageCount > 1 ? pagesPlaceholder : pagePlaceholder} (${pageBreakdownValue})`
+    : '';
+  const chapterPlaceholder = getPagesPlaceholder(firstPage, lastPage, pageCount, pagePlaceholder, pagesPlaceholder);
 
   const handleSubmit = ({ pageCount, frontmatterCount, backmatterCount, firstPage, lastPage }: PagesCountForm) => {
     updateWork({
@@ -172,7 +187,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
       )}
       preview={({ disabled, onEdit }) => (
         <Preview
-          label={isChapter ? 'Page Range' : 'Page Count'}
+          label={isChapter ? PAGES_RANGE.label : PAGES_COUNT.label}
           value={isChapter ? chapterPlaceholder : workPlaceholder}
           recommended={showPagesCountIndicator}
           disabled={disabled}

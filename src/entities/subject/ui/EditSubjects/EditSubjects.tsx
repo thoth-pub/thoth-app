@@ -4,7 +4,8 @@ import { useState } from 'react';
 
 import { type BaseRecommendedSectionProps, convertOptionToString, SubjectTypes } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { AddButton, ContentWrapper, InputLabel } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { AddButton, ContentWrapper, InputLabel, TranslatedContent } from '@/src/shared/ui';
 
 import useMoveSubjects from '../../api/hooks/useMoveSubjects';
 import type { SubjectEntity, SubjectType } from '../../model/subject.types';
@@ -109,7 +110,9 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
 
   return (
     <ContentWrapper className="gap-y-(--default-gap) p-4">
-      <InputLabel>{SUBJECTS.label}</InputLabel>
+      <InputLabel>
+        <TranslatedContent content={SUBJECTS.label} namespace={NAMESPACES.enum.forms} />
+      </InputLabel>
       {placeholder ? (
         <div className="flex w-full flex-col gap-(--default-gap)">
           <ul className="flex w-full flex-col gap-0">
@@ -126,13 +129,13 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
               />
             ))}
             <AddButton onAdd={handleModalState} className="capitalize xl:-ml-4">
-              add new subject
+              <TranslatedContent content="actions.addSubject" />
             </AddButton>
           </ul>
         </div>
       ) : (
         <AddButton onAdd={handleModalState} className="py-0 capitalize xl:-ml-4">
-          add new subject
+          <TranslatedContent content="actions.addSubject" />
         </AddButton>
       )}
       <NewSubjectModal open={isModalOpen} onClose={handleModalState} onAdd={handleAddNewSubject} />

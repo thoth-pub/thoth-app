@@ -64,12 +64,12 @@ export const EditImprint = ({ disabled = true, workId, imprintOptions, recommend
           </ContentWrapper>
         </MultipleContentWrapper>
       )}
-      preview={({ disabled, onEdit }) => (
+      preview={({ disabled: previewDisabled, onEdit }) => (
         <Preview
           label={IMPRINT.label}
           value={placeholder}
           recommended={showIndicator}
-          disabled={disabled}
+          disabled={disabled || previewDisabled}
           onEdit={onEdit}
         />
       )}

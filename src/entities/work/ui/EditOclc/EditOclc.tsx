@@ -12,7 +12,7 @@ import { oclcValidationSchema } from '../../model/work.validation';
 const { OCLC } = FORM_FIELDS;
 const { WORK_OCLC } = HELPER_TEXT;
 
-const EditLccn = (props: BaseEditSectionProps) => {
+const EditOclc = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
   const { work, updateWork } = useWork(workId);
@@ -48,4 +48,4 @@ const EditLccn = (props: BaseEditSectionProps) => {
   );
 };
 
-export default EditLccn;
+export default EditOclc;

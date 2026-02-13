@@ -9,12 +9,7 @@ type ContentWrapperProps = {
 
 const ContentWrapper = ({ children, className }: ContentWrapperProps) => {
   return (
-    <div
-      className={mergeStyles(
-        'grid min-h-[2.75rem] w-full grid-cols-1 items-start gap-y-2 duration-300 lg:grid-cols-[11.25rem_1fr]',
-        className,
-      )}
-    >
+    <div className={mergeStyles('grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300', className)}>
       {children}
     </div>
   );

@@ -10,7 +10,7 @@ import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-const { WORK_IMAGE_COUNT, WORK_TABLE_COUNT, WORK_AUDIO_COUNT, WORK_VIDEO_COUNT } = FORM_FIELDS;
+const { WORK_IMAGE_COUNT, WORK_TABLE_COUNT, WORK_AUDIO_COUNT, WORK_VIDEO_COUNT, MEDIA_COUNT } = FORM_FIELDS;
 
 const {
   WORK_TABLE_COUNT: WORK_TABLE_COUNT_HELPER_TEXT,
@@ -116,7 +116,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
         </MultipleContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (
-        <Preview label="Media Count" value={placeholderValue} disabled={disabled} onEdit={onEdit} />
+        <Preview label={MEDIA_COUNT.label} value={placeholderValue} disabled={disabled} onEdit={onEdit} />
       )}
     />
   );

@@ -9,7 +9,8 @@ import { issueValidationSchema } from '@/src/entities/series/model/series.valida
 import { useWork } from '@/src/entities/work';
 import { appConfig, type BaseEditSectionProps, convertEntityToSelectFieldOptions, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { useDebouncedValue } from '@/src/shared/hooks';
+import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import { DeleteButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -29,6 +30,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
   const { serieses, loading } = useSerieses({ publishersIds, filter: debouncedValue });
 
   const options = convertEntityToSelectFieldOptions(serieses, 'name');
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
   const isNew = work.issues.length === 0;
 
@@ -36,7 +38,13 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
   const { deleteIssue } = useDeleteIssue();
   const { close } = useFormStateMachine();
 
-  const placeholder = work.issues.length > 0 ? `vol. ${work.issues[0].ordinal} of ${work.issues[0].seriesName}` : '';
+  const placeholder =
+    work.issues.length > 0
+      ? t('volumeOf', {
+          volumeNumber: work.issues[0].ordinal,
+          seriesTitle: work.issues[0].seriesName,
+        })
+      : '';
 
   const createNewIssue = (data: IssueValidationSchema) => {
     if (!activePublisher) return;

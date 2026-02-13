@@ -25,7 +25,8 @@
     "label": "Titles"
   },
   "language": {
-    "label": "Language"
+    "label": "Language",
+    "helperText": "Choose the language of the work."
   },
   "imprint": {
     "label": "Imprint",
@@ -69,5 +70,122 @@
   "publisherName": {
     "label": "Publisher Name",
     "helperText": "Enter the name of the publisher."
+  },
+  "wortType": {
+    "label": "Work Type",
+    "helperText": "Choose the type of work."
+  },
+  "license": {
+    "label": "License",
+    "helperText": "Choose the license of the work."
+  },
+  "copyrightHolder": {
+    "label": "Copyright Holder",
+    "helperText": "Choose the copyright holder of the work."
+  },
+  "doi": {
+    "label": "DOI",
+    "helperText": "Enter the DOI URL of the work."
+  },
+  "landingPage": {
+    "label": "Landing Page URL",
+    "helperText": "Enter the landing page URL of the work."
+  },
+  "lccn": {
+    "label": "LCCN",
+    "helperText": "Enter the LCCN of the work."
+  },
+  "oclc": {
+    "label": "OCLC Number",
+    "helperText": "Enter the OCLC number of the work."
+  },
+  "workSeries": {
+    "label": "Series",
+    "helperText": "Choose the series the work belongs to."
+  },
+  "workSeriesOrdinal": {
+    "helperText": "Enter the volume number of the work in the series."
+  },
+  "abstract": {
+    "label": "Abstract",
+    "helperText": "Enter the abstract of the work."
+  },
+  "shortAbstract": {
+    "label": "Short Abstract",
+    "helperText": "Enter the short abstract of the work."
+  },
+  "workPageCount": {
+    "label": "Page Count"
+  },
+  "chapterPageCount": {
+    "label": "Page Range"
+  },
+  "totalPageCount": {
+    "label": "Total Page Count",
+    "helperText": "Enter the page count of the work."
+  },
+  "frontmatterPageCount": {
+    "label": "Frontmatter Count",
+    "helperText": "Enter the frontmatter page count of the work."
+  },
+  "backmatterPageCount": {
+    "label": "Backmatter Count",
+    "helperText": "Enter the backmatter page count of the work."
+  },
+  "firstPage": {
+    "label": "First Page",
+    "helperText": "Enter the first page of the work."
+  },
+  "lastPage": {
+    "label": "Last Page",
+    "helperText": "Enter the last page of the work."
+  },
+  "notes": {
+    "label": "Notes"
+  },
+  "generalNote": {
+    "label": "General Note",
+    "helperText": "Enter the general note of the work."
+  },
+  "bibliographyNote": {
+    "label": "Bibliography Note",
+    "helperText": "Enter the bibliography note of the work."
+  },
+  "mediaCount": {
+    "label": "Media Count"
+  },
+  "tableCount": {
+    "label": "Table Count",
+    "helperText": "Enter the table count of the work."
+  },
+  "imageCount": {
+    "label": "Image Count",
+    "helperText": "Enter the image count of the work."
+  },
+  "audioCount": {
+    "label": "Audio Count",
+    "helperText": "Enter the audio count of the work."
+  },
+  "videoCount": {
+    "label": "Video Count",
+    "helperText": "Enter the video count of the work."
+  },
+  "languages": {
+    "label": "Languages"
+  },
+  "languagesRelation": {
+    "label": "Language Relation",
+    "helperText": "Choose the language relation of the work."
+  },
+  "subjects": {
+    "label": "Subjects"
+  },
+  "subjectType": {
+    "label": "Subject Type",
+    "helperText": "Choose the type of subject."
+  },
+  "subjectCode": {
+    "label": "Subject Code",
+    "helperText": "Enter the code of the subject."
   }
 }

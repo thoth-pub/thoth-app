@@ -4,6 +4,7 @@ import { PieChart } from '@mui/x-charts';
 
 import { ChartWrapper, useBooksCount, useForthcomingBooksCount, usePublishedBooksCount } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
+import { capitalizeFirstLetter } from '@/src/shared';
 import { useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { CircularProgress, DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
@@ -25,9 +26,9 @@ const TotalBooksChart = () => {
 
   const chartData: { label: string; value: number; color: string }[] = [];
 
-  const activeLabel = t('active')[0].toUpperCase() + t('active').slice(1);
-  const forthcomingLabel = t('forthcoming')[0].toUpperCase() + t('forthcoming').slice(1);
-  const otherLabel = t('other')[0].toUpperCase() + t('other').slice(1);
+  const activeLabel = capitalizeFirstLetter(t('active'));
+  const forthcomingLabel = capitalizeFirstLetter(t('forthcoming'));
+  const otherLabel = capitalizeFirstLetter(t('other'));
 
   if (publishedBookCount > 0) {
     chartData.push({ label: activeLabel, value: publishedBookCount, color: 'var(--color-success)' });

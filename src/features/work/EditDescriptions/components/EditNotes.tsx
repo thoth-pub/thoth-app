@@ -13,7 +13,7 @@ import {
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-const { WORK_GENERAL_NOTE, WORK_BIBLIOGRAPHY_NOTE } = FORM_FIELDS;
+const { WORK_GENERAL_NOTE, WORK_BIBLIOGRAPHY_NOTE, WORK_NOTES } = FORM_FIELDS;
 
 const { WORK_GENERAL_NOTE: WORK_GENERAL_NOTE_HELPER_TEXT, WORK_BIBLIOGRAPHY_NOTE: WORK_BIBLIOGRAPHY_NOTE_HELPER_TEXT } =
   HELPER_TEXT;
@@ -72,7 +72,7 @@ export const EditNotes = (props: BaseRecommendedSectionProps) => {
         </MultipleContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (
-        <Preview label="Notes" value={placeholderValue} disabled={disabled} onEdit={onEdit}>
+        <Preview label={WORK_NOTES.label} value={placeholderValue} disabled={disabled} onEdit={onEdit}>
           <div className="flex flex-col gap-2">
             {work.generalNote && work.generalNote.length > 0 && <Typography>{work.generalNote}</Typography>}
             {work.bibliographyNote && work.bibliographyNote.length > 0 && (
