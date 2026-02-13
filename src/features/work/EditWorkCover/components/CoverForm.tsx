@@ -21,6 +21,7 @@ import {
   Modal,
   ModalWrapper,
   SubmitButton,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 
@@ -71,7 +72,9 @@ export const CoverForm = (props: BaseEditSectionProps) => {
           type="button"
         >
           <PlaceholderLogo />
-          <Typography className="text-center font-semibold">Add Cover</Typography>
+          <Typography className="text-center font-semibold">
+            <TranslatedContent content="actions.addCover" />
+          </Typography>
           {work.coverUrl && (
             <ImageWithFallback
               fallback="/transparent.png"
@@ -93,7 +96,7 @@ export const CoverForm = (props: BaseEditSectionProps) => {
         <ModalWrapper>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
-              Change Cover
+              <TranslatedContent content="actions.changeCover" />
             </Typography>
             <div className="flex gap-2">
               <SubmitButton onClick={handleSubmit(onSubmit)} />

@@ -187,5 +187,50 @@
   "subjectCode": {
     "label": "Subjectklassifikation: Code",
     "helperText": "Enter the code of the subject."
+  },
+  "coverUrl": {
+    "label": "URL des Titelumschlags",
+    "helperText": "URL zur online verfügbaren Titelumschlags-Datei einfügen."
+  },
+  "fullName": {
+    "label": "Vollständiger Name",
+    "helperText": "Vollständigen Namen eingeben."
+  },
+  "givenName": {
+    "label": "Vorname(n)",
+    "helperText": "Vorname(n) und/oder Initialen eingeben."
+  },
+  "familyName": {
+    "label": "Nachname(n)",
+    "helperText": "Nachname(n) eingeben."
+  },
+  "contributorType": {
+    "label": "Rolle der/des Beitragenden",
+    "helperText": "Rolle der/des Beitragenen auswählen."
+  },
+  "contributorBiography": {
+    "label": "Biographie",
+    "helperText": "Kurzbiografie der/des Beitragenden zum Zeitpunkt der Publikation einfügen."
+  },
+  "contributorOrcid": {
+    "helperText": "ORCID der/des Beitragenden einfügen."
+  },
+  "contributorWebsiteUrl": {
+    "label": "Website URL",
+    "helperText": "URL der persönlichen Website der/des Beitragenden einfügen."
+  },
+  "affiliation": {
+    "label": "Affiliation"
+  },
+  "contributorAffiliationPosition": {
+    "label": "Position",
+    "helperText": "Affiliierte Institution der/des Beitragenden zum Zeitpunkt der Publikation auswählen."
+  },
+  "contributorAffiliationInstitution": {
+    "label": "Institution",
+    "helperText": "Affiliierte Institution der/des Beitragenden zum Zeitpunkt der Publikation auswählen."
+  },
+  "canonicalContributor": {
+    "label": "Lead Contributor"
   }
 }

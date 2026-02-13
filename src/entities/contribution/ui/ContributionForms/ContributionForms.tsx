@@ -1,7 +1,8 @@
 'use client';
 
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { Checkbox, ContentWrapper, InputLabel, TableFormsWrapper } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { Checkbox, ContentWrapper, InputLabel, TableFormsWrapper, TranslatedContent } from '@/src/shared/ui';
 
 import type { WorkContribution } from '../../model/contribution.types';
 import { ContributionBiographyForm, ContributionNamesForm, ContributionTypeForm } from '../../model/contribution.types';
@@ -64,7 +65,9 @@ const ContributionForms = (props: ContributionFormsProps) => {
       />
       {children}
       <ContentWrapper>
-        <InputLabel component="span">{CANONICAL_CONTRIBUTOR.label}</InputLabel>
+        <InputLabel component="span">
+          <TranslatedContent content={CANONICAL_CONTRIBUTOR.label} namespace={NAMESPACES.enum.forms} />
+        </InputLabel>
         <Checkbox
           checked={isMain}
           onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleIsMainSubmit(e.target.checked)}

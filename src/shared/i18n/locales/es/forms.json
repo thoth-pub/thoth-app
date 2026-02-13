@@ -187,5 +187,50 @@
   "subjectCode": {
     "label": "Código De Materia",
     "helperText": "Enter the code of the subject."
+  },
+  "coverUrl": {
+    "label": "URL De La Cubierta",
+    "helperText": "Introduzca la URL de la imagen de la cubierta en línea de la obra."
+  },
+  "fullName": {
+    "label": "Nombre Completo",
+    "helperText": "Introduzca el nombre completo."
+  },
+  "givenName": {
+    "label": "Nombre(s) de pila",
+    "helperText": "Introduzca el/los nombre(s) de pila y/o inicial(es)."
+  },
+  "familyName": {
+    "label": "Apellido(s)",
+    "helperText": "Introduzca el/los apellido(s)."
+  },
+  "contributorType": {
+    "label": "Tipo De Colaborador",
+    "helperText": "Elija el tipo de colaborador."
+  },
+  "contributorBiography": {
+    "label": "Biografía",
+    "helperText": "Introduzca la biografía del colaborador en el momento de la publicación."
+  },
+  "contributorOrcid": {
+    "helperText": "Introduzca el ORCID del colaborador."
+  },
+  "contributorWebsiteUrl": {
+    "label": "URL del sitio web",
+    "helperText": "Introduzca la URL del sitio web del colaborador."
+  },
+  "affiliation": {
+    "label": "Afiliación"
+  },
+  "contributorAffiliationPosition": {
+    "label": "Cargo",
+    "helperText": "Elija la institución de afiliación del colaborador en el momento de la publicación."
+  },
+  "contributorAffiliationInstitution": {
+    "label": "Institución",
+    "helperText": "Elija la institución de afiliación del colaborador en el momento de la publicación."
+  },
+  "canonicalContributor": {
+    "label": "Lead Contributor"
   }
 }

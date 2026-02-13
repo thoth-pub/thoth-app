@@ -5,7 +5,7 @@ import { CloseButton, Modal, SubmitButton, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 type FullScreenModalProps = {
-  title: string;
+  title: string | Readonly<React.ReactNode>;
   isOpen: boolean;
   children?: Readonly<React.ReactNode>;
   isSubmitHidden?: boolean;

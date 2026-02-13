@@ -21,6 +21,7 @@ import {
   TableBody,
   TableHeader,
   TableWrapper,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
@@ -141,15 +142,19 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
 
   return (
     <ContentSection
-      title="Chapters"
+      title={<TranslatedContent content="chapters" />}
       headerContent={
         <div className="flex min-h-10 items-center gap-2 pr-5">
           {isMultipleChaptersSelected && (
             <>
-              <Typography
-                component="span"
-                className="max-w-[300px]"
-              >{`${selectedChaptersTitle} chapters selected`}</Typography>
+              <Typography component="span" className="max-w-[300px]">
+                {
+                  <TranslatedContent
+                    content="selectedChapters"
+                    options={{ selectedChapters: selectedChapters.length, totalChapters: chapters.length }}
+                  />
+                }
+              </Typography>
               <DeleteButton onClick={handleBulkDelete} className="p-1" />
               <EditButton onClick={handleEditChapters} className="p-1" />
             </>
@@ -162,10 +167,10 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
           <TableWrapper isOverflowHidden={isDragStarted}>
             <TableHeader
               cells={[
-                'Title',
-                'Contributors',
-                <div key="page-range" className="flex items-center justify-between">
-                  Page Range
+                'title',
+                'contributors',
+                <div key="page-range" className="flex items-center justify-between capitalize">
+                  <TranslatedContent content="page range" />
                   {isMultipleChapters && (
                     <Checkbox
                       size="small"
@@ -176,7 +181,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                   )}
                 </div>,
               ]}
-              cellStyles={['min-w-[250px] pl-4', 'min-w-[210px]']}
+              cellStyles={['min-w-[250px] pl-4 capitalize', 'min-w-[210px] capitalize']}
             />
             <TableBody>
               {chapters.map((chapter) => (

@@ -20,7 +20,7 @@ import {
 
 import type { AffiliationsForm } from '../../model/affiliation.types';
 
-const { AFFILIATION, POSITION, INSTITUTION } = FORM_FIELDS;
+const { AFFILIATION, POSITION, CONTRIBUTOR_AFFILIATION_INSTITUTION } = FORM_FIELDS;
 
 type FormFieldProps = {
   control: Control<AffiliationsForm>;
@@ -46,7 +46,7 @@ export const FormField = ({
   return (
     <>
       <FormFieldWrapper>
-        <FormFieldLabel label={INSTITUTION.label} id={AFFILIATION.name} />
+        <FormFieldLabel label={CONTRIBUTOR_AFFILIATION_INSTITUTION.label} id={AFFILIATION.name} />
         <FormFieldWithControlsWrapper>
           <AutocompleteField
             freeSolo

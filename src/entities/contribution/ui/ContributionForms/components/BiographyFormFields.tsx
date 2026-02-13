@@ -13,6 +13,7 @@ import {
   FormFieldWithControlsWrapper,
   LanguageField,
   MarkdownField,
+  TranslatedContent,
 } from '@/src/shared/ui';
 
 import type { ContributionBiographyForm } from '../../../model/contribution.types';
@@ -91,7 +92,8 @@ export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
                   name={getBiographyFieldName(index)}
                   id={getBiographyFieldName(index)}
                   className="w-full"
-                  helperText={isHelperTextVisible ? CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT : ''}
+                  helperText={CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT}
+                  isHelperTextVisible={isHelperTextVisible}
                   disableLineBreaks
                   extendedToolbar
                 />
@@ -106,7 +108,7 @@ export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
                 </div>
                 {index === fields.length - 1 && (
                   <AddButton type="button" className="mr-auto pl-2 capitalize" onAdd={handleAdd}>
-                    add new translation
+                    <TranslatedContent content="actions.addNewTranslation" />
                   </AddButton>
                 )}
               </div>

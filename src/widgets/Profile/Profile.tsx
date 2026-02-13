@@ -10,7 +10,7 @@ const Profile = () => {
     <>
       <ContentSection>
         <Typography component="h1" variant="h1" className="pl-4">
-          <TranslatedContent content="profile" namespace={NAMESPACES.enum.navigation} />
+          <TranslatedContent content="publisher" namespace={NAMESPACES.enum.navigation} />
         </Typography>
       </ContentSection>
       <ContentSection>

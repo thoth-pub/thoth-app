@@ -187,5 +187,50 @@
   "subjectCode": {
     "label": "Código De Assunto",
     "helperText": "Enter the code of the subject."
+  },
+  "coverUrl": {
+    "label": "URL Da Capa",
+    "helperText": "Insira a URL da imagem da capa online da obra."
+  },
+  "fullName": {
+    "label": "Nome Completo",
+    "helperText": "Insira o nome completo."
+  },
+  "givenName": {
+    "label": "Nome(s) próprio(s)",
+    "helperText": "Insira o(s) nome(s) próprio(s) e/ou inicial(is)."
+  },
+  "familyName": {
+    "label": "Sobrenome(s)",
+    "helperText": "Insira o(s) sobrenome(s)."
+  },
+  "contributorType": {
+    "label": "Tipo De Colaborador",
+    "helperText": "Escolha o tipo de colaborador."
+  },
+  "contributorBiography": {
+    "label": "Biografia",
+    "helperText": "Insira a biografia do colaborador no momento da publicação."
+  },
+  "contributorOrcid": {
+    "helperText": "Insira o ORCID do colaborador."
+  },
+  "contributorWebsiteUrl": {
+    "label": "URL do site",
+    "helperText": "Insira a URL do site do colaborador."
+  },
+  "affiliation": {
+    "label": "Afiliação"
+  },
+  "contributorAffiliationPosition": {
+    "label": "Cargo",
+    "helperText": "Escolha a instituição de afiliação do colaborador no momento da publicação."
+  },
+  "contributorAffiliationInstitution": {
+    "label": "Instituição",
+    "helperText": "Escolha a instituição de afiliação do colaborador no momento da publicação."
+  },
+  "canonicalContributor": {
+    "label": "Lead Contributor"
   }
 }

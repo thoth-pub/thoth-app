@@ -6,7 +6,7 @@ import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useCreateWorkChapter, useWork, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
 import { appConfig, BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
 import { licenseOptions } from '@/src/shared/constants/formFields';
-import { AddButton } from '@/src/shared/ui';
+import { AddButton, TranslatedContent } from '@/src/shared/ui';
 
 import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
 import { InheritedDataForm } from './components/InheritedDataForm';
@@ -78,9 +78,14 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   return (
     <>
       <AddButton className="px-4 capitalize" onAdd={openModal} disabled={isOpen}>
-        add new chapter
+        <TranslatedContent content="actions.addNewChapter" />
       </AddButton>
-      <FullScreenModal title="add new chapter" isOpen={isOpen} isSubmitHidden onClose={closeModal}>
+      <FullScreenModal
+        title={<TranslatedContent content={'actions.addNewChapter'} />}
+        isOpen={isOpen}
+        isSubmitHidden
+        onClose={closeModal}
+      >
         <InheritedDataForm onSubmit={handleInheritedDataSubmit} />
       </FullScreenModal>
     </>

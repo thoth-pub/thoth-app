@@ -6,7 +6,7 @@ import { useContributionStateMachine, WorkContributionsTable } from '@/src/entit
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
 import { ANCHORS, type BaseEditSectionProps, isDefaultId } from '@/src/shared';
-import { RecommendedSection } from '@/src/shared/ui';
+import { RecommendedSection, TranslatedContent } from '@/src/shared/ui';
 
 type EditContributorsProps = BaseEditSectionProps;
 
@@ -29,7 +29,7 @@ const EditContributors = (props: EditContributorsProps) => {
 
   return (
     <RecommendedSection
-      title="Contributors"
+      title={<TranslatedContent content="contributors" />}
       isEmpty={isEmpty}
       isValid={!isContributionsRequired}
       id={ANCHORS.CONTRIBUTIONS}

@@ -8,7 +8,8 @@ import { useContributors } from '@/src/entities/contributor';
 import type { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { getDefaultContribution } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
-import { useDebouncedValue } from '@/src/shared/hooks';
+import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AddButton,
   Button,
@@ -18,6 +19,7 @@ import {
   Modal,
   ModalWrapper,
   TextField,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 
@@ -30,6 +32,7 @@ const AddContributionModal = () => {
   const { activeContribution, edit } = useContributionStateMachine();
   const [selected, setSelected] = useState<ContributorId | ''>('');
   const [open, setOpen] = useState(false);
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.filters });
 
   const selectedContributorRecord = contributors.find((contributor) => contributor.id === selected);
 
@@ -71,18 +74,18 @@ const AddContributionModal = () => {
   return (
     <>
       <AddButton onAdd={handleModalState} className="mt-3 pr-6 pl-4 capitalize" disabled={!!activeContribution}>
-        add new contributor
+        <TranslatedContent content="actions.addContributor" />
       </AddButton>
       <Modal open={open} onClose={handleModalState}>
         <ModalWrapper>
           <div className="flex justify-between">
-            <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
-              add new contributor
+            <Typography variant="h2" component="h3" className="text-(--color-typography) uppercase">
+              <TranslatedContent content="actions.addNewContributor" />
             </Typography>
             <CloseButton onClose={handleModalState} />
           </div>
           <TextField
-            placeholder="Search contributor"
+            placeholder={t('searchContributor')}
             slotProps={{
               input: {
                 startAdornment: (
@@ -104,7 +107,7 @@ const AddContributionModal = () => {
                 {isInitial && (
                   <li className="w-full p-2 text-center text-(--color-placeholder)">
                     <Typography variant="body1" component="span">
-                      Type to search for a contributor
+                      <TranslatedContent content="searchContributor" namespace={NAMESPACES.enum.filters} />
                     </Typography>
                   </li>
                 )}
@@ -132,10 +135,10 @@ const AddContributionModal = () => {
               onClick={handleAdd}
               disabled={!selectedContributorRecord}
             >
-              add new contributor
+              <TranslatedContent content="actions.addContributor" />
             </Button>
             <Button variant="text" onClick={handleCreate}>
-              Create new
+              <TranslatedContent content="actions.createNew" />
             </Button>
           </div>
         </ModalWrapper>

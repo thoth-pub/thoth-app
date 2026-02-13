@@ -11,7 +11,7 @@ import { coverUrlValidationSchema } from '@/src/entities/work/model/work.validat
 import { appConfig } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import useIsDragStarted from '@/src/shared/hooks/useIsDragStarted';
-import { Button, IconButton, Typography } from '@/src/shared/ui';
+import { Button, IconButton, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { PlaceholderLogo } from './PlaceholderLogo';
 import { Wrapper } from './Wrapper';
@@ -93,11 +93,11 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
         <PlaceholderLogo />
 
         <Typography className={`text-center font-semibold ${coverUrl ? 'opacity-0' : 'opacity-100'}`}>
-          Drag & Drop to Upload Cover <br /> OR
+          <TranslatedContent content="actions.dropCover" />
         </Typography>
         {!isDragStarted && (
           <Button className={`${coverUrl ? 'opacity-0' : 'opacity-100'}`} onClick={handleClick} type="button">
-            Browse File
+            <TranslatedContent content="actions.browseFile" />
           </Button>
         )}
 

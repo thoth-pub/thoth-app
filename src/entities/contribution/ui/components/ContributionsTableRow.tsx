@@ -20,6 +20,7 @@ import {
   TableCell,
   TableFormWrapper,
   TableRow,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 
@@ -81,7 +82,9 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="middleCell">{type.toLowerCase().replace('_', ' ')}</TableCell>
+              <TableCell className="middleCell">
+                <TranslatedContent content={type.toLowerCase().replace('_', ' ')} />
+              </TableCell>
               <TableCell className="middleCell">
                 <div className="flex rounded-tr-2xl rounded-br-2xl">
                   <ul className="flex flex-col gap-1">

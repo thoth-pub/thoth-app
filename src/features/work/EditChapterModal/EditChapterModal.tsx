@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useWorkChaptersStateMachine } from '@/src/entities/work';
 import type { BaseEditSectionProps } from '@/src/shared';
+import { TranslatedContent } from '@/src/shared/ui';
 
 import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
 import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
@@ -40,7 +41,12 @@ const EditChapterModal = (props: EditChapterModalProps) => {
   };
 
   return (
-    <FullScreenModal title="edit chapter" isOpen={isSingleChapterSelected} onClose={close} onDone={handleDone}>
+    <FullScreenModal
+      title={<TranslatedContent content="actions.editChapter" />}
+      isOpen={isSingleChapterSelected}
+      onClose={close}
+      onDone={handleDone}
+    >
       <EditChapterBasicDetails workId={chapter.id} />
       <EditDescriptions workId={chapter.id} isSingleChapterEdit={isSingleChapterSelected} />
       <EditContributors workId={chapter.id} />

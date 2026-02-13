@@ -2,5 +2,6 @@
   "orderBy": "Order by",
   "direction": "Direction",
   "searchByTitle": "Suche mittels Titel",
-  "worksSearch": "Suche mittels Titel, DOI, Referenz"
+  "worksSearch": "Suche mittels Titel, DOI, Referenz",
+  "searchContributor": "Texteingabe, um nach einer/m Beitragenden zu suchen"
 }

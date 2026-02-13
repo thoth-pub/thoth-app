@@ -3,7 +3,7 @@
 import { EditDoi, EditLicense, EditWorkTitle, useWorkRecommendations } from '@/src/entities/work';
 import type { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { type BaseEditSectionProps } from '@/src/shared';
-import { RecommendedSection } from '@/src/shared/ui';
+import { RecommendedSection, TranslatedContent } from '@/src/shared/ui';
 
 type EditChapterBasicDetailsProps = BaseEditSectionProps &
   Partial<{
@@ -19,7 +19,11 @@ const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
   const { isDoiRequired, isLandingPageRequired } = useWorkRecommendations({ workId });
 
   return (
-    <RecommendedSection title="Core details" isEmpty={false} isValid={!isDoiRequired && !isLandingPageRequired}>
+    <RecommendedSection
+      title={<TranslatedContent content="core details" />}
+      isEmpty={false}
+      isValid={!isDoiRequired && !isLandingPageRequired}
+    >
       {({ showRecommendations }) => (
         <div>
           {!isMultipleChaptersEdit && (

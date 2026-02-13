@@ -47,6 +47,7 @@ export const EditType = (props: EditTypeProps) => {
             id={CONTRIBUTOR_TYPE.name}
             helperText={CONTRIBUTOR_TYPE_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
+            translateOptions
             slotProps={{
               select: {
                 MenuProps: {

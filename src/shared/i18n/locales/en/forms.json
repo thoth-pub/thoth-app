@@ -187,5 +187,50 @@
   "subjectCode": {
     "label": "Subject Code",
     "helperText": "Enter the code of the subject."
+  },
+  "coverUrl": {
+    "label": "Cover URL",
+    "helperText": "Enter the URL to the work's online cover image."
+  },
+  "fullName": {
+    "label": "Full Name",
+    "helperText": "Enter the full name."
+  },
+  "givenName": {
+    "label": "Given Name(s)",
+    "helperText": "Enter the given name(s) and/or initial(s)."
+  },
+  "familyName": {
+    "label": "Family Name(s)",
+    "helperText": "Enter the family name(s)."
+  },
+  "contributorType": {
+    "label": "Contributor Type",
+    "helperText": "Choose the type of contributor."
+  },
+  "contributorBiography": {
+    "label": "Biography",
+    "helperText": "Enter the biography of the contributor at the point of publication."
+  },
+  "contributorOrcid": {
+    "helperText": "Enter the ORCID of the contributor."
+  },
+  "contributorWebsiteUrl": {
+    "label": "Website URL",
+    "helperText": "Enter the website URL of the contributor."
+  },
+  "affiliation": {
+    "label": "Affiliation"
+  },
+  "contributorAffiliationPosition": {
+    "label": "Position",
+    "helperText": "Enter the position of the contributor at the affiliated institution at the point of publication."
+  },
+  "contributorAffiliationInstitution": {
+    "label": "Institution",
+    "helperText": "Choose the affiliated institution of the contributor at the point of publication."
+  },
+  "canonicalContributor": {
+    "label": "Lead Contributor"
   }
 }

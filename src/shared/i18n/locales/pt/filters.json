@@ -2,5 +2,6 @@
   "orderBy": "Order by",
   "direction": "Direction",
   "searchByTitle": "Buscar por título",
-  "worksSearch": "Buscar por título, DOI, referência interna"
+  "worksSearch": "Buscar por título, DOI, referência interna",
+  "searchContributor": "Digite para buscar um colaborador"
 }

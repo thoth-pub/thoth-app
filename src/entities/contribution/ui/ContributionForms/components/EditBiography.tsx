@@ -9,14 +9,14 @@ import { BiographyEntity, ContributionBiographyForm } from '../../../model/contr
 import { contributorBiographyValidationSchema } from '../../../model/contribution.validation';
 import { BiographyFormFields } from './BiographyFormFields';
 
-const { BIOGRAPHIES } = FORM_FIELDS;
-
 type EditBiographyProps = {
   contributionId: string;
   biographies: BiographyEntity[];
   recommended?: boolean;
   onSubmit: (data: ContributionBiographyForm) => void;
 };
+
+const { BIOGRAPHIES } = FORM_FIELDS;
 
 export const EditBiography = (props: EditBiographyProps) => {
   const { contributionId, biographies, recommended = false, onSubmit } = props;

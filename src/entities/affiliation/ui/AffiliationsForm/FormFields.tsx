@@ -5,7 +5,7 @@ import { useEffectOnce } from 'react-use';
 
 import { appConfig } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { AddButton, FormFieldWrapper, InputLabel } from '@/src/shared/ui';
+import { AddButton, FormFieldWrapper, InputLabel, TranslatedContent } from '@/src/shared/ui';
 
 import type { AffiliationsForm } from '../../model/affiliation.types';
 import { FormField } from './FormField';
@@ -85,7 +85,7 @@ export const FormFields = (props: FormFieldsProps) => {
           {AFFILIATIONS.label}
         </InputLabel>
         <AddButton type="button" className="mt-4 mr-auto pl-0 capitalize xl:mt-8" onAdd={handleAdd}>
-          add new affiliation
+          <TranslatedContent content="actions.addNewAffiliation" />
         </AddButton>
       </FormFieldWrapper>
     </>

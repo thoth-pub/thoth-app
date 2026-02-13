@@ -177,9 +177,9 @@ export const FORM_FIELDS = {
     type: InputTypes.NUMBER,
   },
   COVER_URL: {
-    label: 'Cover URL',
+    label: 'coverUrl.label',
     name: 'coverUrl',
-    placeholder: 'Cover URL',
+    placeholder: 'coverUrl.placeholder',
     type: InputTypes.URL,
   },
   DOI: {
@@ -208,16 +208,10 @@ export const FORM_FIELDS = {
     label: 'forms.titles.label',
     name: 'titles',
   },
-  CONTRIBUTOR_FULLNAME: {
-    label: 'Full Name',
-    name: 'contributorFullName',
-    placeholder: 'Full Name',
-    type: InputTypes.TEXT,
-  },
   CONTRIBUTOR_TYPE: {
-    label: 'Contributor Type',
+    label: 'contributorType.label',
     name: 'contributorType',
-    placeholder: 'Contributor Type',
+    placeholder: 'contributorType.placeholder',
     type: InputTypes.TEXT,
   },
   BIOGRAPHIES: {
@@ -225,27 +219,27 @@ export const FORM_FIELDS = {
     label: 'Biography',
   },
   CONTRIBUTOR_BIOGRAPHY: {
-    label: 'Biography',
+    label: 'contributorBiography.label',
     name: 'contributorBiography',
-    placeholder: 'Biography',
+    placeholder: 'contributorBiography.placeholder',
     type: InputTypes.TEXT,
   },
   FIRST_NAME: {
-    label: 'Given Name',
+    label: 'givenName.label',
     name: 'firstName',
-    placeholder: 'Given Name',
+    placeholder: 'givenName.placeholder',
     type: InputTypes.TEXT,
   },
   LAST_NAME: {
-    label: 'Family Name',
+    label: 'familyName.label',
     name: 'lastName',
-    placeholder: 'Family Name',
+    placeholder: 'familyName.placeholder',
     type: InputTypes.TEXT,
   },
   FULL_NAME: {
-    label: 'Full Name',
+    label: 'fullName.label',
     name: 'fullName',
-    placeholder: 'Full Name',
+    placeholder: 'fullName.placeholder',
     type: InputTypes.TEXT,
   },
   ORCID: {
@@ -255,25 +249,25 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   WEBSITE_URL: {
-    label: 'Website URL',
+    label: 'contributorWebsiteUrl.label',
     name: 'websiteUrl',
-    placeholder: 'Website URL',
+    placeholder: 'contributorWebsiteUrl.label',
     type: InputTypes.TEXT,
   },
   AFFILIATION: {
-    label: 'Affiliation',
+    label: 'affiliation.label',
     name: 'affiliation',
-    placeholder: 'Affiliation',
+    placeholder: 'affiliation.label',
     type: InputTypes.TEXT,
   },
   AFFILIATIONS: {
-    label: 'Affiliation',
+    label: 'affiliation.label',
     name: 'affiliations',
   },
   POSITION: {
-    label: 'Position',
+    label: 'contributorAffiliationPosition.label',
     name: 'position',
-    placeholder: 'Position',
+    placeholder: 'contributorAffiliationPosition.label',
     type: InputTypes.TEXT,
   },
   MEDIA_COUNT: {
@@ -482,9 +476,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   CANONICAL_CONTRIBUTOR: {
-    label: 'Lead Contributor',
+    label: 'canonicalContributor.label',
     name: 'canonical',
-    placeholder: 'Lead Contributor',
+    placeholder: 'canonicalContributor.label',
     type: InputTypes.CHECKBOX,
   },
   CANONICAL: {
@@ -503,6 +497,12 @@ export const FORM_FIELDS = {
     label: 'Institution',
     name: 'institution',
     placeholder: 'Institution',
+    type: InputTypes.TEXT,
+  },
+  CONTRIBUTOR_AFFILIATION_INSTITUTION: {
+    label: 'contributorAffiliationInstitution.label',
+    name: 'institution',
+    placeholder: 'contributorAffiliationInstitution.label',
     type: InputTypes.TEXT,
   },
   GRANT_NUMBER: {
