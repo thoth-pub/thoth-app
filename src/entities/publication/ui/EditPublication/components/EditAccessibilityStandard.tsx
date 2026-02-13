@@ -60,8 +60,7 @@ export const EditAccessibilityStandard = (props: EditAccessibilityStandardProps)
               select
               name={PUBLICATION_ACCESSIBILITY_STANDARD.name}
               id={PUBLICATION_ACCESSIBILITY_STANDARD.name}
-              helperText={isHelperTextVisible && PUBLICATION_ACCESSIBILITY_STANDARD_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
+              helperText={isHelperTextVisible ? PUBLICATION_ACCESSIBILITY_STANDARD_HELPER_TEXT : ''}
               fullWidth
               slotProps={{ select: { multiple: true } }}
             >

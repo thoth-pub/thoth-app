@@ -232,5 +232,66 @@
   },
   "canonicalContributor": {
     "label": "Lead Contributor"
+  },
+  "publicationType": {
+    "label": "Veröffentlichungstyp",
+    "helperText": "Publikationstyp auswählen."
+  },
+  "isbn": {
+    "label": "ISBN",
+    "helperText": "ISBN der Publikation angeben."
+  },
+  "publicationPrice": {
+    "label": "Preis"
+  },
+  "priceValue": {
+    "label": "Valor",
+    "helperText": "Preis: Zahlenwert eingeben."
+  },
+  "priceCurrency": {
+    "label": "Moeda",
+    "helperText": "Preis: Währung auswählen."
+  },
+  "fullTextUrl": {
+    "label": "URL zur Volltextdatei",
+    "helperText": "Enter the full text URL of the publication."
+  },
+  "platform": {
+    "label": "Platform",
+    "helperText": "Plattform auswählen, auf welcher die Publikation veröffentlicht wird."
+  },
+  "canonical": {
+    "label": "Canonical"
+  },
+  "specification": {
+    "label": "Specification",
+    "helperText": "Accessibility Standard auswählen"
+  },
+  "exception": {
+    "label": "Exception",
+    "helperText": "Ausnahmeregelung bzgl. Barrierefreiheit auswählen."
+  },
+  "reportUrl": {
+    "label": "Report URL",
+    "helperText": "Accessibility Report URL angeben"
+  },
+  "dimensions": {
+    "label": "Maße"
+  },
+  "width": {
+    "label": "Maße: Breite",
+    "helperText": "Maße: Breite des Print-Titels angeben"
+  },
+  "height": {
+    "label": "Höhe",
+    "helperText": "Maße: Höhe des Print-Titels angeben."
+  },
+  "depth": {
+    "label": "Stärke",
+    "helperText": "Maße: Dicke / Stärke des Print-Titels angeben."
+  },
+  "weight": {
+    "label": "Maße: Gewicht",
+    "helperText": "Maße: Gewicht des Print-Titels angeben."
   }
 }

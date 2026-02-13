@@ -22,7 +22,9 @@
     "createNew": "Create New",
     "addNewAffiliation": "Add New Affiliation",
     "addNewChapter": "Add New Chapter",
-    "editChapter": "Edit Chapter"
+    "editChapter": "Edit Chapter",
+    "addNewPublication": "Add New Publication",
+    "addNewPrice": "Add New Price"
   },
   "title": "Title",
   "updated at": "Updated at",
@@ -94,5 +96,13 @@
   "cover": "Cover",
   "landing page": "Landing Page",
   "place": "Local",
-  "selectedChapters": "{{selectedChapters}} of {{totalChapters}} chapters selected"
+  "selectedChapters": "{{selectedChapters}} of {{totalChapters}} chapters selected",
+  "publications": "Publications",
+  "publication type": "Publication Type",
+  "locations": "Locations",
+  "location": "Location",
+  "prices": "Prices",
+  "price": "Price",
+  "metric": "Metric",
+  "imperial": "Imperial"
 }

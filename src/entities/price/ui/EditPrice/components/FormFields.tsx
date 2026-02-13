@@ -12,6 +12,7 @@ import {
   FormFieldWrapper,
   FormTextField,
   InputLabel,
+  TranslatedContent,
 } from '@/src/shared/ui';
 
 import type { CurrencyCode, PricesForm } from '../../../model/price.types';
@@ -88,7 +89,9 @@ export const FormFields = (props: FormFieldsProps) => {
         {fields.map((field, index) => (
           <li key={field.id} className={itemsStyle}>
             <FormFieldWrapper>
-              <InputLabel className={`${index === 0 ? 'opacity-100' : 'opacity-0'}`}>{PRICES.label}</InputLabel>
+              <InputLabel className={`capitalize ${index === 0 ? 'opacity-100' : 'opacity-0'}`}>
+                <TranslatedContent content={PRICES.label} />
+              </InputLabel>
               <FormFieldWithControlsWrapper>
                 <div className="grid w-full grid-cols-2 gap-1">
                   <FormTextField
@@ -123,11 +126,11 @@ export const FormFields = (props: FormFieldsProps) => {
         ))}
       </ul>
       <FormFieldWrapper>
-        <InputLabel className={`${fields.length === 0 ? 'opacity-1' : 'opacity-0'}`} component="span">
-          {PRICES.label}
+        <InputLabel className={`capitalize ${fields.length === 0 ? 'opacity-1' : 'opacity-0'}`} component="span">
+          <TranslatedContent content={PRICES.label} />
         </InputLabel>
         <AddButton type="button" className="mt-4 mr-auto capitalize xl:mt-8" onAdd={handleAdd}>
-          add new price
+          <TranslatedContent content="actions.addNewPrice" />
         </AddButton>
       </FormFieldWrapper>
     </>

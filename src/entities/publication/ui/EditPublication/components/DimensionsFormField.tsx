@@ -94,7 +94,7 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
           min={0}
           step="0.01"
         />
-        <IconButton onClick={handleAutoConvert} className="m-auto">
+        <IconButton onClick={handleAutoConvert} className={`relative m-auto ${isHelperTextVisible && '-top-3'}`}>
           <Activity mode={autoConvert ? 'visible' : 'hidden'}>
             <InsertLinkIcon color="primary" />
           </Activity>
@@ -102,7 +102,14 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
             <LinkOffIcon color="primary" />
           </Activity>
         </IconButton>
-        <FormTextField control={control} name={imperialFieldName} type="number" min={0} step="0.01" />
+        <FormTextField
+          control={control}
+          name={imperialFieldName}
+          type="number"
+          min={0}
+          step="0.01"
+          className="mb-auto"
+        />
       </div>
     </ContentWrapper>
   );

@@ -4,7 +4,7 @@ import { PublicationsTable, usePublicationsStateMachine } from '@/src/entities/p
 import useDeletePublication from '@/src/entities/publication/api/hooks/useDeletePublication';
 import { useWork } from '@/src/entities/work';
 import { type BaseEditSectionProps, getDefaultPublication, isDefaultId, WorkTypes } from '@/src/shared';
-import { AddButton } from '@/src/shared/ui';
+import { AddButton, TranslatedContent } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { AddNewPublication, EditPublication } from '../../publications';
@@ -43,7 +43,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
   };
 
   return (
-    <ContentSection title="Publications">
+    <ContentSection title={<TranslatedContent content="publications" />}>
       <>
         <PublicationsTable
           activePublication={activePublication}
@@ -54,7 +54,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
         />
         {isNewPublication && <AddNewPublication workId={workId} isDimensionFormHidden={isDimensionFormHidden} />}
         <AddButton className="px-4 capitalize" onAdd={addPublication} disabled={isNewPublication}>
-          add new publication
+          <TranslatedContent content="actions.addNewPublication" />
         </AddButton>
       </>
     </ContentSection>

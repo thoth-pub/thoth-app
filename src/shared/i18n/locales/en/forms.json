@@ -232,5 +232,65 @@
   },
   "canonicalContributor": {
     "label": "Lead Contributor"
+  },
+  "publicationType": {
+    "label": "Publication Type",
+    "helperText": "Choose the type of publication."
+  },
+  "isbn": {
+    "label": "ISBN",
+    "helperText": "Enter the ISBN of the publication."
+  },
+  "publicationPrice": {
+    "label": "Price"
+  },
+  "priceValue": {
+    "helperText": "Enter the value of the price."
+  },
+  "priceCurrency": {
+    "helperText": "Choose the currency of the price."
+  },
+  "fullTextUrl": {
+    "label": "Full Text URL",
+    "helperText": "Enter the full text URL of the publication."
+  },
+  "platform": {
+    "label": "Platform",
+    "helperText": "Choose the platform of the publication."
+  },
+  "canonical": {
+    "label": "Canonical"
+  },
+  "specification": {
+    "label": "Specification",
+    "helperText": "Select the accessibility standard of the publication."
+  },
+  "exception": {
+    "label": "Exception",
+    "helperText": "Enter the accessibility report URL or report of the publication."
+  },
+  "reportUrl": {
+    "label": "Report URL",
+    "helperText": "Enter the accessibility report URL or report of the publication."
+  },
+  "dimensions": {
+    "label": "Dimensions",
+    "helperText": "Enter the dimensions of the publication."
+  },
+  "width": {
+    "label": "Width",
+    "helperText": "Enter the width of the publication."
+  },
+  "height": {
+    "label": "Height",
+    "helperText": "Enter the height of the publication."
+  },
+  "depth": {
+    "label": "Depth",
+    "helperText": "Enter the depth of the publication."
+  },
+  "weight": {
+    "label": "Weight",
+    "helperText": "Enter the weight of the publication."
   }
 }

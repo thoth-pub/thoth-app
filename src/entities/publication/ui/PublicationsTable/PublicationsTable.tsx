@@ -1,5 +1,7 @@
 import { Fragment } from 'react';
 
+import { useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, TableBody, TableCell, TableFormWrapper, TableHeader, TableRow, TableWrapper } from '@/src/shared/ui';
 
 import type { PublicationEntity } from '../../model/publication.types';
@@ -16,9 +18,14 @@ type PublicationsTableProps = {
 const PublicationsTable = (props: PublicationsTableProps) => {
   const { activePublication, publications, form, onDelete, onEdit } = props;
 
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
+
   return (
     <TableWrapper>
-      <TableHeader cells={['Publication Type', 'ISBN']} cellStyles={['min-w-[250px] pl-4', 'min-w-[250px]']} />
+      <TableHeader
+        cells={['publication type', 'ISBN']}
+        cellStyles={['min-w-[250px] pl-4 capitalize', 'min-w-[250px]']}
+      />
       <TableBody>
         {publications.map(
           ({
@@ -53,14 +60,14 @@ const PublicationsTable = (props: PublicationsTableProps) => {
                         )}
                         {prices.length > 0 && (
                           <Chip
-                            label={`${prices.length} price` + (prices.length > 1 ? 's' : '')}
+                            label={`${prices.length} ` + (prices.length > 1 ? t('prices') : t('price'))}
                             size="small"
                             className="lowercase"
                           />
                         )}
                         {locations.length > 0 && (
                           <Chip
-                            label={`${locations.length} location` + (locations.length > 1 ? 's' : '')}
+                            label={`${locations.length} ` + (locations.length > 1 ? t('locations') : t('location'))}
                             size="small"
                             className="lowercase"
                           />

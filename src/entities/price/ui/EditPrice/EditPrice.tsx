@@ -4,6 +4,7 @@ import { Control } from 'react-hook-form';
 
 import { IDs } from '@/src/shared';
 import { currencyOptions, FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
@@ -60,7 +61,13 @@ const EditPrice = (props: EditPriceProps) => {
         />
       )}
       preview={({ disabled, onEdit }) => (
-        <Preview label={PRICES.label} disabled={disabled} onEdit={onEdit} value={placeholder} />
+        <Preview
+          label={PRICES.label}
+          disabled={disabled}
+          onEdit={onEdit}
+          value={placeholder}
+          namespace={NAMESPACES.enum.common}
+        />
       )}
     />
   );

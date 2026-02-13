@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 
 import { HELPER_TEXT, IDs, WeightUnit } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { MultipleContentWrapper, Preview, Typography } from '@/src/shared/ui';
+import { MultipleContentWrapper, Preview, TranslatedContent, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import type { PublicationDimensionsForm } from '../../../model/publication.types';
@@ -121,8 +121,12 @@ export const EditDimensions = (props: EditSizesProps) => {
       formFields={({ control, isHelperTextVisible, setValue }) => (
         <MultipleContentWrapper>
           <div className="grid grid-cols-[1fr_1fr] border-b border-(--color-table-border) pb-2 lg:pl-45">
-            <Typography>Metric</Typography>
-            <Typography className="pl-6">Imperial</Typography>
+            <Typography>
+              <TranslatedContent content="metric" />
+            </Typography>
+            <Typography className="pl-6">
+              <TranslatedContent content="imperial" />
+            </Typography>
           </div>
 
           <DimensionsFormField

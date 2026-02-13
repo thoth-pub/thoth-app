@@ -15,6 +15,7 @@ import {
   DeleteButton,
   EditButton,
   InputLabel,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 
@@ -79,7 +80,9 @@ const EditLocations = (props: EditLocationsProps) => {
   return (
     <>
       <ContentWrapper>
-        <InputLabel component="span">{LOCATIONS.label}</InputLabel>
+        <InputLabel className="capitalize" component="span">
+          <TranslatedContent content={LOCATIONS.label} />
+        </InputLabel>
         {!activeLocation && !isLocationsFilled && (
           <AddButton onAdd={handleAddNewLocation} className="mr-auto p-0 capitalize" disabled={!!activeFormId}>
             add new location

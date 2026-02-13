@@ -232,5 +232,61 @@
   },
   "canonicalContributor": {
     "label": "Lead Contributor"
+  },
+  "publicationType": {
+    "label": "Tipo de publicação",
+    "helperText": "Escolha o tipo de publicação."
+  },
+  "isbn": {
+    "label": "ISBN",
+    "helperText": "Insira o ISBN da publicação."
+  },
+  "priceValue": {
+    "helperText": "Insira o valor do preço."
+  },
+  "priceCurrency": {
+    "helperText": "Escolha a moeda do preço."
+  },
+  "fullTextUrl": {
+    "label": "URL do arquivo",
+    "helperText": "Enter the full text URL of the publication."
+  },
+  "platform": {
+    "label": "Platform",
+    "helperText": "Escolha a plataforma da publicação."
+  },
+  "canonical": {
+    "label": "Canonical"
+  },
+  "specification": {
+    "label": "Specification",
+    "helperText": "Selecione o padrão de acessibilidade da publicação."
+  },
+  "exception": {
+    "label": "Exception",
+    "helperText": "Selecione a exceção de acessibilidade da publicação."
+  },
+  "reportUrl": {
+    "label": "Report URL",
+    "helperText": "Insira o relatório de acessibilidade ou a URL do relatório da publicação."
+  },
+  "dimensions": {
+    "label": "Dimensões"
+  },
+  "width": {
+    "label": "Largura",
+    "helperText": "Insira a largura da publicação."
+  },
+  "height": {
+    "label": "Altura",
+    "helperText": "Insira a altura da publicação."
+  },
+  "depth": {
+    "label": "Profundidade",
+    "helperText": "Insira a profundidade da publicação."
+  },
+  "weight": {
+    "label": "Peso",
+    "helperText": "Insira o peso da publicação."
   }
 }

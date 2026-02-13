@@ -22,7 +22,9 @@
     "createNew": "Crear Nuevo",
     "addNewAffiliation": "Agregar nueva afiliación",
     "addNewChapter": "Agregar nuevo capítulo",
-    "editChapter": "Edit Chapter"
+    "editChapter": "Edit Chapter",
+    "addNewPublication": "Agregar Nueva Publicación",
+    "addNewPrice": "Agregar Nuevo Precio"
   },
   "title": "Título",
   "updated at": "Actualizado el",
@@ -94,5 +96,13 @@
   "cover": "Cubierta",
   "landing page": "Página De Destino",
   "place": "Lugar",
-  "selectedChapters": "{{selectedChapters}} de {{totalChapters}} capítulos seleccionados"
+  "selectedChapters": "{{selectedChapters}} de {{totalChapters}} capítulos seleccionados",
+  "publications": "Publicaciones",
+  "publication type": "Tipo de publicación",
+  "locations": "Puntos de acceso",
+  "location": "Location",
+  "prices": "Prices",
+  "price": "Precio",
+  "metric": "Métrica",
+  "imperial": "Imperial"
 }
