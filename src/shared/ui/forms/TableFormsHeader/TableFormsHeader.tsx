@@ -1,4 +1,4 @@
-import { CloseButton, SubmitButton, Typography } from '@/src/shared/ui';
+import { CloseButton, SubmitButton, TranslatedContent, Typography } from '@/src/shared/ui';
 
 type TableFormsHeaderProps = {
   title: string;
@@ -10,8 +10,8 @@ type TableFormsHeaderProps = {
 const TableFormsHeader = ({ title, children, onDone, onClose }: TableFormsHeaderProps) => {
   return (
     <div className="flex justify-between">
-      <Typography variant="h2" component="h3" className="flex items-center gap-1 text-[var(--color-typography)]">
-        {title}
+      <Typography variant="h2" component="h3" className="flex items-center gap-1 text-(--color-typography)">
+        <TranslatedContent content={title} />
         {children}
       </Typography>
       <div className="flex gap-1">

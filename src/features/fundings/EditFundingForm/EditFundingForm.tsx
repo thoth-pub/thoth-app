@@ -51,7 +51,7 @@ const EditFundingForm = (props: EditFundingProps) => {
 
   return (
     <TableFormsWrapper>
-      <TableFormsHeader title="Funding" onDone={onDone} onClose={onClose} />
+      <TableFormsHeader title="funding" onDone={onDone} onClose={onClose} />
       <EditInstitutionForm defaultValue={institution} onUpdate={(data) => onInstitutionUpdate?.(data)} />
       <EditProgramForm defaultValue={program} onUpdate={(data) => onProgramUpdate?.(data)} />
       <EditProjectNameForm defaultValue={projectName} onUpdate={(data) => onProjectUpdate?.(data)} />

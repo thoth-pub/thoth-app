@@ -15,7 +15,6 @@ import profileDe from '../locales/de/profile.json';
 import seriesDe from '../locales/de/series.json';
 import setsDe from '../locales/de/sets.json';
 import warningsDe from '../locales/de/warnings.json';
-import workDe from '../locales/de/work.json';
 import worksDe from '../locales/de/works.json';
 // English
 import commonEn from '../locales/en/common.json';
@@ -27,7 +26,6 @@ import profileEn from '../locales/en/profile.json';
 import seriesEn from '../locales/en/series.json';
 import setsEn from '../locales/en/sets.json';
 import warningsEn from '../locales/en/warnings.json';
-import workEn from '../locales/en/work.json';
 import worksEn from '../locales/en/works.json';
 // Spanish
 import commonEs from '../locales/es/common.json';
@@ -39,7 +37,6 @@ import profileEs from '../locales/es/profile.json';
 import seriesEs from '../locales/es/series.json';
 import setsEs from '../locales/es/sets.json';
 import warningsEs from '../locales/es/warnings.json';
-import workEs from '../locales/es/work.json';
 import worksEs from '../locales/es/works.json';
 // Portuguese
 import commonPt from '../locales/pt/common.json';
@@ -51,7 +48,6 @@ import profilePt from '../locales/pt/profile.json';
 import seriesPt from '../locales/pt/series.json';
 import setsPt from '../locales/pt/sets.json';
 import warningsPt from '../locales/pt/warnings.json';
-import workPt from '../locales/pt/work.json';
 import worksPt from '../locales/pt/works.json';
 import { NAMESPACES } from '../model/i18n.types';
 
@@ -64,7 +60,6 @@ i18n
         common: commonEn,
         dashboard: dashboardEn,
         navigation: navigationEn,
-        work: workEn,
         profile: profileEn,
         forms: formsEn,
         filters: filtersEn,
@@ -77,7 +72,6 @@ i18n
         common: commonPt,
         dashboard: dashboardPt,
         navigation: navigationPt,
-        work: workPt,
         profile: profilePt,
         forms: formsPt,
         filters: filtersPt,
@@ -90,7 +84,6 @@ i18n
         common: commonEs,
         dashboard: dashboardEs,
         navigation: navigationEs,
-        work: workEs,
         profile: profileEs,
         forms: formsEs,
         filters: filtersEs,
@@ -103,7 +96,6 @@ i18n
         common: commonDe,
         dashboard: dashboardDe,
         navigation: navigationDe,
-        work: workDe,
         profile: profileDe,
         forms: formsDe,
         filters: filtersDe,

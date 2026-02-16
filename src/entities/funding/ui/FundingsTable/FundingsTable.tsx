@@ -31,8 +31,13 @@ const FundingsTable = (props: FundingsTableProps) => {
   return (
     <TableWrapper>
       <TableHeader
-        cells={['Project', 'Program', 'Institution', 'Grant No.']}
-        cellStyles={['min-w-[120px] pl-4', 'min-w-[120px]', 'min-w-[250px]', 'min-w-[120px]']}
+        cells={['project', 'program', 'institution', 'grant no.']}
+        cellStyles={[
+          'min-w-[120px] pl-4 capitalize',
+          'min-w-[120px] capitalize',
+          'min-w-[250px] capitalize',
+          'min-w-[120px] capitalize',
+        ]}
       />
       <TableBody>
         {fundings.map(

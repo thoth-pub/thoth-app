@@ -1,7 +1,7 @@
 import SearchIcon from '@mui/icons-material/Search';
 import { useState } from 'react';
 
-import { appConfig, convertEntityToSelectFieldOptions, IDs } from '@/src/shared';
+import { appConfig, convertEntityToSelectFieldOptions, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import { AutocompleteField, ContentWrapper, FormFieldLabel, InputAdornment, Preview } from '@/src/shared/ui';
@@ -12,6 +12,8 @@ import type { InstitutionFormType } from '../../model/institution.types';
 import { institutionValidationSchema } from '../../model/institution.validation';
 
 const { INSTITUTION } = FORM_FIELDS;
+
+const { INSTITUTION: INSTITUTION_HELPER_TEXT } = HELPER_TEXT;
 
 type InstitutionFormProps = {
   defaultValue: { value: string; label: string };
@@ -36,7 +38,7 @@ const EditInstitutionForm = (props: InstitutionFormProps) => {
       validationSchema={institutionValidationSchema}
       defaultValues={{ [INSTITUTION.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data)}
-      formFields={({ control }) => (
+      formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={INSTITUTION.label} id={INSTITUTION.name} />
           <AutocompleteField
@@ -53,6 +55,8 @@ const EditInstitutionForm = (props: InstitutionFormProps) => {
                 <SearchIcon color="primary" />
               </InputAdornment>
             }
+            helperText={INSTITUTION_HELPER_TEXT}
+            isHelperTextVisible={isHelperTextVisible}
           />
         </ContentWrapper>
       )}

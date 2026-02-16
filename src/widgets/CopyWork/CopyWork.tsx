@@ -1,5 +1,5 @@
 import CreateWorkCopy from '@/src/features/work/CreateWorkCopy/CreateWorkCopy';
-import { Typography } from '@/src/shared/ui';
+import { TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 type CopyWorkProps = {
@@ -11,7 +11,11 @@ const CopyWork = ({ isTranslation }: CopyWorkProps) => {
     <>
       <ContentSection>
         <Typography variant="h1" component="h1" className="max-w-[90%]">
-          {isTranslation ? 'New translation' : 'New edition'}
+          {isTranslation ? (
+            <TranslatedContent content="new translation" />
+          ) : (
+            <TranslatedContent content="new edition" />
+          )}
         </Typography>
       </ContentSection>
       <CreateWorkCopy isTranslation={isTranslation} />

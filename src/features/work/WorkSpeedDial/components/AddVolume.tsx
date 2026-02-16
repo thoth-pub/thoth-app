@@ -10,7 +10,8 @@ import useSets from '@/src/entities/sets/api/hooks/useSets';
 import { useWork } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig, getMainTitle, LocaleCodeType, WorkStatuses, WorkTypes } from '@/src/shared';
-import { useDebouncedValue } from '@/src/shared/hooks';
+import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   Button,
   ButtonGroup,
@@ -62,6 +63,7 @@ export const AddVolume = (props: AddVolumeProps) => {
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { sets, loading } = useSets({ publishersIds, filter: debouncedValue });
   const [selectedSet, setSelectedSet] = useState<SetId | ''>('');
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.filters });
 
   const isNewStep = selected === STEPS.NEW;
   const isExistingStep = selected === STEPS.EXISTING;
@@ -122,7 +124,11 @@ export const AddVolume = (props: AddVolumeProps) => {
       <ModalWrapper>
         <div className="flex justify-between">
           <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
-            {isNewStep ? <TranslatedContent content="actions.addSet" /> : 'Add Volume'}
+            {isNewStep ? (
+              <TranslatedContent content="actions.addSet" />
+            ) : (
+              <TranslatedContent content="actions.addVolume" />
+            )}
           </Typography>
           <ButtonGroup className="gap-2">
             <Activity mode={isNewStep ? 'visible' : 'hidden'}>
@@ -140,7 +146,7 @@ export const AddVolume = (props: AddVolumeProps) => {
         </Activity>
         <Activity mode={isExistingStep ? 'visible' : 'hidden'}>
           <TextField
-            placeholder="Search set"
+            placeholder={t('searchSets')}
             slotProps={{
               input: {
                 startAdornment: (
@@ -161,7 +167,7 @@ export const AddVolume = (props: AddVolumeProps) => {
                 {searchValue.length === 0 && (
                   <li className="w-full p-2 text-center text-(--color-placeholder)">
                     <Typography variant="body1" component="span">
-                      Type to search for set
+                      <TranslatedContent content="searchSet" namespace={NAMESPACES.enum.filters} />
                     </Typography>
                   </li>
                 )}
@@ -193,7 +199,7 @@ export const AddVolume = (props: AddVolumeProps) => {
             <TranslatedContent content="actions.addSet" />
           </Button>
           <Button disabled={isExistingStep} className="capitalize" onClick={() => setSelected(STEPS.EXISTING)}>
-            select
+            <TranslatedContent content="actions.select" />
           </Button>
         </div>
       </ModalWrapper>

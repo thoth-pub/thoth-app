@@ -22,7 +22,7 @@ const ReferencesTable = (props: ReferencesTableProps) => {
       {(isDragStarted) => (
         <TableWrapper isOverflowHidden={isDragStarted}>
           <TableHeader
-            cells={['No.', 'Citation', 'DOI']}
+            cells={['no.', 'citation', 'doi']}
             cellStyles={['min-w-[60px] pl-4', 'min-w-[120px]', 'min-w-[250px]']}
           />
           <TableBody>

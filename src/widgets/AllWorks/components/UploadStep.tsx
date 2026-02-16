@@ -8,7 +8,7 @@ import { useUser } from '@/src/entities/user';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { SeriesForUpdateItems } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { Button, Typography } from '@/src/shared/ui';
+import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { CSVParse } from './CSVParse';
 import { XMLParse } from './XMLParse';
@@ -42,10 +42,17 @@ export const UploadStep = (props: UploadStepProps) => {
   };
 
   return (
-    <div className="flex flex-col items-center gap-[var(--default-gap)]">
+    <div className="flex flex-col items-center gap-(--default-gap)">
       <Activity mode={isFileUploaded ? 'hidden' : 'visible'}>
-        <Button type="submit" component="label" variant="contained" tabIndex={-1} startIcon={<UploadIcon />}>
-          Upload files
+        <Button
+          className="capitalize"
+          type="submit"
+          component="label"
+          variant="contained"
+          tabIndex={-1}
+          startIcon={<UploadIcon />}
+        >
+          <TranslatedContent content="actions.upload" />
           <input
             name={BULK_UPLOAD.name}
             className="hidden"

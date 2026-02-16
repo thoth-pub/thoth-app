@@ -9,7 +9,7 @@ import { Activity, useState } from 'react';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
 import { ROUTES, SeriesForUpdateItems } from '@/src/shared';
-import { Step, StepLabel, Stepper } from '@/src/shared/ui';
+import { Step, StepLabel, Stepper, TranslatedContent } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { PreviewStep } from './PreviewStep';
@@ -18,15 +18,15 @@ import { UploadStep } from './UploadStep';
 
 const steps = [
   {
-    label: 'Select template',
+    label: 'select template',
     icon: <DownloadIcon color="primary" fontSize="small" />,
   },
   {
-    label: 'Upload data',
+    label: 'actions.upload',
     icon: <UploadIcon color="primary" fontSize="small" />,
   },
   {
-    label: 'Preview',
+    label: 'preview',
     icon: <PreviewIcon color="primary" fontSize="small" />,
   },
 ];
@@ -75,12 +75,19 @@ export const UploadModal = (props: UploadModalProps) => {
   };
 
   return (
-    <FullScreenModal title="Bulk Upload" isOpen={isOpen} isSubmitHidden onClose={closeModal}>
+    <FullScreenModal
+      title={<TranslatedContent content="bulk upload" />}
+      isOpen={isOpen}
+      isSubmitHidden
+      onClose={closeModal}
+    >
       <ContentSection>
         <Stepper activeStep={0} alternativeLabel>
           {steps.map((step) => (
             <Step key={step.label}>
-              <StepLabel icon={step.icon}>{step.label}</StepLabel>
+              <StepLabel icon={step.icon} className="capitalize">
+                <TranslatedContent content={step.label} />
+              </StepLabel>
             </Step>
           ))}
         </Stepper>

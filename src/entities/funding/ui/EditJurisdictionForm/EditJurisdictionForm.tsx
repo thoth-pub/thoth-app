@@ -1,6 +1,6 @@
 'use client';
 
-import { HELPER_TEXT, IDs } from '@/src/shared';
+import { IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -9,8 +9,6 @@ import type { FundingJurisdictionFormType } from '../../model/funding.types';
 import { jurisdictionValidationSchema } from '../../model/funding.validation';
 
 const { JURISDICTION } = FORM_FIELDS;
-
-const { JURISDICTION: JURISDICTION_HELPER_TEXT } = HELPER_TEXT;
 
 type EditJurisdictionFormProps = {
   defaultValue?: string;
@@ -35,7 +33,6 @@ const EditJurisdictionForm = (props: EditJurisdictionFormProps) => {
             control={control}
             name={JURISDICTION.name}
             id={JURISDICTION.name}
-            helperText={JURISDICTION_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
           />
         </ContentWrapper>

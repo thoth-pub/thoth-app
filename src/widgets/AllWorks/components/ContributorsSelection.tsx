@@ -14,6 +14,7 @@ import {
   TableHeader,
   TableRow,
   TableWrapper,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 
@@ -101,12 +102,12 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
       {showContributorsSelection && (
         <>
           <Typography variant="h1" component="h2" className="pl-4">
-            Multiple contributors found
+            <TranslatedContent content="multiple contributors found" />
           </Typography>
           <TableWrapper>
             <TableHeader
-              cells={['Work', 'Search Value', 'Contributors']}
-              cellStyles={['min-w-[210px] pl-4', 'min-w-[210px]', 'min-w-[210px]']}
+              cells={['work', 'search value', 'contributors']}
+              cellStyles={['min-w-[210px] pl-4 capitalize', 'min-w-[210px] capitalize', 'min-w-[210px] capitalize']}
             />
             <TableBody>
               {Object.entries(multipleFoundedContributors).map(([workId, data]) => {
@@ -136,9 +137,9 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
                               onChange={() => handleSelectContributor(workId, itemId, contributorId)}
                               className="self-start"
                             />
-                            <Typography className="flex flex-col gap-2">
+                            <Typography className="flex flex-col gap-2 capitalize">
                               {isDefaultId(contributorId) ? (
-                                'Create new'
+                                <TranslatedContent content="actions.create" />
                               ) : (
                                 <>
                                   <Typography className="flex items-center gap-1" fontWeight="bold" component="span">
@@ -150,7 +151,9 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
                                     )}
                                   </Typography>
                                   {lastContribution && lastContribution.length > 0 && (
-                                    <Typography component="span">Latest contribution to: {lastContribution}</Typography>
+                                    <Typography component="span">
+                                      <TranslatedContent content="latest contribution to" />: {lastContribution}
+                                    </Typography>
                                   )}
                                 </>
                               )}
@@ -167,7 +170,7 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
         </>
       )}
       <Button variant="contained" color="primary" className="m-auto" onClick={handleSubmit}>
-        Preview
+        <TranslatedContent content="preview" />
       </Button>
     </div>
   );

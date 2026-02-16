@@ -3,5 +3,7 @@
   "direction": "Direction",
   "searchByTitle": "Search by title",
   "worksSearch": "Search by title, DOI, internal reference",
-  "searchContributor": "Type to search for a contributor"
+  "searchContributor": "Type to search for a contributor",
+  "searchSet": "type to search for set",
+  "searchSets": "Search sets"
 }

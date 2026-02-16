@@ -22,7 +22,7 @@ const EditReferenceForm = (props: EditReferenceFormProps) => {
 
   return (
     <TableFormsWrapper>
-      <TableFormsHeader title="Reference" onDone={onDone} onClose={onClose} />
+      <TableFormsHeader title="reference" onDone={onDone} onClose={onClose} />
       <EditReferenceDoi defaultValue={doi} onUpdate={onDoiUpdate} />
       <EditReferenceCitation defaultValue={citation} onUpdate={onCitationUpdate} />
       <EditReferenceUrl defaultValue={url} onUpdate={onUrlUpdate} />

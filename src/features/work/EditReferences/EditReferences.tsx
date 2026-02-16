@@ -12,7 +12,7 @@ import { useWork } from '@/src/entities/work';
 import { isDefaultId } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import { BaseEditSectionProps } from '@/src/shared/types';
-import { AddButton } from '@/src/shared/ui';
+import { AddButton, TranslatedContent } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import AddReference from '../../reference/AddReference/AddReference';
@@ -81,7 +81,7 @@ const EditReferences = (props: BaseEditSectionProps) => {
   };
 
   return (
-    <ContentSection title="References">
+    <ContentSection title={<TranslatedContent content="references" />}>
       <>
         <ReferencesTable
           activeReference={activeReference}
@@ -93,7 +93,7 @@ const EditReferences = (props: BaseEditSectionProps) => {
         />
         {isNewReference && <AddReference workId={workId} />}
         <AddButton className="px-4 capitalize" onAdd={addReference} disabled={isNewReference}>
-          add new reference
+          <TranslatedContent content="actions.addNewReference" />
         </AddButton>
       </>
     </ContentSection>

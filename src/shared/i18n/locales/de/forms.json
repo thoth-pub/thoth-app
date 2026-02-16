@@ -293,5 +293,37 @@
   "weight": {
     "label": "Maße: Gewicht",
     "helperText": "Maße: Gewicht des Print-Titels angeben."
+  },
+  "program": {
+    "label": "Program",
+    "helperText": "Förderprogramm eingeben."
+  },
+  "grantNumber": {
+    "label": "Grant Number",
+    "helperText": "Nummer der Förderlinie oder des Förderprogramms eingeben."
+  },
+  "institution": {
+    "label": "Institution",
+    "helperText": "Förderorganisation eingeben."
+  },
+  "projectName": {
+    "label": "Project Name",
+    "helperText": "Förderprojekt eingeben."
+  },
+  "projectShortname": {
+    "label": "Project Shortname",
+    "helperText": "Kurzname des Förderprojekts eingeben."
+  },
+  "referenceDoi": {
+    "label": "DOI",
+    "helperText": "DOI der Referenz einfügen."
+  },
+  "referenceCitation": {
+    "label": "Zitation",
+    "helperText": "Zitationstext der Referenz einfügen."
+  },
+  "referenceUrl": {
+    "label": "URL",
+    "helperText": "URL der Referenz einfügen."
   }
 }

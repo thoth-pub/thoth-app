@@ -188,6 +188,12 @@ export const FORM_FIELDS = {
     placeholder: 'https://doi.org/',
     type: InputTypes.URL,
   },
+  REFERENCE_DOI: {
+    label: 'referenceDoi.label',
+    name: 'doi',
+    placeholder: 'https://doi.org/',
+    type: InputTypes.TEXT,
+  },
   LANGUAGE: {
     label: 'language.label',
     name: 'language',
@@ -494,9 +500,9 @@ export const FORM_FIELDS = {
     type: InputTypes.URL,
   },
   INSTITUTION: {
-    label: 'Institution',
+    label: 'institution.label',
     name: 'institution',
-    placeholder: 'Institution',
+    placeholder: 'institution.label',
     type: InputTypes.TEXT,
   },
   CONTRIBUTOR_AFFILIATION_INSTITUTION: {
@@ -506,9 +512,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   GRANT_NUMBER: {
-    label: 'Grant Number',
+    label: 'grantNumber.label',
     name: 'grantNumber',
-    placeholder: 'Grant Number',
+    placeholder: 'grantNumber.label',
     type: InputTypes.TEXT,
   },
   JURISDICTION: {
@@ -518,21 +524,21 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   PROGRAM: {
-    label: 'Program',
+    label: 'program.label',
     name: 'program',
-    placeholder: 'Program',
+    placeholder: 'program.label',
     type: InputTypes.TEXT,
   },
   PROJECT_NAME: {
-    label: 'Project Name',
+    label: 'projectName.label',
     name: 'projectName',
-    placeholder: 'Project Name',
+    placeholder: 'projectName.label',
     type: InputTypes.TEXT,
   },
   PROJECT_SHORTNAME: {
-    label: 'Project Shortname',
+    label: 'projectShortname.label',
     name: 'projectShortname',
-    placeholder: 'Project Shortname',
+    placeholder: 'projectShortname.label',
     type: InputTypes.TEXT,
   },
   FUNDING: {
@@ -541,14 +547,14 @@ export const FORM_FIELDS = {
     placeholder: 'Funding',
   },
   REFERENCE_URL: {
-    label: 'URL',
+    label: 'referenceUrl.label',
     name: 'url',
-    placeholder: 'URL',
+    placeholder: 'referenceUrl.label',
   },
   REFERENCE_CITATION: {
-    label: 'Citation',
+    label: 'referenceCitation.label',
     name: 'unstructuredCitation',
-    placeholder: 'Citation',
+    placeholder: 'referenceCitation.label',
   },
   SUBJECTS: {
     label: 'subjects.label',

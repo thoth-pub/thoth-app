@@ -4,7 +4,7 @@ import { FundingsTable, useDeleteFunding, useFundingsStateMachine } from '@/src/
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { ANCHORS, isDefaultId } from '@/src/shared';
 import { BaseEditSectionProps } from '@/src/shared/types';
-import { AddButton, RecommendedSection } from '@/src/shared/ui';
+import { AddButton, RecommendedSection, TranslatedContent } from '@/src/shared/ui';
 import { getDefaultFunding } from '@/src/shared/utils';
 
 import AddFunding from '../../fundings/AddFunding/AddFunding';
@@ -33,7 +33,12 @@ const EditFundings = (props: BaseEditSectionProps) => {
   };
 
   return (
-    <RecommendedSection title="Funding" isEmpty={isFundingsEmpty} isValid={!isFundingsRequired} id={ANCHORS.FUNDINGS}>
+    <RecommendedSection
+      title={<TranslatedContent content="funding" />}
+      isEmpty={isFundingsEmpty}
+      isValid={!isFundingsRequired}
+      id={ANCHORS.FUNDINGS}
+    >
       {({ showRecommendations }) => (
         <>
           <FundingsTable
@@ -46,7 +51,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
           />
           {isNewFunding && <AddFunding workId={workId} />}
           <AddButton className="px-4 capitalize" onAdd={addFunding} disabled={isNewFunding}>
-            add new funding
+            <TranslatedContent content="actions.addNewFunding" />
           </AddButton>
         </>
       )}

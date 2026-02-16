@@ -3,7 +3,7 @@ import { useTransition } from 'react';
 import { useBulkCreateWorks } from '@/src/entities/work';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, getMainTitle, SeriesForUpdateItems } from '@/src/shared';
-import { Button, TableBody, TableCell, TableHeader, TableRow, TableWrapper } from '@/src/shared/ui';
+import { Button, TableBody, TableCell, TableHeader, TableRow, TableWrapper, TranslatedContent } from '@/src/shared/ui';
 
 type PreviewStepProps = {
   works: WorkEntity[];
@@ -32,7 +32,10 @@ export const PreviewStep = (props: PreviewStepProps) => {
   return (
     <>
       <TableWrapper>
-        <TableHeader cells={['Title', 'Status', 'Type', 'Contributors', 'Doi']} cellStyles={['pl-4']} />
+        <TableHeader
+          cells={['title', 'status', 'type', 'contributors', 'doi']}
+          cellStyles={['pl-4 capitalize', 'capitalize', 'capitalize', 'capitalize', 'capitalize']}
+        />
         <TableBody>
           {works.map((work) => {
             const title = getMainTitle(work.titles);
@@ -64,11 +67,11 @@ export const PreviewStep = (props: PreviewStepProps) => {
       <Button
         variant="contained"
         color="primary"
-        className="m-auto max-w-max"
+        className="m-auto max-w-max capitalize"
         onClick={handleSubmit}
         disabled={isPending}
       >
-        Create
+        <TranslatedContent content="actions.create" />
       </Button>
     </>
   );

@@ -292,5 +292,37 @@
   "weight": {
     "label": "Weight",
     "helperText": "Enter the weight of the publication."
+  },
+  "program": {
+    "label": "Program",
+    "helperText": "Enter the name of the funding program."
+  },
+  "grantNumber": {
+    "label": "Grant Number",
+    "helperText": "Enter the grant or award number."
+  },
+  "institution": {
+    "label": "Institution",
+    "helperText": "Choose the funding institution."
+  },
+  "projectName": {
+    "label": "Project Name",
+    "helperText": "Enter the name of the project that funds the work."
+  },
+  "projectShortname": {
+    "label": "Project Shortname",
+    "helperText": "Enter the short name of the project that funds the work."
+  },
+  "referenceDoi": {
+    "label": "DOI",
+    "helperText": "Enter the DOI of the reference."
+  },
+  "referenceCitation": {
+    "label": "Citation",
+    "helperText": "Enter the citation text of the reference."
+  },
+  "referenceUrl": {
+    "label": "URL",
+    "helperText": "Enter the URL of the reference."
   }
 }

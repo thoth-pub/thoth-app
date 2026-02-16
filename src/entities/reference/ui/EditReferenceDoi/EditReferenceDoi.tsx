@@ -7,8 +7,8 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 
 import { doiValidationSchema } from '../../model/reference.validation';
 
-const { DOI } = FORM_FIELDS;
-const { REFERENCE_DOI } = HELPER_TEXT;
+const { REFERENCE_DOI } = FORM_FIELDS;
+const { REFERENCE_DOI: REFERENCE_DOI_HELPER_TEXT } = HELPER_TEXT;
 
 type EditReferenceDoiProps = {
   defaultValue?: string;
@@ -24,23 +24,23 @@ export const EditReferenceDoi = (props: EditReferenceDoiProps) => {
       borderTransparent
       isTableVariant
       validationSchema={doiValidationSchema}
-      defaultValues={{ [DOI.name]: defaultValue }}
+      defaultValues={{ [REFERENCE_DOI.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.doi)}
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
-          <FormFieldLabel label={DOI.label} id={DOI.name} />
+          <FormFieldLabel label={REFERENCE_DOI.label} id={REFERENCE_DOI.name} />
           <FormTextField
             control={control}
-            name={DOI.name}
-            id={DOI.name}
-            helperText={REFERENCE_DOI}
+            name={REFERENCE_DOI.name}
+            id={REFERENCE_DOI.name}
+            helperText={REFERENCE_DOI_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
             isDoiField
           />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview label={DOI.label} value={data?.doi} disabled={disabled} onEdit={onEdit}>
+        <Preview label={REFERENCE_DOI.label} value={data?.doi} disabled={disabled} onEdit={onEdit}>
           {data?.doi && data?.doi.length > 0 && <DoiPreview doi={data.doi} className="ml-2" />}
         </Preview>
       )}

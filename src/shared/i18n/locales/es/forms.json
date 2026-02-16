@@ -291,5 +291,37 @@
   "weight": {
     "label": "Peso",
     "helperText": "Introduzca el peso de la publicación."
+  },
+  "program": {
+    "label": "Program",
+    "helperText": "Introduzca el nombre del programa de financiación."
+  },
+  "grantNumber": {
+    "label": "Grant Number",
+    "helperText": "Introduzca el número de la subvención o concesión."
+  },
+  "institution": {
+    "label": "Institution",
+    "helperText": "Elija la institución financiadora."
+  },
+  "projectName": {
+    "label": "Project Name",
+    "helperText": "Introduzca el nombre del proyecto que financia la obra."
+  },
+  "projectShortname": {
+    "label": "Project Shortname",
+    "helperText": "Introduzca el nombre corto del proyecto que financia la obra."
+  },
+  "referenceDoi": {
+    "label": "DOI",
+    "helperText": "Introduzca el DOI de la referencia."
+  },
+  "referenceCitation": {
+    "label": "Cita",
+    "helperText": "Introduzca el texto de la cita de la referencia."
+  },
+  "referenceUrl": {
+    "label": "URL",
+    "helperText": "Introduzca la URL de la referencia."
   }
 }

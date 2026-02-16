@@ -19,7 +19,7 @@ import {
 import useDeleteWork from '@/src/entities/work/api/hooks/useDeleteWork';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { ANCHORS } from '@/src/shared/constants';
-import { SpeedDial, SpeedDialActions, Typography } from '@/src/shared/ui';
+import { SpeedDial, SpeedDialActions, TranslatedContent, Typography } from '@/src/shared/ui';
 import DataIndicator from '@/src/shared/ui/core/DataIndicator/DataIndicator';
 
 import { AddVolume } from './components/AddVolume';
@@ -79,7 +79,7 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
   const actions = [
     {
       icon: <SaveAltIcon color="primary" onClick={() => setOpenMetaDialog(true)} />,
-      name: 'Metadata',
+      name: 'metadata',
     },
     {
       icon: (
@@ -94,22 +94,22 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
     },
     {
       icon: <DeleteOutlineIcon color="primary" onClick={() => deleteWork(workId)} />,
-      name: 'Delete',
+      name: 'delete',
     },
     {
       icon: <PlusOneIcon color="primary" onClick={onCreateNewEdition} />,
-      name: 'Reissue',
+      name: 'reissue',
     },
     {
       icon: <TranslateIcon color="primary" onClick={onCreateTranslation} />,
-      name: 'Translation',
+      name: 'translation',
     },
   ];
 
   if (workSet.length === 0) {
     actions.push({
       icon: <AddToPhotosIcon color="primary" onClick={addToSet} />,
-      name: 'Extend',
+      name: 'extend',
     });
   }
 
@@ -143,7 +143,7 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
                                 isValid={isBasicDetailsSectionFilled}
                                 sx={{ ...buttonItemStyle }}
                               />
-                              Core details
+                              <TranslatedContent content="core details" />
                             </a>
                           </Typography>
                           <Typography variant="body2" component="li">
@@ -153,7 +153,7 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
                                 isValid={!isContributionsRequired}
                                 sx={{ ...buttonItemStyle }}
                               />
-                              Contributions
+                              <TranslatedContent content="contributions" />
                             </a>
                           </Typography>
                           <Typography variant="body2" component="li">
@@ -163,7 +163,7 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
                                 isValid={isDescriptionsSectionFilled}
                                 sx={{ ...buttonItemStyle }}
                               />
-                              Descriptions
+                              <TranslatedContent content="descriptions" />
                             </a>
                           </Typography>
                           <Typography variant="body2" component="li">
@@ -173,13 +173,13 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
                                 isValid={!isFundingsRequired}
                                 sx={{ ...buttonItemStyle }}
                               />
-                              Fundings
+                              <TranslatedContent content="funding" />
                             </a>
                           </Typography>
                         </ul>
                       ),
                     }
-                  : { open: true, title: action.name },
+                  : { open: true, title: <TranslatedContent content={action.name} /> },
             }}
           />
         ))}
