@@ -17,6 +17,7 @@ export const appConfig = {
   data: {
     itemsPerRequestLimit: 20,
     maxItemsPerRequestLimit: 100,
+    maxImprintsPerRequestLimit: 1000,
   },
   fieldsDebounceDelay: 1000,
   validations: {

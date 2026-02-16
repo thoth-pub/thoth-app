@@ -10,6 +10,7 @@ export const HELPER_TEXT = {
   WORK_TYPE: 'wortType.helperText',
   WORK_STATUS: 'status.helperText',
   IMPRINT: 'imprint.helperText',
+  EDIT_IMPRINT: 'editImprint.helperText',
   LICENSE: 'license.helperText',
   COPYRIGHT_HOLDER: 'copyrightHolder.helperText',
   LANDING_PAGE: 'landingPage.helperText',

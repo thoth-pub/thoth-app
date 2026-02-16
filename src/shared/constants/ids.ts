@@ -1,3 +1,5 @@
+import { Id } from '../interfaces';
+
 export const IDs = {
   // WORK
   CREATE_WORK: 'create-work',
@@ -69,4 +71,6 @@ export const IDs = {
   // SETS
   SET_TITLE: 'set_title',
   SET_IMPRINT: 'set_imprint',
+  // IMPRINTS
+  IMPRINT: (imprintId: string) => `imprint_${imprintId}` as Id,
 } as const;

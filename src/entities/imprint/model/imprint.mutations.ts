@@ -7,3 +7,25 @@ export const CREATE_IMPRINT = graphql(`
     }
   }
 `);
+
+export const UPDATE_IMPRINT = graphql(`
+  mutation UpdateImprint($data: PatchImprint!) {
+    updateImprint(data: $data) {
+      imprintId
+      imprintName
+      imprintUrl
+      updatedAt
+      publisher {
+        publisherName
+      }
+    }
+  }
+`);
+
+export const DELETE_IMPRINT = graphql(`
+  mutation DeleteImprint($imprintId: Uuid!) {
+    deleteImprint(imprintId: $imprintId) {
+      imprintId
+    }
+  }
+`);

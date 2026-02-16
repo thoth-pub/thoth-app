@@ -13,20 +13,20 @@ import EditButton from '../EditButton/EditButton';
 import TranslatedContent from '../TranslatedContent/TranslatedContent';
 import Typography from '../Typography/Typography';
 
-type PreviewProps = {
+type PreviewProps = Partial<{
   label: string;
-  value?: string;
-  recommended?: boolean;
-  disabled?: boolean;
-  children?: Readonly<React.ReactNode>;
-  editButtonClassName?: string;
-  capitalize?: boolean;
-  tooltip?: string;
-  addButtonText?: string;
-  namespace?: Namespace;
-  valueNamespace?: Namespace;
-  onEdit?: () => void;
-};
+  value: string;
+  recommended: boolean;
+  disabled: boolean;
+  children: Readonly<React.ReactNode>;
+  editButtonClassName: string;
+  capitalize: boolean;
+  tooltip: string;
+  addButtonText: string;
+  namespace: Namespace;
+  valueNamespace: Namespace;
+  onEdit: () => void;
+}>;
 
 const Preview = (props: PreviewProps) => {
   const {
@@ -48,7 +48,15 @@ const Preview = (props: PreviewProps) => {
 
   return (
     <ContentWrapper>
-      <FormFieldLabel component="div" label={label} recommended={recommended} tooltip={tooltip} namespace={namespace} />
+      {label && (
+        <FormFieldLabel
+          component="div"
+          label={label}
+          recommended={recommended}
+          tooltip={tooltip}
+          namespace={namespace}
+        />
+      )}
       <div className="flex justify-between">
         {children && children}
         {!children && value && (

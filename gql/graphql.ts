@@ -192,6 +192,12 @@ export type BiographyOrderBy = {
   field: BiographyField;
 };
 
+/** Input for completing a file upload and promoting it to its final DOI-based location. */
+export type CompleteFileUpload = {
+  /** ID of the upload session to complete. */
+  fileUploadId: Scalars['Uuid']['input'];
+};
+
 /** A way to get in touch with a publisher. */
 export type Contact = {
   __typename?: 'Contact';
@@ -1521,6 +1527,54 @@ export enum Expression {
   /** Return only results with values which are less than the value supplied */
   LessThan = 'LESS_THAN'
 }
+
+/** A file stored in the system (publication file or front cover). */
+export type File = {
+  __typename?: 'File';
+  /** Size of the file in bytes */
+  bytes: Scalars['Int']['output'];
+  /** Public CDN URL */
+  cdnUrl: Scalars['String']['output'];
+  /** Date and time at which the file record was created */
+  createdAt: Scalars['Timestamp']['output'];
+  /** Thoth ID of the file */
+  fileId: Scalars['Uuid']['output'];
+  /** Type of file (publication or frontcover) */
+  fileType: FileType;
+  /** MIME type used when serving the file */
+  mimeType: Scalars['String']['output'];
+  /** S3 object key (canonical DOI-based path) */
+  objectKey: Scalars['String']['output'];
+  /** Thoth ID of the publication (for publication files) */
+  publicationId?: Maybe<Scalars['Uuid']['output']>;
+  /** SHA-256 checksum of the stored file */
+  sha256: Scalars['String']['output'];
+  /** Date and time at which the file record was last updated */
+  updatedAt: Scalars['Timestamp']['output'];
+  /** Thoth ID of the work (for frontcovers) */
+  workId?: Maybe<Scalars['Uuid']['output']>;
+};
+
+/** Type of file being uploaded */
+export enum FileType {
+  /** Front cover image */
+  Frontcover = 'FRONTCOVER',
+  /** Publication file (PDF, EPUB, XML, etc.) */
+  Publication = 'PUBLICATION'
+}
+
+/** Response from initiating a file upload, containing the upload URL and expiration time. */
+export type FileUploadResponse = {
+  __typename?: 'FileUploadResponse';
+  /** Time when the upload URL expires. */
+  expiresAt: Scalars['Timestamp']['output'];
+  /** ID of the upload session. */
+  fileUploadId: Scalars['Uuid']['output'];
+  /** Headers that must be sent with the HTTP PUT request to uploadUrl. */
+  uploadHeaders: Array<UploadRequestHeader>;
+  /** Presigned S3 PUT URL for uploading the file. */
+  uploadUrl: Scalars['String']['output'];
+};
 
 /** A grant awarded for the publication of a work by an institution. */
 export type Funding = {
@@ -4073,6 +4127,8 @@ export type Me = {
 
 export type MutationRoot = {
   __typename?: 'MutationRoot';
+  /** Complete a file upload, validate it, and promote it to its final DOI-based location. */
+  completeFileUpload: File;
   /** Create a new abstract with the specified values */
   createAbstract: Abstract;
   /** Create a new affiliation with the specified values */
@@ -4157,6 +4213,10 @@ export type MutationRoot = {
   deleteWork: Work;
   /** Delete a single work relation using its ID */
   deleteWorkRelation: WorkRelation;
+  /** Start uploading a front cover image for a given work. Returns an upload session ID, a presigned S3 PUT URL, and required PUT headers. */
+  initFrontcoverFileUpload: FileUploadResponse;
+  /** Start uploading a publication file (e.g. PDF, EPUB, XML) for a given publication. Returns an upload session ID, a presigned S3 PUT URL, and required PUT headers. */
+  initPublicationFileUpload: FileUploadResponse;
   /** Change the ordering of an affiliation within a contribution */
   moveAffiliation: Affiliation;
   /** Change the ordering of a contribution within a work */
@@ -4211,6 +4271,11 @@ export type MutationRoot = {
   updateWork: Work;
   /** Update an existing work relation with the specified values */
   updateWorkRelation: WorkRelation;
+};
+
+
+export type MutationRootCompleteFileUploadArgs = {
+  data: CompleteFileUpload;
 };
 
 
@@ -4427,6 +4492,16 @@ export type MutationRootDeleteWorkRelationArgs = {
 };
 
 
+export type MutationRootInitFrontcoverFileUploadArgs = {
+  data: NewFrontcoverFileUpload;
+};
+
+
+export type MutationRootInitPublicationFileUploadArgs = {
+  data: NewPublicationFileUpload;
+};
+
+
 export type MutationRootMoveAffiliationArgs = {
   affiliationId: Scalars['Uuid']['input'];
   newOrdinal: Scalars['Int']['input'];
@@ -4623,6 +4698,18 @@ export type NewContributor = {
   website?: InputMaybe<Scalars['String']['input']>;
 };
 
+/** Input for starting a front cover upload for a work. */
+export type NewFrontcoverFileUpload = {
+  /** File extension to use in the final canonical key, e.g. 'jpg', 'png', 'webp'. */
+  declaredExtension: Scalars['String']['input'];
+  /** MIME type declared by the client (e.g. 'image/jpeg'). */
+  declaredMimeType: Scalars['String']['input'];
+  /** SHA-256 checksum of the file, hex-encoded. */
+  declaredSha256: Scalars['String']['input'];
+  /** Thoth ID of the work this front cover belongs to. */
+  workId: Scalars['Uuid']['input'];
+};
+
 /** Set of values required to define a new grant awarded for the publication of a work by an institution */
 export type NewFunding = {
   grantNumber?: InputMaybe<Scalars['String']['input']>;
@@ -4636,10 +4723,13 @@ export type NewFunding = {
 
 /** Set of values required to define a new brand under which a publisher issues works */
 export type NewImprint = {
+  cdnDomain?: InputMaybe<Scalars['String']['input']>;
+  cloudfrontDistId?: InputMaybe<Scalars['String']['input']>;
   crossmarkDoi?: InputMaybe<Scalars['Doi']['input']>;
   imprintName: Scalars['String']['input'];
   imprintUrl?: InputMaybe<Scalars['String']['input']>;
   publisherId: Scalars['Uuid']['input'];
+  s3Bucket?: InputMaybe<Scalars['String']['input']>;
 };
 
 /** Set of values required to define a new organisation with which contributors may be affiliated or by which works may be funded */
@@ -4698,6 +4788,18 @@ export type NewPublication = {
   widthIn?: InputMaybe<Scalars['Float']['input']>;
   widthMm?: InputMaybe<Scalars['Float']['input']>;
   workId: Scalars['Uuid']['input'];
+};
+
+/** Input for starting a publication file upload (PDF, EPUB, XML, etc.). */
+export type NewPublicationFileUpload = {
+  /** File extension to use in the final canonical key, e.g. 'pdf', 'epub', 'xml'. */
+  declaredExtension: Scalars['String']['input'];
+  /** MIME type declared by the client (used for validation and in the presigned URL). */
+  declaredMimeType: Scalars['String']['input'];
+  /** SHA-256 checksum of the file, hex-encoded. */
+  declaredSha256: Scalars['String']['input'];
+  /** Thoth ID of the publication linked to this file. */
+  publicationId: Scalars['Uuid']['input'];
 };
 
 /** Set of values required to define a new organisation that produces and distributes works */
@@ -4879,11 +4981,14 @@ export type PatchFunding = {
 
 /** Set of values required to update an existing brand under which a publisher issues works */
 export type PatchImprint = {
+  cdnDomain?: InputMaybe<Scalars['String']['input']>;
+  cloudfrontDistId?: InputMaybe<Scalars['String']['input']>;
   crossmarkDoi?: InputMaybe<Scalars['Doi']['input']>;
   imprintId: Scalars['Uuid']['input'];
   imprintName: Scalars['String']['input'];
   imprintUrl?: InputMaybe<Scalars['String']['input']>;
   publisherId: Scalars['Uuid']['input'];
+  s3Bucket?: InputMaybe<Scalars['String']['input']>;
 };
 
 /** Set of values required to update an existing organisation with which contributors may be affiliated or by which works may be funded */
@@ -5113,6 +5218,8 @@ export type Publication = {
   createdAt: Scalars['Timestamp']['output'];
   /** Depth of the physical Publication (in mm, cm or in) (only applicable to non-Chapter Paperbacks and Hardbacks) */
   depth?: Maybe<Scalars['Float']['output']>;
+  /** Get the publication file for this publication */
+  file?: Maybe<File>;
   /** Height of the physical Publication (in mm, cm or in) (only applicable to non-Chapter Paperbacks and Hardbacks) */
   height?: Maybe<Scalars['Float']['output']>;
   /** International Standard Book Number of the publication, in ISBN-13 format */
@@ -5358,6 +5465,8 @@ export type QueryRoot = {
   contributorCount: Scalars['Int']['output'];
   /** Query the full list of contributors */
   contributors: Array<Contributor>;
+  /** Query a single file using its ID */
+  file: File;
   /** Query a single funding using its ID */
   funding: Funding;
   /** Get the total number of funding instances associated to works */
@@ -5601,6 +5710,11 @@ export type QueryRootContributorsArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   order?: InputMaybe<ContributorOrderBy>;
+};
+
+
+export type QueryRootFileArgs = {
+  fileId: Scalars['Uuid']['input'];
 };
 
 
@@ -6148,6 +6262,15 @@ export type TitleOrderBy = {
   field: TitleField;
 };
 
+/** Single required HTTP header for presigned file upload. */
+export type UploadRequestHeader = {
+  __typename?: 'UploadRequestHeader';
+  /** HTTP header name. */
+  name: Scalars['String']['output'];
+  /** HTTP header value. */
+  value: Scalars['String']['output'];
+};
+
 /** Unit of measurement for physical Work weight (grams or ounces) */
 export enum WeightUnit {
   /** Grams */
@@ -6181,6 +6304,8 @@ export type Work = {
   edition?: Maybe<Scalars['Int']['output']>;
   /** Page number on which the work begins (only applicable to chapters) */
   firstPage?: Maybe<Scalars['String']['output']>;
+  /** Get the front cover file for this work */
+  frontcover?: Maybe<File>;
   /**
    * Concatenation of title and subtitle with punctuation mark
    * @deprecated Please use Work `titles` field instead to get the correct full title in a multilingual manner
@@ -6704,6 +6829,20 @@ export type CreateImprintMutationVariables = Exact<{
 
 
 export type CreateImprintMutation = { __typename?: 'MutationRoot', createImprint: { __typename?: 'Imprint', imprintId: any } };
+
+export type UpdateImprintMutationVariables = Exact<{
+  data: PatchImprint;
+}>;
+
+
+export type UpdateImprintMutation = { __typename?: 'MutationRoot', updateImprint: { __typename?: 'Imprint', imprintId: any, imprintName: string, imprintUrl?: string | null, updatedAt: any, publisher: { __typename?: 'Publisher', publisherName: string } } };
+
+export type DeleteImprintMutationVariables = Exact<{
+  imprintId: Scalars['Uuid']['input'];
+}>;
+
+
+export type DeleteImprintMutation = { __typename?: 'MutationRoot', deleteImprint: { __typename?: 'Imprint', imprintId: any } };
 
 export type GetImprintsCountQueryVariables = Exact<{
   publishers: Array<Scalars['Uuid']['input']> | Scalars['Uuid']['input'];
@@ -7441,6 +7580,8 @@ export const CreateFundingDocument = {"kind":"Document","definitions":[{"kind":"
 export const UpdateFundingDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateFunding"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchFunding"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateFunding"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FundingFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"FundingFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Funding"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}}]} as unknown as DocumentNode<UpdateFundingMutation, UpdateFundingMutationVariables>;
 export const DeleteFundingDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteFunding"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"fundingId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteFunding"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"fundingId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"fundingId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"FundingFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"FundingFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Funding"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"fundingId"}},{"kind":"Field","name":{"kind":"Name","value":"grantNumber"}},{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"jurisdiction"}},{"kind":"Field","name":{"kind":"Name","value":"program"}},{"kind":"Field","name":{"kind":"Name","value":"projectName"}},{"kind":"Field","name":{"kind":"Name","value":"projectShortname"}},{"kind":"Field","name":{"kind":"Name","value":"institution"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}}]}}]}}]} as unknown as DocumentNode<DeleteFundingMutation, DeleteFundingMutationVariables>;
 export const CreateImprintDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateImprint"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewImprint"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createImprint"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"imprintId"}}]}}]}}]} as unknown as DocumentNode<CreateImprintMutation, CreateImprintMutationVariables>;
+export const UpdateImprintDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateImprint"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchImprint"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateImprint"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"imprintName"}},{"kind":"Field","name":{"kind":"Name","value":"imprintUrl"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}}]} as unknown as DocumentNode<UpdateImprintMutation, UpdateImprintMutationVariables>;
+export const DeleteImprintDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteImprint"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"imprintId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteImprint"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"imprintId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"imprintId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"imprintId"}}]}}]}}]} as unknown as DocumentNode<DeleteImprintMutation, DeleteImprintMutationVariables>;
 export const GetImprintsCountDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetImprintsCount"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"imprintCount"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}}]}]}}]} as unknown as DocumentNode<GetImprintsCountQuery, GetImprintsCountQueryVariables>;
 export const GetImprintsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetImprints"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}},"type":{"kind":"NonNullType","type":{"kind":"ListType","type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"imprints"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"publishers"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publishers"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"imprintId"}},{"kind":"Field","name":{"kind":"Name","value":"imprintName"}},{"kind":"Field","name":{"kind":"Name","value":"imprintUrl"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"publisher"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherName"}}]}}]}}]}}]} as unknown as DocumentNode<GetImprintsQuery, GetImprintsQueryVariables>;
 export const GetInstitutionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetInstitutions"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"offset"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"limit"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"Int"}}},{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"filter"}},"type":{"kind":"NamedType","name":{"kind":"Name","value":"String"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutions"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"offset"},"value":{"kind":"Variable","name":{"kind":"Name","value":"offset"}}},{"kind":"Argument","name":{"kind":"Name","value":"limit"},"value":{"kind":"Variable","name":{"kind":"Name","value":"limit"}}},{"kind":"Argument","name":{"kind":"Name","value":"filter"},"value":{"kind":"Variable","name":{"kind":"Name","value":"filter"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"institutionId"}},{"kind":"Field","name":{"kind":"Name","value":"institutionName"}},{"kind":"Field","name":{"kind":"Name","value":"institutionDoi"}},{"kind":"Field","name":{"kind":"Name","value":"ror"}},{"kind":"Field","name":{"kind":"Name","value":"countryCode"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}}]}}]}}]} as unknown as DocumentNode<GetInstitutionsQuery, GetInstitutionsQueryVariables>;

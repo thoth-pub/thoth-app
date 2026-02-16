@@ -28,7 +28,9 @@
     "addNewFunding": "Adicionar Novo Financiamento",
     "addNewReference": "Adicionar Nova Referência",
     "select": "select",
-    "addVolume": "Add Volume"
+    "addVolume": "Add Volume",
+    "addNewImprint": "Add New Imprint",
+    "downloadMetadata": "Download Metadata"
   },
   "title": "Título",
   "updated at": "Atualizado em",
@@ -131,5 +133,7 @@
   "multiple contributors found": "Múltiplos colaboradores encontrados",
   "latest contribution to": "Latest contribution to",
   "work": "Obra",
-  "search value": "Buscar valor"
+  "search value": "Buscar valor",
+  "imprints": "Imprints",
+  "metadata not available": "metadata not available"
 }

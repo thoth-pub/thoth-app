@@ -5,6 +5,7 @@ import FileUploadIcon from '@mui/icons-material/FileUpload';
 import PlusOneIcon from '@mui/icons-material/PlusOne';
 import TranslateIcon from '@mui/icons-material/Translate';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
+import NextLink from 'next/link';
 
 import { ROUTES } from '@/src/shared/constants';
 import { Link, SpeedDial, SpeedDialActions, TranslatedContent } from '@/src/shared/ui';
@@ -33,9 +34,11 @@ export const WorksSpeedDial = (props: WorksSpeedDialProps) => {
     },
     {
       icon: (
-        <Link href={ROUTES.NEW_WORK}>
-          <AddIcon color="primary" />
-        </Link>
+        <NextLink href={ROUTES.NEW_WORK} passHref>
+          <Link>
+            <AddIcon color="primary" />
+          </Link>
+        </NextLink>
       ),
       name: 'create',
     },

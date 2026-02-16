@@ -3,7 +3,7 @@ import WarningIcon from '@mui/icons-material/Warning';
 import { Activity } from 'react';
 
 import { getSpecificationPlaceholder } from '@/src/shared';
-import { Button, Tooltip, Typography } from '@/src/shared/ui';
+import { Button, Tooltip, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { SpecificationResult } from '../../../model/metadata.types';
 
@@ -19,7 +19,11 @@ export const LinksList = (props: LinksListProps) => {
   const isEmpty = Object.keys(links).length === 0;
 
   if (isEmpty) {
-    return <Typography className="text-center text-(--color-typography)">Metadata not available</Typography>;
+    return (
+      <Typography className="text-center text-(--color-typography)">
+        <TranslatedContent content="metadata not available" />
+      </Typography>
+    );
   }
 
   return (

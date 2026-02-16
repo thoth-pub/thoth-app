@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { CloseButton, Modal, Tab, TabPanel, Tabs, Typography } from '@/src/shared/ui';
+import { CloseButton, Modal, Tab, TabPanel, Tabs, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { useMetaData } from '../../api/hooks/useMetaData';
 import { FORMAT_IDS } from '../../model/metadata.types';
@@ -44,7 +44,7 @@ const MetadataModal = (props: MetadataModalProps) => {
         <div className="m-auto flex max-h-160 w-full max-w-300 flex-col gap-4 overflow-auto rounded-xl bg-(--color-modal-background) p-4 lg:gap-8 lg:rounded-2xl lg:p-8">
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="text-(--color-typography)">
-              Download Metadata
+              <TranslatedContent content="actions.downloadMetadata" />
             </Typography>
             <CloseButton onClose={onClose} />
           </div>

@@ -42,4 +42,6 @@ export const QueryKeys = {
   metadata: 'metadata',
   // USER
   userInfo: 'userInfo',
+  // IMPRINTS
+  publisherImprints: 'publisherImprints',
 } as const;

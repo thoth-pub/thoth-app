@@ -1,7 +1,7 @@
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { PublisherId } from '@/src/entities/publisher';
-import { NOTIFICATIONS } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared';
 import { useServices } from '@/src/shared/context';
 import { useNotifications, useQueryToken } from '@/src/shared/hooks';
 
@@ -11,6 +11,7 @@ const useCreateImprint = () => {
   const { imprintService } = useServices();
   const { sendErrorNotification } = useNotifications();
   const queryToken = useQueryToken();
+  const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: { publisherId: PublisherId; imprintName: string }) => {
@@ -21,8 +22,14 @@ const useCreateImprint = () => {
     },
   });
 
+  const createImprint = async ({ publisherId, imprintName }: { publisherId: PublisherId; imprintName: string }) => {
+    await mutateAsync({ publisherId, imprintName });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.publisherImprints, publisherId] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.userInfo] });
+  };
+
   return {
-    createImprint: mutateAsync,
+    createImprint,
     loading: isPending,
   };
 };

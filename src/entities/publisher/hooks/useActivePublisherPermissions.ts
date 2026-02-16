@@ -11,7 +11,7 @@ const useActivePublisherPermissions = () => {
   const isImprintEditable = user.isSuperuser || (activePublisher ? activePublisher.publisherAdmin : false);
 
   return {
-    idDragAndDropEnabled: false,
+    idDragAndDropEnabled,
     isImprintEditable: isImprintEditable,
     isStatusEditable: isLifecycleEditable,
     isPublicationDateEditable: isLifecycleEditable,

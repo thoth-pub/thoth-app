@@ -7,6 +7,7 @@ export { default as EditChaptersFundings } from './chapters/EditChaptersFundings
 export { default as AddNewContribution } from './contribution/AddNewContribution/AddNewContribution';
 export { default as EditContribution } from './contribution/EditContribution/EditContribution';
 export { default as ContentLanguage } from './i18n/ContentLanguage';
+export { default as ImprintsList } from './imprint/ImprintsList/ImprintsList';
 export { default as ChaptersModal } from './layout/FullScreenModal/FullScreenModal';
 export { default as Navigation } from './layout/Navigation/Navigation';
 export { default as UpdateNavigationState } from './layout/UpdateNavigationState/UpdateNavigationState';

@@ -324,5 +324,9 @@
   "referenceUrl": {
     "label": "URL",
     "helperText": "Enter the URL of the reference."
+  },
+  "editImprint": {
+    "label": "Imprint",
+    "helperText": "Enter name of the imprint."
   }
 }

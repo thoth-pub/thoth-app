@@ -48,6 +48,17 @@ export const EditSetImprint = ({ imprintId, imprintOptions, disabled = true, onS
             helperText={HELPER_TEXT.IMPRINT}
             isHelperTextVisible={isHelperTextVisible}
             disabled={isFieldDisable}
+            slotProps={{
+              select: {
+                MenuProps: {
+                  sx: {
+                    '& .MuiMenuItem-root': {
+                      textTransform: 'none',
+                    },
+                  },
+                },
+              },
+            }}
           />
         </ContentWrapper>
       )}

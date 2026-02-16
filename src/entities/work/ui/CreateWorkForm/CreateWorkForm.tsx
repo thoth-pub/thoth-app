@@ -6,7 +6,7 @@ import { IDs } from '@/src/shared/constants';
 import { FORM_FIELDS, languageOptionsAlt, licenseOptions } from '@/src/shared/constants/formFields';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { AutocompleteGroup, Button, CircularProgress, PageHeader } from '@/src/shared/ui';
+import { AutocompleteGroup, Button, CircularProgress, PageHeader, TranslatedContent } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import CreateWorkFormAutocompleteField from './components/CreateWorkFormAutocompleteField';
@@ -34,13 +34,14 @@ const CreateWorkForm = () => {
       <PageHeader title="New work">
         <Button
           variant="contained"
+          className="capitalize"
           disabled={isSubmitDisabled}
           type="submit"
           form={CREATE_WORK}
           loading={isLoading}
           loadingIndicator={<CircularProgress size={22} sx={{ color: 'inherit' }} />}
         >
-          Create
+          <TranslatedContent content="actions.create" />
         </Button>
       </PageHeader>
       <ContentSection>
@@ -71,6 +72,17 @@ const CreateWorkForm = () => {
               control={control}
               select
               options={userImprintsOptions}
+              slotProps={{
+                select: {
+                  MenuProps: {
+                    sx: {
+                      '& .MuiMenuItem-root': {
+                        textTransform: 'none',
+                      },
+                    },
+                  },
+                },
+              }}
             />
           )}
           <CreateWorkFormField
