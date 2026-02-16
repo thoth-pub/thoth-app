@@ -10,6 +10,7 @@ type EditImprintProps = Partial<{
   defaultValue: string;
   id: ImprintId;
   disabled: boolean;
+  deleteDisabled: boolean;
   onUpdate: ({ imprintName, imprintId }: { imprintName: string; imprintId: string }) => void;
   onDelete: (imprintId: ImprintId) => void;
 }>;
@@ -19,9 +20,9 @@ const { IMPRINT } = FORM_FIELDS;
 const { EDIT_IMPRINT } = HELPER_TEXT;
 
 const EditImprint = (props: EditImprintProps) => {
-  const { defaultValue = '', id = '', onUpdate, onDelete } = props;
+  const { defaultValue = '', id = '', onUpdate, onDelete, deleteDisabled = false } = props;
 
-  const isDeleteDisabled = defaultValue.length === 0 || id.length === 0 || id === appConfig.defaultId;
+  const isDeleteDisabled = defaultValue.length === 0 || id.length === 0 || id === appConfig.defaultId || deleteDisabled;
 
   return (
     <EditableContent
