@@ -1,4 +1,4 @@
-import { GraphqlService, isDefaultId, isTextContainsAnyMarkdownTag, QueryToken } from '@/src/shared';
+import { GraphqlService, isDefaultId, isTextContainsAnyMarkdownTag } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 
@@ -26,9 +26,10 @@ export class ContributionService {
   private readonly biographyDtoMapper: BiographyDtoMapper;
 
   constructor(
-    graphqlService: GraphqlService = new GraphqlService(),
-    contributorService: ContributorService = new ContributorService(),
-    affiliationService: AffiliationService = new AffiliationService(),
+    token: string,
+    graphqlService: GraphqlService = new GraphqlService(token),
+    contributorService: ContributorService = new ContributorService(token),
+    affiliationService: AffiliationService = new AffiliationService(token),
     biographyDtoMapper: BiographyDtoMapper = new BiographyDtoMapper(),
   ) {
     this.graphqlService = graphqlService;
@@ -37,16 +38,12 @@ export class ContributionService {
     this.biographyDtoMapper = biographyDtoMapper;
   }
 
-  async createContribution(
-    token: QueryToken,
-    data: WorkContribution,
-    relatedWorkId: string,
-  ): Promise<WorkContribution> {
+  async createContribution(data: WorkContribution, relatedWorkId: string): Promise<WorkContribution> {
     const isNewContributor = isDefaultId(data.contributorId);
     let contributorId = data.contributorId;
 
     if (isNewContributor) {
-      const contributor = await this.contributorService.createContributor(token, {
+      const contributor = await this.contributorService.createContributor({
         firstName: data.firstName,
         lastName: data.lastName,
         fullName: data.fullName,
@@ -60,7 +57,7 @@ export class ContributionService {
       contributorId = contributor.id;
     }
 
-    const response = await this.graphqlService.mutation(token, CREATE_CONTRIBUTION, {
+    const response = await this.graphqlService.mutation(CREATE_CONTRIBUTION, {
       data: {
         workId: relatedWorkId,
         contributorId,
@@ -78,7 +75,7 @@ export class ContributionService {
     const contribution = response.createContribution;
 
     const biographiesPromises = data.biographies.map((biography) =>
-      this.createBiography(token, biography, contribution.contributionId),
+      this.createBiography(biography, contribution.contributionId),
     );
 
     const biographies = await Promise.all(biographiesPromises);
@@ -107,7 +104,7 @@ export class ContributionService {
     }));
 
     const affiliationsPromises = updatedAffiliations.map((affiliation) =>
-      this.affiliationService.createAffiliation({ token, data: affiliation }),
+      this.affiliationService.createAffiliation(affiliation),
     );
 
     const affiliations = await Promise.all(affiliationsPromises);
@@ -115,12 +112,8 @@ export class ContributionService {
     return { ...workContribution, affiliations };
   }
 
-  async updateContribution(
-    token: QueryToken,
-    data: WorkContribution,
-    relatedWorkId: string,
-  ): Promise<WorkContribution> {
-    await this.graphqlService.mutation(token, UPDATE_CONTRIBUTION, {
+  async updateContribution(data: WorkContribution, relatedWorkId: string): Promise<WorkContribution> {
+    await this.graphqlService.mutation(UPDATE_CONTRIBUTION, {
       data: {
         contributionId: data.id,
         contributionOrdinal: data.orderNumber,
@@ -139,12 +132,12 @@ export class ContributionService {
     };
   }
 
-  async deleteContribution(token: QueryToken, contributionId: string): Promise<void> {
-    await this.graphqlService.mutation(token, DELETE_CONTRIBUTION, { contributionId });
+  async deleteContribution(contributionId: string): Promise<void> {
+    await this.graphqlService.mutation(DELETE_CONTRIBUTION, { contributionId });
   }
 
-  async moveContribution(token: QueryToken, contributionId: string, newOrdinal: number): Promise<void> {
-    await this.graphqlService.mutation(token, MOVE_CONTRIBUTION, { contributionId, newOrdinal });
+  async moveContribution(contributionId: string, newOrdinal: number): Promise<void> {
+    await this.graphqlService.mutation(MOVE_CONTRIBUTION, { contributionId, newOrdinal });
   }
 
   async getContribution(contributionId: string) {
@@ -153,17 +146,13 @@ export class ContributionService {
     return response.contribution;
   }
 
-  async createBiography(
-    token: QueryToken,
-    data: BiographyEntity,
-    contributionId: ContributionId,
-  ): Promise<BiographyEntity> {
+  async createBiography(data: BiographyEntity, contributionId: ContributionId): Promise<BiographyEntity> {
     const { biographyId: _, contributionId: _contributionId, ...dto } = this.biographyDtoMapper.toDto(data);
     const markupFormat = isTextContainsAnyMarkdownTag(data.content)
       ? MarkdownFormats.enum.JATS_XML
       : MarkdownFormats.enum.PLAIN_TEXT;
 
-    const response = await this.graphqlService.mutation(token, CREATE_BIOGRAPHY, {
+    const response = await this.graphqlService.mutation(CREATE_BIOGRAPHY, {
       data: { contributionId, ...dto },
       markupFormat,
     });
@@ -173,13 +162,13 @@ export class ContributionService {
     return biography;
   }
 
-  async updateBiography(token: QueryToken, data: BiographyEntity): Promise<BiographyEntity> {
+  async updateBiography(data: BiographyEntity): Promise<BiographyEntity> {
     const dto = this.biographyDtoMapper.toDto(data);
     const markupFormat = isTextContainsAnyMarkdownTag(data.content)
       ? MarkdownFormats.enum.JATS_XML
       : MarkdownFormats.enum.PLAIN_TEXT;
 
-    const response = await this.graphqlService.mutation(token, UPDATE_BIOGRAPHY, {
+    const response = await this.graphqlService.mutation(UPDATE_BIOGRAPHY, {
       data: {
         ...dto,
       },
@@ -191,7 +180,7 @@ export class ContributionService {
     return biography;
   }
 
-  async deleteBiography(token: QueryToken, biographyId: string): Promise<void> {
-    await this.graphqlService.mutation(token, DELETE_BIOGRAPHY, { biographyId });
+  async deleteBiography(biographyId: string): Promise<void> {
+    await this.graphqlService.mutation(DELETE_BIOGRAPHY, { biographyId });
   }
 }

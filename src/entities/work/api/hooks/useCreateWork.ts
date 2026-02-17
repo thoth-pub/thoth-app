@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { WorkEntity } from '../../model/work.types';
 
@@ -19,11 +19,10 @@ const useCreateWork = (props: UseCreateWorkProps) => {
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
   const { workService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: WorkEntity) => {
-      return workService.createWork(queryToken, data);
+      return workService.createWork(data);
     },
     onSuccess: (data) => {
       sendSuccessNotification(WORK_CREATION_SUCCESS);

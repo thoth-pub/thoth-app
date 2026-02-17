@@ -4,12 +4,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
 import { appConfig, getDefaultWork, QueryKeys, ROUTES, useServices, WorkStatuses } from '@/src/shared';
-import { useQueryToken } from '@/src/shared/hooks';
 
 import { WorkEntity } from '../../model/work.types';
 
 const useCreateNewWorkEdition = () => {
-  const queryToken = useQueryToken();
   const { workService } = useServices();
   const router = useRouter();
 
@@ -17,7 +15,7 @@ const useCreateNewWorkEdition = () => {
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ originalWork, edition }: { originalWork: WorkEntity; edition: WorkEntity }) => {
-      return workService.createNewWorkEdition(queryToken, originalWork, edition);
+      return workService.createNewWorkEdition(originalWork, edition);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });

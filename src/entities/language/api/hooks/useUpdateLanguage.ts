@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { LanguageEntity } from '../../model/language.types';
 
@@ -18,11 +18,10 @@ const useUpdateLanguage = (props: UseCreateLanguageProps) => {
   const { sendErrorNotification } = useNotifications();
   const { languageService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: LanguageEntity) => {
-      return languageService.updateLanguage(queryToken, data, workId);
+      return languageService.updateLanguage(data, workId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });

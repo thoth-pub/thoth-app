@@ -4,18 +4,17 @@ import { BaseService } from '@/src/shared/interfaces/services';
 import type { WorkId } from '../../work/model/work.types';
 import { ReferenceDtoMapper } from '../model/reference.mapper';
 import { CREATE_REFERENCE, DELETE_REFERENCE, MOVE_REFERENCE, UPDATE_REFERENCE } from '../model/reference.schema';
-import type { ReferenceEntity, ReferenceId } from '../model/reference.types';
-import type { ReferenceDto } from '../model/reference.types';
+import type { ReferenceDto, ReferenceEntity, ReferenceId } from '../model/reference.types';
 
 export class ReferenceService extends BaseService<ReferenceEntity, ReferenceDto> {
-  constructor() {
-    super(new ReferenceDtoMapper());
+  constructor(token: QueryToken, mapper = new ReferenceDtoMapper()) {
+    super(token, mapper);
   }
 
-  async createReference(token: QueryToken, data: ReferenceEntity, relatedWorkId: WorkId): Promise<ReferenceEntity> {
+  async createReference(data: ReferenceEntity, relatedWorkId: WorkId): Promise<ReferenceEntity> {
     const { referenceId: _, ...dto } = this.dtoMapper.toDto(data);
 
-    const response = await this.graphqlService.mutation(token, CREATE_REFERENCE, {
+    const response = await this.graphqlService.mutation(CREATE_REFERENCE, {
       data: { ...dto, workId: relatedWorkId, referenceOrdinal: data.orderNumber ?? 1 },
     });
 
@@ -24,10 +23,10 @@ export class ReferenceService extends BaseService<ReferenceEntity, ReferenceDto>
     return reference;
   }
 
-  async updateReference(token: QueryToken, data: ReferenceEntity, relatedWorkId: WorkId): Promise<ReferenceEntity> {
+  async updateReference(data: ReferenceEntity, relatedWorkId: WorkId): Promise<ReferenceEntity> {
     const dto = this.dtoMapper.toDto(data);
 
-    const response = await this.graphqlService.mutation(token, UPDATE_REFERENCE, {
+    const response = await this.graphqlService.mutation(UPDATE_REFERENCE, {
       data: { ...dto, workId: relatedWorkId, referenceId: data.id, referenceOrdinal: data.orderNumber ?? 1 },
     });
 
@@ -36,14 +35,14 @@ export class ReferenceService extends BaseService<ReferenceEntity, ReferenceDto>
     return reference;
   }
 
-  async deleteReference(token: QueryToken, referenceId: string) {
-    return await this.graphqlService.mutation(token, DELETE_REFERENCE, {
+  async deleteReference(referenceId: string) {
+    return await this.graphqlService.mutation(DELETE_REFERENCE, {
       referenceId,
     });
   }
 
-  async moveReference(token: QueryToken, referenceId: ReferenceId, newOrdinal: number): Promise<ReferenceEntity> {
-    const response = await this.graphqlService.mutation(token, MOVE_REFERENCE, {
+  async moveReference(referenceId: ReferenceId, newOrdinal: number): Promise<ReferenceEntity> {
+    const response = await this.graphqlService.mutation(MOVE_REFERENCE, {
       referenceId,
       newOrdinal,
     });

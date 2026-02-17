@@ -22,6 +22,8 @@ import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { UserService } from '@/src/entities/user';
 import { WorkService } from '@/src/entities/work/api/work.service';
 
+import { useQueryToken } from '../hooks';
+import { QueryToken } from '../interfaces';
 import { NotificationService } from '../notifications/notification.service';
 
 type ServicesMap = {
@@ -47,34 +49,37 @@ type ServicesMap = {
   userService: UserService;
 };
 
-const defaultServices: ServicesMap = {
-  imprintService: new ImprintService(),
-  bookService: new BookService(),
-  workService: new WorkService(),
-  affiliationService: new AffiliationService(),
-  contributorService: new ContributorService(),
-  contributionService: new ContributionService(),
-  subjectService: new SubjectService(),
-  seriesService: new SeriesService(),
-  setService: new SetService(),
-  referenceService: new ReferenceService(),
-  publicationService: new PublicationService(),
-  locationService: new LocationService(),
-  priceService: new PriceService(),
-  publisherService: new PublisherService(),
-  fundingService: new FundingService(),
-  institutionService: new InstitutionService(),
-  languageService: new LanguageService(),
+const getDefaultServices = (token: QueryToken): ServicesMap => ({
+  imprintService: new ImprintService(token),
+  bookService: new BookService(token),
+  workService: new WorkService(token),
+  affiliationService: new AffiliationService(token),
+  contributorService: new ContributorService(token),
+  contributionService: new ContributionService(token),
+  subjectService: new SubjectService(token),
+  seriesService: new SeriesService(token),
+  setService: new SetService(token),
+  referenceService: new ReferenceService(token),
+  publicationService: new PublicationService(token),
+  locationService: new LocationService(token),
+  priceService: new PriceService(token),
+  publisherService: new PublisherService(token),
+  fundingService: new FundingService(token),
+  institutionService: new InstitutionService(token),
+  languageService: new LanguageService(token),
   notificationService: new NotificationService(),
   metadataService: new MetadataService(),
-  userService: new UserService()
-};
+  userService: new UserService(token),
+});
 
 const ServicesContext = createContext({
-  ...defaultServices,
+  ...getDefaultServices(''),
 });
 
 export function ServicesProvider({ children }: { children: Readonly<ReactNode> }) {
+  const queryToken = useQueryToken();
+  const defaultServices = getDefaultServices(queryToken);
+
   return <ServicesContext value={defaultServices}>{children}</ServicesContext>;
 }
 

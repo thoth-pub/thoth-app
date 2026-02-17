@@ -7,22 +7,20 @@ import { CREATE_FUNDING, DELETE_FUNDING, UPDATE_FUNDING } from '../model/funding
 import type { FundingDto, FundingEntity, FundingId } from '../model/funding.types';
 
 export class FundingService extends BaseService<FundingEntity, FundingDto> {
-  constructor(mapper = new FundingDtoMapper()) {
-    super(mapper);
+  constructor(token: QueryToken, mapper = new FundingDtoMapper()) {
+    super(token, mapper);
   }
 
   async createFunding({
-    token,
     data,
     relatedWorkId,
   }: {
-    token: QueryToken;
     data: Omit<FundingEntity, 'id' | 'institutionName' | 'institutionRor'>;
     relatedWorkId: WorkId;
   }): Promise<FundingEntity> {
     const { fundingId: _, ...dto } = this.dtoMapper.toDto({ ...data, id: '', institutionName: '', institutionRor: '' });
 
-    const response = await this.graphqlService.mutation(token, CREATE_FUNDING, {
+    const response = await this.graphqlService.mutation(CREATE_FUNDING, {
       data: { ...dto, workId: relatedWorkId, institutionId: data.institutionId },
     });
 
@@ -31,18 +29,10 @@ export class FundingService extends BaseService<FundingEntity, FundingDto> {
     return funding;
   }
 
-  async updateFunding({
-    token,
-    data,
-    relatedWorkId,
-  }: {
-    token: QueryToken;
-    data: FundingEntity;
-    relatedWorkId: WorkId;
-  }): Promise<FundingEntity> {
+  async updateFunding({ data, relatedWorkId }: { data: FundingEntity; relatedWorkId: WorkId }): Promise<FundingEntity> {
     const { fundingId, ...dto } = this.dtoMapper.toDto(data);
 
-    const response = await this.graphqlService.mutation(token, UPDATE_FUNDING, {
+    const response = await this.graphqlService.mutation(UPDATE_FUNDING, {
       data: { ...dto, fundingId, workId: relatedWorkId, institutionId: data.institutionId },
     });
 
@@ -51,8 +41,8 @@ export class FundingService extends BaseService<FundingEntity, FundingDto> {
     return funding;
   }
 
-  async deleteFunding({ token, fundingId }: { token: QueryToken; fundingId: FundingId }): Promise<void> {
-    await this.graphqlService.mutation(token, DELETE_FUNDING, {
+  async deleteFunding({ fundingId }: { fundingId: FundingId }): Promise<void> {
+    await this.graphqlService.mutation(DELETE_FUNDING, {
       fundingId,
     });
   }

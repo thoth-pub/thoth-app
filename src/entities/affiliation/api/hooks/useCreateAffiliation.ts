@@ -3,7 +3,7 @@
 import { useMutation } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { AffiliationEntity } from '../../model/affiliation.types';
 
@@ -18,11 +18,10 @@ const useCreateAffiliation = (props: UseCreateAffiliationProps) => {
 
   const { sendErrorNotification } = useNotifications();
   const { affiliationService } = useServices();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: AffiliationEntity) => {
-      return affiliationService.createAffiliation({ token: queryToken, data });
+      return affiliationService.createAffiliation(data);
     },
     onSuccess: (data) => {
       onCompleted?.(data);

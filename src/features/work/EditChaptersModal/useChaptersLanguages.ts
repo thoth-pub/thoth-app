@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { LanguageCode } from '@/gql/graphql';
 import { useWorkChaptersStateMachine } from '@/src/entities/work';
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { LanguageEntity, LanguagesForm } from '../../../entities/language/model/language.types';
 
@@ -15,11 +15,10 @@ export const useChaptersLanguages = () => {
   const { languageService } = useServices();
   const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync: createLanguage, isPending: isCreatingLanguage } = useMutation({
     mutationFn: async (data: { language: LanguageEntity; chapterId: string }) => {
-      return languageService.createLanguage(queryToken, data.language, data.chapterId);
+      return languageService.createLanguage(data.language, data.chapterId);
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? LANGUAGE_CREATION_FAILED);
@@ -28,7 +27,7 @@ export const useChaptersLanguages = () => {
 
   const { mutateAsync: deleteLanguage, isPending: isDeletingLanguage } = useMutation({
     mutationFn: async (languageId: string) => {
-      return languageService.deleteLanguage(queryToken, languageId);
+      return languageService.deleteLanguage(languageId);
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? LANGUAGE_DELETE_FAILED);

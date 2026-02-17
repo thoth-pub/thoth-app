@@ -1,6 +1,6 @@
 import { MarkupFormat, RelationType, WorkField } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, Direction, QueryToken } from '@/src/shared';
+import { appConfig, Direction, type QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { WorkService } from '../../work/api/work.service';
@@ -20,8 +20,8 @@ import { SetDto, SetEntity, SetId, SetWorkDto, SetWorkEntity } from '../model/se
 export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
   private readonly workService: WorkService;
 
-  constructor(mapper = new SetDtoMapper(), workService = new WorkService()) {
-    super(mapper);
+  constructor(token: QueryToken, mapper = new SetDtoMapper(), workService = new WorkService(token)) {
+    super(token, mapper);
     this.workService = workService;
   }
 
@@ -94,7 +94,7 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     return sets;
   }
 
-  async createSet(token: QueryToken, data: SetEntity): Promise<SetEntity> {
+  async createSet(data: SetEntity): Promise<SetEntity> {
     const {
       workId: _workId,
       titles: _titles,
@@ -103,7 +103,7 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
       ...dto
     } = this.dtoMapper.toDto(data);
 
-    const response = await this.graphqlService.mutation(token, CREATE_SET, {
+    const response = await this.graphqlService.mutation(CREATE_SET, {
       data: dto as SetDto,
     });
 
@@ -112,7 +112,7 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     const promises = [];
 
     for (const title of data.titles) {
-      promises.push(this.workService.createTitle(token, title, work.id));
+      promises.push(this.workService.createTitle(title, work.id));
     }
 
     const createdTitles = await Promise.all(promises);
@@ -122,10 +122,10 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     return work;
   }
 
-  async updateSet(token: QueryToken, data: SetEntity): Promise<SetEntity> {
+  async updateSet(data: SetEntity): Promise<SetEntity> {
     const { updatedAt: _updatedAt, titles: _titles, ...dto } = this.dtoMapper.toDto(data) as SetDto;
 
-    const response = await this.graphqlService.mutation(token, UPDATE_SET, {
+    const response = await this.graphqlService.mutation(UPDATE_SET, {
       data: dto,
     });
 
@@ -134,8 +134,8 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     return set;
   }
 
-  async deleteSet(token: QueryToken, setId: SetId): Promise<void> {
-    await this.graphqlService.mutation(token, DELETE_SET, {
+  async deleteSet(setId: SetId): Promise<void> {
+    await this.graphqlService.mutation(DELETE_SET, {
       workId: setId,
     });
   }
@@ -148,8 +148,8 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     return this.dtoMapper.toEntitySetWorks(work as SetWorkDto);
   }
 
-  addBookToSet(token: QueryToken, setId: SetId, bookId: WorkId, ordinal: number) {
-    return this.graphqlService.mutation(token, ADD_BOOK_TO_SET, {
+  addBookToSet(setId: SetId, bookId: WorkId, ordinal: number) {
+    return this.graphqlService.mutation(ADD_BOOK_TO_SET, {
       data: {
         relatorWorkId: bookId,
         relatedWorkId: setId,
@@ -159,14 +159,14 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     });
   }
 
-  async deleteBookFromSet(token: QueryToken, relationId: string) {
-    return this.graphqlService.mutation(token, DELETE_BOOK_FROM_SET, {
+  async deleteBookFromSet(relationId: string) {
+    return this.graphqlService.mutation(DELETE_BOOK_FROM_SET, {
       workRelationId: relationId,
     });
   }
 
-  moveBookInSet(token: QueryToken, relationId: string, newOrdinal: number) {
-    return this.graphqlService.mutation(token, MOVE_BOOK_IN_SET, {
+  moveBookInSet(relationId: string, newOrdinal: number) {
+    return this.graphqlService.mutation(MOVE_BOOK_IN_SET, {
       workRelationId: relationId,
       newOrdinal,
     });

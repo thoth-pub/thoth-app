@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { SetEntity } from '../../model/set.types';
 
@@ -12,11 +12,10 @@ export const useCreateSet = () => {
 
   const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ data }: { data: SetEntity }) => {
-      return setService.createSet(queryToken, data);
+      return setService.createSet(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.sets] });

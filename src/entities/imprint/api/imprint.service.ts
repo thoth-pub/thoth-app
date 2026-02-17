@@ -17,8 +17,8 @@ type GetImprintsProps = {
 };
 
 export class ImprintService extends BaseService<ImprintEntity, ImprintDto, ImprintDtoMapper> {
-  constructor(mapper = new ImprintDtoMapper()) {
-    super(mapper);
+  constructor(token: QueryToken, mapper = new ImprintDtoMapper()) {
+    super(token, mapper);
   }
 
   async getImprintsCount(publishersIds: PublisherId[]): Promise<number> {
@@ -69,12 +69,12 @@ export class ImprintService extends BaseService<ImprintEntity, ImprintDto, Impri
     return imprints;
   }
 
-  async createImprint(token: QueryToken, data: { publisherId: PublisherId; imprintName: string }) {
-    await this.graphqlService.mutation(token, CREATE_IMPRINT, { data });
+  async createImprint(data: { publisherId: PublisherId; imprintName: string }) {
+    await this.graphqlService.mutation(CREATE_IMPRINT, { data });
   }
 
-  async updateImprint(token: QueryToken, data: { name: string; id: ImprintId }, publisherId: PublisherId) {
-    const result = await this.graphqlService.mutation(token, UPDATE_IMPRINT, {
+  async updateImprint(data: { name: string; id: ImprintId }, publisherId: PublisherId) {
+    const result = await this.graphqlService.mutation(UPDATE_IMPRINT, {
       data: { imprintName: data.name, imprintId: data.id, publisherId },
     });
 
@@ -83,7 +83,7 @@ export class ImprintService extends BaseService<ImprintEntity, ImprintDto, Impri
     return imprint;
   }
 
-  async deleteImprint(token: QueryToken, imprintId: ImprintId) {
-    await this.graphqlService.mutation(token, DELETE_IMPRINT, { imprintId });
+  async deleteImprint(imprintId: ImprintId) {
+    await this.graphqlService.mutation(DELETE_IMPRINT, { imprintId });
   }
 }

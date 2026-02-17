@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { type SubjectId } from '../../model/subject.types';
 
@@ -13,11 +13,10 @@ const useMoveSubjects = (props: BaseEditSectionProps) => {
   const { subjectService } = useServices();
   const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ subjectId, newOrdinal }: { subjectId: SubjectId; newOrdinal: number }) => {
-      return subjectService.moveSubject(queryToken, subjectId, newOrdinal);
+      return subjectService.moveSubject(subjectId, newOrdinal);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

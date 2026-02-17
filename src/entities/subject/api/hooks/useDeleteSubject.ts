@@ -3,21 +3,20 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import type { SubjectId } from '../../model/subject.types';
 
 const { SUBJECT_DELETE_FAILED } = NOTIFICATIONS;
 
 const useDeleteSubject = () => {
-  const queryToken = useQueryToken();
   const { sendErrorNotification } = useNotifications();
   const { subjectService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (subjectId: SubjectId) => {
-      return subjectService.deleteSubject(queryToken, subjectId);
+      return subjectService.deleteSubject(subjectId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });

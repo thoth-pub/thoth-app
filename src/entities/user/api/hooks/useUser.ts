@@ -27,7 +27,7 @@ const useUser = () => {
     refetch,
   } = useQuery({
     queryKey: [QueryKeys.userInfo, token],
-    queryFn: () => userService.getUser(token),
+    queryFn: () => userService.getUser(),
     enabled: token.length > 0,
   });
 

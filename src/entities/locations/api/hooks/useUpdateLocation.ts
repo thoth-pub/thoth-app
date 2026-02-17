@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { PublicationId } from '@/src/entities/publication/model/publication.types';
 import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { LocationEntity } from '../../model/location.types';
 
@@ -14,11 +14,10 @@ const useUpdateLocation = (props: BaseEditSectionProps) => {
   const { sendErrorNotification } = useNotifications();
   const { locationService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: LocationEntity & { publicationId: PublicationId }) => {
-      return locationService.updateLocation(queryToken, data, data.publicationId);
+      return locationService.updateLocation(data, data.publicationId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

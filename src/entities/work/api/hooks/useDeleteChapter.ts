@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { WorkId } from '../../model/work.types';
 
@@ -13,11 +13,10 @@ const useDeleteChapter = () => {
   const { sendErrorNotification } = useNotifications();
   const { workService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (workId: WorkId) => {
-      return workService.deleteWork(queryToken, workId);
+      return workService.deleteWork(workId);
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? WORK_DELETE_FAILED);

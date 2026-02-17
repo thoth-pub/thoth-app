@@ -1,4 +1,4 @@
-import { QueryToken } from '@/src/shared';
+import type { QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublicationId } from '../../publication/model/publication.types';
@@ -7,14 +7,14 @@ import { CREATE_PRICE, DELETE_PRICE, UPDATE_PRICE } from '../model/price.schema'
 import { CurrencyCode, PriceDto, PriceEntity } from '../model/price.types';
 
 export class PriceService extends BaseService<PriceEntity, PriceDto> {
-  constructor(mapper = new PriceDtoMapper()) {
-    super(mapper);
+  constructor(token: QueryToken, mapper = new PriceDtoMapper()) {
+    super(token, mapper);
   }
 
-  async createPrice(token: QueryToken, data: PriceEntity, publicationId: PublicationId): Promise<PriceEntity> {
+  async createPrice(data: PriceEntity, publicationId: PublicationId): Promise<PriceEntity> {
     const { priceId: _, ...dto } = this.dtoMapper.toDto(data);
 
-    const response = await this.graphqlService.mutation(token, CREATE_PRICE, {
+    const response = await this.graphqlService.mutation(CREATE_PRICE, {
       data: {
         ...dto,
         publicationId,
@@ -28,10 +28,10 @@ export class PriceService extends BaseService<PriceEntity, PriceDto> {
     return price;
   }
 
-  async updatePrice(token: QueryToken, data: PriceEntity, publicationId: PublicationId): Promise<PriceEntity> {
+  async updatePrice(data: PriceEntity, publicationId: PublicationId): Promise<PriceEntity> {
     const dto = this.dtoMapper.toDto(data);
 
-    await this.graphqlService.mutation(token, UPDATE_PRICE, {
+    await this.graphqlService.mutation(UPDATE_PRICE, {
       data: {
         ...dto,
         priceId: dto.priceId ?? '',
@@ -44,8 +44,8 @@ export class PriceService extends BaseService<PriceEntity, PriceDto> {
     return data;
   }
 
-  async deletePrice(token: QueryToken, priceId: string): Promise<void> {
-    await this.graphqlService.mutation(token, DELETE_PRICE, {
+  async deletePrice(priceId: string): Promise<void> {
+    await this.graphqlService.mutation(DELETE_PRICE, {
       priceId,
     });
   }

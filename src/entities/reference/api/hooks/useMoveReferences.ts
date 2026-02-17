@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { ReferenceId } from '../../model/reference.types';
 
@@ -13,11 +13,10 @@ export default function useMoveReferences(props: BaseEditSectionProps) {
   const { sendErrorNotification } = useNotifications();
   const { referenceService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ referenceId, newOrdinal }: { referenceId: ReferenceId; newOrdinal: number }) => {
-      return referenceService.moveReference(queryToken, referenceId, newOrdinal);
+      return referenceService.moveReference(referenceId, newOrdinal);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

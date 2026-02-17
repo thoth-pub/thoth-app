@@ -1,4 +1,4 @@
-import { isDefaultId, QueryToken } from '@/src/shared';
+import { isDefaultId, type QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { LocationService } from '../../locations/api/location.service';
@@ -9,23 +9,24 @@ import { CREATE_PUBLICATION, DELETE_PUBLICATION, UPDATE_PUBLICATION } from '../m
 import type { PublicationDto, PublicationEntity, PublicationType } from '../model/publication.types';
 
 export class PublicationService extends BaseService<PublicationEntity, PublicationDto> {
-  private readonly locationService = new LocationService();
-  private readonly priceService = new PriceService();
+  private readonly locationService: LocationService;
+  private readonly priceService: PriceService;
 
   constructor(
+    token: QueryToken,
     mapper = new PublicationDtoMapper(),
-    locationService = new LocationService(),
-    priceService = new PriceService(),
+    locationService = new LocationService(token),
+    priceService = new PriceService(token),
   ) {
-    super(mapper);
+    super(token, mapper);
     this.locationService = locationService;
     this.priceService = priceService;
   }
 
-  async createPublication(token: QueryToken, data: PublicationEntity, workId: WorkId): Promise<PublicationEntity> {
+  async createPublication(data: PublicationEntity, workId: WorkId): Promise<PublicationEntity> {
     const { publicationId: _, publicationType, ...dto } = this.dtoMapper.toDto(data);
 
-    const response = await this.graphqlService.mutation(token, CREATE_PUBLICATION, {
+    const response = await this.graphqlService.mutation(CREATE_PUBLICATION, {
       data: { ...dto, workId: workId, publicationType: publicationType as PublicationType },
     });
 
@@ -35,7 +36,7 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     const shouldCreateLocations = data.locations.length > 0;
 
     if (shouldCreatePrices) {
-      const pricesPromises = data.prices.map((price) => this.priceService.createPrice(token, price, publication.id));
+      const pricesPromises = data.prices.map((price) => this.priceService.createPrice(price, publication.id));
 
       const createdPrices = await Promise.all(pricesPromises);
 
@@ -44,7 +45,7 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
 
     if (shouldCreateLocations) {
       const locationsPromises = data.locations.map((location) =>
-        this.locationService.createLocation(token, location, publication.id),
+        this.locationService.createLocation(location, publication.id),
       );
 
       const createdLocations = await Promise.all(locationsPromises);
@@ -55,10 +56,10 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     return publication;
   }
 
-  async updatePublication(token: QueryToken, data: PublicationEntity, workId: WorkId): Promise<PublicationEntity> {
+  async updatePublication(data: PublicationEntity, workId: WorkId): Promise<PublicationEntity> {
     const { publicationId, publicationType, ...dto } = this.dtoMapper.toDto(data);
 
-    await this.graphqlService.mutation(token, UPDATE_PUBLICATION, {
+    await this.graphqlService.mutation(UPDATE_PUBLICATION, {
       data: {
         ...dto,
         workId: workId,
@@ -71,7 +72,7 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     const shouldUpdateLocations = data.locations.filter(({ id }) => isDefaultId(id)).length > 0;
 
     if (shouldUpdatePrices) {
-      const pricesPromises = data.prices.map((price) => this.priceService.updatePrice(token, price, publicationId));
+      const pricesPromises = data.prices.map((price) => this.priceService.updatePrice(price, publicationId));
 
       const updatedPrices = await Promise.all(pricesPromises);
 
@@ -80,7 +81,7 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
 
     if (shouldUpdateLocations) {
       const locationsPromises = data.locations.map((location) =>
-        this.locationService.updateLocation(token, location, publicationId),
+        this.locationService.updateLocation(location, publicationId),
       );
 
       const updatedLocations = await Promise.all(locationsPromises);
@@ -99,8 +100,8 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     return data;
   }
 
-  async deletePublication(token: QueryToken, publicationId: string) {
-    const response = await this.graphqlService.mutation(token, DELETE_PUBLICATION, {
+  async deletePublication(publicationId: string) {
+    const response = await this.graphqlService.mutation(DELETE_PUBLICATION, {
       publicationId,
     });
 

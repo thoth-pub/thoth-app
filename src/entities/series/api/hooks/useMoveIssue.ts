@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import type { SeriesId } from '../../model/series.types';
 
@@ -18,12 +18,11 @@ const useMoveIssue = (props: UseMoveIssueProps) => {
 
   const { seriesService } = useServices();
   const { sendErrorNotification } = useNotifications();
-  const queryToken = useQueryToken();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: { issueId: string; newOrdinal: number }) => {
-      return seriesService.moveIssue(queryToken, data.issueId, data.newOrdinal);
+      return seriesService.moveIssue(data.issueId, data.newOrdinal);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.series, seriesId] });

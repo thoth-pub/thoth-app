@@ -6,12 +6,12 @@ import { GET_USER } from '../model/user.schema';
 import { UserDto, UserEntity } from '../model/user.types';
 
 export class UserService extends BaseService<UserEntity, UserDto> {
-  constructor(mapper = new UserDtoMapper()) {
-    super(mapper);
+  constructor(token: QueryToken, mapper = new UserDtoMapper()) {
+    super(token, mapper);
   }
 
-  async getUser(token: QueryToken): Promise<UserEntity> {
-    const { me } = await this.graphqlService.query(GET_USER, {}, token);
+  async getUser(): Promise<UserEntity> {
+    const { me } = await this.graphqlService.query(GET_USER, {});
 
     const user = this.dtoMapper.toEntity(me);
 

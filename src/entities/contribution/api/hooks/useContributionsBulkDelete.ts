@@ -4,13 +4,12 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 const { WORK_CONTRIBUTION_DELETION_FAILED } = NOTIFICATIONS;
 
 const useContributionsBulkDelete = () => {
   const { sendErrorNotification } = useNotifications();
-  const queryToken = useQueryToken();
 
   const { contributionService } = useServices();
 
@@ -18,7 +17,7 @@ const useContributionsBulkDelete = () => {
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (contributionId: ContributionId) => {
-      return contributionService.deleteContribution(queryToken, contributionId);
+      return contributionService.deleteContribution(contributionId);
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? WORK_CONTRIBUTION_DELETION_FAILED);

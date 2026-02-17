@@ -1,4 +1,3 @@
-import type { QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { AffiliationDtoMapper } from '../model/affiliation.mapper';
@@ -11,14 +10,14 @@ import {
 import type { AffiliationDto, AffiliationEntity } from '../model/affiliation.types';
 
 export class AffiliationService extends BaseService<AffiliationEntity, AffiliationDto> {
-  constructor(mapper = new AffiliationDtoMapper()) {
-    super(mapper);
+  constructor(token: string, mapper = new AffiliationDtoMapper()) {
+    super(token, mapper);
   }
 
-  async createAffiliation({ token, data }: { token: QueryToken; data: AffiliationEntity }): Promise<AffiliationEntity> {
+  async createAffiliation(data: AffiliationEntity): Promise<AffiliationEntity> {
     const dto = this.dtoMapper.toDto(data);
 
-    const response = await this.graphqlService.mutation(token, CREATE_AFFILIATION, {
+    const response = await this.graphqlService.mutation(CREATE_AFFILIATION, {
       data: {
         contributionId: dto.contributionId,
         institutionId: dto.institutionId,
@@ -32,10 +31,10 @@ export class AffiliationService extends BaseService<AffiliationEntity, Affiliati
     return affiliation;
   }
 
-  async updateAffiliation({ token, data }: { token: QueryToken; data: AffiliationEntity }) {
+  async updateAffiliation(data: AffiliationEntity) {
     const dto = this.dtoMapper.toDto(data);
 
-    const response = await this.graphqlService.mutation(token, UPDATE_AFFILIATION, {
+    const response = await this.graphqlService.mutation(UPDATE_AFFILIATION, {
       data: {
         affiliationId: dto.affiliationId ?? '',
         affiliationOrdinal: dto.affiliationOrdinal ?? 1,
@@ -50,23 +49,15 @@ export class AffiliationService extends BaseService<AffiliationEntity, Affiliati
     return affiliation;
   }
 
-  async deleteAffiliation({ token, affiliationId }: { token: QueryToken; affiliationId: string }) {
-    const response = await this.graphqlService.mutation(token, DELETE_AFFILIATION, {
+  async deleteAffiliation(affiliationId: string) {
+    const response = await this.graphqlService.mutation(DELETE_AFFILIATION, {
       affiliationId,
     });
 
     return response.deleteAffiliation;
   }
 
-  async moveAffiliation({
-    token,
-    affiliationId,
-    newOrdinal,
-  }: {
-    token: QueryToken;
-    affiliationId: string;
-    newOrdinal: number;
-  }) {
-    return await this.graphqlService.mutation(token, MOVE_AFFILIATION, { affiliationId, newOrdinal });
+  async moveAffiliation({ affiliationId, newOrdinal }: { affiliationId: string; newOrdinal: number }) {
+    return await this.graphqlService.mutation(MOVE_AFFILIATION, { affiliationId, newOrdinal });
   }
 }

@@ -3,7 +3,7 @@
 import { useMutation } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { ContributorEntity } from '../../model/contributor.types';
 
@@ -19,11 +19,10 @@ const useCreateContributor = (props: UseCreateContributorProps) => {
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
   const { contributorService } = useServices();
-  const queryToken = useQueryToken();
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: ContributorEntity) => {
-      return contributorService.createContributor(queryToken, data);
+      return contributorService.createContributor(data);
     },
     onSuccess: (data) => {
       sendSuccessNotification(CONTRIBUTOR_CREATION_SUCCESS);

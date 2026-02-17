@@ -12,19 +12,17 @@ import {
   useServices,
   WorkStatuses,
 } from '@/src/shared';
-import { useQueryToken } from '@/src/shared/hooks';
 
 import { WorkEntity, WorkId } from '../../model/work.types';
 
 const useCreateWorkTranslation = () => {
   const { workService } = useServices();
-  const queryToken = useQueryToken();
   const queryClient = useQueryClient();
   const router = useRouter();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ originalWorkId, translation }: { originalWorkId: WorkId; translation: WorkEntity }) => {
-      return workService.createWorkTranslation(queryToken, originalWorkId, translation);
+      return workService.createWorkTranslation(originalWorkId, translation);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });

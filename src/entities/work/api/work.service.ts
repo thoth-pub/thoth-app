@@ -5,6 +5,7 @@ import {
   appConfig,
   getDateInFuture,
   isTextContainsAnyMarkdownTag,
+  QueryToken,
   SeriesForUpdateItems,
   TitleDto,
   TitleEntity,
@@ -58,16 +59,17 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   private readonly referenceService: ReferenceService;
 
   constructor(
+    token: QueryToken,
     mapper = new WorkDtoMapper(),
-    fundingService = new FundingService(),
-    subjectService = new SubjectService(),
-    contributionService = new ContributionService(),
-    publicationService = new PublicationService(),
-    languageService = new LanguageService(),
-    seriesService = new SeriesService(),
-    referenceService = new ReferenceService(),
+    fundingService = new FundingService(token),
+    subjectService = new SubjectService(token),
+    contributionService = new ContributionService(token),
+    publicationService = new PublicationService(token),
+    languageService = new LanguageService(token),
+    seriesService = new SeriesService(token),
+    referenceService = new ReferenceService(token),
   ) {
-    super(mapper);
+    super(token, mapper);
     this.fundingService = fundingService;
     this.subjectService = subjectService;
     this.contributionService = contributionService;
@@ -77,7 +79,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     this.referenceService = referenceService;
   }
 
-  async createWork(token: string, data: WorkEntity): Promise<WorkEntity> {
+  async createWork(data: WorkEntity): Promise<WorkEntity> {
     const { workId: _, ...dto } = this.dtoMapper.toDto(data) as WorkDto;
 
     const shouldCreateSubjects = data.subjects.length > 0;
@@ -89,7 +91,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const shouldCreateAbstracts = data.abstracts.length > 0;
     const shouldCreateReferences = data.references.length > 0;
 
-    const response = await this.graphqlService.mutation(token, CREATE_WORK, {
+    const response = await this.graphqlService.mutation(CREATE_WORK, {
       data: dto,
       markupFormat: MarkdownFormats.enum.JATS_XML,
     });
@@ -97,7 +99,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const work = this.dtoMapper.toEntity(response.createWork as WorkDto);
 
     if (shouldCreateTitles) {
-      const titlesPromises = data.titles.map((title) => this.createTitle(token, title, work.id));
+      const titlesPromises = data.titles.map((title) => this.createTitle(title, work.id));
 
       const createdTitles = await Promise.all(titlesPromises);
 
@@ -105,7 +107,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     }
 
     if (shouldCreateAbstracts) {
-      const abstractsPromises = data.abstracts.map((abstract) => this.createAbstract(token, abstract, work.id));
+      const abstractsPromises = data.abstracts.map((abstract) => this.createAbstract(abstract, work.id));
 
       const createdAbstracts = await Promise.all(abstractsPromises);
 
@@ -113,9 +115,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     }
 
     if (shouldCreateSubjects) {
-      const subjectsPromises = data.subjects.map((subject) =>
-        this.subjectService.createSubject(token, subject, work.id),
-      );
+      const subjectsPromises = data.subjects.map((subject) => this.subjectService.createSubject(subject, work.id));
 
       const createdSubjects = await Promise.all(subjectsPromises);
 
@@ -124,7 +124,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
     if (shouldCreateFundings) {
       const fundingsPromises = data.fundings.map((funding) =>
-        this.fundingService.createFunding({ token, data: funding, relatedWorkId: work.id }),
+        this.fundingService.createFunding({ data: funding, relatedWorkId: work.id }),
       );
 
       const createdFundings = await Promise.all(fundingsPromises);
@@ -134,7 +134,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
     if (shouldCreateContributions) {
       const contributionsPromises = data.contributions.map((contribution) =>
-        this.contributionService.createContribution(token, contribution, work.id),
+        this.contributionService.createContribution(contribution, work.id),
       );
 
       const createdContributions = await Promise.all(contributionsPromises);
@@ -144,7 +144,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
     if (shouldCreatePublications) {
       const publicationsPromises = data.publications.map((publication) =>
-        this.publicationService.createPublication(token, publication, work.id),
+        this.publicationService.createPublication(publication, work.id),
       );
 
       const createdPublications = await Promise.all(publicationsPromises);
@@ -154,7 +154,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
     if (shouldCreateLanguages) {
       const languagesPromises = data.languages.map((language) =>
-        this.languageService.createLanguage(token, language, work.id),
+        this.languageService.createLanguage(language, work.id),
       );
 
       const createdLanguages = await Promise.all(languagesPromises);
@@ -164,7 +164,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
     if (shouldCreateReferences) {
       const referencesPromises = data.references.map((reference) =>
-        this.referenceService.createReference(token, reference, work.id),
+        this.referenceService.createReference(reference, work.id),
       );
 
       const createdReferences = await Promise.all(referencesPromises);
@@ -175,14 +175,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return work;
   }
 
-  async createWorkRelation(
-    token: string,
-    relatorWorkId: WorkId,
-    relatedWorkId: WorkId,
-    ordinal: number,
-    relationType: RelationType,
-  ) {
-    const response = await this.graphqlService.mutation(token, CREATE_WORK_RELATION, {
+  async createWorkRelation(relatorWorkId: WorkId, relatedWorkId: WorkId, ordinal: number, relationType: RelationType) {
+    const response = await this.graphqlService.mutation(CREATE_WORK_RELATION, {
       data: {
         relatorWorkId: relatorWorkId,
         relatedWorkId: relatedWorkId,
@@ -194,18 +188,18 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return response.createWorkRelation;
   }
 
-  createChapter = async (token: string, chapter: WorkEntity, relatedWorkId: WorkId, ordinal: number) => {
-    const createdChapter = await this.createWork(token, chapter);
+  createChapter = async (chapter: WorkEntity, relatedWorkId: WorkId, ordinal: number) => {
+    const createdChapter = await this.createWork(chapter);
 
-    await this.createWorkRelation(token, createdChapter.id, relatedWorkId, ordinal, RelationType.IsChildOf);
+    await this.createWorkRelation(createdChapter.id, relatedWorkId, ordinal, RelationType.IsChildOf);
 
     return createdChapter;
   };
 
-  async updateWork(token: string, data: WorkEntity): Promise<WorkEntity> {
+  async updateWork(data: WorkEntity): Promise<WorkEntity> {
     const dto = this.dtoMapper.toDto(data) as WorkDto;
 
-    const response = await this.graphqlService.mutation(token, UPDATE_WORK, {
+    const response = await this.graphqlService.mutation(UPDATE_WORK, {
       data: dto,
     });
 
@@ -214,8 +208,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return work;
   }
 
-  async deleteWork(token: string, workId: WorkId): Promise<void> {
-    await this.graphqlService.mutation(token, DELETE_WORK, {
+  async deleteWork(workId: WorkId): Promise<void> {
+    await this.graphqlService.mutation(DELETE_WORK, {
       workId,
     });
   }
@@ -411,20 +405,19 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return workCount;
   }
 
-  async moveWorkRelation(token: string, workRelationId: string, newOrdinal: number) {
-    await this.graphqlService.mutation(token, MOVE_WORK_RELATION, {
+  async moveWorkRelation(workRelationId: string, newOrdinal: number) {
+    await this.graphqlService.mutation(MOVE_WORK_RELATION, {
       workRelationId,
       newOrdinal,
     });
   }
 
-  async createWorkTranslation(token: string, originalWorkId: WorkId, translation: WorkEntity): Promise<WorkEntity> {
-    const createdTranslation = await this.createWork(token, translation);
+  async createWorkTranslation(originalWorkId: WorkId, translation: WorkEntity): Promise<WorkEntity> {
+    const createdTranslation = await this.createWork(translation);
     const translations = await this.getWorkTranslations(originalWorkId);
     const translationsCount = translations.length;
 
     await this.createWorkRelation(
-      token,
       originalWorkId,
       createdTranslation.id,
       translationsCount + 1,
@@ -434,8 +427,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return createdTranslation;
   }
 
-  async createNewWorkEdition(token: string, originalWork: WorkEntity, edition: WorkEntity): Promise<WorkEntity> {
-    const createdEdition = await this.createWork(token, edition);
+  async createNewWorkEdition(originalWork: WorkEntity, edition: WorkEntity): Promise<WorkEntity> {
+    const createdEdition = await this.createWork(edition);
     const chapters = await this.getWorkChapters(originalWork.id);
     const editions = await this.getWorkEditions(originalWork.id);
     const editionsCount = editions.length;
@@ -461,22 +454,16 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     }));
 
     const chaptersPromises = copiedChapters.map(async ({ chapter, ordinal }) =>
-      this.createChapter(token, chapter, createdEdition.id, ordinal),
+      this.createChapter(chapter, createdEdition.id, ordinal),
     );
 
     await Promise.all(chaptersPromises);
 
-    await this.createWorkRelation(
-      token,
-      originalWork.id,
-      createdEdition.id,
-      editionsCount + 1,
-      RelationType.IsReplacedBy,
-    );
+    await this.createWorkRelation(originalWork.id, createdEdition.id, editionsCount + 1, RelationType.IsReplacedBy);
 
     if (originalWork.status === WorkStatuses.enum.Superseded) return createdEdition;
 
-    await this.updateWork(token, {
+    await this.updateWork({
       ...originalWork,
       status: WorkStatuses.enum.Superseded,
       withdrawnDate: getDateInFuture(1),
@@ -486,20 +473,20 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return createdEdition;
   }
 
-  async bulkCreateWorks(token: string, works: WorkEntity[], serieses: SeriesForUpdateItems, chapters: WorkEntity[]) {
+  async bulkCreateWorks(works: WorkEntity[], serieses: SeriesForUpdateItems, chapters: WorkEntity[]) {
     let count = 0;
 
     do {
       const work = works[count];
       const initialId = work.id;
 
-      const createdWork = await this.createWork(token, work);
+      const createdWork = await this.createWork(work);
 
       const foundedSeries = Object.entries(serieses).find(([_seriedId, works]) => works.some((w) => w.id === work.id));
       const foundedChapters = chapters.filter((chapter) => chapter.relationId === initialId);
 
       await Promise.all(
-        foundedChapters.map((chapter, index) => this.createChapter(token, chapter, createdWork.id, index + 1)),
+        foundedChapters.map((chapter, index) => this.createChapter(chapter, createdWork.id, index + 1)),
       );
 
       if (!foundedSeries || foundedSeries[1].length === 0) {
@@ -508,7 +495,6 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       }
 
       await this.seriesService.createIssue({
-        token,
         orderNumber: foundedSeries[1][0].orderNumber,
         seriesId: foundedSeries[0],
         workId: createdWork.id,
@@ -518,14 +504,14 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     } while (count < works.length);
   }
 
-  async createTitle(token: string, data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
+  async createTitle(data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
     const { titleId: _, ...dto } = this.dtoMapper.toDtoTitle(data);
 
     const markupFormat = isTextContainsAnyMarkdownTag(data.title)
       ? MarkdownFormats.enum.JATS_XML
       : MarkdownFormats.enum.PLAIN_TEXT;
 
-    const response = await this.graphqlService.mutation(token, CREATE_TITLE, {
+    const response = await this.graphqlService.mutation(CREATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
       markupFormat,
     });
@@ -535,14 +521,14 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return title;
   }
 
-  async updateTitle(token: string, data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
+  async updateTitle(data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
     const dto = this.dtoMapper.toDtoTitle(data);
 
     const markupFormat = isTextContainsAnyMarkdownTag(data.title)
       ? MarkdownFormats.enum.JATS_XML
       : MarkdownFormats.enum.PLAIN_TEXT;
 
-    const response = await this.graphqlService.mutation(token, UPDATE_TITLE, {
+    const response = await this.graphqlService.mutation(UPDATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
       markupFormat,
     });
@@ -552,20 +538,20 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return title;
   }
 
-  async deleteTitle(token: string, titleId: string): Promise<void> {
-    await this.graphqlService.mutation(token, DELETE_TITLE, {
+  async deleteTitle(titleId: string): Promise<void> {
+    await this.graphqlService.mutation(DELETE_TITLE, {
       titleId,
     });
   }
 
-  async createAbstract(token: string, data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
+  async createAbstract(data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
     const { abstractId: _, ...dto } = this.dtoMapper.toDtoAbstract(data);
 
     const markupFormat = isTextContainsAnyMarkdownTag(data.content)
       ? MarkdownFormats.enum.JATS_XML
       : MarkdownFormats.enum.PLAIN_TEXT;
 
-    const response = await this.graphqlService.mutation(token, CREATE_ABSTRACT, {
+    const response = await this.graphqlService.mutation(CREATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },
       markupFormat,
     });
@@ -575,14 +561,14 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return abstract;
   }
 
-  async updateAbstract(token: string, data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
+  async updateAbstract(data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
     const dto = this.dtoMapper.toDtoAbstract(data);
 
     const markupFormat = isTextContainsAnyMarkdownTag(data.content)
       ? MarkdownFormats.enum.JATS_XML
       : MarkdownFormats.enum.PLAIN_TEXT;
 
-    const response = await this.graphqlService.mutation(token, UPDATE_ABSTRACT, {
+    const response = await this.graphqlService.mutation(UPDATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },
       markupFormat,
     });
@@ -592,8 +578,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return abstract;
   }
 
-  async deleteAbstract(token: string, abstractId: string): Promise<void> {
-    await this.graphqlService.mutation(token, DELETE_ABSTRACT, {
+  async deleteAbstract(abstractId: string): Promise<void> {
+    await this.graphqlService.mutation(DELETE_ABSTRACT, {
       abstractId,
     });
   }

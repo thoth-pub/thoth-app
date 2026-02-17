@@ -4,13 +4,16 @@ import request, { RequestDocument, Variables } from 'graphql-request';
 import { getAuthorizationHeaders } from '../utils';
 
 export class GraphqlService {
+  constructor(private readonly token: string) {
+    this.token = token;
+  }
+
   async query<TResult, TVariables extends Variables>(
     query: TypedDocumentNode<TResult, TVariables>,
     variables: TVariables,
-    token?: string,
   ): Promise<TResult> {
-    const headers = getAuthorizationHeaders(token ?? '');
-  
+    const headers = getAuthorizationHeaders(this.token);
+
     return request<TResult>(
       process.env.NEXT_PUBLIC_THOTH_API_URL ?? '',
       query as RequestDocument,
@@ -20,11 +23,10 @@ export class GraphqlService {
   }
 
   async mutation<TResult, TVariables extends Variables>(
-    token: string,
     mutation: TypedDocumentNode<TResult, TVariables>,
     variables: TVariables,
   ): Promise<TResult> {
-    const headers = getAuthorizationHeaders(token);
+    const headers = getAuthorizationHeaders(this.token);
 
     return request<TResult>(
       process.env.NEXT_PUBLIC_THOTH_API_URL ?? '',

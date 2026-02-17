@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { WorkEntity, WorkId } from '../../model/work.types';
 
@@ -20,7 +20,6 @@ const useCreateWorkChapter = (props: UseCreateWorkChapterProps) => {
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
   const { workService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({
@@ -31,7 +30,7 @@ const useCreateWorkChapter = (props: UseCreateWorkChapterProps) => {
       chapter: WorkEntity;
       relatedWorkId: WorkId;
       ordinal: number;
-    }) => workService.createChapter(queryToken, chapter, relatedWorkId, ordinal),
+    }) => workService.createChapter(chapter, relatedWorkId, ordinal),
     onSuccess: (data) => {
       sendSuccessNotification(CHAPTER_CREATION_SUCCESS);
       onCompleted?.(data);

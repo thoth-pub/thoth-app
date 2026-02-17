@@ -11,18 +11,14 @@ type WorksPageParams = Promise<{
   id: string[];
 }>;
 
-const workService = new WorkService();
-const userService = new UserService();
-
 export default async function WorkPage({ params }: { params: WorksPageParams }) {
   const {
     id: [id],
   } = await params;
 
-  const work = await workService.getWork(id);
   const session = await getServerSession(authOptions);
 
-  if (!work || !session) {
+  if (!session) {
     redirect(ROUTES.NOT_FOUND);
   }
 
@@ -31,8 +27,16 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
   if (!token) {
     redirect(ROUTES.NOT_FOUND);
   }
+  const workService = new WorkService(token);
+  const userService = new UserService(token);
 
-  const userData = await userService.getUser(token);
+  const work = await workService.getWork(id);
+
+  if (!work) {
+    redirect(ROUTES.NOT_FOUND);
+  }
+
+  const userData = await userService.getUser();
 
   const isUsersImprint = userData.linkedPublishers.some((publisher) =>
     publisher.imprints.some((imprint) => imprint.imprintId === work.imprintId),

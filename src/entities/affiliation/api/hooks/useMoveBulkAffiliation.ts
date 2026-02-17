@@ -4,19 +4,18 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, useServices } from '@/src/shared';
 import { QueryKeys } from '@/src/shared/constants';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 const { AFFILIATION_MOVE_FAILED } = NOTIFICATIONS;
 
 const useMoveBulkAffiliation = () => {
   const { affiliationService } = useServices();
   const { sendErrorNotification } = useNotifications();
-  const queryToken = useQueryToken();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ affiliationId, newOrdinal }: { affiliationId: string; newOrdinal: number }) => {
-      return affiliationService.moveAffiliation({ token: queryToken, affiliationId, newOrdinal });
+      return affiliationService.moveAffiliation({ affiliationId, newOrdinal });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? AFFILIATION_MOVE_FAILED);

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { BiographyEntity } from '../../model/contribution.types';
 
@@ -12,12 +12,11 @@ const { BIOGRAPHY_UPDATE_FAILED } = NOTIFICATIONS;
 export const useUpdateBiography = (workId: WorkId) => {
   const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
   const { contributionService } = useServices();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ data }: { data: BiographyEntity }) => {
-      return contributionService.updateBiography(queryToken, data);
+      return contributionService.updateBiography(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

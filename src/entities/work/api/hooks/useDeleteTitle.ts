@@ -2,7 +2,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import type { WorkId } from '../../model/work.types';
 
@@ -12,11 +12,10 @@ const useDeleteTitle = (workId: WorkId) => {
   const { workService } = useServices();
   const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (titleId: string) => {
-      return workService.deleteTitle(queryToken, titleId);
+      return workService.deleteTitle(titleId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

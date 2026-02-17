@@ -2,7 +2,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type { PublicationId } from '@/src/entities/publication/model/publication.types';
 import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { PriceEntity } from '../../model/price.types';
 
@@ -14,11 +14,10 @@ const useCreatePrice = (props: BaseEditSectionProps) => {
   const { sendErrorNotification } = useNotifications();
   const { priceService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: PriceEntity & { publicationId: PublicationId }) => {
-      return priceService.createPrice(queryToken, data, data.publicationId);
+      return priceService.createPrice(data, data.publicationId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

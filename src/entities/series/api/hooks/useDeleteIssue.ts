@@ -3,19 +3,18 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 const { ISSUE_DELETE_FAILED } = NOTIFICATIONS;
 
 const useDeleteIssue = () => {
-  const queryToken = useQueryToken();
   const { sendErrorNotification } = useNotifications();
   const { seriesService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (issueId: string) => {
-      return seriesService.deleteIssue(queryToken, issueId);
+      return seriesService.deleteIssue(issueId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });

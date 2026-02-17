@@ -1,4 +1,4 @@
-import { appConfig } from '@/src/shared';
+import { appConfig, type QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublisherId } from '../../publisher';
@@ -13,8 +13,8 @@ import {
 import { ContributorDto, ContributorEntity, ContributorId } from '../model/contributor.types';
 
 export class ContributorService extends BaseService<ContributorEntity, ContributorDto> {
-  constructor() {
-    super(new ContributorDtoMapper());
+  constructor(token: QueryToken, mapper = new ContributorDtoMapper()) {
+    super(token, mapper);
   }
 
   async getContributors(filter: string): Promise<ContributorEntity[]> {
@@ -33,10 +33,10 @@ export class ContributorService extends BaseService<ContributorEntity, Contribut
     return result;
   }
 
-  async createContributor(token: string, data: ContributorEntity): Promise<ContributorEntity> {
+  async createContributor(data: ContributorEntity): Promise<ContributorEntity> {
     const { contributorId, fullName, lastName, orcid, website, firstName } = this.dtoMapper.toDto(data);
 
-    const { createContributor } = await this.graphqlService.mutation(token, CREATE_CONTRIBUTOR, {
+    const { createContributor } = await this.graphqlService.mutation(CREATE_CONTRIBUTOR, {
       data: {
         contributorId,
         firstName: firstName ? firstName : null,
@@ -52,10 +52,10 @@ export class ContributorService extends BaseService<ContributorEntity, Contribut
     return result;
   }
 
-  async updateContributor(token: string, data: ContributorEntity): Promise<ContributorEntity> {
+  async updateContributor(data: ContributorEntity): Promise<ContributorEntity> {
     const { contributorId, fullName, lastName, orcid, ...dto } = this.dtoMapper.toDto(data);
 
-    const { updateContributor } = await this.graphqlService.mutation(token, UPDATE_CONTRIBUTOR, {
+    const { updateContributor } = await this.graphqlService.mutation(UPDATE_CONTRIBUTOR, {
       data: {
         contributorId: contributorId ?? '',
         fullName: fullName ?? '',

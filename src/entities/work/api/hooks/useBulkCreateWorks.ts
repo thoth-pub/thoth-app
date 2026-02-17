@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, SeriesForUpdateItems, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { WorkEntity } from '../../model/work.types';
 
@@ -13,7 +13,6 @@ const useBulkCreateWorks = () => {
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
   const { workService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({
@@ -25,7 +24,7 @@ const useBulkCreateWorks = () => {
       serieses: SeriesForUpdateItems;
       chapters: WorkEntity[];
     }) => {
-      return workService.bulkCreateWorks(queryToken, works, serieses, chapters);
+      return workService.bulkCreateWorks(works, serieses, chapters);
     },
     onSuccess: () => {
       sendSuccessNotification(WORK_BULK_CREATION_SUCCESS);

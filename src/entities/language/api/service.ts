@@ -1,22 +1,20 @@
 import { LanguageCode, LanguageRelation } from '@/gql/graphql';
-import { QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { WorkId } from '../../work/model/work.types';
 import { LanguageDtoMapper } from '../model/language.mapper';
 import { CREATE_LANGUAGE, DELETE_LANGUAGE, UPDATE_LANGUAGE } from '../model/language.schema';
-import { LanguageEntity } from '../model/language.types';
-import { LanguageDto } from '../model/language.types';
+import { LanguageDto, LanguageEntity } from '../model/language.types';
 
 export class LanguageService extends BaseService<LanguageEntity, LanguageDto> {
-  constructor(mapper = new LanguageDtoMapper()) {
-    super(mapper);
+  constructor(token: string, mapper = new LanguageDtoMapper()) {
+    super(token, mapper);
   }
 
-  async createLanguage(token: QueryToken, data: LanguageEntity, workId: WorkId): Promise<LanguageEntity> {
+  async createLanguage(data: LanguageEntity, workId: WorkId): Promise<LanguageEntity> {
     const { languageId: _, ...dto } = this.dtoMapper.toDto(data);
 
-    const response = await this.graphqlService.mutation(token, CREATE_LANGUAGE, {
+    const response = await this.graphqlService.mutation(CREATE_LANGUAGE, {
       data: {
         ...dto,
         workId,
@@ -31,10 +29,10 @@ export class LanguageService extends BaseService<LanguageEntity, LanguageDto> {
     return language;
   }
 
-  async updateLanguage(token: QueryToken, data: LanguageEntity, workId: WorkId): Promise<LanguageEntity> {
+  async updateLanguage(data: LanguageEntity, workId: WorkId): Promise<LanguageEntity> {
     const dto = this.dtoMapper.toDto(data);
 
-    await this.graphqlService.mutation(token, UPDATE_LANGUAGE, {
+    await this.graphqlService.mutation(UPDATE_LANGUAGE, {
       data: {
         languageId: dto.languageId ?? '',
         languageCode: dto.languageCode as LanguageCode,
@@ -47,8 +45,8 @@ export class LanguageService extends BaseService<LanguageEntity, LanguageDto> {
     return data;
   }
 
-  async deleteLanguage(token: QueryToken, languageId: string): Promise<void> {
-    await this.graphqlService.mutation(token, DELETE_LANGUAGE, {
+  async deleteLanguage(languageId: string): Promise<void> {
+    await this.graphqlService.mutation(DELETE_LANGUAGE, {
       languageId,
     });
   }

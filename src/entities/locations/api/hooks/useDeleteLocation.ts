@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 const { LOCATION_DELETE_FAILED } = NOTIFICATIONS;
 
@@ -11,11 +11,10 @@ const useDeleteLocation = (props: BaseEditSectionProps) => {
   const { sendErrorNotification } = useNotifications();
   const { locationService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (locationId: string) => {
-      return locationService.deleteLocation(queryToken, locationId);
+      return locationService.deleteLocation(locationId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

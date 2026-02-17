@@ -7,8 +7,8 @@ import { GET_PUBLISHER, GET_PUBLISHERS, UPDATE_PUBLISHER } from '../model/publis
 import type { ContactEntity, ContactId, PublisherDto, PublisherEntity, PublisherId } from '../model/publisher.types';
 
 export class PublisherService extends BaseService<PublisherEntity, PublisherDto, PublisherDtoMapper> {
-  constructor(mapper = new PublisherDtoMapper()) {
-    super(mapper);
+  constructor(token: QueryToken, mapper = new PublisherDtoMapper()) {
+    super(token, mapper);
   }
 
   async getPublishers(publisherIds: PublisherId[]): Promise<PublisherEntity[]> {
@@ -32,10 +32,10 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     return data;
   }
 
-  async updatePublisher(token: QueryToken, data: PublisherEntity): Promise<PublisherEntity> {
+  async updatePublisher(data: PublisherEntity): Promise<PublisherEntity> {
     const dto = this.dtoMapper.toDto(data);
 
-    const { updatePublisher } = await this.graphqlService.mutation(token, UPDATE_PUBLISHER, {
+    const { updatePublisher } = await this.graphqlService.mutation(UPDATE_PUBLISHER, {
       data: dto,
     });
 
@@ -44,10 +44,10 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     return publisher;
   }
 
-  async createContact(token: QueryToken, data: ContactEntity, publisherId: PublisherId): Promise<ContactEntity> {
+  async createContact(data: ContactEntity, publisherId: PublisherId): Promise<ContactEntity> {
     const { contactId: _, ...dto } = this.dtoMapper.toDtoContact(data);
 
-    const { createContact } = await this.graphqlService.mutation(token, CREATE_CONTACT, {
+    const { createContact } = await this.graphqlService.mutation(CREATE_CONTACT, {
       data: {
         ...dto,
         publisherId,
@@ -59,8 +59,8 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     return contact;
   }
 
-  async createPublisher(token: QueryToken, publisherName: string): Promise<string> {
-    const { createPublisher } = await this.graphqlService.mutation(token, CREATE_PUBLISHER, {
+  async createPublisher(publisherName: string): Promise<string> {
+    const { createPublisher } = await this.graphqlService.mutation(CREATE_PUBLISHER, {
       data: {
         publisherName,
       },
@@ -69,10 +69,10 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     return createPublisher?.publisherId ?? '';
   }
 
-  async updateContact(token: QueryToken, data: ContactEntity, publisherId: PublisherId): Promise<ContactEntity> {
+  async updateContact(data: ContactEntity, publisherId: PublisherId): Promise<ContactEntity> {
     const dto = this.dtoMapper.toDtoContact(data);
 
-    const { updateContact } = await this.graphqlService.mutation(token, UPDATE_CONTACT, {
+    const { updateContact } = await this.graphqlService.mutation(UPDATE_CONTACT, {
       data: {
         ...dto,
         publisherId,
@@ -84,8 +84,8 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     return contact;
   }
 
-  async deleteContact(token: QueryToken, contactId: ContactId): Promise<void> {
-    await this.graphqlService.mutation(token, DELETE_CONTACT, {
+  async deleteContact(contactId: ContactId): Promise<void> {
+    await this.graphqlService.mutation(DELETE_CONTACT, {
       contactId,
     });
   }

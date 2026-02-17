@@ -8,8 +8,8 @@ import type { InstitutionDto, InstitutionEntity } from '../model/institution.typ
 const { itemsPerRequestLimit } = appConfig.data;
 
 export class InstitutionService extends BaseService<InstitutionEntity, InstitutionDto> {
-  constructor(mapper = new InstitutionDtoMapper()) {
-    super(mapper);
+  constructor(token: string, mapper = new InstitutionDtoMapper()) {
+    super(token, mapper);
   }
 
   async getInstitutionsCount(filter: string = ''): Promise<number> {

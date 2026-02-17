@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { SetId } from '../../model/set.types';
 
@@ -12,11 +12,10 @@ export const useDeleteSet = () => {
 
   const queryClient = useQueryClient();
   const { sendErrorNotification } = useNotifications();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (setId: SetId) => {
-      return setService.deleteSet(queryToken, setId);
+      return setService.deleteSet(setId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.sets] });

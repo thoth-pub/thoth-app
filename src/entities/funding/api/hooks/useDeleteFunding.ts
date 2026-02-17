@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import type { FundingId } from '../../model/funding.types';
 
@@ -11,11 +11,10 @@ const useDeleteFunding = () => {
   const { sendErrorNotification } = useNotifications();
   const { fundingService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (fundingId: FundingId) => {
-      return fundingService.deleteFunding({ token: queryToken, fundingId });
+      return fundingService.deleteFunding({ fundingId });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? FUNDING_DELETE_FAILED);

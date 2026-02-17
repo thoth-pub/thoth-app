@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
-import { useNotifications, useQueryToken } from '@/src/shared/hooks';
+import { useNotifications } from '@/src/shared/hooks';
 
 import type { SeriesId } from '../../model/series.types';
 
@@ -14,11 +14,10 @@ const useCreateIssue = () => {
   const { sendErrorNotification } = useNotifications();
   const { seriesService } = useServices();
   const queryClient = useQueryClient();
-  const queryToken = useQueryToken();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: { orderNumber: number; seriesId: SeriesId; workId: WorkId }) => {
-      return seriesService.createIssue({ token: queryToken, ...data });
+      return seriesService.createIssue(data);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
