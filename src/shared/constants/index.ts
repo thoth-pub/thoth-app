@@ -8,6 +8,7 @@ export * from './csvKeys';
 export * from './currencies';
 export * from './errors';
 export * from './helperText';
+export * from './httpMethods';
 export * from './ids';
 export * from './languages';
 export * from './lengths';

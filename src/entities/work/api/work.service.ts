@@ -3,6 +3,7 @@ import {
   AbstractDto,
   AbstractEntity,
   appConfig,
+  FileStorage,
   getDateInFuture,
   isTextContainsAnyMarkdownTag,
   QueryToken,
@@ -57,6 +58,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   private readonly languageService: LanguageService;
   private readonly seriesService: SeriesService;
   private readonly referenceService: ReferenceService;
+  private readonly fileStorage: FileStorage;
 
   constructor(
     token: QueryToken,
@@ -68,6 +70,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     languageService = new LanguageService(token),
     seriesService = new SeriesService(token),
     referenceService = new ReferenceService(token),
+    fileStorage = new FileStorage(token),
   ) {
     super(token, mapper);
     this.fundingService = fundingService;
@@ -77,6 +80,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     this.languageService = languageService;
     this.seriesService = seriesService;
     this.referenceService = referenceService;
+    this.fileStorage = fileStorage;
   }
 
   async createWork(data: WorkEntity): Promise<WorkEntity> {
@@ -592,5 +596,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return relations.flatMap((relation) =>
       relation.relatedWork.titles.map((title) => this.dtoMapper.toEntityTitle(title as TitleDto)),
     );
+  }
+
+  async updateWorkFrontCover(workId: WorkId, file: File) {
+    await this.fileStorage.uploadWorkCover(workId, file);
   }
 }

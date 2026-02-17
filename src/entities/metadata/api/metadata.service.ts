@@ -1,4 +1,4 @@
-import { normalizeMetaDataPrefix } from '@/src/shared';
+import { normalizeMetaDataPrefix, ROUTES } from '@/src/shared';
 
 import { WorkId } from '../../work/model/work.types';
 import {
@@ -12,7 +12,7 @@ import {
 export class MetadataService {
   async getAvailableFormats(): Promise<FormatDto[]> {
     try {
-      const response = await fetch('/api/metadata/formats', {
+      const response = await fetch(ROUTES.METADATA_FORMATS, {
         headers: {
           'Content-Type': 'application/json',
         },
@@ -38,7 +38,7 @@ export class MetadataService {
 
     for (const specification of specifications) {
       try {
-        const response = await fetch(`/api/metadata/specifications/${specification}/work/${workId}`);
+        const response = await fetch(ROUTES.METADATA_SPECIFICATIONS(specification, workId));
 
         if (!response.ok) {
           let errorMessage = 'Failed to fetch specification';

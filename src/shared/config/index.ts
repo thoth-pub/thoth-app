@@ -13,7 +13,7 @@ export const appConfig = {
   cc4Link: 'https://creativecommons.org/licenses/by/4.0/',
   publicDomainLink: 'https://creativecommons.org/public-domain/cc0/',
   metaDataPrefix: 'https://export.thoth.pub/specifications/',
-  supportedFileTypes: ['image/png', 'image/jpeg', 'image/jpg'],
+  supportedImagesFileTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
   data: {
     itemsPerRequestLimit: 20,
     maxItemsPerRequestLimit: 100,
@@ -41,7 +41,8 @@ export const appConfig = {
   tables: {
     maxPreviewLength: 150,
   },
-  maxFileSize: 500000,
+  minFileSize: 50000,
+  maxFileSize: 50000000,
   minItemsCountForDragAndDrop: 2,
   maxCsvContributorsCount: 20,
 };

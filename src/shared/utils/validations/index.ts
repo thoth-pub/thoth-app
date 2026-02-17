@@ -167,9 +167,11 @@ export const getFileValidation = (
   filesFormat: Array<string>,
   formatErrMessage?: ErrorMessage,
   maxFileSizeErrMessage?: ErrorMessage,
+  minFileSizeErrMessage?: ErrorMessage,
 ) =>
   z
     .custom<FileList | undefined>()
+    .refine((files) => files && files[0].size >= appConfig.minFileSize, minFileSizeErrMessage)
     .refine((files) => files && files[0].size <= appConfig.maxFileSize, maxFileSizeErrMessage)
     .refine((files) => files && filesFormat.includes(files[0].type), formatErrMessage);
 

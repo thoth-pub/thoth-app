@@ -1,129 +1,89 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import { useEffect, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { useCopyToClipboard } from 'react-use';
+import Image from 'next/image';
 
-import type { CoverUrlForm } from '@/src/entities/work/model/work.types';
-import { coverUrlValidationSchema } from '@/src/entities/work/model/work.validation';
+import type { WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import useIsDragStarted from '@/src/shared/hooks/useIsDragStarted';
-import { Button, IconButton, TranslatedContent, Typography } from '@/src/shared/ui';
+import { Button, CircularProgress, IconButton, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { PlaceholderLogo } from './PlaceholderLogo';
+import { useDragAndDropForm } from './useDragAndDropForm';
 import { Wrapper } from './Wrapper';
 
-const { COVER_URL } = FORM_FIELDS;
-
 type DragAndDropFormProps = {
-  defaultValue?: string;
+  workId: WorkId;
 };
 
 const DragAndDropForm = (props: DragAndDropFormProps) => {
-  const { defaultValue = '' } = props;
-
-  const isDragStarted = useIsDragStarted();
-  const [, copyToClipboard] = useCopyToClipboard();
+  const { workId } = props;
 
   const {
-    register,
-    handleSubmit,
-    setValue,
-    reset,
-    watch,
-    formState: { errors },
-  } = useForm({
-    reValidateMode: 'onSubmit',
-    resolver: zodResolver(coverUrlValidationSchema),
-  });
-  const [coverUrl, setCoverUrl] = useState<string>(defaultValue);
+    isDragStarted,
+    defaultValue,
+    loading,
+    fieldProps,
+    isUrlCoverFilled,
+    formRef,
+    dropFile,
+    uploadFile,
+    uploadFileClick,
+    copyCoverUrlToClipboard,
+  } = useDragAndDropForm(workId);
 
-  const inputRef = useRef<HTMLInputElement>(null);
-  const { ref, ...rest } = register(COVER_URL.name);
-
-  const onSubmit = (data: CoverUrlForm) => {
-    console.log('onSubmit', data);
-
-    if (!data.coverUrl || data.coverUrl.length === 0) return;
-
-    setCoverUrl(URL.createObjectURL(data.coverUrl[0]));
-  };
-
-  const onError = () => {
-    console.log('Error', errors);
-  };
-
-  useEffect(() => {
-    const subscription = watch(async () => {
-      await handleSubmit(onSubmit, onError)();
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
-
-  const handleDrop = (event: React.DragEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    reset();
-
-    setValue(COVER_URL.name, event.dataTransfer.files, {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
-  };
-
-  const handleClick = () => {
-    inputRef.current?.click();
-  };
-
-  const handleCopyToClipboard = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.stopPropagation();
-
-    copyToClipboard(coverUrl);
-  };
+  console.log('defaultValue', defaultValue);
 
   return (
     <Wrapper>
-      <form onDrop={handleDrop} className="flex h-full w-full flex-col items-center justify-center gap-1">
-        <PlaceholderLogo />
+      <form onDrop={dropFile} className="relative flex h-full w-full flex-col items-center justify-center gap-1">
+        {(!isUrlCoverFilled || isDragStarted) && <PlaceholderLogo />}
 
-        <Typography className={`text-center font-semibold ${coverUrl ? 'opacity-0' : 'opacity-100'}`}>
+        <Typography className={`text-center font-semibold ${defaultValue ? 'opacity-0' : 'opacity-100'}`}>
           <TranslatedContent content="actions.dropCover" />
         </Typography>
+
         {!isDragStarted && (
-          <Button className={`${coverUrl ? 'opacity-0' : 'opacity-100'}`} onClick={handleClick} type="button">
+          <Button
+            className={`${defaultValue ? 'opacity-0' : 'opacity-100'}`}
+            onClick={uploadFile}
+            type="button"
+            disabled={loading}
+          >
             <TranslatedContent content="actions.browseFile" />
           </Button>
         )}
 
-        {coverUrl && !isDragStarted && (
-          <img src={coverUrl} alt="Cover" className="absolute h-full w-full object-contain" />
+        {isUrlCoverFilled && !isDragStarted && !loading && (
+          <Image
+            src={defaultValue}
+            alt="Cover"
+            className="absolute h-full w-full object-contain"
+            fill
+            unoptimized
+          />
         )}
 
-        {coverUrl && (
+        {isUrlCoverFilled && (
           <IconButton
             className="absolute top-0 right-0 z-100 h-12 w-12 p-0"
-            onClick={handleCopyToClipboard}
+            onClick={copyCoverUrlToClipboard}
             size="large"
+            disabled={loading}
           >
             <ContentCopyIcon color="primary" />
           </IconButton>
         )}
 
+        {loading && <CircularProgress />}
+
         <input
           type="file"
-          {...rest}
-          ref={(e) => {
-            ref(e);
-            inputRef.current = e;
-          }}
+          {...fieldProps}
+          ref={formRef}
+          onClick={uploadFileClick}
           className="absolute z-10 h-full w-full opacity-0"
-          accept={appConfig.supportedFileTypes.join(', ')}
+          accept={appConfig.supportedImagesFileTypes.join(', ')}
+          disabled={loading}
         />
       </form>
     </Wrapper>

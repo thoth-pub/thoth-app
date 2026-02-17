@@ -11,6 +11,8 @@ export const ERRORS = {
   WORK_STATUS_REQUIRED: 'Work Status is required',
   CONTRIBUTOR_TYPE_REQUIRED: 'Contributor Type is required',
   MAX_FILE_SIZE_EXCEEDED: 'Max file size exceeded',
+  MIN_FILE_SIZE_NOT_MET: 'Min file size not met',
   FILE_FORMAT_INVALID: 'File format is invalid',
   TITLE_LANGUAGE_REQUIRED: 'Title Language is required',
+  DOI_IS_REQUIRED: 'DOI is required',
 } as const;

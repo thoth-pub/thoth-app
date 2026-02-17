@@ -186,9 +186,10 @@ export const pagesCountValidationSchema = z.object({
 
 export const coverUrlValidationSchema = z.object({
   [COVER_URL.name]: getFileValidation(
-    appConfig.supportedFileTypes,
+    appConfig.supportedImagesFileTypes,
     ERRORS.FILE_FORMAT_INVALID,
     ERRORS.MAX_FILE_SIZE_EXCEEDED,
+    ERRORS.MIN_FILE_SIZE_NOT_MET,
   ),
 });
 

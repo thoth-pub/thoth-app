@@ -13,6 +13,7 @@ export { default as useGetWork } from './api/hooks/useGetWork';
 export { default as useTranslatedWorks } from './api/hooks/useTranslatedWorks';
 export { default as useUpdateAbstract } from './api/hooks/useUpdateAbstract';
 export { default as useUpdateTitle } from './api/hooks/useUpdateTitle';
+export { default as useUpdateWorkFrontCover } from './api/hooks/useUpdateWorkFrontCover';
 export { default as useUpdateWorks } from './api/hooks/useUpdateWorks';
 export { default as useWork } from './api/hooks/useWork';
 export { default as useWorkChapters } from './api/hooks/useWorkChapters';

@@ -1,3 +1,5 @@
+import { WorkId } from '@/src/entities/work/model/work.types';
+
 import { WorkCopyVariant } from '../types';
 
 export const ROUTES = {
@@ -15,4 +17,9 @@ export const ROUTES = {
   PROFILE: '/admin/profile',
   NOT_FOUND: '/not-found',
   BOOKS_SETS: '/admin/sets',
+  GENERATE_FILE_HASH: '/api/generateFileHash',
+  UPLOAD_TO_S3: '/api/upload-to-s3',
+  METADATA_FORMATS: '/api/metadata/formats',
+  METADATA_SPECIFICATIONS: (specification: string, workId: WorkId) =>
+    `/api/metadata/specifications/${specification}/work/${workId}`,
 } as const;
