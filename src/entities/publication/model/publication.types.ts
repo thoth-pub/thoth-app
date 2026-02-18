@@ -11,6 +11,7 @@ import {
   accessibilityStandardValidationSchema,
   dimensionsValidationSchema,
   isbnValidationSchema,
+  publicationFileValidationSchema,
   publicationTypeValidationSchema,
 } from './publication.validation';
 
@@ -28,6 +29,7 @@ export type PublicationDto = Pick<
   | 'accessibilityException'
   | 'accessibilityReportUrl'
   | 'accessibilityStandard'
+  | 'file'
 > & {
   work: Pick<Work, 'doi' | 'titles'> & {
     imprint: { publisher: Pick<Publisher, 'publisherName'> };
@@ -62,6 +64,7 @@ export type PublicationEntity = {
   accessibilityAdditionalStandard: AccessibilityStandardType | null;
   accessibilityException: AccessibilityExceptionType | null;
   accessibilityStandard: AccessibilityStandardType | null;
+  fileUrl: string | null;
 };
 
 export type PublicationTypeForm = z.infer<typeof publicationTypeValidationSchema>;
@@ -75,3 +78,5 @@ export type PublicationAccessibilityStandardForm = z.infer<typeof accessibilityS
 export type PublicationAccessibilityExceptionForm = z.infer<typeof accessibilityExceptionValidationSchema>;
 
 export type PublicationAccessibilityReportUrlForm = z.infer<typeof accessibilityReportUrlValidationSchema>;
+
+export type PublicationFileForm = z.infer<typeof publicationFileValidationSchema>;

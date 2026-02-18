@@ -324,5 +324,17 @@
   "editImprint": {
     "label": "Imprint",
     "helperText": "Enter name of the imprint."
+  },
+  "publicationFile": {
+    "label": "File",
+    "helperText": "Upload the publication file."
+  },
+  "place": {
+    "label": "Local",
+    "helperText": "Insira o local da obra."
+  },
+  "withdrawnDate": {
+    "label": "Data de retirada",
+    "helperText": "Insira a data de retirada da obra."
   }
 }

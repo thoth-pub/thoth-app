@@ -329,5 +329,17 @@
   "editImprint": {
     "label": "Imprint",
     "helperText": "Enter name of the imprint."
+  },
+  "publicationFile": {
+    "label": "File",
+    "helperText": "Upload the publication file."
+  },
+  "place": {
+    "label": "Publikationsort",
+    "helperText": "Publikationsort eingeben."
+  },
+  "withdrawnDate": {
+    "label": "Widerrufen am",
+    "helperText": "Das Datum angeben, an welchem der Titel widerrufen wurde."
   }
 }

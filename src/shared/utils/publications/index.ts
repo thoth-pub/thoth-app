@@ -29,6 +29,7 @@ export const getDefaultPublication = (data?: Partial<PublicationEntity>): Public
     accessibilityStandard: null,
     prices: [],
     locations: [],
+    fileUrl: null,
     ...data,
   };
 };
@@ -39,6 +40,10 @@ export const isDimensionsAvailable = (publicationType: TPublicationType) => {
 
 export const isFullTextUrlAvailable = (publicationType: TPublicationType) => {
   return publicationType !== PublicationType.enum.Paperback && publicationType !== PublicationType.enum.Hardback;
+};
+
+export const isFileAvailable = (publicationType: TPublicationType) => {
+  return publicationType !== PublicationType.enum.Hardback && publicationType !== PublicationType.enum.Paperback;
 };
 
 export const isValidPublicationForm = (publicationForm: string) => {

@@ -5,7 +5,11 @@ import { useState } from 'react';
 import { AccessibilityStandard } from '@/gql/graphql';
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
 import type { PricesForm } from '@/src/entities/price/model/price.types';
-import { useCreatePublication, usePublicationsStateMachine } from '@/src/entities/publication';
+import {
+  useCreatePublication,
+  usePublicationsStateMachine,
+  useUploadPublicationFile,
+} from '@/src/entities/publication';
 import type {
   PublicationDimensionsForm,
   PublicationEntity,
@@ -30,17 +34,22 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const { activePublication, close } = usePublicationsStateMachine();
 
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
+  const [file, setFile] = useState<File | null>(null);
+  const { uploadPublicationFile } = useUploadPublicationFile(workId);
   const { createPublication } = useCreatePublication({
     workId,
-    onCompleted: () => {
-      close();
-    },
   });
 
-  const create = () => {
+  const create = async () => {
     if (!publication) return;
 
-    createPublication(publication);
+    const data = await createPublication(publication);
+
+    close();
+
+    if (!data || !file) return;
+
+    await uploadPublicationFile(data.id, file);
   };
 
   const updateType = (type: PublicationType) => {
@@ -180,6 +189,12 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     });
   };
 
+  const updateFile = (file: File) => {
+    if (!publication) return;
+
+    setFile(file);
+  };
+
   return {
     publication,
     close,
@@ -194,5 +209,6 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     updateAccessibilityException,
     updateAccessibilityReport,
     deleteAccessibility,
+    updateFile,
   };
 };

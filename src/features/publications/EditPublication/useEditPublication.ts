@@ -7,7 +7,11 @@ import { useCreateLocation, useDeleteLocation, useUpdateLocation } from '@/src/e
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
 import { useCreatePrice, useDeletePrice, useUpdatePrice } from '@/src/entities/price';
 import type { CurrencyCode, PricesForm } from '@/src/entities/price/model/price.types';
-import { usePublicationsStateMachine, useUpdatePublication } from '@/src/entities/publication';
+import {
+  usePublicationsStateMachine,
+  useUpdatePublication,
+  useUploadPublicationFile,
+} from '@/src/entities/publication';
 import type {
   PublicationDimensionsForm,
   PublicationEntity,
@@ -39,6 +43,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { createLocation } = useCreateLocation({ workId });
   const { updateLocation } = useUpdateLocation({ workId });
   const { deleteLocation: deleteLocationMutation } = useDeleteLocation({ workId });
+  const { uploadPublicationFile } = useUploadPublicationFile(workId);
 
   const updateSizes = (sizes: PublicationDimensionsForm) => {
     if (!publication) return;
@@ -264,6 +269,12 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, locations: updatedLocationsWithCanonical });
   };
 
+  const updateFile = (file: File) => {
+    if (!publication) return;
+
+    uploadPublicationFile(publication.id, file);
+  };
+
   return {
     activePublication: publication,
     close,
@@ -277,5 +288,6 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     updateAccessibilityException,
     updateAccessibilityReport,
     deleteAccessibility,
+    updateFile,
   };
 };

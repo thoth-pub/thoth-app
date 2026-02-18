@@ -9,10 +9,11 @@ import { useEditPublication } from './useEditPublication';
 
 type EditPublicationProps = BaseEditSectionProps & {
   isDimensionFormHidden: boolean;
+  isFileFormHidden: boolean;
 };
 
 const EditPublication = (props: EditPublicationProps) => {
-  const { workId, isDimensionFormHidden = false } = props;
+  const { workId, isDimensionFormHidden = false, isFileFormHidden = true } = props;
 
   const {
     activePublication,
@@ -54,6 +55,8 @@ const EditPublication = (props: EditPublicationProps) => {
       accessibilityStandards={accessibilityStandards}
       accessibilityException={activePublication.accessibilityException}
       accessibilityReportUrl={activePublication.accessibilityReportUrl}
+      fileUrl={activePublication.fileUrl ?? ''}
+      isFileFormHidden={isFileFormHidden}
       onUpdateIsbn={updateIsbn}
       onUpdateType={updateType}
       onDone={close}

@@ -31,8 +31,6 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
     copyCoverUrlToClipboard,
   } = useDragAndDropForm(workId);
 
-  console.log('defaultValue', defaultValue);
-
   return (
     <Wrapper>
       <form onDrop={dropFile} className="relative flex h-full w-full flex-col items-center justify-center gap-1">

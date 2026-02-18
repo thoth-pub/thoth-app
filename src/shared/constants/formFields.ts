@@ -107,9 +107,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   PLACE: {
-    label: 'Place',
+    label: 'place.label',
     name: 'place',
-    placeholder: 'Place',
+    placeholder: 'place.label',
     type: InputTypes.TEXT,
   },
   IMPRINT: {
@@ -161,9 +161,9 @@ export const FORM_FIELDS = {
     placeholder: 'publication date',
   },
   WITHDRAWN_DATE: {
-    label: 'Withdrawn Date',
+    label: 'withdrawnDate.label',
     name: 'withdrawnDate',
-    placeholder: 'Withdrawn Date',
+    placeholder: 'withdrawnDate.label',
   },
   WORK_TITLE: {
     label: 'title',
@@ -657,6 +657,12 @@ export const FORM_FIELDS = {
   WORK_NOTES: {
     label: 'notes.label',
     name: 'notes',
+  },
+  PUBLICATION_FILE: {
+    label: 'publicationFile.label',
+    name: 'publicationFile',
+    placeholder: 'publicationFile.label',
+    type: InputTypes.FILE,
   },
 } as const;
 

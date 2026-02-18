@@ -137,6 +137,9 @@ export const WORK_FRAGMENT = graphql(`
         locationPlatform
         locationId
       }
+      file {
+        cdnUrl
+      }
     }
     references {
       doi

@@ -144,6 +144,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
           accessibilityException,
           accessibilityReportUrl,
           accessibilityStandard,
+          file,
         }) => ({
           id: publicationId,
           isbn: isbn ?? '',
@@ -176,6 +177,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
             landingPage: landingPage ?? '',
             locationPlatform,
           })),
+          fileUrl: file?.cdnUrl ?? null,
         }),
       ),
       issues: issues.map(({ issueId, issueOrdinal, series }) => ({

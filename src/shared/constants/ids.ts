@@ -42,6 +42,7 @@ export const IDs = {
   PRICES: 'publication_prices',
   LOCATIONS: 'publication_locations',
   LOCATION_PLATFORM: 'location_platform',
+  PUBLICATION_FILE: 'publication_file',
   // FUNDINGS
   FUNDING: 'funding',
   FUNDING_PROJECT_NAME: 'funding_project_name',

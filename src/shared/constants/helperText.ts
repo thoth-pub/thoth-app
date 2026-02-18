@@ -2,10 +2,10 @@ export const HELPER_TEXT = {
   WORK_ABSTRACT: 'abstract.helperText',
   WORK_SHORT_ABSTRACT: 'shortAbstract.helperText',
   WORK_TITLE: 'title.helperText',
-  PLACE: 'Enter the place of the work.',
+  PLACE: 'place.helperText',
   SUBTITLE: 'subtitle.helperText',
   EDITION: 'edition.helperText',
-  WITHDRAWN_DATE: 'Enter the withdrawn date of the work.',
+  WITHDRAWN_DATE: 'withdrawnDate.helperText',
   PUBLICATION_DATE: 'publicationDate.helperText',
   WORK_TYPE: 'wortType.helperText',
   WORK_STATUS: 'status.helperText',
@@ -73,4 +73,5 @@ export const HELPER_TEXT = {
   ISSN: 'issn.helperText',
   SERIES_URL: 'seriesUrl.helperText',
   SERIES_DESCRIPTION: 'seriesDescription.helperText',
+  PUBLICATION_FILE: 'publicationFile.helperText',
 };

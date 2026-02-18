@@ -19,6 +19,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
   const isNewPublication = activePublication ? isDefaultId(activePublication.id) : false;
 
   const isDimensionFormHidden = work.type === WorkTypes.enum.BookChapter;
+  const isFileFormHidden = !work.doi || work.doi.length === 0;
 
   const addPublication = () => {
     if (activePublication) close();
@@ -48,11 +49,23 @@ const EditPublications = (props: BaseEditSectionProps) => {
         <PublicationsTable
           activePublication={activePublication}
           publications={work.publications}
-          form={<EditPublication workId={workId} isDimensionFormHidden={isDimensionFormHidden} />}
+          form={
+            <EditPublication
+              workId={workId}
+              isFileFormHidden={isFileFormHidden}
+              isDimensionFormHidden={isDimensionFormHidden}
+            />
+          }
           onEdit={editPublication}
           onDelete={deletePublication}
         />
-        {isNewPublication && <AddNewPublication workId={workId} isDimensionFormHidden={isDimensionFormHidden} />}
+        {isNewPublication && (
+          <AddNewPublication
+            workId={workId}
+            isFileFormHidden={isFileFormHidden}
+            isDimensionFormHidden={isDimensionFormHidden}
+          />
+        )}
         <AddButton className="px-4 capitalize" onAdd={addPublication} disabled={isNewPublication}>
           <TranslatedContent content="actions.addNewPublication" />
         </AddButton>

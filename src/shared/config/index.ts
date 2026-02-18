@@ -14,6 +14,19 @@ export const appConfig = {
   publicDomainLink: 'https://creativecommons.org/public-domain/cc0/',
   metaDataPrefix: 'https://export.thoth.pub/specifications/',
   supportedImagesFileTypes: ['image/png', 'image/jpeg', 'image/jpg', 'image/webp'],
+  supportedPdfFileTypes: ['application/pdf', 'application/octet-stream'],
+  supportedEpubFileTypes: ['application/epub+zip', 'application/zip', 'application/octet-stream'],
+  supportedHtmlFileTypes: ['text/html', 'application/zip', 'application/octet-stream'],
+  supportedXmlFileTypes: ['application/xml', 'text/xml', 'application/zip', 'application/octet-stream'],
+  supportedDocxFileTypes: [
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'application/octet-stream',
+  ],
+  supportedMobiFileTypes: ['application/x-mobipocket-ebook', 'application/octet-stream'],
+  supportedAzw3FileTypes: ['application/vnd.amazon.ebook', 'application/octet-stream'],
+  supportedFictionBookFileTypes: ['application/fictionbook2+zip', 'application/zip', 'application/octet-stream'],
+  supportedMP3FileTypes: ['audio/mp3', 'audio/mpeg', 'application/octet-stream'],
+  supportedWavFileTypes: ['audio/wav', 'audio/x-wav', 'application/octet-stream'],
   data: {
     itemsPerRequestLimit: 20,
     maxItemsPerRequestLimit: 100,
@@ -41,8 +54,9 @@ export const appConfig = {
   tables: {
     maxPreviewLength: 150,
   },
-  minFileSize: 50000,
+  minFileSize: 6250,
   maxFileSize: 50000000,
+  maxPublicationFileSize: 5368709120,
   minItemsCountForDragAndDrop: 2,
   maxCsvContributorsCount: 20,
 };

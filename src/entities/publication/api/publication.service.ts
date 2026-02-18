@@ -1,4 +1,4 @@
-import { isDefaultId, type QueryToken } from '@/src/shared';
+import { FileStorage, isDefaultId, type QueryToken } from '@/src/shared';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { LocationService } from '../../locations/api/location.service';
@@ -6,21 +6,24 @@ import { PriceService } from '../../price/api/price.service';
 import type { WorkId } from '../../work/model/work.types';
 import { PublicationDtoMapper } from '../model/publication.mapper';
 import { CREATE_PUBLICATION, DELETE_PUBLICATION, UPDATE_PUBLICATION } from '../model/publication.schema';
-import type { PublicationDto, PublicationEntity, PublicationType } from '../model/publication.types';
+import type { PublicationDto, PublicationEntity, PublicationId, PublicationType } from '../model/publication.types';
 
 export class PublicationService extends BaseService<PublicationEntity, PublicationDto> {
   private readonly locationService: LocationService;
   private readonly priceService: PriceService;
+  private readonly fileStorage: FileStorage;
 
   constructor(
     token: QueryToken,
     mapper = new PublicationDtoMapper(),
     locationService = new LocationService(token),
     priceService = new PriceService(token),
+    fileStorage = new FileStorage(token),
   ) {
     super(token, mapper);
     this.locationService = locationService;
     this.priceService = priceService;
+    this.fileStorage = fileStorage;
   }
 
   async createPublication(data: PublicationEntity, workId: WorkId): Promise<PublicationEntity> {
@@ -106,5 +109,9 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     });
 
     return response.deletePublication;
+  }
+
+  async uploadPublicationFile(publicationId: PublicationId, file: File) {
+    await this.fileStorage.uploadPublicationFile(publicationId, file);
   }
 }

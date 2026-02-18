@@ -3,12 +3,28 @@ import z from 'zod';
 import {
   accessibilityExceptionValidation,
   accessibilityStandardValidation,
+  appConfig,
+  ERRORS,
+  getFileValidation,
   isbnValidation,
   optionalPositiveIntValidation,
   optionalUrlValidation,
   publicationTypeValidation,
 } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+
+const {
+  supportedPdfFileTypes,
+  supportedEpubFileTypes,
+  supportedHtmlFileTypes,
+  supportedXmlFileTypes,
+  supportedDocxFileTypes,
+  supportedMobiFileTypes,
+  supportedAzw3FileTypes,
+  supportedFictionBookFileTypes,
+  supportedMP3FileTypes,
+  supportedWavFileTypes,
+} = appConfig;
 
 const {
   PUBLICATION_TYPE,
@@ -24,6 +40,7 @@ const {
   PUBLICATION_ACCESSIBILITY_STANDARD,
   PUBLICATION_ACCESSIBILITY_EXCEPTION,
   PUBLICATION_ACCESSIBILITY_REPORT_URL,
+  PUBLICATION_FILE,
 } = FORM_FIELDS;
 
 const widthValidation = optionalPositiveIntValidation;
@@ -56,4 +73,26 @@ export const accessibilityExceptionValidationSchema = z.object({
 
 export const accessibilityReportUrlValidationSchema = z.object({
   [PUBLICATION_ACCESSIBILITY_REPORT_URL.name]: optionalUrlValidation,
+});
+
+export const publicationFileValidationSchema = z.object({
+  [PUBLICATION_FILE.name]: getFileValidation(
+    appConfig.minFileSize,
+    appConfig.maxPublicationFileSize,
+    [
+      ...supportedPdfFileTypes,
+      ...supportedEpubFileTypes,
+      ...supportedHtmlFileTypes,
+      ...supportedXmlFileTypes,
+      ...supportedDocxFileTypes,
+      ...supportedMobiFileTypes,
+      ...supportedAzw3FileTypes,
+      ...supportedFictionBookFileTypes,
+      ...supportedMP3FileTypes,
+      ...supportedWavFileTypes,
+    ],
+    ERRORS.FILE_FORMAT_INVALID,
+    ERRORS.MAX_FILE_SIZE_EXCEEDED,
+    ERRORS.MIN_FILE_SIZE_NOT_MET,
+  ),
 });

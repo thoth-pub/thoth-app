@@ -1,9 +1,10 @@
 import { FileUploadResponse, UploadRequestHeader } from '@/gql/graphql';
+import { PublicationId } from '@/src/entities/publication/model/publication.types';
 import { WorkId } from '@/src/entities/work/model/work.types';
 
 import { GraphqlService } from '../../api/graphqlService';
 import { HTTP_METHODS, ROUTES } from '../../constants';
-import { COMPLETE_FILE_UPLOAD, INIT_FILE_UPLOAD } from './mutations';
+import { COMPLETE_FILE_UPLOAD, INIT_FRONT_COVER_UPLOAD, INIT_PUBLICATION_FILE_UPLOAD } from './mutations';
 
 export class FileStorage {
   private graphqlService: GraphqlService;
@@ -12,7 +13,22 @@ export class FileStorage {
     this.graphqlService = graphqlService;
   }
 
-  async initFileUpload({
+  async generateFileMetadata(file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const hashResponse = await fetch(ROUTES.GENERATE_FILE_HASH, {
+      method: HTTP_METHODS.POST,
+      body: formData,
+    });
+    const { hash } = await hashResponse.json();
+    const fileExtension = file.name.split('.').pop() ?? '';
+    const fileMimeType = file.type;
+
+    return { hash, fileExtension, fileMimeType };
+  }
+
+  async initFrontCoverUpload({
     workId,
     declaredExtension,
     declaredMimeType,
@@ -23,7 +39,7 @@ export class FileStorage {
     declaredMimeType: string;
     declaredSha256: string;
   }): Promise<FileUploadResponse> {
-    const response = await this.graphqlService.mutation(INIT_FILE_UPLOAD, {
+    const response = await this.graphqlService.mutation(INIT_FRONT_COVER_UPLOAD, {
       data: {
         declaredExtension,
         declaredMimeType,
@@ -35,7 +51,30 @@ export class FileStorage {
     return response.initFrontcoverFileUpload;
   }
 
-  async uploadFrontCoverFile(url: string, headers: UploadRequestHeader[], file: File) {
+  async initPublicationUpload({
+    publicationId,
+    declaredExtension,
+    declaredMimeType,
+    declaredSha256,
+  }: {
+    publicationId: PublicationId;
+    declaredExtension: string;
+    declaredMimeType: string;
+    declaredSha256: string;
+  }): Promise<FileUploadResponse> {
+    const response = await this.graphqlService.mutation(INIT_PUBLICATION_FILE_UPLOAD, {
+      data: {
+        declaredExtension,
+        declaredMimeType,
+        declaredSha256,
+        publicationId,
+      },
+    });
+
+    return response.initPublicationFileUpload;
+  }
+
+  async uploadFile(url: string, headers: UploadRequestHeader[], file: File) {
     const headersObject = headers.reduce(
       (acc, header) => {
         acc[header.name] = header.value;
@@ -57,7 +96,7 @@ export class FileStorage {
     return response.json();
   }
 
-  async completeFrontCoverFileUpload(fileUploadId: string) {
+  async completeFileUpload(fileUploadId: string) {
     await this.graphqlService.mutation(COMPLETE_FILE_UPLOAD, {
       data: {
         fileUploadId,
@@ -66,26 +105,32 @@ export class FileStorage {
   }
 
   async uploadWorkCover(workId: WorkId, file: File) {
-    const formData = new FormData();
-    formData.append('file', file);
+    const { hash, fileExtension, fileMimeType } = await this.generateFileMetadata(file);
 
-    const hashResponse = await fetch(ROUTES.GENERATE_FILE_HASH, {
-      method: HTTP_METHODS.POST,
-      body: formData,
-    });
-    const { hash } = await hashResponse.json();
-    const fileExtension = file.name.split('.').pop() ?? '';
-    const fileMimeType = file.type;
-
-    const initResponse = await this.initFileUpload({
+    const initResponse = await this.initFrontCoverUpload({
       workId,
       declaredExtension: fileExtension,
       declaredMimeType: fileMimeType,
       declaredSha256: hash,
     });
 
-    await this.uploadFrontCoverFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
+    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
 
-    await this.completeFrontCoverFileUpload(initResponse.fileUploadId);
+    await this.completeFileUpload(initResponse.fileUploadId);
+  }
+
+  async uploadPublicationFile(publicationId: PublicationId, file: File) {
+    const { hash, fileExtension, fileMimeType } = await this.generateFileMetadata(file);
+
+    const initResponse = await this.initPublicationUpload({
+      publicationId,
+      declaredExtension: fileExtension,
+      declaredMimeType: fileMimeType,
+      declaredSha256: hash,
+    });
+
+    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
+
+    await this.completeFileUpload(initResponse.fileUploadId);
   }
 }

@@ -188,6 +188,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           accessibilityException,
           accessibilityReportUrl,
           accessibilityStandard,
+          file,
         }) => ({
           id: publicationId,
           isbn: isbn ?? '',
@@ -208,6 +209,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           accessibilityAdditionalStandard: accessibilityAdditionalStandard ?? null,
           accessibilityException: accessibilityException ?? null,
           accessibilityStandard: accessibilityStandard ?? null,
+          fileUrl: file?.cdnUrl ?? null,
           prices: prices.map(({ unitPrice, priceId, currencyCode }) => ({
             id: priceId,
             currencyCode,

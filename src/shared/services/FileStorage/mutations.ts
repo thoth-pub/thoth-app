@@ -1,8 +1,22 @@
 import { graphql } from '@/gql';
 
-export const INIT_FILE_UPLOAD = graphql(`
+export const INIT_FRONT_COVER_UPLOAD = graphql(`
   mutation InitFrontcoverFileUpload($data: NewFrontcoverFileUpload!) {
     initFrontcoverFileUpload(data: $data) {
+      fileUploadId
+      uploadUrl
+      uploadHeaders {
+        name
+        value
+      }
+      expiresAt
+    }
+  }
+`);
+
+export const INIT_PUBLICATION_FILE_UPLOAD = graphql(`
+  mutation InitPublicationFileUpload($data: NewPublicationFileUpload!) {
+    initPublicationFileUpload(data: $data) {
       fileUploadId
       uploadUrl
       uploadHeaders {

@@ -164,6 +164,8 @@ export const numberOrRomanNumeralValidationOptional = numberOrRomanNumeralValida
 export const uuidValidation = z.uuid();
 
 export const getFileValidation = (
+  minFileSize: number,
+  maxFileSize: number,
   filesFormat: Array<string>,
   formatErrMessage?: ErrorMessage,
   maxFileSizeErrMessage?: ErrorMessage,
@@ -171,8 +173,8 @@ export const getFileValidation = (
 ) =>
   z
     .custom<FileList | undefined>()
-    .refine((files) => files && files[0].size >= appConfig.minFileSize, minFileSizeErrMessage)
-    .refine((files) => files && files[0].size <= appConfig.maxFileSize, maxFileSizeErrMessage)
+    .refine((files) => files && files[0].size >= minFileSize, minFileSizeErrMessage)
+    .refine((files) => files && files[0].size <= maxFileSize, maxFileSizeErrMessage)
     .refine((files) => files && filesFormat.includes(files[0].type), formatErrMessage);
 
 export const emailValidation = z.email();

@@ -27,6 +27,7 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       accessibilityAdditionalStandard,
       accessibilityException,
       accessibilityStandard,
+      file,
     } = dto;
 
     return {
@@ -61,6 +62,7 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
         landingPage: landingPage ?? '',
         locationPlatform,
       })),
+      fileUrl: file?.cdnUrl ?? null,
     };
   }
 

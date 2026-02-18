@@ -19,5 +19,8 @@ export const PUBLICATION_FRAGMENT = graphql(`
         }
       }
     }
+    file {
+      cdnUrl
+    }
   }
 `);
