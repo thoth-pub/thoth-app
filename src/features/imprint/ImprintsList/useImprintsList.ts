@@ -7,11 +7,12 @@ import {
   useGetPublisherImprints,
   useUpdateImprint,
 } from '@/src/entities/imprint';
-import { usePublisherStateMachine } from '@/src/entities/publisher';
+import { useActivePublisherPermissions, usePublisherStateMachine } from '@/src/entities/publisher';
 import { appConfig, IDs, isDefaultId } from '@/src/shared';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
 export const useImprintsList = () => {
+  const { isImprintEditable } = useActivePublisherPermissions();
   const { edit, activeFormId, close } = useFormStateMachine();
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher ? activePublisher.id : '';
@@ -53,6 +54,7 @@ export const useImprintsList = () => {
     addNewImprint,
     isEditingNewImprint,
     data,
-    isAddNewButtonDisabled: !!activeFormId,
+    isAddNewButtonDisabled: !!activeFormId || !isImprintEditable,
+    isImprintEditable,
   };
 };

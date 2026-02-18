@@ -20,7 +20,7 @@ const { IMPRINT } = FORM_FIELDS;
 const { EDIT_IMPRINT } = HELPER_TEXT;
 
 const EditImprint = (props: EditImprintProps) => {
-  const { defaultValue = '', id = '', onUpdate, onDelete, deleteDisabled = false } = props;
+  const { defaultValue = '', id = '', onUpdate, onDelete, deleteDisabled = false, disabled = false } = props;
 
   const isDeleteDisabled = defaultValue.length === 0 || id.length === 0 || id === appConfig.defaultId || deleteDisabled;
 
@@ -30,6 +30,7 @@ const EditImprint = (props: EditImprintProps) => {
       validationSchema={imprintValidationSchema}
       defaultValues={{ [IMPRINT.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.({ imprintName: data[IMPRINT.name], imprintId: id })}
+      isDisabled={disabled}
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldWithControlsWrapper>
@@ -40,12 +41,15 @@ const EditImprint = (props: EditImprintProps) => {
               helperText={EDIT_IMPRINT}
               isHelperTextVisible={isHelperTextVisible}
               fullWidth
+              disabled={disabled}
             />
             <DeleteButton onClick={() => onDelete?.(id)} disabled={isDeleteDisabled} />
           </FormFieldWithControlsWrapper>
         </ContentWrapper>
       )}
-      preview={({ disabled, onEdit }) => <Preview value={defaultValue} disabled={disabled} onEdit={onEdit} />}
+      preview={({ disabled: previewDisabled, onEdit }) => (
+        <Preview value={defaultValue} disabled={disabled || previewDisabled} onEdit={onEdit} />
+      )}
     />
   );
 };

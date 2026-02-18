@@ -11,6 +11,7 @@ const ImprintsList = () => {
     data,
     isEditingNewImprint,
     isAddNewButtonDisabled,
+    isImprintEditable,
     addNewImprint,
     createImprint,
     updateImprint,
@@ -25,17 +26,22 @@ const ImprintsList = () => {
             <EditImprint
               defaultValue={imprint.name}
               id={imprint.id}
+              deleteDisabled={data.length <= 1}
+              disabled={!isImprintEditable}
               onUpdate={updateImprint}
               onDelete={deleteImprint}
-              deleteDisabled={data.length <= 1}
             />
           </li>
         ))}
       </ul>
-      {isEditingNewImprint && <EditImprint defaultValue={''} id={appConfig.defaultId} onUpdate={createImprint} />}
-      <Button className="mr-auto ml-4 capitalize xl:ml-0" onClick={addNewImprint} disabled={isAddNewButtonDisabled}>
-        <TranslatedContent content="actions.addNewImprint" />
-      </Button>
+      {isEditingNewImprint && (
+        <EditImprint id={appConfig.defaultId} disabled={!isImprintEditable} onUpdate={createImprint} />
+      )}
+      {isImprintEditable && (
+        <Button className="mr-auto ml-4 capitalize xl:ml-0" onClick={addNewImprint} disabled={isAddNewButtonDisabled}>
+          <TranslatedContent content="actions.addNewImprint" />
+        </Button>
+      )}
     </>
   );
 };

@@ -1,15 +1,12 @@
-'use client';
 import { Typography } from '@mui/material';
 
-import { EditContact, EditReport, EditStatement, useActivePublisherPermissions } from '@/src/entities/publisher';
+import { EditContact, EditReport, EditStatement } from '@/src/entities/publisher';
 import { ImprintsList } from '@/src/features';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { InputLabel, TranslatedContent } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 const Profile = () => {
-  const { isImprintEditable } = useActivePublisherPermissions();
-
   return (
     <>
       <ContentSection>
@@ -28,14 +25,12 @@ const Profile = () => {
           <TranslatedContent content="currency" namespace={NAMESPACES.enum.profile} />
         </InputLabel>
       </ContentSection>
-      {isImprintEditable && (
-        <ContentSection>
-          <Typography component="h2" variant="h2" className="pl-4">
-            <TranslatedContent content="imprints" />
-          </Typography>
-          <ImprintsList />
-        </ContentSection>
-      )}
+      <ContentSection>
+        <Typography component="h2" variant="h2" className="pl-4">
+          <TranslatedContent content="imprints" />
+        </Typography>
+        <ImprintsList />
+      </ContentSection>
       <ContentSection>
         <Typography component="h2" variant="h2" className="pl-4">
           <TranslatedContent content="accessibility.accessibility" namespace={NAMESPACES.enum.forms} />

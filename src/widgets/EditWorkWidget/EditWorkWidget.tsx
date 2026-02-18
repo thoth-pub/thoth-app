@@ -1,14 +1,16 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
 import { useActivePublisherPermissions } from '@/src/entities/publisher';
-import { EditWorkHeader } from '@/src/entities/work';
+import { useUser } from '@/src/entities/user';
+import { EditWorkHeader, useWork } from '@/src/entities/work';
 import { EditBasicDetails, EditContributors, EditDescriptions, EditFundings, WorkSpeedDial } from '@/src/features';
 import EditPublications from '@/src/features/work/EditPublications/EditPublications';
 import EditReferences from '@/src/features/work/EditReferences/EditReferences';
 import EditWorkSeries from '@/src/features/work/EditWorkSeries/EditWorkSeries';
-import type { BaseEditSectionProps } from '@/src/shared';
+import { type BaseEditSectionProps, ROUTES } from '@/src/shared';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
 import { EditWorkChapters } from '../EditWorkChapters/EditWorkChapters';
@@ -17,6 +19,10 @@ type EditWorkWidgetProps = BaseEditSectionProps;
 
 const EditWorkWidget = (props: EditWorkWidgetProps) => {
   const { workId } = props;
+
+  const { userImprintsOptions, loading: userLoading } = useUser();
+  const { work, loading: workLoading } = useWork(workId);
+  const router = useRouter();
 
   const { close } = useFormStateMachine();
 
@@ -27,6 +33,16 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
       close();
     };
   }, []);
+
+  useEffect(() => {
+    if (userLoading || workLoading) return;
+
+    const isUserImprint = userImprintsOptions.some((option) => option.value === work.imprintId);
+
+    if (!isUserImprint) {
+      router.push(ROUTES.DASHBOARD);
+    }
+  }, [userLoading, workLoading, userImprintsOptions, work.imprintId]);
 
   return (
     <div className="flex flex-col gap-8">
