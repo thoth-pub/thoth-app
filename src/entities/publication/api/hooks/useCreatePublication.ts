@@ -21,8 +21,8 @@ const useCreatePublication = (props: UseCreatePublicationProps) => {
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async (data: PublicationEntity) => {
-      return publicationService.createPublication(data, workId);
+    mutationFn: async ({ data, file }: { data: PublicationEntity; file?: File }) => {
+      return publicationService.createPublication(data, workId, file);
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

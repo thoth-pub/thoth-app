@@ -26,7 +26,7 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     this.fileStorage = fileStorage;
   }
 
-  async createPublication(data: PublicationEntity, workId: WorkId): Promise<PublicationEntity> {
+  async createPublication(data: PublicationEntity, workId: WorkId, file?: File): Promise<PublicationEntity> {
     const { publicationId: _, publicationType, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(CREATE_PUBLICATION, {
@@ -54,6 +54,11 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
       const createdLocations = await Promise.all(locationsPromises);
 
       publication.locations = createdLocations;
+    }
+
+    if (file) {
+      const fileUrl = await this.uploadPublicationFile(publication.id, file);
+      publication.fileUrl = fileUrl;
     }
 
     return publication;
