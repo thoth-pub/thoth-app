@@ -59,6 +59,11 @@ export const EditType = (props: EditTypeProps) => {
                 },
               },
             }}
+            sx={{
+              '& .MuiInputBase-input': {
+                textTransform: 'none',
+              },
+            }}
           />
         </ContentWrapper>
       )}

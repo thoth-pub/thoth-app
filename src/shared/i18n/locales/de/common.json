@@ -135,5 +135,17 @@
   "work": "Werk",
   "search value": "Search value",
   "imprints": "Imprints",
-  "metadata not available": "metadata not available"
+  "metadata not available": "metadata not available",
+  "paperback": "Paperback",
+  "hardback": "Hardback",
+  "pdf": "PDF",
+  "html": "HTML",
+  "xml": "XML",
+  "epub": "EPUB",
+  "mobi": "Mobi",
+  "azw3": "AZW3",
+  "docx": "DOCX",
+  "fiction book": "Fictionbook",
+  "mp3": "MP3",
+  "wav": "WAV"
 }

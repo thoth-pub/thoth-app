@@ -59,6 +59,11 @@ export const EditSetImprint = ({ imprintId, imprintOptions, disabled = true, onS
                 },
               },
             }}
+            sx={{
+              '& .MuiInputBase-input': {
+                textTransform: 'none',
+              },
+            }}
           />
         </ContentWrapper>
       )}

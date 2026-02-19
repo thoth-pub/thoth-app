@@ -22,6 +22,7 @@ type TableRowProps = {
   selected: boolean;
   isButtonsDisabled: boolean;
   totalChaptersCount: number;
+  isSelectDisabled: boolean;
   onEdit?: (id: string) => void;
   onCopy?: (id: string) => void;
   onSelect?: (id: string) => void;
@@ -35,6 +36,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
     selected,
     isButtonsDisabled = false,
     totalChaptersCount,
+    isSelectDisabled = false,
     onEdit,
     onCopy,
     onSelect,
@@ -56,7 +58,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
     <DraggableComponent id={id}>
       {({ attributes, listeners, style, ref }) => (
         <TableRow ref={ref} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
-          <TableCell className="firstCell">
+          <TableCell className="firstCell normal-case">
             <div className="flex items-center gap-1 group-hover:gap-2">
               <DragAndDropListener
                 isDisabled={totalChaptersCount < appConfig.minItemsCountForDragAndDrop}
@@ -78,7 +80,13 @@ export const ChapterTableRow = (props: TableRowProps) => {
                   <ContentCopyIcon />
                 </IconButton>
               </ButtonGroup>
-              <Checkbox size="small" sx={{ paddingTop: '6px' }} checked={selected} onChange={handleSelect} />
+              <Checkbox
+                size="small"
+                sx={{ paddingTop: '6px' }}
+                checked={selected}
+                disabled={isSelectDisabled}
+                onChange={handleSelect}
+              />
             </div>
           </TableCell>
         </TableRow>

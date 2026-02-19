@@ -1,4 +1,4 @@
-import { convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
+import { HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS, publicationTypeOptions } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -44,13 +44,14 @@ const EditPublicationType = (props: EditPublicationTypeProps) => {
             id={PUBLICATION_TYPE.name}
             helperText={PUBLICATION_TYPE_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
+            translateOptions
           />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
         <Preview
           label={PUBLICATION_TYPE.label}
-          value={convertOptionToString(data?.publicationType ?? '')}
+          value={data?.publicationType.toLowerCase() ?? ''}
           disabled={disabled}
           onEdit={onEdit}
         />

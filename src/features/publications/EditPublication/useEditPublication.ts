@@ -269,10 +269,12 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, locations: updatedLocationsWithCanonical });
   };
 
-  const updateFile = (file: File) => {
+  const updateFile = async (file: File) => {
     if (!publication) return;
 
-    uploadPublicationFile(publication.id, file);
+    const url = await uploadPublicationFile(publication.id, file);
+
+    setPublication({ ...publication, fileUrl: url });
   };
 
   return {

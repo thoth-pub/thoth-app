@@ -2,7 +2,7 @@ import { Fragment } from 'react';
 
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { Chip, TableBody, TableCell, TableFormWrapper, TableHeader, TableRow, TableWrapper } from '@/src/shared/ui';
+import { Chip, TableBody, TableCell, TableFormWrapper, TableHeader, TableRow, TableWrapper, TranslatedContent } from '@/src/shared/ui';
 
 import type { PublicationEntity } from '../../model/publication.types';
 import { RowButtonGroup } from './components/RowButtonGroup';
@@ -50,7 +50,9 @@ const PublicationsTable = (props: PublicationsTableProps) => {
                 <TableRow className="group">
                   <TableCell className="firstCell">
                     <div className="flex flex-col gap-1">
-                      <div className="ml-1 flex items-center gap-1">{type.toLowerCase().replace('_', ' ')}</div>
+                      <div className="ml-1 flex items-center gap-1">
+                        {<TranslatedContent content={type.toLowerCase().replace('_', ' ')} />}
+                      </div>
                       <div className="flex items-center gap-2">
                         {[width, widthIn, height, heightIn, depth, depthIn].some((value) => value) && (
                           <Chip label="mm/in" size="small" className="lowercase" />

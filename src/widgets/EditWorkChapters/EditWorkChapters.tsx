@@ -13,6 +13,7 @@ import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { EditChapterModal, EditChaptersModal } from '@/src/features';
 import AddChapterModal from '@/src/features/work/AddChapterModal/AddChapterModal';
 import { appConfig, BaseEditSectionProps } from '@/src/shared';
+import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import {
   Checkbox,
   DeleteButton,
@@ -34,6 +35,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
   const { chapters } = useWorkChapters({ workId });
+  const { activeFormId } = useFormStateMachine();
   const { moveWorkRelation } = useWorkMoveRelation();
   const { createChapter } = useCreateWorkChapter({
     onCompleted: (chapter) => {
@@ -56,6 +58,8 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
   const isMultipleChaptersSelected = selectedChapters.length > 1;
 
   const selectedChaptersTitle = `${selectedChapters.length} of ${chapters.length}`;
+
+  const checkBoxDisabled = !!activeFormId;
 
   const dragEnd = (data: WorkEntity[]) => {
     const reorderedChapters = data.map((chapter, index) => ({ ...chapter, ordinal: index + 1 }));
@@ -177,6 +181,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                       className="mr-1 xl:mr-0.5"
                       checked={selectedChapters.length > 0 && selectedChapters.length === chapters.length}
                       onChange={handleSelectAllChapters}
+                      disabled={checkBoxDisabled}
                     />
                   )}
                 </div>,
@@ -190,6 +195,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                   chapter={chapter}
                   selected={selectedChapters.includes(chapter.id)}
                   totalChaptersCount={chapters.length}
+                  isSelectDisabled={checkBoxDisabled}
                   onEdit={handleEditChapter}
                   onCopy={handleCopyChapter}
                   onSelect={handleSelectChapter}

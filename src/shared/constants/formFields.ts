@@ -2651,6 +2651,7 @@ export const workOrderByOptions = [
   { value: FILTER_WORK_ORDER_BY_OPTIONS.enum.UPDATED_AT_WITH_RELATIONS, label: 'Updated At' },
   { value: FILTER_WORK_ORDER_BY_OPTIONS.enum.CREATED_AT, label: 'Created At' },
   { value: FILTER_WORK_ORDER_BY_OPTIONS.enum.PUBLICATION_DATE, label: 'Publication Date' },
+  { value: FILTER_WORK_ORDER_BY_OPTIONS.enum.TITLE, label: 'Title' },
 ];
 
 export const seriesOrderByOptions = [

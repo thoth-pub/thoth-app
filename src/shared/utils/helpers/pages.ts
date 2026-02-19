@@ -20,7 +20,7 @@ export const getPagesPlaceholder = (
   }
 
   if (pageCount > 0) {
-    result += ` (${pageCount} ${pageCount > 1 ? pagesPlaceholder : pagePlaceholder})`;
+    result += ` (${pageCount}${pageCount > 1 ? pagesPlaceholder : pagePlaceholder})`;
   }
 
   return result;

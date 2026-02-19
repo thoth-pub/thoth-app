@@ -94,4 +94,6 @@ export const NOTIFICATIONS = {
   SET_MOVE_RELATION_FAILED: 'Failed to change book order in set',
   // Imprints
   IMPRINT_CREATION_FAILED: 'Failed to create imprint',
+  // File Upload
+  UPLOAD_FILE_FAILED: 'Failed to upload file',
 } as const;

@@ -111,7 +111,9 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     return response.deletePublication;
   }
 
-  async uploadPublicationFile(publicationId: PublicationId, file: File) {
-    await this.fileStorage.uploadPublicationFile(publicationId, file);
+  async uploadPublicationFile(publicationId: PublicationId, file: File): Promise<string> {
+    const url = await this.fileStorage.uploadPublicationFile(publicationId, file);
+
+    return url;
   }
 }

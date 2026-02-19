@@ -28,6 +28,7 @@ const EditPublication = (props: EditPublicationProps) => {
     updateAccessibilityException,
     updateAccessibilityReport,
     deleteAccessibility,
+    updateFile,
   } = useEditPublication({
     workId,
   });
@@ -66,6 +67,7 @@ const EditPublication = (props: EditPublicationProps) => {
       onUpdateAccessibilityException={updateAccessibilityException}
       onUpdateAccessibilityReport={updateAccessibilityReport}
       onDeleteAccessibility={deleteAccessibility}
+      onUpdateFile={updateFile}
     >
       {(isFullTextUrlHidden) => (
         <>

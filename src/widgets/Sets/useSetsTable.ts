@@ -17,7 +17,7 @@ export const useSetsTable = () => {
 
   const [activePage, setActivePage] = useState(1);
   const [direction, setDirection] = useState(Direction.Asc);
-  const [orderBy, setOrderBy] = useState(WorkField.UpdatedAtWithRelations);
+  const [orderBy, setOrderBy] = useState(WorkField.UpdatedAt);
   const [searchValue, setSearchValue] = useState('');
 
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);

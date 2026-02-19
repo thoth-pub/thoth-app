@@ -137,7 +137,7 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
                       title: (
                         <ul className="flex flex-col gap-2 p-0 text-black">
                           <Typography variant="body2" component="li">
-                            <a href={`#${BASIC_DETAILS}`}>
+                            <a href={`#${BASIC_DETAILS}`} className="capitalize">
                               <DataIndicator
                                 isEmpty={isBasicDetailsSectionEmpty}
                                 isValid={isBasicDetailsSectionFilled}

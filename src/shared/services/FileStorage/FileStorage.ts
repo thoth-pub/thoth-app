@@ -96,15 +96,17 @@ export class FileStorage {
     return response.json();
   }
 
-  async completeFileUpload(fileUploadId: string) {
-    await this.graphqlService.mutation(COMPLETE_FILE_UPLOAD, {
+  async completeFileUpload(fileUploadId: string): Promise<string> {
+    const response = await this.graphqlService.mutation(COMPLETE_FILE_UPLOAD, {
       data: {
         fileUploadId,
       },
     });
+
+    return response.completeFileUpload.cdnUrl;
   }
 
-  async uploadWorkCover(workId: WorkId, file: File) {
+  async uploadWorkCover(workId: WorkId, file: File): Promise<string> {
     const { hash, fileExtension, fileMimeType } = await this.generateFileMetadata(file);
 
     const initResponse = await this.initFrontCoverUpload({
@@ -117,9 +119,11 @@ export class FileStorage {
     await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
 
     await this.completeFileUpload(initResponse.fileUploadId);
+
+    return initResponse.uploadUrl;
   }
 
-  async uploadPublicationFile(publicationId: PublicationId, file: File) {
+  async uploadPublicationFile(publicationId: PublicationId, file: File): Promise<string> {
     const { hash, fileExtension, fileMimeType } = await this.generateFileMetadata(file);
 
     const initResponse = await this.initPublicationUpload({
@@ -131,6 +135,8 @@ export class FileStorage {
 
     await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
 
-    await this.completeFileUpload(initResponse.fileUploadId);
+    const url = await this.completeFileUpload(initResponse.fileUploadId);
+
+    return url;
   }
 }

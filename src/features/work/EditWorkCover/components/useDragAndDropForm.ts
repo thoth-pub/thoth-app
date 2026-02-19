@@ -63,7 +63,7 @@ export const useDragAndDropForm = (workId: WorkId) => {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [isDoiEmpty]);
 
   const dropFile = (event: React.DragEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -96,11 +96,6 @@ export const useDragAndDropForm = (workId: WorkId) => {
     copyToClipboard(defaultValue);
   };
 
-  const formRef = (e: HTMLInputElement | null) => {
-    ref(e);
-    inputRef.current = e;
-  };
-
   const uploadFileClick = (e: React.MouseEvent<HTMLInputElement>) => {
     if (isDoiEmpty) {
       e.preventDefault();
@@ -116,7 +111,8 @@ export const useDragAndDropForm = (workId: WorkId) => {
     loading: isWorkLoading || loading,
     fieldProps,
     isUrlCoverFilled,
-    formRef,
+    inputRef,
+    ref,
     copyCoverUrlToClipboard,
     dropFile,
     uploadFile,

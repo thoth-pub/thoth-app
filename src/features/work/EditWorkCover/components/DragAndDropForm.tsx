@@ -24,7 +24,8 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
     loading,
     fieldProps,
     isUrlCoverFilled,
-    formRef,
+    inputRef,
+    ref,
     dropFile,
     uploadFile,
     uploadFileClick,
@@ -52,13 +53,7 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
         )}
 
         {isUrlCoverFilled && !isDragStarted && !loading && (
-          <Image
-            src={defaultValue}
-            alt="Cover"
-            className="absolute h-full w-full object-contain"
-            fill
-            unoptimized
-          />
+          <Image src={defaultValue} alt="Cover" className="absolute h-full w-full object-contain" fill unoptimized />
         )}
 
         {isUrlCoverFilled && (
@@ -77,7 +72,10 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
         <input
           type="file"
           {...fieldProps}
-          ref={formRef}
+          ref={(e) => {
+            ref(e);
+            inputRef.current = e;
+          }}
           onClick={uploadFileClick}
           className="absolute z-10 h-full w-full opacity-0"
           accept={appConfig.supportedImagesFileTypes.join(', ')}

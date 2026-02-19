@@ -36,7 +36,7 @@ export const useMarkdownEditor = ({ disableLineBreaks, onChange }: UseMarkdownEd
 
     // Replaces the current selection with the mark up
     const state2 = textApi.replaceSelection(
-      `${addLineBreak ? '\n' : ''}<${tag}${isLink ? ' href="#"' : ''}>${state1.selectedText}</${tag}>`,
+      `${addLineBreak ? '\n' : ''}<${tag}${isLink ? ' ext-link-type="uri" xlink:href="#"' : ''}>${state1.selectedText}</${tag.split(' ')[0].trim()}>`,
     );
     const startValue = isList ? 4 : 2;
     const endValue = isList ? 5 : 4;

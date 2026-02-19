@@ -83,6 +83,11 @@ const CreateWorkForm = () => {
                   },
                 },
               }}
+              sx={{
+                '& .MuiInputBase-input': {
+                  textTransform: 'none',
+                },
+              }}
             />
           )}
           <CreateWorkFormField
