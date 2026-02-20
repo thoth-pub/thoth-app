@@ -600,5 +600,6 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
   async updateWorkFrontCover(workId: WorkId, file: File) {
     await this.fileStorage.uploadWorkCover(workId, file);
+    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 }

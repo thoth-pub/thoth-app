@@ -109,7 +109,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
               <DeleteButton
                 disabled={isNew}
                 onClick={deleteExistingIssue}
-                className="-mt-0.5 self-end pt-0 opacity-0 group-hover:opacity-100"
+                className="my-auto h-4 w-4 self-end p-0 opacity-0 group-hover:opacity-100"
               />
             </div>
           )}

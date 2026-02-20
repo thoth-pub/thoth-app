@@ -20,7 +20,8 @@ const { DOI_IS_REQUIRED } = ERRORS;
 export const useDragAndDropForm = (workId: WorkId) => {
   const { work, loading: isWorkLoading } = useWork(workId);
 
-  const defaultValue = work.coverUrl ?? '';
+  const time = Date.now().toString();
+  const defaultValue = work.coverUrl ? `${work.coverUrl}?${time}` : '';
   const isUrlCoverFilled = defaultValue && defaultValue.length > 0;
   const isDoiEmpty = !work.doi || work.doi.length === 0;
 
