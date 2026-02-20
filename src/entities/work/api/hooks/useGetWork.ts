@@ -14,13 +14,14 @@ const useGetWork = (workId: WorkId) => {
   const {
     data = getDefaultWork(),
     isLoading,
+    isFetching,
     error,
   } = useQuery({
     queryKey: [QueryKeys.work, workId],
     queryFn: isValidId ? () => workService.getWork(workId) : skipToken,
   });
 
-  return { work: data, isLoading, error };
+  return { work: data, isLoading, isFetching, error };
 };
 
 export default useGetWork;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { AccessibilityStandard } from '@/gql/graphql';
 import { useCreateLocation, useDeleteLocation, useUpdateLocation } from '@/src/entities/locations';
@@ -44,6 +44,13 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { updateLocation } = useUpdateLocation({ workId });
   const { deleteLocation: deleteLocationMutation } = useDeleteLocation({ workId });
   const { uploadPublicationFile } = useUploadPublicationFile(workId);
+
+  useEffect(() => {
+    if (!activePublication || publication) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPublication(activePublication);
+  }, [activePublication, publication]);
 
   const updateSizes = (sizes: PublicationDimensionsForm) => {
     if (!publication) return;

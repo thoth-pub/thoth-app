@@ -1,36 +1,28 @@
 'use client';
 
-import { FundingsTable, useDeleteFunding, useFundingsStateMachine } from '@/src/entities/funding';
-import { useWork, useWorkRecommendations } from '@/src/entities/work';
-import { ANCHORS, isDefaultId } from '@/src/shared';
+import { FundingsList } from '@/src/entities/funding';
+import { ANCHORS } from '@/src/shared';
 import { BaseEditSectionProps } from '@/src/shared/types';
 import { AddButton, RecommendedSection, TranslatedContent } from '@/src/shared/ui';
-import { getDefaultFunding } from '@/src/shared/utils';
 
 import AddFunding from '../../fundings/AddFunding/AddFunding';
 import EditFunding from '../../fundings/EditFunding/EditFunding';
+import { useEditFundings } from './useEditFundings';
 
 const EditFundings = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
-  const { work } = useWork(workId);
-  const { activeFunding, edit } = useFundingsStateMachine();
-  const { isFundingsRequired, isFundingsEmpty } = useWorkRecommendations({ workId });
-  const { deleteFunding } = useDeleteFunding();
-
-  const isNewFunding = activeFunding ? isDefaultId(activeFunding.id) : false;
-
-  const addFunding = () => {
-    edit({ ...getDefaultFunding() });
-  };
-
-  const editFunding = (id: string) => {
-    const funding = work.fundings.find((funding) => funding.id === id);
-
-    if (!funding) return;
-
-    edit({ ...funding });
-  };
+  const {
+    fundings,
+    activeFunding,
+    isNewFunding,
+    editDisabled,
+    isFundingsRequired,
+    isFundingsEmpty,
+    deleteFunding,
+    addFunding,
+    editFunding,
+  } = useEditFundings(workId);
 
   return (
     <RecommendedSection
@@ -41,11 +33,12 @@ const EditFundings = (props: BaseEditSectionProps) => {
     >
       {({ showRecommendations }) => (
         <>
-          <FundingsTable
+          <FundingsList
             activeFunding={activeFunding}
-            fundings={work.fundings}
+            fundings={fundings}
             showRecommendations={showRecommendations}
             form={<EditFunding workId={workId} recommended={showRecommendations} />}
+            editDisabled={editDisabled}
             onDelete={(id) => deleteFunding(id)}
             onEdit={(id) => editFunding(id)}
           />

@@ -5,7 +5,9 @@ import { PublicationEntity } from '../../model/publication.types';
 import { PublicationsStateMachineContext } from '../publication.provider';
 
 const usePublicationsStateMachine = () => {
-  const activePublication = PublicationsStateMachineContext.useSelector((state) => state.context.activePublication);
+  const activePublication: PublicationEntity | null = PublicationsStateMachineContext.useSelector(
+    (state) => state.context.activePublication,
+  );
   const actorRef = PublicationsStateMachineContext.useActorRef();
 
   const edit = useCallback(

@@ -20,4 +20,4 @@ export * from './model/set.types';
 
 // UI
 export * from './ui/EditSetTitle/EditSetTitle';
-export * from './ui/SetsTable/SetsTable';
+export * from './ui/SetsCardList/SetsCardList';

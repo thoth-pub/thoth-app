@@ -1,94 +1,40 @@
 'use client';
 
-import {
-  ReferencesTable,
-  useDeleteReference,
-  useMoveReferences,
-  useReferencesStateMachine,
-  useUpdateReference,
-} from '@/src/entities/reference';
-import type { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
-import { useWork } from '@/src/entities/work';
-import { isDefaultId } from '@/src/shared';
-import { appConfig } from '@/src/shared/config';
+import { ReferencesList } from '@/src/entities/reference';
 import { BaseEditSectionProps } from '@/src/shared/types';
 import { AddButton, TranslatedContent } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import AddReference from '../../reference/AddReference/AddReference';
 import EditReference from '../../reference/EditReference/EditReference';
-
-const defaultReference: ReferenceEntity = {
-  id: appConfig.defaultId,
-  doi: '',
-  journalTitle: '',
-  articleTitle: '',
-  seriesTitle: '',
-  volumeTitle: '',
-  url: '',
-  orderNumber: 0,
-  unstructuredCitation: '',
-};
+import { useEditReferences } from './useEditReferences';
 
 const EditReferences = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
-  const { work } = useWork(workId);
-  const { activeReference, edit } = useReferencesStateMachine();
-  const { deleteReference } = useDeleteReference();
-  const { updateReference } = useUpdateReference({ workId });
-  const { moveReferences } = useMoveReferences({ workId });
-
-  const isNewReference = activeReference ? isDefaultId(activeReference.id) : false;
-
-  const editReference = (id: string) => {
-    const reference = work.references.find((reference) => reference.id === id);
-
-    if (!reference) return;
-
-    edit({ ...reference });
-  };
-
-  const addReference = () => {
-    edit({ ...defaultReference });
-  };
-
-  const dragEnd = async (data: ReferenceEntity[]) => {
-    const updatedData = data.map((reference, index) => ({ ...reference, orderNumber: index + 1 }));
-
-    const referencesToUpdate = updatedData.find((reference, index) => work.references[index].id !== reference.id);
-
-    if (!referencesToUpdate) return;
-
-    await moveReferences({ referenceId: referencesToUpdate.id, newOrdinal: referencesToUpdate.orderNumber });
-  };
-
-  const handleDeleteReference = async (id: string) => {
-    await deleteReference(id);
-
-    const referencesWithUpdatedOrderNumbers = work.references
-      .filter((reference) => reference.id !== id)
-      .map((reference, index) => ({
-        ...reference,
-        orderNumber: index + 1,
-      }));
-
-    const promises = referencesWithUpdatedOrderNumbers.map((reference) => {
-      return updateReference({ ...reference, orderNumber: reference.orderNumber });
-    });
-
-    await Promise.all(promises);
-  };
+  const {
+    activeReference,
+    references,
+    isNewReference,
+    editDisabled,
+    loading,
+    editReference,
+    addReference,
+    dragEnd,
+    deleteReference,
+  } = useEditReferences(workId);
 
   return (
     <ContentSection title={<TranslatedContent content="references" />}>
       <>
-        <ReferencesTable
+        <ReferencesList
           activeReference={activeReference}
-          references={work.references}
+          references={references}
           form={<EditReference workId={workId} />}
-          onDelete={handleDeleteReference}
-          onEdit={(id) => editReference(id)}
+          editDisabled={editDisabled}
+          loading={loading}
+          onDelete={deleteReference}
+          onEdit={editReference}
           onDragEnd={dragEnd}
         />
         {isNewReference && <AddReference workId={workId} />}

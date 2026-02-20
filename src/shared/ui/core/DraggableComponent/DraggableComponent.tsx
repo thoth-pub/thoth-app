@@ -21,7 +21,7 @@ const DraggableComponent = (props: DraggableComponentProps) => {
   const { attributes, listeners, transform, transition, setNodeRef } = useSortable({ id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    transform: CSS.Translate.toString(transform),
     transition,
   };
 

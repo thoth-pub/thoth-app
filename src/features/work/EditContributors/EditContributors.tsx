@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 
-import { useContributionStateMachine, WorkContributionsTable } from '@/src/entities/contribution';
+import { useContributionStateMachine, WorkContributionsList } from '@/src/entities/contribution';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
 import { ANCHORS, type BaseEditSectionProps, isDefaultId } from '@/src/shared';
@@ -36,7 +36,7 @@ const EditContributors = (props: EditContributorsProps) => {
     >
       {({ showRecommendations }) => (
         <>
-          <WorkContributionsTable
+          <WorkContributionsList
             workId={workId}
             form={<EditContribution recommended={showRecommendations} workId={workId} />}
             showRecommendations={showRecommendations}

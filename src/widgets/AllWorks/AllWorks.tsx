@@ -5,8 +5,8 @@ import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection
 
 import { Header } from './components/Header';
 import { UploadModal } from './components/UploadModal';
+import { WorksCardList } from './components/WorksCardList';
 import { WorksSpeedDial } from './components/WorksSpeedDial';
-import { WorksTable } from './components/WorksTable';
 import { useAllWorks } from './useAllWorks';
 
 const AllWorks = () => {
@@ -50,7 +50,7 @@ const AllWorks = () => {
         changeOrderBy={changeOrderBy}
       />
       <ContentSection>
-        <WorksTable
+        <WorksCardList
           loading={loading}
           works={works}
           page={activePage}
@@ -66,10 +66,7 @@ const AllWorks = () => {
         onCreateTranslation={() => navigateToCopyWork(WORK_COPY_VARIANTS.TRANSLATION)}
         onCreateNewEdition={() => navigateToCopyWork(WORK_COPY_VARIANTS.REISSUE)}
       />
-      <UploadModal
-        isOpen={isUploadModalOpen}
-        onClose={closeUpload}
-      />
+      <UploadModal isOpen={isUploadModalOpen} onClose={closeUpload} />
     </>
   );
 };

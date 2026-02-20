@@ -14,7 +14,7 @@ export { SeriesService } from './api/series.service';
 
 // UI
 export { default as EditSeriesForm } from './ui/EditSeriesForm/EditSeriesForm';
-export { default as SeriesTable } from './ui/SeriesTable/SeriesTable';
+export { default as SeriesList } from './ui/SeriesList/SeriesList';
 
 // STORE
 export { default as useSeriesesStateMachine } from './store/hooks/useSeriesesStateMachine';

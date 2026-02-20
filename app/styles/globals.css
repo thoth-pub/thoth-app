@@ -220,6 +220,9 @@
   .middleCell {
     @apply border-t border-b border-transparent group-hover:border-t-(--color-form-border) group-hover:border-b-(--color-form-border);
   }
+  .cardItem {
+    @apply flex items-center gap-1;
+  }
 }
 
 @layer utilities {

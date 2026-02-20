@@ -10,4 +10,4 @@ export * from './store/reference.provider';
 
 // UI
 export { default as EditReferenceForm } from './ui/EditReferenceForm/EditReferenceForm';
-export { default as ReferencesTable } from './ui/ReferencesTable/ReferencesTable';
+export { default as ReferencesList } from './ui/ReferencesList/ReferencesList';

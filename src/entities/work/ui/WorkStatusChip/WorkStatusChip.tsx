@@ -1,16 +1,17 @@
 import { useMemo } from 'react';
 
-import { convertOptionToString, WorkStatuses } from '@/src/shared';
+import { convertOptionToString, mergeStyles, WorkStatuses } from '@/src/shared';
 import { Chip, TranslatedContent } from '@/src/shared/ui';
 
 import type { WorkStatus } from '../../model/work.types';
 
 type WorkStatusChipProps = {
   status: WorkStatus;
+  className?: string;
 };
 
 export const WorkStatusChip = (props: WorkStatusChipProps) => {
-  const { status } = props;
+  const { status, className } = props;
 
   const indicatiorColor = useMemo(() => {
     switch (status) {
@@ -25,7 +26,7 @@ export const WorkStatusChip = (props: WorkStatusChipProps) => {
 
   return (
     <Chip
-      className="capitalize"
+      className={mergeStyles('capitalize', className)}
       sx={{
         '&:before': {
           content: `"• "`,

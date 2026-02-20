@@ -8,7 +8,7 @@ import useGetWork from './useGetWork';
 import { useUpdateWork } from './useUpdateWork';
 
 const useWork = (id: WorkId) => {
-  const { work, isLoading } = useGetWork(id);
+  const { work, isLoading, isFetching } = useGetWork(id);
   const { deleteWork } = useDeleteWork({});
   const { updateWork } = useUpdateWork({
     workId: id,
@@ -20,6 +20,7 @@ const useWork = (id: WorkId) => {
   return {
     work,
     loading: isLoading,
+    fetching: isFetching,
     deleteWork,
     updateWork,
     updateContribution,

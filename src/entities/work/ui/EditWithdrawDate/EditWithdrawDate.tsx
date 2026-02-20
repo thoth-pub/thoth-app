@@ -2,7 +2,16 @@ import dayjs from 'dayjs';
 
 import { convertDateToFormattedDate, HELPER_TEXT, IDs } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
-import { DateField, EditButton, FormFieldLabel, FormHelperText, InputLabel, Typography } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import {
+  DateField,
+  EditButton,
+  FormFieldLabel,
+  FormHelperText,
+  InputLabel,
+  TranslatedContent,
+  Typography,
+} from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
 
 import { publicationDateValidationSchema } from '../../model/work.validation';
@@ -46,7 +55,9 @@ const EditWithdrawDate = (props: EditWithdrawDateProps) => {
       )}
       preview={({ data, disabled, onEdit }) => (
         <div className="flex flex-col gap-2">
-          <InputLabel>{WITHDRAWN_DATE.label}</InputLabel>
+          <InputLabel>
+            <TranslatedContent content={WITHDRAWN_DATE.label} namespace={NAMESPACES.enum.forms} />
+          </InputLabel>
           <div className="group flex items-center gap-1">
             <Typography>{data?.withdrawnDate ? convertDateToFormattedDate(data.withdrawnDate) : ''}</Typography>
             <EditButton disabled={disabled} onClick={onEdit} className="ml-auto opacity-0 group-hover:opacity-100" />

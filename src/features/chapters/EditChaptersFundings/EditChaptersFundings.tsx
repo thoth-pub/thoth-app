@@ -2,7 +2,7 @@
 
 import { Activity, useState } from 'react';
 
-import { FundingsTable, useCreateFunding, useFundingsStateMachine } from '@/src/entities/funding';
+import { FundingsList, useCreateFunding, useFundingsStateMachine } from '@/src/entities/funding';
 import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { BaseEditSectionProps, isAllFundingRecommendationsFilled, isDefaultId } from '@/src/shared';
@@ -135,7 +135,7 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
       {({ showRecommendations }) => (
         <>
           <Activity mode={isSectionEnabled ? 'visible' : 'hidden'}>
-            <FundingsTable
+            <FundingsList
               activeFunding={activeFunding}
               fundings={fundings}
               showRecommendations={showRecommendations}

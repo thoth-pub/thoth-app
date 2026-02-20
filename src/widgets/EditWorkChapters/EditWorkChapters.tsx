@@ -1,148 +1,35 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
-import {
-  useCreateWorkChapter,
-  useDeleteChapter,
-  useWorkChapters,
-  useWorkChaptersStateMachine,
-  useWorkMoveRelation,
-} from '@/src/entities/work';
-import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { EditChapterModal, EditChaptersModal } from '@/src/features';
 import AddChapterModal from '@/src/features/work/AddChapterModal/AddChapterModal';
-import { appConfig, BaseEditSectionProps } from '@/src/shared';
-import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
-import {
-  Checkbox,
-  DeleteButton,
-  DragAndDropWrapper,
-  EditButton,
-  TableBody,
-  TableHeader,
-  TableWrapper,
-  TranslatedContent,
-  Typography,
-} from '@/src/shared/ui';
+import { BaseEditSectionProps } from '@/src/shared';
+import { DeleteButton, EditButton, TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
-import { ChapterTableRow } from './components/ChapterTableRow';
-
-const NEW_CHAPTER_PREFIX = 'New Copy of ';
+import { ChaptersList } from './components/ChaptersList';
+import { useEditWorkChapters } from './useEditWorkChapters';
 
 export const EditWorkChapters = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
-  const { chapters } = useWorkChapters({ workId });
-  const { activeFormId } = useFormStateMachine();
-  const { moveWorkRelation } = useWorkMoveRelation();
-  const { createChapter } = useCreateWorkChapter({
-    onCompleted: (chapter) => {
-      edit([chapter]);
-    },
-  });
-  const { edit } = useWorkChaptersStateMachine();
-
-  const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
-
-  const { deleteChapter, deleteChapters } = useDeleteChapter();
-
-  useEffect(() => {
-    if (chapters.length > 0) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSelectedChapters([]);
-  }, [chapters]);
-
-  const isMultipleChapters = chapters.length >= 2;
-  const isMultipleChaptersSelected = selectedChapters.length > 1;
-
-  const selectedChaptersTitle = `${selectedChapters.length} of ${chapters.length}`;
-
-  const checkBoxDisabled = !!activeFormId;
-
-  const dragEnd = (data: WorkEntity[]) => {
-    const reorderedChapters = data.map((chapter, index) => ({ ...chapter, ordinal: index + 1 }));
-
-    const firstChangedChapter = reorderedChapters.find((chapter, index) => chapter.id !== chapters[index].id);
-
-    if (!firstChangedChapter || !firstChangedChapter.relationId) return;
-
-    moveWorkRelation({ workRelationId: firstChangedChapter.relationId, newOrdinal: firstChangedChapter.ordinal });
-  };
-
-  const handleSelectChapter = (id: string) => {
-    setSelectedChapters((selectedChapters) => [...selectedChapters, id]);
-  };
-
-  const handleDeselectChapter = (id: string) => {
-    setSelectedChapters((selectedChapters) => selectedChapters.filter((chapter) => chapter !== id));
-  };
-
-  const handleSelectAllChapters = () => {
-    if (selectedChapters.length === chapters.length) {
-      setSelectedChapters([]);
-      return;
-    }
-
-    setSelectedChapters(chapters.map((chapter) => chapter.id));
-  };
-
-  const handleEditChapter = (id: string) => {
-    const chapter = chapters.find((chapter) => chapter.id === id);
-
-    if (!chapter) return;
-
-    edit([chapter]);
-  };
-
-  const handleEditChapters = () => {
-    edit(chapters.filter((chapter) => selectedChapters.includes(chapter.id)));
-  };
-
-  const handleCopyChapter = (id: string) => {
-    const chapter = chapters.find((chapter) => chapter.id === id);
-
-    if (!chapter) return;
-
-    const newTitles = chapter.titles.map((title) => ({ ...title, id: appConfig.defaultId }));
-
-    const newChapter = {
-      ...chapter,
-      id: appConfig.defaultId,
-      titles: newTitles,
-      doi: '',
-    };
-
-    if (newTitles.length > 0) {
-      newChapter.titles[0] = {
-        ...newTitles[0],
-        canonical: true,
-        title: `${NEW_CHAPTER_PREFIX} ${newTitles[0].title}`,
-      };
-    }
-
-    createChapter({ chapter: newChapter, relatedWorkId: workId, ordinal: chapters.length + 1 });
-  };
-
-  const handleDeleteChapter = async (id: string) => {
-    await deleteChapter(id);
-  };
-
-  const handleBulkDelete = async () => {
-    const selected = [...selectedChapters];
-
-    await deleteChapters(selected);
-  };
-
-  const handleCloseMultipleChaptersEdit = () => {
-    setSelectedChapters([]);
-    close();
-  };
-
-  const handleDoneMultipleChaptersEdit = () => {
-    handleCloseMultipleChaptersEdit();
-  };
+  const {
+    chapters,
+    selectedChapters,
+    isMultipleChaptersSelected,
+    selectedChaptersTitle,
+    controlsDisabled,
+    loading,
+    dragEnd,
+    selectChapter,
+    deselectChapter,
+    editChapter,
+    editChapters,
+    copyChapter,
+    deleteChapter,
+    deleteChapters,
+    closeMultipleChaptersEdit,
+    doneMultipleChaptersEdit,
+  } = useEditWorkChapters(workId);
 
   return (
     <ContentSection
@@ -159,61 +46,32 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
                   />
                 }
               </Typography>
-              <DeleteButton onClick={handleBulkDelete} className="p-1" />
-              <EditButton onClick={handleEditChapters} className="p-1" />
+              <EditButton onClick={editChapters} className="p-1" disabled={controlsDisabled} />
+              <DeleteButton onClick={deleteChapters} className="p-1" />
             </>
           )}
         </div>
       }
     >
-      <DragAndDropWrapper items={chapters} onDragEnd={dragEnd}>
-        {(isDragStarted) => (
-          <TableWrapper isOverflowHidden={isDragStarted}>
-            <TableHeader
-              cells={[
-                'title',
-                'contributors',
-                <div key="page-range" className="flex items-center justify-between capitalize">
-                  <TranslatedContent content="page range" />
-                  {isMultipleChapters && (
-                    <Checkbox
-                      size="small"
-                      className="mr-1 xl:mr-0.5"
-                      checked={selectedChapters.length > 0 && selectedChapters.length === chapters.length}
-                      onChange={handleSelectAllChapters}
-                      disabled={checkBoxDisabled}
-                    />
-                  )}
-                </div>,
-              ]}
-              cellStyles={['min-w-[250px] pl-4 capitalize', 'min-w-[210px] capitalize']}
-            />
-            <TableBody>
-              {chapters.map((chapter) => (
-                <ChapterTableRow
-                  key={chapter.id}
-                  chapter={chapter}
-                  selected={selectedChapters.includes(chapter.id)}
-                  totalChaptersCount={chapters.length}
-                  isSelectDisabled={checkBoxDisabled}
-                  onEdit={handleEditChapter}
-                  onCopy={handleCopyChapter}
-                  onSelect={handleSelectChapter}
-                  onDeselect={handleDeselectChapter}
-                  onDelete={handleDeleteChapter}
-                  isButtonsDisabled={isMultipleChaptersSelected}
-                />
-              ))}
-            </TableBody>
-          </TableWrapper>
-        )}
-      </DragAndDropWrapper>
+      <ChaptersList
+        chapters={chapters}
+        draggable={chapters.length > 1}
+        selectedChapters={selectedChapters}
+        disableControls={controlsDisabled}
+        loading={loading}
+        onSelect={selectChapter}
+        onDeselect={deselectChapter}
+        onDelete={deleteChapter}
+        onEdit={editChapter}
+        onCopy={copyChapter}
+        onDragEnd={dragEnd}
+      />
       <EditChapterModal />
       <EditChaptersModal
         workId={workId}
         title={`Editing ${selectedChaptersTitle} Chapters`}
-        onClose={handleCloseMultipleChaptersEdit}
-        onDone={handleDoneMultipleChaptersEdit}
+        onClose={closeMultipleChaptersEdit}
+        onDone={doneMultipleChaptersEdit}
       />
       <AddChapterModal workId={workId} />
     </ContentSection>

@@ -1,6 +1,6 @@
 'use client';
 
-import { SeriesTable } from '@/src/entities/series';
+import { SeriesList } from '@/src/entities/series';
 import { EditSeries } from '@/src/features';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
@@ -37,7 +37,7 @@ const Series = () => {
         changeOrderBy={changeOrderBy}
       />
       <ContentSection>
-        <SeriesTable
+        <SeriesList
           loading={loading}
           serieses={serieses}
           page={activePage}

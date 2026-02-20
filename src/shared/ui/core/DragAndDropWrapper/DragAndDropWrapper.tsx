@@ -12,7 +12,7 @@ import {
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import { useState } from 'react';
 
-type DragAndDropWrapperProps<T extends { id: UniqueIdentifier }> = {
+export type DragAndDropWrapperProps<T extends { id: UniqueIdentifier }> = {
   items: T[];
   onDragStart?: () => void;
   onDragEnd?: (data: T[]) => void;

@@ -18,12 +18,13 @@ const useWorkChapters = (props: UseChaptersProps) => {
     data = [],
     error,
     isLoading,
+    isFetching,
   } = useQuery({
     queryKey: [QueryKeys.workChapters, workId],
     queryFn: async () => workService.getWorkChapters(workId),
   });
 
-  return { chapters: data, error, isLoading };
+  return { chapters: data, error, isLoading, isFetching };
 };
 
 export default useWorkChapters;

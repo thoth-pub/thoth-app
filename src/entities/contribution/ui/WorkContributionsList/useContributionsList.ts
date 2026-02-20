@@ -6,16 +6,18 @@ import { useContributionStateMachine, useMoveContribution } from '@/src/entities
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { useWork } from '@/src/entities/work';
 import { type BaseEditSectionProps, QueryKeys } from '@/src/shared';
+import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
 import { WorkContribution } from '../../model/contribution.types';
 
-export const useContributionsTable = ({ workId }: BaseEditSectionProps) => {
-  const { work, deleteContribution } = useWork(workId);
+export const useContributionsList = ({ workId }: BaseEditSectionProps) => {
+  const { work, loading, fetching, deleteContribution } = useWork(workId);
 
   const { updateContribution } = useWork(workId);
   const { moveContribution } = useMoveContribution({ workId });
 
   const { activeContribution, edit } = useContributionStateMachine();
+  const { activeFormId } = useFormStateMachine();
   const queryClient = useQueryClient();
 
   const dragEnd = (data: WorkContribution[]) => {
@@ -65,6 +67,9 @@ export const useContributionsTable = ({ workId }: BaseEditSectionProps) => {
   return {
     contributions: work.contributions,
     activeContribution,
+    loading,
+    fetching,
+    editDisabled: !!activeFormId,
     dragEnd,
     editContribution,
     deleteContribution: deleteWorkContribution,
