@@ -2,6 +2,7 @@
 
 import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined';
 import StarIcon from '@mui/icons-material/Star';
+import Image from 'next/image';
 
 import { LocationPlatform } from '@/gql/graphql';
 import { appConfig, convertOptionToString, IDs, isDefaultId } from '@/src/shared';
@@ -105,10 +106,21 @@ const EditLocations = (props: EditLocationsProps) => {
             ) : (
               <li key={location.id} className="flex items-center gap-1">
                 <Chip
-                  label={convertOptionToString(location.locationPlatform)}
+                  label={
+                    <Typography
+                      component="span"
+                      className={`flex items-center gap-1 ${location.locationPlatform === LocationPlatform.Thoth ? 'font-economica' : ''}`}
+                    >
+                      <>
+                        {location.locationPlatform === LocationPlatform.Thoth && (
+                          <Image src="/logo_small.png" alt="Thoth" width={24} height={24} />
+                        )}
+                        {convertOptionToString(location.locationPlatform)}
+                      </>
+                    </Typography>
+                  }
                   size="small"
                   component="span"
-                  className={`${location.locationPlatform === LocationPlatform.Thoth ? 'font-economica' : ''}`}
                 />
                 <Typography className="max-w-[30%] truncate">{location.landingPage}</Typography>
                 {location.fullTextUrl && location.fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
