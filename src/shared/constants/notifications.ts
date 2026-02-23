@@ -96,4 +96,5 @@ export const NOTIFICATIONS = {
   IMPRINT_CREATION_FAILED: 'Failed to create imprint',
   // File Upload
   UPLOAD_FILE_FAILED: 'Failed to upload file',
+  PUBLICATION_UPLOAD_FILE_DISABLED: 'DOI and landing page are required to upload a file',
 } as const;

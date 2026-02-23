@@ -1,10 +1,11 @@
 import { zodResolver } from '@hookform/resolvers/zod';
-import UploadIcon from '@mui/icons-material/Upload';
+import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { appConfig, PublicationType } from '@/src/shared';
+import { appConfig, NOTIFICATIONS, PublicationType } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { useNotifications } from '@/src/shared/hooks';
 import { IconButton } from '@/src/shared/ui';
 
 import { PublicationFileForm,PublicationType as GQLPublicationType } from '../../../model/publication.types';
@@ -12,10 +13,13 @@ import { publicationFileValidationSchema } from '../../../model/publication.vali
 
 type EditFileProps = {
   publicationType: GQLPublicationType;
+  disabled: boolean;
   onSubmit?: (file: File) => void;
 };
 
 const { PUBLICATION_FILE } = FORM_FIELDS;
+
+const { PUBLICATION_UPLOAD_FILE_DISABLED } = NOTIFICATIONS;
 
 const {
   supportedPdfFileTypes,
@@ -68,11 +72,17 @@ const getSupportedFileTypes = (publicationType: GQLPublicationType) => {
   }
 };
 
-const EditFile = ({ publicationType, onSubmit }: EditFileProps) => {
+const EditFile = ({ publicationType, disabled, onSubmit }: EditFileProps) => {
   const { register, handleSubmit, reset, watch } = useForm({
     reValidateMode: 'onSubmit',
     resolver: zodResolver(publicationFileValidationSchema),
   });
+  const { sendErrorNotification } = useNotifications();
+
+  const onFormClick = () => {
+    if (!disabled) return;
+    sendErrorNotification(PUBLICATION_UPLOAD_FILE_DISABLED);
+  };
 
   const onSubmitForm = (data: PublicationFileForm) => {
     if (!data.publicationFile || data.publicationFile.length === 0) return;
@@ -93,9 +103,9 @@ const EditFile = ({ publicationType, onSubmit }: EditFileProps) => {
   const supportedFileTypes = getSupportedFileTypes(publicationType);
 
   return (
-    <form>
-      <IconButton tabIndex={-1} component="label" className="p-0">
-        <UploadIcon fontSize="small" />
+    <form onClick={onFormClick}>
+      <IconButton tabIndex={-1} component="label" className="p-0" disabled={disabled}>
+        <AttachFileIcon fontSize="small" />
         <input type="file" hidden {...register(PUBLICATION_FILE.name)} accept={supportedFileTypes.join(', ')} />
       </IconButton>
     </form>

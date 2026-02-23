@@ -10,11 +10,11 @@ import { useAddNewPublication } from './useAddNewPublication';
 
 type AddNewPublicationProps = BaseRecommendedSectionProps & {
   isDimensionFormHidden: boolean;
-  isFileFormHidden: boolean;
+  isUploadFileFormDisabled: boolean;
 };
 
 const AddNewPublication = (props: AddNewPublicationProps) => {
-  const { workId, isDimensionFormHidden = false, isFileFormHidden = true } = props;
+  const { workId, isDimensionFormHidden = false, isUploadFileFormDisabled = true } = props;
 
   const {
     publication,
@@ -76,7 +76,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         accessibilityException={accessibilityException}
         accessibilityReportUrl={accessibilityReportUrl}
         fileUrl=""
-        isFileFormHidden={isFileFormHidden}
+        isUploadFileFormDisabled={isUploadFileFormDisabled}
         onUpdateIsbn={updateIsbn}
         onUpdateType={updateType}
         onClose={close}

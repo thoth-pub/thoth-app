@@ -14,7 +14,7 @@ export const useEditPublications = (workId: WorkId) => {
   const isNewPublication = activePublication ? isDefaultId(activePublication.id) : false;
 
   const isDimensionFormHidden = work.type === WorkTypes.enum.BookChapter;
-  const isFileFormHidden = !work.doi || work.doi.length === 0;
+  const uploadDisabled = !work.doi || work.doi.length === 0 || !work.landingPage || work.landingPage.length === 0;
 
   const addPublication = () => {
     if (activePublication) close();
@@ -43,7 +43,7 @@ export const useEditPublications = (workId: WorkId) => {
     activePublication,
     isNewPublication,
     isDimensionFormHidden,
-    isFileFormHidden,
+    uploadDisabled,
     editDisabled: !!activeFormId,
     addPublication,
     deletePublication,

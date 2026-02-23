@@ -36,7 +36,7 @@ type EditPublicationProps = {
   accessibilityException: AccessibilityExceptionType | null;
   accessibilityReportUrl: string;
   isDimensionFormHidden: boolean;
-  isFileFormHidden: boolean;
+  isUploadFileFormDisabled: boolean;
   children?: (isFullTextUrlHidden: boolean) => Readonly<React.ReactNode>;
   onDone?: () => void;
   onClose?: () => void;
@@ -67,7 +67,7 @@ const EditPublication = (props: EditPublicationProps) => {
     accessibilityException,
     accessibilityReportUrl,
     fileUrl,
-    isFileFormHidden,
+    isUploadFileFormDisabled,
     children,
     onDone,
     onClose,
@@ -84,7 +84,7 @@ const EditPublication = (props: EditPublicationProps) => {
   const isDimensionsHidden = isDimensionFormHidden || !isDimensionsAvailable(publicationType);
   const isFullTextUrlHidden = !isFullTextUrlAvailable(publicationType);
   const isAccessabilitySectionAvailable = isAccessibilityStandardAvailable(publicationType);
-  const isUploadFileFormHidden = !isFileAvailable(publicationType) || isFileFormHidden;
+  const isUploadFileFormHidden = !isFileAvailable(publicationType);
 
   return (
     <TableFormsWrapper>
@@ -93,7 +93,9 @@ const EditPublication = (props: EditPublicationProps) => {
         controls={
           <>
             <DownloadPublication fileUrl={fileUrl} />
-            {!isUploadFileFormHidden && <EditFile publicationType={publicationType} onSubmit={onUpdateFile} />}
+            {!isUploadFileFormHidden && (
+              <EditFile publicationType={publicationType} disabled={isUploadFileFormDisabled} onSubmit={onUpdateFile} />
+            )}
           </>
         }
         onDone={onDone}

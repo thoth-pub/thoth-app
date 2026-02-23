@@ -16,7 +16,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
     activePublication,
     isNewPublication,
     isDimensionFormHidden,
-    isFileFormHidden,
+    uploadDisabled,
     editDisabled,
     addPublication,
     deletePublication,
@@ -33,7 +33,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
           form={
             <EditPublication
               workId={workId}
-              isFileFormHidden={isFileFormHidden}
+              isUploadFileFormDisabled={uploadDisabled}
               isDimensionFormHidden={isDimensionFormHidden}
             />
           }
@@ -43,7 +43,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
         {isNewPublication && (
           <AddNewPublication
             workId={workId}
-            isFileFormHidden={isFileFormHidden}
+            isUploadFileFormDisabled={uploadDisabled}
             isDimensionFormHidden={isDimensionFormHidden}
           />
         )}
