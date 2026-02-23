@@ -21,8 +21,6 @@ export class FileStorage {
     const fileExtension = file.name.split('.').pop() ?? '';
     const fileMimeType = file.type;
 
-    console.log('hash', hash);
-
     return { hash, fileExtension, fileMimeType };
   }
 
