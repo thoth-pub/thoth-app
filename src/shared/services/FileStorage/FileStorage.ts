@@ -1,3 +1,5 @@
+import { sha256 } from 'js-sha256';
+
 import { FileUploadResponse, UploadRequestHeader } from '@/gql/graphql';
 import { PublicationId } from '@/src/entities/publication/model/publication.types';
 import { WorkId } from '@/src/entities/work/model/work.types';
@@ -14,16 +16,12 @@ export class FileStorage {
   }
 
   async generateFileMetadata(file: File) {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    const hashResponse = await fetch(ROUTES.GENERATE_FILE_HASH, {
-      method: HTTP_METHODS.POST,
-      body: formData,
-    });
-    const { hash } = await hashResponse.json();
+    const arrayBuffer = await file.arrayBuffer();
+    const hash = sha256(arrayBuffer);
     const fileExtension = file.name.split('.').pop() ?? '';
     const fileMimeType = file.type;
+
+    console.log('hash', hash);
 
     return { hash, fileExtension, fileMimeType };
   }
