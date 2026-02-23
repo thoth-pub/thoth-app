@@ -21,7 +21,7 @@ import { AddBookModal } from './components/AddBookModal';
 const EditSeries = () => {
   const { activeSeries, close } = useSeriesesStateMachine();
   const { userImprintsOptions } = useUser();
-  const { series } = useSeries({ seriesId: activeSeries?.id ?? '' });
+  const { series, loading, fetching } = useSeries({ seriesId: activeSeries?.id ?? '' });
   const { updateSeries } = useUpdateSeries();
   const { isImprintEditable } = useActivePublisherPermissions();
 
@@ -115,7 +115,9 @@ const EditSeries = () => {
             onUrlChange={updateUrl}
             onDescriptionChange={updateDescription}
           />
-          {series.issues.length > 0 && <IssuesList seriesId={series.id} withDelete issues={series.issues} />}
+          {series.issues.length > 0 && (
+            <IssuesList seriesId={series.id} withDelete issues={series.issues} loading={loading || fetching} />
+          )}
           <AddBookModal series={series} />
         </>
       )}

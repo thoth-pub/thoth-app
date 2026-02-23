@@ -17,13 +17,14 @@ const useSeries = (props: UseSeriesProps) => {
     data: series,
     error,
     isLoading,
+    isFetching,
   } = useQuery({
     queryKey: [QueryKeys.series, seriesId],
     queryFn: () => seriesService.getSeries(seriesId),
     enabled: seriesId.length > 0,
   });
 
-  return { series, error, loading: isLoading };
+  return { series, error, loading: isLoading, fetching: isFetching };
 };
 
 export default useSeries;

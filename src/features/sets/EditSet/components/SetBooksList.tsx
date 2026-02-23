@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { SetId, SetWorkEntity, useBookSetWorks, useDeleteFromSet, useMoveSetRelation } from '@/src/entities/sets';
 import { isDragAndDropDisabled, ROUTES } from '@/src/shared';
 import {
+  Backdrop,
   ButtonGroup,
   Chip,
+  CircularProgress,
   DeleteButton,
   DragAndDropListener,
   DragAndDropWrapper,
@@ -17,12 +19,14 @@ import {
 
 import { AddBookModal } from './AddBookModal';
 
-export const SetBooksList = ({ setId }: { setId: SetId }) => {
+export const SetBooksList = ({ setId }: { setId: SetId; }) => {
   const router = useRouter();
 
-  const { bookSetWorks } = useBookSetWorks(setId);
+  const { bookSetWorks, isLoading, isFetching } = useBookSetWorks(setId);
   const { deleteFromSet } = useDeleteFromSet(setId);
   const { moveSetRelation } = useMoveSetRelation(setId);
+
+  const loading = isLoading || isFetching;
 
   const handleDragEnd = (data: SetWorkEntity[]) => {
     const updatedBooks = data.map((book, index) => ({
@@ -45,11 +49,11 @@ export const SetBooksList = ({ setId }: { setId: SetId }) => {
   };
 
   return (
-    <div className="flex flex-col gap-[var(--default-gap)]">
+    <div className="relative flex flex-col gap-(--default-gap)">
       <Typography fontWeight="bold">Titles</Typography>
       <DragAndDropWrapper items={bookSetWorks} onDragEnd={handleDragEnd}>
         {() => (
-          <ul className="group flex w-full flex-col gap-[var(--default-gap)]">
+          <ul className="group flex w-full flex-col gap-(--default-gap)">
             {bookSetWorks.map(({ id, ordinal, workId, titles }) => (
               <DraggableComponent key={id} id={id}>
                 {({ attributes, listeners, style, ref }) => (
@@ -80,6 +84,9 @@ export const SetBooksList = ({ setId }: { setId: SetId }) => {
           </ul>
         )}
       </DragAndDropWrapper>
+      <Backdrop open={loading} className="absolute h-full w-full bg-white/50">
+        <CircularProgress />
+      </Backdrop>
       <AddBookModal setId={setId} totalBooks={bookSetWorks.length} />
     </div>
   );

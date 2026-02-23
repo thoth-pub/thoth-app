@@ -61,14 +61,14 @@ export const WorkCardListItem = (props: WorkCardListItemProps) => {
       </div>
 
       {contributorsNames.length > 0 && (
-        <li>
+        <ul>
           {contributorsNames.map((name, index) => (
-            <Typography key={index} className="cardItem">
+            <Typography key={index} component="li" className="cardItem">
               <PersonIcon fontSize="small" color="primary" />
               {name}
             </Typography>
           ))}
-        </li>
+        </ul>
       )}
       <Typography className="cardItem">
         <UpdateIcon fontSize="small" color="primary" />

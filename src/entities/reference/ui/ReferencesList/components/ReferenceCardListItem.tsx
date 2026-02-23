@@ -36,7 +36,7 @@ export const ReferenceCardListItem = (props: ReferenceCardListItemProps) => {
         <ArticleIcon fontSize="small" color="primary" />
         {orderNumber} {unstructuredCitation}
       </Typography>
-      <Typography className="text-sm">{doi && doi.length > 0 && <DoiPreview doi={doi} />}</Typography>
+      <Typography>{doi && doi.length > 0 && <DoiPreview doi={doi} />}</Typography>
     </CardListItem>
   );
 };

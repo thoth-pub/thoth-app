@@ -82,10 +82,10 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
       {contributions.length > 0 && (
         <ul>
           {contributions.map((contribution) => (
-            <li key={contribution.id} className="cardItem">
+            <Typography key={contribution.id} component="li" className="cardItem">
               <PersonOutlineIcon fontSize="small" color="primary" />
               {contribution.fullName}
-            </li>
+            </Typography>
           ))}
         </ul>
       )}

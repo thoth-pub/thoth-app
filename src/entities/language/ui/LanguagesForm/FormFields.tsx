@@ -97,7 +97,7 @@ export const FormFields = (props: FormFieldsProps) => {
                   control={control}
                   fullWidth
                   id={getLanguageFieldName(index)}
-                  options={languageRelationOptions}
+                  options={languageOptions}
                   isHelperTextVisible={isHelperTextVisible}
                   helperText={WORK_LANGUAGE_HELPER_TEXT}
                 />

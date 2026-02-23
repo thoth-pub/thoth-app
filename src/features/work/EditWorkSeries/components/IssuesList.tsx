@@ -2,7 +2,7 @@
 
 import { useDeleteIssue, useMoveIssue } from '@/src/entities/series';
 import type { SeriesEntity, SeriesId } from '@/src/entities/series/model/series.types';
-import { DragAndDropWrapper, Typography } from '@/src/shared/ui';
+import { Backdrop, CircularProgress, DragAndDropWrapper, Typography } from '@/src/shared/ui';
 
 import { ListItem } from './ListItem';
 
@@ -10,10 +10,11 @@ type IssuesListProps = {
   seriesId?: SeriesId;
   issues: SeriesEntity['issues'];
   withDelete?: boolean;
+  loading?: boolean;
 };
 
 export const IssuesList = (props: IssuesListProps) => {
-  const { seriesId, withDelete = false, issues } = props;
+  const { seriesId, withDelete = false, issues, loading = false } = props;
   const { deleteIssue } = useDeleteIssue();
   const { moveIssue } = useMoveIssue({ seriesId });
 
@@ -36,7 +37,7 @@ export const IssuesList = (props: IssuesListProps) => {
   if (issues.length === 0) return null;
 
   return (
-    <div>
+    <div className="relative">
       <Typography fontWeight="bold">Titles</Typography>
       <DragAndDropWrapper items={issues} onDragEnd={handleDragEnd}>
         {() => (
@@ -56,6 +57,9 @@ export const IssuesList = (props: IssuesListProps) => {
           </ul>
         )}
       </DragAndDropWrapper>
+      <Backdrop open={loading} className="absolute h-full w-full bg-white/50">
+        <CircularProgress />
+      </Backdrop>
     </div>
   );
 };

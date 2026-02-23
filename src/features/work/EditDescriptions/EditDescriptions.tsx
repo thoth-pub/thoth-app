@@ -29,7 +29,7 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
     onLanguagesDelete,
   } = props;
 
-  const { work } = useWork(workId);
+  const { work, loading, fetching } = useWork(workId);
   const { isPageCountRequired, isLanguagesRequired, isSubjectsRequired } = useWorkRecommendations({ workId });
 
   const isValid = !isPageCountRequired && !isLanguagesRequired && !isSubjectsRequired;
@@ -61,7 +61,11 @@ const EditDescriptions = (props: EditDescriptionsProps) => {
             onDelete={onLanguagesDelete}
           />
           {!isMultipleChaptersEdit && (
-            <EditSubjects workId={workId} recommended={showRecommendations && isSubjectsRequired} />
+            <EditSubjects
+              workId={workId}
+              recommended={showRecommendations && isSubjectsRequired}
+              loading={loading || fetching}
+            />
           )}
         </>
       )}

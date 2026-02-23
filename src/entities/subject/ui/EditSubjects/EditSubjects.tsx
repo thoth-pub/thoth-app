@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { type BaseRecommendedSectionProps, convertOptionToString, SubjectTypes } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { AddButton, ContentWrapper, InputLabel, TranslatedContent } from '@/src/shared/ui';
+import { AddButton, Backdrop, CircularProgress, ContentWrapper, InputLabel, TranslatedContent } from '@/src/shared/ui';
 
 import useMoveSubjects from '../../api/hooks/useMoveSubjects';
 import type { SubjectEntity, SubjectType } from '../../model/subject.types';
@@ -13,10 +13,14 @@ import { NewSubjectModal } from './components/NewSubjectModal';
 import { PreviewList } from './components/PreviewList';
 import { useEditSubjects } from './useEditSubjects';
 
+type EditSubjectsProps = BaseRecommendedSectionProps & {
+  loading?: boolean;
+};
+
 const { SUBJECTS } = FORM_FIELDS;
 
-const EditSubjects = (props: BaseRecommendedSectionProps) => {
-  const { workId } = props;
+const EditSubjects = (props: EditSubjectsProps) => {
+  const { workId, loading = false } = props;
 
   const { editDisabled, activeSubject, subjects, deleteSubject, create, edit } = useEditSubjects({ workId });
   const { moveSubjects } = useMoveSubjects({ workId });
@@ -114,7 +118,11 @@ const EditSubjects = (props: BaseRecommendedSectionProps) => {
         <TranslatedContent content={SUBJECTS.label} namespace={NAMESPACES.enum.forms} />
       </InputLabel>
       {placeholder ? (
-        <div className="flex w-full flex-col gap-(--default-gap)">
+        <div className="relative flex w-full flex-col gap-(--default-gap)">
+          <Backdrop open={loading} className="absolute h-full w-full bg-white/50">
+            <CircularProgress />
+          </Backdrop>
+
           <ul className="flex w-full flex-col gap-0">
             {data.map(({ subjects }, index) => (
               <PreviewList

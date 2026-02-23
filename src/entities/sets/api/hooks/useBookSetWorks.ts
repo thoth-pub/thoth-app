@@ -10,11 +10,12 @@ export const useBookSetWorks = (setId: SetId) => {
   const {
     data = [],
     isLoading,
+    isFetching,
     error,
   } = useQuery({
     queryKey: [QueryKeys.bookSetWorks, setId],
     queryFn: () => setService.getBookSetWorks(setId),
   });
 
-  return { bookSetWorks: data.sort((a, b) => a.ordinal - b.ordinal), isLoading, error };
+  return { bookSetWorks: data.sort((a, b) => a.ordinal - b.ordinal), isLoading, isFetching, error };
 };

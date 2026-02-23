@@ -67,11 +67,11 @@ export const ContributionListItem = (props: ContributionListItemProps) => {
         )}
         {showRecommendations && <Indicator />}
       </Typography>
-      <Typography className="text-sm">{convertOptionToString(type)}</Typography>
+      <Typography>{convertOptionToString(type)}</Typography>
       {affiliations.length > 0 && (
-        <Typography className="text-sm" component="ul">
+        <Typography component="ul">
           {affiliations.map(({ id, institutionName, rorId }) => (
-            <li key={id} className="cardItem">
+            <Typography key={id} component="li" className="cardItem">
               <AccountBalanceIcon fontSize="small" color="primary" />
               {institutionName}
               {rorId && (
@@ -79,7 +79,7 @@ export const ContributionListItem = (props: ContributionListItemProps) => {
                   <RorLogo />
                 </LinkTooltip>
               )}
-            </li>
+            </Typography>
           ))}
         </Typography>
       )}
