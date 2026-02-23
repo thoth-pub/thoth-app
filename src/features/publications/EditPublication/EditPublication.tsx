@@ -17,6 +17,7 @@ const EditPublication = (props: EditPublicationProps) => {
 
   const {
     activePublication,
+    loading,
     close,
     updateSizes,
     updateIsbn,
@@ -58,6 +59,7 @@ const EditPublication = (props: EditPublicationProps) => {
       accessibilityReportUrl={activePublication.accessibilityReportUrl}
       fileUrl={activePublication.fileUrl ?? ''}
       isUploadFileFormDisabled={isUploadFileFormDisabled}
+      loading={loading}
       onUpdateIsbn={updateIsbn}
       onUpdateType={updateType}
       onDone={close}

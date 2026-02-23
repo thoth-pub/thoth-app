@@ -14,6 +14,7 @@ import { publicationFileValidationSchema } from '../../../model/publication.vali
 type EditFileProps = {
   publicationType: GQLPublicationType;
   disabled: boolean;
+  loading: boolean;
   onSubmit?: (file: File) => void;
 };
 
@@ -72,7 +73,7 @@ const getSupportedFileTypes = (publicationType: GQLPublicationType) => {
   }
 };
 
-const EditFile = ({ publicationType, disabled, onSubmit }: EditFileProps) => {
+const EditFile = ({ publicationType, disabled, loading, onSubmit }: EditFileProps) => {
   const { register, handleSubmit, reset, watch } = useForm({
     reValidateMode: 'onSubmit',
     resolver: zodResolver(publicationFileValidationSchema),
@@ -104,7 +105,7 @@ const EditFile = ({ publicationType, disabled, onSubmit }: EditFileProps) => {
 
   return (
     <form onClick={onFormClick}>
-      <IconButton tabIndex={-1} component="label" className="p-0" disabled={disabled}>
+      <IconButton loading={loading} tabIndex={-1} component="label" className="p-0" disabled={disabled}>
         <AttachFileIcon fontSize="small" />
         <input type="file" hidden {...register(PUBLICATION_FILE.name)} accept={supportedFileTypes.join(', ')} />
       </IconButton>

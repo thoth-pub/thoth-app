@@ -36,14 +36,14 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
   const { activePublication, close } = usePublicationsStateMachine();
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
-  const { updatePublication } = useUpdatePublication({ workId });
-  const { createPrice } = useCreatePrice({ workId });
-  const { updatePrice } = useUpdatePrice({ workId });
+  const { updatePublication, loading: isUpdatePublicationLoading } = useUpdatePublication({ workId });
+  const { createPrice, loading: isCreatePriceLoading } = useCreatePrice({ workId });
+  const { updatePrice, loading: isUpdatePriceLoading } = useUpdatePrice({ workId });
   const { deletePrice } = useDeletePrice({ workId });
-  const { createLocation } = useCreateLocation({ workId });
-  const { updateLocation } = useUpdateLocation({ workId });
+  const { createLocation, loading: isCreateLocationLoading } = useCreateLocation({ workId });
+  const { updateLocation, loading: isUpdateLocationLoading } = useUpdateLocation({ workId });
   const { deleteLocation: deleteLocationMutation } = useDeleteLocation({ workId });
-  const { uploadPublicationFile } = useUploadPublicationFile(workId);
+  const { uploadPublicationFile, loading: isUploadPublicationFileLoading } = useUploadPublicationFile(workId);
 
   useEffect(() => {
     if (!activePublication || publication) return;
@@ -51,6 +51,14 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setPublication(activePublication);
   }, [activePublication, publication]);
+
+  const loading =
+    isUpdatePublicationLoading ||
+    isCreatePriceLoading ||
+    isUpdatePriceLoading ||
+    isCreateLocationLoading ||
+    isUpdateLocationLoading ||
+    isUploadPublicationFileLoading;
 
   const updateSizes = (sizes: PublicationDimensionsForm) => {
     if (!publication) return;
@@ -286,6 +294,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
   return {
     activePublication: publication,
+    loading,
     close,
     updateSizes,
     updateIsbn,

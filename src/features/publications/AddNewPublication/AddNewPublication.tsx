@@ -18,6 +18,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
 
   const {
     publication,
+    loading,
     close,
     create,
     updateIsbn,
@@ -76,6 +77,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         accessibilityException={accessibilityException}
         accessibilityReportUrl={accessibilityReportUrl}
         fileUrl=""
+        loading={loading}
         isUploadFileFormDisabled={isUploadFileFormDisabled}
         onUpdateIsbn={updateIsbn}
         onUpdateType={updateType}

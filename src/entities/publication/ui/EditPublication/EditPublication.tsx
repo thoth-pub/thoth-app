@@ -32,6 +32,7 @@ type EditPublicationProps = {
   weight: number;
   weightOz: number;
   fileUrl: string;
+  loading: boolean;
   accessibilityStandards: AccessibilityStandardType[];
   accessibilityException: AccessibilityExceptionType | null;
   accessibilityReportUrl: string;
@@ -62,6 +63,7 @@ const EditPublication = (props: EditPublicationProps) => {
     depthIn,
     weight,
     weightOz,
+    loading,
     isDimensionFormHidden,
     accessibilityStandards = [],
     accessibilityException,
@@ -94,7 +96,12 @@ const EditPublication = (props: EditPublicationProps) => {
           <>
             <DownloadPublication fileUrl={fileUrl} />
             {!isUploadFileFormHidden && (
-              <EditFile publicationType={publicationType} disabled={isUploadFileFormDisabled} onSubmit={onUpdateFile} />
+              <EditFile
+                publicationType={publicationType}
+                disabled={isUploadFileFormDisabled}
+                loading={loading}
+                onSubmit={onUpdateFile}
+              />
             )}
           </>
         }

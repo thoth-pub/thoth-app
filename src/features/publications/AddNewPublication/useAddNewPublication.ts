@@ -31,7 +31,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
 
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
   const [file, setFile] = useState<File | null>(null);
-  const { createPublication } = useCreatePublication({
+  const { createPublication, loading } = useCreatePublication({
     workId,
   });
 
@@ -41,10 +41,6 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     await createPublication({ data: publication, file: file ?? undefined });
 
     close();
-
-    // if (!data || !file) return;
-
-    // await uploadPublicationFile(data.id, file);
   };
 
   const updateType = (type: PublicationType) => {
@@ -192,6 +188,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
 
   return {
     publication,
+    loading,
     close,
     create,
     updateType,
