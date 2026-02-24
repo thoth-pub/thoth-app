@@ -35,7 +35,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
   }, []);
 
   useEffect(() => {
-    if (userLoading || workLoading) return;
+    if (userLoading || workLoading || userImprintsOptions.length === 0) return;
 
     const isUserImprint = userImprintsOptions.some((option) => option.value === work.imprintId);
 

@@ -43,7 +43,6 @@ export const publisherStateMachine = setup({
           target: 'authenticated',
           actions: assign({
             linkedPublishers: ({ event }) => event?.linkedPublishers ?? [],
-            activePublisher: ({ event }) => event?.linkedPublishers[0] ?? null,
           }),
         },
       },

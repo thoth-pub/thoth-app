@@ -33,7 +33,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
   const publishersOptions = convertEntityToSelectFieldOptions(authorizedPublishers, 'name');
 
-  const updateActivePublisher = async (publisherId: PublisherId) => {
+  const updateActivePublisher = async (publisherId: PublisherId, skipRedirect = false) => {
     const publisher = authorizedPublishers.find((publisher) => publisher.id === publisherId);
 
     if (!publisher) return;
@@ -45,18 +45,22 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
     } finally {
       const isEditingWork = isRouteIncludesUUID(pathname);
 
-      if (isEditingWork) router.push(ROUTES.DASHBOARD);
+      if (isEditingWork && !skipRedirect) router.push(ROUTES.DASHBOARD);
     }
   };
 
   const setActivePublisher = async () => {
+    if (authorizedPublishers.length === 0) return;
+
     setLinkedPublishers(authorizedPublishers, user.isSuperuser);
 
     const persistedPublisherId = await persistentStorage.get(activePublisherIdKey);
 
-    if (!persistedPublisherId) return;
+    if (!persistedPublisherId) {
+      updateActivePublisher(authorizedPublishers[0].id, true);
+    }
 
-    updateActivePublisher(persistedPublisherId as PublisherId);
+    updateActivePublisher(persistedPublisherId as PublisherId, true);
   };
 
   useEffect(() => {
