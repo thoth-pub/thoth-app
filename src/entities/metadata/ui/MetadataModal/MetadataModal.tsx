@@ -41,7 +41,7 @@ const MetadataModal = (props: MetadataModalProps) => {
   return (
     <Modal open={open} onClose={onClose} className="p-4">
       <div className="flex h-full items-center justify-center">
-        <div className="m-auto flex max-h-160 w-full max-w-300 flex-col gap-4 overflow-auto rounded-xl bg-(--color-modal-background) p-4 lg:gap-8 lg:rounded-2xl lg:p-8">
+        <div className="m-auto flex max-h-160 w-full max-w-300 flex-col gap-(--default-gap) overflow-auto rounded-xl bg-(--color-modal-background) p-4 lg:rounded-2xl lg:p-8">
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="text-(--color-typography)">
               <TranslatedContent content="actions.downloadMetadata" />

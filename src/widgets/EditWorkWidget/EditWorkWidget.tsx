@@ -45,7 +45,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
   }, [userLoading, workLoading, userImprintsOptions, work.imprintId]);
 
   return (
-    <div className="flex flex-col gap-8">
+    <div className="flex flex-col gap-(--default-gap)">
       <EditWorkHeader
         workId={workId}
         isStatusEditable={isStatusEditable}

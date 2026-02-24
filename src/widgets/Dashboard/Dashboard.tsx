@@ -3,7 +3,7 @@ import NextLink from 'next/link';
 
 import { ROUTES } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
+import { Button, DashboardGrid, TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { PublishedBooksChart, TotalBooksChart } from '@/src/widgets';
 
@@ -26,10 +26,10 @@ const Dashboard = () => {
         </div>
       </ContentSection>
 
-      <div className="flex min-h-30 w-full flex-wrap gap-[15px] xl:min-h-40">
+      <DashboardGrid>
         <TotalBooksChart />
         <PublishedBooksChart />
-      </div>
+      </DashboardGrid>
 
       <RecentlyUpdatedBooks />
       <RecentlyPublishedBooks />

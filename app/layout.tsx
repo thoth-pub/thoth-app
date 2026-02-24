@@ -41,7 +41,7 @@ export default async function RootLayout({
     <html lang="en">
       <Providers>
         <body
-          className={`${economica.variable} ${openSans.variable} m-auto flex h-dvh min-h-dvh max-w-[var(--max-width)] flex-col px-8 py-2 antialiased lg:px-5 lg:py-3`}
+          className={`${economica.variable} ${openSans.variable} m-auto flex h-dvh min-h-dvh max-w-(--max-width) flex-col px-5 py-2 antialiased xl:py-3`}
         >
           <main className="flex flex-1">{children}</main>
           <SpeedInsights />

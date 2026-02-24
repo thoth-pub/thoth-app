@@ -8,7 +8,7 @@ const TableFormsWrapper = ({ children, className }: { children: React.ReactNode;
   return (
     <motion.div
       className={mergeStyles(
-        `m-4 flex max-w-full flex-col gap-8 rounded-xl bg-(--color-form-background) lg:my-4 lg:ml-0.5`,
+        `m-4 flex max-w-full flex-col gap-(--default-gap) rounded-xl bg-(--color-form-background) lg:my-4 lg:ml-0.5`,
         className,
       )}
       initial={{ opacity: 0, height: 0 }}

@@ -2,6 +2,7 @@
 
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { EditBookLink } from '@/src/features';
+import { DashboardGrid, DashboardGridItem } from '@/src/shared/ui';
 
 type BooksListProps = {
   books: WorkEntity[];
@@ -9,18 +10,19 @@ type BooksListProps = {
 
 export const BooksList = ({ books }: BooksListProps) => {
   return (
-    <>
+    <DashboardGrid>
       {books.map(({ id, titles, coverUrl, type, status, contributions }) => (
-        <EditBookLink
-          key={id}
-          id={id}
-          titles={titles}
-          type={type}
-          status={status}
-          contributions={contributions}
-          image={coverUrl ?? undefined}
-        />
+        <DashboardGridItem key={id}>
+          <EditBookLink
+            id={id}
+            titles={titles}
+            type={type}
+            status={status}
+            contributions={contributions}
+            image={coverUrl ?? undefined}
+          />
+        </DashboardGridItem>
       ))}
-    </>
+    </DashboardGrid>
   );
 };

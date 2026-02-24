@@ -7,7 +7,7 @@ import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { capitalizeFirstLetter } from '@/src/shared';
 import { useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { CircularProgress, DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
+import { CircularProgress, DashboardGridItem, TranslatedContent, Typography } from '@/src/shared/ui';
 
 const TotalBooksChart = () => {
   const { activePublisher } = usePublisherStateMachine();
@@ -53,17 +53,17 @@ const TotalBooksChart = () => {
 
   if (isLoading) {
     return (
-      <DashboardContentWrapper>
+      <DashboardGridItem>
         <ChartWrapper>
           <CircularProgress className="m-auto h-full" />
         </ChartWrapper>
-      </DashboardContentWrapper>
+      </DashboardGridItem>
     );
   }
 
   if (chartData.length === 0) {
     return (
-      <DashboardContentWrapper>
+      <DashboardGridItem>
         <ChartWrapper>
           <div className="flex w-full flex-col gap-1">
             <Typography component="h2" variant="h2" className="mb-2">
@@ -74,12 +74,12 @@ const TotalBooksChart = () => {
             </Typography>
           </div>
         </ChartWrapper>
-      </DashboardContentWrapper>
+      </DashboardGridItem>
     );
   }
 
   return (
-    <DashboardContentWrapper>
+    <DashboardGridItem>
       <ChartWrapper>
         <div className="flex flex-col justify-between">
           <Typography component="h2" variant="h2" className="mb-2">
@@ -103,14 +103,13 @@ const TotalBooksChart = () => {
             )}
           </ul>
         </div>
-        <div className="max-w-[130px]">
-          <PieChart
-            series={[{ innerRadius: isDesktop ? 40 : 30, outerRadius: isDesktop ? 60 : 45, data: chartData }]}
-            {...settings}
-          />
-        </div>
+
+        <PieChart
+          series={[{ innerRadius: isDesktop ? 40 : 30, outerRadius: isDesktop ? 60 : 45, data: chartData }]}
+          {...settings}
+        />
       </ChartWrapper>
-    </DashboardContentWrapper>
+    </DashboardGridItem>
   );
 };
 

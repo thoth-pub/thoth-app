@@ -15,7 +15,7 @@ function Template({ children }: { children: Readonly<ReactNode> }) {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration }}
-      className="flex w-full flex-col gap-[var(--default-gap)] px-8 pb-2"
+      className="flex w-full flex-col gap-(--default-gap) px-5 pb-2 xl:pb-3"
     >
       {children}
     </motion.div>

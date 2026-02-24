@@ -23,6 +23,7 @@ export { default as DragAndDropListener } from './core/DranAndDropListener/DragA
 export { default as EditButton } from './core/EditButton/EditButton';
 export { default as FavoriteButton } from './core/FavoriteButton/FavoriteButton';
 export { default as FormHelperText } from './core/FormHelperText/FormHelperText';
+export { default as Grid } from './core/Grid/Grid';
 export { default as IconButton } from './core/IconButton/IconButton';
 export { default as ImageWithFallback } from './core/ImageWithFallback/ImageWithFallback';
 export { default as Indicator } from './core/Indicator/Indicator';
@@ -62,6 +63,8 @@ export { default as Tabs } from './core/Tabs/Tabs/Tabs';
 export { default as TextField, type TextFieldProps } from './core/TextField/TextField';
 export { default as Tooltip } from './core/Tooltip/Tooltip';
 export { default as Typography } from './core/Typography/Typography';
+export { default as DashboardGrid } from './dashboard/DashboardGrid/DashboardGrid';
+export { default as DashboardGridItem } from './dashboard/DashboardGridItem/DashboardGridItem';
 export { default as TableFormsHeader } from './forms/TableFormsHeader/TableFormsHeader';
 export { default as TableFormsWrapper } from './forms/TableFormsWrapper/TableFormsWrapper';
 export { default as TableNewEntityFormWrapper } from './forms/TableNewEntityFormWrapper/TableNewEntityFormWrapper';
@@ -90,7 +93,6 @@ export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';
 // Layout
 export { default as ContentWrapper } from './layout/ContentWrapper/ContentWrapper';
-export { default as DashboardContentWrapper } from './layout/DashboardContentWrapper/DashboardContentWrapper';
 export { default as MultipleContentWrapper } from './layout/MultipleContentWrapper/MultipleContentWrapper';
 export { default as PageHeader } from './layout/PageHeader/PageHeader';
 export { default as RecommendedSection } from './layout/RecommendedSection/RecommendedSection';

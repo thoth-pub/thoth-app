@@ -18,7 +18,7 @@ const FullScreenModal = (props: FullScreenModalProps) => {
 
   return (
     <Modal open={isOpen} onClose={onClose}>
-      <div className="relative h-dvh w-dvw overflow-auto bg-(--color-modal-content-background) px-8 py-2 lg:px-5 lg:py-3">
+      <div className="relative h-dvh w-dvw overflow-auto bg-(--color-modal-content-background) px-5 py-2 xl:py-3">
         <div className="m-auto flex h-full flex-row">
           <Navigation />
           <div className="scrollbar-hidden flex grow flex-col gap-(--default-gap) overflow-x-auto px-8 py-[12px]">

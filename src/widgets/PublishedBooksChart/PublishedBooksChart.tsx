@@ -7,7 +7,7 @@ import { ChartWrapper } from '@/src/entities/book';
 import { getMonthName, getStartOfTheCurrentMonthDate, getYear, substractMonthesFromDate } from '@/src/shared';
 import { useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { CircularProgress, DashboardContentWrapper, TranslatedContent, Typography } from '@/src/shared/ui';
+import { CircularProgress, DashboardGridItem, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { useBooksCountByMonth } from './useBooksCountByMonth';
 
@@ -112,17 +112,17 @@ const PublishedBooksChart = () => {
 
   if (isLoading) {
     return (
-      <DashboardContentWrapper>
+      <DashboardGridItem>
         <ChartWrapper>
           <CircularProgress className="m-auto h-full" />
         </ChartWrapper>
-      </DashboardContentWrapper>
+      </DashboardGridItem>
     );
   }
 
   if (isEmpty) {
     return (
-      <DashboardContentWrapper>
+      <DashboardGridItem>
         <ChartWrapper>
           <div className="flex w-full flex-col gap-1">
             <Typography component="h2" variant="h2" className="mb-2">
@@ -133,12 +133,12 @@ const PublishedBooksChart = () => {
             </Typography>
           </div>
         </ChartWrapper>
-      </DashboardContentWrapper>
+      </DashboardGridItem>
     );
   }
 
   return (
-    <DashboardContentWrapper>
+    <DashboardGridItem>
       <ChartWrapper>
         <div className="flex flex-col justify-between">
           <Typography component="h2" variant="h2" className="mb-2">
@@ -196,7 +196,7 @@ const PublishedBooksChart = () => {
           hideLegend
         />
       </ChartWrapper>
-    </DashboardContentWrapper>
+    </DashboardGridItem>
   );
 };
 

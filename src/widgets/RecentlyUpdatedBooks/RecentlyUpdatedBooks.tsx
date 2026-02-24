@@ -1,7 +1,7 @@
 'use client';
 
 import { Direction } from '@/gql/graphql';
-import { BooksListWrapper, SectionWrapper, useBooks } from '@/src/entities/book';
+import { SectionWrapper, useBooks } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { TranslatedContent } from '@/src/shared/ui';
@@ -24,9 +24,7 @@ const RecentlyPublishedBooks = () => {
     <SectionWrapper
       title={<TranslatedContent content="widgets.recently updated" namespace={NAMESPACES.enum.dashboard} />}
     >
-      <BooksListWrapper>
-        <BooksList books={books} />
-      </BooksListWrapper>
+      <BooksList books={books} />
     </SectionWrapper>
   );
 };
