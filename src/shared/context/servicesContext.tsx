@@ -25,6 +25,7 @@ import { WorkService } from '@/src/entities/work/api/work.service';
 import { useQueryToken } from '../hooks';
 import { QueryToken } from '../interfaces';
 import { NotificationService } from '../notifications/notification.service';
+import { PersistentStorage } from '../services';
 
 type ServicesMap = {
   imprintService: ImprintService;
@@ -47,6 +48,7 @@ type ServicesMap = {
   notificationService: NotificationService;
   metadataService: MetadataService;
   userService: UserService;
+  persistentStorage: PersistentStorage;
 };
 
 const getDefaultServices = (token: QueryToken): ServicesMap => ({
@@ -70,6 +72,7 @@ const getDefaultServices = (token: QueryToken): ServicesMap => ({
   notificationService: new NotificationService(),
   metadataService: new MetadataService(),
   userService: new UserService(token),
+  persistentStorage: new PersistentStorage(),
 });
 
 const ServicesContext = createContext({

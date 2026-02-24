@@ -1,55 +1,17 @@
 'use client';
 
-import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
-
-import { type PublisherId } from '@/src/entities/publisher';
-import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
-import { useUser } from '@/src/entities/user';
-import { convertEntityToSelectFieldOptions, ROUTES } from '@/src/shared';
 import { TextField } from '@/src/shared/ui';
-import { isRouteIncludesUUID } from '@/src/shared/utils/routes';
+
+import { useChangeActivePublisher } from './useChangeActivePublisher';
 
 type ChangeActivePublisherProps = {
   isHidden?: boolean;
 };
 
 const ChangeActivePublisher = ({ isHidden = false }: ChangeActivePublisherProps) => {
-  const { user, loading } = useUser();
-  const pathname = usePathname();
-  const router = useRouter();
-
-  const { activePublisher, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
-
-  const authorizedPublishers = user.linkedPublishers.map((publisher) => ({
-    ...publisher,
-    name: publisher.publisherName,
-    id: publisher.publisherId,
-  }));
-
-  const publishersOptions = convertEntityToSelectFieldOptions(authorizedPublishers, 'name');
-
-  useEffect(() => {
-    if (loading || user.linkedPublishers.length === 0 || activePublisher) return;
-
-    setLinkedPublishers(authorizedPublishers, user.isSuperuser);
-  }, [loading]);
-
-  const handleUpdatePublisher = (publisherId: PublisherId) => {
-    const publisher = authorizedPublishers.find((publisher) => publisher.id === publisherId);
-
-    if (!publisher) return;
-
-    changeActivePublisher(publisher);
-
-    const isEditingWork = isRouteIncludesUUID(pathname);
-
-    if (!isEditingWork) return;
-
-    router.push(ROUTES.DASHBOARD);
-  };
-
-  const hideSelector = publishersOptions.length <= 1 || isHidden;
+  const { activePublisher, publishersOptions, hideSelector, updateActivePublisher } = useChangeActivePublisher({
+    isHidden,
+  });
 
   return (
     <TextField
@@ -74,7 +36,7 @@ const ChangeActivePublisher = ({ isHidden = false }: ChangeActivePublisherProps)
           textTransform: 'none',
         },
       }}
-      onChange={(e) => handleUpdatePublisher(e.target.value)}
+      onChange={(e) => updateActivePublisher(e.target.value)}
       disabled={publishersOptions.length <= 1}
     />
   );

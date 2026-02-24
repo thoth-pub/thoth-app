@@ -1,6 +1,7 @@
-/* eslint-disable no-useless-catch */
+import { appConfig } from '../config';
+
 export class PersistentStorage {
-  private keyPrefix = 'thoth_app';
+  private keyPrefix = appConfig.persistentStorage.prefix;
 
   private getKey(key: string): string {
     return `${this.keyPrefix}_${key}`;

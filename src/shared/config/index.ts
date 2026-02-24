@@ -59,4 +59,8 @@ export const appConfig = {
   maxPublicationFileSize: 5368709120,
   minItemsCountForDragAndDrop: 2,
   maxCsvContributorsCount: 20,
+  persistentStorage: {
+    prefix: 'thoth_app',
+    activePublisherIdKey: 'activePublisherIdKey',
+  },
 };
