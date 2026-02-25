@@ -1,9 +1,8 @@
-import EditSquareIcon from '@mui/icons-material/EditSquare';
-import PersonIcon from '@mui/icons-material/Person';
 import PlusOneIcon from '@mui/icons-material/PlusOne';
 import TranslateIcon from '@mui/icons-material/Translate';
 import UpdateIcon from '@mui/icons-material/Update';
 
+import { ContributorsChip } from '@/src/entities/contributor/ui';
 import { WorkStatusChip } from '@/src/entities/work';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { convertOptionToString, convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared';
@@ -27,12 +26,18 @@ type WorkCardListItemProps = {
 export const WorkCardListItem = (props: WorkCardListItemProps) => {
   const { work, createNewEdition, createTranslation, navigateToWork } = props;
 
-  const { id, reference, titles, status, type, contributorsNames, updatedAt, coverUrl } = work;
+  const { id, reference, titles, status, type, contributions, updatedAt, coverUrl } = work;
+
+  const contributorsNames = contributions
+    .filter((contribution) => contribution.isMain)
+    .map((contribution) => contribution.fullName);
 
   return (
     <CardListItem
       id={work.id}
       draggable={false}
+      onEdit={() => navigateToWork?.(id)}
+      ariaLabel="Navigate to work"
       actions={
         <ButtonGroup>
           <IconButton onClick={() => createNewEdition?.(work)}>
@@ -41,13 +46,10 @@ export const WorkCardListItem = (props: WorkCardListItemProps) => {
           <IconButton onClick={() => createTranslation?.(work)}>
             <TranslateIcon />
           </IconButton>
-          <IconButton onClick={() => navigateToWork?.(id)}>
-            <EditSquareIcon />
-          </IconButton>
         </ButtonGroup>
       }
     >
-      <div className="flex gap-2">
+      <div className="cardWithImageWrapper">
         <ImageWithFallback src={coverUrl ?? ''} alt="cover" width={100} height={150} className="max-h-[150px]" />
 
         <Typography variant="h2" className="flex flex-col gap-1 normal-case">
@@ -60,16 +62,8 @@ export const WorkCardListItem = (props: WorkCardListItemProps) => {
         </Typography>
       </div>
 
-      {contributorsNames.length > 0 && (
-        <ul>
-          {contributorsNames.map((name, index) => (
-            <Typography key={index} component="li" className="cardItem">
-              <PersonIcon fontSize="small" color="primary" />
-              {name}
-            </Typography>
-          ))}
-        </ul>
-      )}
+      <ContributorsChip contributors={contributorsNames} />
+
       <Typography className="cardItem">
         <UpdateIcon fontSize="small" color="primary" />
         {convertUpdatedAtToFormattedDate(updatedAt)}

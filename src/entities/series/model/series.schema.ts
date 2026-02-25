@@ -36,6 +36,7 @@ export const GET_SERIESES = graphql(`
         work {
           workId
           title
+          coverUrl
         }
       }
     }
@@ -69,6 +70,7 @@ export const GET_SERIES = graphql(`
         work {
           workId
           title
+          coverUrl
         }
       }
     }

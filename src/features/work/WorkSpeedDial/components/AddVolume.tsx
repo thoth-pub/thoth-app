@@ -52,6 +52,7 @@ export const AddVolume = (props: AddVolumeProps) => {
     status: WorkStatuses.enum.Forthcoming,
     edition: 1,
     volumesCount: 0,
+    covers: [],
   };
 
   const { createSet } = useCreateSet();

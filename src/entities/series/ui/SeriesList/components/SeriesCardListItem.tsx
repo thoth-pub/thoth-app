@@ -1,8 +1,8 @@
-import DescriptionSharpIcon from '@mui/icons-material/DescriptionSharp';
 import UpdateIcon from '@mui/icons-material/Update';
 
+import BooksChip from '@/src/features/books/BooksChip/BooksChip';
 import { convertUpdatedAtToFormattedDate } from '@/src/shared';
-import { ButtonGroup, CardListItem, DeleteButton, EditButton, TranslatedContent, Typography } from '@/src/shared/ui';
+import { CardListItem, DeleteButton, LandingPagesGallery, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { SeriesEntity } from '../../../model/series.types';
 
@@ -21,48 +21,34 @@ export const SeriesCardListItem = (props: SeriesCardListItemProps) => {
   const { id, name, type, issnPrint, issnDigital, description, updatedAt, imprintId, imprintName, url, issues } =
     series;
 
+  const images = issues.map((issue) => issue.coverUrl).filter((coverUrl) => coverUrl.length > 0);
+
+  const handleEdit = () => {
+    if (!onEdit) return;
+
+    onEdit({ id, name, type, issnPrint, issnDigital, description, updatedAt, imprintId, imprintName, url, issues });
+  };
+
   return (
     <CardListItem
       id={series.id}
       draggable={false}
       editing={editing}
       form={form}
-      actions={
-        <ButtonGroup>
-          <EditButton
-            disabled={disabledControls}
-            onClick={() =>
-              onEdit?.({
-                id,
-                name,
-                type,
-                issnPrint,
-                issnDigital,
-                description,
-                updatedAt,
-                imprintId,
-                imprintName,
-                url,
-                issues,
-              })
-            }
-          />
-          <DeleteButton onClick={() => onDelete?.(series.id)} />
-        </ButtonGroup>
-      }
+      editDisabled={disabledControls}
+      onEdit={handleEdit}
+      ariaLabel="Edit series"
+      actions={<DeleteButton onClick={() => onDelete?.(id)} />}
     >
-      <Typography variant="h2" className="cardItem normal-case">
-        {name}
-      </Typography>
+      <div className="cardWithImageWrapper">
+        <LandingPagesGallery images={images} />
+        <Typography variant="h2" className="cardItem normal-case">
+          {name} <BooksChip booksCount={issues.length} />
+        </Typography>
+      </div>
       <Typography className="cardItem">
         {<TranslatedContent content={type.toLowerCase().replace('_', ' ')} />}
       </Typography>
-      {description.length > 0 && (
-        <Typography className="cardItem">
-          <DescriptionSharpIcon fontSize="small" color="primary" className="mb-auto" />
-          {description}
-        </Typography>
-      )}
       <Typography className="cardItem">{issnPrint && issnPrint.length > 0 ? issnPrint : issnDigital}</Typography>
       <Typography className="cardItem">
         <UpdateIcon fontSize="small" color="primary" />

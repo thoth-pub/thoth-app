@@ -35,6 +35,7 @@ export class SeriesDtoMapper implements BaseMapper<SeriesEntity, SeriesDto> {
         workId: issue.work.workId,
         title: issue.work.title,
         seriesId: seriesId,
+        coverUrl: issue.work.coverUrl ?? '',
       })),
     };
   }

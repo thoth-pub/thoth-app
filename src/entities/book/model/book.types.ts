@@ -15,7 +15,6 @@ export type BookEntity = {
   titles: TitleEntity[];
   type: WorkType;
   updatedAt: string;
-  contributorsNames: string[];
   doi: string;
   publisherName: string;
   imprintId: string;

@@ -49,6 +49,7 @@
     "react-dom": "19.2.1",
     "react-hook-form": "^7.61.1",
     "react-i18next": "^16.0.0",
+    "react-image-gallery": "^2.1.1",
     "react-use": "^17.6.0",
     "remove-markdown": "^0.6.2",
     "roman-numerals": "^0.3.2",

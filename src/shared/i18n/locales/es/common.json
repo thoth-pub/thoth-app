@@ -147,5 +147,6 @@
   "docx": "DOCX",
   "fiction book": "Fictionbook",
   "mp3": "MP3",
-  "wav": "WAV"
+  "wav": "WAV",
+  "book": "libro"
 }

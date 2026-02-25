@@ -1,0 +1,13 @@
+.image-gallery-left-nav,
+.image-gallery-right-nav {
+  color: var(--color-primary);
+  padding-left: 0.1rem;
+  padding-right: 0.1rem;
+  padding-top: 0;
+  padding-bottom: 0;
+  width: 1rem;
+
+  &:hover {
+    color: var(--color-primary);
+  }
+}

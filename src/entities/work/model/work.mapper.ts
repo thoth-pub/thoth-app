@@ -79,7 +79,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       titles: titles.map(this.toEntityTitle),
       abstracts: abstracts.map(this.toEntityAbstract),
       updatedAt,
-      contributorsNames: contributions.map((contribution) => contribution.fullName),
       doi,
       lccn: lccn ?? '',
       oclc: oclc ?? '',

@@ -223,6 +223,9 @@
   .cardItem {
     @apply flex items-center gap-1;
   }
+  .cardWithImageWrapper {
+    @apply flex items-start gap-2;
+  }
 }
 
 @layer utilities {

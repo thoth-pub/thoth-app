@@ -24,6 +24,7 @@ export { default as EditButton } from './core/EditButton/EditButton';
 export { default as FavoriteButton } from './core/FavoriteButton/FavoriteButton';
 export { default as FormHelperText } from './core/FormHelperText/FormHelperText';
 export { default as Grid } from './core/Grid/Grid';
+export { default as Icon } from './core/Icon/Icon';
 export { default as IconButton } from './core/IconButton/IconButton';
 export { default as ImageWithFallback } from './core/ImageWithFallback/ImageWithFallback';
 export { default as Indicator } from './core/Indicator/Indicator';
@@ -68,7 +69,6 @@ export { default as DashboardGridItem } from './dashboard/DashboardGridItem/Dash
 export { default as TableFormsHeader } from './forms/TableFormsHeader/TableFormsHeader';
 export { default as TableFormsWrapper } from './forms/TableFormsWrapper/TableFormsWrapper';
 export { default as TableNewEntityFormWrapper } from './forms/TableNewEntityFormWrapper/TableNewEntityFormWrapper';
-
 // Forms
 export { default as TranslatedContent } from './core/TranslatedContent/TranslatedContent';
 export { default as AutocompleteField, type AutocompleteFieldProps } from './forms/AutocompleteField/AutocompleteField';
@@ -98,3 +98,5 @@ export { default as PageHeader } from './layout/PageHeader/PageHeader';
 export { default as RecommendedSection } from './layout/RecommendedSection/RecommendedSection';
 // Tables
 export { default as TableFormWrapper } from './tables/TableFormWrapper/TableFormWrapper';
+// Sliders
+export { default as LandingPagesGallery } from './sliders/LandingPagesGallery/LandingPagesGallery';

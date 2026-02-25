@@ -47,7 +47,6 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
       titles: titles.map(this.toEntityTitle),
       type: workType,
       updatedAt,
-      contributorsNames: contributions.map((contribution) => contribution.fullName),
       doi,
       publisherName,
       imprintId,

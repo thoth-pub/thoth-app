@@ -4,10 +4,8 @@ import StarIcon from '@mui/icons-material/Star';
 
 import { convertOptionToString, convertOrchidIdToText, convertRorIdToText } from '@/src/shared';
 import {
-  ButtonGroup,
   CardListItem,
   DeleteButton,
-  EditButton,
   Indicator,
   LinkTooltip,
   MarkdownPreview,
@@ -50,12 +48,10 @@ export const ContributionListItem = (props: ContributionListItemProps) => {
       draggable={draggable}
       editing={editing}
       form={form}
-      actions={
-        <ButtonGroup>
-          <EditButton onClick={() => onEdit?.(id)} disabled={editDisabled} />
-          <DeleteButton onClick={() => onDelete?.(id)} />
-        </ButtonGroup>
-      }
+      editDisabled={editDisabled}
+      onEdit={() => onEdit?.(id)}
+      ariaLabel="Edit contribution"
+      actions={<DeleteButton onClick={() => onDelete?.(id)} />}
     >
       <Typography className="cardItem normal-case" variant="h2">
         {fullName}

@@ -14,6 +14,13 @@ const LinkTooltip = ({ link, linkText, children }: LinkTooltipProps) => {
     <Tooltip
       arrow
       className="shrink-0 shadow-2xl"
+      slotProps={{
+        popper: {
+          onClick(e) {
+            e.stopPropagation();
+          },
+        },
+      }}
       title={
         <div className="flex items-center gap-1">
           <Link href={link} target="_blank" rel="noopener noreferrer" className="max-w-[100px] truncate">

@@ -1,8 +1,7 @@
 import AutoStoriesIcon from '@mui/icons-material/AutoStories';
-import BookIcon from '@mui/icons-material/Book';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
-import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 
+import { ContributorsChip } from '@/src/entities/contributor/ui';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { getMainTitle, getPagesPlaceholder } from '@/src/shared';
 import {
@@ -10,7 +9,6 @@ import {
   CardListItem,
   Checkbox,
   DeleteButton,
-  EditButton,
   IconButton,
   MarkdownRenderer,
   Typography,
@@ -28,8 +26,6 @@ type ChaptersListItemProps = {
   onCopy?: (id: string) => void;
 };
 
-const actionsClassName = 'opacity-0 group-hover:opacity-100';
-
 export const ChaptersListItem = (props: ChaptersListItemProps) => {
   const {
     chapter,
@@ -43,7 +39,11 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
     onCopy,
   } = props;
 
+  const actionsClassName = `opacity-0 ${!disableControls && 'group-hover:opacity-100'}`;
+
   const { id, titles, pageCount, contributions, firstPage, lastPage } = chapter;
+
+  const contributorsNames = contributions.map((contribution) => contribution.fullName);
 
   const handleSelect = () => {
     if (selected) {
@@ -58,6 +58,9 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
       id={id}
       draggable={draggable}
       actionsClassName="opacity-100"
+      editDisabled={disableControls}
+      onEdit={() => onEdit?.(id)}
+      ariaLabel="Edit chapter"
       actions={
         <ButtonGroup>
           <Checkbox
@@ -70,25 +73,16 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
           <IconButton onClick={() => onCopy?.(id)} disabled={disableControls} className={actionsClassName}>
             <ContentCopyIcon />
           </IconButton>
-          <EditButton onClick={() => onEdit?.(id)} disabled={disableControls} className={actionsClassName} />
           <DeleteButton onClick={() => onDelete?.(id)} className={actionsClassName} />
         </ButtonGroup>
       }
     >
       <Typography variant="h2" className="cardItem normal-case">
-        <BookIcon fontSize="small" color="primary" />
         <MarkdownRenderer markdown={getMainTitle(titles).title} />
       </Typography>
-      {contributions.length > 0 && (
-        <ul>
-          {contributions.map((contribution) => (
-            <Typography key={contribution.id} component="li" className="cardItem">
-              <PersonOutlineIcon fontSize="small" color="primary" />
-              {contribution.fullName}
-            </Typography>
-          ))}
-        </ul>
-      )}
+
+      <ContributorsChip contributors={contributorsNames} />
+
       {pageCount > 0 && (
         <Typography className="cardItem">
           <AutoStoriesIcon fontSize="small" color="primary" />

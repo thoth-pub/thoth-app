@@ -165,6 +165,22 @@ const EditSeriesForm = ({
               name={SERIES_IMPRINT.name}
               id={SERIES_IMPRINT.name}
               select
+              slotProps={{
+                select: {
+                  MenuProps: {
+                    sx: {
+                      '& .MuiMenuItem-root': {
+                        textTransform: 'none',
+                      },
+                    },
+                  },
+                },
+              }}
+              sx={{
+                '& .MuiInputBase-input': {
+                  textTransform: 'none',
+                },
+              }}
               options={imprintOptions}
               helperText={IMPRINT_HELPER_TEXT}
               isHelperTextVisible={isHelperTextVisible}

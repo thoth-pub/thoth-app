@@ -28,7 +28,11 @@ export type SeriesDto = Pick<
   imprint: {
     imprintName: string;
   };
-  issues: { issueId: string; issueOrdinal: number; work: { workId: string; title: string } }[];
+  issues: {
+    issueId: string;
+    issueOrdinal: number;
+    work: { workId: string; title: string; coverUrl?: string | null };
+  }[];
 };
 
 export type SeriesType = z.infer<typeof SeriesTypeEnum>;
@@ -52,6 +56,7 @@ export type SeriesEntity = {
     workId: string;
     title: string;
     seriesId: SeriesId;
+    coverUrl: string;
   }[];
 };
 

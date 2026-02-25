@@ -78,6 +78,12 @@ const EditLocations = (props: EditLocationsProps) => {
 
   const isThothLocationSelected = locations.some((location) => location.locationPlatform === LocationPlatform.Thoth);
 
+  const sortedLocations = locations.sort((a, b) => {
+    if (a.locationPlatform === LocationPlatform.Thoth) return -1;
+    if (b.locationPlatform === LocationPlatform.Thoth) return 1;
+    return 0;
+  });
+
   return (
     <>
       <ContentWrapper>
@@ -93,7 +99,7 @@ const EditLocations = (props: EditLocationsProps) => {
 
       {isLocationsFilled && (
         <ul className="flex w-full flex-col gap-(--default-gap)">
-          {locations.map((location) =>
+          {sortedLocations.map((location) =>
             activeLocation?.id === location.id ? (
               <LocationForm
                 key={location.id}
@@ -109,7 +115,7 @@ const EditLocations = (props: EditLocationsProps) => {
                   label={
                     <Typography
                       component="span"
-                      className={`flex items-center gap-1 ${location.locationPlatform === LocationPlatform.Thoth ? 'font-economica' : ''}`}
+                      className={`flex items-center gap-1 ${location.locationPlatform === LocationPlatform.Thoth ? 'font-economica uppercase' : ''}`}
                     >
                       <>
                         {location.locationPlatform === LocationPlatform.Thoth && (

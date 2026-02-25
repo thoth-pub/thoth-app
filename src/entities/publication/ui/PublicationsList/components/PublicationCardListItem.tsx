@@ -1,14 +1,6 @@
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import {
-  ButtonGroup,
-  CardListItem,
-  Chip,
-  DeleteButton,
-  EditButton,
-  TranslatedContent,
-  Typography,
-} from '@/src/shared/ui';
+import { CardListItem, Chip, DeleteButton, Icon, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { PublicationEntity } from '../../../model/publication.types';
 
@@ -31,21 +23,41 @@ export const PublicationCardListItem = (props: PublicationCardListItemProps) => 
 
   return (
     <CardListItem
-      key={id}
       id={id}
       editing={editing}
       form={form}
-      actions={
-        <ButtonGroup>
-          <EditButton onClick={() => onEdit?.(id)} disabled={editDisabled} />
-          <DeleteButton onClick={() => onDelete?.(id)} />
-        </ButtonGroup>
-      }
+      editDisabled={editDisabled}
+      onEdit={() => onEdit?.(id)}
+      ariaLabel="Edit publication"
+      actions={<DeleteButton onClick={() => onDelete?.(id)} />}
     >
       <Typography variant="h2" className="normal-case">
         {<TranslatedContent content={type.toLowerCase().replace('_', ' ')} />}
       </Typography>
-      {isbn.length > 0 && <Typography>{isbn}</Typography>}
+      {isbn.length > 0 && (
+        <Typography className="cardItem">
+          <Icon color="primary" fontSize="small">
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 5v14" />
+              <path d="M8 5v14" />
+              <path d="M12 5v14" />
+              <path d="M17 5v14" />
+              <path d="M21 5v14" />
+            </svg>
+          </Icon>
+          {isbn}
+        </Typography>
+      )}
       <div className="flex items-center gap-2">
         {[width, widthIn, height, heightIn, depth, depthIn].some((value) => value) && (
           <Chip label="mm/in" size="small" className="lowercase" />

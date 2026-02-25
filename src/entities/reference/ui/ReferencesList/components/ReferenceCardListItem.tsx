@@ -1,6 +1,4 @@
-import ArticleIcon from '@mui/icons-material/Article';
-
-import { ButtonGroup, CardListItem, DeleteButton, DoiPreview, EditButton, Typography } from '@/src/shared/ui';
+import { CardListItem, DeleteButton, DoiPreview, Typography } from '@/src/shared/ui';
 
 import { ReferenceEntity } from '../../../model/reference.types';
 
@@ -25,15 +23,12 @@ export const ReferenceCardListItem = (props: ReferenceCardListItemProps) => {
       draggable={draggable}
       editing={editing}
       form={form}
-      actions={
-        <ButtonGroup>
-          <EditButton onClick={() => onEdit?.(id)} disabled={editDisabled} />
-          <DeleteButton onClick={() => onDelete?.(id)} />
-        </ButtonGroup>
-      }
+      editDisabled={editDisabled}
+      onEdit={() => onEdit?.(id)}
+      ariaLabel="Edit reference"
+      actions={<DeleteButton onClick={() => onDelete?.(id)} />}
     >
-      <Typography variant="h2" className="cardItem normal-case">
-        <ArticleIcon fontSize="small" color="primary" />
+      <Typography className="cardItem normal-case">
         {orderNumber} {unstructuredCitation}
       </Typography>
       <Typography>{doi && doi.length > 0 && <DoiPreview doi={doi} />}</Typography>

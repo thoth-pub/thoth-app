@@ -9,6 +9,16 @@ export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
   toEntity(dto: SetDto): SetEntity {
     const { workId, workType, titles = [], updatedAt, imprintId, workStatus, edition, relations } = dto;
 
+    const covers: string[] = [];
+
+    for (const relation of relations) {
+      const { coverUrl } = relation.relatedWork;
+
+      if (!coverUrl || coverUrl.length === 0) continue;
+
+      covers.push(coverUrl);
+    }
+
     return {
       id: workId,
       type: workType,
@@ -18,6 +28,7 @@ export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
       status: workStatus,
       edition: edition ?? 1,
       volumesCount: relations.length ?? 0,
+      covers,
     };
   }
 

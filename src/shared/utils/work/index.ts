@@ -43,7 +43,6 @@ export const getDefaultWork = (data?: Partial<WorkEntity>): WorkEntity => {
     edition: 1,
     id: appConfig.defaultId,
     updatedAt: '',
-    contributorsNames: [],
     doi: '',
     lccn: '',
     oclc: '',

@@ -17,10 +17,34 @@ type CardListItemProps = Partial<{
   draggable: boolean;
   editing: boolean;
   form: Readonly<React.ReactNode>;
+  editDisabled?: boolean;
+  ariaLabel?: string;
+  onEdit?: () => void;
 }>;
 
 const CardListItem = (props: CardListItemProps) => {
-  const { id = '', children, actions, actionsClassName = '', draggable = false, editing = false, form } = props;
+  const {
+    id = '',
+    children,
+    actions,
+    actionsClassName = '',
+    draggable = false,
+    editing = false,
+    form,
+    editDisabled = false,
+    ariaLabel = 'Edit',
+    onEdit,
+  } = props;
+
+  const handleActionsClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    e.stopPropagation();
+  };
+
+  const handleEdit = () => {
+    if (editDisabled || !onEdit) return;
+
+    onEdit();
+  };
 
   return (
     <>
@@ -29,16 +53,29 @@ const CardListItem = (props: CardListItemProps) => {
           {({ attributes, listeners, style, ref }) => (
             <Card
               elevation={1}
-              className="group border border-transparent bg-(--color-background-alt) hover:border-(--color-hover-border) hover:bg-(--color-hover-alt)"
+              className={`group border border-transparent bg-(--color-background-alt) ${editDisabled ? 'opacity-50' : 'cursor-pointer hover:border-(--color-hover-border) hover:bg-(--color-hover-alt)'}`}
               ref={ref}
               style={style}
               {...attributes}
+              onClick={handleEdit}
+              role="button"
+              aria-label={ariaLabel}
             >
               <CardContent className="p-4">
                 <div className="cardItem">
-                  {draggable && <DragIndicatorIcon color="primary" fontSize="small" {...listeners} />}
+                  {draggable && !editDisabled && (
+                    <div onClick={handleActionsClick}>
+                      <DragIndicatorIcon className="cursor-move" color="primary" fontSize="small" {...listeners} />
+                    </div>
+                  )}
                   <div className="flex flex-col gap-2">{children}</div>
-                  <CardActions className={mergeStyles('ml-auto opacity-0 group-hover:opacity-100', actionsClassName)}>
+                  <CardActions
+                    onClick={handleActionsClick}
+                    className={mergeStyles(
+                      `ml-auto opacity-0 ${!editDisabled && 'group-hover:opacity-100'}`,
+                      actionsClassName,
+                    )}
+                  >
                     {actions}
                   </CardActions>
                 </div>

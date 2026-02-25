@@ -30,6 +30,7 @@ export type SetEntity = {
   status: WorkStatus;
   edition: number;
   volumesCount: number;
+  covers: string[];
 };
 
 export type SetWorkEntity = {

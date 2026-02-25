@@ -54,7 +54,6 @@ export type WorkEntity = {
   generalNote: string;
   type: WorkType;
   updatedAt: string;
-  contributorsNames: string[];
   doi: string;
   lccn: string;
   oclc: string;
