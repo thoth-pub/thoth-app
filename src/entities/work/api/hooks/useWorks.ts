@@ -37,6 +37,7 @@ const useWorks = (props: UseWorksProps) => {
     data: works = [],
     error,
     isLoading,
+    isFetched,
   } = useQuery({
     queryKey: [QueryKeys.works, ...publishersIds, offset, limit, direction, filter, workStatus, workTypes, field],
     queryFn: () =>
@@ -44,7 +45,7 @@ const useWorks = (props: UseWorksProps) => {
     enabled: publishersIds.length > 0,
   });
 
-  return { works, error, loading: isLoading };
+  return { works, error, loading: isLoading, isFetched };
 };
 
 export default useWorks;

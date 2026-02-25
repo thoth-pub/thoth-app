@@ -1,7 +1,6 @@
 'use client';
 
-import { Direction, WorkField, WorkStatus } from '@/gql/graphql';
-import { SectionWrapper, useBooks } from '@/src/entities/book';
+import { SectionWrapper, useLatestPublishedBooks } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { TranslatedContent } from '@/src/shared/ui';
@@ -12,13 +11,7 @@ const RecentlyPublishedBooks = () => {
   const { activePublisher } = usePublisherStateMachine();
   const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
-  const { books } = useBooks({
-    publishersIds,
-    workStatus: WorkStatus.Active,
-    limit: 3,
-    direction: Direction.Desc,
-    field: WorkField.UpdatedAt,
-  });
+  const { books } = useLatestPublishedBooks(publishersIds);
 
   if (books.length === 0) return null;
 

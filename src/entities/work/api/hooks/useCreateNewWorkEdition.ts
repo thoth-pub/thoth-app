@@ -22,6 +22,8 @@ const useCreateNewWorkEdition = () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.booksCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.forthcomingBooksCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.publishedBooksCount] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.latestUpdatedBooks] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.latestPublishedBooks] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.works] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.worksCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });

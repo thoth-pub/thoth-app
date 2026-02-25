@@ -9,13 +9,14 @@ import { TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { SetsHeader } from './SetsHeader';
-import { useSetsTable } from './useSetsTable';
+import { useSetsList } from './useSetsList';
 
 const Sets = () => {
   const { activeSet } = useSetStateMachine();
 
   const {
     loading,
+    isFetched,
     sets,
     activePage,
     totalPagesCount,
@@ -26,9 +27,11 @@ const Sets = () => {
     changeDirection,
     changeOrderBy,
     changePage,
-  } = useSetsTable();
+  } = useSetsList();
 
   const { isImprintEditable } = useActivePublisherPermissions();
+
+  console.log(isFetched, loading);
 
   return (
     <>
@@ -41,7 +44,7 @@ const Sets = () => {
         changeOrderBy={changeOrderBy}
       />
       <ContentSection>
-        {sets.length === 0 && !loading && (
+        {sets.length === 0 && isFetched && (
           <Typography component="span" className="flex h-full min-h-100 items-center justify-center">
             <TranslatedContent content="emptyTable" namespace={NAMESPACES.enum.sets} />
           </Typography>

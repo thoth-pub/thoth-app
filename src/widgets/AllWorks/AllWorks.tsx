@@ -12,6 +12,7 @@ import { useAllWorks } from './useAllWorks';
 const AllWorks = () => {
   const {
     loading,
+    isFetched,
     works,
     searchValue,
     setSearchValue,
@@ -51,7 +52,7 @@ const AllWorks = () => {
       />
       <ContentSection>
         <WorksCardList
-          loading={loading}
+          loading={!isFetched || loading}
           works={works}
           page={activePage}
           pagesCount={totalPagesCount}

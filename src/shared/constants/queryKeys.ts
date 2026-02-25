@@ -4,6 +4,8 @@ export const QueryKeys = {
   booksCount: 'booksCount',
   forthcomingBooksCount: 'forthcomingBooksCount',
   publishedBooksCount: 'publishedBooksCount',
+  latestUpdatedBooks: 'latestUpdatedBooks',
+  latestPublishedBooks: 'latestPublishedBooks',
   // WORKS
   work: 'work',
   works: 'works',

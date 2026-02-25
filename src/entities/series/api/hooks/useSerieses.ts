@@ -31,13 +31,14 @@ const useSerieses = (props: UseSeriesProps) => {
     data: serieses = [],
     error,
     isLoading,
+    isFetched,
   } = useQuery({
     queryKey: [QueryKeys.serieses, ...publishersIds, filter, offset, limit, direction, field, seriesType],
     queryFn: () => seriesService.getSerieses({ publishersIds, offset, limit, filter, direction, field, seriesType }),
     enabled: publishersIds.length > 0,
   });
 
-  return { serieses, error, loading: isLoading };
+  return { serieses, error, loading: isLoading, isFetched };
 };
 
 export default useSerieses;

@@ -2,37 +2,38 @@
 
 import { useState } from 'react';
 
-import { Direction, WorkField } from '@/gql/graphql';
+import { Direction, SeriesField, SeriesType } from '@/gql/graphql';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import useSets from '@/src/entities/sets/api/hooks/useSets';
-import useSetsCount from '@/src/entities/sets/api/hooks/useSetsCount';
+import { useSerieses, useSeriesesCount } from '@/src/entities/series';
 import { appConfig } from '@/src/shared';
 import { useDebouncedValue } from '@/src/shared/hooks';
 
 const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
 
-export const useSetsTable = () => {
+export const useSeriesList = () => {
   const { activePublisher } = usePublisherStateMachine();
   const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
+  const [seriesType, setSeriesType] = useState<SeriesType | 'All'>('All');
   const [activePage, setActivePage] = useState(1);
-  const [direction, setDirection] = useState(Direction.Asc);
-  const [orderBy, setOrderBy] = useState(WorkField.UpdatedAt);
+  const [direction, setDirection] = useState<Direction>(Direction.Asc);
+  const [orderBy, setOrderBy] = useState(SeriesField.UpdatedAt);
   const [searchValue, setSearchValue] = useState('');
 
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
 
-  const { setsCount } = useSetsCount(publishersIds);
-  const { sets, loading } = useSets({
+  const { seriesCount } = useSeriesesCount(publishersIds);
+  const { serieses, loading, isFetched } = useSerieses({
     publishersIds,
     offset: (activePage - 1) * ITEMS_PER_PAGE,
     limit: ITEMS_PER_PAGE,
     direction,
     filter: debouncedValue,
+    seriesType: seriesType === 'All' ? undefined : seriesType,
     field: orderBy,
   });
 
-  const totalPagesCount = Math.ceil(setsCount / ITEMS_PER_PAGE);
+  const totalPagesCount = Math.ceil(seriesCount / ITEMS_PER_PAGE);
 
   const changePage = (value: number) => {
     setActivePage(value);
@@ -42,14 +43,18 @@ export const useSetsTable = () => {
     setDirection(value);
   };
 
-  const changeOrderBy = (value: WorkField) => {
-    setOrderBy(value);
+  const changeSeriesType = (value: SeriesType | 'All') => {
+    setSeriesType(value);
   };
 
+  const changeOrderBy = (value: SeriesField) => {
+    setOrderBy(value);
+  };
   return {
     // Data
     loading,
-    sets,
+    isFetched,
+    serieses,
 
     // Search
     searchValue,
@@ -63,6 +68,8 @@ export const useSetsTable = () => {
     // Filter
     direction,
     changeDirection,
+    seriesType,
+    changeSeriesType,
     orderBy,
     changeOrderBy,
   };

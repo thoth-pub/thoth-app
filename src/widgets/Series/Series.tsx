@@ -5,11 +5,12 @@ import { EditSeries } from '@/src/features';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 
 import { SeriesHeader } from './SeriesHeader';
-import { useSeriesTable } from './useSeriesTable';
+import { useSeriesList } from './useSeriesList';
 
 const Series = () => {
   const {
     loading,
+    isFetched,
     serieses,
     activePage,
     totalPagesCount,
@@ -22,7 +23,7 @@ const Series = () => {
     changeSeriesType,
     changeDirection,
     changeOrderBy,
-  } = useSeriesTable();
+  } = useSeriesList();
 
   return (
     <>
@@ -38,7 +39,7 @@ const Series = () => {
       />
       <ContentSection>
         <SeriesList
-          loading={loading}
+          loading={!isFetched || loading}
           serieses={serieses}
           page={activePage}
           pagesCount={totalPagesCount}

@@ -41,7 +41,7 @@ export const useAllWorks = () => {
   };
 
   const { workCount } = useWorksCount(baseProps);
-  const { works, loading } = useWorks({
+  const { works, loading, isFetched } = useWorks({
     offset: (activePage - 1) * ITEMS_PER_PAGE,
     limit: ITEMS_PER_PAGE,
     direction,
@@ -90,6 +90,7 @@ export const useAllWorks = () => {
   return {
     // Data
     loading,
+    isFetched,
     works,
 
     // Search

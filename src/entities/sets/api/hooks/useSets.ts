@@ -29,13 +29,14 @@ const useSets = (props: UseSeriesProps) => {
     data: sets = [],
     error,
     isLoading,
+    isFetched,
   } = useQuery({
     queryKey: [QueryKeys.sets, ...publishersIds, filter, offset, limit, direction, field],
     queryFn: () => setService.getSets({ publishersIds, offset, limit, filter, direction, field }),
     enabled: publishersIds.length > 0,
   });
 
-  return { sets, error, loading: isLoading };
+  return { sets, error, loading: isLoading, isFetched };
 };
 
 export default useSets;
