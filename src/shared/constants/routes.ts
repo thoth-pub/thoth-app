@@ -17,7 +17,6 @@ export const ROUTES = {
   PROFILE: '/admin/profile',
   NOT_FOUND: '/not-found',
   BOOKS_SETS: '/admin/sets',
-  UPLOAD_TO_S3: '/api/upload-to-s3',
   METADATA_FORMATS: '/api/metadata/formats',
   METADATA_SPECIFICATIONS: (specification: string, workId: WorkId) =>
     `/api/metadata/specifications/${specification}/work/${workId}`,

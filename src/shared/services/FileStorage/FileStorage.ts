@@ -5,7 +5,7 @@ import { PublicationId } from '@/src/entities/publication/model/publication.type
 import { WorkId } from '@/src/entities/work/model/work.types';
 
 import { GraphqlService } from '../../api/graphqlService';
-import { HTTP_METHODS, ROUTES } from '../../constants';
+import { HTTP_METHODS } from '../../constants';
 import { COMPLETE_FILE_UPLOAD, INIT_FRONT_COVER_UPLOAD, INIT_PUBLICATION_FILE_UPLOAD } from './mutations';
 
 export class FileStorage {
@@ -79,17 +79,13 @@ export class FileStorage {
       {} as Record<string, string>,
     );
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('uploadUrl', url);
-    formData.append('headers', JSON.stringify(headersObject));
+    const fileBuffer = await file.arrayBuffer();
 
-    const response = await fetch(ROUTES.UPLOAD_TO_S3, {
-      method: HTTP_METHODS.POST,
-      body: formData,
+    await fetch(url, {
+      method: HTTP_METHODS.PUT,
+      headers: headersObject,
+      body: fileBuffer,
     });
-
-    return response.json();
   }
 
   async completeFileUpload(fileUploadId: string): Promise<string> {
