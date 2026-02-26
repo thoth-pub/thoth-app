@@ -39,7 +39,7 @@ export const SetsListCardItem = (props: SetsListCardItemProps) => {
     >
       <div className="cardWithImageWrapper">
         <LandingPagesGallery images={covers} />
-        <Typography variant="h2" className="cardItem normal-case">
+        <Typography variant="h2" className="cardItem normal-case flex flex-col gap-1 items-start">
           <MarkdownRenderer markdown={getMainTitle(titles).title} />
           <BooksChip booksCount={volumesCount} />
         </Typography>

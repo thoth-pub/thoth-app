@@ -66,7 +66,6 @@ const EditLicense = (props: EditLicenseProps) => {
               control={control}
               name={LICENSE.name}
               id={LICENSE.name}
-              select
               options={licenseOptions}
               helperText={HELPER_TEXT.LICENSE}
               isHelperTextVisible={isHelperTextVisible}

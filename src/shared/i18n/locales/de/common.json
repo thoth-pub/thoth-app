@@ -148,5 +148,8 @@
   "fiction book": "Fictionbook",
   "mp3": "MP3",
   "wav": "WAV",
-  "book": "titel"
+  "book": "titel",
+  "books": "Titel",
+  "volume": "volume",
+  "volumes": "volumes"
 }

@@ -39,7 +39,7 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
   return (
     <ContentSection>
       <div className="flex items-center justify-between gap-2">
-        <Typography variant="h1" className="pl-3">
+        <Typography variant="h1">
           <TranslatedContent content="series" namespace={NAMESPACES.enum.navigation} />
         </Typography>
         <TextField

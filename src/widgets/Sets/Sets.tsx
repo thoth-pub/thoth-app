@@ -31,8 +31,6 @@ const Sets = () => {
 
   const { isImprintEditable } = useActivePublisherPermissions();
 
-  console.log(isFetched, loading);
-
   return (
     <>
       <SetsHeader

@@ -100,7 +100,6 @@ export const FormFields = (props: FormFieldsProps) => {
                   control={control}
                   name={getPlatformFieldName(index)}
                   id={getPlatformFieldName(index)}
-                  select
                   options={locationPlatformOptions}
                   helperText={LOCATION_PLATFORM}
                   isHelperTextVisible={isHelperTextVisible}

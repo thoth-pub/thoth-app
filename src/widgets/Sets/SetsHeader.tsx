@@ -37,7 +37,7 @@ export const SetsHeader = (props: SetsHeaderProps) => {
   return (
     <ContentSection>
       <div className="flex items-center justify-between gap-2">
-        <Typography variant="h1" className="pl-3">
+        <Typography variant="h1">
           <TranslatedContent content="sets" namespace={NAMESPACES.enum.navigation} />
         </Typography>
         <TextField

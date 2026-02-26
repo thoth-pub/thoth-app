@@ -85,12 +85,12 @@ export const CoverForm = (props: BaseEditSectionProps) => {
               fill
             />
           )}
-          {work.coverUrl && (
-            <IconButton className="absolute top-0 right-0 h-12 w-12 p-0" onClick={handleCopyToClipboard}>
-              <ContentCopyIcon color="primary" />
-            </IconButton>
-          )}
         </button>
+        {work.coverUrl && (
+          <IconButton className="absolute top-0 right-0 h-12 w-12 p-0" onClick={handleCopyToClipboard}>
+            <ContentCopyIcon color="primary" />
+          </IconButton>
+        )}
       </div>
       <Modal open={isOpen}>
         <ModalWrapper>

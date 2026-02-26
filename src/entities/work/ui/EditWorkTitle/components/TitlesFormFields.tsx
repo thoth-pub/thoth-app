@@ -108,7 +108,8 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
                   name={getTitleFieldName(index)}
                   id={getTitleFieldName(index)}
                   className="w-full"
-                  helperText={isHelperTextVisible ? t(WORK_TITLE_HELPER_TEXT) : ''}
+                  isHelperTextVisible={isHelperTextVisible}
+                  helperText={t(WORK_TITLE_HELPER_TEXT)}
                   disableLineBreaks
                 />
                 {index > 0 && <DeleteButton onClick={() => handleRemove(index)} />}
@@ -120,7 +121,8 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
                 control={control}
                 name={getSubtitleFieldName(index)}
                 id={getSubtitleFieldName(index)}
-                helperText={isHelperTextVisible ? t(SUBTITLE_HELPER_TEXT) : ''}
+                isHelperTextVisible={isHelperTextVisible}
+                helperText={t(SUBTITLE_HELPER_TEXT)}
                 disableLineBreaks
               />
               <br />

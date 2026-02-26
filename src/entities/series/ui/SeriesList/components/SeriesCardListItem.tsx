@@ -42,8 +42,8 @@ export const SeriesCardListItem = (props: SeriesCardListItemProps) => {
     >
       <div className="cardWithImageWrapper">
         <LandingPagesGallery images={images} />
-        <Typography variant="h2" className="cardItem normal-case">
-          {name} <BooksChip booksCount={issues.length} />
+        <Typography variant="h2" className="cardItem flex flex-col items-start gap-1 normal-case">
+          {name} <BooksChip booksCount={issues.length} itemPlaceholder="volume" itemsPlaceholder="volumes" />
         </Typography>
       </div>
       <Typography className="cardItem">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 import {
   useCreateWorkChapter,
@@ -29,13 +29,6 @@ export const useEditWorkChapters = (workId: WorkId) => {
   const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
 
   const { deleteChapter: deleteChapterMutation, deleteChapters: deleteChaptersMutation } = useDeleteChapter();
-
-  useEffect(() => {
-    if (chapters.length > 0) return;
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setSelectedChapters([]);
-  }, [chapters]);
 
   const isMultipleChapters = chapters.length >= 2;
   const isMultipleChaptersSelected = selectedChapters.length > 1;

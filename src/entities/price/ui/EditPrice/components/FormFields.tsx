@@ -107,7 +107,6 @@ export const FormFields = (props: FormFieldsProps) => {
                     control={control}
                     name={getCurrencyFieldName(index)}
                     fullWidth
-                    select
                     options={currencyOptions}
                     helperText={PRICE_CURRENCY}
                     isHelperTextVisible={isHelperTextVisible}

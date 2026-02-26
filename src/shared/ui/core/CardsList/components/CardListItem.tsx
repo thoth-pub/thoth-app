@@ -72,7 +72,7 @@ const CardListItem = (props: CardListItemProps) => {
                   <CardActions
                     onClick={handleActionsClick}
                     className={mergeStyles(
-                      `ml-auto opacity-0 ${!editDisabled && 'group-hover:opacity-100'}`,
+                      `ml-auto opacity-0 *:cursor-auto ${!editDisabled && 'group-hover:opacity-100'}`,
                       actionsClassName,
                     )}
                   >

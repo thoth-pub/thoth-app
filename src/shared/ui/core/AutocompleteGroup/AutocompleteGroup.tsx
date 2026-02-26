@@ -9,7 +9,7 @@ const AutocompleteGroup = ({ group, children }: AutocompleteGroupProps) => {
   return (
     <li>
       <div className="text-center font-bold">{group}</div>
-      <div>{children}</div>
+      <ul>{children}</ul>
     </li>
   );
 };

@@ -31,7 +31,7 @@ const LinkTooltip = ({ link, linkText, children }: LinkTooltipProps) => {
       }
       placement="right"
     >
-      <div>{children}</div>
+      <span>{children}</span>
     </Tooltip>
   );
 };

@@ -34,11 +34,9 @@ export const WorksSpeedDial = (props: WorksSpeedDialProps) => {
     },
     {
       icon: (
-        <NextLink href={ROUTES.NEW_WORK} passHref>
-          <Link>
-            <AddIcon color="primary" />
-          </Link>
-        </NextLink>
+        <Link component={NextLink} href={ROUTES.NEW_WORK}>
+          <AddIcon color="primary" />
+        </Link>
       ),
       name: 'create',
     },

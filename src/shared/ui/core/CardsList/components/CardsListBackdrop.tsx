@@ -15,9 +15,6 @@ export const CardsListBackdrop = (props: CardsListBackdropProps) => {
     <Backdrop
       open={loading}
       className={mergeStyles('absolute h-full w-full bg-white/50', className)}
-      sx={(theme) => ({
-        zIndex: theme.zIndex.drawer + 1,
-      })}
     >
       <CircularProgress />
     </Backdrop>

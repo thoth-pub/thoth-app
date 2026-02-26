@@ -16,9 +16,10 @@ const ImageWithFallback = (props: ImageWithFallbackProps) => {
 
   return (
     <Image
+      suppressHydrationWarning
       alt={alt}
       onError={() => setIsError(true)}
-      src={isError ? fallback : src}
+      src={isError || src?.toString().length === 0 ? fallback : src}
       style={{ opacity: isError ? placeholderOpacity : 1 }}
       {...rest}
     />

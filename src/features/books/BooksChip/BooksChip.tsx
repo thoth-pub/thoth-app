@@ -1,12 +1,13 @@
-import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, TranslatedContent } from '@/src/shared/ui';
 
 type BooksChipProps = {
   booksCount: number;
+  itemPlaceholder?: string;
+  itemsPlaceholder?: string;
 };
 
 const BooksChip = (props: BooksChipProps) => {
-  const { booksCount } = props;
+  const { booksCount, itemPlaceholder = 'book', itemsPlaceholder = 'books' } = props;
 
   if (booksCount < 1) return null;
 
@@ -17,11 +18,7 @@ const BooksChip = (props: BooksChipProps) => {
       className="capitalize"
       label={
         <>
-          {booksCount}{' '}
-          <TranslatedContent
-            content={isMoreThanOne ? 'books' : 'book'}
-            namespace={isMoreThanOne ? NAMESPACES.enum.navigation : NAMESPACES.enum.common}
-          />
+          {booksCount} <TranslatedContent content={isMoreThanOne ? itemsPlaceholder : itemPlaceholder} />
         </>
       }
     />

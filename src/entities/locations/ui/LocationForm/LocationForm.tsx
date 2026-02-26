@@ -82,7 +82,6 @@ export const LocationForm = (props: LocationFormProps) => {
             control={control}
             name={PLATFORM.name}
             id={PLATFORM.name}
-            select
             options={locationPlatformOptions}
             helperText={LOCATION_PLATFORM}
             isHelperTextVisible={isHelperTextVisible}

@@ -38,16 +38,17 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <Providers>
-        <body
-          className={`${economica.variable} ${openSans.variable} m-auto flex h-dvh min-h-dvh max-w-(--max-width) flex-col px-5 py-2 antialiased xl:py-3`}
-        >
+    <html lang="en" suppressHydrationWarning>
+      <body
+        suppressHydrationWarning
+        className={`${economica.variable} ${openSans.variable} m-auto flex h-dvh min-h-dvh max-w-(--max-width) flex-col px-5 py-2 antialiased xl:py-3`}
+      >
+        <Providers>
           <main className="flex flex-1">{children}</main>
           <SpeedInsights />
           <UpdateNavigationState />
-        </body>
-      </Providers>
+        </Providers>
+      </body>
     </html>
   );
 }
