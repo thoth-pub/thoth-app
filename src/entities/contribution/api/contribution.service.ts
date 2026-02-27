@@ -1,4 +1,4 @@
-import { GraphqlService, isDefaultId, isTextContainsAnyMarkdownTag } from '@/src/shared';
+import { GraphqlService, isDefaultId, isTextContainsAnyMarkdownTag, QueryToken } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 
@@ -18,20 +18,26 @@ import {
 import { GET_CONTRIBUTION_BIOGRAPHIES } from '../model/contribution.schema';
 import { BiographyDto, BiographyEntity, WorkContribution } from '../model/contribution.types';
 
-// TODO: create a mapper for the contribution
+type ContributionServiceDependencies = {
+  token: QueryToken;
+  contributorService: ContributorService;
+  affiliationService: AffiliationService;
+  graphqlService?: GraphqlService;
+  biographyDtoMapper?: BiographyDtoMapper;
+};
 export class ContributionService {
   private readonly graphqlService: GraphqlService;
   private readonly contributorService: ContributorService;
   private readonly affiliationService: AffiliationService;
   private readonly biographyDtoMapper: BiographyDtoMapper;
 
-  constructor(
-    token: string,
-    graphqlService: GraphqlService = new GraphqlService(token),
-    contributorService: ContributorService = new ContributorService(token),
-    affiliationService: AffiliationService = new AffiliationService(token),
-    biographyDtoMapper: BiographyDtoMapper = new BiographyDtoMapper(),
-  ) {
+  constructor({
+    token,
+    contributorService,
+    affiliationService,
+    graphqlService = new GraphqlService(token),
+    biographyDtoMapper = new BiographyDtoMapper(),
+  }: Readonly<ContributionServiceDependencies>) {
     this.graphqlService = graphqlService;
     this.contributorService = contributorService;
     this.affiliationService = affiliationService;

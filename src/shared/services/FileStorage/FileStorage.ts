@@ -111,6 +111,8 @@ export class FileStorage {
     await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
 
     await this.completeFileUpload(initResponse.fileUploadId);
+    // Delay to ensure the file is updated in the database
+    await new Promise((resolve) => setTimeout(resolve, 5000));
 
     return initResponse.uploadUrl;
   }

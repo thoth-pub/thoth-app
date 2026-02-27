@@ -17,10 +17,16 @@ import {
 import { GET_BOOK_SET_WORKS, GET_SET, GET_SETS, GET_SETS_COUNT } from '../model/set.schema';
 import { SetDto, SetEntity, SetId, SetWorkDto, SetWorkEntity } from '../model/set.types';
 
+type SetServiceDependencies = {
+  token: QueryToken;
+  workService: WorkService;
+  mapper?: SetDtoMapper;
+};
+
 export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
   private readonly workService: WorkService;
 
-  constructor(token: QueryToken, mapper = new SetDtoMapper(), workService = new WorkService(token)) {
+  constructor({ token, workService, mapper = new SetDtoMapper() }: Readonly<SetServiceDependencies>) {
     super(token, mapper);
     this.workService = workService;
   }

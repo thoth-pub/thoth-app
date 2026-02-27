@@ -82,6 +82,7 @@ export const SetsHeader = (props: SetsHeaderProps) => {
                 options={seriesOrderByOptions}
                 value={orderBy}
                 onChange={(e) => changeOrderBy(e.target.value as WorkField)}
+                translateOptions
               />
             </div>
 
@@ -94,6 +95,7 @@ export const SetsHeader = (props: SetsHeaderProps) => {
                 options={directionOptions}
                 value={direction}
                 onChange={(e) => changeDirection(e.target.value as Direction)}
+                translateOptions
               />
             </div>
           </motion.div>

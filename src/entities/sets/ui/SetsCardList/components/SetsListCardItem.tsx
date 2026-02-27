@@ -18,12 +18,12 @@ type SetsListCardItemProps = {
 export const SetsListCardItem = (props: SetsListCardItemProps) => {
   const { set, editing = false, disabledControls = false, form, onEdit, onDelete } = props;
 
-  const { id, titles, type, updatedAt, imprintId, status, edition, volumesCount, covers } = set;
+  const { titles, updatedAt, volumesCount, covers } = set;
 
   const handleEdit = () => {
     if (!onEdit) return;
 
-    onEdit({ id, titles, type, updatedAt, imprintId, status, edition, volumesCount, covers });
+    onEdit(set);
   };
 
   return (
@@ -39,7 +39,7 @@ export const SetsListCardItem = (props: SetsListCardItemProps) => {
     >
       <div className="cardWithImageWrapper">
         <LandingPagesGallery images={covers} />
-        <Typography variant="h2" className="cardItem normal-case flex flex-col gap-1 items-start">
+        <Typography variant="h2" className="cardItem flex flex-col items-start gap-1 normal-case">
           <MarkdownRenderer markdown={getMainTitle(titles).title} />
           <BooksChip booksCount={volumesCount} />
         </Typography>

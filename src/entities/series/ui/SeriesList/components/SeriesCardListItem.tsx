@@ -18,15 +18,14 @@ type SeriesCardListItemProps = {
 export const SeriesCardListItem = (props: SeriesCardListItemProps) => {
   const { series, editing = false, disabledControls = false, form, onEdit, onDelete } = props;
 
-  const { id, name, type, issnPrint, issnDigital, description, updatedAt, imprintId, imprintName, url, issues } =
-    series;
+  const { id, name, type, issnPrint, issnDigital, updatedAt, issues } = series;
 
   const images = issues.map((issue) => issue.coverUrl).filter((coverUrl) => coverUrl.length > 0);
 
   const handleEdit = () => {
     if (!onEdit) return;
 
-    onEdit({ id, name, type, issnPrint, issnDigital, description, updatedAt, imprintId, imprintName, url, issues });
+    onEdit(series);
   };
 
   return (

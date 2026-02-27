@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, type ReactNode, use } from 'react';
+import { createContext, type ReactNode, use, useMemo } from 'react';
 
 import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.service';
 import { BookService } from '@/src/entities/book/api/book.service';
@@ -25,7 +25,7 @@ import { WorkService } from '@/src/entities/work/api/work.service';
 import { useQueryToken } from '../hooks';
 import { QueryToken } from '../interfaces';
 import { NotificationService } from '../notifications/notification.service';
-import { PersistentStorage } from '../services';
+import { FileStorage, PersistentStorage } from '../services';
 
 type ServicesMap = {
   imprintService: ImprintService;
@@ -49,31 +49,79 @@ type ServicesMap = {
   metadataService: MetadataService;
   userService: UserService;
   persistentStorage: PersistentStorage;
+  fileStorage: FileStorage;
 };
 
-const getDefaultServices = (token: QueryToken): ServicesMap => ({
-  imprintService: new ImprintService(token),
-  bookService: new BookService(token),
-  workService: new WorkService(token),
-  affiliationService: new AffiliationService(token),
-  contributorService: new ContributorService(token),
-  contributionService: new ContributionService(token),
-  subjectService: new SubjectService(token),
-  seriesService: new SeriesService(token),
-  setService: new SetService(token),
-  referenceService: new ReferenceService(token),
-  publicationService: new PublicationService(token),
-  locationService: new LocationService(token),
-  priceService: new PriceService(token),
-  publisherService: new PublisherService(token),
-  fundingService: new FundingService(token),
-  institutionService: new InstitutionService(token),
-  languageService: new LanguageService(token),
-  notificationService: new NotificationService(),
-  metadataService: new MetadataService(),
-  userService: new UserService(token),
-  persistentStorage: new PersistentStorage(),
-});
+const getDefaultServices = (token: QueryToken): ServicesMap => {
+  const imprintService = new ImprintService(token);
+  const bookService = new BookService(token);
+  const affiliationService = new AffiliationService(token);
+  const contributorService = new ContributorService(token);
+  const subjectService = new SubjectService(token);
+  const seriesService = new SeriesService(token);
+  const referenceService = new ReferenceService(token);
+  const locationService = new LocationService(token);
+  const priceService = new PriceService(token);
+  const publisherService = new PublisherService(token);
+  const fundingService = new FundingService(token);
+  const institutionService = new InstitutionService(token);
+  const languageService = new LanguageService(token);
+  const notificationService = new NotificationService();
+  const metadataService = new MetadataService();
+  const userService = new UserService(token);
+  const persistentStorage = new PersistentStorage();
+  const fileStorage = new FileStorage(token);
+  const publicationService = new PublicationService({
+    token,
+    locationService,
+    priceService,
+    fileStorage,
+  });
+  const contributionService = new ContributionService({
+    token,
+    contributorService,
+    affiliationService,
+  });
+  const workService = new WorkService({
+    token,
+    fundingService,
+    subjectService,
+    contributionService,
+    publicationService,
+    languageService,
+    seriesService,
+    referenceService,
+  });
+  const setService = new SetService({
+    token,
+    workService,
+  });
+
+  return {
+    imprintService,
+    bookService,
+    workService,
+    affiliationService,
+    contributorService,
+    contributionService,
+    subjectService,
+    seriesService,
+    setService,
+    referenceService,
+    publicationService,
+    locationService,
+    priceService,
+    publisherService,
+    fundingService,
+    institutionService,
+    languageService,
+    notificationService,
+    metadataService,
+    userService,
+    persistentStorage,
+    fileStorage,
+  };
+};
 
 const ServicesContext = createContext({
   ...getDefaultServices(''),
@@ -81,7 +129,7 @@ const ServicesContext = createContext({
 
 export function ServicesProvider({ children }: { children: Readonly<ReactNode> }) {
   const queryToken = useQueryToken();
-  const defaultServices = getDefaultServices(queryToken);
+  const defaultServices = useMemo(() => getDefaultServices(queryToken), [queryToken]);
 
   return <ServicesContext value={defaultServices}>{children}</ServicesContext>;
 }

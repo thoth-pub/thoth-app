@@ -6,12 +6,12 @@ import { useServices } from '@/src/shared/context/servicesContext';
 import type { WorkId } from '../../model/work.types';
 
 const useUpdateWorkFrontCover = (workId: WorkId) => {
-  const { workService } = useServices();
+  const { fileStorage } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (file: File) => {
-      return workService.updateWorkFrontCover(workId, file);
+      return fileStorage.uploadWorkCover(workId, file);
     },
   });
 

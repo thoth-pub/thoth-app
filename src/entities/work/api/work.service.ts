@@ -3,7 +3,6 @@ import {
   AbstractDto,
   AbstractEntity,
   appConfig,
-  FileStorage,
   getDateInFuture,
   isTextContainsAnyMarkdownTag,
   QueryToken,
@@ -50,6 +49,18 @@ import {
 } from '../model/work.schema';
 import type { WorkDto, WorkEntity, WorkId } from '../model/work.types';
 
+type WorkServiceDependencies = {
+  token: QueryToken;
+  fundingService: FundingService;
+  subjectService: SubjectService;
+  contributionService: ContributionService;
+  publicationService: PublicationService;
+  languageService: LanguageService;
+  seriesService: SeriesService;
+  referenceService: ReferenceService;
+  mapper?: WorkDtoMapper;
+};
+
 export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper> {
   private readonly fundingService: FundingService;
   private readonly subjectService: SubjectService;
@@ -58,20 +69,18 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   private readonly languageService: LanguageService;
   private readonly seriesService: SeriesService;
   private readonly referenceService: ReferenceService;
-  private readonly fileStorage: FileStorage;
 
-  constructor(
-    token: QueryToken,
+  constructor({
+    token,
+    fundingService,
+    subjectService,
+    contributionService,
+    publicationService,
+    languageService,
+    seriesService,
+    referenceService,
     mapper = new WorkDtoMapper(),
-    fundingService = new FundingService(token),
-    subjectService = new SubjectService(token),
-    contributionService = new ContributionService(token),
-    publicationService = new PublicationService(token),
-    languageService = new LanguageService(token),
-    seriesService = new SeriesService(token),
-    referenceService = new ReferenceService(token),
-    fileStorage = new FileStorage(token),
-  ) {
+  }: Readonly<WorkServiceDependencies>) {
     super(token, mapper);
     this.fundingService = fundingService;
     this.subjectService = subjectService;
@@ -80,7 +89,43 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     this.languageService = languageService;
     this.seriesService = seriesService;
     this.referenceService = referenceService;
-    this.fileStorage = fileStorage;
+  }
+
+  private getMarkupFormat(text: string) {
+    return isTextContainsAnyMarkdownTag(text) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+  }
+
+  private async getPaginatedRelations(
+    query:
+      | typeof GET_TRANSLATED_WORKS
+      | typeof GET_WORK_CHAPTERS
+      | typeof GET_WORK_TRANSLATIONS
+      | typeof GET_WORK_EDITIONS
+      | typeof GET_WORK_PREV_EDITIONS,
+    workId: WorkId,
+  ): Promise<WorkEntity[]> {
+    const all: WorkEntity[] = [];
+    let offset = 0;
+    let fetchedCount = 0;
+
+    do {
+      const { work: { relations } = { relations: [] } } = await this.graphqlService.query(query, {
+        workId,
+        limit: this.limit,
+        offset,
+        markupFormat: MarkdownFormats.enum.JATS_XML,
+      });
+
+      all.push(
+        ...relations.map((r) =>
+          this.dtoMapper.toEntity({ ...r.relatedWork, workRelationId: r.workRelationId } as WorkDto),
+        ),
+      );
+      fetchedCount = relations.length;
+      offset += this.limit;
+    } while (fetchedCount === this.limit);
+
+    return all;
   }
 
   async createWork(data: WorkEntity): Promise<WorkEntity> {
@@ -182,8 +227,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   async createWorkRelation(relatorWorkId: WorkId, relatedWorkId: WorkId, ordinal: number, relationType: RelationType) {
     const response = await this.graphqlService.mutation(CREATE_WORK_RELATION, {
       data: {
-        relatorWorkId: relatorWorkId,
-        relatedWorkId: relatedWorkId,
+        relatorWorkId,
+        relatedWorkId,
         relationOrdinal: ordinal,
         relationType,
       },
@@ -228,128 +273,23 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   }
 
   async getWorkChapters(workId: WorkId): Promise<WorkEntity[]> {
-    const allChapters: WorkEntity[] = [];
-    let offset = 0;
-    let fetchedCount = 0;
-
-    do {
-      const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_CHAPTERS, {
-        workId,
-        limit: this.limit,
-        offset,
-        markupFormat: MarkdownFormats.enum.JATS_XML,
-      });
-
-      const chapters = relations.map((relation) =>
-        this.dtoMapper.toEntity({ ...relation.relatedWork, workRelationId: relation.workRelationId } as WorkDto),
-      );
-      allChapters.push(...chapters);
-
-      fetchedCount = relations.length;
-      offset += this.limit;
-    } while (fetchedCount === this.limit);
-
-    return allChapters;
+    return this.getPaginatedRelations(GET_WORK_CHAPTERS, workId);
   }
 
   async getWorkTranslations(workId: WorkId): Promise<WorkEntity[]> {
-    const allTranslations: WorkEntity[] = [];
-    let offset = 0;
-    let fetchedCount = 0;
-
-    do {
-      const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_TRANSLATIONS, {
-        workId,
-        limit: this.limit,
-        offset,
-        markupFormat: MarkdownFormats.enum.JATS_XML,
-      });
-
-      const translations = relations.map((relation) =>
-        this.dtoMapper.toEntity({ ...relation.relatedWork, workRelationId: relation.workRelationId } as WorkDto),
-      );
-      allTranslations.push(...translations);
-
-      fetchedCount = relations.length;
-      offset += this.limit;
-    } while (fetchedCount === this.limit);
-
-    return allTranslations;
+    return this.getPaginatedRelations(GET_WORK_TRANSLATIONS, workId);
   }
 
   async getWorkEditions(workId: WorkId): Promise<WorkEntity[]> {
-    const allEditions: WorkEntity[] = [];
-    let offset = 0;
-    let fetchedCount = 0;
-
-    do {
-      const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_EDITIONS, {
-        workId,
-        limit: this.limit,
-        offset,
-        markupFormat: MarkdownFormats.enum.JATS_XML,
-      });
-
-      const editions = relations.map((relation) =>
-        this.dtoMapper.toEntity({ ...relation.relatedWork, workRelationId: relation.workRelationId } as WorkDto),
-      );
-      allEditions.push(...editions);
-
-      fetchedCount = relations.length;
-      offset += this.limit;
-    } while (fetchedCount === this.limit);
-
-    return allEditions;
+    return this.getPaginatedRelations(GET_WORK_EDITIONS, workId);
   }
 
   async getWorkPrevEditions(workId: WorkId): Promise<WorkEntity[]> {
-    const allPrevEditions: WorkEntity[] = [];
-    let offset = 0;
-    let fetchedCount = 0;
-
-    do {
-      const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_PREV_EDITIONS, {
-        workId,
-        limit: this.limit,
-        offset,
-        markupFormat: MarkdownFormats.enum.JATS_XML,
-      });
-
-      const editions = relations.map((relation) =>
-        this.dtoMapper.toEntity({ ...relation.relatedWork, workRelationId: relation.workRelationId } as WorkDto),
-      );
-      allPrevEditions.push(...editions);
-
-      fetchedCount = relations.length;
-      offset += this.limit;
-    } while (fetchedCount === this.limit);
-
-    return allPrevEditions;
+    return this.getPaginatedRelations(GET_WORK_PREV_EDITIONS, workId);
   }
 
   async getTranslatedWorks(workId: WorkId): Promise<WorkEntity[]> {
-    const allTranslations: WorkEntity[] = [];
-    let offset = 0;
-    let fetchedCount = 0;
-
-    do {
-      const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_TRANSLATED_WORKS, {
-        workId,
-        limit: this.limit,
-        offset,
-        markupFormat: MarkdownFormats.enum.JATS_XML,
-      });
-
-      const translations = relations.map((relation) =>
-        this.dtoMapper.toEntity({ ...relation.relatedWork, workRelationId: relation.workRelationId } as WorkDto),
-      );
-      allTranslations.push(...translations);
-
-      fetchedCount = relations.length;
-      offset += this.limit;
-    } while (fetchedCount === this.limit);
-
-    return allTranslations;
+    return this.getPaginatedRelations(GET_TRANSLATED_WORKS, workId);
   }
 
   async getWorks({
@@ -433,8 +373,10 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
   async createNewWorkEdition(originalWork: WorkEntity, edition: WorkEntity): Promise<WorkEntity> {
     const createdEdition = await this.createWork(edition);
-    const chapters = await this.getWorkChapters(originalWork.id);
-    const editions = await this.getWorkEditions(originalWork.id);
+    const [chapters, editions] = await Promise.all([
+      this.getWorkChapters(originalWork.id),
+      this.getWorkEditions(originalWork.id),
+    ]);
     const editionsCount = editions.length;
 
     const copiedChapters = chapters.map((chapter, index) => ({
@@ -478,10 +420,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   }
 
   async bulkCreateWorks(works: WorkEntity[], serieses: SeriesForUpdateItems, chapters: WorkEntity[]) {
-    let count = 0;
-
-    do {
-      const work = works[count];
+    for (const work of works) {
       const initialId = work.id;
 
       const createdWork = await this.createWork(work);
@@ -493,27 +432,20 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
         foundedChapters.map((chapter, index) => this.createChapter(chapter, createdWork.id, index + 1)),
       );
 
-      if (!foundedSeries || foundedSeries[1].length === 0) {
-        count++;
-        continue;
-      }
+      if (!foundedSeries || foundedSeries[1].length === 0) continue;
 
       await this.seriesService.createIssue({
         orderNumber: foundedSeries[1][0].orderNumber,
         seriesId: foundedSeries[0],
         workId: createdWork.id,
       });
-
-      count++;
-    } while (count < works.length);
+    }
   }
 
   async createTitle(data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
     const { titleId: _, ...dto } = this.dtoMapper.toDtoTitle(data);
 
-    const markupFormat = isTextContainsAnyMarkdownTag(data.title)
-      ? MarkdownFormats.enum.JATS_XML
-      : MarkdownFormats.enum.PLAIN_TEXT;
+    const markupFormat = this.getMarkupFormat(data.title);
 
     const response = await this.graphqlService.mutation(CREATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
@@ -528,9 +460,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   async updateTitle(data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
     const dto = this.dtoMapper.toDtoTitle(data);
 
-    const markupFormat = isTextContainsAnyMarkdownTag(data.title)
-      ? MarkdownFormats.enum.JATS_XML
-      : MarkdownFormats.enum.PLAIN_TEXT;
+    const markupFormat = this.getMarkupFormat(data.title);
 
     const response = await this.graphqlService.mutation(UPDATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
@@ -551,9 +481,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   async createAbstract(data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
     const { abstractId: _, ...dto } = this.dtoMapper.toDtoAbstract(data);
 
-    const markupFormat = isTextContainsAnyMarkdownTag(data.content)
-      ? MarkdownFormats.enum.JATS_XML
-      : MarkdownFormats.enum.PLAIN_TEXT;
+    const markupFormat = this.getMarkupFormat(data.content);
 
     const response = await this.graphqlService.mutation(CREATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },
@@ -568,9 +496,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   async updateAbstract(data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
     const dto = this.dtoMapper.toDtoAbstract(data);
 
-    const markupFormat = isTextContainsAnyMarkdownTag(data.content)
-      ? MarkdownFormats.enum.JATS_XML
-      : MarkdownFormats.enum.PLAIN_TEXT;
+    const markupFormat = this.getMarkupFormat(data.content);
 
     const response = await this.graphqlService.mutation(UPDATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },
@@ -596,10 +522,5 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return relations.flatMap((relation) =>
       relation.relatedWork.titles.map((title) => this.dtoMapper.toEntityTitle(title as TitleDto)),
     );
-  }
-
-  async updateWorkFrontCover(workId: WorkId, file: File) {
-    await this.fileStorage.uploadWorkCover(workId, file);
-    await new Promise((resolve) => setTimeout(resolve, 5000));
   }
 }

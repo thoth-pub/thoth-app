@@ -8,18 +8,26 @@ import { PublicationDtoMapper } from '../model/publication.mapper';
 import { CREATE_PUBLICATION, DELETE_PUBLICATION, UPDATE_PUBLICATION } from '../model/publication.schema';
 import type { PublicationDto, PublicationEntity, PublicationId, PublicationType } from '../model/publication.types';
 
+type PublicationServiceDependencies = {
+  token: QueryToken;
+  locationService: LocationService;
+  priceService: PriceService;
+  fileStorage: FileStorage;
+  mapper?: PublicationDtoMapper;
+};
+
 export class PublicationService extends BaseService<PublicationEntity, PublicationDto> {
   private readonly locationService: LocationService;
   private readonly priceService: PriceService;
   private readonly fileStorage: FileStorage;
 
-  constructor(
-    token: QueryToken,
+  constructor({
+    token,
+    locationService,
+    priceService,
+    fileStorage,
     mapper = new PublicationDtoMapper(),
-    locationService = new LocationService(token),
-    priceService = new PriceService(token),
-    fileStorage = new FileStorage(token),
-  ) {
+  }: Readonly<PublicationServiceDependencies>) {
     super(token, mapper);
     this.locationService = locationService;
     this.priceService = priceService;

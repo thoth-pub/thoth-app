@@ -84,21 +84,27 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
                 options={[...seriesTypeOptions, { value: 'All', label: 'All' }]}
                 value={seriesType}
                 onChange={(e) => changeSeriesType(e.target.value as SeriesType | 'All')}
+                translateOptions
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <InputLabel>Order by</InputLabel>
+              <InputLabel>
+                <TranslatedContent content="orderBy" namespace={NAMESPACES.enum.filters} />
+              </InputLabel>
               <TextField
                 select
                 options={seriesOrderByOptions}
                 value={orderBy}
                 onChange={(e) => changeOrderBy(e.target.value as SeriesField)}
+                translateOptions
               />
             </div>
 
             <div className="flex flex-col gap-2">
-              <InputLabel>Direction</InputLabel>
+              <InputLabel>
+                <TranslatedContent content="direction" namespace={NAMESPACES.enum.filters} />
+              </InputLabel>
               <TextField
                 select
                 options={directionOptions}
