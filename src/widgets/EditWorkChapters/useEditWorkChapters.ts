@@ -1,15 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
-import {
-  useCreateWorkChapter,
-  useDeleteChapter,
-  useWorkChapters,
-  useWorkChaptersStateMachine,
-  useWorkMoveRelation,
-} from '@/src/entities/work';
+import { useCreateWorkChapter, useDeleteChapter, useWorkChapters, useWorkMoveRelation } from '@/src/entities/work';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
+import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
 import { appConfig } from '@/src/shared';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
@@ -34,6 +29,13 @@ export const useEditWorkChapters = (workId: WorkId) => {
   const isMultipleChaptersSelected = selectedChapters.length > 1;
 
   const selectedChaptersTitle = `${selectedChapters.length} of ${chapters.length}`;
+
+  useEffect(() => {
+    if (isLoading || isFetching) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setSelectedChapters([]);
+  }, [chapters.length]);
 
   const dragEnd = (data: WorkEntity[]) => {
     const reorderedChapters = data.map((chapter, index) => ({ ...chapter, ordinal: index + 1 }));

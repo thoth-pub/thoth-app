@@ -6,7 +6,7 @@ import { getDefaultPublication, isDefaultId, WorkTypes } from '@/src/shared';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
 export const useEditPublications = (workId: WorkId) => {
-  const { activePublication, close, edit } = usePublicationsStateMachine();
+  const { activeEntity: activePublication, close, edit } = usePublicationsStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { work } = useWork(workId);
   const { deletePublication: deletePublicationMutation } = useDeletePublication({ workId });

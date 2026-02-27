@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 import { EditSetTitle, type SetId, SetTitleFormType, useUpdateSet } from '@/src/entities/sets';
 import useSet from '@/src/entities/sets/api/hooks/useSet';
-import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
+import { useSetStateMachine } from '@/src/entities/sets/store/set.store';
 import EditSetImprint from '@/src/entities/sets/ui/EditSetImprint/EditSetImprint';
 import { useUser } from '@/src/entities/user';
 import { useCreateTitle, useDeleteTitle, useUpdateTitle } from '@/src/entities/work';

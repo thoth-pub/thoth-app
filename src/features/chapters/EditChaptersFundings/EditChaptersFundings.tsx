@@ -2,7 +2,7 @@
 
 import { Activity, useState } from 'react';
 
-import { FundingsList, useCreateFunding, useFundingsStateMachine } from '@/src/entities/funding';
+import { FundingsList, useCreateFunding, useFundingStateMachine } from '@/src/entities/funding';
 import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { BaseEditSectionProps, isAllFundingRecommendationsFilled, isDefaultId } from '@/src/shared';
@@ -26,7 +26,7 @@ type EditChaptersFundingsProps = Omit<BaseEditSectionProps, 'workId'> & {
 const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   const { chapters } = props;
 
-  const { activeFunding, edit, close, update } = useFundingsStateMachine();
+  const { activeEntity: activeFunding, edit, close, update } = useFundingStateMachine();
 
   const isAllFundingsEmpty = chapters.every((chapter) => chapter.fundings.length === 0);
   const { uniqueFundings, deleteFundings } = useChaptersFundings(chapters);

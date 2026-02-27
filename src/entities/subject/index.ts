@@ -5,8 +5,7 @@ export { default as useMoveSubjects } from './api/hooks/useMoveSubjects';
 export { default as useUpdateSubject } from './api/hooks/useUpdateSubject';
 
 // Store
-export { default as useSubjectStateMachine } from './store/hooks/useSubjectStateMachine';
-export { SubjectStateMachineContext } from './store/subject.provider';
+export * from './store/subject.store';
 
 // UI
 export { default as EditSubjects } from './ui/EditSubjects/EditSubjects';

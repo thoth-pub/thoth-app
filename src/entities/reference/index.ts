@@ -5,8 +5,7 @@ export { default as useMoveReferences } from './api/hooks/useMoveReferences';
 export { default as useUpdateReference } from './api/hooks/useUpdateReference';
 
 // Store
-export { default as useReferencesStateMachine } from './store/hooks/useReferencesStateMachine';
-export * from './store/reference.provider';
+export * from './store/reference.store';
 
 // UI
 export { default as EditReferenceForm } from './ui/EditReferenceForm/EditReferenceForm';

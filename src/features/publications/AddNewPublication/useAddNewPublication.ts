@@ -27,7 +27,7 @@ import { selectCanonicalLocation } from '@/src/shared/utils/locations';
 export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
-  const { activePublication, close } = usePublicationsStateMachine();
+  const { activeEntity: activePublication, close } = usePublicationsStateMachine();
 
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
   const [file, setFile] = useState<File | null>(null);

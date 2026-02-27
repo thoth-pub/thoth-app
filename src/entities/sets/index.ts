@@ -11,9 +11,7 @@ export * from './api/hooks/useSetsCount';
 export * from './api/hooks/useUpdateSet';
 
 // STORE
-export * from './store/hooks/useSetStateMachine';
-export * from './store/set.provider';
-export * from './store/set.state-machine';
+export * from './store/set.store';
 
 // MODEL
 export * from './model/set.types';

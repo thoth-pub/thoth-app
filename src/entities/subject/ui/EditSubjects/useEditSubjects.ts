@@ -5,7 +5,7 @@ import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMach
 import useCreateSubject from '../../api/hooks/useCreateSubject';
 import useDeleteSubject from '../../api/hooks/useDeleteSubject';
 import type { SubjectId, SubjectType } from '../../model/subject.types';
-import useSubjectStateMachine from '../../store/hooks/useSubjectStateMachine';
+import { useSubjectStateMachine } from '../../store/subject.store';
 
 export const useEditSubjects = (props: BaseEditSectionProps) => {
   const { workId } = props;
@@ -13,7 +13,7 @@ export const useEditSubjects = (props: BaseEditSectionProps) => {
   const { work } = useWork(workId);
 
   const { activeFormId, edit: editForm } = useFormStateMachine();
-  const { activeSubject, edit, close: closeSubjectEdit } = useSubjectStateMachine();
+  const { activeEntity: activeSubject, edit, close: closeSubjectEdit } = useSubjectStateMachine();
 
   const { createSubject } = useCreateSubject({ workId });
   const { deleteSubject: deleteSubjectMutation } = useDeleteSubject();

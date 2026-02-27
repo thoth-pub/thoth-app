@@ -1,4 +1,4 @@
-import { useDeleteFunding, useFundingsStateMachine } from '@/src/entities/funding';
+import { useDeleteFunding, useFundingStateMachine } from '@/src/entities/funding';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { WorkId } from '@/src/entities/work/model/work.types';
 import { isDefaultId } from '@/src/shared';
@@ -7,7 +7,7 @@ import { getDefaultFunding } from '@/src/shared/utils';
 
 export const useEditFundings = (workId: WorkId) => {
   const { work } = useWork(workId);
-  const { activeFunding, edit } = useFundingsStateMachine();
+  const { activeEntity: activeFunding, edit } = useFundingStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { isFundingsRequired, isFundingsEmpty } = useWorkRecommendations({ workId });
   const { deleteFunding } = useDeleteFunding();

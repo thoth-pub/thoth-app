@@ -4,8 +4,7 @@ export { default as useDeleteFunding } from './api/hooks/useDeleteFunding';
 export { default as useUpdateFunding } from './api/hooks/useUpdateFunding';
 
 // Store
-export * from './store/funding.provider';
-export { default as useFundingsStateMachine } from './store/hooks/useFundingsStateMachine';
+export * from './store/funding.store';
 
 // UI
 export { default as EditGrantNumberForm } from './ui/EditGrantNumberForm/EditGrantNumberForm';

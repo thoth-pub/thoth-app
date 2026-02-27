@@ -1,7 +1,7 @@
 'use client';
 
 import { useActivePublisherPermissions } from '@/src/entities/publisher';
-import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
+import { useSetStateMachine } from '@/src/entities/sets/store/set.store';
 import SetsCardList from '@/src/entities/sets/ui/SetsCardList/SetsCardList';
 import { EditSet } from '@/src/features';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
@@ -12,7 +12,7 @@ import { SetsHeader } from './SetsHeader';
 import { useSetsList } from './useSetsList';
 
 const Sets = () => {
-  const { activeSet } = useSetStateMachine();
+  const { activeEntity: activeSet } = useSetStateMachine();
 
   const {
     loading,

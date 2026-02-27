@@ -34,7 +34,7 @@ import { selectCanonicalLocation } from '@/src/shared/utils/locations';
 export const useEditPublication = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
-  const { activePublication, close } = usePublicationsStateMachine();
+  const { activeEntity: activePublication, close } = usePublicationsStateMachine();
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
   const { updatePublication, loading: isUpdatePublicationLoading } = useUpdatePublication({ workId });
   const { createPrice, loading: isCreatePriceLoading } = useCreatePrice({ workId });

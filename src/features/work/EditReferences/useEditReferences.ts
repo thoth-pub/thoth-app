@@ -3,7 +3,7 @@
 import {
   useDeleteReference,
   useMoveReferences,
-  useReferencesStateMachine,
+  useReferenceStateMachine,
   useUpdateReference,
 } from '@/src/entities/reference';
 import type { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
@@ -27,7 +27,7 @@ const defaultReference: ReferenceEntity = {
 
 export const useEditReferences = (workId: WorkId) => {
   const { work, loading, fetching } = useWork(workId);
-  const { activeReference, edit } = useReferencesStateMachine();
+  const { activeEntity: activeReference, edit } = useReferenceStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { deleteReference: deleteReferenceMutation } = useDeleteReference();
   const { updateReference } = useUpdateReference({ workId });

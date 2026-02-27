@@ -1,15 +1,16 @@
+/* eslint-disable @eslint-react/no-context-provider */
 'use client';
 
 import { ContributionStateMachineContext } from '@/src/entities/contribution';
 import { FundingStateMachineContext } from '@/src/entities/funding';
-import { LocationStateMachineContext } from '@/src/entities/locations/store/location.provider';
+import { LocationStateMachineContext } from '@/src/entities/locations';
 import { PublicationsStateMachineContext } from '@/src/entities/publication';
 import { PublisherStateMachineContext } from '@/src/entities/publisher';
 import { ReferenceStateMachineContext } from '@/src/entities/reference';
 import { SeriesStateMachineContext } from '@/src/entities/series';
 import { SetStateMachineContext } from '@/src/entities/sets';
 import { SubjectStateMachineContext } from '@/src/entities/subject';
-import { WorkChaptersStateMachineContext } from '@/src/entities/work';
+import { WorkStateMachineContext } from '@/src/entities/work';
 import { ServicesProvider } from '@/src/shared';
 import { FormStateMachineContext } from '@/src/shared/store/forms/forms.provider';
 import { UiStateMachineContext } from '@/src/shared/store/ui/ui.provider';
@@ -24,7 +25,7 @@ const StoreProvider = ({ children }: Readonly<{ children: React.ReactNode }>) =>
               <FundingStateMachineContext.Provider>
                 <ReferenceStateMachineContext.Provider>
                   <SeriesStateMachineContext.Provider>
-                    <WorkChaptersStateMachineContext.Provider>
+                    <WorkStateMachineContext.Provider>
                       <SetStateMachineContext.Provider>
                         <SubjectStateMachineContext.Provider>
                           <LocationStateMachineContext.Provider>
@@ -32,7 +33,7 @@ const StoreProvider = ({ children }: Readonly<{ children: React.ReactNode }>) =>
                           </LocationStateMachineContext.Provider>
                         </SubjectStateMachineContext.Provider>
                       </SetStateMachineContext.Provider>
-                    </WorkChaptersStateMachineContext.Provider>
+                    </WorkStateMachineContext.Provider>
                   </SeriesStateMachineContext.Provider>
                 </ReferenceStateMachineContext.Provider>
               </FundingStateMachineContext.Provider>

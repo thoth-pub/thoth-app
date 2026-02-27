@@ -42,5 +42,4 @@ export { default as EditWorkType } from './ui/EditWorkType/EditWorkType';
 export { default as WorkStatusChip } from './ui/WorkStatusChip/WorkStatusChip';
 
 // Store
-export { default as useWorkChaptersStateMachine } from './store/hooks/useWorkChaptersStateMachine';
-export * from './store/work.provider';
+export * from './store/work.store';

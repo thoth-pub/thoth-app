@@ -1,6 +1,6 @@
 'use client';
 
-import { useFundingsStateMachine, useUpdateFunding } from '@/src/entities/funding';
+import { useFundingStateMachine, useUpdateFunding } from '@/src/entities/funding';
 import type {
   FundingEntity,
   FundingGrantNumberFormType,
@@ -29,7 +29,7 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     onInstitutionUpdate,
   } = props;
 
-  const { activeFunding, close, update } = useFundingsStateMachine();
+  const { activeEntity: activeFunding, close, update } = useFundingStateMachine();
   const { updateFunding } = useUpdateFunding({ workId });
 
   const updateProject = ({ projectName }: FundingProjectNameFormType) => {

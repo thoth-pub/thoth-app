@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
-import { useCreateWorkChapter, useWork, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
+import { useCreateWorkChapter, useWork, useWorkChapters } from '@/src/entities/work';
+import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
 import { appConfig, BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
 import { licenseOptions } from '@/src/shared/constants/formFields';
 import { AddButton, TranslatedContent } from '@/src/shared/ui';

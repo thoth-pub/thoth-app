@@ -1,12 +1,12 @@
 'use client';
 
-import { EditReferenceForm, useReferencesStateMachine, useUpdateReference } from '@/src/entities/reference';
+import { EditReferenceForm, useReferenceStateMachine, useUpdateReference } from '@/src/entities/reference';
 import type { BaseRecommendedSectionProps } from '@/src/shared';
 
 const EditReference = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
 
-  const { activeReference, update, close } = useReferencesStateMachine();
+  const { activeEntity: activeReference, update, close } = useReferenceStateMachine();
   const { updateReference } = useUpdateReference({ workId });
 
   const updateUrl = (url: string) => {

@@ -5,7 +5,7 @@ import { CardsList, Pagination, TranslatedContent, Typography } from '@/src/shar
 
 import useDeleteSeries from '../../api/hooks/useDeleteSeries';
 import { SeriesEntity } from '../../model/series.types';
-import useSeriesesStateMachine from '../../store/hooks/useSeriesesStateMachine';
+import { useSeriesStateMachine } from '../../store/series.store';
 import { SeriesCardListItem } from './components/SeriesCardListItem';
 
 type SeriesListProps = {
@@ -20,7 +20,7 @@ type SeriesListProps = {
 const SeriesList = (props: SeriesListProps) => {
   const { seriesForm, loading, serieses, page, pagesCount, onPageChange } = props;
 
-  const { activeSeries, edit } = useSeriesesStateMachine();
+  const { activeEntity: activeSeries, edit } = useSeriesStateMachine();
 
   const { deleteSeries } = useDeleteSeries();
 

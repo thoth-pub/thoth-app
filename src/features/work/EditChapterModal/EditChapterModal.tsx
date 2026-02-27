@@ -3,7 +3,7 @@
 import { useEffect } from 'react';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
-import { useWorkChaptersStateMachine } from '@/src/entities/work';
+import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
 import type { BaseEditSectionProps } from '@/src/shared';
 import { TranslatedContent } from '@/src/shared/ui';
 

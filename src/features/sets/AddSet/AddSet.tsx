@@ -6,7 +6,7 @@ import { Activity, useState } from 'react';
 
 import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import { type SetEntity, useCreateSet } from '@/src/entities/sets';
-import useSetStateMachine from '@/src/entities/sets/store/hooks/useSetStateMachine';
+import { useSetStateMachine } from '@/src/entities/sets/store/set.store';
 import { AddNewSetForm } from '@/src/entities/sets/ui/AddNewSetForm/AddNewSetForm';
 import { useUser } from '@/src/entities/user';
 import { appConfig, isDefaultId, TitleEntity, WorkStatuses, WorkTypes } from '@/src/shared';
@@ -22,7 +22,7 @@ import {
 } from '@/src/shared/ui';
 
 const AddSet = () => {
-  const { activeSet, edit, close } = useSetStateMachine();
+  const { activeEntity: activeSet, edit, close } = useSetStateMachine();
   const { userImprintsOptions } = useUser();
   const { isImprintEditable } = useActivePublisherPermissions();
 

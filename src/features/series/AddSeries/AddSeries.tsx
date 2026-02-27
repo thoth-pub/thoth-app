@@ -5,7 +5,7 @@ import SpeedDialIcon from '@mui/material/SpeedDialIcon';
 import { useState } from 'react';
 
 import { useActivePublisherPermissions } from '@/src/entities/publisher';
-import { EditSeriesForm, useCreateSeries, useSeriesesStateMachine } from '@/src/entities/series';
+import { EditSeriesForm, useCreateSeries, useSeriesStateMachine } from '@/src/entities/series';
 import type {
   SeriesDescriptionFormType,
   SeriesEntity,
@@ -29,7 +29,7 @@ import {
 } from '@/src/shared/ui';
 
 const AddSeries = () => {
-  const { activeSeries, edit, close } = useSeriesesStateMachine();
+  const { activeEntity: activeSeries, edit, close } = useSeriesStateMachine();
 
   const [series, setSeries] = useState(activeSeries);
   const { userImprintsOptions } = useUser();

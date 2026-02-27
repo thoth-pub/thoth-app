@@ -17,5 +17,4 @@ export { default as EditSeriesForm } from './ui/EditSeriesForm/EditSeriesForm';
 export { default as SeriesList } from './ui/SeriesList/SeriesList';
 
 // STORE
-export { default as useSeriesesStateMachine } from './store/hooks/useSeriesesStateMachine';
-export * from './store/serieses.provider';
+export * from './store/series.store';

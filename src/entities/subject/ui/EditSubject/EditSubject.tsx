@@ -12,7 +12,7 @@ import { AutocompleteField, CloseButton, FormTextField, Modal, ModalWrapper, Sub
 
 import useUpdateSubject from '../../api/hooks/useUpdateSubject';
 import { subjectAltValidationSchema, subjectValidationSchema } from '../../model/subject.validation';
-import useSubjectStateMachine from '../../store/hooks/useSubjectStateMachine';
+import { useSubjectStateMachine } from '../../store/subject.store';
 
 const { SUBJECT_CODE, SUBJECT_CODE_ALT } = FORM_FIELDS;
 
@@ -29,7 +29,7 @@ const formStyles =
   'w-full flex gap-2 bg-(--color-form-background) rounded-xl p-2 lg:border lg:border-(--color-form-border)';
 
 export const EditSubject = ({ workId }: BaseEditSectionProps) => {
-  const { activeSubject, close } = useSubjectStateMachine();
+  const { activeEntity: activeSubject, close } = useSubjectStateMachine();
   const { close: closeForm } = useFormStateMachine();
   const { updateSubject } = useUpdateSubject({ workId });
 

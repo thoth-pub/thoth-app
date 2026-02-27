@@ -3,7 +3,7 @@
 import { Typography } from '@mui/material';
 
 import { useActivePublisherPermissions } from '@/src/entities/publisher';
-import { EditSeriesForm, useSeries, useSeriesesStateMachine, useUpdateSeries } from '@/src/entities/series';
+import { EditSeriesForm, useSeries, useSeriesStateMachine, useUpdateSeries } from '@/src/entities/series';
 import {
   SeriesDescriptionFormType,
   SeriesImprintFormType,
@@ -19,7 +19,7 @@ import { IssuesList } from '../../work/EditWorkSeries/components/IssuesList';
 import { AddBookModal } from './components/AddBookModal';
 
 const EditSeries = () => {
-  const { activeSeries, close } = useSeriesesStateMachine();
+  const { activeEntity: activeSeries, close } = useSeriesStateMachine();
   const { userImprintsOptions } = useUser();
   const { series, loading, fetching } = useSeries({ seriesId: activeSeries?.id ?? '' });
   const { updateSeries } = useUpdateSeries();

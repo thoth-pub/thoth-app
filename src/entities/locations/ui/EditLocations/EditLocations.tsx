@@ -21,7 +21,7 @@ import {
 } from '@/src/shared/ui';
 
 import type { LocationEntity } from '../../model/location.types';
-import useLocationStateMachine from '../../store/hooks/useLocationStateMachine';
+import { useLocationStateMachine } from '../../store/location.store';
 import { LocationForm } from '../LocationForm/LocationForm';
 
 const { LOCATIONS } = FORM_FIELDS;
@@ -36,7 +36,7 @@ type EditLocationsProps = {
 const EditLocations = (props: EditLocationsProps) => {
   const { locations, isFullTextUrlHidden, onUpdate, onDelete } = props;
 
-  const { activeLocation, edit, close } = useLocationStateMachine();
+  const { activeEntity: activeLocation, edit, close } = useLocationStateMachine();
   const { activeFormId, edit: editForm, close: closeForm } = useFormStateMachine();
 
   const isEditingNewLocation = activeLocation && isDefaultId(activeLocation.id);

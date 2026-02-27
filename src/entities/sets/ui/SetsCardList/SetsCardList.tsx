@@ -4,7 +4,7 @@ import { CardsList, Pagination } from '@/src/shared/ui';
 
 import { useDeleteSet } from '../../api/hooks/useDeleteSet';
 import { SetEntity } from '../../model/set.types';
-import useSetStateMachine from '../../store/hooks/useSetStateMachine';
+import { useSetStateMachine } from '../../store/set.store';
 import { SetsListCardItem } from './components/SetsListCardItem';
 
 type SetsCardListProps = {
@@ -19,7 +19,7 @@ type SetsCardListProps = {
 const SetsCardList = (props: SetsCardListProps) => {
   const { form, loading, sets, page, pagesCount, onPageChange } = props;
 
-  const { activeSet, edit } = useSetStateMachine();
+  const { activeEntity: activeSet, edit } = useSetStateMachine();
 
   const { deleteSet } = useDeleteSet();
 

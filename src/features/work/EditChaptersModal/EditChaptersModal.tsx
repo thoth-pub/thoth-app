@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
-import { useUpdateWorks, useWorkChapters, useWorkChaptersStateMachine } from '@/src/entities/work';
+import { useUpdateWorks, useWorkChapters } from '@/src/entities/work';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
+import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
 import type { BaseEditSectionProps } from '@/src/shared';
 import { licenseOptions } from '@/src/shared/constants/formFields';
 

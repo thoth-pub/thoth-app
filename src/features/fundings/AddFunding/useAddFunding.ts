@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { useCreateFunding, useFundingsStateMachine } from '@/src/entities/funding';
+import { useCreateFunding, useFundingStateMachine } from '@/src/entities/funding';
 import type {
   FundingEntity,
   FundingGrantNumberFormType,
@@ -20,7 +20,7 @@ type UseAddFundingProps = BaseEditSectionProps & {
 export const useAddFunding = (props: UseAddFundingProps) => {
   const { workId, onCreate } = props;
 
-  const { activeFunding, close } = useFundingsStateMachine();
+  const { activeEntity: activeFunding, close } = useFundingStateMachine();
   const { createFunding } = useCreateFunding({
     workId,
   });
