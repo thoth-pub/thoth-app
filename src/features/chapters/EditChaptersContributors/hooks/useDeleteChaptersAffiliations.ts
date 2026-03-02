@@ -22,18 +22,16 @@ export const useDeleteChaptersAffiliations = (props: UseDeleteChaptersAffiliatio
     id,
     contributionId,
     chapters,
-    contributions,
     affiliations,
     uniqueContributors,
   }: {
     id: string;
     contributionId: ContributionId;
     chapters: WorkEntity[];
-    contributions: WorkContribution[];
     affiliations: AffiliationEntity[];
     uniqueContributors: WorkContribution[];
   }) => {
-    const sameContributions = findAllSameContributions(contributionId, chapters, contributions);
+    const sameContributions = findAllSameContributions(contributionId, chapters, uniqueContributors);
 
     if (sameContributions.length === 0) return { updatedUniqueContributions: [], deletedIds: [] };
 

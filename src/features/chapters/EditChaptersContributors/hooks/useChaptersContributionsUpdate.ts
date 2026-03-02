@@ -12,18 +12,16 @@ export const useChaptersContributionsUpdate = () => {
     id,
     chapters,
     uniqueContributors,
-    contributions,
     updatedData,
   }: {
     id: ContributionId;
     chapters: WorkEntity[];
     uniqueContributors: WorkContribution[];
-    contributions: WorkContribution[];
     updatedData?: Partial<WorkContribution>;
   }) => {
     if (!updatedData) return uniqueContributors;
 
-    const sameContributions = findAllSameContributions(id, chapters, contributions);
+    const sameContributions = findAllSameContributions(id, chapters, uniqueContributors);
 
     const ids = sameContributions.map((contribution) => contribution.id);
 

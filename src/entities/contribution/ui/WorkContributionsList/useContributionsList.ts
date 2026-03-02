@@ -16,7 +16,7 @@ export const useContributionsList = ({ workId }: BaseEditSectionProps) => {
   const { updateContribution } = useWork(workId);
   const { moveContribution } = useMoveContribution({ workId });
 
-  const { activeContribution, edit } = useContributionStateMachine();
+  const { activeEntity: activeContribution, edit } = useContributionStateMachine();
   const { activeFormId } = useFormStateMachine();
   const queryClient = useQueryClient();
 

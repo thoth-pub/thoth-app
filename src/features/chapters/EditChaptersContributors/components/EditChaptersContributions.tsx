@@ -31,13 +31,13 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     onBiographiesUpdate,
   } = props;
 
-  const { activeContribution, close, update } = useContributionStateMachine();
+  const { activeEntity: activeContribution, close, update } = useContributionStateMachine();
 
   useEffect(() => {
     return () => {
       close();
     };
-  }, [close]);
+  }, []);
 
   const handleNamesUpdate = (data: ContributionNamesForm) => {
     if (!activeContribution) return;

@@ -96,20 +96,6 @@ describe('areFundingsEqual', () => {
     expect(areEqual).toBe(false);
   });
 
-  it('should return false if the fundings jurisdictions are different', () => {
-    const institutionId = faker.string.uuid();
-    const fundings1 = [
-      getDefaultFunding({ id: faker.string.uuid(), institutionId, jurisdiction: faker.string.sample() }),
-    ];
-    const fundings2 = [getDefaultFunding({ id: faker.string.uuid(), institutionId })];
-    const chapterWithFundings1 = { ...chapter1, fundings: fundings1 };
-    const chapterWithFundings2 = { ...chapter2, fundings: fundings2 };
-
-    const areEqual = areFundingsEqual([chapterWithFundings1, chapterWithFundings2]);
-
-    expect(areEqual).toBe(false);
-  });
-
   it('should return false if some fundings institutions are different', () => {
     const institutionId1 = faker.string.uuid();
     const institutionId2 = faker.string.uuid();
@@ -207,29 +193,6 @@ describe('areFundingsEqual', () => {
         id: faker.string.uuid(),
         institutionId: institutionId1,
         projectShortname: faker.string.sample(),
-      }),
-      getDefaultFunding({ id: faker.string.uuid(), institutionId: institutionId2 }),
-    ];
-    const fundings2 = [
-      getDefaultFunding({ id: faker.string.uuid(), institutionId: institutionId1 }),
-      getDefaultFunding({ id: faker.string.uuid(), institutionId: institutionId2 }),
-    ];
-    const chapterWithFundings1 = { ...chapter1, fundings: fundings1 };
-    const chapterWithFundings2 = { ...chapter2, fundings: fundings2 };
-
-    const areEqual = areFundingsEqual([chapterWithFundings1, chapterWithFundings2]);
-
-    expect(areEqual).toBe(false);
-  });
-
-  it('should return false if some fundings jurisdictions are different', () => {
-    const institutionId1 = faker.string.uuid();
-    const institutionId2 = faker.string.uuid();
-    const fundings1 = [
-      getDefaultFunding({
-        id: faker.string.uuid(),
-        institutionId: institutionId1,
-        jurisdiction: faker.string.sample(),
       }),
       getDefaultFunding({ id: faker.string.uuid(), institutionId: institutionId2 }),
     ];

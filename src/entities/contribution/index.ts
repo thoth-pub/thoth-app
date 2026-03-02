@@ -12,10 +12,9 @@ export * from './api/hooks/useUpdateBiography';
 export * from './api/hooks/useUpdateContribution';
 
 // STORE
-export * from './store/contribution.provider';
+export * from './store/contribution.store';
 
 // UI
-export { default as useContributionStateMachine } from './store/hooks/useContributionStateMachine';
 export { default as ChaptersContributionsTable } from './ui/ChaptersContributionsTable/ChaptersContributionsTable';
 export { default as ContributionForms } from './ui/ContributionForms/ContributionForms';
 export { default as WorkContributionsList } from './ui/WorkContributionsList/WorkContributionsList';

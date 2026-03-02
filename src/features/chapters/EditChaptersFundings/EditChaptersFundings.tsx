@@ -1,6 +1,6 @@
 'use client';
 
-import { Activity, useState } from 'react';
+import { Activity } from 'react';
 
 import { FundingsList, useCreateFunding, useFundingStateMachine } from '@/src/entities/funding';
 import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
@@ -31,14 +31,16 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   const isAllFundingsEmpty = chapters.every((chapter) => chapter.fundings.length === 0);
   const { uniqueFundings, deleteFundings } = useChaptersFundings(chapters);
 
-  const [fundings, setFundings] = useState<FundingEntity[]>(uniqueFundings);
-  const { updateProjects, updateProjectsShortName } = useChaptersFundingsProjects({ chapters, fundings });
-  const { updatePrograms } = useChaptersFundingsProgram({ chapters, fundings });
-  const { updateGrantNumbers } = useChaptersFundingsGrantNumbers({ chapters, fundings });
-  const { updateInstitutions } = useChaptersFundingsInstitutions({ chapters, fundings });
+  const { updateProjects, updateProjectsShortName } = useChaptersFundingsProjects({
+    chapters,
+    fundings: uniqueFundings,
+  });
+  const { updatePrograms } = useChaptersFundingsProgram({ chapters, fundings: uniqueFundings });
+  const { updateGrantNumbers } = useChaptersFundingsGrantNumbers({ chapters, fundings: uniqueFundings });
+  const { updateInstitutions } = useChaptersFundingsInstitutions({ chapters, fundings: uniqueFundings });
 
-  const isEmpty = fundings.length === 0;
-  const isValid = isEmpty || fundings.every(isAllFundingRecommendationsFilled);
+  const isEmpty = uniqueFundings.length === 0;
+  const isValid = isEmpty || uniqueFundings.every(isAllFundingRecommendationsFilled);
 
   const { createFundingForMultipleWorks } = useCreateFunding({
     workId: '',
@@ -64,54 +66,32 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
 
     if (!newFundings || newFundings.length === 0) return;
 
-    setFundings([...fundings, newFundings[0]]);
-
     close();
   };
 
   const updateProject = async (updatedFunding: FundingEntity) => {
-    const updatedFundings = await updateProjects(updatedFunding);
+    await updateProjects(updatedFunding);
     update(updatedFunding);
-
-    if (!updatedFundings) return;
-
-    setFundings(updatedFundings);
   };
 
   const updateProjectShortName = async (updatedFunding: FundingEntity) => {
-    const updatedFundings = await updateProjectsShortName(updatedFunding);
+    await updateProjectsShortName(updatedFunding);
     update(updatedFunding);
-
-    if (!updatedFundings) return;
-
-    setFundings(updatedFundings);
   };
 
   const updateProgram = async (updatedFunding: FundingEntity) => {
-    const updatedFundings = await updatePrograms(updatedFunding);
+    await updatePrograms(updatedFunding);
     update(updatedFunding);
-
-    if (!updatedFundings) return;
-
-    setFundings(updatedFundings);
   };
 
   const updateGrantNumber = async (updatedFunding: FundingEntity) => {
-    const updatedFundings = await updateGrantNumbers(updatedFunding);
+    await updateGrantNumbers(updatedFunding);
     update(updatedFunding);
-
-    if (!updatedFundings) return;
-
-    setFundings(updatedFundings);
   };
 
   const updateInstitution = async (updatedFunding: FundingEntity) => {
-    const updatedFundings = await updateInstitutions(updatedFunding);
+    await updateInstitutions(updatedFunding);
     update(updatedFunding);
-
-    if (!updatedFundings) return;
-
-    setFundings(updatedFundings);
   };
 
   const editFunding = (id: string) => {
@@ -124,10 +104,6 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
 
   const deleteChapterFundings = async (id: string) => {
     await deleteFundings(id);
-
-    const updatedFundings = fundings.filter((funding) => funding.id !== id);
-
-    setFundings(updatedFundings);
   };
 
   return (
@@ -137,7 +113,7 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
           <Activity mode={isSectionEnabled ? 'visible' : 'hidden'}>
             <FundingsList
               activeFunding={activeFunding}
-              fundings={fundings}
+              fundings={uniqueFundings}
               showRecommendations={showRecommendations}
               onEdit={editFunding}
               onDelete={deleteChapterFundings}

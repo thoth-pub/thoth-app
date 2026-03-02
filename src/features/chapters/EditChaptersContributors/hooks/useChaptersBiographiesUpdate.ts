@@ -16,17 +16,15 @@ export const useChaptersBiographiesUpdate = () => {
   const updateChaptersBiographies = async ({
     contributionId,
     chapters,
-    contributions,
     data,
     uniqueContributors,
   }: {
     contributionId: ContributionId;
     chapters: WorkEntity[];
-    contributions: WorkContribution[];
     data: ContributionBiographyForm;
     uniqueContributors: WorkContribution[];
   }) => {
-    const sameContributions = findAllSameContributions(contributionId, chapters, contributions);
+    const sameContributions = findAllSameContributions(contributionId, chapters, uniqueContributors);
     const contributionsToUpdateIds = sameContributions.map((contribution) => contribution.id);
     const updatedContributions: WorkContribution[] = [];
 

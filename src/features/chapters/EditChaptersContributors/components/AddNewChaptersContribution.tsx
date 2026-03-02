@@ -8,8 +8,7 @@ import type { WorkContribution } from '@/src/entities/contribution/model/contrib
 import { useContributor, useUpdateContributor } from '@/src/entities/contributor';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { AddNewContribution } from '@/src/features/contribution';
-import { type BaseRecommendedSectionProps } from '@/src/shared';
-import { QueryKeys } from '@/src/shared';
+import { type BaseRecommendedSectionProps,QueryKeys } from '@/src/shared';
 
 type AddNewChaptersContributionProps = BaseRecommendedSectionProps & {
   chapters: WorkEntity[];
@@ -19,7 +18,7 @@ type AddNewChaptersContributionProps = BaseRecommendedSectionProps & {
 export const AddNewChaptersContribution = (props: AddNewChaptersContributionProps) => {
   const { recommended, chapters, onCreate } = props;
 
-  const { activeContribution, close } = useContributionStateMachine();
+  const { activeEntity: activeContribution, close } = useContributionStateMachine();
 
   const queryClient = useQueryClient();
 
@@ -34,7 +33,7 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
     return () => {
       close();
     };
-  }, [close]);
+  }, []);
 
   const createChaptersContribution = async (contribution: WorkContribution) => {
     if (!activeContribution) return;

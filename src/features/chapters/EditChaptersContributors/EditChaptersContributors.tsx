@@ -1,7 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-
 import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAffiliationsForm';
 import { ChaptersContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
@@ -34,7 +32,7 @@ type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
 const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const { chapters } = props;
 
-  const { activeContribution, edit, update, close } = useContributionStateMachine();
+  const { activeEntity: activeContribution, edit, update, close } = useContributionStateMachine();
   const { uniqueContributors } = useChaptersUniqueContributors(chapters);
   const { affiliations } = useChaptersAffiliations(chapters);
 
@@ -53,17 +51,10 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
 
   const isContributionsEqual = isChaptersContributionsEqual(chapters);
 
-  const [contributions, setContributions] = useState(uniqueContributors);
-
   const isEmpty = uniqueContributors.length === 0;
   const isValid = isEmpty || uniqueContributors.every(isAllContributionRecommendationsFilled);
   const isSectionEnabled = isContributionsEqual;
   const isNewContribution = activeContribution ? isDefaultId(activeContribution.id) : false;
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setContributions(uniqueContributors);
-  }, [uniqueContributors, affiliations]);
 
   const handleNewContribution = () => {
     close();
@@ -78,29 +69,24 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   };
 
   const handleBulkDelete = async (id: ContributionId) => {
-    const updatedUniqueContributors = await deleteChaptersContributions({
+    await deleteChaptersContributions({
       id,
       chapters,
       uniqueContributors,
     });
-
-    setContributions(updatedUniqueContributors);
   };
 
   const handleBulkUpdate = async (id: ContributionId, updatedData?: Partial<WorkContribution>) => {
-    const updatedUniqueContributions = await updateChaptersContributions({
+    updateChaptersContributions({
       id,
       chapters,
       uniqueContributors,
       updatedData,
-      contributions,
     });
-
-    setContributions(updatedUniqueContributions);
   };
 
   const handleMainBulkUpdate = async (id: ContributionId) => {
-    const sameContributions = findAllSameContributions(id, chapters, contributions);
+    const sameContributions = findAllSameContributions(id, chapters, uniqueContributors);
 
     if (sameContributions.length === 0) return;
 
@@ -108,7 +94,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   };
 
   const handleUpdateAffiliations = (data: AffiliationsForm, contributionId: ContributionId) => {
-    const sameContributions = findAllSameContributions(contributionId, chapters, contributions);
+    const sameContributions = findAllSameContributions(contributionId, chapters, uniqueContributors);
 
     if (sameContributions.length === 0) return;
 
@@ -119,16 +105,13 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   };
 
   const handleDeleteAffiliation = async (id: string, contributionId: ContributionId) => {
-    const { updatedUniqueContributions, deletedIds } = await deleteChaptersAffiliations({
+    const { deletedIds } = await deleteChaptersAffiliations({
       id,
       contributionId,
       chapters,
-      contributions,
       affiliations,
       uniqueContributors,
     });
-
-    setContributions(updatedUniqueContributions);
 
     if (!activeContribution) return;
 
@@ -148,7 +131,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     const updatedUniqueContributions = await updateChaptersAffiliationsOrder({
       data,
       chapters,
-      contributions,
       uniqueContributors,
     });
 
@@ -159,20 +141,15 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     if (!updatedActiveContribution) return;
 
     update(updatedActiveContribution);
-
-    setContributions(updatedUniqueContributions);
   };
 
   const handleBiographiesUpdate = async (data: ContributionBiographyForm, contributionId: ContributionId) => {
     const updatedUniqueContributions = await updateChaptersBiographies({
       contributionId,
       chapters,
-      contributions,
       data,
       uniqueContributors,
     });
-
-    setContributions(updatedUniqueContributions);
 
     const updatedActiveContribution = updatedUniqueContributions.find(
       (contribution) => contribution.id === activeContribution?.id,

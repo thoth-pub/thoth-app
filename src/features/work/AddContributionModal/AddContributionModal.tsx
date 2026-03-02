@@ -29,7 +29,7 @@ const AddContributionModal = () => {
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { contributors, loading } = useContributors({ filter: debouncedValue });
-  const { activeContribution, edit } = useContributionStateMachine();
+  const { activeEntity: activeContribution, edit } = useContributionStateMachine();
   const [selected, setSelected] = useState<ContributorId | ''>('');
   const [open, setOpen] = useState(false);
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.filters });

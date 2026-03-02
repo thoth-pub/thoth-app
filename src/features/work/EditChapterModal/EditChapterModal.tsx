@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
+import { useFundingStateMachine } from '@/src/entities/funding/store/funding.store';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
 import type { BaseEditSectionProps } from '@/src/shared';
 import { TranslatedContent } from '@/src/shared/ui';
@@ -22,11 +23,13 @@ const EditChapterModal = (props: EditChapterModalProps) => {
 
   const { activeWorkChapters, isSingleChapterSelected, close } = useWorkChaptersStateMachine();
   const { close: closeContribution } = useContributionStateMachine();
+  const { close: closeFunding } = useFundingStateMachine();
 
   useEffect(() => {
     return () => {
       close();
       closeContribution();
+      closeFunding();
     };
   }, []);
 

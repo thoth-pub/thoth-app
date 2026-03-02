@@ -51,9 +51,9 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     onIsMainSubmit,
   } = props;
 
-  const { activeContribution, close } = useContributionStateMachine();
+  const { activeEntity: activeContribution, close } = useContributionStateMachine();
   const { close: closeForm } = useFormStateMachine();
-  const [contribution, setContribution] = useState<WorkContribution | null>(activeContribution);
+  const [contribution, setContribution] = useState(activeContribution);
   const { user } = useUser();
   const { moveAffiliation } = useMoveAffiliation({ workId });
   const { work, updateContribution: updateWorkContribution } = useWork(workId);

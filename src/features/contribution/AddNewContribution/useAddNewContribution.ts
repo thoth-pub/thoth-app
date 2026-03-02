@@ -20,7 +20,7 @@ type UseAddNewContributionProps = BaseEditSectionProps & {
 export const useAddNewContribution = (props: UseAddNewContributionProps) => {
   const { workId, onCreate } = props;
 
-  const { activeContribution, update, close } = useContributionStateMachine();
+  const { activeEntity: activeContribution, update, close } = useContributionStateMachine();
   const { work, createContribution } = useWork(workId);
 
   const { contributor } = useContributor({ contributorId: activeContribution?.contributorId });

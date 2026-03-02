@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
+import { useFundingStateMachine } from '@/src/entities/funding';
 import { useUpdateWorks, useWorkChapters } from '@/src/entities/work';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
@@ -27,6 +28,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   const { activeWorkChapters, isMultipleChaptersSelected, update, close } = useWorkChaptersStateMachine();
   const { close: closeContribution } = useContributionStateMachine();
+  const { close: closeFunding } = useFundingStateMachine();
   const { updateLanguages, deleteLanguages } = useChaptersLanguages();
 
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
@@ -50,6 +52,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
     return () => {
       close();
       closeContribution();
+      closeFunding();
     };
   }, []);
 
@@ -63,12 +66,14 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
     onDone?.();
     close();
     closeContribution();
+    closeFunding();
   };
 
   const handleClose = () => {
     onClose?.();
     close();
     closeContribution();
+    closeFunding();
   };
 
   const onLicenseUpdate = async (data: LicenseAndCopyrightHolderForm) => {

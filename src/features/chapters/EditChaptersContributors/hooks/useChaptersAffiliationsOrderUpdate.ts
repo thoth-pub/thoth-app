@@ -12,12 +12,10 @@ export const useChaptersAffiliationsOrderUpdate = () => {
   const updateChaptersAffiliationsOrder = async ({
     data,
     chapters,
-    contributions,
     uniqueContributors,
   }: {
     data: AffiliationsForm['affiliations'];
     chapters: WorkEntity[];
-    contributions: WorkContribution[];
     uniqueContributors: WorkContribution[];
   }) => {
     const changedAffiliations = data.map((affiliation, index) => ({
@@ -54,7 +52,7 @@ export const useChaptersAffiliationsOrderUpdate = () => {
 
     if (!firstUpdatedAffiliation) return [];
 
-    const contributionsToUpdate = findAllSameContributions(existingContribution.id, chapters, contributions);
+    const contributionsToUpdate = findAllSameContributions(existingContribution.id, chapters, uniqueContributors);
     const contributionsToUpdateIds = contributionsToUpdate.map((contribution) => contribution.id);
 
     const affiliationsToUpdate: AffiliationEntity[] = [];

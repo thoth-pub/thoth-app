@@ -22,47 +22,19 @@ export const isAllFundingRecommendationsFilled = (funding: FundingEntity) => {
   return funding.grantNumber.length > 0;
 };
 
+const getFundingKey = ({ grantNumber, institutionId, jurisdiction, program, projectName, projectShortname }: FundingEntity) =>
+  [grantNumber, institutionId, jurisdiction, program, projectName, projectShortname].join('||');
+
 export const areFundingsEqual = (works: WorkEntity[]): boolean => {
-  const uniqueInstitutionIds = [
-    ...new Set(works.flatMap((work) => work.fundings.map((funding) => funding.institutionId))),
-  ];
+  if (works.length === 0) return true;
 
-  const uniqueGrantNumbers = [...new Set(works.flatMap((work) => work.fundings.map((funding) => funding.grantNumber)))];
+  const getSortedKeys = (work: WorkEntity) =>
+    work.fundings.map(getFundingKey).sort();
 
-  const uniquePrograms = [...new Set(works.flatMap((work) => work.fundings.map((funding) => funding.program)))];
+  const referenceKeys = getSortedKeys(works[0]);
 
-  const uniqueProjectNames = [...new Set(works.flatMap((work) => work.fundings.map((funding) => funding.projectName)))];
-
-  const uniqueProjectShortNames = [
-    ...new Set(works.flatMap((work) => work.fundings.map((funding) => funding.projectShortname))),
-  ];
-
-  const uniqueJurisdictions = [
-    ...new Set(works.flatMap((work) => work.fundings.map((funding) => funding.jurisdiction))),
-  ];
-
-  const areFundingsEqual = works.every(({ fundings }) => {
-    if (
-      fundings.length !== uniqueInstitutionIds.length ||
-      fundings.length !== uniqueGrantNumbers.length ||
-      fundings.length !== uniquePrograms.length ||
-      fundings.length !== uniqueProjectNames.length ||
-      fundings.length !== uniqueProjectShortNames.length ||
-      fundings.length !== uniqueJurisdictions.length
-    )
-      return false;
-
-    return fundings.every((funding) => {
-      return (
-        uniqueInstitutionIds.includes(funding.institutionId) &&
-        uniqueGrantNumbers.includes(funding.grantNumber) &&
-        uniquePrograms.includes(funding.program) &&
-        uniqueProjectNames.includes(funding.projectName) &&
-        uniqueJurisdictions.includes(funding.jurisdiction) &&
-        uniqueProjectShortNames.includes(funding.projectShortname)
-      );
-    });
+  return works.every((work) => {
+    const keys = getSortedKeys(work);
+    return keys.length === referenceKeys.length && keys.every((key, i) => key === referenceKeys[i]);
   });
-
-  return areFundingsEqual;
 };

@@ -12,7 +12,7 @@ type EditContributorsProps = BaseEditSectionProps;
 
 const EditContributors = (props: EditContributorsProps) => {
   const { workId } = props;
-  const { activeContribution, close } = useContributionStateMachine();
+  const { activeEntity: activeContribution, close } = useContributionStateMachine();
 
   const { work } = useWork(workId);
   const { isContributionsRequired } = useWorkRecommendations({ workId });
@@ -25,7 +25,7 @@ const EditContributors = (props: EditContributorsProps) => {
     return () => {
       close();
     };
-  }, [close]);
+  }, []);
 
   return (
     <RecommendedSection
