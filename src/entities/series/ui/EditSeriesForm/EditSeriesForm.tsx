@@ -2,7 +2,7 @@
 
 import type { Control } from 'react-hook-form';
 
-import { convertOptionToString, FormFieldOption, HELPER_TEXT, IDs, SeriesType } from '@/src/shared';
+import { convertOptionToString, FormFieldOption, HELPER_TEXT, IDs, prettifyUrlPreview, SeriesType } from '@/src/shared';
 import { FORM_FIELDS, seriesTypeOptions } from '@/src/shared/constants/formFields';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
@@ -255,7 +255,7 @@ const EditSeriesForm = ({
           </ContentWrapper>
         )}
         preview={({ disabled, onEdit }) => (
-          <Preview label={SERIES_URL.label} disabled={disabled} onEdit={onEdit} value={url ?? ''} />
+          <Preview label={SERIES_URL.label} disabled={disabled} onEdit={onEdit} value={prettifyUrlPreview(url)} />
         )}
       />
 

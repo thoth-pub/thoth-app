@@ -20,6 +20,7 @@ const useDeleteSeries = () => {
       sendErrorNotification(error?.message ?? SERIES_DELETE_FAILED);
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
     },

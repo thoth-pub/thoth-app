@@ -10,7 +10,6 @@ export { default as ContentLanguage } from './i18n/ContentLanguage';
 export { default as ImprintsList } from './imprint/ImprintsList/ImprintsList';
 export { default as ChaptersModal } from './layout/FullScreenModal/FullScreenModal';
 export { default as Navigation } from './layout/Navigation/Navigation';
-export { default as UpdateNavigationState } from './layout/UpdateNavigationState/UpdateNavigationState';
 export { default as AddNewPublication } from './publications/AddNewPublication/AddNewPublication';
 export { default as EditPublication } from './publications/EditPublication/EditPublication';
 export { default as ChangeActivePublisher } from './publisher/ui/ChangeActivePublisher/ChangeActivePublisher';

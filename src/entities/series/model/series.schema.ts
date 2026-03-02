@@ -44,8 +44,8 @@ export const GET_SERIESES = graphql(`
 `);
 
 export const GET_SERIESES_COUNT = graphql(`
-  query GetSeriesCount($publishers: [Uuid!]!) {
-    seriesCount(publishers: $publishers)
+  query GetSeriesCount($publishers: [Uuid!]!, $filter: String) {
+    seriesCount(publishers: $publishers, filter: $filter)
   }
 `);
 

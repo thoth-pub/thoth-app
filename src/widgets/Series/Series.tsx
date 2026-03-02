@@ -19,7 +19,7 @@ const Series = () => {
     seriesType,
     searchValue,
     changePage,
-    setSearchValue,
+    changeSearchValue,
     changeSeriesType,
     changeDirection,
     changeOrderBy,
@@ -32,7 +32,7 @@ const Series = () => {
         searchValue={searchValue}
         direction={direction}
         orderBy={orderBy}
-        onSearch={setSearchValue}
+        onSearch={changeSearchValue}
         changeSeriesType={changeSeriesType}
         changeDirection={changeDirection}
         changeOrderBy={changeOrderBy}

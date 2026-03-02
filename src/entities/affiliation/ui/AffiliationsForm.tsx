@@ -78,16 +78,16 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
             value={defaultValues.join(', ')}
             recommended={showIndicator}
           >
-            <div className="flex flex-col gap-[var(--default-gap)]">
+            <div className="flex flex-col gap-(--default-gap)">
               {defaultValues.length > 0 && (
                 <DragAndDropWrapper items={defaultValues} onDragEnd={onDragEndHandler}>
                   {() => (
-                    <ul className="flex flex-col gap-[var(--default-gap)]">
+                    <ul className="flex flex-col gap-(--default-gap)">
                       {defaultValues.map(({ id, affiliation: { label }, position }) => (
                         <PreviewItem
                           key={id}
                           id={id}
-                          text={`${position}, ${label}`}
+                          text={`${position && position !== '' ? `${position}, ` : ''}${label}`}
                           totalItemsCount={defaultValues.length}
                         />
                       ))}

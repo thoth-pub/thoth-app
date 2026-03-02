@@ -5,7 +5,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import { AnimatePresence, motion } from 'motion/react';
 import { useState } from 'react';
 
-import type { SeriesField, SeriesType } from '@/gql/graphql';
+import type { SeriesType, WorkField } from '@/gql/graphql';
 import { AddSeries } from '@/src/features';
 import type { Direction } from '@/src/shared';
 import { directionOptions, seriesOrderByOptions, seriesTypeOptions } from '@/src/shared/constants/formFields';
@@ -22,7 +22,7 @@ type SeriesHeaderProps = {
   onSearch: (value: string) => void;
   changeSeriesType: (value: SeriesType | 'All') => void;
   changeDirection: (value: Direction) => void;
-  changeOrderBy: (value: SeriesField) => void;
+  changeOrderBy: (value: WorkField) => void;
 };
 
 export const SeriesHeader = (props: SeriesHeaderProps) => {
@@ -96,7 +96,7 @@ export const SeriesHeader = (props: SeriesHeaderProps) => {
                 select
                 options={seriesOrderByOptions}
                 value={orderBy}
-                onChange={(e) => changeOrderBy(e.target.value as SeriesField)}
+                onChange={(e) => changeOrderBy(e.target.value as WorkField)}
                 translateOptions
               />
             </div>

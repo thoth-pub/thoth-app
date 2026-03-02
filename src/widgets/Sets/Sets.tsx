@@ -23,7 +23,7 @@ const Sets = () => {
     direction,
     orderBy,
     searchValue,
-    setSearchValue,
+    changeSearchValue,
     changeDirection,
     changeOrderBy,
     changePage,
@@ -37,7 +37,7 @@ const Sets = () => {
         searchValue={searchValue}
         direction={direction}
         orderBy={orderBy}
-        onSearch={setSearchValue}
+        onSearch={changeSearchValue}
         changeDirection={changeDirection}
         changeOrderBy={changeOrderBy}
       />

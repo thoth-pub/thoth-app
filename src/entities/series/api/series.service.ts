@@ -56,7 +56,7 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
       direction,
       filter,
       field,
-      seriesType,
+      seriesTypes: seriesType ? [seriesType] : [],
     });
 
     const res = serieses.map(this.dtoMapper.toEntity);
@@ -64,10 +64,10 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
     return res;
   }
 
-  async getSeriesCount(publishersIds: PublisherId[]): Promise<number> {
+  async getSeriesCount({ publishersIds, filter }: { publishersIds: PublisherId[]; filter?: string }): Promise<number> {
     const { seriesCount = 0 } = await this.graphqlService.query(GET_SERIESES_COUNT, {
-      query: GET_SERIESES_COUNT,
       publishers: publishersIds,
+      filter,
     });
 
     return seriesCount;
@@ -80,7 +80,7 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
     publishersIds: PublisherId[];
     limit?: number;
   }): Promise<SeriesEntity[]> {
-    const maxSeriesCount = await this.getSeriesCount(publishersIds);
+    const maxSeriesCount = await this.getSeriesCount({ publishersIds });
     let offset = 0;
     const series = [];
 
@@ -117,7 +117,7 @@ export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
         imprintId: dto.imprintId ?? '',
         seriesId: dto.seriesId ?? '',
         seriesName: dto.seriesName ?? '',
-        seriesType: SeriesType.enum.BookSeries,
+        seriesType: dto.seriesType ?? SeriesType.enum.BookSeries,
       },
     });
 

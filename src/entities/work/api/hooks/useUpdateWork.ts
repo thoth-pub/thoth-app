@@ -35,6 +35,7 @@ export const useUpdateWork = (props: BaseEditSectionProps) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.latestPublishedBooks] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.sets] });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? WORK_UPDATE_FAILED);

@@ -32,8 +32,8 @@ export const GET_SET = graphql(`
 `);
 
 export const GET_SETS_COUNT = graphql(`
-  query GetSetsCount($publishers: [Uuid!]!) {
-    workCount(publishers: $publishers, workTypes: [BOOK_SET])
+  query GetSetsCount($publishers: [Uuid!]!, $filter: String) {
+    workCount(publishers: $publishers, workTypes: [BOOK_SET], filter: $filter)
   }
 `);
 

@@ -1,4 +1,4 @@
-import { getProtocolPrefix, HELPER_TEXT, IDs } from '@/src/shared';
+import { getProtocolPrefix, HELPER_TEXT, IDs, prettifyUrlPreview } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormTextField, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
@@ -42,7 +42,12 @@ export const EditWebsite = (props: EditWebsiteProps) => {
         </ContentWrapper>
       )}
       preview={({ disabled: disabledPreview, onEdit }) => (
-        <Preview label={WEBSITE_URL.label} value={websiteUrl} disabled={disabledPreview || disabled} onEdit={onEdit} />
+        <Preview
+          label={WEBSITE_URL.label}
+          value={prettifyUrlPreview(websiteUrl)}
+          disabled={disabledPreview || disabled}
+          onEdit={onEdit}
+        />
       )}
     />
   );

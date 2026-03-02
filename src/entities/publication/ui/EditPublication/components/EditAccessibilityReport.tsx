@@ -1,4 +1,4 @@
-import { HELPER_TEXT, IDs } from '@/src/shared';
+import { HELPER_TEXT, IDs, prettifyUrlPreview } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -50,7 +50,7 @@ export const EditAccessibilityReport = (props: EditAccessibilityReportProps) => 
       preview={({ disabled, onEdit }) => (
         <Preview
           label={PUBLICATION_ACCESSIBILITY_REPORT_URL.label}
-          value={report}
+          value={prettifyUrlPreview(report)}
           disabled={disabled}
           onEdit={onEdit}
         />

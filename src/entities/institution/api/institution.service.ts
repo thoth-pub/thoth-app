@@ -26,7 +26,6 @@ export class InstitutionService extends BaseService<InstitutionEntity, Instituti
     filter: string = '',
   ): Promise<InstitutionEntity[]> {
     const { institutions = [] } = await this.graphqlService.query(GET_INSTITUTIONS, {
-      query: GET_INSTITUTIONS,
       offset,
       limit,
       filter,

@@ -16,7 +16,7 @@ import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ContributionService } from '../../contribution/api/contribution.service';
 import { FundingService } from '../../funding/api/funding.service';
-import { LanguageService } from '../../language/api/service';
+import { LanguageService } from '../../language/api/language.service';
 import { PublicationService } from '../../publication/api/publication.service';
 import { PublisherId } from '../../publisher/model/publisher.types';
 import { ReferenceService } from '../../reference/api/reference.service';

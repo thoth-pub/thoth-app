@@ -10,9 +10,9 @@ import { Activity, useState } from 'react';
 
 import { AddNewPublisher } from '@/src/entities/publisher';
 import { useUser } from '@/src/entities/user';
+import { useUIContext } from '@/src/shared';
 import { PAGES, ROUTES } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import useUIStateMachine from '@/src/shared/store/ui/hooks/useUIStateMachine';
 import { IconButton, Paper, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { SignOutButton } from '../../auth';
@@ -22,8 +22,8 @@ import { ChangeActivePublisher } from '../../publisher';
 const Navigation = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(true);
 
-  const { isExpanded, update } = useUIStateMachine();
   const { user } = useUser();
+  const { isExpanded, updateIsExpanded } = useUIContext();
 
   const handleUserMenuOpen = () => {
     setIsUserMenuOpen((prev) => !prev);
@@ -66,7 +66,7 @@ const Navigation = () => {
               />
             </Activity>
           </Link>
-          <IconButton onClick={update} className={`${isExpanded && 'self-start'}`}>
+          <IconButton onClick={updateIsExpanded} className={`${isExpanded && 'self-start'}`}>
             {!isExpanded ? <ArrowForwardIosRoundedIcon /> : <ArrowBackIosNewRoundedIcon />}
           </IconButton>
         </div>

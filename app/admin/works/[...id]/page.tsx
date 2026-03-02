@@ -6,7 +6,7 @@ import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.s
 import { ContributionService } from '@/src/entities/contribution';
 import { ContributorService } from '@/src/entities/contributor';
 import { FundingService } from '@/src/entities/funding/api/funding.service';
-import { LanguageService } from '@/src/entities/language/api/service';
+import { LanguageService } from '@/src/entities/language/api/language.service';
 import { LocationService } from '@/src/entities/locations/api/location.service';
 import { PriceService } from '@/src/entities/price/api/price.service';
 import { PublicationService } from '@/src/entities/publication/api/publication.service';

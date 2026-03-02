@@ -120,6 +120,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
     queryClient.invalidateQueries({ queryKey: [QueryKeys.latestPublishedBooks] });
     queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
     queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.sets] });
   };
 
   return (

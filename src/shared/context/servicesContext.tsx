@@ -9,7 +9,7 @@ import { ContributorService } from '@/src/entities/contributor';
 import { FundingService } from '@/src/entities/funding/api/funding.service';
 import { ImprintService } from '@/src/entities/imprint';
 import { InstitutionService } from '@/src/entities/institution';
-import { LanguageService } from '@/src/entities/language/api/service';
+import { LanguageService } from '@/src/entities/language/api/language.service';
 import { LocationService } from '@/src/entities/locations/api/location.service';
 import { MetadataService } from '@/src/entities/metadata/api/metadata.service';
 import { PriceService } from '@/src/entities/price/api/price.service';

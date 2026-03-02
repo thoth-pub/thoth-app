@@ -71,10 +71,10 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     return this.dtoMapper.toEntity(work as SetDto);
   }
 
-  async getSetsCount(publishersIds: PublisherId[]): Promise<number> {
+  async getSetsCount({ publishersIds, filter }: { publishersIds: PublisherId[]; filter?: string }): Promise<number> {
     const { workCount = 0 } = await this.graphqlService.query(GET_SETS_COUNT, {
-      query: GET_SETS_COUNT,
       publishers: publishersIds,
+      filter,
     });
 
     return workCount;
@@ -87,7 +87,7 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     publishersIds: PublisherId[];
     limit?: number;
   }): Promise<SetEntity[]> {
-    const maxSetsCount = await this.getSetsCount(publishersIds);
+    const maxSetsCount = await this.getSetsCount({ publishersIds });
     let offset = 0;
     const sets = [];
 

@@ -15,7 +15,7 @@ const AllWorks = () => {
     isFetched,
     works,
     searchValue,
-    setSearchValue,
+    changeSearchValue,
     activePage,
     totalPagesCount,
     changePage,
@@ -40,7 +40,7 @@ const AllWorks = () => {
     <>
       <Header
         searchValue={searchValue}
-        onSearch={setSearchValue}
+        onSearch={changeSearchValue}
         workStatus={workStatus}
         changeWorkStatus={changeWorkStatus}
         workType={workType}

@@ -3,14 +3,12 @@
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { Direction, WorkField } from '@/gql/graphql';
+import { WorkField } from '@/gql/graphql';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { useCreateNewWorkEdition, useCreateWorkTranslation, useWorks, useWorksCount } from '@/src/entities/work';
 import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
-import { appConfig, ROUTES, type WorkCopyVariant, WorkTypes } from '@/src/shared';
-import { useDebouncedValue } from '@/src/shared/hooks';
-
-const ITEMS_PER_PAGE = appConfig.data.itemsPerRequestLimit;
+import { getPagesCount, ROUTES, type WorkCopyVariant, WorkTypes } from '@/src/shared';
+import { useEntityList } from '@/src/shared/hooks';
 
 export const useAllWorks = () => {
   const router = useRouter();
@@ -18,20 +16,28 @@ export const useAllWorks = () => {
   const { createWorkTranslation } = useCreateWorkTranslation();
 
   const { activePublisher } = usePublisherStateMachine();
-  const publishers = activePublisher && activePublisher.id ? [activePublisher.id] : [];
+  const publisherId = activePublisher && activePublisher.id ? activePublisher.id : '';
 
   const [workStatus, setWorkStatus] = useState<WorkStatus | 'All'>('All');
   const [workType, setWorkType] = useState<WorkType | 'All'>('All');
-  const [orderBy, setOrderBy] = useState(WorkField.UpdatedAtWithRelations);
-  const [activePage, setActivePage] = useState(1);
-  const [direction, setDirection] = useState<Direction>(Direction.Desc);
-  const [searchValue, setSearchValue] = useState('');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
-  const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
+  const {
+    activePage,
+    direction,
+    orderBy,
+    searchValue,
+    debouncedValue,
+    offset,
+    limit,
+    changeSearchValue,
+    changePage,
+    changeDirection,
+    changeOrderBy,
+  } = useEntityList({ initialOrderBy: WorkField.UpdatedAtWithRelations });
 
   const baseProps = {
-    publishersIds: publishers,
+    publishersIds: [publisherId],
     filter: debouncedValue,
     workStatus: workStatus === 'All' ? undefined : workStatus,
     workTypes:
@@ -41,23 +47,16 @@ export const useAllWorks = () => {
   };
 
   const { workCount } = useWorksCount(baseProps);
+
   const { works, loading, isFetched } = useWorks({
-    offset: (activePage - 1) * ITEMS_PER_PAGE,
-    limit: ITEMS_PER_PAGE,
+    offset,
+    limit,
     direction,
     field: orderBy,
     ...baseProps,
   });
 
-  const totalPagesCount = Math.ceil(workCount / ITEMS_PER_PAGE);
-
-  const changePage = (value: number) => {
-    setActivePage(value);
-  };
-
-  const changeDirection = (value: Direction) => {
-    setDirection(value);
-  };
+  const totalPagesCount = getPagesCount(workCount);
 
   const navigateToWork = (id: string) => {
     router.push(ROUTES.WORK_PAGE(id));
@@ -69,10 +68,6 @@ export const useAllWorks = () => {
 
   const changeWorkType = (value: WorkType | 'All') => {
     setWorkType(value);
-  };
-
-  const changeOrderBy = (value: WorkField) => {
-    setOrderBy(value);
   };
 
   const openUpload = () => {
@@ -95,7 +90,7 @@ export const useAllWorks = () => {
 
     // Search
     searchValue,
-    setSearchValue,
+    changeSearchValue,
 
     // Pagination
     activePage,

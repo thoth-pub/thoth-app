@@ -1,6 +1,6 @@
 'use client';
 
-import { HELPER_TEXT, IDs } from '@/src/shared';
+import { HELPER_TEXT, IDs, prettifyUrlPreview } from '@/src/shared';
 import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -51,7 +51,12 @@ const EditReport = () => {
         </ContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (
-        <Preview label={PUBLISHER_REPORT.label} value={defaultValue} disabled={disabled} onEdit={onEdit} />
+        <Preview
+          label={PUBLISHER_REPORT.label}
+          value={prettifyUrlPreview(defaultValue)}
+          disabled={disabled}
+          onEdit={onEdit}
+        />
       )}
     />
   );

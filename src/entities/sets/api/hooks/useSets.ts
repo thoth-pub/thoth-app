@@ -4,7 +4,7 @@ import { Direction, WorkField } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
 import { appConfig, QueryKeys, useServices } from '@/src/shared';
 
-type UseSeriesProps = {
+type UseSetsProps = {
   publishersIds: PublisherId[];
   offset?: number;
   limit?: number;
@@ -13,7 +13,7 @@ type UseSeriesProps = {
   field?: WorkField;
 };
 
-const useSets = (props: UseSeriesProps) => {
+const useSets = (props: UseSetsProps) => {
   const {
     publishersIds,
     offset = 0,

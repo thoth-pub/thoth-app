@@ -13,34 +13,34 @@ import { SubjectStateMachineContext } from '@/src/entities/subject';
 import { WorkStateMachineContext } from '@/src/entities/work';
 import { ServicesProvider } from '@/src/shared';
 import { FormStateMachineContext } from '@/src/shared/store/forms/forms.provider';
-import { UiStateMachineContext } from '@/src/shared/store/ui/ui.provider';
+import { UIProvider } from '@/src/shared/store/ui/ui.context';
 
 const StoreProvider = ({ children }: Readonly<{ children: React.ReactNode }>) => {
   return (
     <PublisherStateMachineContext.Provider>
-      <UiStateMachineContext.Provider>
-        <FormStateMachineContext.Provider>
-          <ContributionStateMachineContext.Provider>
-            <PublicationsStateMachineContext.Provider>
-              <FundingStateMachineContext.Provider>
-                <ReferenceStateMachineContext.Provider>
-                  <SeriesStateMachineContext.Provider>
-                    <WorkStateMachineContext.Provider>
-                      <SetStateMachineContext.Provider>
-                        <SubjectStateMachineContext.Provider>
-                          <LocationStateMachineContext.Provider>
+      <FormStateMachineContext.Provider>
+        <ContributionStateMachineContext.Provider>
+          <PublicationsStateMachineContext.Provider>
+            <FundingStateMachineContext.Provider>
+              <ReferenceStateMachineContext.Provider>
+                <SeriesStateMachineContext.Provider>
+                  <WorkStateMachineContext.Provider>
+                    <SetStateMachineContext.Provider>
+                      <SubjectStateMachineContext.Provider>
+                        <LocationStateMachineContext.Provider>
+                          <UIProvider>
                             <ServicesProvider>{children}</ServicesProvider>
-                          </LocationStateMachineContext.Provider>
-                        </SubjectStateMachineContext.Provider>
-                      </SetStateMachineContext.Provider>
-                    </WorkStateMachineContext.Provider>
-                  </SeriesStateMachineContext.Provider>
-                </ReferenceStateMachineContext.Provider>
-              </FundingStateMachineContext.Provider>
-            </PublicationsStateMachineContext.Provider>
-          </ContributionStateMachineContext.Provider>
-        </FormStateMachineContext.Provider>
-      </UiStateMachineContext.Provider>
+                          </UIProvider>
+                        </LocationStateMachineContext.Provider>
+                      </SubjectStateMachineContext.Provider>
+                    </SetStateMachineContext.Provider>
+                  </WorkStateMachineContext.Provider>
+                </SeriesStateMachineContext.Provider>
+              </ReferenceStateMachineContext.Provider>
+            </FundingStateMachineContext.Provider>
+          </PublicationsStateMachineContext.Provider>
+        </ContributionStateMachineContext.Provider>
+      </FormStateMachineContext.Provider>
     </PublisherStateMachineContext.Provider>
   );
 };

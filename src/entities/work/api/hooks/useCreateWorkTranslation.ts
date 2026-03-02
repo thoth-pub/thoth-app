@@ -38,6 +38,7 @@ const useCreateWorkTranslation = () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workTranslations] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.translatedWorks] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.sets] });
 
       router.push(ROUTES.WORK_PAGE(data.id));
     },

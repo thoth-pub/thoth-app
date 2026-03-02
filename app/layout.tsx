@@ -4,7 +4,6 @@ import { SpeedInsights } from '@vercel/speed-insights/next';
 import type { Metadata } from 'next';
 import { Economica, Open_Sans } from 'next/font/google';
 
-import { UpdateNavigationState } from '@/src/features';
 import { appConfig } from '@/src/shared/config';
 
 import Providers from './providers';
@@ -46,7 +45,6 @@ export default async function RootLayout({
         <Providers>
           <main className="flex flex-1">{children}</main>
           <SpeedInsights />
-          <UpdateNavigationState />
         </Providers>
       </body>
     </html>
