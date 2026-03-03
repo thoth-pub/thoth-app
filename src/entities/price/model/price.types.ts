@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import type { Price } from '@/gql/graphql';
-import { CurrencyCode } from '@/src/shared';
+import { CurrencyCode } from '@/src/shared/constants';
 
 import { pricesValidationSchema } from './price.validation';
 

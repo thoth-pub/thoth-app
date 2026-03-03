@@ -2,10 +2,11 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
 
-import { WorkEntity } from '../../model/work.types';
+import type { WorkEntity } from '../../model/work.types';
 
 const { WORK_UPDATE_FAILED } = NOTIFICATIONS;
 

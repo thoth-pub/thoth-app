@@ -3,7 +3,7 @@
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { appConfig, getMainTitle, getPagesPlaceholder } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
 import {
   ButtonGroup,
   Checkbox,
@@ -16,6 +16,7 @@ import {
   TableCell,
   TableRow,
 } from '@/src/shared/ui';
+import { getMainTitle, getPagesPlaceholder } from '@/src/shared/utils';
 
 type TableRowProps = {
   chapter: WorkEntity;

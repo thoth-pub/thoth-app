@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import { NextRequest, NextResponse } from 'next/server';
 
-import { ROUTES } from '@/src/shared';
+import { ROUTES } from '@/src/shared/constants';
 
 /**
  * Handles the callback from an external Identity Provider (IdP) after a user

@@ -1,5 +1,5 @@
-import { AccessibilityExceptionType, convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
-import { accessibilityExceptionOptions, FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { accessibilityExceptionOptions, FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
+import { AccessibilityExceptionType } from '@/src/shared/types';
 import {
   ContentWrapper,
   DeleteButton,
@@ -9,6 +9,7 @@ import {
   Preview,
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { convertOptionToString } from '@/src/shared/utils';
 
 import { PublicationAccessibilityExceptionForm } from '../../../model/publication.types';
 import { accessibilityExceptionValidationSchema } from '../../../model/publication.validation';

@@ -16,7 +16,8 @@ import type {
   SeriesUrlFormType,
 } from '@/src/entities/series/model/series.types';
 import { useUser } from '@/src/entities/user';
-import { appConfig, isDefaultId, SeriesType } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { SeriesType } from '@/src/shared/constants';
 import {
   CloseButton,
   Modal,
@@ -27,6 +28,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
+import { isDefaultId } from '@/src/shared/utils';
 
 const AddSeries = () => {
   const { activeEntity: activeSeries, edit, close } = useSeriesStateMachine();

@@ -5,9 +5,11 @@ import { Activity, useEffect, useEffectEvent, useState } from 'react';
 import { validateXml } from '@/app/actions/validateXml';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
-import { ContributorsForSelection, type FormFieldOption, SeriesForUpdateItems, useServices } from '@/src/shared';
-import { currencyOptions, languageOptions, licenseOptions } from '@/src/shared/constants/formFields';
+import { currencyOptions, languageOptions, licenseOptions } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
+import { FormFieldOption } from '@/src/shared/interfaces';
 import { XMLParser } from '@/src/shared/parsers';
+import { ContributorsForSelection, SeriesForUpdateItems } from '@/src/shared/types';
 import { CircularProgress } from '@/src/shared/ui';
 
 import { ContributorsSelection } from './ContributorsSelection';

@@ -6,7 +6,10 @@ import { useEffect } from 'react';
 import { type PublisherId } from '@/src/entities/publisher';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { useUser } from '@/src/entities/user';
-import { appConfig, convertEntityToSelectFieldOptions, ROUTES, useServices } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { ROUTES } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
+import { convertEntityToSelectFieldOptions } from '@/src/shared/utils';
 import { isRouteIncludesUUID } from '@/src/shared/utils/routes';
 
 type UseChangeActivePublisherProps = {

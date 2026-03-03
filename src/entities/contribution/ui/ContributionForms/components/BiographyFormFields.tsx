@@ -3,8 +3,8 @@
 import { type Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
-import { appConfig, HELPER_TEXT } from '@/src/shared';
-import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, HELPER_TEXT, languageOptionsAlt } from '@/src/shared/constants';
 import {
   AddButton,
   ContentWrapper,

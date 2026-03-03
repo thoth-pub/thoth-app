@@ -1,7 +1,7 @@
 'use client';
 
 import { PublicationsList } from '@/src/entities/publication';
-import { type BaseEditSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { AddButton, TranslatedContent } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 

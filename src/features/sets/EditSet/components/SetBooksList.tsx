@@ -3,7 +3,7 @@ import EditSquareIcon from '@mui/icons-material/EditSquare';
 import { useRouter } from 'next/navigation';
 
 import { SetId, SetWorkEntity, useBookSetWorks, useDeleteFromSet, useMoveSetRelation } from '@/src/entities/sets';
-import { isDragAndDropDisabled, ROUTES } from '@/src/shared';
+import { ROUTES } from '@/src/shared/constants';
 import {
   Backdrop,
   ButtonGroup,
@@ -16,10 +16,11 @@ import {
   IconButton,
   Typography,
 } from '@/src/shared/ui';
+import { isDragAndDropDisabled } from '@/src/shared/utils';
 
 import { AddBookModal } from './AddBookModal';
 
-export const SetBooksList = ({ setId }: { setId: SetId; }) => {
+export const SetBooksList = ({ setId }: { setId: SetId }) => {
   const router = useRouter();
 
   const { bookSetWorks, isLoading, isFetching } = useBookSetWorks(setId);

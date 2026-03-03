@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import { SetFragmentFragment, WorkStatus, WorkType } from '@/gql/graphql';
-import { TitleDto, TitleEntity } from '@/src/shared';
+import { TitleDto, TitleEntity } from '@/src/shared/types';
 
 import type { WorkId } from '../../work/model/work.types';
 import { setImprintValidationSchema, setTitleValidationSchema, setWorkValidationSchema } from './set.validation';

@@ -1,4 +1,4 @@
-import { QueryToken } from '@/src/shared';
+import { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublicationId } from '../../publication/model/publication.types';

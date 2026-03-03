@@ -9,7 +9,7 @@ import {
 import { EditOrcid, EditWebsite } from '@/src/entities/contributor';
 import { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import type { BaseRecommendedSectionProps } from '@/src/shared';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 
 import { useEditContribution } from './useEditContribution';
 

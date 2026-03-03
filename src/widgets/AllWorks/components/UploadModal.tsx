@@ -8,7 +8,8 @@ import { Activity, useState } from 'react';
 
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
-import { ROUTES, SeriesForUpdateItems } from '@/src/shared';
+import { ROUTES } from '@/src/shared/constants';
+import type { SeriesForUpdateItems } from '@/src/shared/types';
 import { Step, StepLabel, Stepper, TranslatedContent } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 

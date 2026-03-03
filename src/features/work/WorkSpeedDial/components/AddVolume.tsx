@@ -9,9 +9,11 @@ import { EditSetTitle, SetEntity, SetId, SetTitleFormType, useAddToSet, useCreat
 import useSets from '@/src/entities/sets/api/hooks/useSets';
 import { useWork } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { appConfig, getMainTitle, LocaleCodeType, WorkStatuses, WorkTypes } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { WorkStatuses, WorkTypes } from '@/src/shared/constants';
 import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import type { LocaleCodeType } from '@/src/shared/types';
 import {
   Button,
   ButtonGroup,
@@ -25,6 +27,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
+import { getMainTitle } from '@/src/shared/utils';
 
 type AddVolumeProps = {
   workId: WorkId;
@@ -177,7 +180,7 @@ export const AddVolume = (props: AddVolumeProps) => {
                     <li
                       onClick={() => handleSelect(set.id)}
                       key={set.id}
-                      className={`w-full cursor-pointer rounded p-2 hover:bg-(--color-hover) ${selectedSet === set.id ? 'bg-[var(--color-list-item-selected)]' : ''}`}
+                      className={`w-full cursor-pointer rounded p-2 hover:bg-(--color-hover) ${selectedSet === set.id ? 'bg-(--color-list-item-selected)' : ''}`}
                     >
                       <button type="button">
                         <Typography variant="body1" component="span">

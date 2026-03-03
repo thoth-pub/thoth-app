@@ -5,7 +5,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useCreateAffiliation, useDeleteAffiliation, useUpdateAffiliation } from '@/src/entities/affiliation';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { appConfig, getDefaultAffiliation, isDefaultId, QueryKeys } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { getDefaultAffiliation, QueryKeys } from '@/src/shared/constants';
+import { isDefaultId } from '@/src/shared/utils';
 
 import type { AffiliationEntity, AffiliationsForm } from '../model/affiliation.types';
 

@@ -5,9 +5,10 @@ import { useRouter } from 'next/navigation';
 import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { appConfig, FormFieldOption, getDefaultTitle, getDefaultWork } from '@/src/shared';
-import { ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
-import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, languageOptionsAlt, ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
+import { FormFieldOption } from '@/src/shared/interfaces';
+import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils';
 
 import useCreateWork from '../../api/hooks/useCreateWork';
 import type { CreateWorkForm as CreateWorkFormType, WorkType } from '../../model/work.types';

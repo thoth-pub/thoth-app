@@ -6,10 +6,11 @@ import { IconButton, InputAdornment } from '@mui/material';
 import { useState } from 'react';
 import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
-import { appConfig, removePrefix } from '@/src/shared';
-import { InputTypes } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { InputTypes } from '@/src/shared/constants';
 import { Namespace, NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
+import { removePrefix } from '@/src/shared/utils';
 
 import TextField, { type TextFieldProps } from '../../core/TextField/TextField';
 import TranslatedContent from '../../core/TranslatedContent/TranslatedContent';

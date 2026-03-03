@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useFundingStateMachine } from '@/src/entities/funding/store/funding.store';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
-import type { BaseEditSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { TranslatedContent } from '@/src/shared/ui';
 
 import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';

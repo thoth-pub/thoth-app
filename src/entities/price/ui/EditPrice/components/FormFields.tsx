@@ -1,8 +1,8 @@
 import { type Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
-import { appConfig, HELPER_TEXT, isDefaultId } from '@/src/shared';
-import { currencyOptions, FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { currencyOptions, FORM_FIELDS, HELPER_TEXT } from '@/src/shared/constants';
 import {
   AddButton,
   AutocompleteField,
@@ -14,6 +14,7 @@ import {
   InputLabel,
   TranslatedContent,
 } from '@/src/shared/ui';
+import { isDefaultId } from '@/src/shared/utils';
 
 import type { CurrencyCode, PricesForm } from '../../../model/price.types';
 

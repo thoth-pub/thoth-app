@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query';
 
 import { Direction, SeriesField, SeriesType } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, QueryKeys, useServices } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 
 type UseSeriesProps = {
   publishersIds: PublisherId[];

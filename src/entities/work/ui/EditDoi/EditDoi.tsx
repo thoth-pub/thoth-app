@@ -3,11 +3,12 @@
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { DoiAndCoversForm } from '@/src/entities/work/model/work.types';
 import { doiAndCoversValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseRecommendedSectionProps, getProtocolPrefix, HELPER_TEXT, IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 import { ContentWrapper, DoiPreview, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { getProtocolPrefix } from '@/src/shared/utils';
 
 const { DOI, LANDING_PAGE } = FORM_FIELDS;
 

@@ -5,8 +5,8 @@ import StarIcon from '@mui/icons-material/Star';
 import Image from 'next/image';
 
 import { LocationPlatform } from '@/gql/graphql';
-import { appConfig, convertOptionToString, IDs, isDefaultId } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, IDs } from '@/src/shared/constants';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import {
   AddButton,
@@ -19,6 +19,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
+import { convertOptionToString, isDefaultId } from '@/src/shared/utils';
 
 import type { LocationEntity } from '../../model/location.types';
 import { useLocationStateMachine } from '../../store/location.store';

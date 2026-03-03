@@ -1,8 +1,10 @@
 'use client';
 import { useMutation } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, type TitleEntity, useServices } from '@/src/shared';
+import { NOTIFICATIONS } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
+import { TitleEntity } from '@/src/shared/types';
 
 import type { WorkId } from '../../model/work.types';
 

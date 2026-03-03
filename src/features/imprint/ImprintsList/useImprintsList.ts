@@ -8,8 +8,10 @@ import {
   useUpdateImprint,
 } from '@/src/entities/imprint';
 import { useActivePublisherPermissions, usePublisherStateMachine } from '@/src/entities/publisher';
-import { appConfig, IDs, isDefaultId } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { IDs } from '@/src/shared/constants';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import { isDefaultId } from '@/src/shared/utils';
 
 export const useImprintsList = () => {
   const { isImprintEditable } = useActivePublisherPermissions();

@@ -2,7 +2,7 @@
 
 import { EditDoi, EditLicense, EditWorkTitle, useWorkRecommendations } from '@/src/entities/work';
 import type { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
-import { type BaseEditSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { RecommendedSection, TranslatedContent } from '@/src/shared/ui';
 
 type EditChapterBasicDetailsProps = BaseEditSectionProps &

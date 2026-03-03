@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 
-import { ROUTES } from './src/shared';
+import { ROUTES } from './src/shared/constants';
 import { authOptions } from './src/shared/lib/auth/auth';
 
 export async function proxy(request: NextRequest) {

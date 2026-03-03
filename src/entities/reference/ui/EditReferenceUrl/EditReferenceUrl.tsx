@@ -1,9 +1,9 @@
 'use client';
 
-import { HELPER_TEXT, IDs, prettifyUrlPreview } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { prettifyUrlPreview } from '@/src/shared/utils';
 
 import { referenceValidationSchema } from '../../model/reference.validation';
 
@@ -40,7 +40,12 @@ export const EditReferenceUrl = (props: EditReferenceUrlProps) => {
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview label={REFERENCE_URL.label} value={prettifyUrlPreview(data?.url)} disabled={disabled} onEdit={onEdit} />
+        <Preview
+          label={REFERENCE_URL.label}
+          value={prettifyUrlPreview(data?.url)}
+          disabled={disabled}
+          onEdit={onEdit}
+        />
       )}
     />
   );

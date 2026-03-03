@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 
 import { useCreateImprint } from '@/src/entities/imprint';
 import { useUser } from '@/src/entities/user';
-import { ROUTES } from '@/src/shared';
+import { ROUTES } from '@/src/shared/constants';
 
 import useCreatePublisher from '../../api/hooks/useCreatePublisher';
 import { NewPublisherForm } from '../../model/publisher.types';

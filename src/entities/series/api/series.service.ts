@@ -1,7 +1,10 @@
 import { SeriesField, SeriesType as SeriesTypeEnum } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, Direction, type QueryToken, SeriesType } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { SeriesType } from '@/src/shared/constants';
+import { type QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
+import { Direction } from '@/src/shared/types';
 
 import { WorkId } from '../../work/model/work.types';
 import { SeriesDtoMapper } from '../model/series.mapper';

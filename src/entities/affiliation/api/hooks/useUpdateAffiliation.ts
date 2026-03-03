@@ -2,7 +2,7 @@
 
 import { useMutation } from '@tanstack/react-query';
 
-import { useServices } from '@/src/shared';
+import { useServices } from '@/src/shared/context';
 
 import { AffiliationEntity } from '../../model/affiliation.types';
 

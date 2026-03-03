@@ -3,7 +3,7 @@
 import { EditLocations } from '@/src/entities/locations';
 import { EditPrice } from '@/src/entities/price';
 import { EditPublication as EditPublicationForm } from '@/src/entities/publication';
-import type { BaseEditSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { useEditPublication } from './useEditPublication';
 

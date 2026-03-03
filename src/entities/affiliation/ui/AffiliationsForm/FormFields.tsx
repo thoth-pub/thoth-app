@@ -3,8 +3,8 @@
 import { type Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
-import { appConfig } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS } from '@/src/shared/constants';
 import { AddButton, FormFieldWrapper, InputLabel, TranslatedContent } from '@/src/shared/ui';
 
 import type { AffiliationsForm } from '../../model/affiliation.types';

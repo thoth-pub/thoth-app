@@ -6,8 +6,8 @@ import { Activity, useState } from 'react';
 import { useAllUserSerieses } from '@/src/entities/series';
 import { useUser } from '@/src/entities/user';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
-import { SeriesForUpdateItems } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS } from '@/src/shared/constants';
+import type { SeriesForUpdateItems } from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { CSVParse } from './CSVParse';

@@ -1,17 +1,16 @@
 import z from 'zod';
 
+import { appConfig } from '@/src/shared/config';
+import { ERRORS, FORM_FIELDS } from '@/src/shared/constants';
 import {
   accessibilityExceptionValidation,
   accessibilityStandardValidation,
-  appConfig,
-  ERRORS,
   getFileValidation,
   isbnValidation,
   optionalPositiveIntValidation,
   optionalUrlValidation,
   publicationTypeValidation,
-} from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+} from '@/src/shared/utils';
 
 const {
   supportedPdfFileTypes,

@@ -4,7 +4,7 @@ import type { Control, FieldValues } from 'react-hook-form';
 
 import type { ContributionBiographyForm } from '@/src/entities/contribution/model/contribution.types';
 import type { WorkAbstractsForm, WorkTitlesForm } from '@/src/entities/work/model/work.types';
-import { languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { languageOptionsAlt } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { AutocompleteField, TranslatedContent, Typography } from '@/src/shared/ui';
 import { mergeStyles } from '@/src/shared/utils';

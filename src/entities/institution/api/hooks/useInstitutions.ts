@@ -2,7 +2,9 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { appConfig, QueryKeys, useServices } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 
 type UseContributorsProps = {
   filter: string;

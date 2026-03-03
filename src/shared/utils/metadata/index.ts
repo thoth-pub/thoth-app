@@ -1,4 +1,4 @@
-import { appConfig } from '../..';
+import { appConfig } from '../../config';
 
 export const normalizeMetaDataPrefix = (url: string) => url.replace(appConfig.metaDataPrefix, '');
 

@@ -3,8 +3,10 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { convertEntityToSelectFieldOptions, QueryKeys, useServices } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 import { useQueryToken } from '@/src/shared/hooks';
+import { convertEntityToSelectFieldOptions } from '@/src/shared/utils';
 
 const defaultUser = {
   id: '',

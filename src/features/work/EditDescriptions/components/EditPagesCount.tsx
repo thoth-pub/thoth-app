@@ -6,14 +6,8 @@ import { useTranslation } from 'react-i18next';
 import { useWork } from '@/src/entities/work';
 import type { PagesCountForm } from '@/src/entities/work/model/work.types';
 import { pagesCountValidationSchema } from '@/src/entities/work/model/work.validation';
-import {
-  type BaseRecommendedSectionProps,
-  convertArabicToRoman,
-  getPagesPlaceholder,
-  HELPER_TEXT,
-  IDs,
-} from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 import {
   ContentWrapper,
   FormFieldLabel,
@@ -23,6 +17,7 @@ import {
   Typography,
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { convertArabicToRoman, getPagesPlaceholder } from '@/src/shared/utils';
 
 const {
   WORK_PAGES_COUNT,

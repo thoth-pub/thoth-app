@@ -1,7 +1,8 @@
 import { useMemo } from 'react';
 
-import { convertOptionToString, mergeStyles, WorkStatuses } from '@/src/shared';
+import { WorkStatuses } from '@/src/shared/constants';
 import { Chip, TranslatedContent } from '@/src/shared/ui';
+import { convertOptionToString, mergeStyles } from '@/src/shared/utils';
 
 import type { WorkStatus } from '../../model/work.types';
 

@@ -10,9 +10,9 @@ import { Activity, useState } from 'react';
 
 import { AddNewPublisher } from '@/src/entities/publisher';
 import { useUser } from '@/src/entities/user';
-import { useUIContext } from '@/src/shared';
 import { PAGES, ROUTES } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { useUIContext } from '@/src/shared/store';
 import { IconButton, Paper, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { SignOutButton } from '../../auth';

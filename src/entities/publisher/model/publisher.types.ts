@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import type { Contact, Publisher } from '@/gql/graphql';
-import type { ContactType } from '@/src/shared';
+import type { ContactType } from '@/src/shared/types';
 
 import {
   newPublisherValidationSchema,

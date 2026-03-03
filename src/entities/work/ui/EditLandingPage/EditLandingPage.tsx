@@ -1,8 +1,8 @@
 'use client';
 
 import { useWork } from '@/src/entities/work';
-import { type BaseEditSectionProps, IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, IDs } from '@/src/shared/constants';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 

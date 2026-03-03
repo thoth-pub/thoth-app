@@ -1,5 +1,6 @@
-import { appConfig, BaseMapper } from '..';
 import { GraphqlService } from '../api/graphqlService';
+import { appConfig } from '../config';
+import { BaseMapper } from './mappers';
 
 export abstract class BaseService<
   EntityType,

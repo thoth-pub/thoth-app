@@ -4,7 +4,8 @@ import { useCreateBiography, useDeleteBiography } from '@/src/entities/contribut
 import type { ContributionBiographyForm, WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { appConfig, QueryKeys } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { QueryKeys } from '@/src/shared/constants';
 
 import { findAllSameContributions } from '../components/utils';
 

@@ -9,28 +9,27 @@ import { PublicationEntity } from '@/src/entities/publication/model/publication.
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { SubjectEntity } from '@/src/entities/subject/model/subject.types';
 import { WorkEntity, WorkId, WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
+
+import { appConfig } from '../../config';
 import {
-  AbstractEntity,
-  appConfig,
-  ContributorsForSelection,
-  convertRomanToArabic,
   CSV_KEYS,
-  FormFieldOption,
   getContributorFieldsByIndex,
-  getDefaultAbstract,
   getDefaultAffiliation,
   getDefaultContribution,
+  LanguageRelation,
+  PublicationType,
+  SubjectTypes,
+} from '../../constants';
+import { AbstractTypes } from '../../constants/abstracts';
+import { FormFieldOption } from '../../interfaces';
+import type { AbstractEntity, ContributorsForSelection, SeriesForUpdateItems, TitleEntity } from '../../types';
+import {
+  convertRomanToArabic,
+  getDefaultAbstract,
   getDefaultPublication,
   getDefaultTitle,
   getDefaultWork,
-  LanguageRelation,
-  PublicationType,
-  SeriesForUpdateItems,
-  SubjectTypes,
-  TitleEntity,
-} from '@/src/shared';
-
-import { AbstractTypes } from '../../constants/abstracts';
+} from '../../utils';
 
 export type CSVFieldType = string | number | boolean;
 

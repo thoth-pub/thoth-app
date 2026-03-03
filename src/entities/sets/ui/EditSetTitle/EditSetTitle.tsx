@@ -2,11 +2,11 @@ import { Control } from 'react-hook-form';
 
 import { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { TitlesFormFields } from '@/src/entities/work/ui/EditWorkTitle/components/TitlesFormFields';
-import { getMainTitle, IDs } from '@/src/shared';
-import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, IDs, languageOptionsAlt } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { getMainTitle } from '@/src/shared/utils';
 
 import type { SetEntity, SetTitleFormType } from '../../model/set.types';
 import { setTitleValidationSchema } from '../../model/set.validation';

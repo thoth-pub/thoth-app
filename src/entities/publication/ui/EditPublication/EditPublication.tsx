@@ -1,14 +1,13 @@
 import { Activity } from 'react';
 
+import { AccessibilityExceptionType, AccessibilityStandardType } from '@/src/shared/types';
+import { TableFormsHeader, TableFormsWrapper } from '@/src/shared/ui';
 import {
-  AccessibilityExceptionType,
-  AccessibilityStandardType,
   isAccessibilityStandardAvailable,
   isDimensionsAvailable,
   isFileAvailable,
   isFullTextUrlAvailable,
-} from '@/src/shared';
-import { TableFormsHeader, TableFormsWrapper } from '@/src/shared/ui';
+} from '@/src/shared/utils';
 
 import type { PublicationDimensionsForm, PublicationType } from '../../model/publication.types';
 import DownloadPublication from '../DownloadPublication/DownloadPublication';

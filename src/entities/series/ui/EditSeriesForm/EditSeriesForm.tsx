@@ -2,11 +2,12 @@
 
 import type { Control } from 'react-hook-form';
 
-import { convertOptionToString, FormFieldOption, HELPER_TEXT, IDs, prettifyUrlPreview, SeriesType } from '@/src/shared';
-import { FORM_FIELDS, seriesTypeOptions } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs, SeriesType, seriesTypeOptions } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { FormFieldOption } from '@/src/shared/interfaces';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { convertOptionToString, prettifyUrlPreview } from '@/src/shared/utils';
 
 import type {
   SeriesDescriptionFormType,

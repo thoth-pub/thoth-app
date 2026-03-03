@@ -1,7 +1,7 @@
 import z from 'zod';
 
-import { getRequiredStringValidation, locationPlatformValidation, optionalUrlValidation } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS } from '@/src/shared/constants';
+import { getRequiredStringValidation, locationPlatformValidation, optionalUrlValidation } from '@/src/shared/utils';
 
 const { LOCATIONS, PLATFORM, FULL_TEXT_URL, LANDING_PAGE, CANONICAL } = FORM_FIELDS;
 

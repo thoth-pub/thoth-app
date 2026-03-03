@@ -1,7 +1,8 @@
 import z from 'zod';
 
-import { doiValidation, optionalStringValidation, optionalUrlValidation } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS } from '@/src/shared/constants';
+import { optionalStringValidation, optionalUrlValidation } from '@/src/shared/utils';
+import { doiValidation } from '@/src/shared/utils/validations';
 
 const { REFERENCE_URL, DOI, REFERENCE_CITATION } = FORM_FIELDS;
 

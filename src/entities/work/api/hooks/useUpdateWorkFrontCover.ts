@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { QueryKeys } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context/servicesContext';
 
 import type { WorkId } from '../../model/work.types';

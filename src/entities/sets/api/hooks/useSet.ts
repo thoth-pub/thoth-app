@@ -2,7 +2,9 @@
 
 import { skipToken, useQuery } from '@tanstack/react-query';
 
-import { getDefaultWork, isDefaultId, QueryKeys, useServices, WorkTypes } from '@/src/shared';
+import { QueryKeys, WorkTypes } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
+import { getDefaultWork, isDefaultId } from '@/src/shared/utils';
 
 import type { SetEntity, SetId } from '../../model/set.types';
 

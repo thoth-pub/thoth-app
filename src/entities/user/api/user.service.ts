@@ -1,4 +1,4 @@
-import { QueryToken } from '@/src/shared';
+import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { UserDtoMapper } from '../model/user.mapper';

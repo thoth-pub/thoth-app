@@ -6,9 +6,11 @@ import removeMd from 'remove-markdown';
 import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { WorkStatusChip } from '@/src/entities/work';
 import type { WorkStatus } from '@/src/entities/work/model/work.types';
-import { convertOptionToString, getMainTitle, ROUTES, TitleEntity } from '@/src/shared';
+import { ROUTES } from '@/src/shared/constants';
 import { useIsDesktop } from '@/src/shared/hooks';
+import type { TitleEntity } from '@/src/shared/types';
 import { ImageWithFallback, TranslatedContent, Typography } from '@/src/shared/ui';
+import { convertOptionToString, getMainTitle } from '@/src/shared/utils';
 
 type EditBookLinkProps = {
   titles: TitleEntity[];

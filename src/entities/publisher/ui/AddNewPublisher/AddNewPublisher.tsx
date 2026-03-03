@@ -2,8 +2,7 @@
 
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 
-import { IDs, mergeStyles } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, IDs } from '@/src/shared/constants';
 import {
   Button,
   ButtonGroup,
@@ -17,6 +16,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
+import { mergeStyles } from '@/src/shared/utils';
 
 import { useAddNewPublisher } from './useAddNewPublisher';
 

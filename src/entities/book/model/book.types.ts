@@ -1,5 +1,5 @@
 import type { WorkFragmentFragment } from '@/gql/graphql';
-import type { TitleEntity } from '@/src/shared';
+import type { TitleEntity } from '@/src/shared/types';
 
 import type { WorkContribution } from '../../contribution/model/contribution.types';
 import type { LanguageEntity } from '../../language/model/language.types';

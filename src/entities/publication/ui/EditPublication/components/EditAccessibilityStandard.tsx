@@ -1,7 +1,7 @@
 import { Activity } from 'react';
 
-import { AccessibilityStandardType, convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
-import { FORM_FIELDS, getAccessibilityStandardOptions } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, getAccessibilityStandardOptions, HELPER_TEXT, IDs } from '@/src/shared/constants';
+import { AccessibilityStandardType } from '@/src/shared/types';
 import {
   ContentWrapper,
   DeleteButton,
@@ -13,6 +13,7 @@ import {
   Preview,
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { convertOptionToString } from '@/src/shared/utils';
 
 import type { PublicationAccessibilityStandardForm, PublicationType } from '../../../model/publication.types';
 import { accessibilityStandardValidationSchema } from '../../../model/publication.validation';

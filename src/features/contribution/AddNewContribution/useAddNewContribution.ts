@@ -11,7 +11,7 @@ import type {
 import { useContributor, useUpdateContributor } from '@/src/entities/contributor';
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import { useWork } from '@/src/entities/work';
-import { type BaseEditSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 
 type UseAddNewContributionProps = BaseEditSectionProps & {
   onCreate?: (contribution: WorkContribution) => void;

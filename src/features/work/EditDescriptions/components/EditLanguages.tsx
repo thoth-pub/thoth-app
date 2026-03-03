@@ -1,6 +1,6 @@
 import { LanguagesForm } from '@/src/entities/language';
 import { LanguagesForm as LanguagesFormType } from '@/src/entities/language/model/language.types';
-import { type BaseRecommendedSectionProps } from '@/src/shared';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 
 import { useEditLanguages } from './useEditLanguages';
 

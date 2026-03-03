@@ -1,5 +1,5 @@
 import { SubjectType } from '@/gql/graphql';
-import type { QueryToken } from '@/src/shared';
+import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import type { WorkId } from '../../work/model/work.types';

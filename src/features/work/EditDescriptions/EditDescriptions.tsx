@@ -3,7 +3,8 @@
 import { LanguagesForm } from '@/src/entities/language/model/language.types';
 import { EditSubjects } from '@/src/entities/subject';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
-import { ANCHORS, type BaseEditSectionProps } from '@/src/shared';
+import { ANCHORS } from '@/src/shared/constants';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { RecommendedSection, TranslatedContent } from '@/src/shared/ui';
 
 import { EditAbstracts } from './components/EditAbstracts';

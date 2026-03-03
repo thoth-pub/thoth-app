@@ -3,7 +3,8 @@
 import { useQuery } from '@tanstack/react-query';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { QueryKeys, useServices } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 
 type UseChaptersProps = {
   workId: WorkId;

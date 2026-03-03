@@ -1,7 +1,9 @@
 import { MarkupFormat, RelationType, WorkField } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, Direction, type QueryToken } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { type QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
+import { Direction } from '@/src/shared/types';
 
 import { WorkService } from '../../work/api/work.service';
 import { WorkId } from '../../work/model/work.types';

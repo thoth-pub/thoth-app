@@ -1,7 +1,13 @@
 import { useMemo } from 'react';
 
-import { HELPER_TEXT, IDs, WorkStatuses } from '@/src/shared';
-import { FORM_FIELDS, workStatusOptions, workStatusOptionsAlt } from '@/src/shared/constants/formFields';
+import {
+  FORM_FIELDS,
+  HELPER_TEXT,
+  IDs,
+  WorkStatuses,
+  workStatusOptions,
+  workStatusOptionsAlt,
+} from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { EditButton, FormFieldLabel, FormTextField, InputLabel, TranslatedContent } from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';

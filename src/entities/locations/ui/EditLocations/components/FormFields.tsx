@@ -1,8 +1,8 @@
 import { type Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
-import { appConfig, getProtocolPrefix, HELPER_TEXT, isDefaultId } from '@/src/shared';
-import { FORM_FIELDS, locationPlatformOptions } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, HELPER_TEXT, locationPlatformOptions } from '@/src/shared/constants';
 import {
   AddButton,
   AutocompleteField,
@@ -14,6 +14,7 @@ import {
   FormTextField,
   InputLabel,
 } from '@/src/shared/ui';
+import { getProtocolPrefix, isDefaultId } from '@/src/shared/utils';
 
 import type { LocationPlatform, LocationsForm } from '../../../model/location.types';
 

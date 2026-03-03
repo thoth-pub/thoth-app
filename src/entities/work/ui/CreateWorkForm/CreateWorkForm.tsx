@@ -1,13 +1,12 @@
 'use client';
 
 import { useUser } from '@/src/entities/user';
-import { workTypeOptions } from '@/src/shared';
-import { IDs } from '@/src/shared/constants';
-import { FORM_FIELDS, languageOptionsAlt, licenseOptions } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, IDs, languageOptionsAlt, licenseOptions } from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { AutocompleteGroup, Button, CircularProgress, PageHeader, TranslatedContent } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { workTypeOptions } from '@/src/shared/utils';
 
 import CreateWorkFormAutocompleteField from './components/CreateWorkFormAutocompleteField';
 import CreateWorkFormField from './components/CreateWorkFormField';

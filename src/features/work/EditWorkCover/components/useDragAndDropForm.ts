@@ -8,8 +8,7 @@ import { useCopyToClipboard } from 'react-use';
 import { useUpdateWorkFrontCover, useWork } from '@/src/entities/work';
 import type { CoverUrlForm, WorkId } from '@/src/entities/work/model/work.types';
 import { coverUrlValidationSchema } from '@/src/entities/work/model/work.validation';
-import { ERRORS } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { ERRORS, FORM_FIELDS } from '@/src/shared/constants';
 import { useNotifications } from '@/src/shared/hooks';
 import useIsDragStarted from '@/src/shared/hooks/useIsDragStarted';
 

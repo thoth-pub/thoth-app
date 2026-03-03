@@ -5,8 +5,9 @@ import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
 import type { WorkAbstractsForm } from '@/src/entities/work/model/work.types';
-import { type AbstractId, appConfig, HELPER_TEXT } from '@/src/shared';
-import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, HELPER_TEXT, languageOptionsAlt } from '@/src/shared/constants';
+import type { AbstractId } from '@/src/shared/types';
 import {
   AddButton,
   ContentWrapper,

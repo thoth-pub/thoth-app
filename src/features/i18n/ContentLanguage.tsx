@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { contentLanguageOptions } from '@/src/shared/constants/formFields';
+import { contentLanguageOptions } from '@/src/shared/constants';
 import type { Locale } from '@/src/shared/i18n/model/i18n.types';
 import { TextField } from '@/src/shared/ui';
 

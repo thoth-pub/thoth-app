@@ -1,7 +1,6 @@
 import { useMemo } from 'react';
 
-import { HELPER_TEXT, IDs, WeightUnit } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs, WeightUnit } from '@/src/shared/constants';
 import { MultipleContentWrapper, Preview, TranslatedContent, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 

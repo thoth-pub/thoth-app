@@ -7,13 +7,15 @@ import { useCreateIssue, useDeleteIssue, useSerieses } from '@/src/entities/seri
 import type { IssueValidationSchema } from '@/src/entities/series/model/series.types';
 import { issueValidationSchema } from '@/src/entities/series/model/series.validation';
 import { useWork } from '@/src/entities/work';
-import { appConfig, type BaseEditSectionProps, convertEntityToSelectFieldOptions, IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, IDs } from '@/src/shared/constants';
 import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { DeleteButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { convertEntityToSelectFieldOptions } from '@/src/shared/utils';
 
 import { FormFields } from './components/FormFields';
 

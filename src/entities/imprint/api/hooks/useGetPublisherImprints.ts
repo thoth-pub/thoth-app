@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { PublisherId } from '@/src/entities/publisher';
-import { QueryKeys, useServices } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 
 const useGetPublisherImprints = (publisherId: PublisherId) => {
   const { imprintService } = useServices();

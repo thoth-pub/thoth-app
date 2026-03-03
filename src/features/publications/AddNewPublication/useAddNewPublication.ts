@@ -12,16 +12,12 @@ import type {
   PublicationType,
 } from '@/src/entities/publication/model/publication.types';
 import {
-  AccessibilityExceptionType,
-  AccessibilityStandardType,
-  type BaseEditSectionProps,
-  isAccessibilityStandardAvailable,
-} from '@/src/shared';
-import {
   accessibilityAdditionalStandards,
   accessibilityStandards,
   getAccessibilityStandardOptions,
-} from '@/src/shared/constants/formFields';
+} from '@/src/shared/constants';
+import type { AccessibilityExceptionType, AccessibilityStandardType, BaseEditSectionProps } from '@/src/shared/types';
+import { isAccessibilityStandardAvailable } from '@/src/shared/utils';
 import { selectCanonicalLocation } from '@/src/shared/utils/locations';
 
 export const useAddNewPublication = (props: BaseEditSectionProps) => {

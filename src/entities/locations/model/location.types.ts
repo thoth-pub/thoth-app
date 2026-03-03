@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import type { LocationFragmentFragment } from '@/gql/graphql';
-import { LocationPlatforms } from '@/src/shared';
+import { LocationPlatforms } from '@/src/shared/constants';
 
 import { locationPlatformValidationSchema, locationsValidationSchema } from './location.validation';
 

@@ -3,11 +3,11 @@
 import { useTranslation } from 'react-i18next';
 
 import type { ContributionType } from '@/src/entities/contributor/model/contributor.types';
-import { contributorTypeOptions, convertContributorTypeOptions, HELPER_TEXT, IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { ContentWrapper, FormTextField, Preview } from '@/src/shared/ui';
 import FormFieldLabel from '@/src/shared/ui/forms/FormFieldLabel/FormFieldLabel';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { contributorTypeOptions, convertContributorTypeOptions } from '@/src/shared/utils';
 
 import { ContributionTypeForm } from '../../../model/contribution.types';
 import { contributorTypeValidationSchema } from '../../../model/contribution.validation';

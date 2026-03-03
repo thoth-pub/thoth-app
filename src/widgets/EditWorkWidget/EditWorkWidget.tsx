@@ -10,8 +10,9 @@ import { EditBasicDetails, EditContributors, EditDescriptions, EditFundings, Wor
 import EditPublications from '@/src/features/work/EditPublications/EditPublications';
 import EditReferences from '@/src/features/work/EditReferences/EditReferences';
 import EditWorkSeries from '@/src/features/work/EditWorkSeries/EditWorkSeries';
-import { type BaseEditSectionProps, ROUTES } from '@/src/shared';
+import { ROUTES } from '@/src/shared/constants';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { EditWorkChapters } from '../EditWorkChapters/EditWorkChapters';
 

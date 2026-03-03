@@ -1,5 +1,6 @@
-import { isDimensionsAvailable, TitleDto, type TitleEntity } from '@/src/shared';
 import type { BaseMapper } from '@/src/shared/interfaces';
+import type { TitleDto, TitleEntity } from '@/src/shared/types';
+import { isDimensionsAvailable } from '@/src/shared/utils';
 
 import type { PublicationDto, PublicationEntity } from './publication.types';
 

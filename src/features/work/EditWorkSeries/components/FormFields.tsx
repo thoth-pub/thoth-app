@@ -5,8 +5,8 @@ import { useEffect } from 'react';
 import { type Control, type FieldValues, UseFormSetValue, useWatch } from 'react-hook-form';
 
 import { useSeries } from '@/src/entities/series';
-import { FormFieldOption, HELPER_TEXT } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT } from '@/src/shared/constants';
+import type { FormFieldOption } from '@/src/shared/interfaces';
 import {
   AutocompleteField,
   ContentWrapper,

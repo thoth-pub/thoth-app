@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { useUser } from '@/src/entities/user';
-import { QueryKeys, useServices } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 
 const useAllUserSerieses = () => {
   const { seriesService } = useServices();

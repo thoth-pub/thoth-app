@@ -1,6 +1,8 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { type BaseEditSectionProps, QueryKeys, useServices } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
+import { type BaseEditSectionProps } from '@/src/shared/types';
 
 const useDeletePublication = (props: BaseEditSectionProps) => {
   const { workId = '' } = props;

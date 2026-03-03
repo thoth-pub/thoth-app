@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import type { SubjectFragmentFragment } from '@/gql/graphql';
-import { SubjectTypes } from '@/src/shared';
+import type { SubjectTypes } from '@/src/shared/constants';
 
 import {
   addSubjectAutocompleteValidationSchema,

@@ -2,7 +2,7 @@
 
 import { EditChapterModal, EditChaptersModal } from '@/src/features';
 import AddChapterModal from '@/src/features/work/AddChapterModal/AddChapterModal';
-import { BaseEditSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { DeleteButton, EditButton, TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 

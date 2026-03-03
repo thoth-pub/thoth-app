@@ -1,8 +1,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { PublicationId } from '@/src/entities/publication/model/publication.types';
-import { BaseEditSectionProps, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
+import { type BaseEditSectionProps } from '@/src/shared/types';
 
 import { LocationEntity } from '../../model/location.types';
 

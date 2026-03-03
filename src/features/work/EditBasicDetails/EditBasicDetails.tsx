@@ -12,7 +12,8 @@ import {
   EditWorkType,
   useWorkRecommendations,
 } from '@/src/entities/work';
-import { ANCHORS, type BaseEditSectionProps } from '@/src/shared';
+import { ANCHORS } from '@/src/shared/constants';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { RecommendedSection, TranslatedContent } from '@/src/shared/ui';
 
 import EditWorkCover from '../EditWorkCover/EditWorkCover';

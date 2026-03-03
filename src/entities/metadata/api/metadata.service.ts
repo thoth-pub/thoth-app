@@ -1,4 +1,5 @@
-import { normalizeMetaDataPrefix, ROUTES } from '@/src/shared';
+import { ROUTES } from '@/src/shared/constants';
+import { normalizeMetaDataPrefix } from '@/src/shared/utils';
 
 import { WorkId } from '../../work/model/work.types';
 import {
@@ -34,9 +35,7 @@ export class MetadataService {
     workId: WorkId,
     specifications: string[],
   ): Promise<Record<string, SpecificationResult>> {
-    const result: Record<string, SpecificationResult> = {};
-
-    for (const specification of specifications) {
+    const fetchSpecification = async (specification: string): Promise<[string, SpecificationResult]> => {
       try {
         const response = await fetch(ROUTES.METADATA_SPECIFICATIONS(specification, workId));
 
@@ -48,22 +47,26 @@ export class MetadataService {
           } catch {
             // If JSON parsing fails, use default error message
           }
-          result[specification] = { status: SPECIFICATION_STATUS.ERROR, data: errorMessage };
-          continue;
+          return [specification, { status: SPECIFICATION_STATUS.ERROR, data: errorMessage }];
         }
 
         const data = (await response.json()) as string;
 
-        result[specification] = { status: SPECIFICATION_STATUS.SUCCESS, data };
+        return [specification, { status: SPECIFICATION_STATUS.SUCCESS, data }];
       } catch (error: unknown) {
-        result[specification] = {
-          status: SPECIFICATION_STATUS.ERROR,
-          data: `${error instanceof Error ? error.message : 'Failed to fetch specification'}`,
-        };
+        return [
+          specification,
+          {
+            status: SPECIFICATION_STATUS.ERROR,
+            data: `${error instanceof Error ? error.message : 'Failed to fetch specification'}`,
+          },
+        ];
       }
-    }
+    };
 
-    return result;
+    const entries = await Promise.all(specifications.map(fetchSpecification));
+
+    return Object.fromEntries(entries);
   }
 
   async getAllSpecifications(workId: WorkId): Promise<MetadataEntity> {
@@ -85,8 +88,14 @@ export class MetadataService {
     try {
       const availableFormats = await this.getAvailableFormats();
 
-      for (const format of availableFormats) {
-        const res = await this.getAllFormatSpecifications(workId, format.specifications);
+      const formatResults = await Promise.all(
+        availableFormats.map(async (format) => ({
+          format,
+          res: await this.getAllFormatSpecifications(workId, format.specifications),
+        })),
+      );
+
+      for (const { format, res } of formatResults) {
         result[format.id] = res;
 
         if (format.id.startsWith(FORMAT_IDS.MARC21)) {

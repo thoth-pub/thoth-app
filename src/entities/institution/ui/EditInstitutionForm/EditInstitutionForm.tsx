@@ -1,11 +1,12 @@
 import SearchIcon from '@mui/icons-material/Search';
 import { useState } from 'react';
 
-import { appConfig, convertEntityToSelectFieldOptions, HELPER_TEXT, IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import { AutocompleteField, ContentWrapper, FormFieldLabel, InputAdornment, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { convertEntityToSelectFieldOptions } from '@/src/shared/utils';
 
 import useInstitutions from '../../api/hooks/useInstitutions';
 import type { InstitutionFormType } from '../../model/institution.types';

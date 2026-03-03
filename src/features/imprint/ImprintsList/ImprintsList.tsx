@@ -1,7 +1,7 @@
 'use client';
 
 import { EditImprint } from '@/src/entities/imprint';
-import { appConfig } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
 import { Button, TranslatedContent } from '@/src/shared/ui';
 
 import { useImprintsList } from './useImprintsList';

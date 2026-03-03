@@ -5,9 +5,14 @@ import { Activity } from 'react';
 import { FundingsList, useCreateFunding, useFundingStateMachine } from '@/src/entities/funding';
 import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
-import { BaseEditSectionProps, isAllFundingRecommendationsFilled, isDefaultId } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { AddButton, RecommendedSection, Typography } from '@/src/shared/ui';
-import { areFundingsEqual, getDefaultFunding } from '@/src/shared/utils';
+import {
+  areFundingsEqual,
+  getDefaultFunding,
+  isAllFundingRecommendationsFilled,
+  isDefaultId,
+} from '@/src/shared/utils';
 
 import AddFunding from '../../fundings/AddFunding/AddFunding';
 import EditFunding from '../../fundings/EditFunding/EditFunding';

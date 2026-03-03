@@ -5,8 +5,8 @@ import { useMemo } from 'react';
 import { useWork } from '@/src/entities/work';
 import type { MediaForm } from '@/src/entities/work/model/work.types';
 import { mediaValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseRecommendedSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 import { ContentWrapper, FormFieldLabel, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 

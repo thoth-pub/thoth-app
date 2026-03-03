@@ -1,6 +1,8 @@
 import { useWork } from '@/src/entities/work';
-import { BaseEditSectionProps, IDs, isDefaultId } from '@/src/shared';
+import { IDs } from '@/src/shared/constants';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import type { BaseEditSectionProps } from '@/src/shared/types';
+import { isDefaultId } from '@/src/shared/utils';
 
 import useCreateSubject from '../../api/hooks/useCreateSubject';
 import useDeleteSubject from '../../api/hooks/useDeleteSubject';

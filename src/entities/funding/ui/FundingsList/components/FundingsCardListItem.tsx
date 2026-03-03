@@ -1,7 +1,7 @@
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 
-import { convertRorIdToText } from '@/src/shared';
 import { CardListItem, DeleteButton, Indicator, LinkTooltip, RorLogo, Typography } from '@/src/shared/ui';
+import { convertRorIdToText } from '@/src/shared/utils';
 
 import { FundingEntity } from '../../../model/funding.types';
 

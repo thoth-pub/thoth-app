@@ -9,7 +9,9 @@ import { type SetEntity, useCreateSet } from '@/src/entities/sets';
 import { useSetStateMachine } from '@/src/entities/sets/store/set.store';
 import { AddNewSetForm } from '@/src/entities/sets/ui/AddNewSetForm/AddNewSetForm';
 import { useUser } from '@/src/entities/user';
-import { appConfig, isDefaultId, TitleEntity, WorkStatuses, WorkTypes } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { WorkStatuses, WorkTypes } from '@/src/shared/constants';
+import type { TitleEntity } from '@/src/shared/types';
 import {
   CloseButton,
   Modal,
@@ -20,6 +22,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
+import { isDefaultId } from '@/src/shared/utils';
 
 const AddSet = () => {
   const { activeEntity: activeSet, edit, close } = useSetStateMachine();

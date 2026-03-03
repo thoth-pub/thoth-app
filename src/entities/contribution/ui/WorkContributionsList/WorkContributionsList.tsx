@@ -1,6 +1,6 @@
 'use client';
 
-import { type BaseEditSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { CardsList } from '@/src/shared/ui';
 
 import { ContributionListItem } from './components/ContributionListItem';

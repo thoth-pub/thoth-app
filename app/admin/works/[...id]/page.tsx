@@ -15,7 +15,7 @@ import { SeriesService } from '@/src/entities/series';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { UserService } from '@/src/entities/user';
 import { WorkService } from '@/src/entities/work/api/work.service';
-import { FileStorage } from '@/src/shared';
+import { FileStorage } from '@/src/shared/services';
 import { ROUTES } from '@/src/shared/constants';
 import { authOptions } from '@/src/shared/lib/auth/auth';
 import { EditWorkWidget } from '@/src/widgets';

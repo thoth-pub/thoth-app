@@ -7,12 +7,13 @@ import { useState } from 'react';
 
 import { WorkField } from '@/gql/graphql';
 import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
-import { type Direction, workTypeOptions } from '@/src/shared';
-import { directionOptions, workOrderByOptions, workStatusOptionsAlt } from '@/src/shared/constants/formFields';
+import { directionOptions, workOrderByOptions, workStatusOptionsAlt } from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import type { Direction } from '@/src/shared/types';
 import { IconButton, InputAdornment, InputLabel, TextField, TranslatedContent, Typography } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { workTypeOptions } from '@/src/shared/utils';
 
 type HeaderProps = {
   workStatus: string;

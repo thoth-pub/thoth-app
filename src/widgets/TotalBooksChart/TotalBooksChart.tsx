@@ -4,10 +4,10 @@ import { PieChart } from '@mui/x-charts';
 
 import { ChartWrapper, useBooksCount, useForthcomingBooksCount, usePublishedBooksCount } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
-import { capitalizeFirstLetter } from '@/src/shared';
 import { useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { CircularProgress, DashboardGridItem, TranslatedContent, Typography } from '@/src/shared/ui';
+import { capitalizeFirstLetter } from '@/src/shared/utils';
 
 const TotalBooksChart = () => {
   const { activePublisher } = usePublisherStateMachine();

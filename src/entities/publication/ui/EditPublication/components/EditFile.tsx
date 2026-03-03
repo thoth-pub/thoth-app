@@ -3,8 +3,8 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { appConfig, NOTIFICATIONS, PublicationType } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, NOTIFICATIONS, PublicationType } from '@/src/shared/constants';
 import { useNotifications } from '@/src/shared/hooks';
 import { IconButton } from '@/src/shared/ui';
 

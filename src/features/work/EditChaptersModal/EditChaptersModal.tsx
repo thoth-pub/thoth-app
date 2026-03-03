@@ -7,8 +7,8 @@ import { useFundingStateMachine } from '@/src/entities/funding';
 import { useUpdateWorks, useWorkChapters } from '@/src/entities/work';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
-import type { BaseEditSectionProps } from '@/src/shared';
-import { licenseOptions } from '@/src/shared/constants/formFields';
+import { licenseOptions } from '@/src/shared/constants';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
 import EditChaptersContributors from '../../chapters/EditChaptersContributors/EditChaptersContributors';

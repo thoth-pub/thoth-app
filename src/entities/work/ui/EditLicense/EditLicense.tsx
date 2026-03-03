@@ -3,8 +3,8 @@
 import { useWork } from '@/src/entities/work';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { licenseAndCopyrightHolderValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseRecommendedSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
-import { FORM_FIELDS, licenseOptions } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs, licenseOptions } from '@/src/shared/constants';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 import {
   AutocompleteField,
   AutocompleteGroup,

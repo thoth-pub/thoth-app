@@ -11,7 +11,7 @@ import type {
   FundingProjectShortNameFormType,
 } from '@/src/entities/funding/model/funding.types';
 import { InstitutionFormType } from '@/src/entities/institution/model/institution.types';
-import { type BaseEditSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 
 type UseAddFundingProps = BaseEditSectionProps & {
   onCreate?: (funding: FundingEntity) => void;

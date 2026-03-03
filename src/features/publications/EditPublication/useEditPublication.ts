@@ -18,17 +18,13 @@ import type {
   PublicationType,
 } from '@/src/entities/publication/model/publication.types';
 import {
-  AccessibilityExceptionType,
-  AccessibilityStandardType,
-  type BaseEditSectionProps,
-  isAccessibilityStandardAvailable,
-  isDefaultId,
-} from '@/src/shared';
-import {
   accessibilityAdditionalStandards,
   accessibilityStandards,
   getAccessibilityStandardOptions,
-} from '@/src/shared/constants/formFields';
+} from '@/src/shared/constants';
+import type { AccessibilityExceptionType, BaseEditSectionProps } from '@/src/shared/types';
+import { AccessibilityStandardType } from '@/src/shared/types';
+import { isAccessibilityStandardAvailable, isDefaultId } from '@/src/shared/utils';
 import { selectCanonicalLocation } from '@/src/shared/utils/locations';
 
 export const useEditPublication = (props: BaseEditSectionProps) => {

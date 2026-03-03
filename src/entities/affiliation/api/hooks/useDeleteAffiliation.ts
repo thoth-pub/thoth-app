@@ -1,6 +1,6 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { useServices } from '@/src/shared';
+import { useServices } from '@/src/shared/context';
 
 const useDeleteAffiliation = () => {
   const { affiliationService } = useServices();

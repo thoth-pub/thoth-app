@@ -2,8 +2,10 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, QueryKeys, SeriesForUpdateItems, useServices } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
+import type { SeriesForUpdateItems } from '@/src/shared/types';
 
 import { WorkEntity } from '../../model/work.types';
 

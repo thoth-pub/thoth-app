@@ -11,7 +11,7 @@ import { SeriesStateMachineContext } from '@/src/entities/series';
 import { SetStateMachineContext } from '@/src/entities/sets';
 import { SubjectStateMachineContext } from '@/src/entities/subject';
 import { WorkStateMachineContext } from '@/src/entities/work';
-import { ServicesProvider } from '@/src/shared';
+import { ServicesProvider } from '@/src/shared/context';
 import { FormStateMachineContext } from '@/src/shared/store/forms/forms.provider';
 import { UIProvider } from '@/src/shared/store/ui/ui.context';
 

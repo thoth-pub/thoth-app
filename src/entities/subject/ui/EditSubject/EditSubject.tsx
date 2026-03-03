@@ -1,13 +1,13 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 
-import { BaseEditSectionProps, SubjectTypes } from '@/src/shared';
+import { FORM_FIELDS, SubjectTypes } from '@/src/shared/constants';
 import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
 import { themaFormFields } from '@/src/shared/constants/themaFormFields';
 import { useIsDesktop } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { AutocompleteField, CloseButton, FormTextField, Modal, ModalWrapper, SubmitButton } from '@/src/shared/ui';
 
 import useUpdateSubject from '../../api/hooks/useUpdateSubject';

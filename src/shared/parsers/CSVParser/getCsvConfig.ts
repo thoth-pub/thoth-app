@@ -3,19 +3,18 @@ import z from 'zod';
 
 import { LocationPlatform } from '@/gql/graphql';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
-import { editionValidation, subtitleValidation, titleValidation } from '@/src/entities/work/model/work.validation';
 import {
-  ContributorTypes,
-  FormFieldOption,
-  WorkStatuses,
-  workStatusValidation,
-  WorkTypes,
+  editionValidation,
+  subtitleValidation,
+  titleValidation,
   workTypeValidation,
-} from '@/src/shared';
+} from '@/src/entities/work/model/work.validation';
+import { ContributorTypes, currencyOptions, languageOptions, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 import { CSV_KEYS } from '@/src/shared/constants/csvKeys';
-import { currencyOptions, languageOptions } from '@/src/shared/constants/formFields';
 
 import { CSVFieldType } from '../../../widgets/AllWorks/components/CSVParse';
+import { FormFieldOption } from '../../interfaces';
+import { workStatusValidation } from '../../utils';
 
 const {
   IMPRINT,

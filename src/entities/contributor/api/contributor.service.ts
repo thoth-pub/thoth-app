@@ -1,4 +1,5 @@
-import { appConfig, type QueryToken } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublisherId } from '../../publisher';

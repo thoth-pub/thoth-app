@@ -2,7 +2,6 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import BadgeIcon from '@mui/icons-material/Badge';
 import StarIcon from '@mui/icons-material/Star';
 
-import { convertOptionToString, convertOrchidIdToText, convertRorIdToText } from '@/src/shared';
 import {
   CardListItem,
   DeleteButton,
@@ -13,6 +12,7 @@ import {
   RorLogo,
   Typography,
 } from '@/src/shared/ui';
+import { convertOptionToString, convertOrchidIdToText, convertRorIdToText } from '@/src/shared/utils';
 
 import type { WorkContribution } from '../../../model/contribution.types';
 

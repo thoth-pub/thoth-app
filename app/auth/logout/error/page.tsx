@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
-import { ROUTES } from '@/src/shared';
+import { ROUTES } from '@/src/shared/constants';
 import { Typography } from '@/src/shared/ui';
 
 /**

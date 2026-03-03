@@ -5,8 +5,10 @@ import { useEffect } from 'react';
 import { useContributionStateMachine, WorkContributionsList } from '@/src/entities/contribution';
 import { useWork, useWorkRecommendations } from '@/src/entities/work';
 import { AddContributionModal, AddNewContribution, EditContribution } from '@/src/features';
-import { ANCHORS, type BaseEditSectionProps, isDefaultId } from '@/src/shared';
+import { ANCHORS } from '@/src/shared/constants';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { RecommendedSection, TranslatedContent } from '@/src/shared/ui';
+import { isDefaultId } from '@/src/shared/utils';
 
 type EditContributorsProps = BaseEditSectionProps;
 

@@ -2,8 +2,8 @@
 
 import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 
-import { mergeStyles } from '@/src/shared';
 import { CloseButton, IconButton, SubmitButton } from '@/src/shared/ui';
+import { mergeStyles } from '@/src/shared/utils';
 
 type FormControlGroupProps = {
   isDisabled?: boolean;

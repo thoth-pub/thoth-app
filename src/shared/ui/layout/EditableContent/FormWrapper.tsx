@@ -12,8 +12,8 @@ import {
 } from 'react-hook-form';
 import type { ZodType } from 'zod';
 
-import { mergeStyles } from '@/src/shared';
 import { useIsDesktop } from '@/src/shared/hooks';
+import { mergeStyles } from '@/src/shared/utils';
 
 import ModalWrapper from '../../core/ModalWrapper/ModalWrapper';
 import FormControlGroup from '../../forms/FormControlGroup/FormControlGroup';

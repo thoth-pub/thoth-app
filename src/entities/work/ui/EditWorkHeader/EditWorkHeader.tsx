@@ -2,8 +2,9 @@
 
 import NextLink from 'next/link';
 
-import { type BaseEditSectionProps, getMainTitle, ROUTES, WorkStatuses } from '@/src/shared';
+import { ROUTES, WorkStatuses } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { BaseEditSectionProps } from '@/src/shared/types';
 import {
   Breadcrumbs,
   CloseButton,
@@ -17,6 +18,7 @@ import {
   Typography,
 } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { getMainTitle } from '@/src/shared/utils';
 
 import EditInternalId from '../EditInternalId/EditInternalId';
 import EditPublicationDate from '../EditPublicationDate/EditPublicationDate';

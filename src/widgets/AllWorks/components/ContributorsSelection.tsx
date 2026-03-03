@@ -3,7 +3,8 @@ import { useState } from 'react';
 import { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
-import { ContributorsForSelection, convertOrchidIdToText, getMainTitle, isDefaultId, WorkTypes } from '@/src/shared';
+import { WorkTypes } from '@/src/shared/constants';
+import type { ContributorsForSelection } from '@/src/shared/types';
 import {
   Button,
   LinkTooltip,
@@ -17,6 +18,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
+import { convertOrchidIdToText, getMainTitle, isDefaultId } from '@/src/shared/utils';
 
 type ContributorsSelectionProps = {
   contributors: ContributorsForSelection;

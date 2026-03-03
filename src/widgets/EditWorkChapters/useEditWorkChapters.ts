@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { useCreateWorkChapter, useDeleteChapter, useWorkChapters, useWorkMoveRelation } from '@/src/entities/work';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
-import { appConfig } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 
 const NEW_CHAPTER_PREFIX = 'New Copy of ';

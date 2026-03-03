@@ -6,8 +6,8 @@ import { type ChangeEvent, useState } from 'react';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useContributors } from '@/src/entities/contributor';
 import type { ContributorId } from '@/src/entities/contributor/model/contributor.types';
-import { getDefaultContribution } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
+import { getDefaultContribution } from '@/src/shared/constants';
 import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {

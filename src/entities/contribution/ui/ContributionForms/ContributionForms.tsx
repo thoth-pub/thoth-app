@@ -1,6 +1,6 @@
 'use client';
 
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Checkbox, ContentWrapper, InputLabel, TableFormsWrapper, TranslatedContent } from '@/src/shared/ui';
 

@@ -1,7 +1,9 @@
 import { useCallback } from 'react';
 import { useUnmount } from 'react-use';
 
-import { FormStateMachineContext, Id } from '@/src/shared';
+import type { Id } from '@/src/shared/interfaces';
+
+import { FormStateMachineContext } from '../forms.provider';
 
 const useFormStateMachine = () => {
   const activeFormId: Id | null = FormStateMachineContext.useSelector((state) => state.context.activeForm);

@@ -1,8 +1,8 @@
 'use client';
 
 import { useUser } from '@/src/entities/user';
-import { appConfig, ContactTypes, convertOptionToString, HELPER_TEXT, IDs } from '@/src/shared';
-import { contactTypeOptions, FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { contactTypeOptions, ContactTypes, FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import {
   ContentWrapper,
@@ -13,6 +13,7 @@ import {
   Preview,
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { convertOptionToString } from '@/src/shared/utils';
 
 import useCreateContact from '../../api/hooks/useCreateContact';
 import useDeleteContact from '../../api/hooks/useDeleteContact';

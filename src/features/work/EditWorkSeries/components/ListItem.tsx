@@ -5,7 +5,7 @@ import { Chip, Typography } from '@mui/material';
 import { useRouter } from 'next/navigation';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { isDragAndDropDisabled, ROUTES } from '@/src/shared';
+import { ROUTES } from '@/src/shared/constants';
 import {
   ButtonGroup,
   DeleteButton,
@@ -14,6 +14,7 @@ import {
   IconButton,
   MarkdownRenderer,
 } from '@/src/shared/ui';
+import { isDragAndDropDisabled } from '@/src/shared/utils';
 
 type ListItemProps = {
   id: string;

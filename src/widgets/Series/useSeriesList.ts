@@ -5,8 +5,8 @@ import { useState } from 'react';
 import { SeriesField, SeriesType } from '@/gql/graphql';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useSerieses, useSeriesesCount } from '@/src/entities/series';
-import { getPagesCount } from '@/src/shared';
 import { useEntityList } from '@/src/shared/hooks';
+import { getPagesCount } from '@/src/shared/utils';
 
 export const useSeriesList = () => {
   const { activePublisher } = usePublisherStateMachine();

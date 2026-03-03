@@ -4,7 +4,7 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import Image from 'next/image';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
-import { appConfig } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
 import { Button, CircularProgress, IconButton, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { PlaceholderLogo } from './PlaceholderLogo';

@@ -2,8 +2,7 @@
 
 import { Control } from 'react-hook-form';
 
-import { IDs } from '@/src/shared';
-import { currencyOptions, FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { currencyOptions, FORM_FIELDS, IDs } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';

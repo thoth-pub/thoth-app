@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import type { Publication, PublicationType as GQLPublicationType, Publisher, Work } from '@/gql/graphql';
-import { AccessibilityExceptionType, AccessibilityStandardType, TitleEntity } from '@/src/shared';
+import type { AccessibilityExceptionType, AccessibilityStandardType, TitleEntity } from '@/src/shared/types';
 
 import type { LocationDto, LocationEntity } from '../../locations/model/location.types';
 import type { PriceDto, PriceEntity } from '../../price/model/price.types';

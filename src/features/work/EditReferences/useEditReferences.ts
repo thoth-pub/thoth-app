@@ -9,9 +9,9 @@ import {
 import type { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import { useWork } from '@/src/entities/work';
 import { WorkId } from '@/src/entities/work/model/work.types';
-import { isDefaultId } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import { isDefaultId } from '@/src/shared/utils';
 
 const defaultReference: ReferenceEntity = {
   id: appConfig.defaultId,

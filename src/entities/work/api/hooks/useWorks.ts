@@ -4,7 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 
 import type { WorkField, WorkStatus } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
-import { appConfig, Direction, QueryKeys, useServices } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
+import { Direction } from '@/src/shared/types';
 
 import { WorkType } from '../../model/work.types';
 

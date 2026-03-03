@@ -1,5 +1,5 @@
-import type { WorkCopyVariant } from '@/src/shared';
 import { WORK_COPY_VARIANTS } from '@/src/shared/constants';
+import type { WorkCopyVariant } from '@/src/shared/types';
 import { CopyWork } from '@/src/widgets';
 
 type CopyWorkPageProps = {

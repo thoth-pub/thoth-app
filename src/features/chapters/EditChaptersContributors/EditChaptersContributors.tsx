@@ -6,8 +6,9 @@ import { ChaptersContributionsTable, useContributionStateMachine } from '@/src/e
 import type { ContributionBiographyForm, WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { type BaseEditSectionProps, isAllContributionRecommendationsFilled, isDefaultId } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { RecommendedSection, Typography } from '@/src/shared/ui';
+import { isAllContributionRecommendationsFilled, isDefaultId } from '@/src/shared/utils';
 import { isChaptersContributionsEqual } from '@/src/shared/utils/chapters';
 
 import AddContributionModal from '../../work/AddContributionModal/AddContributionModal';

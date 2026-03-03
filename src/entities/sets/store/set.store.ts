@@ -1,6 +1,6 @@
 'use client';
 
-import { createEntityStateMachine } from '@/src/shared';
+import { createEntityStateMachine } from '@/src/shared/store';
 
 import type { SetEntity } from '../model/set.types';
 

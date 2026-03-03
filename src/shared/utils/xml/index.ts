@@ -1,4 +1,4 @@
-import { ContributorTypes, WorkStatuses } from '../..';
+import { ContributorTypes, WorkStatuses } from '../../constants';
 
 export const getWorkStatusFromXml = (xmlStatus: string) => {
   switch (xmlStatus) {

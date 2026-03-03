@@ -3,7 +3,7 @@
 import { Activity } from 'react';
 
 import { useActivePublisherPermissions } from '@/src/entities/publisher';
-import { BaseEditSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { CoverForm } from './components/CoverForm';
 import DragAndDropForm from './components/DragAndDropForm';

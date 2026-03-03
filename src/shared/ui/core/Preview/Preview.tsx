@@ -2,9 +2,9 @@
 
 import AddIcon from '@mui/icons-material/Add';
 
-import { mergeStyles } from '@/src/shared';
 import useIsGermanLocale from '@/src/shared/hooks/useIsDeutchLocale';
 import { Namespace, NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { mergeStyles } from '@/src/shared/utils';
 
 import FormFieldLabel from '../../forms/FormFieldLabel/FormFieldLabel';
 import ContentWrapper from '../../layout/ContentWrapper/ContentWrapper';

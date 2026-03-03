@@ -5,21 +5,14 @@ import type { Control } from 'react-hook-form';
 import { useCreateAbstract, useDeleteAbstract, useUpdateAbstract, useWork } from '@/src/entities/work';
 import { WorkAbstractsForm } from '@/src/entities/work/model/work.types';
 import { workAbstractsValidationSchema } from '@/src/entities/work/model/work.validation';
-import {
-  AbstractEntity,
-  AbstractId,
-  appConfig,
-  type BaseRecommendedSectionProps,
-  IDs,
-  isDefaultId,
-  LocaleCodeType,
-  QueryKeys,
-} from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, IDs, languageOptionsAlt, QueryKeys } from '@/src/shared/constants';
 import { AbstractTypes } from '@/src/shared/constants/abstracts';
-import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import type { AbstractEntity, AbstractId, BaseRecommendedSectionProps, LocaleCodeType } from '@/src/shared/types';
 import { Chip, MarkdownRenderer, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { isDefaultId } from '@/src/shared/utils';
 
 import { AbstractsFormFields } from './AbstractsFormFields';
 

@@ -5,9 +5,11 @@ import { useEffect, useState } from 'react';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useCreateWorkChapter, useWork, useWorkChapters } from '@/src/entities/work';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
-import { appConfig, BaseEditSectionProps, getDefaultChapter } from '@/src/shared';
-import { licenseOptions } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { licenseOptions } from '@/src/shared/constants';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { AddButton, TranslatedContent } from '@/src/shared/ui';
+import { getDefaultChapter } from '@/src/shared/utils';
 
 import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
 import { InheritedDataForm } from './components/InheritedDataForm';

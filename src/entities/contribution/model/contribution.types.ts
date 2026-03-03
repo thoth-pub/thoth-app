@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import { Biography, ContributionType } from '@/gql/graphql';
-import { LocaleCodeType } from '@/src/shared';
+import type { LocaleCodeType } from '@/src/shared/types';
 
 import { AffiliationEntity } from '../../affiliation/model/affiliation.types';
 import { ContributorId } from '../../contributor/model/contributor.types';

@@ -2,8 +2,8 @@ import DownloadIcon from '@mui/icons-material/Download';
 import WarningIcon from '@mui/icons-material/Warning';
 import { Activity } from 'react';
 
-import { getSpecificationPlaceholder } from '@/src/shared';
 import { Button, Tooltip, TranslatedContent, Typography } from '@/src/shared/ui';
+import { getSpecificationPlaceholder } from '@/src/shared/utils';
 
 import { SpecificationResult } from '../../../model/metadata.types';
 

@@ -3,9 +3,9 @@ import { Activity, useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import type { SubjectType } from '@/gql/graphql';
+import { FORM_FIELDS, subjectTypeOptions } from '@/src/shared/constants';
 import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
-import { FORM_FIELDS, subjectTypeOptions } from '@/src/shared/constants/formFields';
 import { SubjectTypes } from '@/src/shared/constants/subjects';
 import { themaFormFields } from '@/src/shared/constants/themaFormFields';
 import {

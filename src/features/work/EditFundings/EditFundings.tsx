@@ -1,7 +1,7 @@
 'use client';
 
 import { FundingsList } from '@/src/entities/funding';
-import { ANCHORS } from '@/src/shared';
+import { ANCHORS } from '@/src/shared/constants';
 import { BaseEditSectionProps } from '@/src/shared/types';
 import { AddButton, RecommendedSection, TranslatedContent } from '@/src/shared/ui';
 

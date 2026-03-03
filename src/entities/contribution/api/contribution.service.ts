@@ -1,6 +1,8 @@
-import { GraphqlService, isDefaultId, isTextContainsAnyMarkdownTag, QueryToken } from '@/src/shared';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
+import { QueryToken } from '@/src/shared/interfaces';
+import { isDefaultId, isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
 
 import { AffiliationService } from '../../affiliation/api/affiliation.service';
 import { ContributorService } from '../../contributor';

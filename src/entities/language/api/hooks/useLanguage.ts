@@ -1,4 +1,4 @@
-import { type BaseEditSectionProps } from '@/src/shared';
+import { type BaseEditSectionProps } from '@/src/shared/types';
 
 import useCreateLanguage from './useCreateLanguage';
 import useDeleteLanguage from './useDeleteLanguage';

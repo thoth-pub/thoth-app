@@ -1,5 +1,7 @@
-import { FileStorage, isDefaultId, type QueryToken } from '@/src/shared';
+import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
+import type { FileStorage } from '@/src/shared/services';
+import { isDefaultId } from '@/src/shared/utils';
 
 import { LocationService } from '../../locations/api/location.service';
 import { PriceService } from '../../price/api/price.service';

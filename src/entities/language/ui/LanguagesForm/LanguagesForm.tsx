@@ -1,11 +1,11 @@
 import { Control } from 'react-hook-form';
 
 import { LanguageRelation } from '@/gql/graphql';
-import { convertOptionToString, IDs } from '@/src/shared';
-import { FORM_FIELDS, languageOptions } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, IDs, languageOptions } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, DeleteButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { convertOptionToString } from '@/src/shared/utils';
 
 import type { LanguageEntity, LanguagesForm as LanguagesFormType } from '../../model/language.types';
 import { languagesValidationSchema } from '../../model/language.validation';

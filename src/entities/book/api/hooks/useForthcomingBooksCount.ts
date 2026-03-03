@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 
 import type { PublisherId } from '@/src/entities/publisher';
-import { QueryKeys, useServices, WorkStatuses } from '@/src/shared';
+import { QueryKeys, WorkStatuses } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 
 const useForthcomingBooksCount = (publishersIds: PublisherId[]) => {
   const { bookService } = useServices();

@@ -5,7 +5,6 @@ import UpdateIcon from '@mui/icons-material/Update';
 import { ContributorsChip } from '@/src/entities/contributor/ui';
 import { WorkStatusChip } from '@/src/entities/work';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { convertOptionToString, convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared';
 import {
   ButtonGroup,
   CardListItem,
@@ -15,6 +14,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
+import { convertOptionToString, convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared/utils';
 
 type WorkCardListItemProps = {
   work: WorkEntity;

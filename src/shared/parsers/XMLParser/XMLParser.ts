@@ -22,16 +22,25 @@ import { ReferenceEntity } from '@/src/entities/reference/model/reference.types'
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { SubjectEntity } from '@/src/entities/subject/model/subject.types';
 import { WorkEntity, WorkId, WorkStatus } from '@/src/entities/work/model/work.types';
+
+import { appConfig } from '../../config';
 import {
-  AbstractEntity,
-  appConfig,
-  ContributorsForSelection,
-  FormFieldOption,
+  getDefaultAffiliation,
+  getDefaultContribution,
+  LanguageRelation,
+  LanguageTypeAlt,
+  LocationPlatforms,
+  SubjectTypes,
+  WorkStatuses,
+  WorkTypes,
+} from '../../constants';
+import { AbstractTypes } from '../../constants/abstracts';
+import { FormFieldOption } from '../../interfaces';
+import type { AbstractEntity, ContributorsForSelection, SeriesForUpdateItems, TitleEntity } from '../../types';
+import {
   getContributorRoleFromXml,
   getDefaultAbstract,
-  getDefaultAffiliation,
   getDefaultChapter,
-  getDefaultContribution,
   getDefaultFunding,
   getDefaultPublication,
   getDefaultTitle,
@@ -39,17 +48,7 @@ import {
   getPublicationType,
   getWorkStatusFromXml,
   isValidPublicationForm,
-  LanguageRelation,
-  LanguageTypeAlt,
-  LocationPlatforms,
-  SeriesForUpdateItems,
-  SubjectTypes,
-  TitleEntity,
-  WorkStatuses,
-  WorkTypes,
-} from '@/src/shared';
-
-import { AbstractTypes } from '../../constants/abstracts';
+} from '../../utils';
 import { ExtendedContributor, ExtendedProduct } from './interfaces';
 
 class XMLParser {

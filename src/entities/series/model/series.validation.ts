@@ -1,6 +1,6 @@
 import z from 'zod';
 
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS } from '@/src/shared/constants';
 import {
   getRequiredStringValidation,
   optionalStringValidation,

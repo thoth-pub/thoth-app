@@ -1,7 +1,7 @@
 import { Typography } from '@mui/material';
 
-import { mergeStyles } from '@/src/shared';
 import { Namespace, NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { mergeStyles } from '@/src/shared/utils';
 
 import Indicator from '../../core/Indicator/Indicator';
 import Tooltip from '../../core/Tooltip/Tooltip';

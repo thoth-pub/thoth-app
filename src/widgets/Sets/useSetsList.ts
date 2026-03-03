@@ -3,8 +3,8 @@
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import useSets from '@/src/entities/sets/api/hooks/useSets';
 import useSetsCount from '@/src/entities/sets/api/hooks/useSetsCount';
-import { getPagesCount } from '@/src/shared';
 import { useEntityList } from '@/src/shared/hooks';
+import { getPagesCount } from '@/src/shared/utils';
 
 export const useSetsList = () => {
   const { activePublisher } = usePublisherStateMachine();

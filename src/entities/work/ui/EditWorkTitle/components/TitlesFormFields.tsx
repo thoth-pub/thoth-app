@@ -4,10 +4,11 @@ import { type Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
-import { appConfig, HELPER_TEXT, isDefaultId, TitleId } from '@/src/shared';
-import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, HELPER_TEXT, languageOptionsAlt } from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { TitleId } from '@/src/shared/types';
 import {
   AddButton,
   ContentWrapper,
@@ -18,6 +19,7 @@ import {
   MarkdownField,
   TranslatedContent,
 } from '@/src/shared/ui';
+import { isDefaultId } from '@/src/shared/utils';
 
 const { TITLES, WORK_TITLE, SUBTITLE, LANGUAGE } = FORM_FIELDS;
 const { WORK_TITLE: WORK_TITLE_HELPER_TEXT, SUBTITLE: SUBTITLE_HELPER_TEXT } = HELPER_TEXT;

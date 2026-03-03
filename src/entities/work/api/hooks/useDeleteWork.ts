@@ -3,8 +3,10 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
-import { type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, ROUTES, useServices } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys, ROUTES } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
+import { BaseEditSectionProps } from '@/src/shared/types';
 
 const { WORK_DELETE_FAILED } = NOTIFICATIONS;
 

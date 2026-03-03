@@ -2,7 +2,8 @@
 import { useMutation } from '@tanstack/react-query';
 
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
-import { NOTIFICATIONS, useServices } from '@/src/shared';
+import { NOTIFICATIONS } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
 
 import { BiographyEntity } from '../../model/contribution.types';

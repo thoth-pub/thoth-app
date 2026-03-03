@@ -1,5 +1,7 @@
-import { appConfig, convertOrchidIdToText, convertRomanToArabic, TitleDto, TitleEntity } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { TitleDto, TitleEntity } from '@/src/shared/types';
+import { convertOrchidIdToText, convertRomanToArabic } from '@/src/shared/utils';
 
 import type { BookDto, BookEntity } from './book.types';
 

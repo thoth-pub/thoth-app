@@ -1,7 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { WorkId } from '@/src/entities/work/model/work.types';
-import { isDefaultId, QueryKeys, useServices } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
+import { isDefaultId } from '@/src/shared/utils';
 
 import { FORMAT_IDS, MetadataEntity } from '../../model/metadata.types';
 

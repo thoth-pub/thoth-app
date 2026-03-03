@@ -1,7 +1,7 @@
 'use client';
 
 import { FundingEntity } from '@/src/entities/funding/model/funding.types';
-import { type BaseEditSectionProps } from '@/src/shared';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
 import EditFundingForm from '../EditFundingForm/EditFundingForm';

@@ -2,8 +2,9 @@ import { useTransition } from 'react';
 
 import { useBulkCreateWorks } from '@/src/entities/work';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { convertOptionToString, getMainTitle, SeriesForUpdateItems } from '@/src/shared';
+import type { SeriesForUpdateItems } from '@/src/shared/types';
 import { Button, TableBody, TableCell, TableHeader, TableRow, TableWrapper, TranslatedContent } from '@/src/shared/ui';
+import { convertOptionToString, getMainTitle } from '@/src/shared/utils';
 
 type PreviewStepProps = {
   works: WorkEntity[];

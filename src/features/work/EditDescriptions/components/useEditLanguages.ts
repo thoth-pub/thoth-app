@@ -4,8 +4,9 @@ import type { LanguageCode } from '@/gql/graphql';
 import { useLanguage } from '@/src/entities/language';
 import { LanguagesForm as LanguagesFormType } from '@/src/entities/language/model/language.types';
 import { useWork } from '@/src/entities/work';
-import { type BaseRecommendedSectionProps, isDefaultId } from '@/src/shared';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
+import { isDefaultId } from '@/src/shared/utils';
 
 type useEditLanguagesProps = BaseRecommendedSectionProps & {
   onUpdate?: (data: LanguagesFormType) => void;

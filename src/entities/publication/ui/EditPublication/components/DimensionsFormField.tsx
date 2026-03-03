@@ -5,9 +5,10 @@ import LinkOffIcon from '@mui/icons-material/LinkOff';
 import { Activity, useEffect, useState } from 'react';
 import { Control, FieldValues, useWatch } from 'react-hook-form';
 
-import { convertGToOz, convertInToMm, convertMmToIn, convertOzToG, type FormFieldName } from '@/src/shared';
-import { LengthUnit, WeightUnit } from '@/src/shared/constants/lengths';
+import { LengthUnit, WeightUnit } from '@/src/shared/constants';
+import type { FormFieldName } from '@/src/shared/interfaces';
 import { ContentWrapper, FormFieldLabel, FormTextField, IconButton } from '@/src/shared/ui';
+import { convertGToOz, convertInToMm, convertMmToIn, convertOzToG } from '@/src/shared/utils';
 
 type DimensionsFormFieldProps = {
   control: Control<FieldValues>;

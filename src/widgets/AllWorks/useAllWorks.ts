@@ -7,8 +7,10 @@ import { WorkField } from '@/gql/graphql';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { useCreateNewWorkEdition, useCreateWorkTranslation, useWorks, useWorksCount } from '@/src/entities/work';
 import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
-import { getPagesCount, ROUTES, type WorkCopyVariant, WorkTypes } from '@/src/shared';
+import { ROUTES, WorkTypes } from '@/src/shared/constants';
 import { useEntityList } from '@/src/shared/hooks';
+import type { WorkCopyVariant } from '@/src/shared/types';
+import { getPagesCount } from '@/src/shared/utils';
 
 export const useAllWorks = () => {
   const router = useRouter();

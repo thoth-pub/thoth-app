@@ -1,9 +1,9 @@
 'use client';
 
 import { useWork } from '@/src/entities/work';
-import { type BaseEditSectionProps, HELPER_TEXT, IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { EditButton, FormFieldLabel, FormTextField, InputLabel, TranslatedContent, Typography } from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
 

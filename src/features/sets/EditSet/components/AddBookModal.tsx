@@ -11,8 +11,8 @@ import { useBooks } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { SetId, SetWorkFormType, useAddToSet } from '@/src/entities/sets';
 import { setWorkValidationSchema } from '@/src/entities/sets/model/set.validation';
-import { appConfig, getMainTitle } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS } from '@/src/shared/constants';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
   AutocompleteField,
@@ -24,6 +24,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
+import { getMainTitle } from '@/src/shared/utils';
 
 const { SET_WORK } = FORM_FIELDS;
 

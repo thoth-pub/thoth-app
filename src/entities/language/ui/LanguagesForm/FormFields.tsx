@@ -4,8 +4,8 @@ import { Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
 import type { LanguageRelation } from '@/gql/graphql';
-import { appConfig, HELPER_TEXT, isDefaultId, languageRelationOptions } from '@/src/shared';
-import { FORM_FIELDS, languageOptions } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, HELPER_TEXT, languageOptions } from '@/src/shared/constants';
 import {
   AddButton,
   AutocompleteField,
@@ -17,6 +17,7 @@ import {
   InputLabel,
   TranslatedContent,
 } from '@/src/shared/ui';
+import { isDefaultId, languageRelationOptions } from '@/src/shared/utils';
 
 import { LanguagesForm } from '../../model/language.types';
 

@@ -1,6 +1,7 @@
 import { useMutation } from '@tanstack/react-query';
 
-import { NOTIFICATIONS, useServices } from '@/src/shared';
+import { NOTIFICATIONS } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
 
 const { PUBLISHER_CREATION_FAILED } = NOTIFICATIONS;

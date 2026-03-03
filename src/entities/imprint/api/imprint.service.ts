@@ -1,6 +1,6 @@
 import { PublisherId } from '@/src/entities/publisher';
-import { QueryToken } from '@/src/shared';
 import { appConfig } from '@/src/shared/config';
+import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ImprintDtoMapper } from '../model/imprint.mapper';

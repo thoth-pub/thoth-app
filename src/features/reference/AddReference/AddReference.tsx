@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { EditReferenceForm, useCreateReference, useReferenceStateMachine } from '@/src/entities/reference';
 import type { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import { useWork } from '@/src/entities/work';
-import { type BaseRecommendedSectionProps } from '@/src/shared';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
 const AddReference = (props: BaseRecommendedSectionProps) => {

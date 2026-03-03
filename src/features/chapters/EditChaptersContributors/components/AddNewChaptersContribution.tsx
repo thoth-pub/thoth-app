@@ -8,7 +8,8 @@ import type { WorkContribution } from '@/src/entities/contribution/model/contrib
 import { useContributor, useUpdateContributor } from '@/src/entities/contributor';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { AddNewContribution } from '@/src/features/contribution';
-import { type BaseRecommendedSectionProps,QueryKeys } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 
 type AddNewChaptersContributionProps = BaseRecommendedSectionProps & {
   chapters: WorkEntity[];

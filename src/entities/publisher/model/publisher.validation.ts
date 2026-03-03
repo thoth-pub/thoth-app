@@ -1,7 +1,7 @@
 import z from 'zod';
 
-import { contactTypeValidation, getRequiredStringValidation, optionalStringValidation } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS } from '@/src/shared/constants';
+import { contactTypeValidation, getRequiredStringValidation, optionalStringValidation } from '@/src/shared/utils';
 
 const { PUBLISHER_CONTACT, PUBLISHER_REPORT, PUBLISHER_STATEMENT, PUBLISHER_NAME } = FORM_FIELDS;
 

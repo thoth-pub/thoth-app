@@ -2,7 +2,7 @@
 
 import { parse } from '@5stones/onix';
 
-import type { OnixData } from '@/src/shared';
+import type { OnixData } from '@/src/shared/types';
 
 export type ValidationResult =
   | {

@@ -1,7 +1,7 @@
 import { Paper } from '@mui/material';
 import { ReactNode } from 'react';
 
-import { mergeStyles } from '@/src/shared';
+import { mergeStyles } from '@/src/shared/utils';
 
 import Typography from '../../core/Typography/Typography';
 

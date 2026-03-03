@@ -11,11 +11,12 @@ import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useCreateNewWorkEdition, useCreateWorkTranslation } from '@/src/entities/work';
 import { WorkCopyForm, WorkEntity } from '@/src/entities/work/model/work.types';
 import { workCopyValidationSchema } from '@/src/entities/work/model/work.validation';
-import { appConfig, getMainTitle } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS } from '@/src/shared/constants';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import { AutocompleteField, FormFieldWithControlsWrapper, InputAdornment, SubmitButton } from '@/src/shared/ui';
 import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { getMainTitle } from '@/src/shared/utils';
 
 type CreateWorkCopyProps = {
   isTranslation: boolean;
@@ -78,7 +79,7 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
 
   return (
     <ContentSection>
-      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-[var(--default-gap)]">
+      <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-(--default-gap)">
         <div className="flex gap-1">
           <FormFieldWithControlsWrapper className="w-full">
             <AutocompleteField

@@ -1,17 +1,14 @@
+import { appConfig } from '@/src/shared/config';
+import type { BaseMapper } from '@/src/shared/interfaces';
+import { AbstractDto, AbstractEntity, TitleDto, TitleEntity } from '@/src/shared/types';
 import {
-  AbstractDto,
-  AbstractEntity,
-  appConfig,
   convertArabicToRoman,
   convertDateToFormattedDate,
   convertOrchidIdToText,
   convertRomanToArabic,
   isBookChapter,
   isDefaultId,
-  TitleDto,
-  TitleEntity,
-} from '@/src/shared';
-import type { BaseMapper } from '@/src/shared/interfaces';
+} from '@/src/shared/utils';
 
 import { WorkContribution } from '../../contribution/model/contribution.types';
 import { FundingDtoMapper } from '../../funding/model/funding.mapper';

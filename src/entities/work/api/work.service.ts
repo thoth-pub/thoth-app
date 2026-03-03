@@ -1,18 +1,11 @@
 import { Direction, RelationType, WorkField, WorkStatus, WorkType } from '@/gql/graphql';
-import {
-  AbstractDto,
-  AbstractEntity,
-  appConfig,
-  getDateInFuture,
-  isTextContainsAnyMarkdownTag,
-  QueryToken,
-  SeriesForUpdateItems,
-  TitleDto,
-  TitleEntity,
-  WorkStatuses,
-} from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { WorkStatuses } from '@/src/shared/constants';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
+import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
+import type { AbstractDto, AbstractEntity, SeriesForUpdateItems, TitleDto, TitleEntity } from '@/src/shared/types';
+import { getDateInFuture, isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
 
 import { ContributionService } from '../../contribution/api/contribution.service';
 import { FundingService } from '../../funding/api/funding.service';

@@ -3,7 +3,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
-import { appConfig, getDefaultWork, QueryKeys, ROUTES, useServices, WorkStatuses } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { QueryKeys, WorkStatuses } from '@/src/shared/constants';
+import { ROUTES } from '@/src/shared/constants/routes';
+import { useServices } from '@/src/shared/context';
+import { getDefaultWork } from '@/src/shared/utils';
 
 import { WorkEntity } from '../../model/work.types';
 

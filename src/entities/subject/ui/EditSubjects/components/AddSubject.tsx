@@ -4,14 +4,19 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Activity, useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
-import { appConfig, SubjectTypes } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, subjectTypeOptions, SubjectTypes } from '@/src/shared/constants';
 import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
-import { FORM_FIELDS, subjectTypeOptions } from '@/src/shared/constants/formFields';
 import { themaFormFields } from '@/src/shared/constants/themaFormFields';
 import useDebounceValue from '@/src/shared/hooks/useDebouncedValue';
-import { AutocompleteField, FormFieldWithControlsWrapper, FormFieldWrapper, FormTextField } from '@/src/shared/ui';
-import { FormFieldLabel } from '@/src/shared/ui';
+import {
+  AutocompleteField,
+  FormFieldLabel,
+  FormFieldWithControlsWrapper,
+  FormFieldWrapper,
+  FormTextField,
+} from '@/src/shared/ui';
 
 import { SubjectType } from '../../../model/subject.types';
 import { addSubjectAutocompleteValidationSchema, addSubjectValidationSchema } from '../../../model/subject.validation';

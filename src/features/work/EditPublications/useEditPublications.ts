@@ -2,8 +2,9 @@ import { usePublicationsStateMachine } from '@/src/entities/publication';
 import useDeletePublication from '@/src/entities/publication/api/hooks/useDeletePublication';
 import { useWork } from '@/src/entities/work';
 import { WorkId } from '@/src/entities/work/model/work.types';
-import { getDefaultPublication, isDefaultId, WorkTypes } from '@/src/shared';
+import { WorkTypes } from '@/src/shared/constants';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import { getDefaultPublication, isDefaultId } from '@/src/shared/utils';
 
 export const useEditPublications = (workId: WorkId) => {
   const { activeEntity: activePublication, close, edit } = usePublicationsStateMachine();

@@ -1,7 +1,7 @@
 'use client';
 
 import { EditReferenceForm, useReferenceStateMachine, useUpdateReference } from '@/src/entities/reference';
-import type { BaseRecommendedSectionProps } from '@/src/shared';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 
 const EditReference = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;

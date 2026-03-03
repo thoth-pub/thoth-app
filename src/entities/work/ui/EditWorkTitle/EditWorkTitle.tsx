@@ -4,9 +4,9 @@ import type { Control } from 'react-hook-form';
 import { useCreateTitle, useDeleteTitle, useUpdateTitle, useWork } from '@/src/entities/work';
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { workTitlesValidationSchema } from '@/src/entities/work/model/work.validation';
-import { type BaseRecommendedSectionProps, getMainTitle, HELPER_TEXT, IDs, QueryKeys, TitleEntity } from '@/src/shared';
-import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs, languageOptionsAlt, QueryKeys } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import type { BaseRecommendedSectionProps, TitleEntity } from '@/src/shared/types';
 import type { LocaleCodeType } from '@/src/shared/types/languages';
 import {
   Chip,
@@ -19,6 +19,7 @@ import {
   Typography,
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { getMainTitle } from '@/src/shared/utils';
 
 import { TitlesFormFields } from './components/TitlesFormFields';
 

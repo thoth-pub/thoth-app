@@ -12,8 +12,8 @@ import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useCreateIssue } from '@/src/entities/series';
 import type { IssueValidationSchema, SeriesEntity } from '@/src/entities/series/model/series.types';
 import { issueValidationSchema } from '@/src/entities/series/model/series.validation';
-import { appConfig, getMainTitle } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS } from '@/src/shared/constants';
 import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
@@ -27,6 +27,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
+import { getMainTitle } from '@/src/shared/utils';
 
 const { WORK_SERIES, ISSUE_ORDINAL } = FORM_FIELDS;
 

@@ -6,8 +6,10 @@ import { useSetStateMachine } from '@/src/entities/sets/store/set.store';
 import EditSetImprint from '@/src/entities/sets/ui/EditSetImprint/EditSetImprint';
 import { useUser } from '@/src/entities/user';
 import { useCreateTitle, useDeleteTitle, useUpdateTitle } from '@/src/entities/work';
-import { getMainTitle, LocaleCodeType, QueryKeys, TitleEntity } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
+import type { LocaleCodeType, TitleEntity } from '@/src/shared/types';
 import { CloseButton, MarkdownRenderer, MultipleContentWrapper, Typography } from '@/src/shared/ui';
+import { getMainTitle } from '@/src/shared/utils';
 
 import { SetBooksList } from './components/SetBooksList';
 

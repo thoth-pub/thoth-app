@@ -1,4 +1,5 @@
-import { FormFieldOption, LocaleCodeType, TitleEntity } from '@/src/shared';
+import { FormFieldOption } from '@/src/shared/interfaces';
+import { LocaleCodeType, TitleEntity } from '@/src/shared/types';
 
 import { SetEntity, SetTitleFormType } from '../../model/set.types';
 import EditSetImprint from '../EditSetImprint/EditSetImprint';

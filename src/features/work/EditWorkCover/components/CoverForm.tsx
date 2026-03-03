@@ -10,8 +10,8 @@ import { useCopyToClipboard } from 'react-use';
 import { useWork } from '@/src/entities/work';
 import { CoverUrlAltForm } from '@/src/entities/work/model/work.types';
 import { coverUrlAltValidationSchema } from '@/src/entities/work/model/work.validation';
-import type { BaseEditSectionProps } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS } from '@/src/shared/constants';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import {
   CloseButton,
   ContentWrapper,

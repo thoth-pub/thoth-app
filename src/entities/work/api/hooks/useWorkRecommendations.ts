@@ -1,4 +1,6 @@
-import { isAllContributionRecommendationsFilled, isAllFundingRecommendationsFilled, SubjectTypes } from '@/src/shared';
+import { SubjectTypes } from '@/src/shared/constants';
+import { isAllContributionRecommendationsFilled } from '@/src/shared/utils/contributions';
+import { isAllFundingRecommendationsFilled } from '@/src/shared/utils/fundings';
 
 import useWork from './useWork';
 

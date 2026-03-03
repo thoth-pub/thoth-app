@@ -17,9 +17,12 @@ import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { useUser } from '@/src/entities/user';
 import { useWork } from '@/src/entities/work';
-import { appConfig, type BaseEditSectionProps, NOTIFICATIONS, QueryKeys, removePrefix } from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import type { BaseEditSectionProps } from '@/src/shared/types';
+import { removePrefix } from '@/src/shared/utils';
 
 type UseEditContributionProps = BaseEditSectionProps &
   Partial<{

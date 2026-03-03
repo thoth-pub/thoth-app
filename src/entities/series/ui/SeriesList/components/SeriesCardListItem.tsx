@@ -1,8 +1,8 @@
 import UpdateIcon from '@mui/icons-material/Update';
 
 import BooksChip from '@/src/features/books/BooksChip/BooksChip';
-import { convertUpdatedAtToFormattedDate } from '@/src/shared';
 import { CardListItem, DeleteButton, LandingPagesGallery, TranslatedContent, Typography } from '@/src/shared/ui';
+import { convertUpdatedAtToFormattedDate } from '@/src/shared/utils';
 
 import { SeriesEntity } from '../../../model/series.types';
 

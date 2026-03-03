@@ -1,7 +1,6 @@
 import { Control } from 'react-hook-form';
 
-import { IDs } from '@/src/shared';
-import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, IDs, languageOptionsAlt } from '@/src/shared/constants';
 import { Chip, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 

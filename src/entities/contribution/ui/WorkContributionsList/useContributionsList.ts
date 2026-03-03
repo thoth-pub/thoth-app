@@ -5,8 +5,9 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useContributionStateMachine, useMoveContribution } from '@/src/entities/contribution';
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { useWork } from '@/src/entities/work';
-import { type BaseEditSectionProps, QueryKeys } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { WorkContribution } from '../../model/contribution.types';
 

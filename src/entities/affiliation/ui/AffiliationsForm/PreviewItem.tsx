@@ -1,7 +1,7 @@
 'use client';
 
-import { isDragAndDropDisabled } from '@/src/shared';
 import { DragAndDropListener, DraggableComponent, Typography } from '@/src/shared/ui';
+import { isDragAndDropDisabled } from '@/src/shared/utils';
 
 type PreviewItemProps = {
   id: string;

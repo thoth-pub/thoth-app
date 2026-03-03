@@ -2,7 +2,8 @@ import { useQuery } from '@tanstack/react-query';
 
 import { Direction, WorkField } from '@/gql/graphql';
 import type { PublisherId } from '@/src/entities/publisher';
-import { QueryKeys, useServices } from '@/src/shared';
+import { QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 
 const useLatestUpdatedBooks = (publishersIds: PublisherId[]) => {
   const { bookService } = useServices();

@@ -2,8 +2,8 @@
 
 import { useState } from 'react';
 
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import {
-  type BaseEditSectionProps,
   getDateInFuture,
   getDateInFutureFromDate,
   getMainTitle,
@@ -11,7 +11,7 @@ import {
   isPublicationDateRequired,
   isPublicationDateShouldBeInFuture,
   isSupersededOrWithdrawn,
-} from '@/src/shared';
+} from '@/src/shared/utils';
 
 import { useTranslatedWorks, useWorkSet } from '../..';
 import useWork from '../../api/hooks/useWork';

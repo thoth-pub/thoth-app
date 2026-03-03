@@ -5,8 +5,8 @@ import { useState } from 'react';
 import { type Control } from 'react-hook-form';
 
 import { useInstitutions } from '@/src/entities/institution';
-import { appConfig, convertEntityToSelectFieldOptions, HELPER_TEXT } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { appConfig } from '@/src/shared/config';
+import { FORM_FIELDS, HELPER_TEXT } from '@/src/shared/constants';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
   AutocompleteField,
@@ -17,6 +17,7 @@ import {
   FormTextField,
   InputAdornment,
 } from '@/src/shared/ui';
+import { convertEntityToSelectFieldOptions } from '@/src/shared/utils';
 
 import type { AffiliationsForm } from '../../model/affiliation.types';
 

@@ -3,7 +3,7 @@
 import { SessionProvider } from 'next-auth/react';
 import { I18nextProvider } from 'react-i18next';
 
-import { i18nConfig } from '@/src/shared';
+import { i18nConfig } from '@/src/shared/i18n';
 import { LocalizationProvider, NotificationProvider, StylesCacheProvider, ThemeProvider } from '@/src/shared/providers';
 import { QueryProvider } from '@/src/shared/providers/QueryProvider';
 

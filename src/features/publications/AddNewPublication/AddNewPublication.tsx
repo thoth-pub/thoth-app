@@ -3,7 +3,7 @@
 import { EditLocations } from '@/src/entities/locations';
 import { EditPrice } from '@/src/entities/price';
 import { EditPublication } from '@/src/entities/publication';
-import { BaseRecommendedSectionProps } from '@/src/shared';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
 import { useAddNewPublication } from './useAddNewPublication';

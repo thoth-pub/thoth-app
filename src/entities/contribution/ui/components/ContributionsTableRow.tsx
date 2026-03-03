@@ -3,13 +3,7 @@
 import { AnimatePresence } from 'motion/react';
 import removeMd from 'remove-markdown';
 
-import {
-  appConfig,
-  convertOrchidIdToText,
-  convertRorIdToText,
-  isDragAndDropDisabled,
-  truncateString,
-} from '@/src/shared';
+import { appConfig } from '@/src/shared/config';
 import {
   DragAndDropListener,
   DraggableComponent,
@@ -23,6 +17,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
+import { convertOrchidIdToText, convertRorIdToText, isDragAndDropDisabled, truncateString } from '@/src/shared/utils';
 
 import type { WorkContribution } from '../../model/contribution.types';
 import { RowButtonGroup } from './RowButtonGroup';

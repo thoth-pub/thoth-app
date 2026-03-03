@@ -1,4 +1,4 @@
-import { DAY } from '../constants';
+import { DAY } from '../constants/time';
 
 export const appConfig = {
   query: {

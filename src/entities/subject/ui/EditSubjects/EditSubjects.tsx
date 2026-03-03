@@ -2,10 +2,11 @@
 
 import { useState } from 'react';
 
-import { type BaseRecommendedSectionProps, convertOptionToString, SubjectTypes } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, SubjectTypes } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 import { AddButton, Backdrop, CircularProgress, ContentWrapper, InputLabel, TranslatedContent } from '@/src/shared/ui';
+import { convertOptionToString } from '@/src/shared/utils';
 
 import useMoveSubjects from '../../api/hooks/useMoveSubjects';
 import type { SubjectEntity, SubjectType } from '../../model/subject.types';

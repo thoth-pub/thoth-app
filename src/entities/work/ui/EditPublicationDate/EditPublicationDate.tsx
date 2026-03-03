@@ -1,7 +1,6 @@
 import dayjs from 'dayjs';
 
-import { convertDateToFormattedDate, HELPER_TEXT, IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   DateField,
@@ -13,6 +12,7 @@ import {
   Typography,
 } from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
+import { convertDateToFormattedDate } from '@/src/shared/utils';
 
 import { publicationDateValidationSchema } from '../../model/work.validation';
 

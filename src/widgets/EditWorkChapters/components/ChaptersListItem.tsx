@@ -3,7 +3,6 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 
 import { ContributorsChip } from '@/src/entities/contributor/ui';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { getMainTitle, getPagesPlaceholder } from '@/src/shared';
 import {
   ButtonGroup,
   CardListItem,
@@ -13,6 +12,7 @@ import {
   MarkdownRenderer,
   Typography,
 } from '@/src/shared/ui';
+import { getMainTitle, getPagesPlaceholder } from '@/src/shared/utils';
 
 type ChaptersListItemProps = {
   chapter: WorkEntity;

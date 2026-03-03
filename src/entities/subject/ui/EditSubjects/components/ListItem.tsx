@@ -1,14 +1,7 @@
 'use client';
 
 import { WorkId } from '@/src/entities/work/model/work.types';
-import {
-  convertBicSubjectCodeToReadableFormat,
-  convertBisacSubjectCodeToReadableFormat,
-  convertThemaSubjectCodeToReadableFormat,
-  isDragAndDropDisabled,
-  mergeStyles,
-  SubjectTypes,
-} from '@/src/shared';
+import { SubjectTypes } from '@/src/shared/constants';
 import {
   ButtonGroup,
   Chip,
@@ -18,6 +11,13 @@ import {
   EditButton,
   Typography,
 } from '@/src/shared/ui';
+import {
+  convertBicSubjectCodeToReadableFormat,
+  convertBisacSubjectCodeToReadableFormat,
+  convertThemaSubjectCodeToReadableFormat,
+  isDragAndDropDisabled,
+  mergeStyles,
+} from '@/src/shared/utils';
 
 import type { SubjectEntity, SubjectId } from '../../../model/subject.types';
 import { EditSubject } from '../../EditSubject/EditSubject';

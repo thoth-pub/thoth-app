@@ -2,7 +2,7 @@
 
 import { useMemo } from 'react';
 
-import { mergeStyles } from '@/src/shared';
+import { mergeStyles } from '@/src/shared/utils';
 
 import ButtonComponent, { type ButtonProps } from '../Button/Button';
 

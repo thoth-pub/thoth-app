@@ -4,9 +4,11 @@ import { Activity, useEffect, useEffectEvent, useState } from 'react';
 
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import { ContributorsForSelection, FormFieldOption, SeriesForUpdateItems, useServices } from '@/src/shared';
-import { licenseOptions } from '@/src/shared/constants/formFields';
+import { licenseOptions } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
+import { FormFieldOption } from '@/src/shared/interfaces';
 import { CSVParser } from '@/src/shared/parsers';
+import { ContributorsForSelection, SeriesForUpdateItems } from '@/src/shared/types';
 import { CircularProgress } from '@/src/shared/ui';
 import { isCsv } from '@/src/shared/utils';
 

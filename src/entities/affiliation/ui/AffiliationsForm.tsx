@@ -2,8 +2,7 @@
 
 import { Control } from 'react-hook-form';
 
-import { IDs } from '@/src/shared';
-import { FORM_FIELDS } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, IDs } from '@/src/shared/constants';
 import { DragAndDropWrapper, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 

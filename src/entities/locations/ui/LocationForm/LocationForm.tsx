@@ -5,8 +5,7 @@ import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { getProtocolPrefix, HELPER_TEXT } from '@/src/shared';
-import { FORM_FIELDS, locationPlatformOptions } from '@/src/shared/constants/formFields';
+import { FORM_FIELDS, HELPER_TEXT, locationPlatformOptions } from '@/src/shared/constants';
 import { useIsDesktop } from '@/src/shared/hooks';
 import {
   AutocompleteField,
@@ -23,6 +22,7 @@ import {
   ModalWrapper,
   SubmitButton,
 } from '@/src/shared/ui';
+import { getProtocolPrefix } from '@/src/shared/utils';
 
 import type { LocationEntity, LocationForm as LocationFormType, LocationPlatform } from '../../model/location.types';
 import { locationPlatformValidationSchema } from '../../model/location.validation';

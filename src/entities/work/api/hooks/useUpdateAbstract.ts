@@ -1,8 +1,10 @@
 'use client';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { type AbstractEntity, NOTIFICATIONS, QueryKeys, useServices } from '@/src/shared';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
+import type { AbstractEntity } from '@/src/shared/types';
 
 import type { WorkId } from '../../model/work.types';
 
