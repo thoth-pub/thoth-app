@@ -28,7 +28,7 @@ export const useChaptersFundingsProjects = ({
 
     const promises: Promise<void>[] = [];
 
-    chapters.forEach(async (chapter) => {
+    chapters.forEach((chapter) => {
       const chapterFundings = chapter.fundings.filter(
         (funding) =>
           funding.projectName !== updatedFunding.projectName &&
@@ -73,7 +73,7 @@ export const useChaptersFundingsProjects = ({
 
     const promises: Promise<void>[] = [];
 
-    chapters.forEach(async (chapter) => {
+    chapters.forEach((chapter) => {
       const chapterFundings = chapter.fundings.filter(
         (funding) =>
           funding.projectName === updatedFunding.projectName &&

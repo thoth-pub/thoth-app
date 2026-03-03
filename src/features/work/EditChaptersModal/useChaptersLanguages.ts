@@ -38,10 +38,8 @@ export const useChaptersLanguages = () => {
   const updateLanguages = async (data: LanguagesForm) => {
     if (!activeWorkChapters) return;
 
-    const deletionPromises = activeWorkChapters.map((chapter) => {
-      return chapter.languages.map((language) => {
-        return deleteLanguage(language.id);
-      });
+    const deletionPromises = activeWorkChapters.flatMap((chapter) => {
+      return chapter.languages.map((language) => deleteLanguage(language.id));
     });
 
     await Promise.all(deletionPromises);
