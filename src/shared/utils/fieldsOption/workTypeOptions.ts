@@ -1,4 +1,4 @@
-import { WorkTypes } from '../../constants';
+import { WorkTypes } from '../../constants/work';
 
 export const workTypeOptions = [
   { value: WorkTypes.enum.EditedBook, label: 'edited book' },

@@ -12,14 +12,28 @@ import { ONIXMessageRoot } from '@5stones/onix/dist/interfaces';
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { LanguageCode } from '@/gql/graphql';
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 
-import XMLParser from './XMLParser';
-import { currencyOptions, languageOptions, licenseOptions } from '../../constants/formFields';
+import { LanguageCode } from '@/gql/graphql';
+import { WorkId } from '@/src/entities/work/model/work.types';
+import { appConfig } from '../../config';
+import {
+  ContributorTypes,
+  LanguageRelation,
+  LanguageTypeAlt,
+  LocationPlatforms,
+  PublicationType,
+  SubjectTypes,
+  WorkStatuses,
+  currencyOptions,
+  languageOptions,
+  licenseOptions,
+} from '../../constants';
+import { AbstractTypes } from '../../constants/abstracts';
 import { SeriesType } from '../../constants/series';
+import { ContributorsForSelection, SeriesForUpdateItems } from '../../types';
 import {
   ExtendedCollection,
   ExtendedDescriptiveDetail,
@@ -27,20 +41,7 @@ import {
   ExtendedProductSupply,
   ExtendedPublishingDetail,
 } from './interfaces';
-import {
-  appConfig,
-  ContributorsForSelection,
-  ContributorTypes,
-  LanguageRelation,
-  LanguageTypeAlt,
-  LocationPlatforms,
-  PublicationType,
-  SeriesForUpdateItems,
-  SubjectTypes,
-  WorkStatuses,
-} from '../..';
-import { AbstractTypes } from '../../constants/abstracts';
-import { WorkId } from '@/src/entities/work/model/work.types';
+import XMLParser from './XMLParser';
 
 describe('XMLParser', () => {
   let mockContributorService: ContributorService;

@@ -15,6 +15,8 @@ import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMach
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { EditWorkChapters } from '../EditWorkChapters/EditWorkChapters';
+import EditWorkMarketing from '../EditWorkMarketing/EditWorkMarketing';
+import EditWorkResources from '../EditWorkResources/EditWorkResources';
 
 type EditWorkWidgetProps = BaseEditSectionProps;
 
@@ -61,6 +63,8 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
       <EditWorkChapters workId={workId} />
       <EditPublications workId={workId} />
       <EditFundings workId={workId} />
+      <EditWorkMarketing workId={workId} />
+      <EditWorkResources workId={workId} />
       <EditReferences workId={workId} />
       <WorkSpeedDial workId={workId} />
     </div>

@@ -1,6 +1,5 @@
 import CreateWorkCopy from '@/src/features/work/CreateWorkCopy/CreateWorkCopy';
-import { TranslatedContent, Typography } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { ContentSection, TranslatedContent, Typography } from '@/src/shared/ui';
 
 type CopyWorkProps = {
   isTranslation: boolean;

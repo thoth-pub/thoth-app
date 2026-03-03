@@ -14,6 +14,9 @@ import { TypedDocumentNode as DocumentNode } from '@graphql-typed-document-node/
  * Learn more about it here: https://the-guild.dev/graphql/codegen/plugins/presets/preset-client#reducing-bundle-size
  */
 type Documents = {
+    "\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": typeof types.CreateAbstractDocument,
+    "\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": typeof types.UpdateAbstractDocument,
+    "\n  mutation DeleteAbstract($abstractId: Uuid!) {\n    deleteAbstract(abstractId: $abstractId) {\n      abstractId\n    }\n  }\n": typeof types.DeleteAbstractDocument,
     "\n  mutation CreateAffiliation($data: NewAffiliation!) {\n    createAffiliation(data: $data) {\n      ...AffiliationFragment\n    }\n  }\n": typeof types.CreateAffiliationDocument,
     "\n  mutation UpdateAffiliation($data: PatchAffiliation!) {\n    updateAffiliation(data: $data) {\n      ...AffiliationFragment\n    }\n  }\n": typeof types.UpdateAffiliationDocument,
     "\n  mutation DeleteAffiliation($affiliationId: Uuid!) {\n    deleteAffiliation(affiliationId: $affiliationId) {\n      affiliationId\n    }\n  }\n": typeof types.DeleteAffiliationDocument,
@@ -91,14 +94,11 @@ type Documents = {
     "\n  mutation UpdateSubject($data: PatchSubject!) {\n    updateSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.UpdateSubjectDocument,
     "\n  mutation DeleteSubject($subjectId: Uuid!) {\n    deleteSubject(subjectId: $subjectId) {\n      ...SubjectFragment\n    }\n  }\n": typeof types.DeleteSubjectDocument,
     "\n  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {\n    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {\n      subjectId\n    }\n  }\n": typeof types.MoveSubjectDocument,
-    "\n  query GetUser {\n    me {\n      userId\n      email\n      firstName\n      lastName\n      isSuperuser\n      publisherContexts {\n        publisher {\n          publisherName\n          publisherId\n          imprints {\n            imprintId\n            imprintName\n          }\n        }\n        permissions {\n          publisherAdmin\n          workLifecycle\n          cdnWrite\n        }\n      }\n    }\n  }\n": typeof types.GetUserDocument,
-    "\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": typeof types.CreateWorkDocument,
     "\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = JATS_XML) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": typeof types.CreateTitleDocument,
     "\n  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": typeof types.UpdateTitleDocument,
     "\n  mutation DeleteTitle($titleId: Uuid!) {\n    deleteTitle(titleId: $titleId) {\n      titleId\n    }\n  }\n": typeof types.DeleteTitleDocument,
-    "\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": typeof types.CreateAbstractDocument,
-    "\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": typeof types.UpdateAbstractDocument,
-    "\n  mutation DeleteAbstract($abstractId: Uuid!) {\n    deleteAbstract(abstractId: $abstractId) {\n      abstractId\n    }\n  }\n": typeof types.DeleteAbstractDocument,
+    "\n  query GetUser {\n    me {\n      userId\n      email\n      firstName\n      lastName\n      isSuperuser\n      publisherContexts {\n        publisher {\n          publisherName\n          publisherId\n          imprints {\n            imprintId\n            imprintName\n          }\n        }\n        permissions {\n          publisherAdmin\n          workLifecycle\n          cdnWrite\n        }\n      }\n    }\n  }\n": typeof types.GetUserDocument,
+    "\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": typeof types.CreateWorkDocument,
     "\n  query GetWorks(\n    $offset: Int!\n    $limit: Int\n    $publishers: [Uuid!]!\n    $direction: Direction = ASC\n    $field: WorkField = UPDATED_AT_WITH_RELATIONS\n    $workStatus: WorkStatus\n    $filter: String\n    $workTypes: [WorkType!]\n    $markupFormat: MarkupFormat = JATS_XML\n  ) {\n    works(\n      offset: $offset\n      limit: $limit\n      publishers: $publishers\n      order: { direction: $direction, field: $field }\n      workStatus: $workStatus\n      filter: $filter\n      workTypes: $workTypes\n    ) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetWorksDocument,
     "\n  query GetWork($workId: Uuid!, $markupFormat: MarkupFormat = JATS_XML) {\n    work(workId: $workId) {\n      ...WorkFragment\n    }\n  }\n": typeof types.GetWorkDocument,
     "\n  mutation UpdateWork($data: PatchWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": typeof types.UpdateWorkDocument,
@@ -131,6 +131,9 @@ type Documents = {
     "\n  mutation CompleteFileUpload($data: CompleteFileUpload!) {\n    completeFileUpload(data: $data) {\n      fileId\n      fileType\n      mimeType\n      bytes\n      objectKey\n      cdnUrl\n    }\n  }\n": typeof types.CompleteFileUploadDocument,
 };
 const documents: Documents = {
+    "\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": types.CreateAbstractDocument,
+    "\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": types.UpdateAbstractDocument,
+    "\n  mutation DeleteAbstract($abstractId: Uuid!) {\n    deleteAbstract(abstractId: $abstractId) {\n      abstractId\n    }\n  }\n": types.DeleteAbstractDocument,
     "\n  mutation CreateAffiliation($data: NewAffiliation!) {\n    createAffiliation(data: $data) {\n      ...AffiliationFragment\n    }\n  }\n": types.CreateAffiliationDocument,
     "\n  mutation UpdateAffiliation($data: PatchAffiliation!) {\n    updateAffiliation(data: $data) {\n      ...AffiliationFragment\n    }\n  }\n": types.UpdateAffiliationDocument,
     "\n  mutation DeleteAffiliation($affiliationId: Uuid!) {\n    deleteAffiliation(affiliationId: $affiliationId) {\n      affiliationId\n    }\n  }\n": types.DeleteAffiliationDocument,
@@ -208,14 +211,11 @@ const documents: Documents = {
     "\n  mutation UpdateSubject($data: PatchSubject!) {\n    updateSubject(data: $data) {\n      ...SubjectFragment\n    }\n  }\n": types.UpdateSubjectDocument,
     "\n  mutation DeleteSubject($subjectId: Uuid!) {\n    deleteSubject(subjectId: $subjectId) {\n      ...SubjectFragment\n    }\n  }\n": types.DeleteSubjectDocument,
     "\n  mutation MoveSubject($subjectId: Uuid!, $newOrdinal: Int!) {\n    moveSubject(subjectId: $subjectId, newOrdinal: $newOrdinal) {\n      subjectId\n    }\n  }\n": types.MoveSubjectDocument,
-    "\n  query GetUser {\n    me {\n      userId\n      email\n      firstName\n      lastName\n      isSuperuser\n      publisherContexts {\n        publisher {\n          publisherName\n          publisherId\n          imprints {\n            imprintId\n            imprintName\n          }\n        }\n        permissions {\n          publisherAdmin\n          workLifecycle\n          cdnWrite\n        }\n      }\n    }\n  }\n": types.GetUserDocument,
-    "\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": types.CreateWorkDocument,
     "\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = JATS_XML) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": types.CreateTitleDocument,
     "\n  mutation UpdateTitle($data: PatchTitle!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n": types.UpdateTitleDocument,
     "\n  mutation DeleteTitle($titleId: Uuid!) {\n    deleteTitle(titleId: $titleId) {\n      titleId\n    }\n  }\n": types.DeleteTitleDocument,
-    "\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": types.CreateAbstractDocument,
-    "\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n": types.UpdateAbstractDocument,
-    "\n  mutation DeleteAbstract($abstractId: Uuid!) {\n    deleteAbstract(abstractId: $abstractId) {\n      abstractId\n    }\n  }\n": types.DeleteAbstractDocument,
+    "\n  query GetUser {\n    me {\n      userId\n      email\n      firstName\n      lastName\n      isSuperuser\n      publisherContexts {\n        publisher {\n          publisherName\n          publisherId\n          imprints {\n            imprintId\n            imprintName\n          }\n        }\n        permissions {\n          publisherAdmin\n          workLifecycle\n          cdnWrite\n        }\n      }\n    }\n  }\n": types.GetUserDocument,
+    "\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": types.CreateWorkDocument,
     "\n  query GetWorks(\n    $offset: Int!\n    $limit: Int\n    $publishers: [Uuid!]!\n    $direction: Direction = ASC\n    $field: WorkField = UPDATED_AT_WITH_RELATIONS\n    $workStatus: WorkStatus\n    $filter: String\n    $workTypes: [WorkType!]\n    $markupFormat: MarkupFormat = JATS_XML\n  ) {\n    works(\n      offset: $offset\n      limit: $limit\n      publishers: $publishers\n      order: { direction: $direction, field: $field }\n      workStatus: $workStatus\n      filter: $filter\n      workTypes: $workTypes\n    ) {\n      ...WorkFragment\n    }\n  }\n": types.GetWorksDocument,
     "\n  query GetWork($workId: Uuid!, $markupFormat: MarkupFormat = JATS_XML) {\n    work(workId: $workId) {\n      ...WorkFragment\n    }\n  }\n": types.GetWorkDocument,
     "\n  mutation UpdateWork($data: PatchWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n": types.UpdateWorkDocument,
@@ -262,6 +262,18 @@ const documents: Documents = {
  */
 export function graphql(source: string): unknown;
 
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  mutation DeleteAbstract($abstractId: Uuid!) {\n    deleteAbstract(abstractId: $abstractId) {\n      abstractId\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteAbstract($abstractId: Uuid!) {\n    deleteAbstract(abstractId: $abstractId) {\n      abstractId\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
@@ -573,14 +585,6 @@ export function graphql(source: "\n  mutation MoveSubject($subjectId: Uuid!, $ne
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  query GetUser {\n    me {\n      userId\n      email\n      firstName\n      lastName\n      isSuperuser\n      publisherContexts {\n        publisher {\n          publisherName\n          publisherId\n          imprints {\n            imprintId\n            imprintName\n          }\n        }\n        permissions {\n          publisherAdmin\n          workLifecycle\n          cdnWrite\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetUser {\n    me {\n      userId\n      email\n      firstName\n      lastName\n      isSuperuser\n      publisherContexts {\n        publisher {\n          publisherName\n          publisherId\n          imprints {\n            imprintId\n            imprintName\n          }\n        }\n        permissions {\n          publisherAdmin\n          workLifecycle\n          cdnWrite\n        }\n      }\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
 export function graphql(source: "\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = JATS_XML) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateTitle($data: NewTitle!, $markupFormat: MarkupFormat = JATS_XML) {\n    createTitle(data: $data, markupFormat: $markupFormat) {\n      ...TitleFragment\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
@@ -593,15 +597,11 @@ export function graphql(source: "\n  mutation DeleteTitle($titleId: Uuid!) {\n  
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateAbstract($data: NewAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    createAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"];
+export function graphql(source: "\n  query GetUser {\n    me {\n      userId\n      email\n      firstName\n      lastName\n      isSuperuser\n      publisherContexts {\n        publisher {\n          publisherName\n          publisherId\n          imprints {\n            imprintId\n            imprintName\n          }\n        }\n        permissions {\n          publisherAdmin\n          workLifecycle\n          cdnWrite\n        }\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetUser {\n    me {\n      userId\n      email\n      firstName\n      lastName\n      isSuperuser\n      publisherContexts {\n        publisher {\n          publisherName\n          publisherId\n          imprints {\n            imprintId\n            imprintName\n          }\n        }\n        permissions {\n          publisherAdmin\n          workLifecycle\n          cdnWrite\n        }\n      }\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
-export function graphql(source: "\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"): (typeof documents)["\n  mutation UpdateAbstract($data: PatchAbstract!, $markupFormat: MarkupFormat = JATS_XML) {\n    updateAbstract(data: $data, markupFormat: $markupFormat) {\n      ...AbstractFragment\n    }\n  }\n"];
-/**
- * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
- */
-export function graphql(source: "\n  mutation DeleteAbstract($abstractId: Uuid!) {\n    deleteAbstract(abstractId: $abstractId) {\n      abstractId\n    }\n  }\n"): (typeof documents)["\n  mutation DeleteAbstract($abstractId: Uuid!) {\n    deleteAbstract(abstractId: $abstractId) {\n      abstractId\n    }\n  }\n"];
+export function graphql(source: "\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n"): (typeof documents)["\n  mutation CreateWork($data: NewWork!, $markupFormat: MarkupFormat = JATS_XML) {\n    createWork(data: $data) {\n      ...WorkFragment\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

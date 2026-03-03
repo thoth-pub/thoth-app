@@ -10,8 +10,7 @@ import { WorkEntity } from '@/src/entities/work/model/work.types';
 import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
 import { ROUTES } from '@/src/shared/constants';
 import type { SeriesForUpdateItems } from '@/src/shared/types';
-import { Step, StepLabel, Stepper, TranslatedContent } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { ContentSection, Step, StepLabel, Stepper, TranslatedContent } from '@/src/shared/ui';
 
 import { PreviewStep } from './PreviewStep';
 import { TemplateStep } from './TemplateStep';

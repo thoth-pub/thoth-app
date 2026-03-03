@@ -1,4 +1,4 @@
-import { WorkStatuses } from '../../constants';
+import { WorkStatuses } from '../../constants/work';
 
 export const workStatusOptions = [
   { value: WorkStatuses.enum.Forthcoming, label: 'forthcoming' },

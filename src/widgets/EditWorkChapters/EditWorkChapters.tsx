@@ -3,8 +3,7 @@
 import { EditChapterModal, EditChaptersModal } from '@/src/features';
 import AddChapterModal from '@/src/features/work/AddChapterModal/AddChapterModal';
 import type { BaseEditSectionProps } from '@/src/shared/types';
-import { DeleteButton, EditButton, TranslatedContent, Typography } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { Checkbox, ContentSection, DeleteButton, EditButton, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { ChaptersList } from './components/ChaptersList';
 import { useEditWorkChapters } from './useEditWorkChapters';
@@ -29,6 +28,7 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
     deleteChapters,
     closeMultipleChaptersEdit,
     doneMultipleChaptersEdit,
+    selectAllChapters,
   } = useEditWorkChapters(workId);
 
   return (
@@ -49,6 +49,13 @@ export const EditWorkChapters = (props: BaseEditSectionProps) => {
               <EditButton onClick={editChapters} className="p-1" disabled={controlsDisabled} />
               <DeleteButton onClick={deleteChapters} className="p-1" />
             </>
+          )}
+          {chapters.length > 1 && (
+            <Checkbox
+              name="selectAllChapters"
+              onChange={selectAllChapters}
+              checked={selectedChapters.length === chapters.length}
+            />
           )}
         </div>
       }

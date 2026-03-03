@@ -8,6 +8,7 @@ import { BaseEditSectionProps } from '@/src/shared/types';
 import {
   Breadcrumbs,
   CloseButton,
+  ContentSection,
   InputLabel,
   Link,
   MarkdownRenderer,
@@ -17,7 +18,6 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
 import { getMainTitle } from '@/src/shared/utils';
 
 import EditInternalId from '../EditInternalId/EditInternalId';

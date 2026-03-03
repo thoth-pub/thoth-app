@@ -5,24 +5,16 @@ import z from 'zod';
 
 import { MarkupFormat } from '@/gql/graphql';
 import { appConfig } from '@/src/shared/config';
-import {
-  AccessibilityExceptions,
-  AccessibilityStandards,
-  ContactTypes,
-  ContributorTypes,
-  CurrencyCode,
-  ERRORS,
-  LanguageRelation,
-  LanguageTypeAlt,
-  LengthUnit,
-  LocationPlatforms,
-  PublicationType,
-  SeriesType,
-  SubjectTypes,
-  WeightUnit,
-  WorkStatuses,
-  WorkTypes,
-} from '@/src/shared/constants';
+import { AccessibilityExceptions, AccessibilityStandards, ContributorTypes, ERRORS } from '@/src/shared/constants';
+import { ContactTypes } from '@/src/shared/constants/accessibility';
+import { CurrencyCode } from '@/src/shared/constants/currencies';
+import { LanguageRelation, LanguageTypeAlt } from '@/src/shared/constants/languages';
+import { LengthUnit, WeightUnit } from '@/src/shared/constants/lengths';
+import { LocationPlatforms } from '@/src/shared/constants/locations';
+import { PublicationType } from '@/src/shared/constants/publications';
+import { SeriesType } from '@/src/shared/constants/series';
+import { SubjectTypes } from '@/src/shared/constants/subjects';
+import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 import type { ErrorMessage } from '@/src/shared/interfaces';
 
 const { doiPrefix, rorPrefix, orcidPrefix } = appConfig.validations;

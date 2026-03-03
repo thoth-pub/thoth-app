@@ -14,8 +14,13 @@ import { workCopyValidationSchema } from '@/src/entities/work/model/work.validat
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS } from '@/src/shared/constants';
 import { useDebouncedValue } from '@/src/shared/hooks';
-import { AutocompleteField, FormFieldWithControlsWrapper, InputAdornment, SubmitButton } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import {
+  AutocompleteField,
+  ContentSection,
+  FormFieldWithControlsWrapper,
+  InputAdornment,
+  SubmitButton,
+} from '@/src/shared/ui';
 import { getMainTitle } from '@/src/shared/utils';
 
 type CreateWorkCopyProps = {

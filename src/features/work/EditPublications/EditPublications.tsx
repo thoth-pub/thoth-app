@@ -2,8 +2,7 @@
 
 import { PublicationsList } from '@/src/entities/publication';
 import type { BaseEditSectionProps } from '@/src/shared/types';
-import { AddButton, TranslatedContent } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { AddButton, ContentSection, TranslatedContent } from '@/src/shared/ui';
 
 import { AddNewPublication, EditPublication } from '../../publications';
 import { useEditPublications } from './useEditPublications';

@@ -3,8 +3,7 @@ import NextLink from 'next/link';
 
 import { ROUTES } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { Button, DashboardGrid, TranslatedContent, Typography } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { Button, ContentSection, DashboardGrid, TranslatedContent, Typography } from '@/src/shared/ui';
 import { PublishedBooksChart, TotalBooksChart } from '@/src/widgets';
 
 import RecentlyPublishedBooks from '../RecentlyPublishedBooks/RecentlyPublishedBooks';

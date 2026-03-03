@@ -1,7 +1,7 @@
 'use client';
 
 import { WORK_COPY_VARIANTS } from '@/src/shared/constants';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { ContentSection } from '@/src/shared/ui';
 
 import { Header } from './components/Header';
 import { UploadModal } from './components/UploadModal';

@@ -2,8 +2,7 @@
 
 import { ReferencesList } from '@/src/entities/reference';
 import { BaseEditSectionProps } from '@/src/shared/types';
-import { AddButton, TranslatedContent } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { AddButton, ContentSection, TranslatedContent } from '@/src/shared/ui';
 
 import AddReference from '../../reference/AddReference/AddReference';
 import EditReference from '../../reference/EditReference/EditReference';

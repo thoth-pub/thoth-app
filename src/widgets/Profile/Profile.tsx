@@ -3,8 +3,7 @@ import { Typography } from '@mui/material';
 import { EditContact, EditReport, EditStatement } from '@/src/entities/publisher';
 import { ImprintsList } from '@/src/features';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { InputLabel, TranslatedContent } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { ContentSection, InputLabel, TranslatedContent } from '@/src/shared/ui';
 
 const Profile = () => {
   return (

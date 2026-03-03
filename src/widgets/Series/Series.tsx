@@ -2,7 +2,7 @@
 
 import { SeriesList } from '@/src/entities/series';
 import { EditSeries } from '@/src/features';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { ContentSection } from '@/src/shared/ui';
 
 import { SeriesHeader } from './SeriesHeader';
 import { useSeriesList } from './useSeriesList';

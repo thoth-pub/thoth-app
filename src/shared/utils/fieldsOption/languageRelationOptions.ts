@@ -1,4 +1,5 @@
-import { LanguageRelation } from '../../constants';
+import { LanguageRelation } from "../../constants/languages";
+
 
 export const languageRelationOptions = [
   { value: LanguageRelation.enum.Original, label: 'original' },

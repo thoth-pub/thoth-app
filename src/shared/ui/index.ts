@@ -92,6 +92,7 @@ export { default as DoiLogo } from './icons/DoiLogo/DoiLogo';
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';
 // Layout
+export { default as ContentSection } from './layout/ContentSection/ContentSection';
 export { default as ContentWrapper } from './layout/ContentWrapper/ContentWrapper';
 export { default as MultipleContentWrapper } from './layout/MultipleContentWrapper/MultipleContentWrapper';
 export { default as PageHeader } from './layout/PageHeader/PageHeader';

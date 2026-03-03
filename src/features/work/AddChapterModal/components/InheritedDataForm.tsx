@@ -2,8 +2,14 @@ import { useForm } from 'react-hook-form';
 
 import { FORM_FIELDS } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { Button, Checkbox, CheckboxFormField, FormFieldLabel, TranslatedContent } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import {
+  Button,
+  Checkbox,
+  CheckboxFormField,
+  ContentSection,
+  FormFieldLabel,
+  TranslatedContent,
+} from '@/src/shared/ui';
 
 type InheritedDataFormProps = {
   onSubmit: (data: {

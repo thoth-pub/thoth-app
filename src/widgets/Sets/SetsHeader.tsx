@@ -11,8 +11,15 @@ import { directionOptions, seriesOrderByOptions } from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { Direction } from '@/src/shared/types';
-import { IconButton, InputAdornment, InputLabel, TextField, TranslatedContent, Typography } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import {
+  ContentSection,
+  IconButton,
+  InputAdornment,
+  InputLabel,
+  TextField,
+  TranslatedContent,
+  Typography,
+} from '@/src/shared/ui';
 
 type SetsHeaderProps = {
   searchValue: string;

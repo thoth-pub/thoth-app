@@ -1,22 +1,17 @@
 import { PublicationType as TPublicationType } from '@/src/entities/publication/model/publication.types';
-import {
-  AccessibilityExceptions,
-  AccessibilityStandards,
-  ContactTypes,
-  ERRORS,
-  LanguageTypeAlt,
-  LengthUnit,
-  PublicationType,
-  SeriesType,
-  SubjectTypes,
-  WeightUnit,
-  WorkStatuses,
-} from '@/src/shared/constants';
 
 import { FormFieldOption } from '../interfaces';
 import { convertFormFieldsToSelectFieldOptions, convertLanguageCode, isAccessibilityStandardAvailable } from '../utils';
+import { AccessibilityExceptions, AccessibilityStandards, ContactTypes } from './accessibility';
+import { ERRORS } from './errors';
 import { FILTER_DIRECTION_OPTIONS, FILTER_SERIES_ORDER_BY_OPTIONS, FILTER_WORK_ORDER_BY_OPTIONS } from './filter';
+import { LanguageTypeAlt } from './languages';
+import { LengthUnit, WeightUnit } from './lengths';
 import { LOCALES } from './locales';
+import { PublicationType } from './publications';
+import { SeriesType } from './series';
+import { SubjectTypes } from './subjects';
+import { WorkStatuses } from './work';
 
 const {
   EMAIL_REQUIRED,

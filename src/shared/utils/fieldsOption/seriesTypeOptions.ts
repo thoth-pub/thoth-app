@@ -1,4 +1,5 @@
-import { LOCALES, SeriesType } from '../../constants';
+import { LOCALES } from '../../constants';
+import { SeriesType } from '../../constants/series';
 
 const seriesTypeOptions = [
   { value: SeriesType.enum.BookSeries, label: 'Book Series' },

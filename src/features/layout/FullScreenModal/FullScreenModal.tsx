@@ -1,8 +1,7 @@
 'use client';
 
 import { Navigation } from '@/src/features';
-import { CloseButton, Modal, SubmitButton, Typography } from '@/src/shared/ui';
-import ContentSection from '@/src/shared/ui/layout/ContentSection/ContentSection';
+import { CloseButton, ContentSection, Modal, SubmitButton, Typography } from '@/src/shared/ui';
 
 type FullScreenModalProps = {
   title: string | Readonly<React.ReactNode>;
