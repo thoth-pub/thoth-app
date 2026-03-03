@@ -1,11 +1,12 @@
 import { appConfig } from '@/src/shared/config';
 import type { BaseMapper } from '@/src/shared/interfaces';
-import { TitleDto, TitleEntity } from '@/src/shared/types';
 import { convertOrchidIdToText, convertRomanToArabic } from '@/src/shared/utils';
 
+import { TitleDtoMapper } from '../../title/model/title.mapper';
 import type { BookDto, BookEntity } from './book.types';
 
 const { pageBreakdownSeparator } = appConfig.dataApi;
+const titleMapper = new TitleDtoMapper();
 
 export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
   toEntity(dto: BookDto): BookEntity {
@@ -46,7 +47,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
 
     return {
       id: workId,
-      titles: titles.map(this.toEntityTitle),
+      titles: titles.map(titleMapper.toEntity),
       type: workType,
       updatedAt,
       doi,
@@ -153,7 +154,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
           updatedAt,
           doi: doi,
           publisherName: publisherName,
-          titles: titles.map(this.toEntityTitle),
+          titles: titles.map(titleMapper.toEntity),
           width: widthMm ?? 0,
           widthIn: widthIn ?? 0,
           height: heightMm ?? 0,
@@ -212,7 +213,7 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
     return {
       workId: id,
       workStatus: status,
-      titles: titles.map(this.toDtoTitle),
+      titles: titles.map(titleMapper.toDto),
       imprintId,
       workType: type,
       license: license && license.length > 0 ? license : null,
@@ -228,29 +229,4 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
     };
   }
 
-  toEntityTitle(dto: TitleDto): TitleEntity {
-    const { titleId, canonical, fullTitle, localeCode, subtitle, title } = dto;
-
-    return {
-      id: titleId,
-      canonical,
-      fullTitle,
-      localeCode,
-      subtitle: subtitle ?? '',
-      title,
-    };
-  }
-
-  toDtoTitle(entity: TitleEntity): TitleDto {
-    const { id, canonical, fullTitle, localeCode, subtitle, title } = entity;
-
-    return {
-      titleId: id,
-      canonical,
-      fullTitle,
-      localeCode,
-      subtitle,
-      title,
-    };
-  }
 }

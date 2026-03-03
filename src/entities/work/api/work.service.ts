@@ -4,9 +4,10 @@ import { WorkStatuses } from '@/src/shared/constants';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
-import type { AbstractDto, AbstractEntity, SeriesForUpdateItems, TitleDto, TitleEntity } from '@/src/shared/types';
-import { getDateInFuture, isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
+import type { SeriesForUpdateItems, TitleDto, TitleEntity } from '@/src/shared/types';
+import { getDateInFuture } from '@/src/shared/utils';
 
+import { AbstractService } from '../../abstract/api/abstract.service';
 import { ContributionService } from '../../contribution/api/contribution.service';
 import { FundingService } from '../../funding/api/funding.service';
 import { LanguageService } from '../../language/api/language.service';
@@ -15,17 +16,10 @@ import { PublisherId } from '../../publisher/model/publisher.types';
 import { ReferenceService } from '../../reference/api/reference.service';
 import { SeriesService } from '../../series';
 import { SubjectService } from '../../subject/api/subject.service';
+import { TitleService } from '../../title/api/title.service';
+import { TitleDtoMapper } from '../../title/model/title.mapper';
 import { WorkDtoMapper } from '../model/work.mapper';
-import {
-  CREATE_ABSTRACT,
-  CREATE_TITLE,
-  CREATE_WORK,
-  DELETE_ABSTRACT,
-  DELETE_TITLE,
-  MOVE_WORK_RELATION,
-  UPDATE_ABSTRACT,
-  UPDATE_TITLE,
-} from '../model/work.mutations';
+import { CREATE_WORK, MOVE_WORK_RELATION } from '../model/work.mutations';
 import {
   CREATE_WORK_RELATION,
   DELETE_WORK,
@@ -51,6 +45,8 @@ type WorkServiceDependencies = {
   languageService: LanguageService;
   seriesService: SeriesService;
   referenceService: ReferenceService;
+  titleService: TitleService;
+  abstractService: AbstractService;
   mapper?: WorkDtoMapper;
 };
 
@@ -62,6 +58,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   private readonly languageService: LanguageService;
   private readonly seriesService: SeriesService;
   private readonly referenceService: ReferenceService;
+  private readonly titleService: TitleService;
+  private readonly abstractService: AbstractService;
 
   constructor({
     token,
@@ -72,6 +70,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     languageService,
     seriesService,
     referenceService,
+    titleService,
+    abstractService,
     mapper = new WorkDtoMapper(),
   }: Readonly<WorkServiceDependencies>) {
     super(token, mapper);
@@ -82,10 +82,8 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     this.languageService = languageService;
     this.seriesService = seriesService;
     this.referenceService = referenceService;
-  }
-
-  private getMarkupFormat(text: string) {
-    return isTextContainsAnyMarkdownTag(text) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+    this.titleService = titleService;
+    this.abstractService = abstractService;
   }
 
   private async getPaginatedRelations(
@@ -141,7 +139,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const work = this.dtoMapper.toEntity(response.createWork as WorkDto);
 
     if (shouldCreateTitles) {
-      const titlesPromises = data.titles.map((title) => this.createTitle(title, work.id));
+      const titlesPromises = data.titles.map((title) => this.titleService.createTitle(title, work.id));
 
       const createdTitles = await Promise.all(titlesPromises);
 
@@ -149,7 +147,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     }
 
     if (shouldCreateAbstracts) {
-      const abstractsPromises = data.abstracts.map((abstract) => this.createAbstract(abstract, work.id));
+      const abstractsPromises = data.abstracts.map((abstract) =>
+        this.abstractService.createAbstract(abstract, work.id),
+      );
 
       const createdAbstracts = await Promise.all(abstractsPromises);
 
@@ -435,85 +435,15 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     }
   }
 
-  async createTitle(data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
-    const { titleId: _, ...dto } = this.dtoMapper.toDtoTitle(data);
-
-    const markupFormat = this.getMarkupFormat(data.title);
-
-    const response = await this.graphqlService.mutation(CREATE_TITLE, {
-      data: { ...dto, workId: relatedWorkId },
-      markupFormat,
-    });
-
-    const title = this.dtoMapper.toEntityTitle(response.createTitle as TitleDto);
-
-    return title;
-  }
-
-  async updateTitle(data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
-    const dto = this.dtoMapper.toDtoTitle(data);
-
-    const markupFormat = this.getMarkupFormat(data.title);
-
-    const response = await this.graphqlService.mutation(UPDATE_TITLE, {
-      data: { ...dto, workId: relatedWorkId },
-      markupFormat,
-    });
-
-    const title = this.dtoMapper.toEntityTitle(response.updateTitle as TitleDto);
-
-    return title;
-  }
-
-  async deleteTitle(titleId: string): Promise<void> {
-    await this.graphqlService.mutation(DELETE_TITLE, {
-      titleId,
-    });
-  }
-
-  async createAbstract(data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
-    const { abstractId: _, ...dto } = this.dtoMapper.toDtoAbstract(data);
-
-    const markupFormat = this.getMarkupFormat(data.content);
-
-    const response = await this.graphqlService.mutation(CREATE_ABSTRACT, {
-      data: { ...dto, workId: relatedWorkId },
-      markupFormat,
-    });
-
-    const abstract = this.dtoMapper.toEntityAbstract(response.createAbstract as AbstractDto);
-
-    return abstract;
-  }
-
-  async updateAbstract(data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
-    const dto = this.dtoMapper.toDtoAbstract(data);
-
-    const markupFormat = this.getMarkupFormat(data.content);
-
-    const response = await this.graphqlService.mutation(UPDATE_ABSTRACT, {
-      data: { ...dto, workId: relatedWorkId },
-      markupFormat,
-    });
-
-    const abstract = this.dtoMapper.toEntityAbstract(response.updateAbstract as AbstractDto);
-
-    return abstract;
-  }
-
-  async deleteAbstract(abstractId: string): Promise<void> {
-    await this.graphqlService.mutation(DELETE_ABSTRACT, {
-      abstractId,
-    });
-  }
-
   async getWorkSet(workId: WorkId): Promise<TitleEntity[]> {
+    const titleMapper = new TitleDtoMapper();
+
     const { work: { relations } = { relations: [] } } = await this.graphqlService.query(GET_WORK_SET, {
       workId,
     });
 
     return relations.flatMap((relation) =>
-      relation.relatedWork.titles.map((title) => this.dtoMapper.toEntityTitle(title as TitleDto)),
+      relation.relatedWork.titles.map((title) => titleMapper.toEntity(title as TitleDto)),
     );
   }
 }

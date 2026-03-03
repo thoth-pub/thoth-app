@@ -1,9 +1,9 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
 
-import { WorkDtoMapper } from '../../work/model/work.mapper';
+import { TitleDtoMapper } from '../../title/model/title.mapper';
 import { SetDto, SetEntity, SetWorkDto, SetWorkEntity } from './set.types';
 
-const workDtoMapper = new WorkDtoMapper();
+const titleMapper = new TitleDtoMapper();
 
 export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
   toEntity(dto: SetDto): SetEntity {
@@ -22,7 +22,7 @@ export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
     return {
       id: workId,
       type: workType,
-      titles: titles.map(workDtoMapper.toEntityTitle),
+      titles: titles.map(titleMapper.toEntity),
       updatedAt,
       imprintId,
       status: workStatus,
@@ -38,7 +38,7 @@ export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
     return {
       workId: id,
       workType: type,
-      titles: titles.map(workDtoMapper.toDtoTitle),
+      titles: titles.map(titleMapper.toDto),
       updatedAt,
       imprintId,
       workStatus: status,
@@ -54,7 +54,7 @@ export class SetDtoMapper implements BaseMapper<SetEntity, SetDto> {
       id: workRelationId,
       workId: relatedWorkId,
       ordinal: relationOrdinal,
-      titles: titles.map(workDtoMapper.toEntityTitle),
+      titles: titles.map(titleMapper.toEntity),
     }));
   }
 }

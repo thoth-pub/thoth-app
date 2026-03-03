@@ -6,17 +6,17 @@ import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
 import { TitleEntity } from '@/src/shared/types';
 
-import type { WorkId } from '../../model/work.types';
+import type { WorkId } from '../../../work/model/work.types';
 
 const { TITLE_UPDATE_FAILED } = NOTIFICATIONS;
 
 const useUpdateTitle = () => {
-  const { workService } = useServices();
+  const { titleService } = useServices();
   const { sendErrorNotification } = useNotifications();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ data, relatedWorkId }: { data: TitleEntity; relatedWorkId: WorkId }) => {
-      return workService.updateTitle(data, relatedWorkId);
+      return titleService.updateTitle(data, relatedWorkId);
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? TITLE_UPDATE_FAILED);

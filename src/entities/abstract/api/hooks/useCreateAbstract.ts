@@ -4,30 +4,30 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
-import type { AbstractEntity } from '@/src/shared/types';
+import { AbstractEntity } from '@/src/shared/types';
 
-import type { WorkId } from '../../model/work.types';
+import type { WorkId } from '../../../work/model/work.types';
 
-const { ABSTRACT_UPDATE_FAILED } = NOTIFICATIONS;
+const { ABSTRACT_CREATION_FAILED } = NOTIFICATIONS;
 
-const useUpdateAbstract = (workId: WorkId) => {
-  const { workService } = useServices();
+const useCreateAbstract = (workId: WorkId) => {
+  const { abstractService } = useServices();
   const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ data }: { data: AbstractEntity }) => {
-      return workService.updateAbstract(data, workId);
+      return abstractService.createAbstract(data, workId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
     },
     onError: (error) => {
-      sendErrorNotification(error?.message ?? ABSTRACT_UPDATE_FAILED);
+      sendErrorNotification(error?.message ?? ABSTRACT_CREATION_FAILED);
     },
   });
 
-  return { updateAbstract: mutateAsync, loading: isPending };
+  return { createAbstract: mutateAsync, loading: isPending };
 };
 
-export default useUpdateAbstract;
+export default useCreateAbstract;

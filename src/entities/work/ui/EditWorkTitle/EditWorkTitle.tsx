@@ -1,7 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { Control } from 'react-hook-form';
 
-import { useCreateTitle, useDeleteTitle, useUpdateTitle, useWork } from '@/src/entities/work';
+import { useCreateTitle, useDeleteTitle, useUpdateTitle } from '@/src/entities/title';
+import { useWork } from '@/src/entities/work';
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { workTitlesValidationSchema } from '@/src/entities/work/model/work.validation';
 import { FORM_FIELDS, HELPER_TEXT, IDs, languageOptionsAlt, QueryKeys } from '@/src/shared/constants';

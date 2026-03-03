@@ -2,6 +2,7 @@
 import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
 
+import { AbstractService } from '@/src/entities/abstract/api/abstract.service';
 import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.service';
 import { ContributionService } from '@/src/entities/contribution';
 import { ContributorService } from '@/src/entities/contributor';
@@ -13,6 +14,7 @@ import { PublicationService } from '@/src/entities/publication/api/publication.s
 import { ReferenceService } from '@/src/entities/reference/api/reference.service';
 import { SeriesService } from '@/src/entities/series';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
+import { TitleService } from '@/src/entities/title/api/title.service';
 import { UserService } from '@/src/entities/user';
 import { WorkService } from '@/src/entities/work/api/work.service';
 import { FileStorage } from '@/src/shared/services';
@@ -58,6 +60,8 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
     languageService: new LanguageService(token),
     seriesService: new SeriesService(token),
     referenceService: new ReferenceService(token),
+    titleService: new TitleService(token),
+    abstractService: new AbstractService(token),
   });
   const userService = new UserService(token);
 

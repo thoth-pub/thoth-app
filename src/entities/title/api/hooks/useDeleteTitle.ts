@@ -5,18 +5,18 @@ import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
 
-import type { WorkId } from '../../model/work.types';
+import type { WorkId } from '../../../work/model/work.types';
 
 const { TITLE_DELETE_FAILED } = NOTIFICATIONS;
 
 const useDeleteTitle = (workId: WorkId) => {
-  const { workService } = useServices();
+  const { titleService } = useServices();
   const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (titleId: string) => {
-      return workService.deleteTitle(titleId);
+      return titleService.deleteTitle(titleId);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

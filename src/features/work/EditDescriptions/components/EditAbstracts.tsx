@@ -2,7 +2,8 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { Control } from 'react-hook-form';
 
-import { useCreateAbstract, useDeleteAbstract, useUpdateAbstract, useWork } from '@/src/entities/work';
+import { useCreateAbstract, useDeleteAbstract } from '@/src/entities/abstract';
+import { useWork } from '@/src/entities/work';
 import { WorkAbstractsForm } from '@/src/entities/work/model/work.types';
 import { workAbstractsValidationSchema } from '@/src/entities/work/model/work.validation';
 import { appConfig } from '@/src/shared/config';
@@ -24,8 +25,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const { work } = useWork(workId);
   const queryClient = useQueryClient();
   const { createAbstract } = useCreateAbstract(workId);
-  const { updateAbstract } = useUpdateAbstract(workId);
-  const { deleteAbstract } = useDeleteAbstract();
+  const { deleteAbstract } = useDeleteAbstract(workId);
   const { activeFormId, close } = useFormStateMachine();
 
   const longAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Long);
@@ -65,101 +65,41 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
 
     if (abstracts.length === 0) return;
 
-    const newLongAbstracts = abstracts.filter(
-      ({ longAbstractId, abstract }) => isDefaultId(longAbstractId) && abstract && abstract.length > 0,
-    );
-    const newShortAbstracts = abstracts.filter(
-      ({ shortAbstractId, shortAbstract }) => isDefaultId(shortAbstractId) && shortAbstract && shortAbstract.length > 0,
-    );
-    const updatedLongAbstracts = abstracts.filter(
-      ({ longAbstractId, abstract }) => !isDefaultId(longAbstractId) && abstract && abstract.length > 0,
-    );
-    const updatedShortAbstracts = abstracts.filter(
-      ({ shortAbstractId, shortAbstract }) =>
-        !isDefaultId(shortAbstractId) && shortAbstract && shortAbstract.length > 0,
-    );
+    await Promise.all(work.abstracts.map(({ id }) => deleteAbstract(id)));
 
-    const promises: Promise<AbstractEntity>[] = [];
+    const createPromises: Promise<AbstractEntity>[] = [];
 
-    newLongAbstracts.forEach(({ longAbstractId, abstract, language }, index) => {
-      if (!abstract) return;
+    abstracts.forEach(({ abstract, shortAbstract, language }, index) => {
+      if (abstract && abstract.length > 0) {
+        createPromises.push(
+          createAbstract({
+            data: {
+              id: appConfig.defaultId,
+              content: abstract,
+              localeCode: language.value as LocaleCodeType,
+              type: AbstractTypes.enum.Long,
+              canonical: index === 0,
+            },
+          }),
+        );
+      }
 
-      promises.push(
-        createAbstract({
-          data: {
-            id: longAbstractId,
-            content: abstract,
-            localeCode: language.value as LocaleCodeType,
-            type: AbstractTypes.enum.Long,
-            canonical: longAbstracts.length === 0 && index === 0,
-          },
-        }),
-      );
+      if (shortAbstract && shortAbstract.length > 0) {
+        createPromises.push(
+          createAbstract({
+            data: {
+              id: appConfig.defaultId,
+              content: shortAbstract,
+              localeCode: language.value as LocaleCodeType,
+              type: AbstractTypes.enum.Short,
+              canonical: false,
+            },
+          }),
+        );
+      }
     });
 
-    newShortAbstracts.forEach(({ shortAbstractId, shortAbstract, language }) => {
-      if (!shortAbstract) return;
-
-      promises.push(
-        createAbstract({
-          data: {
-            id: shortAbstractId,
-            content: shortAbstract,
-            localeCode: language.value as LocaleCodeType,
-            type: AbstractTypes.enum.Short,
-            canonical: false,
-          },
-        }),
-      );
-    });
-
-    updatedLongAbstracts.forEach(({ longAbstractId, abstract, language }) => {
-      const existingLongAbstract = longAbstracts.find((abstract) => abstract.id === longAbstractId);
-
-      if (!existingLongAbstract || !abstract) return;
-
-      const isContentChanged = existingLongAbstract.content !== abstract;
-      const isLanguageChanged = existingLongAbstract.localeCode !== language.value;
-
-      if (!isContentChanged && !isLanguageChanged) return;
-
-      promises.push(
-        updateAbstract({
-          data: {
-            id: longAbstractId,
-            content: abstract,
-            localeCode: language.value as LocaleCodeType,
-            type: AbstractTypes.enum.Long,
-            canonical: existingLongAbstract.canonical,
-          },
-        }),
-      );
-    });
-
-    updatedShortAbstracts.forEach(({ shortAbstractId, shortAbstract, language }) => {
-      const existingShortAbstract = shortAbstracts.find((abstract) => abstract.id === shortAbstractId);
-
-      if (!existingShortAbstract || !shortAbstract) return;
-
-      const isContentChanged = existingShortAbstract.content !== shortAbstract;
-      const isLanguageChanged = existingShortAbstract.localeCode !== language.value;
-
-      if (!isContentChanged && !isLanguageChanged) return;
-
-      promises.push(
-        updateAbstract({
-          data: {
-            id: shortAbstractId,
-            content: shortAbstract,
-            localeCode: language.value as LocaleCodeType,
-            type: AbstractTypes.enum.Short,
-            canonical: existingShortAbstract.canonical,
-          },
-        }),
-      );
-    });
-
-    await Promise.all(promises);
+    await Promise.all(createPromises);
   };
 
   const deleteAbstracts = async (shortAbstractId: AbstractId, longAbstractId: AbstractId) => {

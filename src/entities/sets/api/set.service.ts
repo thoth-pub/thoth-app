@@ -5,7 +5,7 @@ import { type QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 import { Direction } from '@/src/shared/types';
 
-import { WorkService } from '../../work/api/work.service';
+import { TitleService } from '../../title/api/title.service';
 import { WorkId } from '../../work/model/work.types';
 import { SetDtoMapper } from '../model/set.mapper';
 import {
@@ -21,16 +21,16 @@ import { SetDto, SetEntity, SetId, SetWorkDto, SetWorkEntity } from '../model/se
 
 type SetServiceDependencies = {
   token: QueryToken;
-  workService: WorkService;
+  titleService: TitleService;
   mapper?: SetDtoMapper;
 };
 
 export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
-  private readonly workService: WorkService;
+  private readonly titleService: TitleService;
 
-  constructor({ token, workService, mapper = new SetDtoMapper() }: Readonly<SetServiceDependencies>) {
+  constructor({ token, titleService, mapper = new SetDtoMapper() }: Readonly<SetServiceDependencies>) {
     super(token, mapper);
-    this.workService = workService;
+    this.titleService = titleService;
   }
 
   async getSets({
@@ -120,7 +120,7 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     const promises = [];
 
     for (const title of data.titles) {
-      promises.push(this.workService.createTitle(title, work.id));
+      promises.push(this.titleService.createTitle(title, work.id));
     }
 
     const createdTitles = await Promise.all(promises);

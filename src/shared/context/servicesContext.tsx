@@ -2,6 +2,7 @@
 
 import { createContext, type ReactNode, use, useMemo } from 'react';
 
+import { AbstractService } from '@/src/entities/abstract/api/abstract.service';
 import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.service';
 import { BookService } from '@/src/entities/book/api/book.service';
 import { ContributionService } from '@/src/entities/contribution';
@@ -19,6 +20,7 @@ import { ReferenceService } from '@/src/entities/reference/api/reference.service
 import { SeriesService } from '@/src/entities/series';
 import { SetService } from '@/src/entities/sets/api/set.service';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
+import { TitleService } from '@/src/entities/title/api/title.service';
 import { UserService } from '@/src/entities/user';
 import { WorkService } from '@/src/entities/work/api/work.service';
 
@@ -45,6 +47,8 @@ type ServicesMap = {
   fundingService: FundingService;
   institutionService: InstitutionService;
   languageService: LanguageService;
+  titleService: TitleService;
+  abstractService: AbstractService;
   notificationService: NotificationService;
   metadataService: MetadataService;
   userService: UserService;
@@ -82,6 +86,8 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
     contributorService,
     affiliationService,
   });
+  const titleService = new TitleService(token);
+  const abstractService = new AbstractService(token);
   const workService = new WorkService({
     token,
     fundingService,
@@ -91,10 +97,12 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
     languageService,
     seriesService,
     referenceService,
+    titleService,
+    abstractService,
   });
   const setService = new SetService({
     token,
-    workService,
+    titleService,
   });
 
   return {
@@ -115,6 +123,8 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
     fundingService,
     institutionService,
     languageService,
+    titleService,
+    abstractService,
     notificationService,
     metadataService,
     userService,

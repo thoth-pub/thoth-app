@@ -1,18 +1,12 @@
 // API
 export { default as useBulkCreateWorks } from './api/hooks/useBulkCreateWorks';
-export { default as useCreateAbstract } from './api/hooks/useCreateAbstract';
 export { default as useCreateNewWorkEdition } from './api/hooks/useCreateNewWorkEdition';
-export { default as useCreateTitle } from './api/hooks/useCreateTitle';
 export { default as useCreateWork } from './api/hooks/useCreateWork';
 export { default as useCreateWorkChapter } from './api/hooks/useCreateWorkChapter';
 export { default as useCreateWorkTranslation } from './api/hooks/useCreateWorkTranslation';
-export { default as useDeleteAbstract } from './api/hooks/useDeleteAbstract';
 export { default as useDeleteChapter } from './api/hooks/useDeleteChapter';
-export { default as useDeleteTitle } from './api/hooks/useDeleteTitle';
 export { default as useGetWork } from './api/hooks/useGetWork';
 export { default as useTranslatedWorks } from './api/hooks/useTranslatedWorks';
-export { default as useUpdateAbstract } from './api/hooks/useUpdateAbstract';
-export { default as useUpdateTitle } from './api/hooks/useUpdateTitle';
 export { default as useUpdateWorkFrontCover } from './api/hooks/useUpdateWorkFrontCover';
 export { default as useUpdateWorks } from './api/hooks/useUpdateWorks';
 export { default as useWork } from './api/hooks/useWork';

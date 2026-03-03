@@ -1,6 +1,5 @@
 import { appConfig } from '@/src/shared/config';
 import type { BaseMapper } from '@/src/shared/interfaces';
-import { AbstractDto, AbstractEntity, TitleDto, TitleEntity } from '@/src/shared/types';
 import {
   convertArabicToRoman,
   convertDateToFormattedDate,
@@ -10,10 +9,12 @@ import {
   isDefaultId,
 } from '@/src/shared/utils';
 
+import { AbstractDtoMapper } from '../../abstract/model/abstract.mapper';
 import { WorkContribution } from '../../contribution/model/contribution.types';
 import { FundingDtoMapper } from '../../funding/model/funding.mapper';
 import { ReferenceDtoMapper } from '../../reference/model/reference.mapper';
 import { SubjectDtoMapper } from '../../subject/model/subject.mapper';
+import { TitleDtoMapper } from '../../title/model/title.mapper';
 import type { WorkContributionDto, WorkDto, WorkEntity } from './work.types';
 
 const { pageBreakdownSeparator } = appConfig.dataApi;
@@ -21,6 +22,8 @@ const { pageBreakdownSeparator } = appConfig.dataApi;
 const fundingMapper = new FundingDtoMapper();
 const referenceMapper = new ReferenceDtoMapper();
 const subjectMapper = new SubjectDtoMapper();
+const titleMapper = new TitleDtoMapper();
+const abstractMapper = new AbstractDtoMapper();
 
 export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
   toEntity(dto: WorkDto): WorkEntity {
@@ -73,8 +76,8 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     return {
       id: workId,
       type: workType,
-      titles: titles.map(this.toEntityTitle),
-      abstracts: abstracts.map(this.toEntityAbstract),
+      titles: titles.map(titleMapper.toEntity),
+      abstracts: abstracts.map(abstractMapper.toEntity),
       updatedAt,
       doi,
       lccn: lccn ?? '',
@@ -192,7 +195,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
           updatedAt,
           doi: doi,
           publisherName: imprint?.publisher?.publisherName ?? '',
-          titles: titles.map(this.toEntityTitle),
+          titles: titles.map(titleMapper.toEntity),
           width: widthMm ?? 0,
           widthIn: widthIn ?? 0,
           height: heightMm ?? 0,
@@ -318,56 +321,6 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
         localeCode: bio.localeCode,
         contributionId: bio.contributionId,
       })),
-    };
-  }
-
-  toEntityTitle(dto: TitleDto): TitleEntity {
-    const { titleId, canonical, fullTitle, localeCode, subtitle, title } = dto;
-
-    return {
-      id: titleId,
-      canonical,
-      fullTitle,
-      localeCode,
-      subtitle: subtitle ?? '',
-      title,
-    };
-  }
-
-  toDtoTitle(entity: TitleEntity): TitleDto {
-    const { id, canonical, fullTitle, localeCode, subtitle, title } = entity;
-
-    return {
-      titleId: id,
-      canonical,
-      fullTitle,
-      localeCode,
-      subtitle: subtitle.length > 0 ? subtitle : null,
-      title,
-    };
-  }
-
-  toEntityAbstract(dto: AbstractDto): AbstractEntity {
-    const { abstractId, abstractType, canonical, content, localeCode } = dto;
-
-    return {
-      id: abstractId,
-      type: abstractType,
-      canonical,
-      content,
-      localeCode,
-    };
-  }
-
-  toDtoAbstract(entity: AbstractEntity): AbstractDto {
-    const { id, type, canonical, content, localeCode } = entity;
-
-    return {
-      abstractId: id,
-      abstractType: type,
-      canonical,
-      content,
-      localeCode,
     };
   }
 }

@@ -4,8 +4,8 @@ import { EditSetTitle, type SetId, SetTitleFormType, useUpdateSet } from '@/src/
 import useSet from '@/src/entities/sets/api/hooks/useSet';
 import { useSetStateMachine } from '@/src/entities/sets/store/set.store';
 import EditSetImprint from '@/src/entities/sets/ui/EditSetImprint/EditSetImprint';
+import { useCreateTitle, useDeleteTitle, useUpdateTitle } from '@/src/entities/title';
 import { useUser } from '@/src/entities/user';
-import { useCreateTitle, useDeleteTitle, useUpdateTitle } from '@/src/entities/work';
 import { QueryKeys } from '@/src/shared/constants';
 import type { LocaleCodeType, TitleEntity } from '@/src/shared/types';
 import { CloseButton, MarkdownRenderer, MultipleContentWrapper, Typography } from '@/src/shared/ui';

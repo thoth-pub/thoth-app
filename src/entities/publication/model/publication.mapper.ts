@@ -1,8 +1,10 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
-import type { TitleDto, TitleEntity } from '@/src/shared/types';
 import { isDimensionsAvailable } from '@/src/shared/utils';
 
+import { TitleDtoMapper } from '../../title/model/title.mapper';
 import type { PublicationDto, PublicationEntity } from './publication.types';
+
+const titleMapper = new TitleDtoMapper();
 
 export class PublicationDtoMapper implements BaseMapper<PublicationEntity, PublicationDto> {
   toEntity(dto: PublicationDto): PublicationEntity {
@@ -33,7 +35,7 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
 
     return {
       id: publicationId,
-      titles: titles.map(this.toEntityTitle),
+      titles: titles.map(titleMapper.toEntity),
       type: publicationType,
       updatedAt,
       isbn,
@@ -135,15 +137,4 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
     };
   }
 
-  toEntityTitle(dto: TitleDto): TitleEntity {
-    const { titleId, canonical, fullTitle, localeCode, subtitle, title } = dto;
-    return {
-      id: titleId,
-      canonical,
-      fullTitle,
-      localeCode,
-      subtitle: subtitle ?? '',
-      title,
-    };
-  }
 }
