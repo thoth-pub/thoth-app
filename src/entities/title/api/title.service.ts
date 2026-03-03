@@ -1,5 +1,5 @@
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
-import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 import type { TitleDto, TitleEntity } from '@/src/shared/types';
 import { isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
@@ -9,8 +9,8 @@ import { TitleDtoMapper } from '../model/title.mapper';
 import { CREATE_TITLE, DELETE_TITLE, UPDATE_TITLE } from '../model/title.mutations';
 
 export class TitleService extends BaseService<TitleEntity, TitleDto, TitleDtoMapper> {
-  constructor(token: QueryToken, mapper = new TitleDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new TitleDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   private getMarkupFormat(text: string) {

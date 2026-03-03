@@ -1,8 +1,8 @@
 import { Direction, RelationType, WorkField, WorkStatus, WorkType } from '@/gql/graphql';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
 import { WorkStatuses } from '@/src/shared/constants';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
-import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 import type { SeriesForUpdateItems, TitleDto, TitleEntity } from '@/src/shared/types';
 import { getDateInFuture } from '@/src/shared/utils';
@@ -37,7 +37,7 @@ import {
 import type { WorkDto, WorkEntity, WorkId } from '../model/work.types';
 
 type WorkServiceDependencies = {
-  token: QueryToken;
+  graphqlService: GraphqlService;
   fundingService: FundingService;
   subjectService: SubjectService;
   contributionService: ContributionService;
@@ -62,7 +62,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   private readonly abstractService: AbstractService;
 
   constructor({
-    token,
+    graphqlService,
     fundingService,
     subjectService,
     contributionService,
@@ -74,7 +74,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     abstractService,
     mapper = new WorkDtoMapper(),
   }: Readonly<WorkServiceDependencies>) {
-    super(token, mapper);
+    super(graphqlService, mapper);
     this.fundingService = fundingService;
     this.subjectService = subjectService;
     this.contributionService = contributionService;
@@ -376,6 +376,14 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       chapter: {
         ...chapter,
         id: appConfig.defaultId,
+        titles: chapter.titles.map((title) => ({
+          ...title,
+          id: appConfig.defaultId,
+        })),
+        abstracts: chapter.abstracts.map((abstract) => ({
+          ...abstract,
+          id: appConfig.defaultId,
+        })),
         contributions: chapter.contributions.map((contribution) => ({
           ...contribution,
           id: appConfig.defaultId,

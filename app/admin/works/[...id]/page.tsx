@@ -17,6 +17,7 @@ import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { TitleService } from '@/src/entities/title/api/title.service';
 import { UserService } from '@/src/entities/user';
 import { WorkService } from '@/src/entities/work/api/work.service';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { FileStorage } from '@/src/shared/services';
 import { ROUTES } from '@/src/shared/constants';
 import { authOptions } from '@/src/shared/lib/auth/auth';
@@ -42,28 +43,29 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
   if (!token) {
     redirect(ROUTES.NOT_FOUND);
   }
+  const graphqlService = new GraphqlService(token);
   const workService = new WorkService({
-    token,
-    fundingService: new FundingService(token),
-    subjectService: new SubjectService(token),
+    graphqlService,
+    fundingService: new FundingService(graphqlService),
+    subjectService: new SubjectService(graphqlService),
     contributionService: new ContributionService({
-      token,
-      contributorService: new ContributorService(token),
-      affiliationService: new AffiliationService(token),
+      graphqlService,
+      contributorService: new ContributorService(graphqlService),
+      affiliationService: new AffiliationService(graphqlService),
     }),
     publicationService: new PublicationService({
-      token,
-      locationService: new LocationService(token),
-      priceService: new PriceService(token),
+      graphqlService,
+      locationService: new LocationService(graphqlService),
+      priceService: new PriceService(graphqlService),
       fileStorage: new FileStorage(token),
     }),
-    languageService: new LanguageService(token),
-    seriesService: new SeriesService(token),
-    referenceService: new ReferenceService(token),
-    titleService: new TitleService(token),
-    abstractService: new AbstractService(token),
+    languageService: new LanguageService(graphqlService),
+    seriesService: new SeriesService(graphqlService),
+    referenceService: new ReferenceService(graphqlService),
+    titleService: new TitleService(graphqlService),
+    abstractService: new AbstractService(graphqlService),
   });
-  const userService = new UserService(token);
+  const userService = new UserService(graphqlService);
 
   const work = await workService.getWork(id);
 

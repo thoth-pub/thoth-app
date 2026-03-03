@@ -1,4 +1,5 @@
 import { createActorContext } from '@xstate/react';
+import { useCallback } from 'react';
 import { assign, setup } from 'xstate';
 
 export const createEntityStateMachine = <T>(id: string) => {
@@ -49,11 +50,11 @@ export const createEntityStateMachine = <T>(id: string) => {
 
     const activeEntity = StateMachineContext.useSelector((state) => state.context.entity);
 
-    const edit = (entity: T) => actorRef.send({ type: 'setActiveEntity', entity });
+    const edit = useCallback((entity: T) => actorRef.send({ type: 'setActiveEntity', entity }), [actorRef]);
 
-    const update = (entity: T) => actorRef.send({ type: 'activeEntity.update', entity });
+    const update = useCallback((entity: T) => actorRef.send({ type: 'activeEntity.update', entity }), [actorRef]);
 
-    const close = () => actorRef.send({ type: 'close' });
+    const close = useCallback(() => actorRef.send({ type: 'close' }), [actorRef]);
 
     return {
       activeEntity,

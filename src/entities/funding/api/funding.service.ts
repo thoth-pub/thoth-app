@@ -1,4 +1,4 @@
-import type { QueryToken } from '@/src/shared/interfaces';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { WorkId } from '../../work/model/work.types';
@@ -7,8 +7,8 @@ import { CREATE_FUNDING, DELETE_FUNDING, UPDATE_FUNDING } from '../model/funding
 import type { FundingDto, FundingEntity, FundingId } from '../model/funding.types';
 
 export class FundingService extends BaseService<FundingEntity, FundingDto> {
-  constructor(token: QueryToken, mapper = new FundingDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new FundingDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async createFunding({

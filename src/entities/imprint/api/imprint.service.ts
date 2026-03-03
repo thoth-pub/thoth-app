@@ -1,6 +1,6 @@
 import { PublisherId } from '@/src/entities/publisher';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
-import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ImprintDtoMapper } from '../model/imprint.mapper';
@@ -17,8 +17,8 @@ type GetImprintsProps = {
 };
 
 export class ImprintService extends BaseService<ImprintEntity, ImprintDto, ImprintDtoMapper> {
-  constructor(token: QueryToken, mapper = new ImprintDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new ImprintDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async getImprintsCount(publishersIds: PublisherId[]): Promise<number> {

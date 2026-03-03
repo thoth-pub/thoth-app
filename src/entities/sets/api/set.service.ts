@@ -1,7 +1,7 @@
 import { MarkupFormat, RelationType, WorkField } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
-import { type QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 import { Direction } from '@/src/shared/types';
 
@@ -20,7 +20,7 @@ import { GET_BOOK_SET_WORKS, GET_SET, GET_SETS, GET_SETS_COUNT } from '../model/
 import { SetDto, SetEntity, SetId, SetWorkDto, SetWorkEntity } from '../model/set.types';
 
 type SetServiceDependencies = {
-  token: QueryToken;
+  graphqlService: GraphqlService;
   titleService: TitleService;
   mapper?: SetDtoMapper;
 };
@@ -28,8 +28,8 @@ type SetServiceDependencies = {
 export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
   private readonly titleService: TitleService;
 
-  constructor({ token, titleService, mapper = new SetDtoMapper() }: Readonly<SetServiceDependencies>) {
-    super(token, mapper);
+  constructor({ graphqlService, titleService, mapper = new SetDtoMapper() }: Readonly<SetServiceDependencies>) {
+    super(graphqlService, mapper);
     this.titleService = titleService;
   }
 

@@ -1,4 +1,4 @@
-import type { QueryToken } from '@/src/shared/interfaces';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublisherDtoMapper } from '../model/publisher.mapper';
@@ -7,8 +7,8 @@ import { GET_PUBLISHER, GET_PUBLISHERS, UPDATE_PUBLISHER } from '../model/publis
 import type { ContactEntity, ContactId, PublisherDto, PublisherEntity, PublisherId } from '../model/publisher.types';
 
 export class PublisherService extends BaseService<PublisherEntity, PublisherDto, PublisherDtoMapper> {
-  constructor(token: QueryToken, mapper = new PublisherDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new PublisherDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async getPublishers(publisherIds: PublisherId[]): Promise<PublisherEntity[]> {

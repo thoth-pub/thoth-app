@@ -1,4 +1,4 @@
-import type { QueryToken } from '@/src/shared/interfaces';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { UserDtoMapper } from '../model/user.mapper';
@@ -6,8 +6,8 @@ import { GET_USER } from '../model/user.schema';
 import { UserDto, UserEntity } from '../model/user.types';
 
 export class UserService extends BaseService<UserEntity, UserDto> {
-  constructor(token: QueryToken, mapper = new UserDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new UserDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async getUser(): Promise<UserEntity> {

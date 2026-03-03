@@ -1,4 +1,4 @@
-import type { QueryToken } from '@/src/shared/interfaces';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublisherId } from '../../publisher';
@@ -13,8 +13,8 @@ import {
 import { ContributorDto, ContributorEntity, ContributorId } from '../model/contributor.types';
 
 export class ContributorService extends BaseService<ContributorEntity, ContributorDto> {
-  constructor(token: QueryToken, mapper = new ContributorDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new ContributorDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async getContributors(filter: string): Promise<ContributorEntity[]> {

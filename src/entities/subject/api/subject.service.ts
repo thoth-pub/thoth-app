@@ -1,5 +1,5 @@
 import { SubjectType } from '@/gql/graphql';
-import type { QueryToken } from '@/src/shared/interfaces';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import type { WorkId } from '../../work/model/work.types';
@@ -8,8 +8,8 @@ import { CREATE_SUBJECT, DELETE_SUBJECT, MOVE_SUBJECT, UPDATE_SUBJECT } from '..
 import type { SubjectDto, SubjectEntity, SubjectId } from '../model/subject.types';
 
 export class SubjectService extends BaseService<SubjectEntity, SubjectDto> {
-  constructor(token: QueryToken, mapper = new SubjectDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new SubjectDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async createSubject(data: SubjectEntity, relatedWorkId: WorkId): Promise<SubjectEntity> {

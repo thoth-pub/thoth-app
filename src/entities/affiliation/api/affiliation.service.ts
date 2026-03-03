@@ -1,3 +1,4 @@
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { AffiliationDtoMapper } from '../model/affiliation.mapper';
@@ -10,8 +11,8 @@ import {
 import type { AffiliationDto, AffiliationEntity } from '../model/affiliation.types';
 
 export class AffiliationService extends BaseService<AffiliationEntity, AffiliationDto> {
-  constructor(token: string, mapper = new AffiliationDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new AffiliationDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async createAffiliation(data: AffiliationEntity): Promise<AffiliationEntity> {

@@ -11,8 +11,8 @@ export abstract class BaseService<
   protected readonly dtoMapper: MapperType;
   protected readonly limit: number;
 
-  constructor(token: string, mapper: MapperType, limit: number = appConfig.data.itemsPerRequestLimit) {
-    this.graphqlService = new GraphqlService(token);
+  constructor(graphqlService: GraphqlService, mapper: MapperType, limit: number = appConfig.data.itemsPerRequestLimit) {
+    this.graphqlService = graphqlService;
     this.dtoMapper = mapper;
     this.limit = limit;
   }

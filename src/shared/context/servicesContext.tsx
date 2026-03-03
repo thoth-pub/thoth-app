@@ -24,6 +24,7 @@ import { TitleService } from '@/src/entities/title/api/title.service';
 import { UserService } from '@/src/entities/user';
 import { WorkService } from '@/src/entities/work/api/work.service';
 
+import { GraphqlService } from '../api/graphqlService';
 import { useQueryToken } from '../hooks';
 import { QueryToken } from '../interfaces';
 import { NotificationService } from '../notifications/notification.service';
@@ -57,39 +58,40 @@ type ServicesMap = {
 };
 
 const getDefaultServices = (token: QueryToken): ServicesMap => {
-  const imprintService = new ImprintService(token);
-  const bookService = new BookService(token);
-  const affiliationService = new AffiliationService(token);
-  const contributorService = new ContributorService(token);
-  const subjectService = new SubjectService(token);
-  const seriesService = new SeriesService(token);
-  const referenceService = new ReferenceService(token);
-  const locationService = new LocationService(token);
-  const priceService = new PriceService(token);
-  const publisherService = new PublisherService(token);
-  const fundingService = new FundingService(token);
-  const institutionService = new InstitutionService(token);
-  const languageService = new LanguageService(token);
+  const graphqlService = new GraphqlService(token);
+  const imprintService = new ImprintService(graphqlService);
+  const bookService = new BookService(graphqlService);
+  const affiliationService = new AffiliationService(graphqlService);
+  const contributorService = new ContributorService(graphqlService);
+  const subjectService = new SubjectService(graphqlService);
+  const seriesService = new SeriesService(graphqlService);
+  const referenceService = new ReferenceService(graphqlService);
+  const locationService = new LocationService(graphqlService);
+  const priceService = new PriceService(graphqlService);
+  const publisherService = new PublisherService(graphqlService);
+  const fundingService = new FundingService(graphqlService);
+  const institutionService = new InstitutionService(graphqlService);
+  const languageService = new LanguageService(graphqlService);
   const notificationService = new NotificationService();
   const metadataService = new MetadataService();
-  const userService = new UserService(token);
+  const userService = new UserService(graphqlService);
   const persistentStorage = new PersistentStorage();
   const fileStorage = new FileStorage(token);
   const publicationService = new PublicationService({
-    token,
+    graphqlService,
     locationService,
     priceService,
     fileStorage,
   });
   const contributionService = new ContributionService({
-    token,
+    graphqlService,
     contributorService,
     affiliationService,
   });
-  const titleService = new TitleService(token);
-  const abstractService = new AbstractService(token);
+  const titleService = new TitleService(graphqlService);
+  const abstractService = new AbstractService(graphqlService);
   const workService = new WorkService({
-    token,
+    graphqlService,
     fundingService,
     subjectService,
     contributionService,
@@ -101,7 +103,7 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
     abstractService,
   });
   const setService = new SetService({
-    token,
+    graphqlService,
     titleService,
   });
 

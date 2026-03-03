@@ -1,4 +1,5 @@
 import { LanguageCode, LanguageRelation } from '@/gql/graphql';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { WorkId } from '../../work/model/work.types';
@@ -7,8 +8,8 @@ import { CREATE_LANGUAGE, DELETE_LANGUAGE, UPDATE_LANGUAGE } from '../model/lang
 import { LanguageDto, LanguageEntity } from '../model/language.types';
 
 export class LanguageService extends BaseService<LanguageEntity, LanguageDto> {
-  constructor(token: string, mapper = new LanguageDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new LanguageDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async createLanguage(data: LanguageEntity, workId: WorkId): Promise<LanguageEntity> {

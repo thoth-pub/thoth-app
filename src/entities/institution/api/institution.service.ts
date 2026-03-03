@@ -1,3 +1,4 @@
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
 import { BaseService } from '@/src/shared/interfaces/services';
 
@@ -8,8 +9,8 @@ import type { InstitutionDto, InstitutionEntity } from '../model/institution.typ
 const { itemsPerRequestLimit } = appConfig.data;
 
 export class InstitutionService extends BaseService<InstitutionEntity, InstitutionDto> {
-  constructor(token: string, mapper = new InstitutionDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new InstitutionDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async getInstitutionsCount(filter: string = ''): Promise<number> {

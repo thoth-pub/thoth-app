@@ -1,4 +1,4 @@
-import type { QueryToken } from '@/src/shared/interfaces';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublicationId } from '../../publication/model/publication.types';
@@ -7,8 +7,8 @@ import { CREATE_PRICE, DELETE_PRICE, UPDATE_PRICE } from '../model/price.schema'
 import { CurrencyCode, PriceDto, PriceEntity } from '../model/price.types';
 
 export class PriceService extends BaseService<PriceEntity, PriceDto> {
-  constructor(token: QueryToken, mapper = new PriceDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new PriceDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async createPrice(data: PriceEntity, publicationId: PublicationId): Promise<PriceEntity> {

@@ -1,4 +1,4 @@
-import { QueryToken } from '@/src/shared/interfaces';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublicationId } from '../../publication/model/publication.types';
@@ -7,8 +7,8 @@ import { CREATE_LOCATION, DELETE_LOCATION, UPDATE_LOCATION } from '../model/loca
 import type { LocationDto, LocationEntity, LocationPlatform } from '../model/location.types';
 
 export class LocationService extends BaseService<LocationEntity, LocationDto> {
-  constructor(token: QueryToken, mapper = new LocationDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new LocationDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async createLocation(data: LocationEntity, publicationId: PublicationId): Promise<LocationEntity> {

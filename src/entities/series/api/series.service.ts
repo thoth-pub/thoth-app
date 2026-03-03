@@ -1,8 +1,8 @@
 import { SeriesField, SeriesType as SeriesTypeEnum } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
 import { SeriesType } from '@/src/shared/constants';
-import { type QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 import { Direction } from '@/src/shared/types';
 
@@ -21,8 +21,8 @@ import { GET_SERIES, GET_SERIESES, GET_SERIESES_COUNT } from '../model/series.sc
 import type { SeriesDto, SeriesEntity, SeriesId } from '../model/series.types';
 
 export class SeriesService extends BaseService<SeriesEntity, SeriesDto> {
-  constructor(token: QueryToken, mapper = new SeriesDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new SeriesDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async getSeries(seriesId: string): Promise<SeriesEntity> {

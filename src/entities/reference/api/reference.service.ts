@@ -1,4 +1,4 @@
-import type { QueryToken } from '@/src/shared/interfaces';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import type { WorkId } from '../../work/model/work.types';
@@ -7,8 +7,8 @@ import { CREATE_REFERENCE, DELETE_REFERENCE, MOVE_REFERENCE, UPDATE_REFERENCE } 
 import type { ReferenceDto, ReferenceEntity, ReferenceId } from '../model/reference.types';
 
 export class ReferenceService extends BaseService<ReferenceEntity, ReferenceDto> {
-  constructor(token: QueryToken, mapper = new ReferenceDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new ReferenceDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   async createReference(data: ReferenceEntity, relatedWorkId: WorkId): Promise<ReferenceEntity> {

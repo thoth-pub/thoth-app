@@ -1,5 +1,5 @@
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
-import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 import type { AbstractDto, AbstractEntity } from '@/src/shared/types';
 import { isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
@@ -9,8 +9,8 @@ import { AbstractDtoMapper } from '../model/abstract.mapper';
 import { CREATE_ABSTRACT, DELETE_ABSTRACT, UPDATE_ABSTRACT } from '../model/abstract.mutations';
 
 export class AbstractService extends BaseService<AbstractEntity, AbstractDto, AbstractDtoMapper> {
-  constructor(token: QueryToken, mapper = new AbstractDtoMapper()) {
-    super(token, mapper);
+  constructor(graphqlService: GraphqlService, mapper = new AbstractDtoMapper()) {
+    super(graphqlService, mapper);
   }
 
   private getMarkupFormat(text: string) {

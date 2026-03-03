@@ -1,6 +1,5 @@
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
-import { QueryToken } from '@/src/shared/interfaces';
 import { isDefaultId, isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
 import { normalizedOrcidId } from '@/src/shared/utils/helpers/normalizedOrcidId';
 
@@ -21,10 +20,9 @@ import { GET_CONTRIBUTION_BIOGRAPHIES } from '../model/contribution.schema';
 import { BiographyDto, BiographyEntity, WorkContribution } from '../model/contribution.types';
 
 type ContributionServiceDependencies = {
-  token: QueryToken;
+  graphqlService: GraphqlService;
   contributorService: ContributorService;
   affiliationService: AffiliationService;
-  graphqlService?: GraphqlService;
   biographyDtoMapper?: BiographyDtoMapper;
 };
 export class ContributionService {
@@ -34,10 +32,9 @@ export class ContributionService {
   private readonly biographyDtoMapper: BiographyDtoMapper;
 
   constructor({
-    token,
+    graphqlService,
     contributorService,
     affiliationService,
-    graphqlService = new GraphqlService(token),
     biographyDtoMapper = new BiographyDtoMapper(),
   }: Readonly<ContributionServiceDependencies>) {
     this.graphqlService = graphqlService;

@@ -1,4 +1,4 @@
-import type { QueryToken } from '@/src/shared/interfaces';
+import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 import type { FileStorage } from '@/src/shared/services';
 import { isDefaultId } from '@/src/shared/utils';
@@ -11,7 +11,7 @@ import { CREATE_PUBLICATION, DELETE_PUBLICATION, UPDATE_PUBLICATION } from '../m
 import type { PublicationDto, PublicationEntity, PublicationId, PublicationType } from '../model/publication.types';
 
 type PublicationServiceDependencies = {
-  token: QueryToken;
+  graphqlService: GraphqlService;
   locationService: LocationService;
   priceService: PriceService;
   fileStorage: FileStorage;
@@ -24,13 +24,13 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
   private readonly fileStorage: FileStorage;
 
   constructor({
-    token,
+    graphqlService,
     locationService,
     priceService,
     fileStorage,
     mapper = new PublicationDtoMapper(),
   }: Readonly<PublicationServiceDependencies>) {
-    super(token, mapper);
+    super(graphqlService, mapper);
     this.locationService = locationService;
     this.priceService = priceService;
     this.fileStorage = fileStorage;
