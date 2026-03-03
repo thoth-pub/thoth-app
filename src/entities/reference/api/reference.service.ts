@@ -36,7 +36,7 @@ export class ReferenceService extends BaseService<ReferenceEntity, ReferenceDto>
   }
 
   async deleteReference(referenceId: string) {
-    return await this.graphqlService.mutation(DELETE_REFERENCE, {
+    await this.graphqlService.mutation(DELETE_REFERENCE, {
       referenceId,
     });
   }

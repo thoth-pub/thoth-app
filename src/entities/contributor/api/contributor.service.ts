@@ -1,4 +1,3 @@
-import { appConfig } from '@/src/shared/config';
 import type { QueryToken } from '@/src/shared/interfaces';
 import { BaseService } from '@/src/shared/interfaces/services';
 
@@ -58,11 +57,11 @@ export class ContributorService extends BaseService<ContributorEntity, Contribut
 
     const { updateContributor } = await this.graphqlService.mutation(UPDATE_CONTRIBUTOR, {
       data: {
+        ...dto,
         contributorId: contributorId ?? '',
         fullName: fullName ?? '',
         lastName: lastName ?? '',
-        orcid: appConfig.validations.orcidPrefix + orcid,
-        ...dto,
+        orcid,
       },
     });
 

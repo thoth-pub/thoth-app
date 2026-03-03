@@ -1,8 +1,8 @@
 import { GraphqlService } from '@/src/shared/api/graphqlService';
-import { appConfig } from '@/src/shared/config';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { QueryToken } from '@/src/shared/interfaces';
 import { isDefaultId, isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
+import { normalizedOrcidId } from '@/src/shared/utils/helpers/normalizedOrcidId';
 
 import { AffiliationService } from '../../affiliation/api/affiliation.service';
 import { ContributorService } from '../../contributor';
@@ -98,7 +98,7 @@ export class ContributionService {
       isMain: data.isMain,
       orderNumber: data.orderNumber,
       biographies,
-      orcidId: appConfig.validations.orcidPrefix + data.orcidId,
+      orcidId: normalizedOrcidId(data.orcidId) ?? '',
       website: data.website,
       affiliations: [],
     };

@@ -156,7 +156,7 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     return this.dtoMapper.toEntitySetWorks(work as SetWorkDto);
   }
 
-  addBookToSet(setId: SetId, bookId: WorkId, ordinal: number) {
+  async addBookToSet(setId: SetId, bookId: WorkId, ordinal: number) {
     return this.graphqlService.mutation(ADD_BOOK_TO_SET, {
       data: {
         relatorWorkId: bookId,
@@ -173,7 +173,7 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     });
   }
 
-  moveBookInSet(relationId: string, newOrdinal: number) {
+  async moveBookInSet(relationId: string, newOrdinal: number) {
     return this.graphqlService.mutation(MOVE_BOOK_IN_SET, {
       workRelationId: relationId,
       newOrdinal,

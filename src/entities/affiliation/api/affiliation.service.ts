@@ -36,11 +36,11 @@ export class AffiliationService extends BaseService<AffiliationEntity, Affiliati
 
     const response = await this.graphqlService.mutation(UPDATE_AFFILIATION, {
       data: {
+        ...dto,
         affiliationId: dto.affiliationId ?? '',
         affiliationOrdinal: dto.affiliationOrdinal ?? 1,
         contributionId: dto.contributionId ?? '',
         institutionId: dto.institutionId ?? '',
-        ...dto,
       },
     });
 

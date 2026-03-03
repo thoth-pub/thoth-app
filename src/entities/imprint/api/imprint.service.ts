@@ -8,7 +8,7 @@ import { CREATE_IMPRINT, DELETE_IMPRINT, UPDATE_IMPRINT } from '../model/imprint
 import { GET_IMPRINTS, GET_IMPRINTS_COUNT } from '../model/imprint.schema';
 import type { ImprintDto, ImprintEntity, ImprintId } from '../model/imprint.types';
 
-const { itemsPerRequestLimit, maxItemsPerRequestLimit, maxImprintsPerRequestLimit } = appConfig.data;
+const { itemsPerRequestLimit, maxImprintsPerRequestLimit } = appConfig.data;
 
 type GetImprintsProps = {
   publishersIds: PublisherId[];
@@ -53,20 +53,6 @@ export class ImprintService extends BaseService<ImprintEntity, ImprintDto, Impri
     });
 
     return result;
-  }
-
-  async getAllImprints({ publishersIds, limit = maxItemsPerRequestLimit }: GetImprintsProps): Promise<ImprintEntity[]> {
-    const maxImprintsCount = await this.getImprintsCount(publishersIds);
-    let offset = 0;
-    const imprints = [];
-
-    do {
-      const data = await this.getImprints({ publishersIds, offset, limit });
-      imprints.push(...data);
-      offset += limit;
-    } while (offset < maxImprintsCount);
-
-    return imprints;
   }
 
   async createImprint(data: { publisherId: PublisherId; imprintName: string }) {

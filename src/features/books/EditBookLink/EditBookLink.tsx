@@ -44,12 +44,12 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
 
         <div className="flex grow flex-col justify-between pl-2">
           <div className="flex items-center justify-between">
-            <Typography variant="h2" component="h3" className="max-w-[170px] grow truncate xl:max-w-[240px]">
+            <Typography variant="h2" component="h3" className="max-w-[170px] grow truncate 2xl:max-w-[240px]">
               {removeMd(getMainTitle(titles).title)}
             </Typography>
           </div>
           <div className="mt-auto flex flex-col gap-1">
-            <Typography className="max-w-[170px] truncate xl:max-w-[240px]">{mainContributor}</Typography>
+            <Typography className="max-w-[170px] truncate 2xl:max-w-[240px]">{mainContributor}</Typography>
             <div className="flex items-center gap-4">
               <Typography className="max-w-[100px] truncate capitalize">
                 <TranslatedContent content={convertOptionToString(convertedType).toLowerCase()} />
