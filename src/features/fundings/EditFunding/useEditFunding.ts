@@ -29,7 +29,7 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     onInstitutionUpdate,
   } = props;
 
-  const { activeEntity: activeFunding, close, update } = useFundingStateMachine();
+  const { activeEntity: activeFunding, finishEditing, update } = useFundingStateMachine();
   const { updateFunding } = useUpdateFunding({ workId });
 
   const updateProject = ({ projectName }: FundingProjectNameFormType) => {
@@ -109,7 +109,7 @@ export const useEditFunding = (props: UseEditFundingProps) => {
 
   return {
     activeFunding,
-    close,
+    finishEditing,
     updateProject,
     updateProjectShortName,
     updateProgram,

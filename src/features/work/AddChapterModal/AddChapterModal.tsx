@@ -20,15 +20,15 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
   const { work } = useWork(workId);
   const { chapters } = useWorkChapters({ workId });
 
-  const { edit } = useWorkChaptersStateMachine();
-  const { close: closeContribution } = useContributionStateMachine();
+  const { edit, finishEditing } = useWorkChaptersStateMachine();
+  const { finishEditing: finishEditingContribution } = useContributionStateMachine();
 
   const [isOpen, setIsOpen] = useState(false);
 
   useEffect(() => {
     return () => {
-      close();
-      closeContribution();
+      finishEditing();
+      finishEditingContribution();
     };
   }, []);
 
@@ -38,7 +38,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
 
   const closeModal = () => {
     setIsOpen(false);
-    closeContribution();
+    finishEditingContribution();
   };
 
   const { createChapter } = useCreateWorkChapter({

@@ -16,7 +16,7 @@ const AddFunding = (props: AddFundingProps) => {
 
   const {
     funding,
-    close,
+    finishEditing,
     create,
     updateProject,
     updateProjectShortName,
@@ -43,7 +43,7 @@ const AddFunding = (props: AddFundingProps) => {
         onGrantNumberUpdate={updateGrantNumber}
         onInstitutionUpdate={updateInstitution}
         onDone={create}
-        onClose={close}
+        onClose={finishEditing}
       />
     </TableNewEntityFormWrapper>
   );

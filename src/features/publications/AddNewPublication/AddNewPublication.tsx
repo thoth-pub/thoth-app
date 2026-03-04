@@ -19,7 +19,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
   const {
     publication,
     loading,
-    close,
+    finishEditing,
     create,
     updateIsbn,
     updateType,
@@ -81,7 +81,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         isUploadFileFormDisabled={isUploadFileFormDisabled}
         onUpdateIsbn={updateIsbn}
         onUpdateType={updateType}
-        onClose={close}
+        onClose={finishEditing}
         onDone={create}
         onUpdateDimensions={updateDimensions}
         onUpdateAccessibilityStandards={updateAccessibilityStandards}
@@ -92,7 +92,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
       >
         {(isFullTextUrlHidden) => (
           <>
-            <EditPrice onUpdate={updatePrices} onClose={close} prices={publication.prices} />
+            <EditPrice onUpdate={updatePrices} onClose={finishEditing} prices={publication.prices} />
             <EditLocations
               locations={publication.locations}
               onUpdate={updateLocations}

@@ -15,7 +15,7 @@ export const useEditSubjects = (props: BaseEditSectionProps) => {
   const { work } = useWork(workId);
 
   const { activeFormId, edit: editForm } = useFormStateMachine();
-  const { activeEntity: activeSubject, edit, close: closeSubjectEdit } = useSubjectStateMachine();
+  const { activeEntity: activeSubject, edit, finishEditing: finishEditingSubjectEdit } = useSubjectStateMachine();
 
   const { createSubject } = useCreateSubject({ workId });
   const { deleteSubject: deleteSubjectMutation } = useDeleteSubject();
@@ -58,7 +58,7 @@ export const useEditSubjects = (props: BaseEditSectionProps) => {
 
     if (!subject) return;
 
-    closeSubjectEdit();
+    finishEditingSubjectEdit();
     editForm(IDs.WORK_SUBJECT);
     edit(subject);
   };

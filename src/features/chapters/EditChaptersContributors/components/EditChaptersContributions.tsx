@@ -31,11 +31,11 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     onBiographiesUpdate,
   } = props;
 
-  const { activeEntity: activeContribution, close, update } = useContributionStateMachine();
+  const { activeEntity: activeContribution, finishEditing, update } = useContributionStateMachine();
 
   useEffect(() => {
     return () => {
-      close();
+      finishEditing();
     };
   }, []);
 

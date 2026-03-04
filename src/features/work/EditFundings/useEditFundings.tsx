@@ -8,7 +8,7 @@ import { getDefaultFunding, isDefaultId } from '@/src/shared/utils';
 
 export const useEditFundings = (workId: WorkId) => {
   const { work } = useWork(workId);
-  const { activeEntity: activeFunding, edit, close } = useFundingStateMachine();
+  const { activeEntity: activeFunding, edit, finishEditing } = useFundingStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { isFundingsRequired, isFundingsEmpty } = useWorkRecommendations({ workId });
   const { deleteFunding } = useDeleteFunding();
@@ -17,7 +17,7 @@ export const useEditFundings = (workId: WorkId) => {
 
   useEffect(() => {
     return () => {
-      close();
+      finishEditing();
     };
   }, []);
 

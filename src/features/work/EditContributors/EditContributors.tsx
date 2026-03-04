@@ -14,7 +14,7 @@ type EditContributorsProps = BaseEditSectionProps;
 
 const EditContributors = (props: EditContributorsProps) => {
   const { workId } = props;
-  const { activeEntity: activeContribution, close } = useContributionStateMachine();
+  const { activeEntity: activeContribution, finishEditing } = useContributionStateMachine();
 
   const { work } = useWork(workId);
   const { isContributionsRequired } = useWorkRecommendations({ workId });
@@ -25,7 +25,7 @@ const EditContributors = (props: EditContributorsProps) => {
 
   useEffect(() => {
     return () => {
-      close();
+      finishEditing();
     };
   }, []);
 

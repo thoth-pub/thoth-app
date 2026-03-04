@@ -16,7 +16,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
 
   const {
     contribution,
-    close,
+    finishEditing,
     create,
     updateNames,
     updateContributorType,
@@ -40,7 +40,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
         onBiographySubmit={updateBiography}
         onIsMainSubmit={updateCanonical}
         onDone={create}
-        onClose={close}
+        onClose={finishEditing}
       >
         <EditOrcid orcidId={contribution.orcidId} onSubmit={updateOrcid} />
         <EditWebsite websiteUrl={contribution.website} onSubmit={updateWebsiteUrl} />

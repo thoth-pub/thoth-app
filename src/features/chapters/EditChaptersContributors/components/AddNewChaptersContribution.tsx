@@ -19,7 +19,7 @@ type AddNewChaptersContributionProps = BaseRecommendedSectionProps & {
 export const AddNewChaptersContribution = (props: AddNewChaptersContributionProps) => {
   const { recommended, chapters, onCreate } = props;
 
-  const { activeEntity: activeContribution, close } = useContributionStateMachine();
+  const { activeEntity: activeContribution, finishEditing } = useContributionStateMachine();
 
   const queryClient = useQueryClient();
 
@@ -27,12 +27,12 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
 
   const { contributor } = useContributor({ contributorId: activeContribution?.contributorId });
   const { updateContributor } = useUpdateContributor({
-    onError: () => close(),
+    onError: () => finishEditing(),
   });
 
   useEffect(() => {
     return () => {
-      close();
+      finishEditing();
     };
   }, []);
 
@@ -76,7 +76,7 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
     queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
     queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
 
-    close();
+    finishEditing();
     onCreate?.(contribution);
   };
 

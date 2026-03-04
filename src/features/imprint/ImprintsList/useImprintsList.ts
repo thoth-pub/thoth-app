@@ -15,7 +15,7 @@ import { isDefaultId } from '@/src/shared/utils';
 
 export const useImprintsList = () => {
   const { isImprintEditable } = useActivePublisherPermissions();
-  const { edit, activeFormId, close } = useFormStateMachine();
+  const { edit, activeFormId, closeForm } = useFormStateMachine();
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher ? activePublisher.id : '';
 
@@ -34,19 +34,19 @@ export const useImprintsList = () => {
     if (!activePublisher) return;
 
     await createImprintMutation({ publisherId: activePublisher.id, imprintName });
-    close();
+    closeForm();
   };
 
   const updateImprint = async ({ imprintName, imprintId }: { imprintName: string; imprintId: ImprintId }) => {
     await updateImprintMutation({ data: { name: imprintName, id: imprintId }, publisherId });
-    close();
+    closeForm();
   };
 
   const deleteImprint = async (imprintId: ImprintId) => {
     if (!activePublisher) return;
 
     await deleteImprintMutation({ imprintId, publisherId: activePublisher.id });
-    close();
+    closeForm();
   };
 
   return {

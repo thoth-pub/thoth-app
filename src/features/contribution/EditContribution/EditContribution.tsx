@@ -49,7 +49,7 @@ const EditContribution = (props: EditContributionProps) => {
     contribution,
     isOrchidEditionDisabled,
     isWebsiteUrlEditionDisabled,
-    close,
+    finishEditing,
     updateNames,
     updateType,
     updateBiography,
@@ -81,8 +81,8 @@ const EditContribution = (props: EditContributionProps) => {
       contribution={contribution}
       isOrchidEditionDisabled={isOrchidEditionDisabled}
       isWebsiteUrlEditionDisabled={isWebsiteUrlEditionDisabled}
-      onDone={close}
-      onClose={close}
+      onDone={finishEditing}
+      onClose={finishEditing}
       onNamesSubmit={updateNames}
       onContributorTypeSubmit={updateType}
       onBiographySubmit={updateBiography}

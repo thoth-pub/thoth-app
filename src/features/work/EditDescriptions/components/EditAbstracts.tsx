@@ -26,7 +26,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const queryClient = useQueryClient();
   const { createAbstract } = useCreateAbstract(workId);
   const { deleteAbstract } = useDeleteAbstract(workId);
-  const { activeFormId, close } = useFormStateMachine();
+  const { activeFormId, closeForm } = useFormStateMachine();
 
   const longAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Long);
   const shortAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Short);
@@ -111,7 +111,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
     const promises = [];
 
     if (work.abstracts.length <= 2) {
-      close();
+      closeForm();
     }
 
     if (!isDefaultId(shortAbstractId)) {

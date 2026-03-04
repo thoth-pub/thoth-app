@@ -6,7 +6,7 @@ import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 const EditReference = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
 
-  const { activeEntity: activeReference, update, close } = useReferenceStateMachine();
+  const { activeEntity: activeReference, update, finishEditing } = useReferenceStateMachine();
   const { updateReference } = useUpdateReference({ workId });
 
   const updateUrl = (url: string) => {
@@ -42,8 +42,8 @@ const EditReference = (props: BaseRecommendedSectionProps) => {
       onUrlUpdate={updateUrl}
       onDoiUpdate={updateDoi}
       onCitationUpdate={updateCitation}
-      onDone={close}
-      onClose={close}
+      onDone={finishEditing}
+      onClose={finishEditing}
     />
   );
 };

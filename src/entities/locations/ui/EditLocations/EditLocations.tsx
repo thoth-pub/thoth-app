@@ -37,15 +37,15 @@ type EditLocationsProps = {
 const EditLocations = (props: EditLocationsProps) => {
   const { locations, isFullTextUrlHidden, onUpdate, onDelete } = props;
 
-  const { activeEntity: activeLocation, edit, close } = useLocationStateMachine();
-  const { activeFormId, edit: editForm, close: closeForm } = useFormStateMachine();
+  const { activeEntity: activeLocation, edit, finishEditing } = useLocationStateMachine();
+  const { activeFormId, edit: editForm, closeForm } = useFormStateMachine();
 
   const isEditingNewLocation = activeLocation && isDefaultId(activeLocation.id);
   const isLocationsFilled = locations.length > 0;
   const isEditingExistingLocation = activeLocation && locations.some((location) => location.id === activeLocation.id);
 
   const handleClose = () => {
-    close();
+    finishEditing();
     closeForm();
   };
 

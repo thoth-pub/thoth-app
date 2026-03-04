@@ -27,7 +27,7 @@ const EditFunding = (props: EditFundingProps) => {
 
   const {
     activeFunding,
-    close,
+    finishEditing,
     updateProject,
     updateProjectShortName,
     updateProgram,
@@ -59,8 +59,8 @@ const EditFunding = (props: EditFundingProps) => {
       onProgramUpdate={updateProgram}
       onGrantNumberUpdate={updateGrantNumber}
       onInstitutionUpdate={updateInstitution}
-      onDone={close}
-      onClose={close}
+      onDone={finishEditing}
+      onClose={finishEditing}
     />
   );
 };

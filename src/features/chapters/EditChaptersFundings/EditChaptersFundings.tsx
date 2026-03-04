@@ -31,7 +31,7 @@ type EditChaptersFundingsProps = Omit<BaseEditSectionProps, 'workId'> & {
 const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   const { chapters } = props;
 
-  const { activeEntity: activeFunding, edit, close, update } = useFundingStateMachine();
+  const { activeEntity: activeFunding, edit, finishEditing, update } = useFundingStateMachine();
 
   const isAllFundingsEmpty = chapters.every((chapter) => chapter.fundings.length === 0);
   const { uniqueFundings, deleteFundings } = useChaptersFundings(chapters);
@@ -71,7 +71,7 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
 
     if (!newFundings || newFundings.length === 0) return;
 
-    close();
+    finishEditing();
   };
 
   const updateProject = async (updatedFunding: FundingEntity) => {

@@ -16,15 +16,15 @@ const useFormStateMachine = () => {
     [actorRef],
   );
 
-  const close = useCallback(() => {
+  const closeForm = useCallback(() => {
     actorRef.send({ type: 'close' });
   }, [actorRef]);
 
   useUnmount(() => {
-    close();
+    closeForm();
   });
 
-  return { activeFormId, edit, close };
+  return { activeFormId, edit, closeForm };
 };
 
 export default useFormStateMachine;

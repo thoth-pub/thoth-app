@@ -29,7 +29,7 @@ export const ReferenceCardListItem = (props: ReferenceCardListItemProps) => {
       actions={<DeleteButton onClick={() => onDelete?.(id)} />}
     >
       <Typography className="cardItem normal-case">
-        {orderNumber} {unstructuredCitation}
+        {orderNumber}. {unstructuredCitation}
       </Typography>
       {doi && doi.length > 0 && <DoiPreview doi={doi} />}
     </CardListItem>

@@ -20,12 +20,12 @@ type UseAddNewContributionProps = BaseEditSectionProps & {
 export const useAddNewContribution = (props: UseAddNewContributionProps) => {
   const { workId, onCreate } = props;
 
-  const { activeEntity: activeContribution, update, close } = useContributionStateMachine();
+  const { activeEntity: activeContribution, update, finishEditing } = useContributionStateMachine();
   const { work, createContribution } = useWork(workId);
 
   const { contributor } = useContributor({ contributorId: activeContribution?.contributorId });
   const { updateContributor } = useUpdateContributor({
-    onError: () => close(),
+    onError: () => finishEditing(),
   });
 
   const updateContribution = (data: WorkContribution) => {
@@ -126,7 +126,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
       relatedWorkId: workId,
     });
 
-    close();
+    finishEditing();
   };
 
   const updateContributionAffiliations = (data: AffiliationsForm) => {
@@ -183,7 +183,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
 
   return {
     contribution: activeContribution,
-    close,
+    finishEditing,
     create,
     updateWebsiteUrl,
     updateOrcid,

@@ -20,7 +20,7 @@ type UseAddFundingProps = BaseEditSectionProps & {
 export const useAddFunding = (props: UseAddFundingProps) => {
   const { workId, onCreate } = props;
 
-  const { activeEntity: activeFunding, close } = useFundingStateMachine();
+  const { activeEntity: activeFunding, finishEditing } = useFundingStateMachine();
   const { createFunding } = useCreateFunding({
     workId,
   });
@@ -32,12 +32,12 @@ export const useAddFunding = (props: UseAddFundingProps) => {
 
     if (onCreate) {
       onCreate(funding);
-      close();
+      finishEditing();
       return;
     }
 
     createFunding(funding);
-    close();
+    finishEditing();
   };
 
   const updateProject = ({ projectName }: FundingProjectNameFormType) => {
@@ -72,7 +72,7 @@ export const useAddFunding = (props: UseAddFundingProps) => {
 
   return {
     funding,
-    close,
+    finishEditing,
     create,
     updateProject,
     updateProjectShortName,

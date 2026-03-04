@@ -45,7 +45,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
     preview,
   } = props;
 
-  const { activeFormId, edit, close } = useFormStateMachine();
+  const { activeFormId, edit, closeForm } = useFormStateMachine();
   const [showInfo, setShowInfo] = useState(false);
   const isActive = activeFormId === formId;
 
@@ -56,7 +56,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
   };
 
   const submit = (data: FieldValues) => {
-    close();
+    closeForm();
 
     onSubmit(data as T);
   };
@@ -64,7 +64,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
   const onClose = () => {
     if (!isActive) return;
 
-    close();
+    closeForm();
   };
 
   const handleShowInfo = () => {

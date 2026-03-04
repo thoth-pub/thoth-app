@@ -12,14 +12,14 @@ const NEW_CHAPTER_PREFIX = 'New Copy of ';
 
 export const useEditWorkChapters = (workId: WorkId) => {
   const { chapters, isFetching, isLoading } = useWorkChapters({ workId });
-  const { activeFormId, close } = useFormStateMachine();
+  const { activeFormId, closeForm } = useFormStateMachine();
   const { moveWorkRelation } = useWorkMoveRelation();
   const { createChapter } = useCreateWorkChapter({
     onCompleted: (chapter) => {
       edit([chapter]);
     },
   });
-  const { edit, close: closeWorkChaptersEdit } = useWorkChaptersStateMachine();
+  const { edit, finishEditing: finishEditingWorkChaptersEdit } = useWorkChaptersStateMachine();
 
   const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
 
@@ -113,12 +113,12 @@ export const useEditWorkChapters = (workId: WorkId) => {
 
   const closeMultipleChaptersEdit = () => {
     setSelectedChapters([]);
-    close();
-    closeWorkChaptersEdit();
+    closeForm();
+    finishEditingWorkChaptersEdit();
   };
 
   const doneMultipleChaptersEdit = () => {
-    closeWorkChaptersEdit();
+    finishEditingWorkChaptersEdit();
     closeMultipleChaptersEdit();
   };
 

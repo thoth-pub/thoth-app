@@ -23,7 +23,7 @@ import { selectCanonicalLocation } from '@/src/shared/utils/locations';
 export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
-  const { activeEntity: activePublication, close } = usePublicationsStateMachine();
+  const { activeEntity: activePublication, finishEditing } = usePublicationsStateMachine();
 
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
   const [file, setFile] = useState<File | null>(null);
@@ -36,7 +36,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
 
     await createPublication({ data: publication, file: file ?? undefined });
 
-    close();
+    finishEditing();
   };
 
   const updateType = (type: PublicationType) => {
@@ -185,7 +185,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   return {
     publication,
     loading,
-    close,
+    finishEditing,
     create,
     updateType,
     updateIsbn,

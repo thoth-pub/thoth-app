@@ -25,7 +25,7 @@ import {
 import { isDefaultId } from '@/src/shared/utils';
 
 const AddSet = () => {
-  const { activeEntity: activeSet, edit, close } = useSetStateMachine();
+  const { activeEntity: activeSet, edit, finishEditing } = useSetStateMachine();
   const { userImprintsOptions } = useUser();
   const { isImprintEditable } = useActivePublisherPermissions();
 
@@ -51,7 +51,7 @@ const AddSet = () => {
     if (!set || set.titles.length === 0) return;
 
     createSet({ data: set });
-    close();
+    finishEditing();
   };
 
   const updateImprint = (imprintId: string) => {
@@ -104,7 +104,7 @@ const AddSet = () => {
           <SpeedDialActions key={action.name} icon={action.icon} />
         ))}
       </SpeedDial>
-      <Modal open={open} onClose={close}>
+      <Modal open={open} onClose={finishEditing}>
         <ModalWrapper>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) uppercase">
@@ -112,7 +112,7 @@ const AddSet = () => {
             </Typography>
             <div className="flex gap-2">
               <SubmitButton onClick={submit} disabled={!set || (set && set.titles.length === 0)} />
-              <CloseButton onClose={close} />
+              <CloseButton onClose={finishEditing} />
             </div>
           </div>
           <Activity mode={set ? 'visible' : 'hidden'}>

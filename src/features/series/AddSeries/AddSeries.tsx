@@ -31,7 +31,7 @@ import {
 import { isDefaultId } from '@/src/shared/utils';
 
 const AddSeries = () => {
-  const { activeEntity: activeSeries, edit, close } = useSeriesStateMachine();
+  const { activeEntity: activeSeries, edit, finishEditing } = useSeriesStateMachine();
 
   const [series, setSeries] = useState(activeSeries);
   const { userImprintsOptions } = useUser();
@@ -68,7 +68,7 @@ const AddSeries = () => {
       description,
       url,
     });
-    close();
+    finishEditing();
   };
 
   const editSeries = () => {
@@ -140,7 +140,7 @@ const AddSeries = () => {
           <SpeedDialActions key={action.name} icon={action.icon} />
         ))}
       </SpeedDial>
-      <Modal open={open} onClose={close}>
+      <Modal open={open} onClose={finishEditing}>
         <ModalWrapper>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) uppercase">
@@ -148,7 +148,7 @@ const AddSeries = () => {
             </Typography>
             <div className="flex gap-2">
               <SubmitButton onClick={submit} />
-              <CloseButton onClose={close} />
+              <CloseButton onClose={finishEditing} />
             </div>
           </div>
           {series && (

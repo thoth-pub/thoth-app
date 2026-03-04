@@ -7,7 +7,7 @@ import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMach
 import { getDefaultPublication, isDefaultId } from '@/src/shared/utils';
 
 export const useEditPublications = (workId: WorkId) => {
-  const { activeEntity: activePublication, close, edit } = usePublicationsStateMachine();
+  const { activeEntity: activePublication, finishEditing, edit } = usePublicationsStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { work } = useWork(workId);
   const { deletePublication: deletePublicationMutation } = useDeletePublication({ workId });
@@ -18,19 +18,19 @@ export const useEditPublications = (workId: WorkId) => {
   const uploadDisabled = !work.doi || work.doi.length === 0 || !work.landingPage || work.landingPage.length === 0;
 
   const addPublication = () => {
-    if (activePublication) close();
+    if (activePublication) finishEditing();
 
     edit({ ...getDefaultPublication() });
   };
 
   const deletePublication = (id: string) => {
-    if (activePublication) close();
+    if (activePublication) finishEditing();
 
     deletePublicationMutation(id);
   };
 
   const editPublication = (id: string) => {
-    if (activePublication) close();
+    if (activePublication) finishEditing();
 
     const publication = work.publications.find((publication) => publication.id === id);
 

@@ -27,13 +27,13 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
   const { work, loading: workLoading } = useWork(workId);
   const router = useRouter();
 
-  const { close } = useFormStateMachine();
+  const { closeForm } = useFormStateMachine();
 
   const { isStatusEditable, isPublicationDateEditable, isWithdrawnDateEditable } = useActivePublisherPermissions();
 
   useEffect(() => {
     return () => {
-      close();
+      closeForm();
     };
   }, []);
 

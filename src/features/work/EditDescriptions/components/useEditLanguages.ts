@@ -17,7 +17,7 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
   const { workId, recommended, onUpdate, onDelete } = props;
 
   const { work } = useWork(workId);
-  const { close } = useFormStateMachine();
+  const { closeForm } = useFormStateMachine();
   const { createLanguage, updateLanguage, deleteLanguage: deleteLanguageMutation } = useLanguage({ workId });
 
   const showIndicator = recommended && work.languages.length === 0;
@@ -92,6 +92,6 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
     languages: work.languages ?? [],
     update,
     deleteLanguage,
-    close,
+    closeForm,
   };
 };

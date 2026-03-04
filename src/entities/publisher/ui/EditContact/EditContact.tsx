@@ -33,7 +33,7 @@ const EditContact = () => {
   const { user } = useUser();
   const { createContact } = useCreateContact(publisherId);
   const { deleteContact } = useDeleteContact(publisherId);
-  const { close } = useFormStateMachine();
+  const { closeForm } = useFormStateMachine();
 
   if (!activePublisher || !publisher) return null;
 
@@ -61,7 +61,7 @@ const EditContact = () => {
     if (!existingContact) return;
 
     deleteContact(existingContact.id);
-    close();
+    closeForm();
   };
 
   return (

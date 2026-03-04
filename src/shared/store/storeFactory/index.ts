@@ -54,13 +54,13 @@ export const createEntityStateMachine = <T>(id: string) => {
 
     const update = useCallback((entity: T) => actorRef.send({ type: 'activeEntity.update', entity }), [actorRef]);
 
-    const close = useCallback(() => actorRef.send({ type: 'close' }), [actorRef]);
+    const finishEditing = useCallback(() => actorRef.send({ type: 'close' }), [actorRef]);
 
     return {
       activeEntity,
       edit,
       update,
-      close,
+      finishEditing,
     };
   };
 

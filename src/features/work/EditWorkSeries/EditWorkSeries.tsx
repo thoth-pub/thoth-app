@@ -38,7 +38,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
 
   const { createIssue } = useCreateIssue();
   const { deleteIssue } = useDeleteIssue();
-  const { close } = useFormStateMachine();
+  const { closeForm } = useFormStateMachine();
 
   const placeholder =
     work.issues.length > 0
@@ -76,7 +76,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
     if (!issue) return;
 
     deleteIssue(issue.id);
-    close();
+    closeForm();
     setSearchValue('');
   };
 

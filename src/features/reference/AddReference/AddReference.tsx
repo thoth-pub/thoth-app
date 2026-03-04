@@ -11,7 +11,7 @@ import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 const AddReference = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
 
-  const { activeEntity: activeReference, close } = useReferenceStateMachine();
+  const { activeEntity: activeReference, finishEditing } = useReferenceStateMachine();
   const { work } = useWork(workId);
   const [reference, setReference] = useState<ReferenceEntity | null>(activeReference);
   const { createReference } = useCreateReference({ workId });
@@ -25,7 +25,7 @@ const AddReference = (props: BaseRecommendedSectionProps) => {
       ...reference,
       orderNumber: lastReferenceOrderNumber ? lastReferenceOrderNumber + 1 : 1,
     });
-    close();
+    finishEditing();
   };
 
   const updateUrl = (url: string) => {
@@ -60,7 +60,7 @@ const AddReference = (props: BaseRecommendedSectionProps) => {
         onDoiUpdate={updateDoi}
         onCitationUpdate={updateCitation}
         onDone={create}
-        onClose={close}
+        onClose={finishEditing}
       />
     </TableNewEntityFormWrapper>
   );

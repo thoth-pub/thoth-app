@@ -54,8 +54,8 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     onIsMainSubmit,
   } = props;
 
-  const { activeEntity: activeContribution, close } = useContributionStateMachine();
-  const { close: closeForm } = useFormStateMachine();
+  const { activeEntity: activeContribution, finishEditing } = useContributionStateMachine();
+  const { closeForm } = useFormStateMachine();
   const [contribution, setContribution] = useState(activeContribution);
   const { user } = useUser();
   const { moveAffiliation } = useMoveAffiliation({ workId });
@@ -76,7 +76,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? NOTIFICATIONS.CONTRIBUTOR_UPDATE_FAILED);
-      close();
+      finishEditing();
     },
   });
   const queryClient = useQueryClient();
@@ -308,7 +308,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     contribution,
     isOrchidEditionDisabled,
     isWebsiteUrlEditionDisabled,
-    close,
+    finishEditing,
     updateNames,
     updateType,
     updateBiography,

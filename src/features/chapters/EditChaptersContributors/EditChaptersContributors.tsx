@@ -33,7 +33,7 @@ type EditChaptersContributorsProps = Omit<BaseEditSectionProps, 'workId'> & {
 const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const { chapters } = props;
 
-  const { activeEntity: activeContribution, edit, update, close } = useContributionStateMachine();
+  const { activeEntity: activeContribution, edit, update, finishEditing } = useContributionStateMachine();
   const { uniqueContributors } = useChaptersUniqueContributors(chapters);
   const { affiliations } = useChaptersAffiliations(chapters);
 
@@ -58,7 +58,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const isNewContribution = activeContribution ? isDefaultId(activeContribution.id) : false;
 
   const handleNewContribution = () => {
-    close();
+    finishEditing();
   };
 
   const handleEdit = (id: ContributionId) => {
@@ -102,7 +102,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     const contributionsIds = sameContributions.map((contributions) => contributions.id);
 
     updateBulkAffiliations(data, contributionsIds);
-    close();
+    finishEditing();
   };
 
   const handleDeleteAffiliation = async (id: string, contributionId: ContributionId) => {

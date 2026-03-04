@@ -22,7 +22,7 @@ const EditSet = (props: EditSetProps) => {
   const { setId, isImprintEditable = false } = props;
 
   const { userImprintsOptions } = useUser();
-  const { close } = useSetStateMachine();
+  const { finishEditing } = useSetStateMachine();
 
   const { set } = useSet(setId);
   const { updateSet } = useUpdateSet();
@@ -95,7 +95,7 @@ const EditSet = (props: EditSetProps) => {
           <MarkdownRenderer markdown={getMainTitle(set.titles).title} />
         </Typography>
         <div className="flex gap-2">
-          <CloseButton onClose={close} />
+          <CloseButton onClose={finishEditing} />
         </div>
       </div>
       <div className="flex flex-col gap-(--default-gap)">

@@ -54,7 +54,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     preview,
   } = props;
 
-  const { activeFormId, edit, close } = useFormStateMachine();
+  const { activeFormId, edit, closeForm } = useFormStateMachine();
   const [formData, setFormData] = useState(defaultValues);
   const [showInfo, setShowInfo] = useState(false);
   const isActive = activeFormId === formId;
@@ -72,7 +72,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
   const submit = (data: FieldValues) => {
     setFormData(data as DefaultValues<T>);
 
-    close();
+    closeForm();
 
     onSubmit(data as T);
   };
@@ -80,7 +80,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
   const onClose = () => {
     if (!isActive) return;
 
-    close();
+    closeForm();
   };
 
   const handleShowInfo = () => {

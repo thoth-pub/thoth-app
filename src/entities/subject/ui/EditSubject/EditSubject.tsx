@@ -29,8 +29,8 @@ const formStyles =
   'w-full flex gap-2 bg-(--color-form-background) rounded-xl p-2 lg:border lg:border-(--color-form-border)';
 
 export const EditSubject = ({ workId }: BaseEditSectionProps) => {
-  const { activeEntity: activeSubject, close } = useSubjectStateMachine();
-  const { close: closeForm } = useFormStateMachine();
+  const { activeEntity: activeSubject, finishEditing } = useSubjectStateMachine();
+  const { closeForm } = useFormStateMachine();
   const { updateSubject } = useUpdateSubject({ workId });
 
   const fieldOptions = activeSubject ? fieldsOptions[activeSubject.type] : fieldsOptions[SubjectTypes.enum.Custom];
@@ -53,7 +53,7 @@ export const EditSubject = ({ workId }: BaseEditSectionProps) => {
 
   const onClose = () => {
     closeForm();
-    close();
+    finishEditing();
   };
 
   const onSubmit = (data: { subjectCode: { value: string; label: string } }) => {

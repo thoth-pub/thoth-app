@@ -21,15 +21,15 @@ type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'> & {
 const EditChapterModal = (props: EditChapterModalProps) => {
   const { onDone } = props;
 
-  const { activeWorkChapters, isSingleChapterSelected, close } = useWorkChaptersStateMachine();
-  const { close: closeContribution } = useContributionStateMachine();
-  const { close: closeFunding } = useFundingStateMachine();
+  const { activeWorkChapters, isSingleChapterSelected, finishEditing } = useWorkChaptersStateMachine();
+  const { finishEditing: finishEditingContribution } = useContributionStateMachine();
+  const { finishEditing: finishEditingFunding } = useFundingStateMachine();
 
   useEffect(() => {
     return () => {
-      close();
-      closeContribution();
-      closeFunding();
+      finishEditing();
+      finishEditingContribution();
+      finishEditingFunding();
     };
   }, []);
 
@@ -39,15 +39,16 @@ const EditChapterModal = (props: EditChapterModalProps) => {
 
   const handleDone = () => {
     onDone?.();
-    close();
-    closeContribution();
+    finishEditing();
+    finishEditingContribution();
+    finishEditingFunding();
   };
 
   return (
     <FullScreenModal
       title={<TranslatedContent content="actions.editChapter" />}
       isOpen={isSingleChapterSelected}
-      onClose={close}
+      onClose={finishEditing}
       onDone={handleDone}
     >
       <EditChapterBasicDetails workId={chapter.id} />

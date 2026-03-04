@@ -19,14 +19,14 @@ import { IssuesList } from '../../work/EditWorkSeries/components/IssuesList';
 import { AddBookModal } from './components/AddBookModal';
 
 const EditSeries = () => {
-  const { activeEntity: activeSeries, close } = useSeriesStateMachine();
+  const { activeEntity: activeSeries, finishEditing } = useSeriesStateMachine();
   const { userImprintsOptions } = useUser();
   const { series, loading, fetching } = useSeries({ seriesId: activeSeries?.id ?? '' });
   const { updateSeries } = useUpdateSeries();
   const { isImprintEditable } = useActivePublisherPermissions();
 
   const done = () => {
-    close();
+    finishEditing();
   };
 
   const updateType = (data: SeriesTypeFormType) => {
@@ -91,7 +91,7 @@ const EditSeries = () => {
         </Typography>
         <div className="flex gap-2">
           <SubmitButton onClick={done} />
-          <CloseButton onClose={close} />
+          <CloseButton onClose={finishEditing} />
         </div>
       </div>
       {series && (

@@ -26,9 +26,9 @@ type EditChaptersModalProps = BaseEditSectionProps & {
 const EditChaptersModal = (props: EditChaptersModalProps) => {
   const { workId, title, onClose, onDone } = props;
 
-  const { activeWorkChapters, isMultipleChaptersSelected, update, close } = useWorkChaptersStateMachine();
-  const { close: closeContribution } = useContributionStateMachine();
-  const { close: closeFunding } = useFundingStateMachine();
+  const { activeWorkChapters, isMultipleChaptersSelected, update, finishEditing } = useWorkChaptersStateMachine();
+  const { finishEditing: finishEditingContribution } = useContributionStateMachine();
+  const { finishEditing: finishEditingFunding } = useFundingStateMachine();
   const { updateLanguages, deleteLanguages } = useChaptersLanguages();
 
   const initValue = activeWorkChapters && activeWorkChapters.length > 0 ? activeWorkChapters : null;
@@ -50,9 +50,9 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   useEffect(() => {
     return () => {
-      close();
-      closeContribution();
-      closeFunding();
+      finishEditing();
+      finishEditingContribution();
+      finishEditingFunding();
     };
   }, []);
 
@@ -64,16 +64,16 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   const handleDone = () => {
     onDone?.();
-    close();
-    closeContribution();
-    closeFunding();
+    finishEditing();
+    finishEditingContribution();
+    finishEditingFunding();
   };
 
   const handleClose = () => {
     onClose?.();
-    close();
-    closeContribution();
-    closeFunding();
+    finishEditing();
+    finishEditingContribution();
+    finishEditingFunding();
   };
 
   const onLicenseUpdate = async (data: LicenseAndCopyrightHolderForm) => {
