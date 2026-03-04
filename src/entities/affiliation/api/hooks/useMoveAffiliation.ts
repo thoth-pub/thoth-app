@@ -24,7 +24,7 @@ const useMoveAffiliation = (props: BaseEditSectionProps) => {
       if (workId.length === 0) return;
 
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters, workId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? AFFILIATION_MOVE_FAILED);

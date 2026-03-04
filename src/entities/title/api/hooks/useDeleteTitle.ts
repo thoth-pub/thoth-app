@@ -21,7 +21,7 @@ const useDeleteTitle = (workId: WorkId) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.set, workId] });
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters, workId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workTranslations, workId] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.translatedWorks, workId] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workEditions, workId] });

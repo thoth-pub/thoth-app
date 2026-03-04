@@ -1,10 +1,12 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect } from 'react';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useFundingStateMachine } from '@/src/entities/funding/store/funding.store';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
+import { QueryKeys } from '@/src/shared/constants';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 import { TranslatedContent } from '@/src/shared/ui';
 
@@ -21,6 +23,7 @@ type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'> & {
 const EditChapterModal = (props: EditChapterModalProps) => {
   const { onDone } = props;
 
+  const queryClient = useQueryClient();
   const { activeWorkChapters, isSingleChapterSelected, finishEditing } = useWorkChaptersStateMachine();
   const { finishEditing: finishEditingContribution } = useContributionStateMachine();
   const { finishEditing: finishEditingFunding } = useFundingStateMachine();
@@ -37,18 +40,26 @@ const EditChapterModal = (props: EditChapterModalProps) => {
 
   const chapter = activeWorkChapters[0];
 
+  const invalidateChapters = () => {
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+  };
+
   const handleDone = () => {
     onDone?.();
     finishEditing();
     finishEditingContribution();
     finishEditingFunding();
+    invalidateChapters();
   };
 
   return (
     <FullScreenModal
       title={<TranslatedContent content="actions.editChapter" />}
       isOpen={isSingleChapterSelected}
-      onClose={finishEditing}
+      onClose={() => {
+        finishEditing();
+        invalidateChapters();
+      }}
       onDone={handleDone}
     >
       <EditChapterBasicDetails workId={chapter.id} />

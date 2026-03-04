@@ -95,6 +95,8 @@ export const useEditWorkChapters = (workId: WorkId) => {
         ...newTitles[0],
         canonical: true,
         title: `${NEW_CHAPTER_PREFIX} ${newTitles[0].title}`,
+        fullTitle: `${NEW_CHAPTER_PREFIX} ${newTitles[0].fullTitle}`,
+        subtitle: `${NEW_CHAPTER_PREFIX} ${newTitles[0].subtitle}`,
       };
     }
 
@@ -118,7 +120,6 @@ export const useEditWorkChapters = (workId: WorkId) => {
   };
 
   const doneMultipleChaptersEdit = () => {
-    finishEditingWorkChaptersEdit();
     closeMultipleChaptersEdit();
   };
 

@@ -21,7 +21,7 @@ export const useUpdateBiography = (workId: WorkId) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters, workId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? BIOGRAPHY_UPDATE_FAILED);
