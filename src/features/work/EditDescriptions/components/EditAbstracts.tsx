@@ -39,25 +39,21 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const placeholderValue =
     shortAbstractContent.length > 0 ? `${longAbstractContent} \n ${shortAbstractContent}` : longAbstractContent;
 
-  const defaultValues = longAbstracts.map(({ id, localeCode, content }) => {
+  const uniqueLocales = [...new Set(work.abstracts.map(({ localeCode }) => localeCode))];
+
+  const defaultValues = uniqueLocales.map((localeCode) => {
     const language = languageOptionsAlt.find((option) => option.value.toLowerCase() === localeCode.toLowerCase());
 
-    const defaultValue = {
-      longAbstractId: id,
-      shortAbstractId: appConfig.defaultId,
-      abstract: content,
-      shortAbstract: '',
-      language: language ?? languageOptionsAlt[0],
-    };
-
+    const longAbstract = longAbstracts.find((abstract) => abstract.localeCode === localeCode);
     const shortAbstract = shortAbstracts.find((abstract) => abstract.localeCode === localeCode);
 
-    if (shortAbstract) {
-      defaultValue.shortAbstractId = shortAbstract.id;
-      defaultValue.shortAbstract = shortAbstract.content;
-    }
-
-    return defaultValue;
+    return {
+      longAbstractId: longAbstract?.id ?? appConfig.defaultId,
+      shortAbstractId: shortAbstract?.id ?? appConfig.defaultId,
+      abstract: longAbstract?.content ?? '',
+      shortAbstract: shortAbstract?.content ?? '',
+      language: language ?? languageOptionsAlt[0],
+    };
   });
 
   const handleSubmit = async (data: WorkAbstractsForm) => {
@@ -69,8 +65,14 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
 
     const createPromises: Promise<AbstractEntity>[] = [];
 
-    abstracts.forEach(({ abstract, shortAbstract, language }, index) => {
+    let firstLongAbstractFound = false;
+    let firstShortAbstractFound = false;
+
+    abstracts.forEach(({ abstract, shortAbstract, language }) => {
       if (abstract && abstract.length > 0) {
+        const canonical = !firstLongAbstractFound;
+        firstLongAbstractFound = true;
+
         createPromises.push(
           createAbstract({
             data: {
@@ -78,13 +80,16 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
               content: abstract,
               localeCode: language.value as LocaleCodeType,
               type: AbstractTypes.enum.Long,
-              canonical: index === 0,
+              canonical,
             },
           }),
         );
       }
 
       if (shortAbstract && shortAbstract.length > 0) {
+        const canonical = !firstShortAbstractFound;
+        firstShortAbstractFound = true;
+
         createPromises.push(
           createAbstract({
             data: {
@@ -92,7 +97,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
               content: shortAbstract,
               localeCode: language.value as LocaleCodeType,
               type: AbstractTypes.enum.Short,
-              canonical: false,
+              canonical,
             },
           }),
         );
@@ -105,7 +110,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const deleteAbstracts = async (shortAbstractId: AbstractId, longAbstractId: AbstractId) => {
     const promises = [];
 
-    if (work.abstracts.length === 2) {
+    if (work.abstracts.length <= 2) {
       close();
     }
 
