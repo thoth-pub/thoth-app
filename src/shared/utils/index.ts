@@ -4,6 +4,7 @@ export * from './convertations/dimensions';
 export * from './convertations/formFields';
 export * from './convertations/romans';
 export * from './data';
+export * from './defaultValues';
 export * from './fieldsOption/accessibilityExceptionOptions';
 export * from './fieldsOption/contributorTypeOptions';
 export * from './fieldsOption/languageRelationOptions';

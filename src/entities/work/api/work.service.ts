@@ -194,6 +194,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       work.publications = createdPublications;
     }
 
+    // TODO: skip during revert logic update
     if (shouldCreateLanguages) {
       const languagesPromises = data.languages.map((language) =>
         this.languageService.createLanguage(language, work.id),

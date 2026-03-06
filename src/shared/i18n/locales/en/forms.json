@@ -329,6 +329,26 @@
     "label": "Imprint",
     "helperText": "Enter name of the imprint."
   },
+  "imprintUrl": {
+    "label": "Imprint URL",
+    "helperText": "Enter the URL of the imprint."
+  },
+  "crossmarkDoi": {
+    "label": "Crossmark DOI",
+    "helperText": "Enter the Crossmark DOI for this imprint."
+  },
+  "defaultPlace": {
+    "label": "Default Place",
+    "helperText": "Enter the default place of work."
+  },
+  "defaultCurrency": {
+    "label": "Default Currency",
+    "helperText": "Select the default currency for this imprint."
+  },
+  "defaultLocale": {
+    "label": "Default Language",
+    "helperText": "Select the default language for this imprint."
+  },
   "publicationFile": {
     "label": "File",
     "helperText": "Upload the publication file."

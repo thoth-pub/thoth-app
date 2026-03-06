@@ -15,6 +15,10 @@ export const UPDATE_IMPRINT = graphql(`
       imprintName
       imprintUrl
       updatedAt
+      crossmarkDoi
+      defaultCurrency
+      defaultLocale
+      defaultPlace
       publisher {
         publisherName
       }

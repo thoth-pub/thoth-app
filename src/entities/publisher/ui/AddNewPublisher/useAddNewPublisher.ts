@@ -59,7 +59,7 @@ export const useAddNewPublisher = () => {
 
     if (newPublisher) {
       changeActivePublisher(newPublisher);
-      router.push(ROUTES.PROFILE);
+      router.push(ROUTES.PUBLISHER);
     }
 
     setIsOpen(false);

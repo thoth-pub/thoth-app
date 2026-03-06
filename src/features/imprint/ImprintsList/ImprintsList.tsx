@@ -24,7 +24,7 @@ const ImprintsList = () => {
         {data.map((imprint) => (
           <li key={imprint.id}>
             <EditImprint
-              defaultValue={imprint.name}
+              imprint={imprint}
               id={imprint.id}
               deleteDisabled={data.length <= 1}
               disabled={!isImprintEditable}

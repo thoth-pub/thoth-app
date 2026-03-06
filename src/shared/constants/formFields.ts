@@ -114,6 +114,36 @@ export const FORM_FIELDS = {
     errorMessage: IMPRINT_REQUIRED,
     defaultValue: '',
   },
+  IMPRINT_URL: {
+    label: 'imprintUrl.label',
+    name: 'imprintUrl',
+    placeholder: 'imprintUrl.label',
+    type: InputTypes.URL,
+  },
+  CROSSMARK_DOI: {
+    label: 'crossmarkDoi.label',
+    name: 'crossmarkDoi',
+    placeholder: 'crossmarkDoi.label',
+    type: InputTypes.URL,
+  },
+  DEFAULT_PLACE: {
+    label: 'defaultPlace.label',
+    name: 'defaultPlace',
+    placeholder: 'defaultPlace.label',
+    type: InputTypes.TEXT,
+  },
+  DEFAULT_CURRENCY: {
+    label: 'defaultCurrency.label',
+    name: 'defaultCurrency',
+    placeholder: 'defaultCurrency.label',
+    type: InputTypes.TEXT,
+  },
+  DEFAULT_LOCALE: {
+    label: 'defaultLocale.label',
+    name: 'defaultLocale',
+    placeholder: 'defaultLocale.label',
+    type: InputTypes.TEXT,
+  },
   WORK_TYPE: {
     label: 'wortType.label',
     name: 'workType',

@@ -1,3 +1,4 @@
+import type { CurrencyCode, LocaleCode } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
@@ -59,9 +60,31 @@ export class ImprintService extends BaseService<ImprintEntity, ImprintDto, Impri
     await this.graphqlService.mutation(CREATE_IMPRINT, { data });
   }
 
-  async updateImprint(data: { name: string; id: ImprintId }, publisherId: PublisherId) {
+  async updateImprint(
+    data: {
+      name: string;
+      id: ImprintId;
+      url?: string;
+      crossmarkDoi?: string;
+      defaultPlace?: string;
+      defaultCurrency?: CurrencyCode;
+      defaultLocale?: LocaleCode;
+    },
+    publisherId: PublisherId,
+  ) {
+    const { name, id, url, crossmarkDoi, defaultPlace, defaultCurrency, defaultLocale } = data;
+
     const result = await this.graphqlService.mutation(UPDATE_IMPRINT, {
-      data: { imprintName: data.name, imprintId: data.id, publisherId },
+      data: {
+        imprintName: name,
+        imprintId: id,
+        publisherId,
+        imprintUrl: url && url.length > 0 ? url : null,
+        crossmarkDoi: crossmarkDoi && crossmarkDoi.length > 0 ? crossmarkDoi : null,
+        defaultPlace: defaultPlace && defaultPlace.length > 0 ? defaultPlace : null,
+        defaultCurrency: defaultCurrency && defaultCurrency.length > 0 ? defaultCurrency : null,
+        defaultLocale: defaultLocale && defaultLocale.length > 0 ? defaultLocale : null,
+      },
     });
 
     const imprint = this.dtoMapper.toEntity(result.updateImprint as ImprintDto);

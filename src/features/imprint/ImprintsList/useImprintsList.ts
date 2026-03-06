@@ -1,5 +1,6 @@
 'use client';
 
+import type { CurrencyCode, LocaleCode } from '@/gql/graphql';
 import {
   ImprintId,
   useCreateImprint,
@@ -12,6 +13,16 @@ import { appConfig } from '@/src/shared/config';
 import { IDs } from '@/src/shared/constants';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import { isDefaultId } from '@/src/shared/utils';
+
+type ImprintFormData = {
+  imprintId: string;
+  imprintName: string;
+  imprintUrl: string;
+  crossmarkDoi: string;
+  defaultPlace: string;
+  defaultCurrency: CurrencyCode;
+  defaultLocale: LocaleCode;
+};
 
 export const useImprintsList = () => {
   const { isImprintEditable } = useActivePublisherPermissions();
@@ -30,15 +41,26 @@ export const useImprintsList = () => {
     edit(defaultImprintId);
   };
 
-  const createImprint = async ({ imprintName }: { imprintName: string }) => {
+  const createImprint = async ({ imprintName }: ImprintFormData) => {
     if (!activePublisher) return;
 
     await createImprintMutation({ publisherId: activePublisher.id, imprintName });
     closeForm();
   };
 
-  const updateImprint = async ({ imprintName, imprintId }: { imprintName: string; imprintId: ImprintId }) => {
-    await updateImprintMutation({ data: { name: imprintName, id: imprintId }, publisherId });
+  const updateImprint = async (formData: ImprintFormData) => {
+    await updateImprintMutation({
+      data: {
+        name: formData.imprintName,
+        id: formData.imprintId,
+        url: formData.imprintUrl,
+        crossmarkDoi: formData.crossmarkDoi,
+        defaultPlace: formData.defaultPlace,
+        defaultCurrency: formData.defaultCurrency,
+        defaultLocale: formData.defaultLocale,
+      },
+      publisherId,
+    });
     closeForm();
   };
 
