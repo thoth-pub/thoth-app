@@ -1,5 +1,6 @@
 import { assign, setup } from 'xstate';
 
+import type { ImprintEntity } from '../../imprint';
 import type { PublisherId } from '../model/publisher.types';
 
 export type LinkedPublisher = {
@@ -8,6 +9,7 @@ export type LinkedPublisher = {
   publisherAdmin: boolean;
   workLifecycle: boolean;
   cdnWrite: boolean;
+  imprints: ImprintEntity[];
 };
 
 export type PublisherContext = {

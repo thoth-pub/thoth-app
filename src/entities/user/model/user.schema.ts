@@ -15,6 +15,12 @@ export const GET_USER = graphql(`
           imprints {
             imprintId
             imprintName
+            imprintUrl
+            updatedAt
+            crossmarkDoi
+            defaultCurrency
+            defaultLocale
+            defaultPlace
           }
         }
         permissions {

@@ -1,5 +1,7 @@
 import { GetUserQuery } from '@/gql/graphql';
 
+import { ImprintEntity } from '../../imprint';
+
 export type UserDto = GetUserQuery['me'];
 
 export type UserEntity = {
@@ -14,9 +16,6 @@ export type UserEntity = {
     publisherAdmin: boolean;
     workLifecycle: boolean;
     cdnWrite: boolean;
-    imprints: {
-      imprintId: string;
-      imprintName: string;
-    }[];
+    imprints: ImprintEntity[];
   }[];
 };

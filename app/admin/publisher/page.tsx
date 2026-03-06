@@ -1,5 +1,5 @@
 import { Profile } from '@/src/widgets';
 
-export default async function NewWorkPage() {
+export default async function PublisherPage() {
   return <Profile />;
 }

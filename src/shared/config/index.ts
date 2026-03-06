@@ -1,3 +1,5 @@
+import { CurrencyCode } from '../constants/currencies';
+import { LanguageTypeAlt } from '../constants/languages';
 import { DAY } from '../constants/time';
 
 export const appConfig = {
@@ -62,5 +64,9 @@ export const appConfig = {
   persistentStorage: {
     prefix: 'thoth_app',
     activePublisherIdKey: 'activePublisherIdKey',
+  },
+  publisherDefaultValues: {
+    defaultCurrency: CurrencyCode.enum.Gbp,
+    defaultLocale: LanguageTypeAlt.enum.En,
   },
 };

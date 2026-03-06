@@ -18,9 +18,9 @@ import { TitleService } from '@/src/entities/title/api/title.service';
 import { UserService } from '@/src/entities/user';
 import { WorkService } from '@/src/entities/work/api/work.service';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
-import { FileStorage } from '@/src/shared/services';
 import { ROUTES } from '@/src/shared/constants';
 import { authOptions } from '@/src/shared/lib/auth/auth';
+import { FileStorage } from '@/src/shared/services';
 import { EditWorkWidget } from '@/src/widgets';
 
 type WorksPageParams = Promise<{
@@ -76,7 +76,7 @@ export default async function WorkPage({ params }: { params: WorksPageParams }) 
   const userData = await userService.getUser();
 
   const isUsersImprint = userData.linkedPublishers.some((publisher) =>
-    publisher.imprints.some((imprint) => imprint.imprintId === work.imprintId),
+    publisher.imprints.some((imprint) => imprint.id === work.imprintId),
   );
 
   if (!isUsersImprint && !userData.isSuperuser) {

@@ -29,7 +29,7 @@ export const PAGES = [
   },
   {
     name: 'publisher',
-    href: ROUTES.PROFILE,
+    href: ROUTES.PUBLISHER,
     icon: PermIdentityRoundedIcon,
   },
 ];

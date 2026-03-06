@@ -1,10 +1,20 @@
 import z from 'zod';
 
-import type { Imprint, Publisher } from '@/gql/graphql';
+import type { CurrencyCode, Imprint, LocaleCode, Publisher } from '@/gql/graphql';
 
 import { imprintValidationSchema } from './imprint.validation';
 
-export type ImprintDto = Pick<Imprint, 'imprintId' | 'imprintName' | 'imprintUrl' | 'updatedAt'> & {
+export type ImprintDto = Pick<
+  Imprint,
+  | 'imprintId'
+  | 'imprintName'
+  | 'imprintUrl'
+  | 'updatedAt'
+  | 'crossmarkDoi'
+  | 'defaultCurrency'
+  | 'defaultLocale'
+  | 'defaultPlace'
+> & {
   publisher: Pick<Publisher, 'publisherName'>;
 };
 
@@ -16,6 +26,10 @@ export type ImprintEntity = {
   url: string;
   updatedAt: string;
   publisherName: string;
+  crossmarkDoi: string;
+  defaultCurrency: CurrencyCode;
+  defaultLocale: LocaleCode;
+  defaultPlace: string;
 };
 
 export type ImprintForm = z.infer<typeof imprintValidationSchema>;

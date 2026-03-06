@@ -14,7 +14,7 @@ export const ROUTES = {
   WORK_PAGE: (id: string) => `/admin/works/${id}`,
   WORKS: '/admin/works',
   SERIES: '/admin/series',
-  PROFILE: '/admin/profile',
+  PUBLISHER: '/admin/publisher',
   NOT_FOUND: '/not-found',
   BOOKS_SETS: '/admin/sets',
   METADATA_FORMATS: '/api/metadata/formats',

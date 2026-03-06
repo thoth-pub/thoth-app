@@ -33,19 +33,19 @@ const useUser = () => {
     enabled: token.length > 0,
   });
 
-  const userImprintsMap = new Map<string, { imprintId: string; imprintName: string }>();
+  const userImprintsMap = new Map<string, { id: string; name: string }>();
 
   user.linkedPublishers.forEach((publisher) => {
     if (!activePublisher || activePublisher.id !== publisher.publisherId) return;
 
     publisher.imprints.forEach((imprint) => {
-      userImprintsMap.set(imprint.imprintId, imprint);
+      userImprintsMap.set(imprint.id, imprint);
     });
   });
 
   const userImprints = Array.from(userImprintsMap.values()).map((imprint) => ({
-    id: imprint.imprintId,
-    name: imprint.imprintName,
+    id: imprint.id,
+    name: imprint.name,
   }));
 
   const userImprintsOptions = convertEntityToSelectFieldOptions(userImprints, 'name');

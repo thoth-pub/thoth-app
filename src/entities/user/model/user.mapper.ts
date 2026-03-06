@@ -1,6 +1,9 @@
+import { appConfig } from '@/src/shared/config';
 import type { BaseMapper } from '@/src/shared/interfaces';
 
 import { UserDto, UserEntity } from './user.types';
+
+const { publisherDefaultValues } = appConfig;
 
 export class UserDtoMapper implements BaseMapper<UserEntity, UserDto> {
   toEntity(dto: UserDto): UserEntity {
@@ -18,16 +21,34 @@ export class UserDtoMapper implements BaseMapper<UserEntity, UserDto> {
         publisherAdmin: permissions.publisherAdmin,
         workLifecycle: permissions.workLifecycle,
         cdnWrite: permissions.cdnWrite,
-        imprints: publisher.imprints.map(({ imprintId, imprintName }) => ({
-          imprintId,
-          imprintName,
-        })),
+        imprints: publisher.imprints.map(
+          ({
+            imprintId,
+            imprintName,
+            imprintUrl,
+            updatedAt,
+            crossmarkDoi,
+            defaultCurrency,
+            defaultLocale,
+            defaultPlace,
+          }) => ({
+            id: imprintId,
+            name: imprintName,
+            url: imprintUrl ?? '',
+            updatedAt,
+            publisherName: publisher.publisherName,
+            crossmarkDoi: crossmarkDoi ?? '',
+            defaultCurrency: defaultCurrency ?? publisherDefaultValues.defaultCurrency,
+            defaultLocale: defaultLocale ?? publisherDefaultValues.defaultLocale,
+            defaultPlace: defaultPlace ?? '',
+          }),
+        ),
       })),
     };
   }
 
-  toDto(entity: UserEntity): UserDto {
-    const { id, email, firstName, lastName, isSuperuser, linkedPublishers } = entity;
+  toDto(entity: UserEntity): Omit<UserDto, 'publisherContexts'> {
+    const { id, email, firstName, lastName, isSuperuser } = entity;
 
     return {
       userId: id,
@@ -35,21 +56,6 @@ export class UserDtoMapper implements BaseMapper<UserEntity, UserDto> {
       firstName: firstName && firstName.length > 0 ? firstName : null,
       lastName: lastName && lastName.length > 0 ? lastName : null,
       isSuperuser,
-      publisherContexts: linkedPublishers.map((publisher) => ({
-        publisher: {
-          publisherId: publisher.publisherId,
-          publisherName: publisher.publisherName,
-          imprints: publisher.imprints.map(({ imprintId, imprintName }) => ({
-            imprintId,
-            imprintName,
-          })),
-        },
-        permissions: {
-          publisherAdmin: publisher.publisherAdmin,
-          workLifecycle: publisher.workLifecycle,
-          cdnWrite: publisher.cdnWrite,
-        },
-      })),
     };
   }
 }

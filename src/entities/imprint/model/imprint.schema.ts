@@ -13,6 +13,7 @@ export const GET_IMPRINTS = graphql(`
       imprintName
       imprintUrl
       updatedAt
+      crossmarkDoi
       publisher {
         publisherName
       }

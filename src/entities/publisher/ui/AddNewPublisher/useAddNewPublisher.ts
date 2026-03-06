@@ -40,6 +40,7 @@ export const useAddNewPublisher = () => {
 
   const createNewPublisher = async (data: NewPublisherForm) => {
     const { publisherName } = data;
+
     const publisherId = await createPublisher(publisherName);
     await createImprint({ publisherId, imprintName: publisherName });
     const { data: user } = await refetch();
