@@ -33,6 +33,7 @@ export const GET_BOOKS_COUNT = graphql(`
     $workStatus: WorkStatus
     $updatedAtWithRelations: TimeExpression
     $publicationDate: TimeExpression
+    $workStatuses: [WorkStatus!]
   ) {
     bookCount(
       publishers: $publishers
@@ -40,6 +41,7 @@ export const GET_BOOKS_COUNT = graphql(`
       workStatus: $workStatus
       updatedAtWithRelations: $updatedAtWithRelations
       publicationDate: $publicationDate
+      workStatuses: $workStatuses
     )
   }
 `);

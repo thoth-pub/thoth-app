@@ -1,8 +1,15 @@
-import { Expression } from '@/gql/graphql';
+import { Expression, WorkStatus } from '@/gql/graphql';
 import { useBooksCount } from '@/src/entities/book';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 
-export const useBooksCountByMonth = (date: string) => {
+type UseBooksCountByMonthProps = {
+  date: string;
+  workStatuses: WorkStatus[];
+};
+
+export const useBooksCountByMonth = (props: UseBooksCountByMonthProps) => {
+  const { date, workStatuses } = props;
+
   const { activePublisher } = usePublisherStateMachine();
   const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
 
@@ -10,6 +17,7 @@ export const useBooksCountByMonth = (date: string) => {
     publishersIds,
     publishedAt: date,
     expression: Expression.GreaterThan,
+    workStatuses,
   });
 
   return { bookCount, isFetched };

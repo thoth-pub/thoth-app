@@ -55,17 +55,20 @@ export class BookService extends BaseService<WorkEntity, WorkDto> {
     expression,
     publishedAt,
     workStatus,
+    workStatuses,
   }: {
     publishersIds: PublisherId[];
     filter?: string;
     expression?: Expression;
     publishedAt?: string;
     workStatus?: WorkStatus;
+    workStatuses?: WorkStatus[];
   }): Promise<number> {
     const { bookCount = 0 } = await this.graphqlService.query(GET_BOOKS_COUNT, {
       publishers: publishersIds,
       filter,
       workStatus,
+      workStatuses,
       ...(publishedAt && expression ? { publicationDate: { timestamp: publishedAt, expression } } : {}),
     });
 
