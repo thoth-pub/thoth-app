@@ -16,6 +16,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
 
   const {
     contribution,
+    defaultLocaleOption,
     finishEditing,
     create,
     updateNames,
@@ -35,6 +36,7 @@ const AddNewContribution = (props: AddNewContributionProps) => {
       <ContributionForms
         showRecommendations={recommended}
         contribution={contribution}
+        defaultLocaleOption={defaultLocaleOption}
         onNamesSubmit={updateNames}
         onContributorTypeSubmit={updateContributorType}
         onBiographySubmit={updateBiography}

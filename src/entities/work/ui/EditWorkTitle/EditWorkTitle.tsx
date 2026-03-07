@@ -6,6 +6,7 @@ import { useWork } from '@/src/entities/work';
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { workTitlesValidationSchema } from '@/src/entities/work/model/work.validation';
 import { FORM_FIELDS, HELPER_TEXT, IDs, languageOptionsAlt, QueryKeys } from '@/src/shared/constants';
+import { useDefaultLocaleOption } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { BaseRecommendedSectionProps, TitleEntity } from '@/src/shared/types';
 import type { LocaleCodeType } from '@/src/shared/types/languages';
@@ -36,6 +37,8 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
   const { workId, recommended = false, withEdition = true } = props;
 
   const { work, updateWork } = useWork(workId);
+
+  const defaultLocaleOption = useDefaultLocaleOption(work.imprintId);
 
   const queryClient = useQueryClient();
   const { createTitle } = useCreateTitle();
@@ -135,6 +138,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
         <MultipleContentWrapper>
           <TitlesFormFields
             control={control as unknown as Control<WorkTitlesForm>}
+            defaultLocaleOption={defaultLocaleOption}
             recommended={showIndicator}
             isHelperTextVisible={isHelperTextVisible}
             onDelete={deleteTitle}

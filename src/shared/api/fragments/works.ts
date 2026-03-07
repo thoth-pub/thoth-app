@@ -29,6 +29,7 @@ export const WORK_FRAGMENT = graphql(`
     withdrawnDate
     place
     imprint {
+      imprintName
       publisher {
         publisherName
       }

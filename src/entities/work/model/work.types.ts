@@ -61,6 +61,7 @@ export type WorkEntity = {
   abstracts: AbstractEntity[];
   place: string;
   publisherName: string;
+  imprintName: string;
   imprintId: string;
   status: WorkStatus;
   relationId: string | null;

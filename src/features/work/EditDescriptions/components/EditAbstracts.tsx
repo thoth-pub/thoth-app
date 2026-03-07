@@ -9,6 +9,7 @@ import { workAbstractsValidationSchema } from '@/src/entities/work/model/work.va
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS, IDs, languageOptionsAlt, QueryKeys } from '@/src/shared/constants';
 import { AbstractTypes } from '@/src/shared/constants/abstracts';
+import { useDefaultLocaleOption } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import type { AbstractEntity, AbstractId, BaseRecommendedSectionProps, LocaleCodeType } from '@/src/shared/types';
 import { Chip, MarkdownRenderer, Preview, Typography } from '@/src/shared/ui';
@@ -27,6 +28,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const { createAbstract } = useCreateAbstract(workId);
   const { deleteAbstract } = useDeleteAbstract(workId);
   const { activeFormId, closeForm } = useFormStateMachine();
+  const defaultLocaleOption = useDefaultLocaleOption(work.imprintId);
 
   const longAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Long);
   const shortAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Short);
@@ -52,7 +54,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
       shortAbstractId: shortAbstract?.id ?? appConfig.defaultId,
       abstract: longAbstract?.content ?? '',
       shortAbstract: shortAbstract?.content ?? '',
-      language: language ?? languageOptionsAlt[0],
+      language: language ?? defaultLocaleOption,
     };
   });
 
@@ -139,6 +141,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
         <AbstractsFormFields
           control={control as unknown as Control<WorkAbstractsForm>}
           isHelperTextVisible={isHelperTextVisible}
+          defaultLocaleOption={defaultLocaleOption}
           onDelete={deleteAbstracts}
         />
       )}

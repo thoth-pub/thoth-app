@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 
+import { ImprintEntity } from '@/src/entities/imprint';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
@@ -33,7 +34,7 @@ const useUser = () => {
     enabled: token.length > 0,
   });
 
-  const userImprintsMap = new Map<string, { id: string; name: string }>();
+  const userImprintsMap = new Map<string, ImprintEntity>();
 
   user.linkedPublishers.forEach((publisher) => {
     if (!activePublisher || activePublisher.id !== publisher.publisherId) return;
@@ -43,14 +44,16 @@ const useUser = () => {
     });
   });
 
-  const userImprints = Array.from(userImprintsMap.values()).map((imprint) => ({
+  const userImprints = Array.from(userImprintsMap.values());
+
+  const userImprintsFieldValues = userImprints.map((imprint) => ({
     id: imprint.id,
     name: imprint.name,
   }));
 
-  const userImprintsOptions = convertEntityToSelectFieldOptions(userImprints, 'name');
+  const userImprintsOptions = convertEntityToSelectFieldOptions(userImprintsFieldValues, 'name');
 
-  return { user, userImprintsOptions, error, loading: isLoading, refetch };
+  return { user, userImprints, userImprintsOptions, error, loading: isLoading, refetch };
 };
 
 export default useUser;

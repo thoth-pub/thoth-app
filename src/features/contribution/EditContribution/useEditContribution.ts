@@ -19,7 +19,7 @@ import { useUser } from '@/src/entities/user';
 import { useWork } from '@/src/entities/work';
 import { appConfig } from '@/src/shared/config';
 import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
-import { useNotifications } from '@/src/shared/hooks';
+import { useDefaultLocaleOption, useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 import { removePrefix } from '@/src/shared/utils';
@@ -60,6 +60,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   const { user } = useUser();
   const { moveAffiliation } = useMoveAffiliation({ workId });
   const { work, updateContribution: updateWorkContribution } = useWork(workId);
+  const defaultLocaleOption = useDefaultLocaleOption(work.imprintId);
   const { sendErrorNotification } = useNotifications();
   const { updateContributor } = useUpdateContributor({
     onCompleted: (data) => {
@@ -308,6 +309,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     contribution,
     isOrchidEditionDisabled,
     isWebsiteUrlEditionDisabled,
+    defaultLocaleOption,
     finishEditing,
     updateNames,
     updateType,

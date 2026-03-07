@@ -1,5 +1,6 @@
 'use client';
 
+import { LocaleCode } from '@/gql/graphql';
 import { FORM_FIELDS } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Checkbox, ContentWrapper, InputLabel, TableFormsWrapper, TranslatedContent } from '@/src/shared/ui';
@@ -16,6 +17,7 @@ type ContributionFormsProps = {
   contribution: WorkContribution;
   isOrchidEditionDisabled?: boolean;
   isWebsiteUrlEditionDisabled?: boolean;
+  defaultLocaleOption?: { value: LocaleCode; label: string };
   children?: React.ReactNode;
   onDone?: () => void;
   onClose?: () => void;
@@ -31,6 +33,7 @@ const ContributionForms = (props: ContributionFormsProps) => {
   const {
     showRecommendations,
     contribution,
+    defaultLocaleOption,
     children,
     onNamesSubmit,
     onContributorTypeSubmit,
@@ -61,6 +64,7 @@ const ContributionForms = (props: ContributionFormsProps) => {
         contributionId={id}
         biographies={biographies}
         recommended={showRecommendations}
+        defaultLocaleOption={defaultLocaleOption}
         onSubmit={onBiographySubmit}
       />
       {children}

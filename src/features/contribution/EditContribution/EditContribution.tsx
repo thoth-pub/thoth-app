@@ -49,6 +49,7 @@ const EditContribution = (props: EditContributionProps) => {
     contribution,
     isOrchidEditionDisabled,
     isWebsiteUrlEditionDisabled,
+    defaultLocaleOption,
     finishEditing,
     updateNames,
     updateType,
@@ -81,6 +82,7 @@ const EditContribution = (props: EditContributionProps) => {
       contribution={contribution}
       isOrchidEditionDisabled={isOrchidEditionDisabled}
       isWebsiteUrlEditionDisabled={isWebsiteUrlEditionDisabled}
+      defaultLocaleOption={defaultLocaleOption}
       onDone={finishEditing}
       onClose={finishEditing}
       onNamesSubmit={updateNames}

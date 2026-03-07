@@ -19,6 +19,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
   const {
     publication,
     loading,
+    defaultCurrencyOption,
     finishEditing,
     create,
     updateIsbn,
@@ -92,7 +93,12 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
       >
         {(isFullTextUrlHidden) => (
           <>
-            <EditPrice onUpdate={updatePrices} onClose={finishEditing} prices={publication.prices} />
+            <EditPrice
+              defaultCurrencyOption={defaultCurrencyOption}
+              onUpdate={updatePrices}
+              onClose={finishEditing}
+              prices={publication.prices}
+            />
             <EditLocations
               locations={publication.locations}
               onUpdate={updateLocations}

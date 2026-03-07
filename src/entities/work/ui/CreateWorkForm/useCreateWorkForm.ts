@@ -2,11 +2,12 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useRouter } from 'next/navigation';
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { appConfig } from '@/src/shared/config';
-import { FORM_FIELDS, languageOptionsAlt, ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
+import { FORM_FIELDS, ROUTES, WorkStatuses, WorkTypes } from '@/src/shared/constants';
+import { useDefaultLocaleOption, useDefaultPlace } from '@/src/shared/hooks';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils';
 
@@ -18,11 +19,17 @@ type UseCreateWorkFormProps = {
   imprintOptions: FormFieldOption[];
   workTypeOptions: FormFieldOption[];
   licenseOptions: FormFieldOption[];
+  defaultImprint: string;
 };
 
 const { TITLE, TITLE_LANGUAGE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 
-const useCreateWorkForm = ({ imprintOptions, workTypeOptions, licenseOptions }: UseCreateWorkFormProps) => {
+const useCreateWorkForm = ({
+  imprintOptions,
+  workTypeOptions,
+  licenseOptions,
+  defaultImprint,
+}: UseCreateWorkFormProps) => {
   const router = useRouter();
 
   const availableNewWorkOptions = useMemo(() => {
@@ -35,14 +42,16 @@ const useCreateWorkForm = ({ imprintOptions, workTypeOptions, licenseOptions }: 
     control,
     handleSubmit,
     formState: { isValid },
+    setValue,
+    watch,
   } = useForm<CreateWorkFormType>({
     resolver: zodResolver(createWorkValidationSchema),
     mode: 'onChange',
     defaultValues: {
       [TITLE.name]: TITLE.defaultValue,
-      [TITLE_LANGUAGE.name]: languageOptionsAlt.length > 0 ? languageOptionsAlt[0].value : TITLE_LANGUAGE.defaultValue,
+      [TITLE_LANGUAGE.name]: TITLE_LANGUAGE.defaultValue,
       [WORK_TYPE.name]: workTypeOptions.length > 0 ? workTypeOptions[0].value : WORK_TYPE.defaultValue,
-      [IMPRINT.name]: imprintOptions.length > 0 ? imprintOptions[0].value : IMPRINT.defaultValue,
+      [IMPRINT.name]: defaultImprint,
       [LICENSE.name]: licenseOptions.length > 0 ? licenseOptions[0] : undefined,
     },
     reValidateMode: 'onSubmit',
@@ -53,6 +62,19 @@ const useCreateWorkForm = ({ imprintOptions, workTypeOptions, licenseOptions }: 
       router.push(ROUTES.WORK_PAGE(data.id));
     },
   });
+
+  const selectedImprint = watch(IMPRINT.name);
+
+  const localeOption = useDefaultLocaleOption(selectedImprint);
+  const imprintPlace = useDefaultPlace(selectedImprint);
+
+  useEffect(() => {
+    setValue(IMPRINT.name, defaultImprint, { shouldDirty: true });
+  }, [defaultImprint, setValue]);
+
+  useEffect(() => {
+    setValue(TITLE_LANGUAGE.name, localeOption.value, { shouldDirty: true });
+  }, [localeOption.value, selectedImprint, setValue]);
 
   const isSubmitDisabled = loading || !isValid;
   const isImprintVisible = imprintOptions.length !== 1;
@@ -76,6 +98,7 @@ const useCreateWorkForm = ({ imprintOptions, workTypeOptions, licenseOptions }: 
       license: license.value,
       edition: 1,
       titles: [titleEntity],
+      place: imprintPlace,
     });
 
     createWork(defaultWork);

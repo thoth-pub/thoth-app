@@ -1,5 +1,8 @@
 export { default as useActiveLocale, default as useCurrentActiveLocale } from './useActiveLocale';
 export { default as useDebouncedValue } from './useDebouncedValue';
+export { default as useDefaultCurrencyOption } from './useDefaultCurrencyOption';
+export { default as useDefaultLocaleOption } from './useDefaultLocaleOption';
+export { default as useDefaultPlace } from './useDefaultPlace';
 export { default as useEntityList } from './useEntityList';
 export { default as useIsDesktop } from './useIsDesktop';
 export { default as useNotifications } from './useNotifications';

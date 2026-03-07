@@ -85,6 +85,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       bibliographyNote: bibliographyNote ?? '',
       generalNote: generalNote ?? '',
       publisherName: imprint?.publisher?.publisherName ?? '',
+      imprintName: imprint?.imprintName ?? '',
       imprintId,
       status: workStatus,
       edition,

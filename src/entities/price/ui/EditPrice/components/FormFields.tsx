@@ -21,6 +21,7 @@ import type { CurrencyCode, PricesForm } from '../../../model/price.types';
 type FormFieldsProps = {
   control: Control<PricesForm>;
   isHelperTextVisible?: boolean;
+  defaultCurrencyOption?: { value: CurrencyCode; label: string };
   onDelete?: (id: string) => void;
   onClose?: () => void;
 };
@@ -29,24 +30,27 @@ const { PRICES, CURRENCY, VALUE } = FORM_FIELDS;
 
 const { PRICE_CURRENCY, PRICE_VALUE } = HELPER_TEXT;
 
-const defaultValue = {
-  priceId: appConfig.defaultId,
-  [CURRENCY.name]: {
-    value: currencyOptions[0].value as CurrencyCode,
-    label: currencyOptions[0].label,
-  },
-  [VALUE.name]: 0.01,
-};
-
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const FormFields = (props: FormFieldsProps) => {
-  const { control, isHelperTextVisible = false, onDelete, onClose } = props;
+  const {
+    control,
+    isHelperTextVisible = false,
+    defaultCurrencyOption = currencyOptions[0] as { value: CurrencyCode; label: string },
+    onDelete,
+    onClose,
+  } = props;
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: PRICES.name,
   });
+
+  const defaultValue = {
+    priceId: appConfig.defaultId,
+    [CURRENCY.name]: defaultCurrencyOption,
+    [VALUE.name]: 0.01,
+  };
 
   useEffectOnce(() => {
     if (fields.length !== 0) return;

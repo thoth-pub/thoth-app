@@ -11,11 +11,13 @@ import type {
   PublicationEntity,
   PublicationType,
 } from '@/src/entities/publication/model/publication.types';
+import { useWork } from '@/src/entities/work';
 import {
   accessibilityAdditionalStandards,
   accessibilityStandards,
   getAccessibilityStandardOptions,
 } from '@/src/shared/constants';
+import { useDefaultCurrencyOption } from '@/src/shared/hooks';
 import type { AccessibilityExceptionType, AccessibilityStandardType, BaseEditSectionProps } from '@/src/shared/types';
 import { isAccessibilityStandardAvailable } from '@/src/shared/utils';
 import { selectCanonicalLocation } from '@/src/shared/utils/locations';
@@ -25,6 +27,8 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
 
   const { activeEntity: activePublication, finishEditing } = usePublicationsStateMachine();
 
+  const { work } = useWork(workId);
+  const defaultCurrencyOption = useDefaultCurrencyOption(work.imprintId);
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
   const [file, setFile] = useState<File | null>(null);
   const { createPublication, loading } = useCreatePublication({
@@ -185,6 +189,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   return {
     publication,
     loading,
+    defaultCurrencyOption,
     finishEditing,
     create,
     updateType,

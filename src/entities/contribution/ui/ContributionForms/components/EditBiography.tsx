@@ -1,5 +1,6 @@
 import { Control } from 'react-hook-form';
 
+import { LocaleCode } from '@/gql/graphql';
 import { FORM_FIELDS, IDs, languageOptionsAlt } from '@/src/shared/constants';
 import { Chip, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -12,13 +13,14 @@ type EditBiographyProps = {
   contributionId: string;
   biographies: BiographyEntity[];
   recommended?: boolean;
+  defaultLocaleOption?: { value: LocaleCode; label: string };
   onSubmit: (data: ContributionBiographyForm) => void;
 };
 
 const { BIOGRAPHIES } = FORM_FIELDS;
 
 export const EditBiography = (props: EditBiographyProps) => {
-  const { contributionId, biographies, recommended = false, onSubmit } = props;
+  const { contributionId, biographies, recommended = false, defaultLocaleOption, onSubmit } = props;
 
   const filteredBiographies = biographies.filter((biography) => biography.contributionId === contributionId);
 
@@ -33,7 +35,7 @@ export const EditBiography = (props: EditBiographyProps) => {
 
     return {
       biographyId: id,
-      language: language ?? languageOptionsAlt[0],
+      language: language ?? defaultLocaleOption,
       contributorBiography: content,
     };
   });
@@ -51,6 +53,7 @@ export const EditBiography = (props: EditBiographyProps) => {
           control={control as unknown as Control<ContributionBiographyForm>}
           recommended={showPreviewIndicator}
           isHelperTextVisible={isHelperTextVisible}
+          defaultLocaleOption={defaultLocaleOption}
         />
       )}
       preview={({ disabled, onEdit }) => (

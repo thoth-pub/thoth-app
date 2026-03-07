@@ -26,11 +26,13 @@ const CreateWorkForm = () => {
 
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
+  const defaultImprint = userImprintsOptions[0]?.value ?? '';
   const { control, isImprintVisible, isSubmitDisabled, isLoading, availableNewWorkOptions, submit } = useCreateWorkForm(
     {
       imprintOptions: userImprintsOptions,
       workTypeOptions,
       licenseOptions,
+      defaultImprint,
     },
   );
 

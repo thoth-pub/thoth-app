@@ -20,8 +20,8 @@ const { IMPRINT, PLACE } = FORM_FIELDS;
 export const EditImprint = ({ disabled = true, workId, imprintOptions, recommended = false }: EditImprintProps) => {
   const { work, updateWork } = useWork(workId);
 
-  const value = work?.publisherName ?? '';
-  const placeValue = work?.place ?? '';
+  const value = work.imprintName ?? '';
+  const placeValue = work.place ?? '';
   const showIndicator = recommended && !value;
 
   const placeholder = placeValue.length > 0 ? `${placeValue}: ${value}` : value;

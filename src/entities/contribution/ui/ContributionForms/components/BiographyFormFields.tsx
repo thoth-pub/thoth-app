@@ -3,6 +3,7 @@
 import { type Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
+import { LocaleCode } from '@/gql/graphql';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS, HELPER_TEXT, languageOptionsAlt } from '@/src/shared/constants';
 import {
@@ -25,28 +26,34 @@ type BiographyFormFieldsProps = {
   control: Control<ContributionBiographyForm>;
   recommended?: boolean;
   isHelperTextVisible?: boolean;
+  defaultLocaleOption?: { value: LocaleCode; label: string };
 };
 
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
-export const fieldsDefaultValues = {
-  biographyId: appConfig.defaultId,
-  [CONTRIBUTOR_BIOGRAPHY.name]: '',
-  [LANGUAGE.name]: languageOptionsAlt[0],
-};
-
 export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
-  const { control, recommended, isHelperTextVisible } = props;
+  const { control, recommended, isHelperTextVisible, defaultLocaleOption } = props;
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: BIOGRAPHIES.name,
   });
 
+  const fieldsDefaultValues = {
+    biographyId: appConfig.defaultId,
+    [CONTRIBUTOR_BIOGRAPHY.name]: '',
+    [LANGUAGE.name]: defaultLocaleOption,
+  };
+
   useEffectOnce(() => {
     if (fields.length !== 0) return;
 
-    append(fieldsDefaultValues);
+    if (defaultLocaleOption) {
+      append({ ...fieldsDefaultValues, [LANGUAGE.name]: defaultLocaleOption });
+      return;
+    }
+
+    append({ ...fieldsDefaultValues, [LANGUAGE.name]: languageOptionsAlt[0] });
   });
 
   const getFormFieldName = (fieldIndex: number, fieldName: string) => {
@@ -72,7 +79,20 @@ export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
   };
 
   const handleAdd = () => {
-    append({ ...fieldsDefaultValues, biographyId: `${appConfig.defaultId}-${fields.length + 1}` });
+    if (defaultLocaleOption) {
+      append({
+        ...fieldsDefaultValues,
+        [LANGUAGE.name]: defaultLocaleOption,
+        biographyId: `${appConfig.defaultId}-${fields.length + 1}`,
+      });
+      return;
+    }
+
+    append({
+      ...fieldsDefaultValues,
+      [LANGUAGE.name]: languageOptionsAlt[0],
+      biographyId: `${appConfig.defaultId}-${fields.length + 1}`,
+    });
   };
 
   return (

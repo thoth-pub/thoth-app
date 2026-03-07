@@ -49,6 +49,7 @@ export const getDefaultWork = (data?: Partial<WorkEntity>): WorkEntity => {
     bibliographyNote: '',
     generalNote: '',
     publisherName: '',
+    imprintName: '',
     place: '',
     publicationDate: null,
     withdrawnDate: null,

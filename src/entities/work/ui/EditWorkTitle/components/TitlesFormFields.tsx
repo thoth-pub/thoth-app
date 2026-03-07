@@ -3,6 +3,7 @@
 import { type Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
+import { LocaleCode } from '@/gql/graphql';
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS, HELPER_TEXT, languageOptionsAlt } from '@/src/shared/constants';
@@ -28,12 +29,13 @@ type TitlesFormFieldsProps = {
   control: Control<WorkTitlesForm>;
   recommended?: boolean;
   isHelperTextVisible?: boolean;
+  defaultLocaleOption?: { value: LocaleCode; label: string };
   onDelete?: (titleId: TitleId) => void;
 };
 
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
-export const fieldsDefaultValues = {
+const fieldsDefaultValues = {
   titleId: appConfig.defaultId,
   [WORK_TITLE.name]: '',
   [SUBTITLE.name]: '',
@@ -41,7 +43,7 @@ export const fieldsDefaultValues = {
 };
 
 export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
-  const { control, recommended, isHelperTextVisible, onDelete } = props;
+  const { control, recommended, isHelperTextVisible, defaultLocaleOption, onDelete } = props;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -51,6 +53,14 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
 
   useEffectOnce(() => {
     if (fields.length !== 0) return;
+
+    if (defaultLocaleOption) {
+      append({
+        ...fieldsDefaultValues,
+        [LANGUAGE.name]: defaultLocaleOption,
+      });
+      return;
+    }
 
     append(fieldsDefaultValues);
   });
@@ -86,9 +96,20 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
   };
 
   const handleAdd = () => {
+    const id = `${appConfig.defaultId}-${fields.length + 1}`;
+
+    if (defaultLocaleOption) {
+      append({
+        ...fieldsDefaultValues,
+        [LANGUAGE.name]: defaultLocaleOption,
+        titleId: id,
+      });
+      return;
+    }
+
     append({
       ...fieldsDefaultValues,
-      titleId: `${appConfig.defaultId}-${fields.length + 1}`,
+      titleId: id,
     });
   };
 

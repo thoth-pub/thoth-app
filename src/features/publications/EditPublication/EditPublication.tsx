@@ -18,6 +18,7 @@ const EditPublication = (props: EditPublicationProps) => {
   const {
     activePublication,
     loading,
+    defaultCurrencyOption,
     finishEditing,
     updateSizes,
     updateIsbn,
@@ -73,7 +74,12 @@ const EditPublication = (props: EditPublicationProps) => {
     >
       {(isFullTextUrlHidden) => (
         <>
-          <EditPrice prices={activePublication.prices} onUpdate={updatePrices} onClose={finishEditing} />
+          <EditPrice
+            defaultCurrencyOption={defaultCurrencyOption}
+            prices={activePublication.prices}
+            onUpdate={updatePrices}
+            onClose={finishEditing}
+          />
           <EditLocations
             locations={activePublication.locations}
             isFullTextUrlHidden={isFullTextUrlHidden}

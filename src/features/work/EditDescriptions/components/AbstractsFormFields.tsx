@@ -4,6 +4,7 @@ import { type Control, useFieldArray } from 'react-hook-form';
 import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
+import { LocaleCode } from '@/gql/graphql';
 import type { WorkAbstractsForm } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS, HELPER_TEXT, languageOptionsAlt } from '@/src/shared/constants';
@@ -24,21 +25,22 @@ const { WORK_ABSTRACT: WORK_ABSTRACT_HELPER_TEXT, WORK_SHORT_ABSTRACT: WORK_SHOR
 type AbstractsFormFieldsProps = {
   control: Control<WorkAbstractsForm>;
   isHelperTextVisible?: boolean;
+  defaultLocaleOption?: { value: LocaleCode; label: string };
   onDelete?: (shortAbstractId: AbstractId, longAbstractId: AbstractId) => void;
 };
 
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
-export const fieldsDefaultValues = {
-  longAbstractId: appConfig.defaultId,
-  shortAbstractId: appConfig.defaultId,
-  [WORK_ABSTRACT.name]: '',
-  [WORK_SHORT_ABSTRACT.name]: '',
-  [LANGUAGE.name]: languageOptionsAlt[0],
-};
-
 export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
-  const { control, isHelperTextVisible, onDelete } = props;
+  const { control, isHelperTextVisible, defaultLocaleOption, onDelete } = props;
+
+  const fieldsDefaultValues = {
+    longAbstractId: appConfig.defaultId,
+    shortAbstractId: appConfig.defaultId,
+    [WORK_ABSTRACT.name]: '',
+    [WORK_SHORT_ABSTRACT.name]: '',
+    [LANGUAGE.name]: defaultLocaleOption,
+  };
 
   const { t } = useTranslation();
 
@@ -50,7 +52,12 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
   useEffectOnce(() => {
     if (fields.length !== 0) return;
 
-    append(fieldsDefaultValues);
+    if (defaultLocaleOption) {
+      append({ ...fieldsDefaultValues, [LANGUAGE.name]: defaultLocaleOption });
+      return;
+    }
+
+    append({ ...fieldsDefaultValues, [LANGUAGE.name]: languageOptionsAlt[0] });
   });
 
   const getFormFieldName = (fieldIndex: number, fieldName: string) => {
@@ -80,8 +87,19 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
   };
 
   const handleAdd = () => {
+    if (defaultLocaleOption) {
+      append({
+        ...fieldsDefaultValues,
+        [LANGUAGE.name]: defaultLocaleOption,
+        longAbstractId: `${appConfig.defaultId}-${fields.length + 1}`,
+        shortAbstractId: `${appConfig.defaultId}-${fields.length + 1}`,
+      });
+      return;
+    }
+
     append({
       ...fieldsDefaultValues,
+      [LANGUAGE.name]: languageOptionsAlt[0],
       longAbstractId: `${appConfig.defaultId}-${fields.length + 1}`,
       shortAbstractId: `${appConfig.defaultId}-${fields.length + 1}`,
     });

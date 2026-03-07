@@ -11,6 +11,7 @@ import type {
 import { useContributor, useUpdateContributor } from '@/src/entities/contributor';
 import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model/contributor.validation';
 import { useWork } from '@/src/entities/work';
+import { useDefaultLocaleOption } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 type UseAddNewContributionProps = BaseEditSectionProps & {
@@ -22,6 +23,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
 
   const { activeEntity: activeContribution, update, finishEditing } = useContributionStateMachine();
   const { work, createContribution } = useWork(workId);
+  const defaultLocaleOption = useDefaultLocaleOption(work.imprintId);
 
   const { contributor } = useContributor({ contributorId: activeContribution?.contributorId });
   const { updateContributor } = useUpdateContributor({
@@ -183,6 +185,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
 
   return {
     contribution: activeContribution,
+    defaultLocaleOption,
     finishEditing,
     create,
     updateWebsiteUrl,

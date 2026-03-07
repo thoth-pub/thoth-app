@@ -7,7 +7,7 @@ import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
-import type { PriceEntity, PricesForm } from '../../model/price.types';
+import type { CurrencyCode, PriceEntity, PricesForm } from '../../model/price.types';
 import { pricesValidationSchema } from '../../model/price.validation';
 import { FormFields } from './components/FormFields';
 
@@ -15,6 +15,7 @@ const { PRICES } = FORM_FIELDS;
 
 type EditPriceProps = Partial<{
   prices: PriceEntity[];
+  defaultCurrencyOption?: { value: CurrencyCode; label: string };
   onUpdate: (data: PricesForm) => void;
   onDelete: (id: string) => void;
   onClose?: () => void;
@@ -23,7 +24,7 @@ type EditPriceProps = Partial<{
 const { CURRENCY, VALUE } = FORM_FIELDS;
 
 const EditPrice = (props: EditPriceProps) => {
-  const { prices = [], onUpdate, onDelete, onClose } = props;
+  const { prices = [], defaultCurrencyOption, onUpdate, onDelete, onClose } = props;
 
   const defaultValues = prices.map(({ id, currencyCode, unitPrice }) => {
     const currencyOption = currencyOptions.find((option) => option.value.toLowerCase() === currencyCode.toLowerCase());
@@ -55,6 +56,7 @@ const EditPrice = (props: EditPriceProps) => {
         <FormFields
           control={control as unknown as Control<PricesForm>}
           isHelperTextVisible={isHelperTextVisible}
+          defaultCurrencyOption={defaultCurrencyOption}
           onDelete={onDelete}
           onClose={onClose}
         />

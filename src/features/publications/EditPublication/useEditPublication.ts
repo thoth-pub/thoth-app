@@ -17,11 +17,13 @@ import type {
   PublicationEntity,
   PublicationType,
 } from '@/src/entities/publication/model/publication.types';
+import { useWork } from '@/src/entities/work';
 import {
   accessibilityAdditionalStandards,
   accessibilityStandards,
   getAccessibilityStandardOptions,
 } from '@/src/shared/constants';
+import { useDefaultCurrencyOption } from '@/src/shared/hooks';
 import type { AccessibilityExceptionType, BaseEditSectionProps } from '@/src/shared/types';
 import { AccessibilityStandardType } from '@/src/shared/types';
 import { isAccessibilityStandardAvailable, isDefaultId } from '@/src/shared/utils';
@@ -32,6 +34,8 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
   const { activeEntity: activePublication, finishEditing } = usePublicationsStateMachine();
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
+  const { work } = useWork(workId);
+  const defaultCurrencyOption = useDefaultCurrencyOption(work.imprintId);
   const { updatePublication, loading: isUpdatePublicationLoading } = useUpdatePublication({ workId });
   const { createPrice, loading: isCreatePriceLoading } = useCreatePrice({ workId });
   const { updatePrice, loading: isUpdatePriceLoading } = useUpdatePrice({ workId });
@@ -291,6 +295,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   return {
     activePublication: publication,
     loading,
+    defaultCurrencyOption,
     finishEditing,
     updateSizes,
     updateIsbn,

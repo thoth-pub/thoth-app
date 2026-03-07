@@ -3,6 +3,7 @@ import { Control } from 'react-hook-form';
 import { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { TitlesFormFields } from '@/src/entities/work/ui/EditWorkTitle/components/TitlesFormFields';
 import { FORM_FIELDS, IDs, languageOptionsAlt } from '@/src/shared/constants';
+import { useDefaultLocaleOption } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -30,6 +31,8 @@ export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => 
     [TITLES.name]: titlesDefaultValues,
   };
 
+  const defaultLocaleOption = useDefaultLocaleOption(set.imprintId);
+
   const placeholder = getMainTitle(set.titles).title;
 
   const updateTitles = async (data: SetTitleFormType) => {
@@ -48,6 +51,7 @@ export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => 
         formFields={({ control, isHelperTextVisible }) => (
           <TitlesFormFields
             control={control as unknown as Control<WorkTitlesForm>}
+            defaultLocaleOption={defaultLocaleOption}
             isHelperTextVisible={isHelperTextVisible}
             onDelete={onDelete}
           />
