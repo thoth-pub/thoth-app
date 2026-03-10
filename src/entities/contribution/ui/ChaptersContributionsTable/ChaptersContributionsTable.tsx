@@ -4,6 +4,7 @@ import { ContributionsTable } from '../components/Table';
 type ChaptersContributionsTableProps = {
   contributions: WorkContribution[];
   activeContribution: WorkContribution | null;
+  deleteLoading?: boolean;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onSelectAsMain: (id: string) => void;
@@ -13,7 +14,7 @@ type ChaptersContributionsTableProps = {
 };
 
 const ChaptersContributionsTable = (props: ChaptersContributionsTableProps) => {
-  const { contributions, activeContribution, form, showRecommendations, onEdit, onDelete, onSelectAsMain, onDragEnd } =
+  const { contributions, activeContribution, form, showRecommendations, onEdit, onDelete, deleteLoading, onSelectAsMain, onDragEnd } =
     props;
 
   return (
@@ -24,6 +25,7 @@ const ChaptersContributionsTable = (props: ChaptersContributionsTableProps) => {
       showRecommendations={showRecommendations}
       onEdit={onEdit}
       onDelete={onDelete}
+      deleteLoading={deleteLoading}
       onSelectAsMain={onSelectAsMain}
       onDragEnd={onDragEnd}
     />

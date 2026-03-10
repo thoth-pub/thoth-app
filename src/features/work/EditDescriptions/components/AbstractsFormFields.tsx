@@ -26,13 +26,14 @@ type AbstractsFormFieldsProps = {
   control: Control<WorkAbstractsForm>;
   isHelperTextVisible?: boolean;
   defaultLocaleOption?: { value: LocaleCode; label: string };
+  deleteLoading?: boolean;
   onDelete?: (shortAbstractId: AbstractId, longAbstractId: AbstractId) => void;
 };
 
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
-  const { control, isHelperTextVisible, defaultLocaleOption, onDelete } = props;
+  const { control, isHelperTextVisible, defaultLocaleOption, onDelete, deleteLoading = false } = props;
 
   const fieldsDefaultValues = {
     longAbstractId: appConfig.defaultId,
@@ -123,7 +124,7 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
                   disableLineBreaks
                   extendedToolbar
                 />
-                <DeleteButton onClick={() => handleRemove(index)} />
+                <DeleteButton onClick={() => handleRemove(index)} disabled={deleteLoading} />
               </FormFieldWithControlsWrapper>
             </ContentWrapper>
             <ContentWrapper>

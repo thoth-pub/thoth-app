@@ -23,6 +23,7 @@ type ContributionListItemProps = {
   editing?: boolean;
   form?: Readonly<React.ReactNode>;
   editDisabled?: boolean;
+  deleteLoading?: boolean;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 };
@@ -37,6 +38,7 @@ export const ContributionListItem = (props: ContributionListItemProps) => {
     editDisabled = false,
     onEdit,
     onDelete,
+    deleteLoading = false,
   } = props;
 
   const { id, fullName, isMain, orcidId, type, affiliations, biographies } = contribution;
@@ -51,7 +53,7 @@ export const ContributionListItem = (props: ContributionListItemProps) => {
       editDisabled={editDisabled}
       onEdit={() => onEdit?.(id)}
       ariaLabel="Edit contribution"
-      actions={<DeleteButton onClick={() => onDelete?.(id)} />}
+      actions={<DeleteButton onClick={() => onDelete?.(id)} disabled={deleteLoading} />}
     >
       <Typography className="cardItem normal-case" variant="h2">
         {fullName}

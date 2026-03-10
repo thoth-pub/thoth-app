@@ -17,6 +17,7 @@ const EditReferences = (props: BaseEditSectionProps) => {
     isNewReference,
     editDisabled,
     loading,
+    deleteLoading,
     editReference,
     addReference,
     dragEnd,
@@ -32,6 +33,7 @@ const EditReferences = (props: BaseEditSectionProps) => {
           form={<EditReference workId={workId} />}
           editDisabled={editDisabled}
           loading={loading}
+          deleteLoading={deleteLoading}
           onDelete={deleteReference}
           onEdit={editReference}
           onDragEnd={dragEnd}

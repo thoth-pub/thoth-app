@@ -11,7 +11,7 @@ export const useEditFundings = (workId: WorkId) => {
   const { activeEntity: activeFunding, edit, finishEditing } = useFundingStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { isFundingsRequired, isFundingsEmpty } = useWorkRecommendations({ workId });
-  const { deleteFunding } = useDeleteFunding();
+  const { deleteFunding, loading: deleteLoading } = useDeleteFunding();
 
   const isNewFunding = activeFunding ? isDefaultId(activeFunding.id) : false;
 
@@ -40,6 +40,7 @@ export const useEditFundings = (workId: WorkId) => {
     editDisabled: !!activeFormId,
     isFundingsRequired,
     isFundingsEmpty,
+    deleteLoading,
     deleteFunding,
     addFunding,
     editFunding,

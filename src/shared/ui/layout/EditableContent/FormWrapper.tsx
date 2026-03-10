@@ -56,7 +56,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     handleSubmit,
     reset,
     setValue,
-    formState: { isValid, isDirty },
+    formState: { isValid, isDirty, isSubmitting },
   } = useForm({
     resolver: zodResolver(validationSchema),
     mode: validationMode,
@@ -65,10 +65,10 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
 
   const isDesktop = useIsDesktop(980);
 
-  const isSubmitDisabled = !isValid || !isDirty;
+  const isSubmitDisabled = !isValid || !isDirty || isSubmitting;
 
-  const handleSubmitForm = handleSubmit((data) => {
-    onSubmit(data as T);
+  const handleSubmitForm = handleSubmit(async (data) => {
+    await onSubmit(data as T);
   });
 
   return (
@@ -84,6 +84,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
           <div className="grow">{children({ control: control as Control<FieldValues>, reset, setValue })}</div>
           <FormControlGroup
             isDisabled={isSubmitDisabled}
+            loading={isSubmitting}
             onClose={onClose}
             onInfo={onInfo}
             className={controlsClassName}
@@ -99,6 +100,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
               <div className="grow">{children({ control: control as Control<FieldValues>, reset, setValue })}</div>
               <FormControlGroup
                 isDisabled={isSubmitDisabled}
+                loading={isSubmitting}
                 onClose={onClose}
                 onInfo={onInfo}
                 className={controlsClassName}

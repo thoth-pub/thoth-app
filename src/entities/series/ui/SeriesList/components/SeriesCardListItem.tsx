@@ -11,12 +11,13 @@ type SeriesCardListItemProps = {
   editing?: boolean;
   disabledControls?: boolean;
   form?: Readonly<React.ReactNode>;
+  deleteLoading?: boolean;
   onEdit?: (series: SeriesEntity) => void;
   onDelete?: (id: string) => void;
 };
 
 export const SeriesCardListItem = (props: SeriesCardListItemProps) => {
-  const { series, editing = false, disabledControls = false, form, onEdit, onDelete } = props;
+  const { series, editing = false, disabledControls = false, form, deleteLoading = false, onEdit, onDelete } = props;
 
   const { id, name, type, issnPrint, issnDigital, updatedAt, issues } = series;
 
@@ -37,7 +38,7 @@ export const SeriesCardListItem = (props: SeriesCardListItemProps) => {
       editDisabled={disabledControls}
       onEdit={handleEdit}
       ariaLabel="Edit series"
-      actions={<DeleteButton onClick={() => onDelete?.(id)} />}
+      actions={<DeleteButton onClick={() => onDelete?.(id)} disabled={deleteLoading} />}
     >
       <div className="cardWithImageWrapper">
         <LandingPagesGallery images={images} />

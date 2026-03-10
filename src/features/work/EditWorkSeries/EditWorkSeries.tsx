@@ -37,7 +37,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
   const isNew = work.issues.length === 0;
 
   const { createIssue } = useCreateIssue();
-  const { deleteIssue } = useDeleteIssue();
+  const { deleteIssue, loading: deleteIssueLoading } = useDeleteIssue();
   const { closeForm } = useFormStateMachine();
 
   const placeholder =
@@ -97,6 +97,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
           options={options}
           isLoading={loading}
           isDeleteDisabled={isNew}
+          deleteLoading={deleteIssueLoading}
           onChange={setSearchValue}
           onDelete={deleteExistingIssue}
           setValue={setValue}
@@ -109,7 +110,7 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
             <div className="flex w-full items-center justify-between gap-2">
               <Typography className="self-start">{placeholder}</Typography>
               <DeleteButton
-                disabled={isNew}
+                disabled={isNew || deleteIssueLoading}
                 onClick={deleteExistingIssue}
                 className="my-auto h-4 w-4 self-end p-0 opacity-0 group-hover:opacity-100"
               />

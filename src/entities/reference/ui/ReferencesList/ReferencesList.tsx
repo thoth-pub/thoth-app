@@ -9,6 +9,7 @@ type ReferencesListProps = {
   form: Readonly<React.ReactNode>;
   loading?: boolean;
   editDisabled?: boolean;
+  deleteLoading?: boolean;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
   onDragEnd?: (data: ReferenceEntity[]) => void;
@@ -21,6 +22,7 @@ const ReferencesList = (props: ReferencesListProps) => {
     form,
     loading = false,
     editDisabled = false,
+    deleteLoading = false,
     onDelete,
     onEdit,
     onDragEnd,
@@ -38,6 +40,7 @@ const ReferencesList = (props: ReferencesListProps) => {
               editing={activeReference?.id === reference.id}
               form={form}
               editDisabled={editDisabled}
+              deleteLoading={deleteLoading}
               onDelete={onDelete}
               onEdit={onEdit}
             />

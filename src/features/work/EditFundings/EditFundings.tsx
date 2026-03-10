@@ -19,6 +19,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
     editDisabled,
     isFundingsRequired,
     isFundingsEmpty,
+    deleteLoading,
     deleteFunding,
     addFunding,
     editFunding,
@@ -39,6 +40,7 @@ const EditFundings = (props: BaseEditSectionProps) => {
             showRecommendations={showRecommendations}
             form={<EditFunding workId={workId} recommended={showRecommendations} />}
             editDisabled={editDisabled}
+            deleteLoading={deleteLoading}
             onDelete={(id) => deleteFunding(id)}
             onEdit={(id) => editFunding(id)}
           />

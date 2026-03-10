@@ -34,7 +34,7 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   const { activeEntity: activeFunding, edit, finishEditing, update } = useFundingStateMachine();
 
   const isAllFundingsEmpty = chapters.every((chapter) => chapter.fundings.length === 0);
-  const { uniqueFundings, deleteFundings } = useChaptersFundings(chapters);
+  const { uniqueFundings, deleteFundings, deleteLoading } = useChaptersFundings(chapters);
 
   const { updateProjects, updateProjectsShortName } = useChaptersFundingsProjects({
     chapters,
@@ -120,6 +120,7 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
               activeFunding={activeFunding}
               fundings={uniqueFundings}
               showRecommendations={showRecommendations}
+              deleteLoading={deleteLoading}
               onEdit={editFunding}
               onDelete={deleteChapterFundings}
               form={

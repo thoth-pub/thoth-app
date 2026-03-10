@@ -10,6 +10,7 @@ type ContributionsTableProps = {
   activeContribution: WorkContribution | null;
   form?: React.ReactNode;
   showRecommendations?: boolean;
+  deleteLoading?: boolean;
   onEdit: (id: string) => void;
   onDelete: (id: string) => void;
   onSelectAsMain: (id: string) => void;
@@ -17,7 +18,7 @@ type ContributionsTableProps = {
 };
 
 export const ContributionsTable = (props: ContributionsTableProps) => {
-  const { contributions, activeContribution, form, showRecommendations = false, onEdit, onDelete, onDragEnd } = props;
+  const { contributions, activeContribution, form, showRecommendations = false, onEdit, onDelete, deleteLoading = false, onDragEnd } = props;
 
   return (
     <DragAndDropWrapper items={contributions} onDragEnd={onDragEnd}>
@@ -44,6 +45,7 @@ export const ContributionsTable = (props: ContributionsTableProps) => {
                 showRecommendations={showRecommendations}
                 onEdit={onEdit}
                 onDelete={onDelete}
+                deleteLoading={deleteLoading}
               />
             ))}
           </TableBody>

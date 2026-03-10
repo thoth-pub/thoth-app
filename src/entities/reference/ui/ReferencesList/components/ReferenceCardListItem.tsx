@@ -8,12 +8,13 @@ type ReferenceCardListItemProps = {
   editing?: boolean;
   form?: Readonly<React.ReactNode>;
   editDisabled?: boolean;
+  deleteLoading?: boolean;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 };
 
 export const ReferenceCardListItem = (props: ReferenceCardListItemProps) => {
-  const { reference, draggable, editing, form, editDisabled = false, onDelete, onEdit } = props;
+  const { reference, draggable, editing, form, editDisabled = false, deleteLoading = false, onDelete, onEdit } = props;
 
   const { id, orderNumber, unstructuredCitation, doi } = reference;
 
@@ -26,7 +27,7 @@ export const ReferenceCardListItem = (props: ReferenceCardListItemProps) => {
       editDisabled={editDisabled}
       onEdit={() => onEdit?.(id)}
       ariaLabel="Edit reference"
-      actions={<DeleteButton onClick={() => onDelete?.(id)} />}
+      actions={<DeleteButton onClick={() => onDelete?.(id)} disabled={deleteLoading} />}
     >
       <Typography className="cardItem normal-case">
         {orderNumber}. {unstructuredCitation}

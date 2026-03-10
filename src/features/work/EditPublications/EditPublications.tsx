@@ -17,6 +17,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
     isDimensionFormHidden,
     uploadDisabled,
     editDisabled,
+    deleteLoading,
     addPublication,
     deletePublication,
     editPublication,
@@ -36,6 +37,7 @@ const EditPublications = (props: BaseEditSectionProps) => {
               isDimensionFormHidden={isDimensionFormHidden}
             />
           }
+          deleteLoading={deleteLoading}
           onEdit={editPublication}
           onDelete={deletePublication}
         />

@@ -26,7 +26,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const { work } = useWork(workId);
   const queryClient = useQueryClient();
   const { createAbstract } = useCreateAbstract(workId);
-  const { deleteAbstract } = useDeleteAbstract(workId);
+  const { deleteAbstract, loading: deleteAbstractLoading } = useDeleteAbstract(workId);
   const { activeFormId, closeForm } = useFormStateMachine();
   const defaultLocaleOption = useDefaultLocaleOption(work.imprintId);
 
@@ -142,6 +142,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
           control={control as unknown as Control<WorkAbstractsForm>}
           isHelperTextVisible={isHelperTextVisible}
           defaultLocaleOption={defaultLocaleOption}
+          deleteLoading={deleteAbstractLoading}
           onDelete={deleteAbstracts}
         />
       )}

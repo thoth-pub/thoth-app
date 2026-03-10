@@ -23,7 +23,9 @@ const { SUBJECTS } = FORM_FIELDS;
 const EditSubjects = (props: EditSubjectsProps) => {
   const { workId, loading = false } = props;
 
-  const { editDisabled, activeSubject, subjects, deleteSubject, create, edit } = useEditSubjects({ workId });
+  const { editDisabled, activeSubject, subjects, deleteLoading, deleteSubject, create, edit } = useEditSubjects({
+    workId,
+  });
   const { moveSubjects } = useMoveSubjects({ workId });
   const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -132,6 +134,7 @@ const EditSubjects = (props: EditSubjectsProps) => {
                 isEditDisabled={editDisabled}
                 key={index}
                 subjects={subjects}
+                deleteLoading={deleteLoading}
                 onDelete={deleteSubject}
                 onDragEnd={handleMove}
                 onEdit={edit}

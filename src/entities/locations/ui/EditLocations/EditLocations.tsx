@@ -30,12 +30,13 @@ const { LOCATIONS } = FORM_FIELDS;
 type EditLocationsProps = {
   locations: LocationEntity[];
   isFullTextUrlHidden: boolean;
+  deleteLoading?: boolean;
   onUpdate: (data: LocationEntity[]) => void;
   onDelete?: (id: string) => void;
 };
 
 const EditLocations = (props: EditLocationsProps) => {
-  const { locations, isFullTextUrlHidden, onUpdate, onDelete } = props;
+  const { locations, isFullTextUrlHidden, deleteLoading = false, onUpdate, onDelete } = props;
 
   const { activeEntity: activeLocation, edit, finishEditing } = useLocationStateMachine();
   const { activeFormId, edit: editForm, closeForm } = useFormStateMachine();
@@ -133,7 +134,7 @@ const EditLocations = (props: EditLocationsProps) => {
                 {location.fullTextUrl && location.fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
                 {location.canonical && <StarIcon color="primary" />}
                 <ButtonGroup className="ml-auto">
-                  <DeleteButton onClick={() => onDelete?.(location.id)} />
+                  <DeleteButton onClick={() => onDelete?.(location.id)} disabled={deleteLoading} />
                   <EditButton onClick={() => handleEditLocation(location)} disabled={!!activeFormId} />
                 </ButtonGroup>
               </li>

@@ -42,7 +42,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { deletePrice } = useDeletePrice({ workId });
   const { createLocation, loading: isCreateLocationLoading } = useCreateLocation({ workId });
   const { updateLocation, loading: isUpdateLocationLoading } = useUpdateLocation({ workId });
-  const { deleteLocation: deleteLocationMutation } = useDeleteLocation({ workId });
+  const { deleteLocation: deleteLocationMutation, loading: isDeleteLocationLoading } = useDeleteLocation({ workId });
   const { uploadPublicationFile, loading: isUploadPublicationFileLoading } = useUploadPublicationFile(workId);
 
   useEffect(() => {
@@ -296,6 +296,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     activePublication: publication,
     loading,
     defaultCurrencyOption,
+    deleteLocationLoading: isDeleteLocationLoading,
     finishEditing,
     updateSizes,
     updateIsbn,

@@ -21,7 +21,7 @@ const SetsCardList = (props: SetsCardListProps) => {
 
   const { activeEntity: activeSet, edit } = useSetStateMachine();
 
-  const { deleteSet } = useDeleteSet();
+  const { deleteSet, loading: deleteLoading } = useDeleteSet();
 
   return (
     <>
@@ -35,6 +35,7 @@ const SetsCardList = (props: SetsCardListProps) => {
                 editing={activeSet?.id === set.id}
                 disabledControls={!!activeSet}
                 form={form}
+                deleteLoading={deleteLoading}
                 onEdit={edit}
                 onDelete={deleteSet}
               />

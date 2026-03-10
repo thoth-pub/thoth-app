@@ -20,6 +20,7 @@ const WorkContributionsList = (props: WorkContributionsListProps) => {
     loading,
     fetching,
     editDisabled,
+    deleteLoading,
     dragEnd,
     editContribution,
     deleteContribution,
@@ -45,6 +46,7 @@ const WorkContributionsList = (props: WorkContributionsListProps) => {
               form={form}
               draggable={draggable}
               editDisabled={editDisabled}
+              deleteLoading={deleteLoading}
               onEdit={editContribution}
               onDelete={deleteContribution}
             />

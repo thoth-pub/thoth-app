@@ -31,6 +31,7 @@ type ContributionsTableRowProps = {
   isEditing: boolean;
   isEditable: boolean;
   showRecommendations: boolean;
+  deleteLoading?: boolean;
   onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 };
@@ -43,6 +44,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
     isEditable = true,
     showRecommendations,
     totalContributionsCount,
+    deleteLoading = false,
     onEdit,
     onDelete,
   } = props;
@@ -102,6 +104,7 @@ export const ContributionsTableRow = (props: ContributionsTableRowProps) => {
                   <RowButtonGroup
                     className="ml-auto"
                     isDisabled={!isEditable}
+                    deleteLoading={deleteLoading}
                     onEdit={() => onEdit?.(id)}
                     onDelete={() => onDelete?.(id)}
                   />

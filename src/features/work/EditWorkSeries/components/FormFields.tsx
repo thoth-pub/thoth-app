@@ -23,6 +23,7 @@ type FormFieldsProps = {
   options: FormFieldOption[];
   isLoading?: boolean;
   isDeleteDisabled?: boolean;
+  deleteLoading?: boolean;
   children?: Readonly<React.ReactNode>;
   isHelperTextVisible?: boolean;
   onChange: (value: string) => void;
@@ -39,6 +40,7 @@ export const FormFields = (props: FormFieldsProps) => {
     options,
     isLoading = false,
     isDeleteDisabled = true,
+    deleteLoading = false,
     children,
     isHelperTextVisible = false,
     onChange,
@@ -79,7 +81,7 @@ export const FormFields = (props: FormFieldsProps) => {
               </InputAdornment>
             }
           />
-          <DeleteButton disabled={isDeleteDisabled} onClick={onDelete} />
+          <DeleteButton disabled={isDeleteDisabled || deleteLoading} onClick={onDelete} />
         </FormFieldWithControlsWrapper>
       </ContentWrapper>
       <ContentWrapper>

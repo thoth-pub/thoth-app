@@ -11,6 +11,7 @@ type PreviewListProps = {
   activeSubjectId: SubjectId;
   isEditDisabled: boolean;
   subjects: SubjectEntity[];
+  deleteLoading?: boolean;
   onDragEnd?: (subjects: SubjectEntity[]) => void;
   onDelete?: (id: SubjectId) => void;
   onEdit?: (id: SubjectId) => void;
@@ -21,6 +22,7 @@ export const PreviewList = ({
   activeSubjectId,
   isEditDisabled,
   subjects,
+  deleteLoading,
   onDelete,
   onDragEnd,
   onEdit,
@@ -41,6 +43,7 @@ export const PreviewList = ({
               isEditDisabled={isEditDisabled}
               subject={subject}
               totalSubjectsCount={subjects.length}
+              deleteLoading={deleteLoading}
               onDelete={onDelete}
               onEdit={onEdit}
             />

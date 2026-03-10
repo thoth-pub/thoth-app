@@ -12,7 +12,7 @@ import type { BaseEditSectionProps } from '@/src/shared/types';
 import { WorkContribution } from '../../model/contribution.types';
 
 export const useContributionsList = ({ workId }: BaseEditSectionProps) => {
-  const { work, loading, fetching, deleteContribution } = useWork(workId);
+  const { work, loading, fetching, deleteContributionLoading, deleteContribution } = useWork(workId);
 
   const { updateContribution } = useWork(workId);
   const { moveContribution } = useMoveContribution({ workId });
@@ -71,6 +71,7 @@ export const useContributionsList = ({ workId }: BaseEditSectionProps) => {
     loading,
     fetching,
     editDisabled: !!activeFormId,
+    deleteLoading: deleteContributionLoading,
     dragEnd,
     editContribution,
     deleteContribution: deleteWorkContribution,

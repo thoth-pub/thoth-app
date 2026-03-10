@@ -5,7 +5,7 @@ import type { WorkEntity } from '@/src/entities/work/model/work.types';
 export const useChaptersFundings = (chapters: WorkEntity[]) => {
   const uniqueFundings: FundingEntity[] = [];
 
-  const { deleteFundings: deleteFundingsMutation } = useDeleteFunding();
+  const { deleteFundings: deleteFundingsMutation, loading: deleteLoading } = useDeleteFunding();
 
   chapters.forEach(({ fundings: chapterFundings }) => {
     chapterFundings.forEach((funding) => {
@@ -57,5 +57,5 @@ export const useChaptersFundings = (chapters: WorkEntity[]) => {
     await deleteFundingsMutation(ids);
   };
 
-  return { uniqueFundings, deleteFundings };
+  return { uniqueFundings, deleteFundings, deleteLoading };
 };

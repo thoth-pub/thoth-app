@@ -11,12 +11,22 @@ type FundingsCardListItemProps = {
   form: Readonly<React.ReactNode>;
   editDisabled?: boolean;
   showRecommendations?: boolean;
+  deleteLoading?: boolean;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 };
 
 export const FundingsCardListItem = (props: FundingsCardListItemProps) => {
-  const { funding, editing, form, editDisabled = false, showRecommendations = false, onDelete, onEdit } = props;
+  const {
+    funding,
+    editing,
+    form,
+    editDisabled = false,
+    showRecommendations = false,
+    deleteLoading = false,
+    onDelete,
+    onEdit,
+  } = props;
 
   const { id, grantNumber, institutionName, institutionRor } = funding;
 
@@ -28,7 +38,7 @@ export const FundingsCardListItem = (props: FundingsCardListItemProps) => {
       editDisabled={editDisabled}
       onEdit={() => onEdit?.(id)}
       ariaLabel="Edit funding"
-      actions={<DeleteButton onClick={() => onDelete?.(id)} />}
+      actions={<DeleteButton onClick={() => onDelete?.(id)} disabled={deleteLoading} />}
     >
       {institutionName.length > 0 && (
         <Typography className="cardItem normal-case">

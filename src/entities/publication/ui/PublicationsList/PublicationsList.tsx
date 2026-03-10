@@ -8,12 +8,21 @@ type PublicationsListProps = {
   publications: PublicationEntity[];
   form: Readonly<React.ReactNode>;
   editDisabled?: boolean;
+  deleteLoading?: boolean;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 };
 
 const PublicationsList = (props: PublicationsListProps) => {
-  const { activePublication, publications, form, editDisabled = false, onDelete, onEdit } = props;
+  const {
+    activePublication,
+    publications,
+    form,
+    editDisabled = false,
+    deleteLoading = false,
+    onDelete,
+    onEdit,
+  } = props;
 
   return (
     <CardsList items={publications}>
@@ -26,6 +35,7 @@ const PublicationsList = (props: PublicationsListProps) => {
               editing={activePublication?.id === publication.id}
               form={form}
               editDisabled={editDisabled}
+              deleteLoading={deleteLoading}
               onDelete={onDelete}
               onEdit={onEdit}
             />

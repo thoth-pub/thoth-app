@@ -32,7 +32,7 @@ const EditContact = () => {
   const { publisher } = usePublisher(publisherId);
   const { user } = useUser();
   const { createContact } = useCreateContact(publisherId);
-  const { deleteContact } = useDeleteContact(publisherId);
+  const { deleteContact, loading: deleteLoading } = useDeleteContact(publisherId);
   const { closeForm } = useFormStateMachine();
 
   if (!activePublisher || !publisher) return null;
@@ -84,7 +84,7 @@ const EditContact = () => {
               isHelperTextVisible={isHelperTextVisible}
               fullWidth
             />
-            <DeleteButton onClick={handleDelete} disabled={!defaultValue} />
+            <DeleteButton onClick={handleDelete} disabled={!defaultValue || deleteLoading} />
           </FormFieldWithControlsWrapper>
         </ContentWrapper>
       )}

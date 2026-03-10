@@ -29,12 +29,13 @@ type ListItemProps = {
   subject: SubjectEntity;
   totalSubjectsCount: number;
   className?: string;
+  deleteLoading?: boolean;
   onEdit?: (id: SubjectId) => void;
   onDelete?: (id: SubjectId) => void;
 };
 
 const ListItem = (props: ListItemProps) => {
-  const { workId, activeSubjectId, isEditDisabled, subject, totalSubjectsCount, className, onDelete, onEdit } = props;
+  const { workId, activeSubjectId, isEditDisabled, subject, totalSubjectsCount, className, onDelete, onEdit, deleteLoading = false } = props;
 
   const { id } = subject;
 
@@ -76,7 +77,7 @@ const ListItem = (props: ListItemProps) => {
                 </Typography>
               </Typography>
               <ButtonGroup className="ml-auto">
-                <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} />
+                <DeleteButton className="ml-auto opacity-0 group-hover:opacity-100" onClick={() => onDelete?.(id)} disabled={deleteLoading} />
                 <EditButton
                   className="ml-auto opacity-0 group-hover:opacity-100"
                   disabled={isEditDisabled}

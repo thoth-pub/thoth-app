@@ -18,7 +18,7 @@ export const useEditSubjects = (props: BaseEditSectionProps) => {
   const { activeEntity: activeSubject, edit, finishEditing: finishEditingSubjectEdit } = useSubjectStateMachine();
 
   const { createSubject } = useCreateSubject({ workId });
-  const { deleteSubject: deleteSubjectMutation } = useDeleteSubject();
+  const { deleteSubject: deleteSubjectMutation, loading: deleteLoading } = useDeleteSubject();
 
   const deleteSubject = async (id: string) => {
     if (isDefaultId(id)) return;
@@ -68,6 +68,7 @@ export const useEditSubjects = (props: BaseEditSectionProps) => {
     subjects: work.subjects ?? [],
     create,
     deleteSubject,
+    deleteLoading,
     edit: editSubject,
     editDisabled: !!activeFormId,
   };

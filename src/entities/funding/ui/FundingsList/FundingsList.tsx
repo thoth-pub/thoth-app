@@ -9,12 +9,22 @@ type FundingsListProps = {
   showRecommendations?: boolean;
   form?: Readonly<React.ReactNode>;
   editDisabled?: boolean;
+  deleteLoading?: boolean;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 };
 
 const FundingsList = (props: FundingsListProps) => {
-  const { activeFunding, fundings, showRecommendations = false, form, editDisabled = false, onDelete, onEdit } = props;
+  const {
+    activeFunding,
+    fundings,
+    showRecommendations = false,
+    form,
+    editDisabled = false,
+    deleteLoading = false,
+    onDelete,
+    onEdit,
+  } = props;
 
   return (
     <>
@@ -29,6 +39,7 @@ const FundingsList = (props: FundingsListProps) => {
                 form={form}
                 showRecommendations={showRecommendations}
                 editDisabled={editDisabled}
+                deleteLoading={deleteLoading}
                 onDelete={onDelete}
                 onEdit={onEdit}
               />

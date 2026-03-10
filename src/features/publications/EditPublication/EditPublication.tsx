@@ -19,6 +19,7 @@ const EditPublication = (props: EditPublicationProps) => {
     activePublication,
     loading,
     defaultCurrencyOption,
+    deleteLocationLoading,
     finishEditing,
     updateSizes,
     updateIsbn,
@@ -83,6 +84,7 @@ const EditPublication = (props: EditPublicationProps) => {
           <EditLocations
             locations={activePublication.locations}
             isFullTextUrlHidden={isFullTextUrlHidden}
+            deleteLoading={deleteLocationLoading}
             onUpdate={updateLocations}
             onDelete={deleteLocation}
           />

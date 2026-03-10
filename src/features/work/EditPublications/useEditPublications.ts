@@ -10,7 +10,7 @@ export const useEditPublications = (workId: WorkId) => {
   const { activeEntity: activePublication, finishEditing, edit } = usePublicationsStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { work } = useWork(workId);
-  const { deletePublication: deletePublicationMutation } = useDeletePublication({ workId });
+  const { deletePublication: deletePublicationMutation, loading: deleteLoading } = useDeletePublication({ workId });
 
   const isNewPublication = activePublication ? isDefaultId(activePublication.id) : false;
 
@@ -46,6 +46,7 @@ export const useEditPublications = (workId: WorkId) => {
     isDimensionFormHidden,
     uploadDisabled,
     editDisabled: !!activeFormId,
+    deleteLoading,
     addPublication,
     deletePublication,
     editPublication,

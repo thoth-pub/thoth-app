@@ -6,7 +6,7 @@ import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { findAllSameContributions } from '../components/utils';
 
 export const useDeleteChaptersContributions = () => {
-  const { deleteContributions } = useContributionsBulkDelete();
+  const { deleteContributions, loading: deleteLoading } = useContributionsBulkDelete();
 
   const deleteChaptersContributions = async ({
     id,
@@ -31,6 +31,7 @@ export const useDeleteChaptersContributions = () => {
   };
 
   return {
+    deleteLoading,
     deleteChaptersContributions,
   };
 };

@@ -22,7 +22,7 @@ const SeriesList = (props: SeriesListProps) => {
 
   const { activeEntity: activeSeries, edit } = useSeriesStateMachine();
 
-  const { deleteSeries } = useDeleteSeries();
+  const { deleteSeries, loading: deleteLoading } = useDeleteSeries();
 
   return (
     <>
@@ -41,6 +41,7 @@ const SeriesList = (props: SeriesListProps) => {
                 editing={activeSeries?.id === series.id}
                 disabledControls={!!activeSeries}
                 form={seriesForm}
+                deleteLoading={deleteLoading}
                 onEdit={edit}
                 onDelete={deleteSeries}
               />

@@ -9,12 +9,13 @@ type PublicationCardListItemProps = {
   editing?: boolean;
   form?: Readonly<React.ReactNode>;
   editDisabled?: boolean;
+  deleteLoading?: boolean;
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
 };
 
 export const PublicationCardListItem = (props: PublicationCardListItemProps) => {
-  const { publication, editing, form, editDisabled = false, onDelete, onEdit } = props;
+  const { publication, editing, form, editDisabled = false, deleteLoading = false, onDelete, onEdit } = props;
 
   const { id, isbn, type, width, widthIn, height, heightIn, depth, depthIn, weight, weightOz, prices, locations } =
     publication;
@@ -29,7 +30,7 @@ export const PublicationCardListItem = (props: PublicationCardListItemProps) => 
       editDisabled={editDisabled}
       onEdit={() => onEdit?.(id)}
       ariaLabel="Edit publication"
-      actions={<DeleteButton onClick={() => onDelete?.(id)} />}
+      actions={<DeleteButton onClick={() => onDelete?.(id)} disabled={deleteLoading} />}
     >
       <Typography variant="h2" className="normal-case">
         {<TranslatedContent content={type.toLowerCase().replace('_', ' ')} />}

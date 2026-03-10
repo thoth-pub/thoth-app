@@ -15,12 +15,13 @@ const useWork = (id: WorkId) => {
   });
   const { createContribution } = useCreateContribution();
   const { updateContribution } = useUpdateContribution({ relatedWorkId: id });
-  const { deleteContribution } = useDeleteContribution();
+  const { deleteContribution, loading: deleteContributionLoading } = useDeleteContribution();
 
   return {
     work,
     loading: isLoading,
     fetching: isFetching,
+    deleteContributionLoading,
     deleteWork,
     updateWork,
     updateContribution,

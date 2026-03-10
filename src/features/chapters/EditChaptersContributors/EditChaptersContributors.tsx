@@ -46,7 +46,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   const { deleteChaptersAffiliations } = useDeleteChaptersAffiliations({
     affiliations,
   });
-  const { deleteChaptersContributions } = useDeleteChaptersContributions();
+  const { deleteChaptersContributions, deleteLoading } = useDeleteChaptersContributions();
   const { updateChaptersAffiliationsOrder } = useChaptersAffiliationsOrderUpdate();
   const { reorderChaptersContributions } = useChaptersContributionsReorder();
 
@@ -170,6 +170,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
               <ChaptersContributionsTable
                 contributions={uniqueContributors}
                 activeContribution={activeContribution}
+                deleteLoading={deleteLoading}
                 onEdit={handleEdit}
                 onDelete={handleBulkDelete}
                 onSelectAsMain={handleMainBulkUpdate}

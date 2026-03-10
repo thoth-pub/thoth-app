@@ -33,7 +33,7 @@ type EditableContentProps<T extends FieldValues> = {
   isTableVariant?: boolean;
   isDisabled?: boolean;
   borderTransparent?: boolean;
-  onSubmit: (data: T) => void;
+  onSubmit: (data: T) => void | Promise<void>;
   formFields: ({ control, isHelperTextVisible, reset, setValue }: FormFieldsProps) => Readonly<React.ReactNode>;
   preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
   resetOnSubmit?: boolean;
@@ -69,12 +69,12 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     edit(formId);
   };
 
-  const submit = (data: FieldValues) => {
+  const submit = async (data: FieldValues) => {
     setFormData(data as DefaultValues<T>);
 
-    closeForm();
+    await onSubmit(data as T);
 
-    onSubmit(data as T);
+    closeForm();
   };
 
   const onClose = () => {

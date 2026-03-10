@@ -11,12 +11,13 @@ type SetsListCardItemProps = {
   editing?: boolean;
   disabledControls?: boolean;
   form?: Readonly<React.ReactNode>;
+  deleteLoading?: boolean;
   onEdit?: (set: SetEntity) => void;
   onDelete?: (id: string) => void;
 };
 
 export const SetsListCardItem = (props: SetsListCardItemProps) => {
-  const { set, editing = false, disabledControls = false, form, onEdit, onDelete } = props;
+  const { set, editing = false, disabledControls = false, form, deleteLoading = false, onEdit, onDelete } = props;
 
   const { titles, updatedAt, volumesCount, covers } = set;
 
@@ -35,7 +36,7 @@ export const SetsListCardItem = (props: SetsListCardItemProps) => {
       editDisabled={disabledControls}
       onEdit={handleEdit}
       ariaLabel="Edit set"
-      actions={<DeleteButton onClick={() => onDelete?.(set.id)} />}
+      actions={<DeleteButton onClick={() => onDelete?.(set.id)} disabled={deleteLoading} />}
     >
       <div className="cardWithImageWrapper">
         <LandingPagesGallery images={covers} />
