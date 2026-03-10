@@ -15,6 +15,6 @@ export * from './api/hooks/useUpdateContribution';
 export * from './store/contribution.store';
 
 // UI
-export { default as ChaptersContributionsTable } from './ui/ChaptersContributionsTable/ChaptersContributionsTable';
+export { default as ChaptersContributionsList } from './ui/ChaptersContributionsList/ChaptersContributionsList';
 export { default as ContributionForms } from './ui/ContributionForms/ContributionForms';
 export { default as WorkContributionsList } from './ui/WorkContributionsList/WorkContributionsList';

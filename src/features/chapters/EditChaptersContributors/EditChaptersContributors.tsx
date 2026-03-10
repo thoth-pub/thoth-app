@@ -2,7 +2,7 @@
 
 import { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
 import useEditContributionAffiliations from '@/src/entities/affiliation/ui/useAffiliationsForm';
-import { ChaptersContributionsTable, useContributionStateMachine } from '@/src/entities/contribution';
+import { ChaptersContributionsList, useContributionStateMachine } from '@/src/entities/contribution';
 import type { ContributionBiographyForm, WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
@@ -86,14 +86,6 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
     });
   };
 
-  const handleMainBulkUpdate = async (id: ContributionId) => {
-    const sameContributions = findAllSameContributions(id, chapters, uniqueContributors);
-
-    if (sameContributions.length === 0) return;
-
-    await handleBulkUpdate(id, { isMain: !sameContributions[0].isMain });
-  };
-
   const handleUpdateAffiliations = (data: AffiliationsForm, contributionId: ContributionId) => {
     const sameContributions = findAllSameContributions(contributionId, chapters, uniqueContributors);
 
@@ -167,13 +159,12 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
         <>
           {isSectionEnabled ? (
             <>
-              <ChaptersContributionsTable
+              <ChaptersContributionsList
                 contributions={uniqueContributors}
                 activeContribution={activeContribution}
                 deleteLoading={deleteLoading}
                 onEdit={handleEdit}
                 onDelete={handleBulkDelete}
-                onSelectAsMain={handleMainBulkUpdate}
                 onDragEnd={handleDragEnd}
                 form={
                   <EditChaptersContributions

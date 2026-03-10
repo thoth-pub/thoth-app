@@ -1,9 +1,13 @@
+import { useQueryClient } from '@tanstack/react-query';
+
 import { useMoveContribution } from '@/src/entities/contribution';
 import type { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
+import { QueryKeys } from '@/src/shared/constants';
 
 export const useChaptersContributionsReorder = () => {
   const { moveContribution } = useMoveContribution({ workId: '' });
+  const queryClient = useQueryClient();
 
   const reorderChaptersContributions = async ({
     data,
@@ -43,6 +47,8 @@ export const useChaptersContributionsReorder = () => {
     });
 
     await Promise.all(promises);
+    await queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    await queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
   return {
     reorderChaptersContributions,
