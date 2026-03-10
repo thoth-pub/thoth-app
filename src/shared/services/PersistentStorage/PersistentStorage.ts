@@ -1,4 +1,4 @@
-import { appConfig } from '../config';
+import { appConfig } from '../../config';
 
 export class PersistentStorage {
   private keyPrefix = appConfig.persistentStorage.prefix;

@@ -4,6 +4,7 @@ import { appConfig } from '@/src/shared/config';
 import { WorkStatuses } from '@/src/shared/constants';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { BaseService } from '@/src/shared/interfaces/services';
+import { TransactionContext } from '@/src/shared/services';
 import type { SeriesForUpdateItems, TitleDto, TitleEntity } from '@/src/shared/types';
 import { getDateInFuture } from '@/src/shared/utils';
 
@@ -122,100 +123,76 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   async createWork(data: WorkEntity): Promise<WorkEntity> {
     const { workId: _, ...dto } = this.dtoMapper.toDto(data) as WorkDto;
 
-    const shouldCreateSubjects = data.subjects.length > 0;
-    const shouldCreateContributions = data.contributions.length > 0;
-    const shouldCreateFundings = data.fundings.length > 0;
-    const shouldCreatePublications = data.publications.length > 0;
-    const shouldCreateLanguages = data.languages.length > 0;
-    const shouldCreateTitles = data.titles.length > 0;
-    const shouldCreateAbstracts = data.abstracts.length > 0;
-    const shouldCreateReferences = data.references.length > 0;
-
     const response = await this.graphqlService.mutation(CREATE_WORK, {
       data: dto,
       markupFormat: MarkdownFormats.enum.JATS_XML,
     });
 
     const work = this.dtoMapper.toEntity(response.createWork as WorkDto);
+    const transactions = new TransactionContext();
+    transactions.onRollback(() => this.deleteWork(work.id));
 
-    if (shouldCreateTitles) {
-      const titlesPromises = data.titles.map((title) => this.titleService.createTitle(title, work.id));
+    try {
+      work.titles = await this.titleService.createTitles(data.titles, work.id, transactions);
 
-      const createdTitles = await Promise.all(titlesPromises);
-
-      work.titles = createdTitles;
-    }
-
-    if (shouldCreateAbstracts) {
-      const abstractsPromises = data.abstracts.map((abstract) =>
-        this.abstractService.createAbstract(abstract, work.id),
+      const createdAbstracts = await Promise.all(
+        data.abstracts.map((abstract) => this.abstractService.createAbstract(abstract, work.id)),
       );
-
-      const createdAbstracts = await Promise.all(abstractsPromises);
-
+      createdAbstracts.forEach((abstract) =>
+        transactions.onRollback(() => this.abstractService.deleteAbstract(abstract.id)),
+      );
       work.abstracts = createdAbstracts;
-    }
 
-    if (shouldCreateSubjects) {
-      const subjectsPromises = data.subjects.map((subject) => this.subjectService.createSubject(subject, work.id));
-
-      const createdSubjects = await Promise.all(subjectsPromises);
-
+      const createdSubjects = await Promise.all(
+        data.subjects.map((subject) => this.subjectService.createSubject(subject, work.id)),
+      );
+      createdSubjects.forEach((subject) =>
+        transactions.onRollback(() => this.subjectService.deleteSubject(subject.id)),
+      );
       work.subjects = createdSubjects;
-    }
 
-    if (shouldCreateFundings) {
-      const fundingsPromises = data.fundings.map((funding) =>
-        this.fundingService.createFunding({ data: funding, relatedWorkId: work.id }),
+      const createdFundings = await Promise.all(
+        data.fundings.map((funding) => this.fundingService.createFunding({ data: funding, relatedWorkId: work.id })),
       );
-
-      const createdFundings = await Promise.all(fundingsPromises);
-
+      createdFundings.forEach((funding) =>
+        transactions.onRollback(() => this.fundingService.deleteFunding({ fundingId: funding.id })),
+      );
       work.fundings = createdFundings;
-    }
 
-    if (shouldCreateContributions) {
-      const contributionsPromises = data.contributions.map((contribution) =>
-        this.contributionService.createContribution(contribution, work.id),
+      const createdContributions = await Promise.all(
+        data.contributions.map((contribution) => this.contributionService.createContribution(contribution, work.id)),
       );
-
-      const createdContributions = await Promise.all(contributionsPromises);
-
+      createdContributions.forEach((contribution) =>
+        transactions.onRollback(() => this.contributionService.deleteContribution(contribution.id)),
+      );
       work.contributions = createdContributions;
-    }
 
-    if (shouldCreatePublications) {
-      const publicationsPromises = data.publications.map((publication) =>
-        this.publicationService.createPublication(publication, work.id),
+      const createdPublications = await Promise.all(
+        data.publications.map((publication) => this.publicationService.createPublication(publication, work.id)),
       );
-
-      const createdPublications = await Promise.all(publicationsPromises);
-
+      createdPublications.forEach((publication) =>
+        transactions.onRollback(async () => {
+          await this.publicationService.deletePublication(publication.id);
+        }),
+      );
       work.publications = createdPublications;
-    }
 
-    // TODO: skip during revert logic update
-    if (shouldCreateLanguages) {
-      const languagesPromises = data.languages.map((language) =>
-        this.languageService.createLanguage(language, work.id),
+      const createdLanguages = await Promise.all(
+        data.languages.map((language) => this.languageService.createLanguage(language, work.id)),
       );
-
-      const createdLanguages = await Promise.all(languagesPromises);
-
       work.languages = createdLanguages;
-    }
 
-    if (shouldCreateReferences) {
-      const referencesPromises = data.references.map((reference) =>
-        this.referenceService.createReference(reference, work.id),
+      const createdReferences = await Promise.all(
+        data.references.map((reference) => this.referenceService.createReference(reference, work.id)),
       );
-
-      const createdReferences = await Promise.all(referencesPromises);
-
+      createdReferences.forEach((r) => transactions.onRollback(() => this.referenceService.deleteReference(r.id)));
       work.references = createdReferences;
-    }
 
-    return work;
+      return work;
+    } catch (error) {
+      await transactions.rollback();
+      throw error;
+    }
   }
 
   async createWorkRelation(relatorWorkId: WorkId, relatedWorkId: WorkId, ordinal: number, relationType: RelationType) {

@@ -3,6 +3,7 @@ import { PublisherId } from '@/src/entities/publisher';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
 import { BaseService } from '@/src/shared/interfaces/services';
+import { TransactionContext } from '@/src/shared/services';
 import { Direction } from '@/src/shared/types';
 
 import { TitleService } from '../../title/api/title.service';
@@ -116,17 +117,10 @@ export class SetService extends BaseService<SetEntity, SetDto, SetDtoMapper> {
     });
 
     const work = this.dtoMapper.toEntity(response.createWork as SetDto);
+    const transactions = new TransactionContext();
+    transactions.onRollback(() => this.deleteSet(work.id));
 
-    const promises = [];
-
-    for (const title of data.titles) {
-      promises.push(this.titleService.createTitle(title, work.id));
-    }
-
-    const createdTitles = await Promise.all(promises);
-
-    work.titles = createdTitles;
-
+    work.titles = await this.titleService.createTitles(data.titles, work.id, transactions);
     return work;
   }
 

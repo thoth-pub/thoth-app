@@ -338,58 +338,58 @@ export class CSVParser {
       .split(',')
       .map((subject) => subject.trim());
 
-    themeSubjectsValue.forEach((subject, index) => {
+    themeSubjectsValue.forEach((subject) => {
       if (subject.length === 0) return;
 
       subjects.push({
         id: this.defaultId,
         code: subject,
         type: SubjectTypes.enum.Thema,
-        ordinal: subjects.length + index + 1,
+        ordinal: subjects.length + 1,
       });
     });
 
-    bicSubjectsValue.forEach((subject, index) => {
+    bicSubjectsValue.forEach((subject) => {
       if (subject.length === 0) return;
 
       subjects.push({
         id: this.defaultId,
         code: subject,
         type: SubjectTypes.enum.Bic,
-        ordinal: subjects.length + index + 1,
+        ordinal: subjects.length + 1,
       });
     });
 
-    bisacSubjectsValue.forEach((subject, index) => {
+    bisacSubjectsValue.forEach((subject) => {
       if (subject.length === 0) return;
 
       subjects.push({
         id: this.defaultId,
         code: subject,
         type: SubjectTypes.enum.Bisac,
-        ordinal: subjects.length + index + 1,
+        ordinal: subjects.length + 1,
       });
     });
 
-    lccSubjectsValue.forEach((subject, index) => {
+    lccSubjectsValue.forEach((subject) => {
       if (subject.length === 0) return;
 
       subjects.push({
         id: this.defaultId,
         code: subject,
         type: SubjectTypes.enum.Lcc,
-        ordinal: subjects.length + index + 1,
+        ordinal: subjects.length + 1,
       });
     });
 
-    keywordSubjectsValue.forEach((subject, index) => {
+    keywordSubjectsValue.forEach((subject) => {
       if (subject.length === 0) return;
 
       subjects.push({
         id: this.defaultId,
         code: subject,
         type: SubjectTypes.enum.Keyword,
-        ordinal: subjects.length + index + 1,
+        ordinal: subjects.length + 1,
       });
     });
 
