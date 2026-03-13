@@ -581,6 +581,146 @@ export const FORM_FIELDS = {
     name: 'unstructuredCitation',
     placeholder: 'referenceCitation.label',
   },
+  AWARD_TITLE: {
+    label: 'awardTitle.label',
+    name: 'title',
+    placeholder: 'awardTitle.label',
+  },
+  AWARD_URL: {
+    label: 'awardUrl.label',
+    name: 'url',
+    placeholder: 'awardUrl.label',
+  },
+  AWARD_CATEGORY: {
+    label: 'awardCategory.label',
+    name: 'category',
+    placeholder: 'awardCategory.label',
+  },
+  AWARD_NOTE: {
+    label: 'awardNote.label',
+    name: 'note',
+    placeholder: 'awardNote.label',
+  },
+  BOOK_REVIEW_TITLE: {
+    label: 'bookReviewTitle.label',
+    name: 'title',
+    placeholder: 'bookReviewTitle.label',
+  },
+  BOOK_REVIEW_AUTHOR_NAME: {
+    label: 'bookReviewAuthorName.label',
+    name: 'authorName',
+    placeholder: 'bookReviewAuthorName.label',
+  },
+  BOOK_REVIEW_URL: {
+    label: 'bookReviewUrl.label',
+    name: 'url',
+    placeholder: 'bookReviewUrl.label',
+  },
+  BOOK_REVIEW_REVIEW_DATE: {
+    label: 'bookReviewReviewDate.label',
+    name: 'reviewDate',
+    placeholder: 'bookReviewReviewDate.label',
+  },
+  BOOK_REVIEW_JOURNAL_NAME: {
+    label: 'bookReviewJournalName.label',
+    name: 'journalName',
+    placeholder: 'bookReviewJournalName.label',
+  },
+  BOOK_REVIEW_JOURNAL_VOLUME: {
+    label: 'bookReviewJournalVolume.label',
+    name: 'journalVolume',
+    placeholder: 'bookReviewJournalVolume.label',
+    type: InputTypes.NUMBER,
+  },
+  BOOK_REVIEW_JOURNAL_NUMBER: {
+    label: 'bookReviewJournalNumber.label',
+    name: 'journalNumber',
+    placeholder: 'bookReviewJournalNumber.label',
+    type: InputTypes.NUMBER,
+  },
+  BOOK_REVIEW_JOURNAL_ISSN: {
+    label: 'bookReviewJournalIssn.label',
+    name: 'journalIssn',
+    placeholder: 'bookReviewJournalIssn.label',
+  },
+  BOOK_REVIEW_TEXT: {
+    label: 'bookReviewText.label',
+    name: 'text',
+    placeholder: 'bookReviewText.label',
+  },
+  ADDITIONAL_RESOURCE_TITLE: {
+    label: 'additionalResourceTitle.label',
+    name: 'title',
+    placeholder: 'additionalResourceTitle.label',
+  },
+  ADDITIONAL_RESOURCE_DESCRIPTION: {
+    label: 'additionalResourceDescription.label',
+    name: 'description',
+    placeholder: 'additionalResourceDescription.label',
+  },
+  ADDITIONAL_RESOURCE_ATTRIBUTION: {
+    label: 'additionalResourceAttribution.label',
+    name: 'attribution',
+    placeholder: 'additionalResourceAttribution.label',
+  },
+  ADDITIONAL_RESOURCE_RESOURCE_TYPE: {
+    label: 'additionalResourceResourceType.label',
+    name: 'resourceType',
+    placeholder: 'additionalResourceResourceType.label',
+  },
+  ADDITIONAL_RESOURCE_HANDLE: {
+    label: 'additionalResourceHandle.label',
+    name: 'handle',
+    placeholder: 'additionalResourceHandle.label',
+  },
+  ADDITIONAL_RESOURCE_URL: {
+    label: 'additionalResourceUrl.label',
+    name: 'url',
+    placeholder: 'additionalResourceUrl.label',
+  },
+  ENDORSEMENT_AUTHOR_NAME: {
+    label: 'endorsementAuthorName.label',
+    name: 'authorName',
+    placeholder: 'endorsementAuthorName.label',
+  },
+  ENDORSEMENT_AUTHOR_ROLE: {
+    label: 'endorsementAuthorRole.label',
+    name: 'authorRole',
+    placeholder: 'endorsementAuthorRole.label',
+  },
+  ENDORSEMENT_URL: {
+    label: 'endorsementUrl.label',
+    name: 'url',
+    placeholder: 'endorsementUrl.label',
+  },
+  ENDORSEMENT_TEXT: {
+    label: 'endorsementText.label',
+    name: 'text',
+    placeholder: 'endorsementText.label',
+  },
+  FEATURED_VIDEO_TITLE: {
+    label: 'featuredVideoTitle.label',
+    name: 'title',
+    placeholder: 'featuredVideoTitle.label',
+  },
+  FEATURED_VIDEO_URL: {
+    label: 'featuredVideoUrl.label',
+    name: 'url',
+    placeholder: 'featuredVideoUrl.label',
+    type: InputTypes.URL,
+  },
+  FEATURED_VIDEO_WIDTH: {
+    label: 'featuredVideoWidth.label',
+    name: 'width',
+    placeholder: 'featuredVideoWidth.label',
+    type: InputTypes.NUMBER,
+  },
+  FEATURED_VIDEO_HEIGHT: {
+    label: 'featuredVideoHeight.label',
+    name: 'height',
+    placeholder: 'featuredVideoHeight.label',
+    type: InputTypes.NUMBER,
+  },
   SUBJECTS: {
     label: 'subjects.label',
     name: 'subjects',

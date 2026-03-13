@@ -314,6 +314,22 @@
     "label": "Project Shortname",
     "helperText": "Kurzname des Förderprojekts eingeben."
   },
+  "awardTitle": {
+    "label": "Award Title",
+    "helperText": "Enter the title of the award."
+  },
+  "awardUrl": {
+    "label": "Award URL",
+    "helperText": "Enter the URL of the award."
+  },
+  "awardCategory": {
+    "label": "Category",
+    "helperText": "Enter the category of the award."
+  },
+  "awardNote": {
+    "label": "Note",
+    "helperText": "Enter a note about the award."
+  },
   "referenceDoi": {
     "label": "DOI",
     "helperText": "DOI der Referenz einfügen."
@@ -361,5 +377,81 @@
   "withdrawnDate": {
     "label": "Widerrufen am",
     "helperText": "Das Datum angeben, an welchem der Titel widerrufen wurde."
+  },
+  "additionalResourceTitle": {
+    "label": "Resource Title",
+    "helperText": "Enter the title of the additional resource."
+  },
+  "additionalResourceDescription": {
+    "label": "Description",
+    "helperText": "Enter the description of the additional resource."
+  },
+  "additionalResourceAttribution": {
+    "label": "Attribution",
+    "helperText": "Enter the attribution of the additional resource."
+  },
+  "additionalResourceResourceType": {
+    "label": "Resource Type",
+    "helperText": "Enter the type of the additional resource."
+  },
+  "additionalResourceHandle": {
+    "label": "Handle",
+    "helperText": "Enter the handle of the additional resource."
+  },
+  "additionalResourceUrl": {
+    "label": "Resource URL",
+    "helperText": "Enter the URL of the additional resource."
+  },
+  "bookReviewTitle": {
+    "label": "Review Title",
+    "helperText": "Enter the title of the book review."
+  },
+  "bookReviewAuthorName": {
+    "label": "Reviewer Name",
+    "helperText": "Enter the name of the reviewer."
+  },
+  "bookReviewUrl": {
+    "label": "Review URL",
+    "helperText": "Enter the URL of the book review."
+  },
+  "bookReviewReviewDate": {
+    "label": "Review Date",
+    "helperText": "Enter the date of the book review."
+  },
+  "bookReviewJournalName": {
+    "label": "Journal Name",
+    "helperText": "Enter the name of the journal."
+  },
+  "bookReviewJournalVolume": {
+    "label": "Journal Volume",
+    "helperText": "Enter the volume of the journal."
+  },
+  "bookReviewJournalNumber": {
+    "label": "Journal Number",
+    "helperText": "Enter the issue number of the journal."
+  },
+  "bookReviewJournalIssn": {
+    "label": "Journal ISSN",
+    "helperText": "Enter the ISSN of the journal."
+  },
+  "bookReviewText": {
+    "label": "Review Text",
+    "helperText": "Enter the text of the book review."
+  },
+  "endorsementAuthorName": {
+    "label": "Author Name",
+    "helperText": "Enter the name of the endorsement author."
+  },
+  "endorsementAuthorRole": {
+    "label": "Author Role",
+    "helperText": "Enter the role of the endorsement author."
+  },
+  "endorsementUrl": {
+    "label": "Endorsement URL",
+    "helperText": "Enter the URL of the endorsement."
+  },
+  "endorsementText": {
+    "label": "Endorsement Text",
+    "helperText": "Enter the text of the endorsement."
   }
 }

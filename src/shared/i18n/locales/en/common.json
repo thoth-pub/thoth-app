@@ -27,6 +27,10 @@
     "addNewPrice": "Add New Price",
     "addNewFunding": "Add New Funding",
     "addNewReference": "Add New Reference",
+    "addNewAward": "Add New Award",
+    "addNewAdditionalResource": "Add New Additional Resource",
+    "addNewBookReview": "Add New Book Review",
+    "addNewEndorsement": "Add New Endorsement",
     "select": "select",
     "addVolume": "Add Volume",
     "addNewImprint": "Add New Imprint",
@@ -153,5 +157,9 @@
   "volume": "volume",
   "volumes": "volumes",
   "additional resources": "Additional Resources",
+  "awards": "Awards",
+  "book reviews": "Book Reviews",
+  "endorsements": "Endorsements",
+  "featured video": "Featured Video",
   "marketing": "Marketing"
 }

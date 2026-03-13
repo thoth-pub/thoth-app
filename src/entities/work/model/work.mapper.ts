@@ -10,6 +10,11 @@ import {
 } from '@/src/shared/utils';
 
 import { AbstractDtoMapper } from '../../abstract/model/abstract.mapper';
+import { AdditionalResourceDtoMapper } from '../../additional-resource/model/additional-resource.mapper';
+import { AwardDtoMapper } from '../../award/model/award.mapper';
+import { BookReviewDtoMapper } from '../../book-review/model/book-review.mapper';
+import { EndorsementDtoMapper } from '../../endorsement/model/endorsement.mapper';
+import { FeaturedVideoDtoMapper } from '../../featured-video/model/featured-video.mapper';
 import { WorkContribution } from '../../contribution/model/contribution.types';
 import { FundingDtoMapper } from '../../funding/model/funding.mapper';
 import { ReferenceDtoMapper } from '../../reference/model/reference.mapper';
@@ -19,6 +24,11 @@ import type { WorkContributionDto, WorkDto, WorkEntity } from './work.types';
 
 const { pageBreakdownSeparator } = appConfig.dataApi;
 
+const additionalResourceMapper = new AdditionalResourceDtoMapper();
+const awardMapper = new AwardDtoMapper();
+const bookReviewMapper = new BookReviewDtoMapper();
+const endorsementMapper = new EndorsementDtoMapper();
+const featuredVideoMapper = new FeaturedVideoDtoMapper();
 const fundingMapper = new FundingDtoMapper();
 const referenceMapper = new ReferenceDtoMapper();
 const subjectMapper = new SubjectDtoMapper();
@@ -66,6 +76,11 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       references = [],
       subjects = [],
       issues = [],
+      awards = [],
+      additionalResources = [],
+      bookReviews = [],
+      endorsements = [],
+      featuredVideo = null,
     } = dto;
 
     const frontmatterCount = pageBreakdown?.split(pageBreakdownSeparator)[0] ?? '';
@@ -109,6 +124,11 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       place: place ?? '',
       fundings: fundings.map(fundingMapper.toEntity),
       references: references.map(referenceMapper.toEntity),
+      additionalResources: additionalResources.map((r) => additionalResourceMapper.toEntity(r as any)),
+      awards: awards.map(awardMapper.toEntity),
+      bookReviews: bookReviews.map((r) => bookReviewMapper.toEntity(r as any)),
+      endorsements: endorsements.map((r) => endorsementMapper.toEntity(r as any)),
+      featuredVideo: featuredVideo ? featuredVideoMapper.toEntity(featuredVideo as any) : null,
       subjects: subjects.map(subjectMapper.toEntity),
       languages: languages.map(({ languageCode, languageRelation, mainLanguage, languageId }) => ({
         code: languageCode,

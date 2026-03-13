@@ -4,7 +4,12 @@ import type { Contribution, WorkFragmentFragment } from '@/gql/graphql';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 import type { AbstractEntity, TitleEntity } from '@/src/shared/types';
 
+import type { AdditionalResourceEntity } from '../../additional-resource/model/additional-resource.types';
+import type { AwardEntity } from '../../award/model/award.types';
+import type { BookReviewEntity } from '../../book-review/model/book-review.types';
 import { BiographyDto, WorkContribution } from '../../contribution/model/contribution.types';
+import type { EndorsementEntity } from '../../endorsement/model/endorsement.types';
+import type { FeaturedVideoEntity } from '../../featured-video/model/featured-video.types';
 import type { FundingEntity } from '../../funding/model/funding.types';
 import type { LanguageEntity } from '../../language/model/language.types';
 import { PublicationEntity } from '../../publication/model/publication.types';
@@ -85,6 +90,11 @@ export type WorkEntity = {
   publications: PublicationEntity[];
   fundings: FundingEntity[];
   references: ReferenceEntity[];
+  additionalResources: AdditionalResourceEntity[];
+  awards: AwardEntity[];
+  bookReviews: BookReviewEntity[];
+  endorsements: EndorsementEntity[];
+  featuredVideo: FeaturedVideoEntity | null;
   subjects: SubjectEntity[];
   issues: WorkIssue[];
   firstPage: string;

@@ -1,6 +1,10 @@
 'use client';
 
+import { AdditionalResourceStateMachineContext } from '@/src/entities/additional-resource';
+import { AwardStateMachineContext } from '@/src/entities/award';
+import { BookReviewStateMachineContext } from '@/src/entities/book-review';
 import { ContributionStateMachineContext } from '@/src/entities/contribution';
+import { EndorsementStateMachineContext } from '@/src/entities/endorsement';
 import { FundingStateMachineContext } from '@/src/entities/funding';
 import { LocationStateMachineContext } from '@/src/entities/locations';
 import { PublicationsStateMachineContext } from '@/src/entities/publication';
@@ -22,6 +26,10 @@ const StoreProvider = composeProviders(
   PublicationsStateMachineContext.Provider,
   FundingStateMachineContext.Provider,
   ReferenceStateMachineContext.Provider,
+  AdditionalResourceStateMachineContext.Provider,
+  AwardStateMachineContext.Provider,
+  BookReviewStateMachineContext.Provider,
+  EndorsementStateMachineContext.Provider,
   SeriesStateMachineContext.Provider,
   WorkStateMachineContext.Provider,
   SetStateMachineContext.Provider,

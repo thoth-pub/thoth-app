@@ -3,10 +3,14 @@
 import { createContext, type ReactNode, use, useMemo } from 'react';
 
 import { AbstractService } from '@/src/entities/abstract/api/abstract.service';
+import { AdditionalResourceService } from '@/src/entities/additional-resource/api/additional-resource.service';
 import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.service';
+import { AwardService } from '@/src/entities/award/api/award.service';
 import { BookService } from '@/src/entities/book/api/book.service';
+import { BookReviewService } from '@/src/entities/book-review/api/book-review.service';
 import { ContributionService } from '@/src/entities/contribution';
 import { ContributorService } from '@/src/entities/contributor';
+import { EndorsementService } from '@/src/entities/endorsement/api/endorsement.service';
 import { FundingService } from '@/src/entities/funding/api/funding.service';
 import { ImprintService } from '@/src/entities/imprint';
 import { InstitutionService } from '@/src/entities/institution';
@@ -40,6 +44,10 @@ type ServicesMap = {
   subjectService: SubjectService;
   seriesService: SeriesService;
   setService: SetService;
+  additionalResourceService: AdditionalResourceService;
+  awardService: AwardService;
+  bookReviewService: BookReviewService;
+  endorsementService: EndorsementService;
   referenceService: ReferenceService;
   publicationService: PublicationService;
   locationService: LocationService;
@@ -65,6 +73,10 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
   const contributorService = new ContributorService(graphqlService);
   const subjectService = new SubjectService(graphqlService);
   const seriesService = new SeriesService(graphqlService);
+  const additionalResourceService = new AdditionalResourceService(graphqlService);
+  const awardService = new AwardService(graphqlService);
+  const bookReviewService = new BookReviewService(graphqlService);
+  const endorsementService = new EndorsementService(graphqlService);
   const referenceService = new ReferenceService(graphqlService);
   const locationService = new LocationService(graphqlService);
   const priceService = new PriceService(graphqlService);
@@ -117,6 +129,10 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
     subjectService,
     seriesService,
     setService,
+    additionalResourceService,
+    awardService,
+    bookReviewService,
+    endorsementService,
     referenceService,
     publicationService,
     locationService,

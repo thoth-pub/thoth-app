@@ -6,9 +6,10 @@ type TableFormsHeaderProps = {
   controls?: Readonly<React.ReactNode>;
   onDone?: () => void;
   onClose?: () => void;
+  isDoneDisabled?: boolean;
 };
 
-const TableFormsHeader = ({ title, children, controls, onDone, onClose }: TableFormsHeaderProps) => {
+const TableFormsHeader = ({ title, children, controls, onDone, onClose, isDoneDisabled }: TableFormsHeaderProps) => {
   return (
     <div className="flex justify-between">
       <Typography variant="h2" component="h3" className="flex items-center gap-1 text-(--color-typography)">
@@ -17,7 +18,7 @@ const TableFormsHeader = ({ title, children, controls, onDone, onClose }: TableF
       </Typography>
       <div className="flex gap-1">
         {controls}
-        <SubmitButton type="button" onClick={onDone} />
+        <SubmitButton type="button" onClick={onDone} disabled={isDoneDisabled} />
         <CloseButton onClose={onClose} />
       </div>
     </div>

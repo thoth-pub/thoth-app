@@ -53,6 +53,26 @@ export const NOTIFICATIONS = {
   REFERENCE_UPDATE_FAILED: 'Failed to update reference',
   REFERENCE_DELETE_FAILED: 'Failed to delete reference',
   REFERENCE_MOVE_FAILED: 'Failed to change reference order',
+  // Awards
+  AWARD_CREATION_FAILED: 'Failed to create award',
+  AWARD_UPDATE_FAILED: 'Failed to update award',
+  AWARD_DELETE_FAILED: 'Failed to delete award',
+  AWARD_MOVE_FAILED: 'Failed to change award order',
+  // Endorsements
+  ENDORSEMENT_CREATION_FAILED: 'Failed to create endorsement',
+  ENDORSEMENT_UPDATE_FAILED: 'Failed to update endorsement',
+  ENDORSEMENT_DELETE_FAILED: 'Failed to delete endorsement',
+  ENDORSEMENT_MOVE_FAILED: 'Failed to change endorsement order',
+  // Book Reviews
+  BOOK_REVIEW_CREATION_FAILED: 'Failed to create book review',
+  BOOK_REVIEW_UPDATE_FAILED: 'Failed to update book review',
+  BOOK_REVIEW_DELETE_FAILED: 'Failed to delete book review',
+  BOOK_REVIEW_MOVE_FAILED: 'Failed to change book review order',
+  // Additional Resources
+  ADDITIONAL_RESOURCE_CREATION_FAILED: 'Failed to create additional resource',
+  ADDITIONAL_RESOURCE_UPDATE_FAILED: 'Failed to update additional resource',
+  ADDITIONAL_RESOURCE_DELETE_FAILED: 'Failed to delete additional resource',
+  ADDITIONAL_RESOURCE_MOVE_FAILED: 'Failed to change additional resource order',
   // Subjects
   SUBJECT_CREATION_FAILED: 'Failed to create subject',
   SUBJECT_UPDATE_FAILED: 'Failed to update subject',

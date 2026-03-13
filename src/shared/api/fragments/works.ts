@@ -167,5 +167,58 @@ export const WORK_FRAGMENT = graphql(`
         seriesName
       }
     }
+    awards {
+      awardId
+      workId
+      title
+      url
+      category
+      note
+      awardOrdinal
+    }
+    additionalResources {
+      workResourceId
+      workId
+      title
+      description
+      attribution
+      resourceType
+      doi
+      handle
+      url
+      resourceOrdinal
+    }
+    bookReviews {
+      bookReviewId
+      workId
+      title
+      authorName
+      url
+      doi
+      reviewDate
+      journalName
+      journalVolume
+      journalNumber
+      journalIssn
+      text
+      reviewOrdinal
+    }
+    endorsements {
+      endorsementId
+      workId
+      authorName
+      authorRole
+      url
+      text
+      endorsementOrdinal
+    }
+    featuredVideo {
+      workFeaturedVideoId
+      workId
+      title
+      url
+      width
+      height
+    }
   }
 `);

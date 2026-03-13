@@ -1,7 +1,12 @@
+export * from './additional-resource';
 export * from './affiliations';
+export * from './award';
 export * from './biography';
+export * from './book-review';
 export * from './contributions';
 export * from './contributors';
+export * from './endorsement';
+export * from './featured-video';
 export * from './fundings';
 export * from './languages';
 export * from './price';
@@ -11,3 +16,4 @@ export * from './references';
 export * from './sets';
 export * from './subject';
 export * from './works';
+

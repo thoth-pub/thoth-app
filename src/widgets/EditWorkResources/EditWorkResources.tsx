@@ -1,16 +1,16 @@
 'use client';
 
 import type { BaseEditSectionProps } from '@/src/shared/types';
-import { ContentSection, TranslatedContent, Typography } from '@/src/shared/ui';
+import { ContentSection, TranslatedContent } from '@/src/shared/ui';
+
+import { AdditionalResourcesSection } from './components/AdditionalResourcesSection';
 
 const EditWorkResources = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
   return (
     <ContentSection title={<TranslatedContent content="additional resources" />}>
-      <div>
-        <Typography variant="h2">Additional Resources {workId}</Typography>
-      </div>
+      <AdditionalResourcesSection workId={workId} additionalResources={[]} />
     </ContentSection>
   );
 };
