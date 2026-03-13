@@ -1,12 +1,6 @@
-export type EndorsementDto = {
-  endorsementId: string;
-  workId: string;
-  authorName: string | null;
-  authorRole: string | null;
-  url: string | null;
-  text: string | null;
-  endorsementOrdinal: number;
-};
+import type { EndorsementFragmentFragment } from '@/gql/graphql';
+
+export type EndorsementDto = EndorsementFragmentFragment;
 
 export type EndorsementId = string;
 

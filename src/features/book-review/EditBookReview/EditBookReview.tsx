@@ -1,0 +1,105 @@
+'use client';
+
+import { EditBookReviewForm, useBookReviewStateMachine, useUpdateBookReview } from '@/src/entities/book-review';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
+
+const EditBookReview = (props: BaseRecommendedSectionProps) => {
+  const { workId } = props;
+
+  const { activeEntity: activeBookReview, update, finishEditing } = useBookReviewStateMachine();
+  const { updateBookReview } = useUpdateBookReview({ workId });
+
+  const updateTitle = (title: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, title });
+    updateBookReview({ ...activeBookReview, title });
+  };
+
+  const updateAuthorName = (authorName: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, authorName });
+    updateBookReview({ ...activeBookReview, authorName });
+  };
+
+  const updateUrl = (url: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, url });
+    updateBookReview({ ...activeBookReview, url });
+  };
+
+  const updateDoi = (doi: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, doi });
+    updateBookReview({ ...activeBookReview, doi });
+  };
+
+  const updateReviewDate = (reviewDate: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, reviewDate });
+    updateBookReview({ ...activeBookReview, reviewDate });
+  };
+
+  const updateJournalName = (journalName: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, journalName });
+    updateBookReview({ ...activeBookReview, journalName });
+  };
+
+  const updateJournalVolume = (journalVolume: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, journalVolume });
+    updateBookReview({ ...activeBookReview, journalVolume });
+  };
+
+  const updateJournalNumber = (journalNumber: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, journalNumber });
+    updateBookReview({ ...activeBookReview, journalNumber });
+  };
+
+  const updateJournalIssn = (journalIssn: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, journalIssn });
+    updateBookReview({ ...activeBookReview, journalIssn });
+  };
+
+  const updateText = (text: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, text });
+    updateBookReview({ ...activeBookReview, text });
+  };
+
+  if (!activeBookReview) return null;
+
+  const { title, authorName, url, doi, reviewDate, journalName, journalVolume, journalNumber, journalIssn, text } =
+    activeBookReview;
+
+  return (
+    <EditBookReviewForm
+      title={title}
+      authorName={authorName}
+      url={url}
+      doi={doi}
+      reviewDate={reviewDate}
+      journalName={journalName}
+      journalVolume={journalVolume}
+      journalNumber={journalNumber}
+      journalIssn={journalIssn}
+      text={text}
+      onTitleUpdate={updateTitle}
+      onAuthorNameUpdate={updateAuthorName}
+      onUrlUpdate={updateUrl}
+      onDoiUpdate={updateDoi}
+      onReviewDateUpdate={updateReviewDate}
+      onJournalNameUpdate={updateJournalName}
+      onJournalVolumeUpdate={updateJournalVolume}
+      onJournalNumberUpdate={updateJournalNumber}
+      onJournalIssnUpdate={updateJournalIssn}
+      onTextUpdate={updateText}
+      onDone={finishEditing}
+      onClose={finishEditing}
+    />
+  );
+};
+
+export default EditBookReview;

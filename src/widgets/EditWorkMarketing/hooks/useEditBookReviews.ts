@@ -7,6 +7,7 @@ import {
   useUpdateBookReview,
 } from '@/src/entities/book-review';
 import type { BookReviewEntity } from '@/src/entities/book-review/model/book-review.types';
+import { useWork } from '@/src/entities/work';
 import { WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared/config';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -28,17 +29,18 @@ const defaultBookReview: BookReviewEntity = {
   orderNumber: 0,
 };
 
-export const useEditBookReviews = (workId: WorkId, bookReviews: BookReviewEntity[]) => {
+export const useEditBookReviews = (workId: WorkId) => {
+  const { work } = useWork(workId);
   const { activeEntity: activeBookReview, edit } = useBookReviewStateMachine();
   const { activeFormId } = useFormStateMachine();
-  const { deleteBookReview: deleteBookReviewMutation, loading: deleteLoading } = useDeleteBookReview();
+  const { deleteBookReview: deleteBookReviewMutation, loading: deleteLoading } = useDeleteBookReview({ workId });
   const { updateBookReview } = useUpdateBookReview({ workId });
   const { moveBookReview } = useMoveBookReview({ workId });
 
   const isNewBookReview = activeBookReview ? isDefaultId(activeBookReview.id) : false;
 
   const editBookReview = (id: string) => {
-    const bookReview = bookReviews.find((bookReview) => bookReview.id === id);
+    const bookReview = work.bookReviews.find((bookReview) => bookReview.id === id);
 
     if (!bookReview) return;
 
@@ -52,7 +54,7 @@ export const useEditBookReviews = (workId: WorkId, bookReviews: BookReviewEntity
   const dragEnd = async (data: BookReviewEntity[]) => {
     const updatedData = data.map((bookReview, index) => ({ ...bookReview, orderNumber: index + 1 }));
 
-    const bookReviewToUpdate = updatedData.find((bookReview, index) => bookReviews[index].id !== bookReview.id);
+    const bookReviewToUpdate = updatedData.find((bookReview, index) => work.bookReviews[index].id !== bookReview.id);
 
     if (!bookReviewToUpdate) return;
 
@@ -65,7 +67,7 @@ export const useEditBookReviews = (workId: WorkId, bookReviews: BookReviewEntity
   const deleteBookReview = async (id: string) => {
     await deleteBookReviewMutation(id);
 
-    const bookReviewsWithUpdatedOrderNumbers = bookReviews
+    const bookReviewsWithUpdatedOrderNumbers = work.bookReviews
       .filter((bookReview) => bookReview.id !== id)
       .map((bookReview, index) => ({
         ...bookReview,
@@ -80,6 +82,7 @@ export const useEditBookReviews = (workId: WorkId, bookReviews: BookReviewEntity
   };
 
   return {
+    bookReviews: work.bookReviews,
     activeBookReview,
     isNewBookReview,
     editDisabled: !!activeFormId,
