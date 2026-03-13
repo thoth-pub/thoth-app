@@ -1,6 +1,5 @@
 'use client';
 
-import type { BookReviewEntity } from '@/src/entities/book-review';
 import { BookReviewsList } from '@/src/entities/book-review';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { AddButton, TranslatedContent, Typography } from '@/src/shared/ui';
@@ -11,11 +10,11 @@ import { useEditBookReviews } from '../hooks/useEditBookReviews';
 
 type BookReviewsSectionProps = {
   workId: WorkId;
-  bookReviews: BookReviewEntity[];
 };
 
-export const BookReviewsSection = ({ workId, bookReviews: mockBookReviews }: BookReviewsSectionProps) => {
+export const BookReviewsSection = ({ workId }: BookReviewsSectionProps) => {
   const {
+    bookReviews,
     activeBookReview,
     isNewBookReview,
     editDisabled,
@@ -24,7 +23,7 @@ export const BookReviewsSection = ({ workId, bookReviews: mockBookReviews }: Boo
     addBookReview,
     dragEnd,
     deleteBookReview,
-  } = useEditBookReviews(workId, mockBookReviews);
+  } = useEditBookReviews(workId);
 
   return (
     <>
@@ -33,7 +32,7 @@ export const BookReviewsSection = ({ workId, bookReviews: mockBookReviews }: Boo
       </Typography>
       <BookReviewsList
         activeBookReview={activeBookReview}
-        bookReviews={mockBookReviews}
+        bookReviews={bookReviews}
         form={<EditBookReview workId={workId} />}
         editDisabled={editDisabled}
         deleteLoading={deleteLoading}
@@ -41,7 +40,7 @@ export const BookReviewsSection = ({ workId, bookReviews: mockBookReviews }: Boo
         onEdit={editBookReview}
         onDragEnd={dragEnd}
       />
-      {isNewBookReview && <AddBookReview workId={workId} bookReviews={mockBookReviews} />}
+      {isNewBookReview && <AddBookReview workId={workId} bookReviews={bookReviews} />}
       <AddButton className="px-4 capitalize" onAdd={addBookReview} disabled={isNewBookReview}>
         <TranslatedContent content="actions.addNewBookReview" />
       </AddButton>

@@ -1,6 +1,5 @@
 'use client';
 
-import type { EndorsementEntity } from '@/src/entities/endorsement';
 import { EndorsementsList } from '@/src/entities/endorsement';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { AddButton, TranslatedContent, Typography } from '@/src/shared/ui';
@@ -11,11 +10,11 @@ import { useEditEndorsements } from '../hooks/useEditEndorsements';
 
 type EndorsementsSectionProps = {
   workId: WorkId;
-  endorsements: EndorsementEntity[];
 };
 
-export const EndorsementsSection = ({ workId, endorsements: mockEndorsements }: EndorsementsSectionProps) => {
+export const EndorsementsSection = ({ workId }: EndorsementsSectionProps) => {
   const {
+    endorsements,
     activeEndorsement,
     isNewEndorsement,
     editDisabled,
@@ -24,7 +23,7 @@ export const EndorsementsSection = ({ workId, endorsements: mockEndorsements }: 
     addEndorsement,
     dragEnd,
     deleteEndorsement,
-  } = useEditEndorsements(workId, mockEndorsements);
+  } = useEditEndorsements(workId);
 
   return (
     <>
@@ -33,7 +32,7 @@ export const EndorsementsSection = ({ workId, endorsements: mockEndorsements }: 
       </Typography>
       <EndorsementsList
         activeEndorsement={activeEndorsement}
-        endorsements={mockEndorsements}
+        endorsements={endorsements}
         form={<EditEndorsement workId={workId} />}
         editDisabled={editDisabled}
         deleteLoading={deleteLoading}
@@ -41,7 +40,7 @@ export const EndorsementsSection = ({ workId, endorsements: mockEndorsements }: 
         onEdit={editEndorsement}
         onDragEnd={dragEnd}
       />
-      {isNewEndorsement && <AddEndorsement workId={workId} endorsements={mockEndorsements} />}
+      {isNewEndorsement && <AddEndorsement workId={workId} endorsements={endorsements} />}
       <AddButton className="px-4 capitalize" onAdd={addEndorsement} disabled={isNewEndorsement}>
         <TranslatedContent content="actions.addNewEndorsement" />
       </AddButton>

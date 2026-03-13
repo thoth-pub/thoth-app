@@ -1,0 +1,82 @@
+'use client';
+
+import { useState } from 'react';
+
+import { EditEndorsementForm, useCreateEndorsement, useEndorsementStateMachine } from '@/src/entities/endorsement';
+import type { EndorsementEntity } from '@/src/entities/endorsement/model/endorsement.types';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
+import { TableNewEntityFormWrapper } from '@/src/shared/ui';
+
+type AddEndorsementProps = BaseRecommendedSectionProps & {
+  endorsements?: EndorsementEntity[];
+};
+
+const emptyEndorsements: EndorsementEntity[] = [];
+
+const AddEndorsement = (props: AddEndorsementProps) => {
+  const { workId, endorsements = emptyEndorsements } = props;
+
+  const { activeEntity: activeEndorsement, finishEditing } = useEndorsementStateMachine();
+  const [endorsement, setEndorsement] = useState<EndorsementEntity | null>(activeEndorsement);
+  const { createEndorsement } = useCreateEndorsement({ workId });
+
+  const create = () => {
+    if (!endorsement) return;
+
+    const lastEndorsementOrderNumber = [...endorsements].sort((a, b) => b.orderNumber - a.orderNumber)[0]
+      ?.orderNumber;
+
+    createEndorsement({
+      ...endorsement,
+      orderNumber: lastEndorsementOrderNumber ? lastEndorsementOrderNumber + 1 : 1,
+    });
+    finishEditing();
+  };
+
+  const updateAuthorName = (authorName: string) => {
+    if (!endorsement) return;
+
+    setEndorsement({ ...endorsement, authorName });
+  };
+
+  const updateAuthorRole = (authorRole: string) => {
+    if (!endorsement) return;
+
+    setEndorsement({ ...endorsement, authorRole });
+  };
+
+  const updateUrl = (url: string) => {
+    if (!endorsement) return;
+
+    setEndorsement({ ...endorsement, url });
+  };
+
+  const updateText = (text: string) => {
+    if (!endorsement) return;
+
+    setEndorsement({ ...endorsement, text });
+  };
+
+  if (!endorsement) return null;
+
+  const { authorName, authorRole, url, text } = endorsement;
+
+  return (
+    <TableNewEntityFormWrapper>
+      <EditEndorsementForm
+        authorName={authorName}
+        authorRole={authorRole}
+        url={url}
+        text={text}
+        onAuthorNameUpdate={updateAuthorName}
+        onAuthorRoleUpdate={updateAuthorRole}
+        onUrlUpdate={updateUrl}
+        onTextUpdate={updateText}
+        onDone={create}
+        onClose={finishEditing}
+      />
+    </TableNewEntityFormWrapper>
+  );
+};
+
+export default AddEndorsement;

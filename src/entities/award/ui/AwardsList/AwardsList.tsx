@@ -28,6 +28,8 @@ const AwardsList = (props: AwardsListProps) => {
     onDragEnd,
   } = props;
 
+  if (awards.length === 0) return null;
+
   return (
     <CardsList items={awards} draggable={awards.length > 1} loading={loading} onDragEnd={onDragEnd}>
       {(draggable) => (

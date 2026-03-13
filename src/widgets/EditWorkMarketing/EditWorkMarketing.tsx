@@ -13,8 +13,8 @@ const EditWorkMarketing = (props: BaseEditSectionProps) => {
   return (
     <ContentSection title={<TranslatedContent content="marketing" />}>
       <AwardsSection workId={workId} />
-      <EndorsementsSection workId={workId} endorsements={[]} />
-      <BookReviewsSection workId={workId} bookReviews={[]} />
+      <EndorsementsSection workId={workId} />
+      <BookReviewsSection workId={workId} />
     </ContentSection>
   );
 };
