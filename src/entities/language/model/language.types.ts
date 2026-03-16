@@ -11,6 +11,5 @@ export type LanguagesForm = z.infer<typeof languagesValidationSchema>;
 export type LanguageEntity = {
   code: LanguageCode;
   relation: LanguageRelation;
-  isMain: boolean;
   id: string;
 };

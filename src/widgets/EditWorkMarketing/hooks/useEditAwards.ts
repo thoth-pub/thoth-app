@@ -1,6 +1,6 @@
 'use client';
 
-import { useAwardStateMachine, useDeleteAward, useMoveAward, useUpdateAward } from '@/src/entities/award';
+import { useAwardStateMachine, useDeleteAward, useMoveAward } from '@/src/entities/award';
 import type { AwardEntity } from '@/src/entities/award/model/award.types';
 import { useWork } from '@/src/entities/work';
 import { WorkId } from '@/src/entities/work/model/work.types';
@@ -14,16 +14,16 @@ const defaultAward: AwardEntity = {
   title: '',
   url: '',
   category: '',
-  note: '',
+  statement: '',
+  role: null,
   orderNumber: 0,
 };
 
 export const useEditAwards = (workId: WorkId) => {
-  const { work } = useWork(workId);
+  const { work, loading, fetching } = useWork(workId);
   const { activeEntity: activeAward, edit } = useAwardStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { deleteAward: deleteAwardMutation, loading: deleteLoading } = useDeleteAward({ workId });
-  const { updateAward } = useUpdateAward({ workId });
   const { moveAward } = useMoveAward({ workId });
 
   const isNewAward = activeAward ? isDefaultId(activeAward.id) : false;
@@ -52,19 +52,6 @@ export const useEditAwards = (workId: WorkId) => {
 
   const deleteAward = async (id: string) => {
     await deleteAwardMutation(id);
-
-    const awardsWithUpdatedOrderNumbers = work.awards
-      .filter((award) => award.id !== id)
-      .map((award, index) => ({
-        ...award,
-        orderNumber: index + 1,
-      }));
-
-    const promises = awardsWithUpdatedOrderNumbers.map((award) => {
-      return updateAward({ ...award, orderNumber: award.orderNumber });
-    });
-
-    await Promise.all(promises);
   };
 
   return {
@@ -72,6 +59,8 @@ export const useEditAwards = (workId: WorkId) => {
     activeAward,
     isNewAward,
     editDisabled: !!activeFormId,
+    loading,
+    fetching,
     deleteLoading,
     editAward,
     addAward,

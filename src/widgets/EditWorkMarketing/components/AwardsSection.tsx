@@ -13,8 +13,19 @@ type AwardsSectionProps = {
 };
 
 export const AwardsSection = ({ workId }: AwardsSectionProps) => {
-  const { awards, activeAward, isNewAward, editDisabled, deleteLoading, editAward, addAward, dragEnd, deleteAward } =
-    useEditAwards(workId);
+  const {
+    awards,
+    activeAward,
+    isNewAward,
+    editDisabled,
+    loading,
+    fetching,
+    deleteLoading,
+    editAward,
+    addAward,
+    dragEnd,
+    deleteAward,
+  } = useEditAwards(workId);
 
   return (
     <>
@@ -26,6 +37,7 @@ export const AwardsSection = ({ workId }: AwardsSectionProps) => {
         awards={awards}
         form={<EditAward workId={workId} />}
         editDisabled={editDisabled}
+        loading={loading || fetching}
         deleteLoading={deleteLoading}
         onDelete={deleteAward}
         onEdit={editAward}

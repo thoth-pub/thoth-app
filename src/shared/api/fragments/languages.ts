@@ -5,6 +5,5 @@ export const LANGUAGE_FRAGMENT = graphql(`
     languageId
     languageCode
     languageRelation
-    mainLanguage
   }
 `);

@@ -17,6 +17,8 @@ export const BookReviewsSection = ({ workId }: BookReviewsSectionProps) => {
     bookReviews,
     activeBookReview,
     isNewBookReview,
+    loading,
+    fetching,
     editDisabled,
     deleteLoading,
     editBookReview,
@@ -33,6 +35,7 @@ export const BookReviewsSection = ({ workId }: BookReviewsSectionProps) => {
       <BookReviewsList
         activeBookReview={activeBookReview}
         bookReviews={bookReviews}
+        loading={loading || fetching}
         form={<EditBookReview workId={workId} />}
         editDisabled={editDisabled}
         deleteLoading={deleteLoading}

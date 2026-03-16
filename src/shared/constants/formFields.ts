@@ -542,12 +542,6 @@ export const FORM_FIELDS = {
     placeholder: 'grantNumber.label',
     type: InputTypes.TEXT,
   },
-  JURISDICTION: {
-    label: 'Jurisdiction',
-    name: 'jurisdiction',
-    placeholder: 'Jurisdiction',
-    type: InputTypes.TEXT,
-  },
   PROGRAM: {
     label: 'program.label',
     name: 'program',
@@ -596,10 +590,15 @@ export const FORM_FIELDS = {
     name: 'category',
     placeholder: 'awardCategory.label',
   },
-  AWARD_NOTE: {
-    label: 'awardNote.label',
-    name: 'note',
-    placeholder: 'awardNote.label',
+  AWARD_STATEMENT: {
+    label: 'awardStatement.label',
+    name: 'statement',
+    placeholder: 'awardStatement.label',
+  },
+  AWARD_ROLE: {
+    label: 'awardRole.label',
+    name: 'role',
+    placeholder: 'awardRole.label',
   },
   BOOK_REVIEW_TITLE: {
     label: 'bookReviewTitle.label',

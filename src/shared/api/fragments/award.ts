@@ -7,7 +7,8 @@ export const AWARD_FRAGMENT = graphql(`
     title
     url
     category
-    note
+    role
+    prizeStatement
     awardOrdinal
   }
 `);

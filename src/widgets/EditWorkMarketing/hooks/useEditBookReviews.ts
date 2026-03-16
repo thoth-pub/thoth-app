@@ -4,7 +4,6 @@ import {
   useBookReviewStateMachine,
   useDeleteBookReview,
   useMoveBookReview,
-  useUpdateBookReview,
 } from '@/src/entities/book-review';
 import type { BookReviewEntity } from '@/src/entities/book-review/model/book-review.types';
 import { useWork } from '@/src/entities/work';
@@ -30,11 +29,10 @@ const defaultBookReview: BookReviewEntity = {
 };
 
 export const useEditBookReviews = (workId: WorkId) => {
-  const { work } = useWork(workId);
+  const { work, loading, fetching } = useWork(workId);
   const { activeEntity: activeBookReview, edit } = useBookReviewStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { deleteBookReview: deleteBookReviewMutation, loading: deleteLoading } = useDeleteBookReview({ workId });
-  const { updateBookReview } = useUpdateBookReview({ workId });
   const { moveBookReview } = useMoveBookReview({ workId });
 
   const isNewBookReview = activeBookReview ? isDefaultId(activeBookReview.id) : false;
@@ -66,19 +64,6 @@ export const useEditBookReviews = (workId: WorkId) => {
 
   const deleteBookReview = async (id: string) => {
     await deleteBookReviewMutation(id);
-
-    const bookReviewsWithUpdatedOrderNumbers = work.bookReviews
-      .filter((bookReview) => bookReview.id !== id)
-      .map((bookReview, index) => ({
-        ...bookReview,
-        orderNumber: index + 1,
-      }));
-
-    const promises = bookReviewsWithUpdatedOrderNumbers.map((bookReview) => {
-      return updateBookReview({ ...bookReview, orderNumber: bookReview.orderNumber });
-    });
-
-    await Promise.all(promises);
   };
 
   return {
@@ -86,6 +71,8 @@ export const useEditBookReviews = (workId: WorkId) => {
     activeBookReview,
     isNewBookReview,
     editDisabled: !!activeFormId,
+    loading,
+    fetching,
     deleteLoading,
     editBookReview,
     addBookReview,

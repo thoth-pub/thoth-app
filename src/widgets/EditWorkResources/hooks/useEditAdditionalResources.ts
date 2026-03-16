@@ -4,9 +4,9 @@ import {
   useAdditionalResourceStateMachine,
   useDeleteAdditionalResource,
   useMoveAdditionalResource,
-  useUpdateAdditionalResource,
 } from '@/src/entities/additional-resource';
 import type { AdditionalResourceEntity } from '@/src/entities/additional-resource/model/additional-resource.types';
+import { useWork } from '@/src/entities/work';
 import { WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared/config';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -25,21 +25,18 @@ const defaultAdditionalResource: AdditionalResourceEntity = {
   orderNumber: 0,
 };
 
-export const useEditAdditionalResources = (
-  workId: WorkId,
-  additionalResources: AdditionalResourceEntity[],
-) => {
+export const useEditAdditionalResources = (workId: WorkId) => {
+  const { work, loading, fetching } = useWork(workId);
   const { activeEntity: activeAdditionalResource, edit } = useAdditionalResourceStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { deleteAdditionalResource: deleteAdditionalResourceMutation, loading: deleteLoading } =
-    useDeleteAdditionalResource();
-  const { updateAdditionalResource } = useUpdateAdditionalResource({ workId });
+    useDeleteAdditionalResource({ workId });
   const { moveAdditionalResource } = useMoveAdditionalResource({ workId });
 
   const isNewAdditionalResource = activeAdditionalResource ? isDefaultId(activeAdditionalResource.id) : false;
 
   const editAdditionalResource = (id: string) => {
-    const resource = additionalResources.find((r) => r.id === id);
+    const resource = work.additionalResources.find((r) => r.id === id);
 
     if (!resource) return;
 
@@ -53,9 +50,7 @@ export const useEditAdditionalResources = (
   const dragEnd = async (data: AdditionalResourceEntity[]) => {
     const updatedData = data.map((resource, index) => ({ ...resource, orderNumber: index + 1 }));
 
-    const resourceToUpdate = updatedData.find(
-      (resource, index) => additionalResources[index].id !== resource.id,
-    );
+    const resourceToUpdate = updatedData.find((resource, index) => work.additionalResources[index].id !== resource.id);
 
     if (!resourceToUpdate) return;
 
@@ -67,25 +62,15 @@ export const useEditAdditionalResources = (
 
   const deleteAdditionalResource = async (id: string) => {
     await deleteAdditionalResourceMutation(id);
-
-    const resourcesWithUpdatedOrderNumbers = additionalResources
-      .filter((resource) => resource.id !== id)
-      .map((resource, index) => ({
-        ...resource,
-        orderNumber: index + 1,
-      }));
-
-    const promises = resourcesWithUpdatedOrderNumbers.map((resource) => {
-      return updateAdditionalResource({ ...resource, orderNumber: resource.orderNumber });
-    });
-
-    await Promise.all(promises);
   };
 
   return {
+    additionalResources: work.additionalResources,
     activeAdditionalResource,
     isNewAdditionalResource,
     editDisabled: !!activeFormId,
+    loading,
+    fetching,
     deleteLoading,
     editAdditionalResource,
     addAdditionalResource,

@@ -2,8 +2,10 @@
 
 import { TableFormsHeader, TableFormsWrapper } from '@/src/shared/ui';
 
+import type { AwardRole } from '../../model/award.types';
 import { EditAwardCategory } from '../EditAwardCategory/EditAwardCategory';
-import { EditAwardNote } from '../EditAwardNote/EditAwardNote';
+import { EditAwardRole } from '../EditAwardRole/EditAwardRole';
+import { EditAwardStatement } from '../EditAwardStatement/EditAwardStatement';
 import { EditAwardTitle } from '../EditAwardTitle/EditAwardTitle';
 import { EditAwardUrl } from '../EditAwardUrl/EditAwardUrl';
 
@@ -11,11 +13,13 @@ type EditAwardFormProps = {
   title?: string;
   url?: string;
   category?: string;
-  note?: string;
+  statement?: string;
+  role?: AwardRole | null;
   onTitleUpdate?: (data: string) => void;
   onUrlUpdate?: (data: string) => void;
   onCategoryUpdate?: (data: string) => void;
-  onNoteUpdate?: (data: string) => void;
+  onStatementUpdate?: (data: string) => void;
+  onRoleUpdate?: (data: AwardRole | null) => void;
   onDone?: () => void;
   onClose?: () => void;
   isDoneDisabled?: boolean;
@@ -26,11 +30,13 @@ const EditAwardForm = (props: EditAwardFormProps) => {
     title,
     url,
     category,
-    note,
+    statement,
+    role,
     onTitleUpdate,
     onUrlUpdate,
     onCategoryUpdate,
-    onNoteUpdate,
+    onStatementUpdate,
+    onRoleUpdate,
     onDone,
     onClose,
     isDoneDisabled,
@@ -42,7 +48,8 @@ const EditAwardForm = (props: EditAwardFormProps) => {
       <EditAwardTitle defaultValue={title} onUpdate={onTitleUpdate} />
       <EditAwardCategory defaultValue={category} onUpdate={onCategoryUpdate} />
       <EditAwardUrl defaultValue={url} onUpdate={onUrlUpdate} />
-      <EditAwardNote defaultValue={note} onUpdate={onNoteUpdate} />
+      <EditAwardStatement defaultValue={statement} onUpdate={onStatementUpdate} />
+      <EditAwardRole defaultValue={role} onUpdate={onRoleUpdate} />
     </TableFormsWrapper>
   );
 };

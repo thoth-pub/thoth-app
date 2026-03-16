@@ -13,9 +13,9 @@ import { AbstractDtoMapper } from '../../abstract/model/abstract.mapper';
 import { AdditionalResourceDtoMapper } from '../../additional-resource/model/additional-resource.mapper';
 import { AwardDtoMapper } from '../../award/model/award.mapper';
 import { BookReviewDtoMapper } from '../../book-review/model/book-review.mapper';
+import { WorkContribution } from '../../contribution/model/contribution.types';
 import { EndorsementDtoMapper } from '../../endorsement/model/endorsement.mapper';
 import { FeaturedVideoDtoMapper } from '../../featured-video/model/featured-video.mapper';
-import { WorkContribution } from '../../contribution/model/contribution.types';
 import { FundingDtoMapper } from '../../funding/model/funding.mapper';
 import { ReferenceDtoMapper } from '../../reference/model/reference.mapper';
 import { SubjectDtoMapper } from '../../subject/model/subject.mapper';
@@ -124,16 +124,15 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       place: place ?? '',
       fundings: fundings.map(fundingMapper.toEntity),
       references: references.map(referenceMapper.toEntity),
-      additionalResources: additionalResources.map((r) => additionalResourceMapper.toEntity(r as any)),
+      additionalResources: additionalResources.map((r) => additionalResourceMapper.toEntity(r)),
       awards: awards.map(awardMapper.toEntity),
-      bookReviews: bookReviews.map((r) => bookReviewMapper.toEntity(r as any)),
-      endorsements: endorsements.map((r) => endorsementMapper.toEntity(r as any)),
-      featuredVideo: featuredVideo ? featuredVideoMapper.toEntity(featuredVideo as any) : null,
+      bookReviews: bookReviews.map((r) => bookReviewMapper.toEntity(r)),
+      endorsements: endorsements.map((r) => endorsementMapper.toEntity(r)),
+      featuredVideo: featuredVideo ? featuredVideoMapper.toEntity(featuredVideo) : null,
       subjects: subjects.map(subjectMapper.toEntity),
-      languages: languages.map(({ languageCode, languageRelation, mainLanguage, languageId }) => ({
+      languages: languages.map(({ languageCode, languageRelation, languageId }) => ({
         code: languageCode,
         relation: languageRelation,
-        isMain: mainLanguage,
         id: languageId,
       })),
       contributions: contributions

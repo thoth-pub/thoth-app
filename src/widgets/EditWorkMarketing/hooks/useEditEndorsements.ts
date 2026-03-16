@@ -4,7 +4,6 @@ import {
   useDeleteEndorsement,
   useEndorsementStateMachine,
   useMoveEndorsement,
-  useUpdateEndorsement,
 } from '@/src/entities/endorsement';
 import type { EndorsementEntity } from '@/src/entities/endorsement/model/endorsement.types';
 import { useWork } from '@/src/entities/work';
@@ -24,11 +23,10 @@ const defaultEndorsement: EndorsementEntity = {
 };
 
 export const useEditEndorsements = (workId: WorkId) => {
-  const { work } = useWork(workId);
+  const { work, loading, fetching } = useWork(workId);
   const { activeEntity: activeEndorsement, edit } = useEndorsementStateMachine();
   const { activeFormId } = useFormStateMachine();
   const { deleteEndorsement: deleteEndorsementMutation, loading: deleteLoading } = useDeleteEndorsement({ workId });
-  const { updateEndorsement } = useUpdateEndorsement({ workId });
   const { moveEndorsement } = useMoveEndorsement({ workId });
 
   const isNewEndorsement = activeEndorsement ? isDefaultId(activeEndorsement.id) : false;
@@ -62,19 +60,6 @@ export const useEditEndorsements = (workId: WorkId) => {
 
   const deleteEndorsement = async (id: string) => {
     await deleteEndorsementMutation(id);
-
-    const endorsementsWithUpdatedOrderNumbers = work.endorsements
-      .filter((endorsement) => endorsement.id !== id)
-      .map((endorsement, index) => ({
-        ...endorsement,
-        orderNumber: index + 1,
-      }));
-
-    const promises = endorsementsWithUpdatedOrderNumbers.map((endorsement) => {
-      return updateEndorsement({ ...endorsement, orderNumber: endorsement.orderNumber });
-    });
-
-    await Promise.all(promises);
   };
 
   return {
@@ -82,6 +67,8 @@ export const useEditEndorsements = (workId: WorkId) => {
     activeEndorsement,
     isNewEndorsement,
     editDisabled: !!activeFormId,
+    loading,
+    fetching,
     deleteLoading,
     editEndorsement,
     addEndorsement,

@@ -8,7 +8,6 @@ export const getDefaultFunding = (data?: Partial<FundingEntity>): FundingEntity 
     id: appConfig.defaultId,
     grantNumber: '',
     institutionId: '',
-    jurisdiction: '',
     program: '',
     projectName: '',
     projectShortname: '',
@@ -22,8 +21,8 @@ export const isAllFundingRecommendationsFilled = (funding: FundingEntity) => {
   return funding.grantNumber.length > 0;
 };
 
-const getFundingKey = ({ grantNumber, institutionId, jurisdiction, program, projectName, projectShortname }: FundingEntity) =>
-  [grantNumber, institutionId, jurisdiction, program, projectName, projectShortname].join('||');
+const getFundingKey = ({ grantNumber, institutionId, program, projectName, projectShortname }: FundingEntity) =>
+  [grantNumber, institutionId, program, projectName, projectShortname].join('||');
 
 export const areFundingsEqual = (works: WorkEntity[]): boolean => {
   if (works.length === 0) return true;

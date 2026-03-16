@@ -1,6 +1,7 @@
 'use client';
 
 import { EditAwardForm, useAwardStateMachine, useUpdateAward } from '@/src/entities/award';
+import type { AwardRole } from '@/src/entities/award/model/award.types';
 import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 
 const EditAward = (props: BaseRecommendedSectionProps) => {
@@ -30,27 +31,36 @@ const EditAward = (props: BaseRecommendedSectionProps) => {
     updateAward({ ...activeAward, category });
   };
 
-  const updateNote = (note: string) => {
+  const updateStatement = (statement: string) => {
     if (!activeAward) return;
 
-    update({ ...activeAward, note });
-    updateAward({ ...activeAward, note });
+    update({ ...activeAward, statement });
+    updateAward({ ...activeAward, statement });
+  };
+
+  const updateRole = (role: AwardRole | null) => {
+    if (!activeAward) return;
+
+    update({ ...activeAward, role });
+    updateAward({ ...activeAward, role });
   };
 
   if (!activeAward) return null;
 
-  const { title, url, category, note } = activeAward;
+  const { title, url, category, statement, role } = activeAward;
 
   return (
     <EditAwardForm
       title={title}
       url={url}
       category={category}
-      note={note}
+      statement={statement}
+      role={role}
       onTitleUpdate={updateTitle}
       onUrlUpdate={updateUrl}
       onCategoryUpdate={updateCategory}
-      onNoteUpdate={updateNote}
+      onStatementUpdate={updateStatement}
+      onRoleUpdate={updateRole}
       onDone={finishEditing}
       onClose={finishEditing}
       isDoneDisabled={!title?.trim()}

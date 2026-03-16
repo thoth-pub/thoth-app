@@ -5,7 +5,6 @@ export const FUNDING_FRAGMENT = graphql(`
     fundingId
     grantNumber
     institutionId
-    jurisdiction
     program
     projectName
     projectShortname

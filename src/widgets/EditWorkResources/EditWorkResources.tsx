@@ -10,7 +10,7 @@ const EditWorkResources = (props: BaseEditSectionProps) => {
 
   return (
     <ContentSection title={<TranslatedContent content="additional resources" />}>
-      <AdditionalResourcesSection workId={workId} additionalResources={[]} />
+      <AdditionalResourcesSection workId={workId} />
     </ContentSection>
   );
 };

@@ -2173,7 +2173,6 @@ describe('XMLParser', () => {
       expect(result.data.works[0].languages).toHaveLength(1);
       expect(result.data.works[0].languages[0].code).toBe(language);
       expect(result.data.works[0].languages[0].relation).toBe(LanguageRelation.enum.Original);
-      expect(result.data.works[0].languages[0].isMain).toBe(true);
       expect(result.errors).toHaveLength(0);
     });
 
@@ -2234,7 +2233,6 @@ describe('XMLParser', () => {
       const projectName = faker.lorem.sentence();
       const projectShortname = faker.lorem.sentence();
       const grantNumber = faker.lorem.sentence();
-      const jurisdiction = faker.lorem.sentence();
       const xml: ONIXMessageRoot = {
         ONIXMessage: {
           Product: [
@@ -2277,11 +2275,6 @@ describe('XMLParser', () => {
                             IDTypeName: 'grantnumber',
                             IDValue: grantNumber,
                           },
-                          {
-                            FundingIDType: '01',
-                            IDTypeName: 'jurisdiction',
-                            IDValue: jurisdiction,
-                          },
                         ],
                       },
                     ],
@@ -2315,7 +2308,6 @@ describe('XMLParser', () => {
       expect(result.data.works[0].fundings[0].projectName).toBe(projectName);
       expect(result.data.works[0].fundings[0].projectShortname).toBe(projectShortname);
       expect(result.data.works[0].fundings[0].grantNumber).toBe(grantNumber);
-      expect(result.data.works[0].fundings[0].jurisdiction).toBe(jurisdiction);
       expect(result.errors).toHaveLength(0);
     });
 

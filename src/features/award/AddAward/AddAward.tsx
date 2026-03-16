@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import { EditAwardForm, useAwardStateMachine, useCreateAward } from '@/src/entities/award';
-import type { AwardEntity } from '@/src/entities/award/model/award.types';
+import type { AwardEntity, AwardRole } from '@/src/entities/award/model/award.types';
 import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
@@ -50,15 +50,21 @@ const AddAward = (props: AddAwardProps) => {
     setAward({ ...award, category });
   };
 
-  const updateNote = (note: string) => {
+  const updateStatement = (statement: string) => {
     if (!award) return;
 
-    setAward({ ...award, note });
+    setAward({ ...award, statement });
+  };
+
+  const updateRole = (role: AwardRole | null) => {
+    if (!award) return;
+
+    setAward({ ...award, role });
   };
 
   if (!award) return null;
 
-  const { title, url, category, note } = award;
+  const { title, url, category, statement, role } = award;
 
   return (
     <TableNewEntityFormWrapper>
@@ -66,11 +72,13 @@ const AddAward = (props: AddAwardProps) => {
         title={title}
         url={url}
         category={category}
-        note={note}
+        statement={statement}
+        role={role}
         onTitleUpdate={updateTitle}
         onUrlUpdate={updateUrl}
         onCategoryUpdate={updateCategory}
-        onNoteUpdate={updateNote}
+        onStatementUpdate={updateStatement}
+        onRoleUpdate={updateRole}
         onDone={create}
         onClose={finishEditing}
         isDoneDisabled={!title?.trim()}

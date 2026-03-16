@@ -84,14 +84,12 @@ export const WORK_FRAGMENT = graphql(`
     languages {
       languageCode
       languageRelation
-      mainLanguage
       languageId
     }
     fundings {
       fundingId
       grantNumber
       institutionId
-      jurisdiction
       program
       projectName
       projectShortname
@@ -173,7 +171,8 @@ export const WORK_FRAGMENT = graphql(`
       title
       url
       category
-      note
+      role
+      prizeStatement
       awardOrdinal
     }
     additionalResources {

@@ -68,10 +68,9 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
       pageCount: pageCount ?? 0,
       frontmatterCount: frontmatterValue,
       backmatterCount: backmatterValue,
-      languages: languages.map(({ languageCode, languageRelation, mainLanguage, languageId }) => ({
+      languages: languages.map(({ languageCode, languageRelation, languageId }) => ({
         code: languageCode,
         relation: languageRelation,
-        isMain: mainLanguage,
         id: languageId,
       })),
       contributions: contributions

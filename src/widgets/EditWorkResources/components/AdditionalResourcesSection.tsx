@@ -1,6 +1,5 @@
 'use client';
 
-import type { AdditionalResourceEntity } from '@/src/entities/additional-resource';
 import { AdditionalResourcesList } from '@/src/entities/additional-resource';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { AddButton, TranslatedContent } from '@/src/shared/ui';
@@ -11,39 +10,37 @@ import { useEditAdditionalResources } from '../hooks/useEditAdditionalResources'
 
 type AdditionalResourcesSectionProps = {
   workId: WorkId;
-  additionalResources: AdditionalResourceEntity[];
 };
 
-export const AdditionalResourcesSection = ({
-  workId,
-  additionalResources: mockAdditionalResources,
-}: AdditionalResourcesSectionProps) => {
+export const AdditionalResourcesSection = ({ workId }: AdditionalResourcesSectionProps) => {
   const {
+    additionalResources,
     activeAdditionalResource,
     isNewAdditionalResource,
     editDisabled,
+    loading,
+    fetching,
     deleteLoading,
     editAdditionalResource,
     addAdditionalResource,
     dragEnd,
     deleteAdditionalResource,
-  } = useEditAdditionalResources(workId, mockAdditionalResources);
+  } = useEditAdditionalResources(workId);
 
   return (
     <>
       <AdditionalResourcesList
         activeAdditionalResource={activeAdditionalResource}
-        additionalResources={mockAdditionalResources}
+        additionalResources={additionalResources}
         form={<EditAdditionalResource workId={workId} />}
         editDisabled={editDisabled}
+        loading={loading || fetching}
         deleteLoading={deleteLoading}
         onDelete={deleteAdditionalResource}
         onEdit={editAdditionalResource}
         onDragEnd={dragEnd}
       />
-      {isNewAdditionalResource && (
-        <AddAdditionalResource workId={workId} additionalResources={mockAdditionalResources} />
-      )}
+      {isNewAdditionalResource && <AddAdditionalResource workId={workId} additionalResources={additionalResources} />}
       <AddButton className="px-4 capitalize" onAdd={addAdditionalResource} disabled={isNewAdditionalResource}>
         <TranslatedContent content="actions.addNewAdditionalResource" />
       </AddButton>

@@ -29,7 +29,7 @@ const LanguagesForm = (props: LanguagesFormProps) => {
   const placeholder = languages.length > 0 ? languages.map(({ code }) => code).join(', ') : undefined;
 
   const defaultValues = languages
-    .map(({ code, relation, id, isMain }) => {
+    .map(({ code, relation, id }) => {
       const languageOption = languageOptions.find((option) => option.value.toLowerCase() === code.toLowerCase());
 
       if (!languageOption) return null;
@@ -37,7 +37,6 @@ const LanguagesForm = (props: LanguagesFormProps) => {
       return {
         id: id,
         languageId: id,
-        isMain,
         [LANGUAGE.name]: languageOption,
         [LANGUAGE_RELATION.name]: relation as LanguageRelation,
       };

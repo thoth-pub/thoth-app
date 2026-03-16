@@ -18,6 +18,8 @@ export const EndorsementsSection = ({ workId }: EndorsementsSectionProps) => {
     activeEndorsement,
     isNewEndorsement,
     editDisabled,
+    loading,
+    fetching,
     deleteLoading,
     editEndorsement,
     addEndorsement,
@@ -35,6 +37,7 @@ export const EndorsementsSection = ({ workId }: EndorsementsSectionProps) => {
         endorsements={endorsements}
         form={<EditEndorsement workId={workId} />}
         editDisabled={editDisabled}
+        loading={loading || fetching}
         deleteLoading={deleteLoading}
         onDelete={deleteEndorsement}
         onEdit={editEndorsement}

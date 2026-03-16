@@ -38,15 +38,9 @@ export const useChaptersFundings = (chapters: WorkEntity[]) => {
         const isSameProgram = funding.program === foundFunding.program;
         const isSameProjectName = funding.projectName === foundFunding.projectName;
         const isSameProjectShortname = funding.projectShortname === foundFunding.projectShortname;
-        const isSameJurisdiction = funding.jurisdiction === foundFunding.jurisdiction;
 
         const isSameFunding =
-          isSameInstitution &&
-          isSameGrantNumber &&
-          isSameProgram &&
-          isSameProjectName &&
-          isSameProjectShortname &&
-          isSameJurisdiction;
+          isSameInstitution && isSameGrantNumber && isSameProgram && isSameProjectName && isSameProjectShortname;
 
         if (!isSameFunding) return;
 

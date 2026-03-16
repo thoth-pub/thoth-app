@@ -18,7 +18,6 @@ export const useChaptersFundingsProgram = ({
         funding.grantNumber === updatedFunding.grantNumber &&
         funding.projectName === updatedFunding.projectName &&
         funding.projectShortname === updatedFunding.projectShortname &&
-        funding.jurisdiction === updatedFunding.jurisdiction &&
         funding.institutionId === updatedFunding.institutionId,
     );
 
@@ -35,7 +34,6 @@ export const useChaptersFundingsProgram = ({
           funding.grantNumber === updatedFunding.grantNumber &&
           funding.program !== updatedFunding.program &&
           funding.projectShortname === updatedFunding.projectShortname &&
-          funding.jurisdiction === updatedFunding.jurisdiction &&
           funding.institutionId === updatedFunding.institutionId,
       );
 

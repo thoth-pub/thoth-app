@@ -14,7 +14,6 @@ export const languagesValidationSchema = z.object({
   [LANGUAGES.name]: z.array(
     z.object({
       languageId: getRequiredStringValidation(),
-      isMain: z.boolean(),
       [LANGUAGE.name]: languageValidationSchema,
       [LANGUAGE_RELATION.name]: languageRelationValidation,
     }),

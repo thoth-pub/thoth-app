@@ -324,9 +324,13 @@
     "label": "Category",
     "helperText": "Enter the category of the award."
   },
-  "awardNote": {
-    "label": "Note",
-    "helperText": "Enter a note about the award."
+  "awardStatement": {
+    "label": "Statement",
+    "helperText": "Enter a statement about the award."
+  },
+  "awardRole": {
+    "label": "Role",
+    "helperText": "Select the role of the work in this award."
   },
   "referenceDoi": {
     "label": "DOI",

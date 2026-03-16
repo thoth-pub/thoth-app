@@ -47,7 +47,6 @@ export const IDs = {
   FUNDING: 'funding',
   FUNDING_PROJECT_NAME: 'funding_project_name',
   FUNDING_PROJECT_SHORTNAME: 'funding_project_shortname',
-  FUNDING_JURISDICTION: 'funding_jurisdiction',
   FUNDING_PROGRAM: 'funding_program',
   FUNDING_GRANT_NUMBER: 'funding_grant_number',
   // INSTITUTIONS
@@ -60,7 +59,8 @@ export const IDs = {
   AWARD_TITLE: 'award_title',
   AWARD_URL: 'award_url',
   AWARD_CATEGORY: 'award_category',
-  AWARD_NOTE: 'award_note',
+  AWARD_STATEMENT: 'award_statement',
+  AWARD_ROLE: 'award_role',
   // BOOK REVIEWS
   BOOK_REVIEW_TITLE: 'book_review_title',
   BOOK_REVIEW_AUTHOR_NAME: 'book_review_author_name',

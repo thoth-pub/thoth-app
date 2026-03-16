@@ -476,7 +476,6 @@ class XMLParser {
       workLanguages.push({
         code: language.value as LanguageCode,
         relation: LanguageRelation.enum.Original,
-        isMain: true,
         id: this.defaultId,
       });
     }
@@ -524,14 +523,12 @@ class XMLParser {
         const projectShortname =
           identifiers.find((identifier) => identifier?.IDTypeName === 'projectshortname')?.IDValue ?? '';
         const grantNumber = identifiers.find((identifier) => identifier?.IDTypeName === 'grantnumber')?.IDValue ?? '';
-        const jurisdiction = identifiers.find((identifier) => identifier?.IDTypeName === 'jurisdiction')?.IDValue ?? '';
 
         const newFunding = getDefaultFunding({
           program,
           projectName,
           projectShortname,
           grantNumber,
-          jurisdiction,
           institutionId: institution.id,
           institutionName: institution.name,
           institutionRor: institution.ror,

@@ -1,4 +1,6 @@
 export * from './accessibility';
+export * from './additionalResources';
+export * from './awards';
 export * from './affiliations';
 export * from './anchors';
 export * from './contributions';

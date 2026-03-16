@@ -50,7 +50,6 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
         id: '',
         code: value as LanguageCode,
         relation: languageRelation,
-        isMain: true,
       });
     });
 
@@ -61,7 +60,6 @@ export const useEditLanguages = (props: useEditLanguagesProps) => {
         id: languageId,
         code: value as LanguageCode,
         relation: languageRelation,
-        isMain: true,
       });
     });
 

@@ -4,7 +4,6 @@ import type { FundingFragmentFragment } from '@/gql/graphql';
 
 import {
   grantNumberValidationSchema,
-  jurisdictionValidationSchema,
   programValidationSchema,
   projectNameValidationSchema,
   projectShortNameValidationSchema,
@@ -18,7 +17,6 @@ export type FundingEntity = {
   id: FundingId;
   grantNumber: string;
   institutionId: string;
-  jurisdiction: string;
   program: string;
   projectName: string;
   projectShortname: string;
@@ -29,8 +27,6 @@ export type FundingEntity = {
 export type FundingProjectNameFormType = z.infer<typeof projectNameValidationSchema>;
 
 export type FundingProjectShortNameFormType = z.infer<typeof projectShortNameValidationSchema>;
-
-export type FundingJurisdictionFormType = z.infer<typeof jurisdictionValidationSchema>;
 
 export type FundingProgramFormType = z.infer<typeof programValidationSchema>;
 

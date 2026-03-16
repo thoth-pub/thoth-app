@@ -51,7 +51,6 @@ export const useChaptersLanguages = () => {
             id: '',
             code: value as LanguageCode,
             relation: languageRelation,
-            isMain: true,
           },
           chapterId: chapter.id,
         });
