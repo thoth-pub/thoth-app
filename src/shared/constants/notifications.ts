@@ -114,6 +114,10 @@ export const NOTIFICATIONS = {
   SET_MOVE_RELATION_FAILED: 'Failed to change book order in set',
   // Imprints
   IMPRINT_CREATION_FAILED: 'Failed to create imprint',
+  // Featured Video
+  FEATURED_VIDEO_CREATION_FAILED: 'Failed to create featured video',
+  FEATURED_VIDEO_UPDATE_FAILED: 'Failed to update featured video',
+  FEATURED_VIDEO_DELETE_FAILED: 'Failed to delete featured video',
   // File Upload
   UPLOAD_FILE_FAILED: 'Failed to upload file',
   PUBLICATION_UPLOAD_FILE_DISABLED: 'DOI and landing page are required to upload a file',

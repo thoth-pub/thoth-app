@@ -29,6 +29,14 @@ export const appConfig = {
   supportedFictionBookFileTypes: ['application/fictionbook2+zip', 'application/zip', 'application/octet-stream'],
   supportedMP3FileTypes: ['audio/mp3', 'audio/mpeg', 'application/octet-stream'],
   supportedWavFileTypes: ['audio/wav', 'audio/x-wav', 'application/octet-stream'],
+  supportedVideoFileTypes: [
+    'video/mp4',
+    'video/webm',
+    'video/quicktime',
+    'video/x-msvideo',
+    'video/x-matroska',
+    'video/ogg',
+  ],
   data: {
     itemsPerRequestLimit: 20,
     maxItemsPerRequestLimit: 100,
@@ -59,6 +67,7 @@ export const appConfig = {
   minFileSize: 6250,
   maxFileSize: 50000000,
   maxPublicationFileSize: 5368709120,
+  maxFeaturedVideoFileSize: 5368709120,
   minItemsCountForDragAndDrop: 2,
   maxCsvContributorsCount: 20,
   persistentStorage: {

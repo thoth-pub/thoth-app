@@ -77,6 +77,11 @@ export const IDs = {
   ENDORSEMENT_AUTHOR_ROLE: 'endorsement_author_role',
   ENDORSEMENT_URL: 'endorsement_url',
   ENDORSEMENT_TEXT: 'endorsement_text',
+  // FEATURED VIDEO
+  FEATURED_VIDEO_TITLE: 'featured_video_title',
+  FEATURED_VIDEO_URL: 'featured_video_url',
+  FEATURED_VIDEO_WIDTH: 'featured_video_width',
+  FEATURED_VIDEO_HEIGHT: 'featured_video_height',
   // ADDITIONAL RESOURCES
   ADDITIONAL_RESOURCE_TITLE: 'additional_resource_title',
   ADDITIONAL_RESOURCE_DESCRIPTION: 'additional_resource_description',
