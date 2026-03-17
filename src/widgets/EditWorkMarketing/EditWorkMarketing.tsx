@@ -6,6 +6,7 @@ import { ContentSection, TranslatedContent } from '@/src/shared/ui';
 import { AwardsSection } from './components/AwardsSection';
 import { BookReviewsSection } from './components/BookReviewsSection';
 import { EndorsementsSection } from './components/EndorsementsSection';
+import { FeaturedVideoSection } from './components/FeaturedVideoSection';
 
 const EditWorkMarketing = (props: BaseEditSectionProps) => {
   const { workId } = props;
@@ -15,6 +16,7 @@ const EditWorkMarketing = (props: BaseEditSectionProps) => {
       <AwardsSection workId={workId} />
       <EndorsementsSection workId={workId} />
       <BookReviewsSection workId={workId} />
+      <FeaturedVideoSection workId={workId} />
     </ContentSection>
   );
 };
