@@ -456,5 +456,21 @@
   "endorsementText": {
     "label": "Endorsement Text",
     "helperText": "Enter the text of the endorsement."
+  },
+  "featuredVideoTitle": {
+    "label": "Video Title",
+    "helperText": "Enter the title of the featured video."
+  },
+  "featuredVideoUrl": {
+    "label": "Video URL",
+    "helperText": "Enter the URL of the featured video."
+  },
+  "featuredVideoWidth": {
+    "label": "Video Width",
+    "helperText": "Enter the width of the featured video in pixels."
+  },
+  "featuredVideoHeight": {
+    "label": "Video Height",
+    "helperText": "Enter the height of the featured video in pixels."
   }
 }
