@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import { FORM_FIELDS } from '@/src/shared/constants';
-import { optionalStringValidation, optionalUrlValidation } from '@/src/shared/utils';
+import { optionalDateValidation, optionalStringValidation, optionalUrlValidation } from '@/src/shared/utils';
 import { doiValidation } from '@/src/shared/utils/validations';
 
 const {
@@ -34,7 +34,7 @@ export const bookReviewAuthorNameValidationSchema = z.object({
 });
 
 export const bookReviewReviewDateValidationSchema = z.object({
-  [BOOK_REVIEW_REVIEW_DATE.name]: optionalStringValidation,
+  [BOOK_REVIEW_REVIEW_DATE.name]: optionalDateValidation,
 });
 
 export const bookReviewJournalNameValidationSchema = z.object({

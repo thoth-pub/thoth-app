@@ -1,9 +1,9 @@
-'use client';
-
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
-import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
+import { DateField, FormFieldLabel, FormHelperText, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+import { convertDateToFormattedDate } from '@/src/shared/utils';
 
+import type { BookReviewReviewDateForm } from '../../model/book-review.types';
 import { bookReviewReviewDateValidationSchema } from '../../model/book-review.validation';
 
 const { BOOK_REVIEW_REVIEW_DATE } = FORM_FIELDS;
@@ -14,9 +14,12 @@ type EditBookReviewReviewDateProps = {
   onUpdate?: (data: string) => void;
 };
 
-// TODO: update field to date field
 export const EditBookReviewReviewDate = (props: EditBookReviewReviewDateProps) => {
   const { defaultValue = '', onUpdate } = props;
+
+  const onSubmit = (data: BookReviewReviewDateForm) => {
+    onUpdate?.(data.reviewDate ? convertDateToFormattedDate(`${data.reviewDate}`) : '');
+  };
 
   return (
     <EditableContent
@@ -25,23 +28,24 @@ export const EditBookReviewReviewDate = (props: EditBookReviewReviewDateProps) =
       isTableVariant
       validationSchema={bookReviewReviewDateValidationSchema}
       defaultValues={{ [BOOK_REVIEW_REVIEW_DATE.name]: defaultValue }}
-      onSubmit={(data) => onUpdate?.(data.reviewDate)}
+      onSubmit={onSubmit}
       formFields={({ control, isHelperTextVisible }) => (
-        <ContentWrapper>
+        <>
           <FormFieldLabel label={BOOK_REVIEW_REVIEW_DATE.label} id={BOOK_REVIEW_REVIEW_DATE.name} />
-          <FormTextField
+          <DateField
             control={control}
             name={BOOK_REVIEW_REVIEW_DATE.name}
-            id={BOOK_REVIEW_REVIEW_DATE.name}
-            helperText={BOOK_REVIEW_REVIEW_DATE_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
+            slotProps={{ field: { id: BOOK_REVIEW_REVIEW_DATE.name } }}
+            className="h-10"
+            sx={{ width: '100%' }}
           />
-        </ContentWrapper>
+          {isHelperTextVisible && <FormHelperText>{BOOK_REVIEW_REVIEW_DATE_HELPER_TEXT}</FormHelperText>}
+        </>
       )}
       preview={({ data, disabled, onEdit }) => (
         <Preview
           label={BOOK_REVIEW_REVIEW_DATE.label}
-          value={data?.reviewDate}
+          value={data?.reviewDate ? convertDateToFormattedDate(`${data.reviewDate}`) : ''}
           disabled={disabled}
           onEdit={onEdit}
         />
