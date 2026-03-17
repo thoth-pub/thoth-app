@@ -5,6 +5,7 @@ import { AwardStateMachineContext } from '@/src/entities/award';
 import { BookReviewStateMachineContext } from '@/src/entities/book-review';
 import { ContributionStateMachineContext } from '@/src/entities/contribution';
 import { EndorsementStateMachineContext } from '@/src/entities/endorsement';
+import { FeaturedVideoStateMachineContext } from '@/src/entities/featured-video';
 import { FundingStateMachineContext } from '@/src/entities/funding';
 import { LocationStateMachineContext } from '@/src/entities/locations';
 import { PublicationsStateMachineContext } from '@/src/entities/publication';
@@ -30,6 +31,7 @@ const StoreProvider = composeProviders(
   AwardStateMachineContext.Provider,
   BookReviewStateMachineContext.Provider,
   EndorsementStateMachineContext.Provider,
+  FeaturedVideoStateMachineContext.Provider,
   SeriesStateMachineContext.Provider,
   WorkStateMachineContext.Provider,
   SetStateMachineContext.Provider,

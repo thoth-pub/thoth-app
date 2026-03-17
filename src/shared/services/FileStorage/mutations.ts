@@ -28,6 +28,20 @@ export const INIT_PUBLICATION_FILE_UPLOAD = graphql(`
   }
 `);
 
+export const INIT_WORK_FEATURED_VIDEO_FILE_UPLOAD = graphql(`
+  mutation InitWorkFeaturedVideoFileUpload($data: NewWorkFeaturedVideoFileUpload!) {
+    initWorkFeaturedVideoFileUpload(data: $data) {
+      fileUploadId
+      uploadUrl
+      uploadHeaders {
+        name
+        value
+      }
+      expiresAt
+    }
+  }
+`);
+
 export const COMPLETE_FILE_UPLOAD = graphql(`
   mutation CompleteFileUpload($data: CompleteFileUpload!) {
     completeFileUpload(data: $data) {

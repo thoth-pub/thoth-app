@@ -218,6 +218,9 @@ export const WORK_FRAGMENT = graphql(`
       url
       width
       height
+      file {
+        cdnUrl
+      }
     }
   }
 `);

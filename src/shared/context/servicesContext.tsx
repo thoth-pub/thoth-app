@@ -11,6 +11,7 @@ import { BookReviewService } from '@/src/entities/book-review/api/book-review.se
 import { ContributionService } from '@/src/entities/contribution';
 import { ContributorService } from '@/src/entities/contributor';
 import { EndorsementService } from '@/src/entities/endorsement/api/endorsement.service';
+import { FeaturedVideoService } from '@/src/entities/featured-video/api/featured-video.service';
 import { FundingService } from '@/src/entities/funding/api/funding.service';
 import { ImprintService } from '@/src/entities/imprint';
 import { InstitutionService } from '@/src/entities/institution';
@@ -48,6 +49,7 @@ type ServicesMap = {
   awardService: AwardService;
   bookReviewService: BookReviewService;
   endorsementService: EndorsementService;
+  featuredVideoService: FeaturedVideoService;
   referenceService: ReferenceService;
   publicationService: PublicationService;
   locationService: LocationService;
@@ -89,6 +91,7 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
   const userService = new UserService(graphqlService);
   const persistentStorage = new PersistentStorage();
   const fileStorage = new FileStorage(token);
+  const featuredVideoService = new FeaturedVideoService({ graphqlService, fileStorage });
   const publicationService = new PublicationService({
     graphqlService,
     locationService,
@@ -133,6 +136,7 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
     awardService,
     bookReviewService,
     endorsementService,
+    featuredVideoService,
     referenceService,
     publicationService,
     locationService,
