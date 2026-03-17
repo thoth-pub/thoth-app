@@ -1,10 +1,39 @@
-import ArticleIcon from '@mui/icons-material/Article';
+import type { SvgIconComponent } from '@mui/icons-material';
+import Article from '@mui/icons-material/Article';
+import AudioFile from '@mui/icons-material/AudioFile';
+import Description from '@mui/icons-material/Description';
+import Image from '@mui/icons-material/Image';
+import InsertDriveFile from '@mui/icons-material/InsertDriveFile';
+import Language from '@mui/icons-material/Language';
 import LinkIcon from '@mui/icons-material/Link';
+import Map from '@mui/icons-material/Map';
+import MenuBook from '@mui/icons-material/MenuBook';
+import RssFeed from '@mui/icons-material/RssFeed';
+import Source from '@mui/icons-material/Source';
+import Storage from '@mui/icons-material/Storage';
+import TableChart from '@mui/icons-material/TableChart';
+import Videocam from '@mui/icons-material/Videocam';
 
+import { ResourceType } from '@/gql/graphql';
 import { CardListItem, DeleteButton, DoiPreview, LinkTooltip, MarkdownRenderer, Typography } from '@/src/shared/ui';
-import { convertOptionToString } from '@/src/shared/utils';
 
 import { AdditionalResourceEntity } from '../../../model/additional-resource.types';
+
+const resourceTypeIcons: Record<string, SvgIconComponent> = {
+  [ResourceType.Article]: Article,
+  [ResourceType.Audio]: AudioFile,
+  [ResourceType.Blog]: RssFeed,
+  [ResourceType.Book]: MenuBook,
+  [ResourceType.Dataset]: Storage,
+  [ResourceType.Document]: Description,
+  [ResourceType.Image]: Image,
+  [ResourceType.Map]: Map,
+  [ResourceType.Other]: InsertDriveFile,
+  [ResourceType.Source]: Source,
+  [ResourceType.Spreadsheet]: TableChart,
+  [ResourceType.Video]: Videocam,
+  [ResourceType.Website]: Language,
+};
 
 type AdditionalResourceCardListItemProps = {
   additionalResource: AdditionalResourceEntity;
@@ -17,7 +46,6 @@ type AdditionalResourceCardListItemProps = {
   onEdit?: (id: string) => void;
 };
 
-// TODO: icon based on resource type
 export const AdditionalResourceCardListItem = (props: AdditionalResourceCardListItemProps) => {
   const {
     additionalResource,
@@ -31,6 +59,7 @@ export const AdditionalResourceCardListItem = (props: AdditionalResourceCardList
   } = props;
 
   const { id, title, resourceType, url, doi } = additionalResource;
+  const Icon = resourceTypeIcons[resourceType] ?? InsertDriveFile;
 
   return (
     <CardListItem
@@ -45,8 +74,8 @@ export const AdditionalResourceCardListItem = (props: AdditionalResourceCardList
     >
       {title.length > 0 && (
         <Typography className="cardItem normal-case">
-          <ArticleIcon fontSize="small" color="primary" />
-          <MarkdownRenderer markdown={title} /> {resourceType.length > 0 && `(${convertOptionToString(resourceType)})`}{' '}
+          <Icon fontSize="small" color="primary" />
+          <MarkdownRenderer markdown={title} />
           {doi.length > 0 && <DoiPreview doi={doi} />}{' '}
           {url.length > 0 && (
             <LinkTooltip link={url} linkText={url}>
