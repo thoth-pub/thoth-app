@@ -1,7 +1,7 @@
 'use client';
 
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
-import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
+import { ContentWrapper, FormFieldLabel, MarkdownField, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { awardTitleValidationSchema } from '../../model/award.validation';
@@ -28,17 +28,22 @@ export const EditAwardTitle = (props: EditAwardTitleProps) => {
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={AWARD_TITLE.label} id={AWARD_TITLE.name} />
-          <FormTextField
+          <MarkdownField
             control={control}
             name={AWARD_TITLE.name}
             id={AWARD_TITLE.name}
             helperText={AWARD_TITLE_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
+            disableLineBreaks
           />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview label={AWARD_TITLE.label} value={data?.title} disabled={disabled} onEdit={onEdit} />
+        <Preview label={AWARD_TITLE.label} value={data?.title} disabled={disabled} onEdit={onEdit}>
+          <Typography component="span">
+            <MarkdownPreview source={data?.title} />
+          </Typography>
+        </Preview>
       )}
     />
   );

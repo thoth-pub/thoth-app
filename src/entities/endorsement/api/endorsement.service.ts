@@ -1,5 +1,7 @@
 import { GraphqlService } from '@/src/shared/api/graphqlService';
+import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { BaseService } from '@/src/shared/interfaces/services';
+import { isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
 
 import type { WorkId } from '../../work/model/work.types';
 import { EndorsementDtoMapper } from '../model/endorsement.mapper';
@@ -11,17 +13,23 @@ import {
 } from '../model/endorsement.mutations';
 import type { EndorsementDto, EndorsementEntity, EndorsementId } from '../model/endorsement.types';
 
-// TODO: update logic with markup format and files
 export class EndorsementService extends BaseService<EndorsementEntity, EndorsementDto> {
   constructor(graphqlService: GraphqlService, mapper = new EndorsementDtoMapper()) {
     super(graphqlService, mapper);
   }
 
+  private getMarkupFormat(text: string) {
+    return isTextContainsAnyMarkdownTag(text) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+  }
+
   async createEndorsement(data: EndorsementEntity, relatedWorkId: WorkId): Promise<EndorsementEntity> {
     const { endorsementId: _, ...dto } = this.dtoMapper.toDto(data);
 
+    const markupFormat = this.getMarkupFormat(data.text);
+
     const response = await this.graphqlService.mutation(CREATE_ENDORSEMENT, {
       data: { ...dto, workId: relatedWorkId, endorsementOrdinal: data.orderNumber ?? 1 },
+      markupFormat,
     });
 
     const endorsement = this.dtoMapper.toEntity(response.createEndorsement as EndorsementDto);
@@ -32,8 +40,11 @@ export class EndorsementService extends BaseService<EndorsementEntity, Endorseme
   async updateEndorsement(data: EndorsementEntity, relatedWorkId: WorkId): Promise<EndorsementEntity> {
     const dto = this.dtoMapper.toDto(data);
 
+    const markupFormat = this.getMarkupFormat(data.text);
+
     const response = await this.graphqlService.mutation(UPDATE_ENDORSEMENT, {
       data: { ...dto, workId: relatedWorkId, endorsementId: data.id, endorsementOrdinal: data.orderNumber ?? 1 },
+      markupFormat,
     });
 
     const endorsement = this.dtoMapper.toEntity(response.updateEndorsement as EndorsementDto);

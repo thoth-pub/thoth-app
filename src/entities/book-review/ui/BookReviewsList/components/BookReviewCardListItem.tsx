@@ -1,7 +1,7 @@
 import LinkIcon from '@mui/icons-material/Link';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 
-import { CardListItem, DeleteButton, DoiPreview, LinkTooltip, Typography } from '@/src/shared/ui';
+import { CardListItem, DeleteButton, DoiPreview, LinkTooltip, MarkdownRenderer, Typography } from '@/src/shared/ui';
 
 import { BookReviewEntity } from '../../../model/book-review.types';
 
@@ -35,7 +35,7 @@ export const BookReviewCardListItem = (props: BookReviewCardListItemProps) => {
       {title.length > 0 && (
         <Typography className="cardItem normal-case">
           <RateReviewIcon fontSize="small" color="primary" />
-          {title} {authorName.length > 0 && `(${authorName})`} 
+          <MarkdownRenderer markdown={title} /> {authorName.length > 0 && `(${authorName})`}
           {doi.length > 0 && <DoiPreview doi={doi} />}
           {url.length > 0 && (
             <LinkTooltip link={url} linkText={url}>

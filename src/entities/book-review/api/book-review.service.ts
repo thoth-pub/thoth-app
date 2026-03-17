@@ -1,6 +1,7 @@
-import { MarkupFormat } from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
+import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { BaseService } from '@/src/shared/interfaces/services';
+import { isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
 
 import type { WorkId } from '../../work/model/work.types';
 import { BookReviewDtoMapper } from '../model/book-review.mapper';
@@ -17,12 +18,14 @@ export class BookReviewService extends BaseService<BookReviewEntity, BookReviewD
     super(graphqlService, mapper);
   }
 
-  async createBookReview(
-    data: BookReviewEntity,
-    relatedWorkId: WorkId,
-    markupFormat: MarkupFormat = MarkupFormat.PlainText,
-  ): Promise<BookReviewEntity> {
+  private getMarkupFormat(text: string) {
+    return isTextContainsAnyMarkdownTag(text) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+  }
+
+  async createBookReview(data: BookReviewEntity, relatedWorkId: WorkId): Promise<BookReviewEntity> {
     const { bookReviewId: _, ...dto } = this.dtoMapper.toDto(data);
+
+    const markupFormat = this.getMarkupFormat(`${data.title} ${data.text}`);
 
     const response = await this.graphqlService.mutation(CREATE_BOOK_REVIEW, {
       data: { ...dto, workId: relatedWorkId, reviewOrdinal: data.orderNumber ?? 1 },
@@ -34,12 +37,10 @@ export class BookReviewService extends BaseService<BookReviewEntity, BookReviewD
     return bookReview;
   }
 
-  async updateBookReview(
-    data: BookReviewEntity,
-    relatedWorkId: WorkId,
-    markupFormat: MarkupFormat = MarkupFormat.PlainText,
-  ): Promise<BookReviewEntity> {
+  async updateBookReview(data: BookReviewEntity, relatedWorkId: WorkId): Promise<BookReviewEntity> {
     const dto = this.dtoMapper.toDto(data);
+
+    const markupFormat = this.getMarkupFormat(`${data.title} ${data.text}`);
 
     const response = await this.graphqlService.mutation(UPDATE_BOOK_REVIEW, {
       data: { ...dto, workId: relatedWorkId, bookReviewId: data.id, reviewOrdinal: data.orderNumber ?? 1 },

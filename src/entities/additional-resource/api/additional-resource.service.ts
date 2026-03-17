@@ -1,6 +1,8 @@
-import { MarkupFormat, ResourceType } from '@/gql/graphql';
+import { ResourceType } from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
+import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { BaseService } from '@/src/shared/interfaces/services';
+import { isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
 
 import type { WorkId } from '../../work/model/work.types';
 import { AdditionalResourceDtoMapper } from '../model/additional-resource.mapper';
@@ -16,18 +18,22 @@ import type {
   AdditionalResourceId,
 } from '../model/additional-resource.types';
 
-// TODO: files upload and markup format
 export class AdditionalResourceService extends BaseService<AdditionalResourceEntity, AdditionalResourceDto> {
   constructor(graphqlService: GraphqlService, mapper = new AdditionalResourceDtoMapper()) {
     super(graphqlService, mapper);
   }
 
+  private getMarkupFormat(text: string) {
+    return isTextContainsAnyMarkdownTag(text) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+  }
+
   async createAdditionalResource(
     data: AdditionalResourceEntity,
     relatedWorkId: WorkId,
-    markupFormat: MarkupFormat = MarkupFormat.PlainText,
   ): Promise<AdditionalResourceEntity> {
     const { workResourceId: _, ...dto } = this.dtoMapper.toDto(data);
+
+    const markupFormat = this.getMarkupFormat(`${data.title} ${data.description}`);
 
     const response = await this.graphqlService.mutation(CREATE_ADDITIONAL_RESOURCE, {
       data: {
@@ -48,9 +54,10 @@ export class AdditionalResourceService extends BaseService<AdditionalResourceEnt
   async updateAdditionalResource(
     data: AdditionalResourceEntity,
     relatedWorkId: WorkId,
-    markupFormat: MarkupFormat = MarkupFormat.PlainText,
   ): Promise<AdditionalResourceEntity> {
     const { workResourceId, ...dto } = this.dtoMapper.toDto(data);
+
+    const markupFormat = this.getMarkupFormat(`${data.title} ${data.description}`);
 
     const response = await this.graphqlService.mutation(UPDATE_ADDITIONAL_RESOURCE, {
       data: {

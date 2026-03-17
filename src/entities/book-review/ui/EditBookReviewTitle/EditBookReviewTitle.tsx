@@ -1,7 +1,7 @@
 'use client';
 
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
-import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
+import { ContentWrapper, FormFieldLabel, MarkdownField, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { bookReviewTitleValidationSchema } from '../../model/book-review.validation';
@@ -28,17 +28,22 @@ export const EditBookReviewTitle = (props: EditBookReviewTitleProps) => {
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={BOOK_REVIEW_TITLE.label} id={BOOK_REVIEW_TITLE.name} />
-          <FormTextField
+          <MarkdownField
             control={control}
             name={BOOK_REVIEW_TITLE.name}
             id={BOOK_REVIEW_TITLE.name}
             helperText={BOOK_REVIEW_TITLE_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
+            disableLineBreaks
           />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview label={BOOK_REVIEW_TITLE.label} value={data?.title} disabled={disabled} onEdit={onEdit} />
+        <Preview label={BOOK_REVIEW_TITLE.label} value={data?.title} disabled={disabled} onEdit={onEdit}>
+          <Typography component="span">
+            <MarkdownPreview source={data?.title} />
+          </Typography>
+        </Preview>
       )}
     />
   );

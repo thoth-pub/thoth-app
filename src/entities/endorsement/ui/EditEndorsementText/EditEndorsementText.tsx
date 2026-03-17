@@ -1,7 +1,7 @@
 'use client';
 
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
-import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
+import { ContentWrapper, FormFieldLabel, MarkdownField, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { endorsementTextValidationSchema } from '../../model/endorsement.validation';
@@ -28,17 +28,22 @@ export const EditEndorsementText = (props: EditEndorsementTextProps) => {
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={ENDORSEMENT_TEXT.label} id={ENDORSEMENT_TEXT.name} />
-          <FormTextField
+          <MarkdownField
             control={control}
             name={ENDORSEMENT_TEXT.name}
             id={ENDORSEMENT_TEXT.name}
             helperText={ENDORSEMENT_TEXT_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
+            disableLineBreaks
           />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview label={ENDORSEMENT_TEXT.label} value={data?.text} disabled={disabled} onEdit={onEdit} />
+        <Preview label={ENDORSEMENT_TEXT.label} value={data?.text} disabled={disabled} onEdit={onEdit}>
+          <Typography component="span">
+            <MarkdownPreview source={data?.text} />
+          </Typography>
+        </Preview>
       )}
     />
   );

@@ -1,7 +1,7 @@
 'use client';
 
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
-import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
+import { ContentWrapper, FormFieldLabel, MarkdownField, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { additionalResourceTitleValidationSchema } from '../../model/additional-resource.validation';
@@ -14,7 +14,6 @@ type EditAdditionalResourceTitleProps = {
   onUpdate?: (data: string) => void;
 };
 
-// TODO: change field type
 export const EditAdditionalResourceTitle = (props: EditAdditionalResourceTitleProps) => {
   const { defaultValue = '', onUpdate } = props;
 
@@ -29,17 +28,22 @@ export const EditAdditionalResourceTitle = (props: EditAdditionalResourceTitlePr
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={ADDITIONAL_RESOURCE_TITLE.label} id={ADDITIONAL_RESOURCE_TITLE.name} />
-          <FormTextField
+          <MarkdownField
             control={control}
             name={ADDITIONAL_RESOURCE_TITLE.name}
             id={ADDITIONAL_RESOURCE_TITLE.name}
             helperText={ADDITIONAL_RESOURCE_TITLE_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
+            disableLineBreaks
           />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview label={ADDITIONAL_RESOURCE_TITLE.label} value={data?.title} disabled={disabled} onEdit={onEdit} />
+        <Preview label={ADDITIONAL_RESOURCE_TITLE.label} value={data?.title} disabled={disabled} onEdit={onEdit}>
+          <Typography component="span">
+            <MarkdownPreview source={data?.title} />
+          </Typography>
+        </Preview>
       )}
     />
   );

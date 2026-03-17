@@ -1,7 +1,8 @@
 import ArticleIcon from '@mui/icons-material/Article';
 import LinkIcon from '@mui/icons-material/Link';
 
-import { CardListItem, DeleteButton, DoiPreview, LinkTooltip, Typography } from '@/src/shared/ui';
+import { CardListItem, DeleteButton, DoiPreview, LinkTooltip, MarkdownRenderer, Typography } from '@/src/shared/ui';
+import { convertOptionToString } from '@/src/shared/utils';
 
 import { AdditionalResourceEntity } from '../../../model/additional-resource.types';
 
@@ -45,7 +46,8 @@ export const AdditionalResourceCardListItem = (props: AdditionalResourceCardList
       {title.length > 0 && (
         <Typography className="cardItem normal-case">
           <ArticleIcon fontSize="small" color="primary" />
-          {title} {resourceType.length > 0 && `(${resourceType})`} {doi.length > 0 && <DoiPreview doi={doi} />}{' '}
+          <MarkdownRenderer markdown={title} /> {resourceType.length > 0 && `(${convertOptionToString(resourceType)})`}{' '}
+          {doi.length > 0 && <DoiPreview doi={doi} />}{' '}
           {url.length > 0 && (
             <LinkTooltip link={url} linkText={url}>
               <LinkIcon fontSize="small" color="primary" />

@@ -1,7 +1,7 @@
 'use client';
 
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
-import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
+import { ContentWrapper, FormFieldLabel, MarkdownField, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { additionalResourceDescriptionValidationSchema } from '../../model/additional-resource.validation';
@@ -28,22 +28,22 @@ export const EditAdditionalResourceDescription = (props: EditAdditionalResourceD
       formFields={({ control, isHelperTextVisible }) => (
         <ContentWrapper>
           <FormFieldLabel label={ADDITIONAL_RESOURCE_DESCRIPTION.label} id={ADDITIONAL_RESOURCE_DESCRIPTION.name} />
-          <FormTextField
+          <MarkdownField
             control={control}
             name={ADDITIONAL_RESOURCE_DESCRIPTION.name}
             id={ADDITIONAL_RESOURCE_DESCRIPTION.name}
             helperText={ADDITIONAL_RESOURCE_DESCRIPTION_HELPER_TEXT}
             isHelperTextVisible={isHelperTextVisible}
+            disableLineBreaks
           />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview
-          label={ADDITIONAL_RESOURCE_DESCRIPTION.label}
-          value={data?.description}
-          disabled={disabled}
-          onEdit={onEdit}
-        />
+        <Preview label={ADDITIONAL_RESOURCE_DESCRIPTION.label} value={data?.description} disabled={disabled} onEdit={onEdit}>
+          <Typography component="span">
+            <MarkdownPreview source={data?.description} />
+          </Typography>
+        </Preview>
       )}
     />
   );

@@ -35,10 +35,10 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
           <ImageWithFallback
             fallback="/placeholder.svg"
             src={image}
-            width={isDesktop ? 85 : 75}
+            width={isDesktop ? 80 : 70}
             height={isDesktop ? 135 : 100}
             alt="image placeholder"
-            className="h-full w-full rounded object-cover object-center"
+            className="h-full max-w-[70px] rounded object-cover object-center xl:max-w-[80px]"
           />
         </div>
 

@@ -1,7 +1,7 @@
 import EmojiEventsIcon from '@mui/icons-material/EmojiEvents';
 import LinkIcon from '@mui/icons-material/Link';
 
-import { CardListItem, DeleteButton, LinkTooltip, Typography } from '@/src/shared/ui';
+import { CardListItem, DeleteButton, LinkTooltip, MarkdownRenderer, Typography } from '@/src/shared/ui';
 
 import { AwardEntity } from '../../../model/award.types';
 
@@ -35,7 +35,7 @@ export const AwardCardListItem = (props: AwardCardListItemProps) => {
       {title.length > 0 && (
         <Typography className="cardItem normal-case">
           <EmojiEventsIcon fontSize="small" color="primary" />
-          {title} {category.length > 0 && `(${category})`}{' '}
+          <MarkdownRenderer markdown={title} /> {category.length > 0 && `(${category})`}{' '}
           {url.length > 0 && (
             <LinkTooltip link={url} linkText={url}>
               <LinkIcon fontSize="small" color="primary" />

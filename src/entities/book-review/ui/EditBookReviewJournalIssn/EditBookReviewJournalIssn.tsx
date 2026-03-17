@@ -14,7 +14,6 @@ type EditBookReviewJournalIssnProps = {
   onUpdate?: (data: string) => void;
 };
 
-// TODO: Replace field with data
 export const EditBookReviewJournalIssn = (props: EditBookReviewJournalIssnProps) => {
   const { defaultValue = '', onUpdate } = props;
 
