@@ -24,7 +24,7 @@ const useUploadFeaturedVideoFile = (workId: string) => {
 
   const uploadFeaturedVideoFile = async (featuredVideoId: FeaturedVideoId, file: File): Promise<string> => {
     const url = await mutateAsync({ featuredVideoId, file });
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    await queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
 
     return url;
   };

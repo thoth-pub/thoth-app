@@ -7,15 +7,16 @@ const useActivePublisherPermissions = () => {
   const { activePublisher } = usePublisherStateMachine();
 
   const isLifecycleEditable = user.isSuperuser || (activePublisher ? activePublisher.workLifecycle : false);
-  const idDragAndDropEnabled = user.isSuperuser || (activePublisher ? activePublisher.cdnWrite : false);
   const isImprintEditable = user.isSuperuser || (activePublisher ? activePublisher.publisherAdmin : false);
+  const isFileUploadEditable = user.isSuperuser || (activePublisher ? activePublisher.cdnWrite : false);
 
   return {
-    idDragAndDropEnabled,
+    idDragAndDropEnabled: isFileUploadEditable,
     isImprintEditable: isImprintEditable,
     isStatusEditable: isLifecycleEditable,
     isPublicationDateEditable: isLifecycleEditable,
     isWithdrawnDateEditable: isLifecycleEditable,
+    isFeaturedVideoEditable: isFileUploadEditable,
   };
 };
 

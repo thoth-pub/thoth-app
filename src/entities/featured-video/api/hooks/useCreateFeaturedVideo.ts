@@ -19,8 +19,8 @@ const useCreateFeaturedVideo = (props: BaseEditSectionProps) => {
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async (data: FeaturedVideoEntity) => {
-      return featuredVideoService.createFeaturedVideo(data, workId);
+    mutationFn: async ({ data, file }: { data: FeaturedVideoEntity; file: File }) => {
+      return featuredVideoService.createFeaturedVideo(data, workId, file);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

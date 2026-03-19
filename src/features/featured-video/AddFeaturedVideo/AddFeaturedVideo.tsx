@@ -6,7 +6,6 @@ import {
   EditFeaturedVideoForm,
   useCreateFeaturedVideo,
   useFeaturedVideoStateMachine,
-  useUploadFeaturedVideoFile,
 } from '@/src/entities/featured-video';
 import type { FeaturedVideoEntity } from '@/src/entities/featured-video/model/featured-video.types';
 import type { BaseRecommendedSectionProps } from '@/src/shared/types';
@@ -18,8 +17,7 @@ const AddFeaturedVideo = (props: BaseRecommendedSectionProps) => {
   const { activeEntity: activeFeaturedVideo, finishEditing } = useFeaturedVideoStateMachine();
   const [featuredVideo, setFeaturedVideo] = useState<FeaturedVideoEntity | null>(activeFeaturedVideo);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const { createFeaturedVideo } = useCreateFeaturedVideo({ workId });
-  const { uploadFeaturedVideoFile, loading: uploadLoading } = useUploadFeaturedVideoFile(workId);
+  const { createFeaturedVideo, loading } = useCreateFeaturedVideo({ workId });
 
   const handleFileUpload = (file: File) => {
     setPendingFile(file);
@@ -28,10 +26,8 @@ const AddFeaturedVideo = (props: BaseRecommendedSectionProps) => {
   const create = async () => {
     if (!featuredVideo || !pendingFile) return;
 
-    const created = await createFeaturedVideo(featuredVideo);
-    if (created) {
-      await uploadFeaturedVideoFile(created.id, pendingFile);
-    }
+    await createFeaturedVideo({ data: featuredVideo, file: pendingFile });
+
     finishEditing();
   };
 
@@ -70,7 +66,7 @@ const AddFeaturedVideo = (props: BaseRecommendedSectionProps) => {
         url={url}
         width={width}
         height={height}
-        uploadLoading={uploadLoading}
+        uploadLoading={loading}
         onFileUpload={handleFileUpload}
         onTitleUpdate={updateTitle}
         onUrlUpdate={updateUrl}

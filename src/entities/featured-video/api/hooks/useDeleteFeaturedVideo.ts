@@ -22,16 +22,20 @@ const useDeleteFeaturedVideo = (props: BaseEditSectionProps) => {
     mutationFn: async (featuredVideoId: FeaturedVideoId) => {
       return featuredVideoService.deleteFeaturedVideo(featuredVideoId);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
-    },
-    onError: (error) => {
-      sendErrorNotification(error?.message ?? FEATURED_VIDEO_DELETE_FAILED);
-    },
   });
 
+  const deleteFeaturedVideo = async (featuredVideoId: FeaturedVideoId) => {
+    try {
+      await mutateAsync(featuredVideoId);
+    } catch {
+      sendErrorNotification(FEATURED_VIDEO_DELETE_FAILED);
+    } finally {
+      await queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    }
+  };
+
   return {
-    deleteFeaturedVideo: mutateAsync,
+    deleteFeaturedVideo: deleteFeaturedVideo,
     loading: isPending,
   };
 };

@@ -2,6 +2,7 @@ import type { NewWorkFeaturedVideo, PatchWorkFeaturedVideo } from '@/gql/graphql
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 import type { FileStorage } from '@/src/shared/services';
+import { TransactionContext } from '@/src/shared/services/TransactionsContext/TransactionsContext';
 
 import type { WorkId } from '../../work/model/work.types';
 import { FeaturedVideoDtoMapper } from '../model/featured-video.mapper';
@@ -26,14 +27,27 @@ export class FeaturedVideoService extends BaseService<FeaturedVideoEntity, Featu
     this.fileStorage = fileStorage;
   }
 
-  async createFeaturedVideo(data: FeaturedVideoEntity, relatedWorkId: WorkId): Promise<FeaturedVideoEntity> {
+  async createFeaturedVideo(data: FeaturedVideoEntity, relatedWorkId: WorkId, file: File): Promise<FeaturedVideoEntity> {
     const { workFeaturedVideoId: _, workId: __, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(CREATE_FEATURED_VIDEO, {
       data: { ...dto, workId: relatedWorkId } as NewWorkFeaturedVideo,
     });
 
-    return this.dtoMapper.toEntity(response.createWorkFeaturedVideo as FeaturedVideoDto);
+    const featuredVideo = this.dtoMapper.toEntity(response.createWorkFeaturedVideo as FeaturedVideoDto);
+
+    const transactions = new TransactionContext();
+    transactions.onRollback(() => this.deleteFeaturedVideo(featuredVideo.id));
+
+    try {
+      const fileUrl = await this.uploadFile(featuredVideo.id, file);
+      featuredVideo.fileUrl = fileUrl;
+    } catch (error) {
+      await transactions.rollback();
+      throw error;
+    }
+
+    return featuredVideo;
   }
 
   async updateFeaturedVideo(data: FeaturedVideoEntity, relatedWorkId: WorkId): Promise<FeaturedVideoEntity> {

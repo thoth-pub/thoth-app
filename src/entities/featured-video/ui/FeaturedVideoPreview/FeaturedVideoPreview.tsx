@@ -20,16 +20,19 @@ export const FeaturedVideoPreview = (props: FeaturedVideoPreviewProps) => {
 
   const videoSrc = featuredVideo.fileUrl || featuredVideo.url;
 
-  console.log(featuredVideo.fileUrl.length, featuredVideo.url.length);
-
   return (
-    <div className="flex items-start gap-2 px-4">
+    <div className="relative flex items-start gap-2 px-4">
       {videoSrc && (
-        <video controls preload="metadata" className="max-h-48 max-w-xs rounded">
+        <video
+          controls
+          preload="metadata"
+          className="w-full rounded"
+          style={{ aspectRatio: `${featuredVideo.width} / ${featuredVideo.height}` }}
+        >
           <source src={videoSrc} />
         </video>
       )}
-      <div className="flex flex-col">
+      <div className="absolute top-0 right-4 flex flex-col bg-white">
         <IconButton size="small" onClick={() => onEdit?.()} disabled={editDisabled} aria-label="Edit featured video">
           <EditIcon fontSize="small" />
         </IconButton>

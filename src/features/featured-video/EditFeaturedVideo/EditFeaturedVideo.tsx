@@ -7,6 +7,7 @@ import {
   useUploadFeaturedVideoFile,
 } from '@/src/entities/featured-video';
 import type { BaseRecommendedSectionProps } from '@/src/shared/types';
+import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
 const EditFeaturedVideo = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
@@ -57,22 +58,24 @@ const EditFeaturedVideo = (props: BaseRecommendedSectionProps) => {
   const { title, url, width, height, fileUrl } = activeFeaturedVideo;
 
   return (
-    <EditFeaturedVideoForm
-      title={title}
-      url={url}
-      width={width}
-      height={height}
-      fileUrl={fileUrl}
-      uploadLoading={uploadLoading}
-      onFileUpload={handleFileUpload}
-      onTitleUpdate={updateTitle}
-      onUrlUpdate={updateUrl}
-      onWidthUpdate={updateWidth}
-      onHeightUpdate={updateHeight}
-      onDone={finishEditing}
-      onClose={finishEditing}
-      isDoneDisabled={!fileUrl || !activeFeaturedVideo?.width || !activeFeaturedVideo?.height}
-    />
+    <TableNewEntityFormWrapper>
+      <EditFeaturedVideoForm
+        title={title}
+        url={url}
+        width={width}
+        height={height}
+        fileUrl={fileUrl}
+        uploadLoading={uploadLoading}
+        onFileUpload={handleFileUpload}
+        onTitleUpdate={updateTitle}
+        onUrlUpdate={updateUrl}
+        onWidthUpdate={updateWidth}
+        onHeightUpdate={updateHeight}
+        onDone={finishEditing}
+        onClose={finishEditing}
+        isDoneDisabled={!fileUrl || !activeFeaturedVideo?.width || !activeFeaturedVideo?.height}
+      />
+    </TableNewEntityFormWrapper>
   );
 };
 

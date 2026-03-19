@@ -33,7 +33,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: 'Content-Security-Policy',
-            value: `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src * data: blob:; connect-src 'self' ${process.env.NEXT_PUBLIC_THOTH_API_URL} ${process.env.NEXT_PUBLIC_META_API_URL} https://*.amazonaws.com https://va.vercel-scripts.com`,
+            value: `default-src 'self'; script-src 'self' 'unsafe-eval' 'unsafe-inline' https://va.vercel-scripts.com; style-src 'self' 'unsafe-inline'; img-src * data: blob:; media-src 'self' https://testcdn2.thoth.pub; connect-src 'self' ${process.env.NEXT_PUBLIC_THOTH_API_URL} ${process.env.NEXT_PUBLIC_META_API_URL} https://*.amazonaws.com https://va.vercel-scripts.com`,
           },
           {
             key: 'Referrer-Policy',

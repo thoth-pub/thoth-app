@@ -1,5 +1,6 @@
 'use client';
 
+import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { AddButton, TranslatedContent, Typography } from '@/src/shared/ui';
 
@@ -25,8 +26,11 @@ export const FeaturedVideoSection = ({ workId }: FeaturedVideoSectionProps) => {
     addFeaturedVideo,
     deleteFeaturedVideo,
   } = useEditFeaturedVideo(workId);
+  const { isFeaturedVideoEditable } = useActivePublisherPermissions();
 
   const isEditing = !!activeFeaturedVideo && !isNew;
+
+  if (!isFeaturedVideoEditable) return null;
 
   return (
     <>
