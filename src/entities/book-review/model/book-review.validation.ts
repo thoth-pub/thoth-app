@@ -8,6 +8,7 @@ const {
   BOOK_REVIEW_URL,
   BOOK_REVIEW_TITLE,
   BOOK_REVIEW_AUTHOR_NAME,
+  BOOK_REVIEW_REVIEWER_INSTITUTION,
   BOOK_REVIEW_REVIEW_DATE,
   BOOK_REVIEW_JOURNAL_NAME,
   BOOK_REVIEW_JOURNAL_VOLUME,
@@ -51,6 +52,13 @@ export const bookReviewJournalNumberValidationSchema = z.object({
 
 export const bookReviewJournalIssnValidationSchema = z.object({
   [BOOK_REVIEW_JOURNAL_ISSN.name]: optionalStringValidation,
+});
+
+export const bookReviewReviewerInstitutionValidationSchema = z.object({
+  [BOOK_REVIEW_REVIEWER_INSTITUTION.name]: z.object({
+    value: z.string(),
+    label: z.string(),
+  }),
 });
 
 export const bookReviewTextValidationSchema = z.object({

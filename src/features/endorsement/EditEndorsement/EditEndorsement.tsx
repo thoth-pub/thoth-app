@@ -30,6 +30,13 @@ const EditEndorsement = (props: BaseRecommendedSectionProps) => {
     updateEndorsement({ ...activeEndorsement, url });
   };
 
+  const updateAuthorInstitution = (data: { value: string; label: string; ror: string }) => {
+    if (!activeEndorsement) return;
+
+    update({ ...activeEndorsement, authorInstitutionId: data.value, authorInstitutionName: data.label, authorInstitutionRor: data.ror });
+    updateEndorsement({ ...activeEndorsement, authorInstitutionId: data.value, authorInstitutionName: data.label, authorInstitutionRor: data.ror });
+  };
+
   const updateText = (text: string) => {
     if (!activeEndorsement) return;
 
@@ -39,16 +46,19 @@ const EditEndorsement = (props: BaseRecommendedSectionProps) => {
 
   if (!activeEndorsement) return null;
 
-  const { authorName, authorRole, url, text } = activeEndorsement;
+  const { authorName, authorRole, authorInstitutionId, authorInstitutionName, url, text } = activeEndorsement;
 
   return (
     <EditEndorsementForm
       authorName={authorName}
       authorRole={authorRole}
+      authorInstitutionId={authorInstitutionId}
+      authorInstitutionName={authorInstitutionName}
       url={url}
       text={text}
       onAuthorNameUpdate={updateAuthorName}
       onAuthorRoleUpdate={updateAuthorRole}
+      onAuthorInstitutionUpdate={updateAuthorInstitution}
       onUrlUpdate={updateUrl}
       onTextUpdate={updateText}
       onDone={finishEditing}

@@ -642,6 +642,12 @@ export const FORM_FIELDS = {
     name: 'journalIssn',
     placeholder: 'bookReviewJournalIssn.label',
   },
+  BOOK_REVIEW_REVIEWER_INSTITUTION: {
+    label: 'bookReviewReviewerInstitution.label',
+    name: 'reviewerInstitution',
+    placeholder: 'bookReviewReviewerInstitution.label',
+    type: InputTypes.TEXT,
+  },
   BOOK_REVIEW_TEXT: {
     label: 'bookReviewText.label',
     name: 'text',
@@ -691,6 +697,12 @@ export const FORM_FIELDS = {
     label: 'endorsementUrl.label',
     name: 'url',
     placeholder: 'endorsementUrl.label',
+  },
+  ENDORSEMENT_AUTHOR_INSTITUTION: {
+    label: 'endorsementAuthorInstitution.label',
+    name: 'authorInstitution',
+    placeholder: 'endorsementAuthorInstitution.label',
+    type: InputTypes.TEXT,
   },
   ENDORSEMENT_TEXT: {
     label: 'endorsementText.label',

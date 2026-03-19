@@ -2,7 +2,7 @@ import type z from 'zod';
 
 import type { BookReviewFragmentFragment } from '@/gql/graphql';
 
-import type { bookReviewReviewDateValidationSchema } from './book-review.validation';
+import type { bookReviewReviewDateValidationSchema, bookReviewReviewerInstitutionValidationSchema } from './book-review.validation';
 
 export type BookReviewDto = BookReviewFragmentFragment;
 
@@ -13,6 +13,9 @@ export type BookReviewEntity = {
   workId: string;
   title: string;
   authorName: string;
+  reviewerInstitutionId: string;
+  reviewerInstitutionName: string;
+  reviewerInstitutionRor: string;
   url: string;
   doi: string;
   reviewDate: string;
@@ -25,3 +28,5 @@ export type BookReviewEntity = {
 };
 
 export type BookReviewReviewDateForm = z.infer<typeof bookReviewReviewDateValidationSchema>;
+
+export type BookReviewReviewerInstitutionForm = z.infer<typeof bookReviewReviewerInstitutionValidationSchema>;

@@ -63,6 +63,12 @@ const EditBookReview = (props: BaseRecommendedSectionProps) => {
     updateBookReview({ ...activeBookReview, journalIssn });
   };
 
+  const updateReviewerInstitution = (data: { value: string; label: string; ror: string }) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, reviewerInstitutionId: data.value, reviewerInstitutionName: data.label, reviewerInstitutionRor: data.ror });
+    updateBookReview({ ...activeBookReview, reviewerInstitutionId: data.value, reviewerInstitutionName: data.label, reviewerInstitutionRor: data.ror });
+  };
+
   const updateText = (text: string) => {
     if (!activeBookReview) return;
     update({ ...activeBookReview, text });
@@ -71,13 +77,27 @@ const EditBookReview = (props: BaseRecommendedSectionProps) => {
 
   if (!activeBookReview) return null;
 
-  const { title, authorName, url, doi, reviewDate, journalName, journalVolume, journalNumber, journalIssn, text } =
-    activeBookReview;
+  const {
+    title,
+    authorName,
+    reviewerInstitutionId,
+    reviewerInstitutionName,
+    url,
+    doi,
+    reviewDate,
+    journalName,
+    journalVolume,
+    journalNumber,
+    journalIssn,
+    text,
+  } = activeBookReview;
 
   return (
     <EditBookReviewForm
       title={title}
       authorName={authorName}
+      reviewerInstitutionId={reviewerInstitutionId}
+      reviewerInstitutionName={reviewerInstitutionName}
       url={url}
       doi={doi}
       reviewDate={reviewDate}
@@ -88,6 +108,7 @@ const EditBookReview = (props: BaseRecommendedSectionProps) => {
       text={text}
       onTitleUpdate={updateTitle}
       onAuthorNameUpdate={updateAuthorName}
+      onReviewerInstitutionUpdate={updateReviewerInstitution}
       onUrlUpdate={updateUrl}
       onDoiUpdate={updateDoi}
       onReviewDateUpdate={updateReviewDate}

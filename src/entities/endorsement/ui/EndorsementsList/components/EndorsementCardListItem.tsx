@@ -1,6 +1,7 @@
 import LinkIcon from '@mui/icons-material/Link';
 
-import { CardListItem, DeleteButton, LinkTooltip, Typography } from '@/src/shared/ui';
+import { CardListItem, DeleteButton, LinkTooltip, RorLogo, Typography } from '@/src/shared/ui';
+import { convertRorIdToText } from '@/src/shared/utils';
 
 import { EndorsementEntity } from '../../../model/endorsement.types';
 
@@ -27,7 +28,7 @@ export const EndorsementCardListItem = (props: EndorsementCardListItemProps) => 
     onEdit,
   } = props;
 
-  const { id, authorName, authorRole, url } = endorsement;
+  const { id, authorName, authorRole, authorInstitutionRor, url } = endorsement;
 
   return (
     <CardListItem
@@ -46,6 +47,11 @@ export const EndorsementCardListItem = (props: EndorsementCardListItemProps) => 
           {url.length > 0 && (
             <LinkTooltip link={url} linkText={url}>
               <LinkIcon fontSize="small" color="primary" />
+            </LinkTooltip>
+          )}
+          {authorInstitutionRor && (
+            <LinkTooltip link={authorInstitutionRor} linkText={convertRorIdToText(authorInstitutionRor)}>
+              <RorLogo />
             </LinkTooltip>
           )}
         </Typography>

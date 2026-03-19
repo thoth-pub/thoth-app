@@ -436,6 +436,10 @@
     "label": "Journal ISSN",
     "helperText": "Enter the ISSN of the journal."
   },
+  "bookReviewReviewerInstitution": {
+    "label": "Reviewer Institution",
+    "helperText": "Search for and select the institution of the reviewer."
+  },
   "bookReviewText": {
     "label": "Review Text",
     "helperText": "Enter the text of the book review."
@@ -451,6 +455,10 @@
   "endorsementUrl": {
     "label": "Endorsement URL",
     "helperText": "Enter the URL of the endorsement."
+  },
+  "endorsementAuthorInstitution": {
+    "label": "Author Institution",
+    "helperText": "Search for and select the institution of the endorsement author."
   },
   "endorsementText": {
     "label": "Endorsement Text",

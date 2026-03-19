@@ -6,6 +6,12 @@ export const BOOK_REVIEW_FRAGMENT = graphql(`
     workId
     title
     authorName
+    reviewerInstitutionId
+    reviewerInstitution {
+      institutionId
+      institutionName
+      ror
+    }
     url
     doi
     reviewDate

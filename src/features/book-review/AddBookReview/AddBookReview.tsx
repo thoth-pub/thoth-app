@@ -77,6 +77,11 @@ const AddBookReview = (props: AddBookReviewProps) => {
     setBookReview({ ...bookReview, journalIssn });
   };
 
+  const updateReviewerInstitution = (data: { value: string; label: string; ror: string }) => {
+    if (!bookReview) return;
+    setBookReview({ ...bookReview, reviewerInstitutionId: data.value, reviewerInstitutionName: data.label, reviewerInstitutionRor: data.ror });
+  };
+
   const updateText = (text: string) => {
     if (!bookReview) return;
     setBookReview({ ...bookReview, text });
@@ -84,7 +89,7 @@ const AddBookReview = (props: AddBookReviewProps) => {
 
   if (!bookReview) return null;
 
-  const { title, authorName, url, doi, reviewDate, journalName, journalVolume, journalNumber, journalIssn, text } =
+  const { title, authorName, reviewerInstitutionId, reviewerInstitutionName, url, doi, reviewDate, journalName, journalVolume, journalNumber, journalIssn, text } =
     bookReview;
 
   return (
@@ -92,6 +97,8 @@ const AddBookReview = (props: AddBookReviewProps) => {
       <EditBookReviewForm
         title={title}
         authorName={authorName}
+        reviewerInstitutionId={reviewerInstitutionId}
+        reviewerInstitutionName={reviewerInstitutionName}
         url={url}
         doi={doi}
         reviewDate={reviewDate}
@@ -102,6 +109,7 @@ const AddBookReview = (props: AddBookReviewProps) => {
         text={text}
         onTitleUpdate={updateTitle}
         onAuthorNameUpdate={updateAuthorName}
+        onReviewerInstitutionUpdate={updateReviewerInstitution}
         onUrlUpdate={updateUrl}
         onDoiUpdate={updateDoi}
         onReviewDateUpdate={updateReviewDate}

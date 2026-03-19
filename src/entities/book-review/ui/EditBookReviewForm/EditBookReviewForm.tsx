@@ -9,6 +9,7 @@ import { EditBookReviewJournalName } from '../EditBookReviewJournalName/EditBook
 import { EditBookReviewJournalNumber } from '../EditBookReviewJournalNumber/EditBookReviewJournalNumber';
 import { EditBookReviewJournalVolume } from '../EditBookReviewJournalVolume/EditBookReviewJournalVolume';
 import { EditBookReviewReviewDate } from '../EditBookReviewReviewDate/EditBookReviewReviewDate';
+import { EditBookReviewReviewerInstitution } from '../EditBookReviewReviewerInstitution/EditBookReviewReviewerInstitution';
 import { EditBookReviewText } from '../EditBookReviewText/EditBookReviewText';
 import { EditBookReviewTitle } from '../EditBookReviewTitle/EditBookReviewTitle';
 import { EditBookReviewUrl } from '../EditBookReviewUrl/EditBookReviewUrl';
@@ -16,6 +17,8 @@ import { EditBookReviewUrl } from '../EditBookReviewUrl/EditBookReviewUrl';
 type EditBookReviewFormProps = {
   title?: string;
   authorName?: string;
+  reviewerInstitutionId?: string;
+  reviewerInstitutionName?: string;
   url?: string;
   doi?: string;
   reviewDate?: string;
@@ -26,6 +29,7 @@ type EditBookReviewFormProps = {
   text?: string;
   onTitleUpdate?: (data: string) => void;
   onAuthorNameUpdate?: (data: string) => void;
+  onReviewerInstitutionUpdate?: (data: { value: string; label: string; ror: string }) => void;
   onUrlUpdate?: (data: string) => void;
   onDoiUpdate?: (data: string) => void;
   onReviewDateUpdate?: (data: string) => void;
@@ -42,6 +46,8 @@ const EditBookReviewForm = (props: EditBookReviewFormProps) => {
   const {
     title,
     authorName,
+    reviewerInstitutionId,
+    reviewerInstitutionName,
     url,
     doi,
     reviewDate,
@@ -52,6 +58,7 @@ const EditBookReviewForm = (props: EditBookReviewFormProps) => {
     text,
     onTitleUpdate,
     onAuthorNameUpdate,
+    onReviewerInstitutionUpdate,
     onUrlUpdate,
     onDoiUpdate,
     onReviewDateUpdate,
@@ -69,6 +76,10 @@ const EditBookReviewForm = (props: EditBookReviewFormProps) => {
       <TableFormsHeader title="book review" onDone={onDone} onClose={onClose} />
       <EditBookReviewTitle defaultValue={title} onUpdate={onTitleUpdate} />
       <EditBookReviewAuthorName defaultValue={authorName} onUpdate={onAuthorNameUpdate} />
+      <EditBookReviewReviewerInstitution
+        defaultValue={{ value: reviewerInstitutionId ?? '', label: reviewerInstitutionName ?? '' }}
+        onUpdate={onReviewerInstitutionUpdate}
+      />
       <EditBookReviewUrl defaultValue={url} onUpdate={onUrlUpdate} />
       <EditBookReviewDoi defaultValue={doi} onUpdate={onDoiUpdate} />
       <EditBookReviewReviewDate defaultValue={reviewDate} onUpdate={onReviewDateUpdate} />

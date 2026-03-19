@@ -71,11 +71,13 @@ export const IDs = {
   BOOK_REVIEW_JOURNAL_VOLUME: 'book_review_journal_volume',
   BOOK_REVIEW_JOURNAL_NUMBER: 'book_review_journal_number',
   BOOK_REVIEW_JOURNAL_ISSN: 'book_review_journal_issn',
+  BOOK_REVIEW_REVIEWER_INSTITUTION: 'book_review_reviewer_institution',
   BOOK_REVIEW_TEXT: 'book_review_text',
   // ENDORSEMENTS
   ENDORSEMENT_AUTHOR_NAME: 'endorsement_author_name',
   ENDORSEMENT_AUTHOR_ROLE: 'endorsement_author_role',
   ENDORSEMENT_URL: 'endorsement_url',
+  ENDORSEMENT_AUTHOR_INSTITUTION: 'endorsement_author_institution',
   ENDORSEMENT_TEXT: 'endorsement_text',
   // FEATURED VIDEO
   FEATURED_VIDEO_TITLE: 'featured_video_title',

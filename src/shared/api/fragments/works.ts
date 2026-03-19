@@ -192,6 +192,12 @@ export const WORK_FRAGMENT = graphql(`
       workId
       title
       authorName
+      reviewerInstitutionId
+      reviewerInstitution {
+        institutionId
+        institutionName
+        ror
+      }
       url
       doi
       reviewDate
@@ -207,6 +213,12 @@ export const WORK_FRAGMENT = graphql(`
       workId
       authorName
       authorRole
+      authorInstitutionId
+      authorInstitution {
+        institutionId
+        institutionName
+        ror
+      }
       url
       text
       endorsementOrdinal

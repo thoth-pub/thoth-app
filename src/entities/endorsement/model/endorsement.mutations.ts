@@ -7,6 +7,12 @@ export const CREATE_ENDORSEMENT = graphql(`
       workId
       authorName
       authorRole
+      authorInstitutionId
+      authorInstitution {
+        institutionId
+        institutionName
+        ror
+      }
       url
       text
       endorsementOrdinal
@@ -21,6 +27,12 @@ export const UPDATE_ENDORSEMENT = graphql(`
       workId
       authorName
       authorRole
+      authorInstitutionId
+      authorInstitution {
+        institutionId
+        institutionName
+        ror
+      }
       url
       text
       endorsementOrdinal
@@ -35,6 +47,12 @@ export const DELETE_ENDORSEMENT = graphql(`
       workId
       authorName
       authorRole
+      authorInstitutionId
+      authorInstitution {
+        institutionId
+        institutionName
+        ror
+      }
       url
       text
       endorsementOrdinal
@@ -49,6 +67,12 @@ export const MOVE_ENDORSEMENT = graphql(`
       workId
       authorName
       authorRole
+      authorInstitutionId
+      authorInstitution {
+        institutionId
+        institutionName
+        ror
+      }
       url
       text
       endorsementOrdinal
