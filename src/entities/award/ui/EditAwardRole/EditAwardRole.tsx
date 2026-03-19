@@ -3,7 +3,7 @@
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
-import { awardRoleOptions } from '@/src/shared/utils';
+import { awardRoleOptions, convertOptionToString } from '@/src/shared/utils';
 
 import type { AwardRole } from '../../model/award.types';
 import { awardRoleValidationSchema } from '../../model/award.validation';
@@ -37,11 +37,17 @@ export const EditAwardRole = (props: EditAwardRoleProps) => {
             id={AWARD_ROLE.name}
             options={awardRoleOptions}
             translateOptions
+            select
           />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview label={AWARD_ROLE.label} value={data?.role} disabled={disabled} onEdit={onEdit} />
+        <Preview
+          label={AWARD_ROLE.label}
+          value={convertOptionToString(data?.role ?? '')}
+          disabled={disabled}
+          onEdit={onEdit}
+        />
       )}
     />
   );
