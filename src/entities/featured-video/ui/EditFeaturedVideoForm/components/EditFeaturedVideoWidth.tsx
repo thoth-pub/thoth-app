@@ -25,15 +25,14 @@ export const EditFeaturedVideoWidth = (props: EditFeaturedVideoWidthProps) => {
       validationSchema={featuredVideoWidthValidationSchema}
       defaultValues={{ [FEATURED_VIDEO_WIDTH.name]: defaultValue ?? '' }}
       onSubmit={(data) => onUpdate?.(Number(data.width))}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={FEATURED_VIDEO_WIDTH_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={FEATURED_VIDEO_WIDTH.label} id={FEATURED_VIDEO_WIDTH.name} />
           <FormTextField
             control={control}
             name={FEATURED_VIDEO_WIDTH.name}
             id={FEATURED_VIDEO_WIDTH.name}
-            helperText={FEATURED_VIDEO_WIDTH_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             type="number"
             inputProps={{ min: 1, step: '1' }}
           />

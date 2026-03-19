@@ -26,15 +26,14 @@ export const EditAwardUrl = (props: EditAwardUrlProps) => {
       validationSchema={awardUrlValidationSchema}
       defaultValues={{ [AWARD_URL.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.url)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={AWARD_URL_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={AWARD_URL.label} id={AWARD_URL.name} />
           <FormTextField
             control={control}
             name={AWARD_URL.name}
             id={AWARD_URL.name}
-            helperText={AWARD_URL_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             isUrlField
           />
         </ContentWrapper>

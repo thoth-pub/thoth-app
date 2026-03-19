@@ -36,7 +36,8 @@ export const EditType = (props: EditTypeProps) => {
       validationSchema={contributorTypeValidationSchema}
       onSubmit={onSubmit}
       borderTransparent
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={CONTRIBUTOR_TYPE_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={CONTRIBUTOR_TYPE.label} id={CONTRIBUTOR_TYPE.name} />
           <FormTextField
@@ -45,8 +46,6 @@ export const EditType = (props: EditTypeProps) => {
             select
             options={convertedContributorTypeOptions}
             id={CONTRIBUTOR_TYPE.name}
-            helperText={CONTRIBUTOR_TYPE_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             translateOptions
             slotProps={{
               select: {

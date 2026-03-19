@@ -29,13 +29,7 @@ const {
   WORK_LAST_PAGE,
 } = FORM_FIELDS;
 
-const {
-  WORK_PAGES_COUNT: WORK_PAGES_COUNT_HELPER_TEXT,
-  WORK_FRONTMATTER_COUNT: WORK_FRONTMATTER_COUNT_HELPER_TEXT,
-  WORK_BACKMATTER_COUNT: WORK_BACKMATTER_COUNT_HELPER_TEXT,
-  WORK_FIRST_PAGE: WORK_FIRST_PAGE_HELPER_TEXT,
-  WORK_LAST_PAGE: WORK_LAST_PAGE_HELPER_TEXT,
-} = HELPER_TEXT;
+const { WORK_FIRST_PAGE: WORK_FIRST_PAGE_HELPER_TEXT } = HELPER_TEXT;
 
 type EditPagesCountProps = BaseRecommendedSectionProps & {
   isChapter?: boolean;
@@ -104,7 +98,8 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
       }}
       validationSchema={pagesCountValidationSchema}
       onSubmit={handleSubmit}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={WORK_FIRST_PAGE_HELPER_TEXT}
+      formFields={({ control }) => (
         <MultipleContentWrapper>
           {isChapter && (
             <>
@@ -113,9 +108,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
                 <FormTextField
                   control={control}
                   name={WORK_FIRST_PAGE.name}
-                  helperText={WORK_FIRST_PAGE_HELPER_TEXT}
                   id={WORK_FIRST_PAGE.name}
-                  isHelperTextVisible={isHelperTextVisible}
                   type={WORK_FIRST_PAGE.type}
                   min={0}
                 />
@@ -125,9 +118,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
                 <FormTextField
                   control={control}
                   name={WORK_LAST_PAGE.name}
-                  helperText={WORK_LAST_PAGE_HELPER_TEXT}
                   id={WORK_LAST_PAGE.name}
-                  isHelperTextVisible={isHelperTextVisible}
                   type={WORK_LAST_PAGE.type}
                   min={0}
                 />
@@ -143,9 +134,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
             <FormTextField
               control={control}
               name={WORK_PAGES_COUNT.name}
-              helperText={WORK_PAGES_COUNT_HELPER_TEXT}
               id={WORK_PAGES_COUNT.name}
-              isHelperTextVisible={isHelperTextVisible}
               type={WORK_PAGES_COUNT.type}
               min={0}
             />
@@ -157,9 +146,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
                 <FormTextField
                   control={control}
                   name={WORK_FRONTMATTER_COUNT.name}
-                  helperText={WORK_FRONTMATTER_COUNT_HELPER_TEXT}
                   id={WORK_FRONTMATTER_COUNT.name}
-                  isHelperTextVisible={isHelperTextVisible}
                   type={WORK_FRONTMATTER_COUNT.type}
                   min={0}
                 />
@@ -169,9 +156,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
                 <FormTextField
                   control={control}
                   name={WORK_BACKMATTER_COUNT.name}
-                  helperText={WORK_BACKMATTER_COUNT_HELPER_TEXT}
                   id={WORK_BACKMATTER_COUNT.name}
-                  isHelperTextVisible={isHelperTextVisible}
                   type={WORK_BACKMATTER_COUNT.type}
                   min={0}
                 />

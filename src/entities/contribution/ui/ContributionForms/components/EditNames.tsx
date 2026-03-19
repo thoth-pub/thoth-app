@@ -7,12 +7,7 @@ import type { ContributionNamesForm } from '../../../model/contribution.types';
 import { namesFormValidationSchema } from '../../../model/contribution.validation';
 
 const { FULL_NAME, FIRST_NAME, LAST_NAME } = FORM_FIELDS;
-
-const {
-  FULL_NAME: FULL_NAME_HELPER_TEXT,
-  FIRST_NAME: FIRST_NAME_HELPER_TEXT,
-  LAST_NAME: LAST_NAME_HELPER_TEXT,
-} = HELPER_TEXT;
+const { FULL_NAME: FULL_NAME_HELPER_TEXT } = HELPER_TEXT;
 
 type EditNamesProps = {
   fullName?: string;
@@ -41,37 +36,20 @@ export const EditNames = ({ fullName, firstName, lastName, recommended, onSubmit
       validationSchema={namesFormValidationSchema}
       onSubmit={onSubmit}
       borderTransparent
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={FULL_NAME_HELPER_TEXT}
+      formFields={({ control }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={FIRST_NAME.label} id={FIRST_NAME.name} recommended={showFirstNameIndicator} />
-            <FormTextField
-              control={control}
-              name={FIRST_NAME.name}
-              id={FIRST_NAME.name}
-              helperText={FIRST_NAME_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
-            />
+            <FormTextField control={control} name={FIRST_NAME.name} id={FIRST_NAME.name} />
           </ContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={LAST_NAME.label} id={LAST_NAME.name} recommended={showLastNameIndicator} />
-            <FormTextField
-              control={control}
-              name={LAST_NAME.name}
-              id={LAST_NAME.name}
-              helperText={LAST_NAME_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
-            />
+            <FormTextField control={control} name={LAST_NAME.name} id={LAST_NAME.name} />
           </ContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={FULL_NAME.label} id={FULL_NAME.name} recommended={showFullNameIndicator} />
-            <FormTextField
-              control={control}
-              name={FULL_NAME.name}
-              id={FULL_NAME.name}
-              helperText={FULL_NAME_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
-            />
+            <FormTextField control={control} name={FULL_NAME.name} id={FULL_NAME.name} />
           </ContentWrapper>
         </MultipleContentWrapper>
       )}

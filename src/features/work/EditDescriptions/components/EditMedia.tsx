@@ -12,12 +12,7 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 
 const { WORK_IMAGE_COUNT, WORK_TABLE_COUNT, WORK_AUDIO_COUNT, WORK_VIDEO_COUNT, MEDIA_COUNT } = FORM_FIELDS;
 
-const {
-  WORK_TABLE_COUNT: WORK_TABLE_COUNT_HELPER_TEXT,
-  WORK_IMAGE_COUNT: WORK_IMAGE_COUNT_HELPER_TEXT,
-  WORK_AUDIO_COUNT: WORK_AUDIO_COUNT_HELPER_TEXT,
-  WORK_VIDEO_COUNT: WORK_VIDEO_COUNT_HELPER_TEXT,
-} = HELPER_TEXT;
+const { WORK_TABLE_COUNT: WORK_TABLE_COUNT_HELPER_TEXT } = HELPER_TEXT;
 
 export const EditMedia = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
@@ -63,17 +58,16 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
       }}
       validationSchema={mediaValidationSchema}
       onSubmit={handleSubmit}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={WORK_TABLE_COUNT_HELPER_TEXT}
+      formFields={({ control }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={WORK_TABLE_COUNT.label} id={WORK_TABLE_COUNT.name} />
             <FormTextField
               control={control}
               name={WORK_TABLE_COUNT.name}
-              helperText={WORK_TABLE_COUNT_HELPER_TEXT}
               type={WORK_TABLE_COUNT.type}
               id={WORK_TABLE_COUNT.name}
-              isHelperTextVisible={isHelperTextVisible}
               min={0}
             />
           </ContentWrapper>
@@ -82,10 +76,8 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
             <FormTextField
               control={control}
               name={WORK_IMAGE_COUNT.name}
-              helperText={WORK_IMAGE_COUNT_HELPER_TEXT}
               type={WORK_IMAGE_COUNT.type}
               id={WORK_IMAGE_COUNT.name}
-              isHelperTextVisible={isHelperTextVisible}
               min={0}
             />
           </ContentWrapper>
@@ -94,10 +86,8 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
             <FormTextField
               control={control}
               name={WORK_AUDIO_COUNT.name}
-              helperText={WORK_AUDIO_COUNT_HELPER_TEXT}
               type={WORK_AUDIO_COUNT.type}
               id={WORK_AUDIO_COUNT.name}
-              isHelperTextVisible={isHelperTextVisible}
               min={0}
             />
           </ContentWrapper>
@@ -106,10 +96,8 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
             <FormTextField
               control={control}
               name={WORK_VIDEO_COUNT.name}
-              helperText={WORK_VIDEO_COUNT_HELPER_TEXT}
               type={WORK_VIDEO_COUNT.type}
               id={WORK_VIDEO_COUNT.name}
-              isHelperTextVisible={isHelperTextVisible}
               min={0}
             />
           </ContentWrapper>

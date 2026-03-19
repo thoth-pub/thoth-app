@@ -5,7 +5,7 @@ import { useEffect } from 'react';
 import { type Control, type FieldValues, UseFormSetValue, useWatch } from 'react-hook-form';
 
 import { useSeries } from '@/src/entities/series';
-import { FORM_FIELDS, HELPER_TEXT } from '@/src/shared/constants';
+import { FORM_FIELDS } from '@/src/shared/constants';
 import type { FormFieldOption } from '@/src/shared/interfaces';
 import {
   AutocompleteField,
@@ -25,14 +25,12 @@ type FormFieldsProps = {
   isDeleteDisabled?: boolean;
   deleteLoading?: boolean;
   children?: Readonly<React.ReactNode>;
-  isHelperTextVisible?: boolean;
   onChange: (value: string) => void;
   onDelete: () => void;
   setValue: UseFormSetValue<FieldValues>;
 };
 
 const { WORK_SERIES, ISSUE_ORDINAL } = FORM_FIELDS;
-const { WORK_SERIES: WORK_SERIES_HELPER_TEXT, WORK_SERIES_ORDINAL: WORK_SERIES_ORDINAL_HELPER_TEXT } = HELPER_TEXT;
 
 export const FormFields = (props: FormFieldsProps) => {
   const {
@@ -42,7 +40,6 @@ export const FormFields = (props: FormFieldsProps) => {
     isDeleteDisabled = true,
     deleteLoading = false,
     children,
-    isHelperTextVisible = false,
     onChange,
     onDelete,
     setValue,
@@ -73,8 +70,6 @@ export const FormFields = (props: FormFieldsProps) => {
             options={options}
             onInputChange={(_, value) => onChange(value)}
             loading={isLoading}
-            isHelperTextVisible={isHelperTextVisible}
-            helperText={WORK_SERIES_HELPER_TEXT}
             icon={
               <InputAdornment position="start">
                 <SearchIcon color="primary" />
@@ -91,8 +86,6 @@ export const FormFields = (props: FormFieldsProps) => {
           control={control}
           id={ISSUE_ORDINAL.name}
           defaultValue={defaultValue}
-          isHelperTextVisible={isHelperTextVisible}
-          helperText={WORK_SERIES_ORDINAL_HELPER_TEXT}
         />
       </ContentWrapper>
       {children}

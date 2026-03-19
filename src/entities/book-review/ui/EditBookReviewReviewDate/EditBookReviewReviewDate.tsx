@@ -1,5 +1,5 @@
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
-import { DateField, FormFieldLabel, FormHelperText, Preview } from '@/src/shared/ui';
+import { DateField, FormFieldLabel, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 import { convertDateToFormattedDate } from '@/src/shared/utils';
 
@@ -29,7 +29,8 @@ export const EditBookReviewReviewDate = (props: EditBookReviewReviewDateProps) =
       validationSchema={bookReviewReviewDateValidationSchema}
       defaultValues={{ [BOOK_REVIEW_REVIEW_DATE.name]: defaultValue }}
       onSubmit={onSubmit}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={BOOK_REVIEW_REVIEW_DATE_HELPER_TEXT}
+      formFields={({ control }) => (
         <>
           <FormFieldLabel label={BOOK_REVIEW_REVIEW_DATE.label} id={BOOK_REVIEW_REVIEW_DATE.name} />
           <DateField
@@ -39,7 +40,6 @@ export const EditBookReviewReviewDate = (props: EditBookReviewReviewDateProps) =
             className="h-10"
             sx={{ width: '100%' }}
           />
-          {isHelperTextVisible && <FormHelperText>{BOOK_REVIEW_REVIEW_DATE_HELPER_TEXT}</FormHelperText>}
         </>
       )}
       preview={({ data, disabled, onEdit }) => (

@@ -2,7 +2,7 @@ import { type Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
 import { appConfig } from '@/src/shared/config';
-import { FORM_FIELDS, HELPER_TEXT, locationPlatformOptions } from '@/src/shared/constants';
+import { FORM_FIELDS, locationPlatformOptions } from '@/src/shared/constants';
 import {
   AddButton,
   AutocompleteField,
@@ -20,11 +20,8 @@ import type { LocationPlatform, LocationsForm } from '../../../model/location.ty
 
 const { LOCATIONS, PLATFORM, FULL_TEXT_URL, LANDING_PAGE } = FORM_FIELDS;
 
-const { LOCATION_PLATFORM, LOCATION_URL_HELPER_TEXT, LANDING_PAGE_HELPER_TEXT } = HELPER_TEXT;
-
 type FormFieldsProps = {
   control: Control<LocationsForm>;
-  isHelperTextVisible?: boolean;
   onDelete?: (id: string) => void;
   onClose?: () => void;
 };
@@ -42,7 +39,7 @@ const defaultValue = {
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const FormFields = (props: FormFieldsProps) => {
-  const { control, isHelperTextVisible = false, onDelete, onClose } = props;
+  const { control, onDelete, onClose } = props;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -102,8 +99,6 @@ export const FormFields = (props: FormFieldsProps) => {
                   name={getPlatformFieldName(index)}
                   id={getPlatformFieldName(index)}
                   options={locationPlatformOptions}
-                  helperText={LOCATION_PLATFORM}
-                  isHelperTextVisible={isHelperTextVisible}
                   groupBy={(option) => option.group ?? ''}
                   renderGroup={({ group, children, key }) => (
                     <AutocompleteGroup key={key} group={group}>
@@ -120,8 +115,6 @@ export const FormFields = (props: FormFieldsProps) => {
                 control={control}
                 name={getLandingPageFieldName(index)}
                 id={getLandingPageFieldName(index)}
-                helperText={LANDING_PAGE_HELPER_TEXT}
-                isHelperTextVisible={isHelperTextVisible}
                 isUrlField
                 predefinedPrefix={getProtocolPrefix(field.landingPage ?? '')}
               />
@@ -132,8 +125,6 @@ export const FormFields = (props: FormFieldsProps) => {
                 control={control}
                 name={getUrlFieldName(index)}
                 id={getUrlFieldName(index)}
-                helperText={LOCATION_URL_HELPER_TEXT}
-                isHelperTextVisible={isHelperTextVisible}
                 isUrlField
                 predefinedPrefix={getProtocolPrefix(field.fullTextUrl ?? '')}
               />

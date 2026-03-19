@@ -91,20 +91,13 @@ const EditImprint = (props: EditImprintProps) => {
       defaultValues={defaultValues}
       onSubmit={handleUpdate}
       isDisabled={disabled}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={EDIT_IMPRINT}
+      formFields={({ control }) => (
         <div className="flex flex-col gap-(--default-gap)">
           <MultipleContentWrapper>
             <FormFieldLabel label={IMPRINT.label} id={IMPRINT.name} />
             <FormFieldWithControlsWrapper>
-              <FormTextField
-                control={control}
-                name={IMPRINT.name}
-                id={IMPRINT.name}
-                helperText={EDIT_IMPRINT}
-                isHelperTextVisible={isHelperTextVisible}
-                fullWidth
-                disabled={disabled}
-              />
+              <FormTextField control={control} name={IMPRINT.name} id={IMPRINT.name} fullWidth disabled={disabled} />
               <DeleteButton onClick={() => onDelete?.(id)} disabled={isDeleteDisabled} />
             </FormFieldWithControlsWrapper>
           </MultipleContentWrapper>
@@ -115,7 +108,6 @@ const EditImprint = (props: EditImprintProps) => {
               name={IMPRINT_URL.name}
               id={IMPRINT_URL.name}
               helperText={IMPRINT_URL_HELPER}
-              isHelperTextVisible={isHelperTextVisible}
               fullWidth
               isUrlField
               disabled={disabled}
@@ -128,7 +120,6 @@ const EditImprint = (props: EditImprintProps) => {
               name={CROSSMARK_DOI.name}
               id={CROSSMARK_DOI.name}
               helperText={CROSSMARK_DOI_HELPER}
-              isHelperTextVisible={isHelperTextVisible}
               fullWidth
               isDoiField
               disabled={disabled}
@@ -141,7 +132,6 @@ const EditImprint = (props: EditImprintProps) => {
               name={DEFAULT_PLACE.name}
               id={DEFAULT_PLACE.name}
               helperText={DEFAULT_PLACE_HELPER}
-              isHelperTextVisible={isHelperTextVisible}
               fullWidth
               disabled={disabled}
             />
@@ -153,7 +143,6 @@ const EditImprint = (props: EditImprintProps) => {
               name={DEFAULT_CURRENCY.name}
               options={currencyOptions}
               helperText={DEFAULT_CURRENCY_HELPER}
-              isHelperTextVisible={isHelperTextVisible}
               fullWidth
             />
           </MultipleContentWrapper>
@@ -164,7 +153,6 @@ const EditImprint = (props: EditImprintProps) => {
               name={DEFAULT_LOCALE.name}
               options={languageOptionsAlt}
               helperText={DEFAULT_LOCALE_HELPER}
-              isHelperTextVisible={isHelperTextVisible}
               fullWidth
             />
           </MultipleContentWrapper>

@@ -29,16 +29,11 @@ const EditIsbn = (props: EditIsbnProps) => {
       validationSchema={isbnValidationSchema}
       onSubmit={handleSubmit}
       borderTransparent
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PUBLICATION_ISBN_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={PUBLICATION_ISBN.label} id={PUBLICATION_ISBN.name} />
-          <FormTextField
-            control={control}
-            name={PUBLICATION_ISBN.name}
-            id={PUBLICATION_ISBN.name}
-            helperText={PUBLICATION_ISBN_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={PUBLICATION_ISBN.name} id={PUBLICATION_ISBN.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

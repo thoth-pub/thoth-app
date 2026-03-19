@@ -26,6 +26,7 @@ export type FormProps<T extends FieldValues> = {
   isTableVariant?: boolean;
   validationMode?: keyof ValidationMode;
   borderTransparent?: boolean;
+  showFaqButton?: boolean;
   children: (props: {
     control: Control<FieldValues>;
     reset: UseFormReset<FieldValues>;
@@ -33,7 +34,7 @@ export type FormProps<T extends FieldValues> = {
   }) => Readonly<React.ReactNode>;
   onSubmit: SubmitHandler<T>;
   onClose: () => void;
-  onInfo: () => void;
+  onInfo?: () => void;
 };
 
 export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
@@ -45,6 +46,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     validationMode = 'onChange',
     controlsClassName,
     className,
+    showFaqButton,
     children,
     onSubmit,
     onClose,
@@ -87,6 +89,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
             loading={isSubmitting}
             onClose={onClose}
             onInfo={onInfo}
+            showFaqButton={showFaqButton}
             className={controlsClassName}
           />
         </form>
@@ -103,6 +106,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
                 loading={isSubmitting}
                 onClose={onClose}
                 onInfo={onInfo}
+                showFaqButton={showFaqButton}
                 className={controlsClassName}
               />
             </form>

@@ -44,18 +44,12 @@ const EditDoi = (props: EditDoiProps) => {
       }}
       validationSchema={doiAndCoversValidationSchema}
       onSubmit={updateDoiAndLandingPage}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={HELPER_TEXT.DOI}
+      formFields={({ control }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={DOI.label} id={DOI.name} recommended={showDoiIndicator} />
-            <FormTextField
-              control={control}
-              name={DOI.name}
-              id={DOI.name}
-              helperText={HELPER_TEXT.DOI}
-              isHelperTextVisible={isHelperTextVisible}
-              isDoiField
-            />
+            <FormTextField control={control} name={DOI.name} id={DOI.name} helperText={HELPER_TEXT.DOI} isDoiField />
           </ContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={LANDING_PAGE.label} id={LANDING_PAGE.name} recommended={showLandingPageIndicator} />
@@ -63,8 +57,6 @@ const EditDoi = (props: EditDoiProps) => {
               control={control}
               name={LANDING_PAGE.name}
               id={LANDING_PAGE.name}
-              helperText={HELPER_TEXT.LANDING_PAGE}
-              isHelperTextVisible={isHelperTextVisible}
               isUrlField
               predefinedPrefix={getProtocolPrefix(landingPageValue ?? '')}
             />

@@ -26,17 +26,11 @@ export const EditFeaturedVideoUrl = (props: EditFeaturedVideoUrlProps) => {
       validationSchema={featuredVideoUrlValidationSchema}
       defaultValues={{ [FEATURED_VIDEO_URL.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.url)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={FEATURED_VIDEO_URL_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={FEATURED_VIDEO_URL.label} id={FEATURED_VIDEO_URL.name} />
-          <FormTextField
-            control={control}
-            name={FEATURED_VIDEO_URL.name}
-            id={FEATURED_VIDEO_URL.name}
-            helperText={FEATURED_VIDEO_URL_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            isUrlField
-          />
+          <FormTextField control={control} name={FEATURED_VIDEO_URL.name} id={FEATURED_VIDEO_URL.name} isUrlField />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

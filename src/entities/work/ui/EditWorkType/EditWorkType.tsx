@@ -28,7 +28,8 @@ export const EditWorkType = ({ workId }: BaseEditSectionProps) => {
       defaultValues={{ [WORK_TYPE.name]: work?.type }}
       validationSchema={workTypeValidationSchema}
       onSubmit={updateWorkType}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={HELPER_TEXT.WORK_TYPE}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={WORK_TYPE.label} id={WORK_TYPE.name} />
           <FormTextField
@@ -37,8 +38,6 @@ export const EditWorkType = ({ workId }: BaseEditSectionProps) => {
             id={WORK_TYPE.name}
             select
             options={workTypeOptions}
-            helperText={HELPER_TEXT.WORK_TYPE}
-            isHelperTextVisible={isHelperTextVisible}
             translateOptions
           />
         </ContentWrapper>

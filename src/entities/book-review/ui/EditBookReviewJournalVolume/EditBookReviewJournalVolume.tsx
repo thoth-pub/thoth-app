@@ -25,15 +25,14 @@ export const EditBookReviewJournalVolume = (props: EditBookReviewJournalVolumePr
       validationSchema={bookReviewJournalVolumeValidationSchema}
       defaultValues={{ [BOOK_REVIEW_JOURNAL_VOLUME.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.journalVolume)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={BOOK_REVIEW_JOURNAL_VOLUME_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={BOOK_REVIEW_JOURNAL_VOLUME.label} id={BOOK_REVIEW_JOURNAL_VOLUME.name} />
           <FormTextField
             control={control}
             name={BOOK_REVIEW_JOURNAL_VOLUME.name}
             id={BOOK_REVIEW_JOURNAL_VOLUME.name}
-            helperText={BOOK_REVIEW_JOURNAL_VOLUME_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             type={BOOK_REVIEW_JOURNAL_VOLUME.type}
           />
         </ContentWrapper>

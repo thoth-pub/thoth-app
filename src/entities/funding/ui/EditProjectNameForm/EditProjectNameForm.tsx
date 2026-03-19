@@ -27,16 +27,11 @@ const EditProjectNameForm = (props: EditProjectNameFormProps) => {
       validationSchema={projectNameValidationSchema}
       defaultValues={{ [PROJECT_NAME.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PROJECT_NAME_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={PROJECT_NAME.label} id={PROJECT_NAME.name} />
-          <FormTextField
-            control={control}
-            name={PROJECT_NAME.name}
-            id={PROJECT_NAME.name}
-            helperText={PROJECT_NAME_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={PROJECT_NAME.name} id={PROJECT_NAME.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

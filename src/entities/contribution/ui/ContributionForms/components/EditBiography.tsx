@@ -1,7 +1,7 @@
 import { Control } from 'react-hook-form';
 
 import { LocaleCode } from '@/gql/graphql';
-import { FORM_FIELDS, IDs, languageOptionsAlt } from '@/src/shared/constants';
+import { FORM_FIELDS, HELPER_TEXT, IDs, languageOptionsAlt } from '@/src/shared/constants';
 import { Chip, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
@@ -18,6 +18,7 @@ type EditBiographyProps = {
 };
 
 const { BIOGRAPHIES } = FORM_FIELDS;
+const { CONTRIBUTOR_BIOGRAPHY: CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT } = HELPER_TEXT;
 
 export const EditBiography = (props: EditBiographyProps) => {
   const { contributionId, biographies, recommended = false, defaultLocaleOption, onSubmit } = props;
@@ -48,11 +49,11 @@ export const EditBiography = (props: EditBiographyProps) => {
       validationSchema={contributorBiographyValidationSchema}
       onSubmit={onSubmit}
       borderTransparent
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT}
+      formFields={({ control }) => (
         <BiographyFormFields
           control={control as unknown as Control<ContributionBiographyForm>}
           recommended={showPreviewIndicator}
-          isHelperTextVisible={isHelperTextVisible}
           defaultLocaleOption={defaultLocaleOption}
         />
       )}

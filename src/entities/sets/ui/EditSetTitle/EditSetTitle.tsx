@@ -2,7 +2,7 @@ import { Control } from 'react-hook-form';
 
 import { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { TitlesFormFields } from '@/src/entities/work/ui/EditWorkTitle/components/TitlesFormFields';
-import { FORM_FIELDS, IDs, languageOptionsAlt } from '@/src/shared/constants';
+import { FORM_FIELDS, HELPER_TEXT, IDs, languageOptionsAlt } from '@/src/shared/constants';
 import { useDefaultLocaleOption } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
@@ -19,6 +19,7 @@ type EditSetTitleProps = {
 };
 
 const { WORK_TITLE, TITLES, SUBTITLE, LANGUAGE } = FORM_FIELDS;
+const { WORK_TITLE: WORK_TITLE_HELPER_TEXT } = HELPER_TEXT;
 
 export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => {
   const titlesDefaultValues = set.titles.map(({ id, title, subtitle, localeCode }) => ({
@@ -48,11 +49,11 @@ export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => 
         onSubmit={updateTitles}
         isTableVariant
         borderTransparent
-        formFields={({ control, isHelperTextVisible }) => (
+        faq={WORK_TITLE_HELPER_TEXT}
+        formFields={({ control }) => (
           <TitlesFormFields
             control={control as unknown as Control<WorkTitlesForm>}
             defaultLocaleOption={defaultLocaleOption}
-            isHelperTextVisible={isHelperTextVisible}
             onDelete={onDelete}
           />
         )}

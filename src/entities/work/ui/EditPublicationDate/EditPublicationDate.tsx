@@ -2,15 +2,7 @@ import dayjs from 'dayjs';
 
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import {
-  DateField,
-  EditButton,
-  FormFieldLabel,
-  FormHelperText,
-  InputLabel,
-  TranslatedContent,
-  Typography,
-} from '@/src/shared/ui';
+import { DateField, EditButton, FormFieldLabel, InputLabel, TranslatedContent, Typography } from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
 import { convertDateToFormattedDate } from '@/src/shared/utils';
 
@@ -39,7 +31,8 @@ const EditPublicationDate = (props: EditPublicationDateProps) => {
       defaultValues={{ [PUBLICATION_DATE.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.publicationDate ?? '')}
       isDisabled={disabled}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PUBLICATION_DATE_HELPER_TEXT}
+      formFields={({ control }) => (
         <>
           <div className="flex flex-col gap-2">
             <FormFieldLabel
@@ -56,11 +49,6 @@ const EditPublicationDate = (props: EditPublicationDateProps) => {
               disabled={disabled}
             />
           </div>
-          {isHelperTextVisible && (
-            <FormHelperText>
-              <TranslatedContent content={PUBLICATION_DATE_HELPER_TEXT} namespace={NAMESPACES.enum.forms} />
-            </FormHelperText>
-          )}
         </>
       )}
       preview={({ data, disabled, onEdit }) => (

@@ -37,17 +37,11 @@ const EditReport = () => {
       defaultValues={{ [PUBLISHER_REPORT.name]: defaultValue }}
       onSubmit={handleSubmit}
       validationSchema={publisherReportValidationSchema}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PUBLISHER_REPORT_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={PUBLISHER_REPORT.label} id={PUBLISHER_REPORT.name} />
-          <FormTextField
-            control={control}
-            name={PUBLISHER_REPORT.name}
-            id={PUBLISHER_REPORT.name}
-            helperText={PUBLISHER_REPORT_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            isUrlField
-          />
+          <FormTextField control={control} name={PUBLISHER_REPORT.name} id={PUBLISHER_REPORT.name} isUrlField />
         </ContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (

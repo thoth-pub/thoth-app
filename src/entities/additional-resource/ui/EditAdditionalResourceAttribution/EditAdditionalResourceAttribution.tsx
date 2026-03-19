@@ -24,16 +24,15 @@ export const EditAdditionalResourceAttribution = (props: EditAdditionalResourceA
       isTableVariant
       validationSchema={additionalResourceAttributionValidationSchema}
       defaultValues={{ [ADDITIONAL_RESOURCE_ATTRIBUTION.name]: defaultValue }}
+      faq={ADDITIONAL_RESOURCE_ATTRIBUTION_HELPER_TEXT}
       onSubmit={(data) => onUpdate?.(data.attribution)}
-      formFields={({ control, isHelperTextVisible }) => (
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ADDITIONAL_RESOURCE_ATTRIBUTION.label} id={ADDITIONAL_RESOURCE_ATTRIBUTION.name} />
           <FormTextField
             control={control}
             name={ADDITIONAL_RESOURCE_ATTRIBUTION.name}
             id={ADDITIONAL_RESOURCE_ATTRIBUTION.name}
-            helperText={ADDITIONAL_RESOURCE_ATTRIBUTION_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
           />
         </ContentWrapper>
       )}

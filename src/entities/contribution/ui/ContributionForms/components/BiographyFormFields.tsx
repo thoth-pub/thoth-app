@@ -5,7 +5,7 @@ import { useEffectOnce } from 'react-use';
 
 import { LocaleCode } from '@/gql/graphql';
 import { appConfig } from '@/src/shared/config';
-import { FORM_FIELDS, HELPER_TEXT, languageOptionsAlt } from '@/src/shared/constants';
+import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants';
 import {
   AddButton,
   ContentWrapper,
@@ -20,19 +20,17 @@ import {
 import type { ContributionBiographyForm } from '../../../model/contribution.types';
 
 const { BIOGRAPHIES, CONTRIBUTOR_BIOGRAPHY, LANGUAGE } = FORM_FIELDS;
-const { CONTRIBUTOR_BIOGRAPHY: CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT } = HELPER_TEXT;
 
 type BiographyFormFieldsProps = {
   control: Control<ContributionBiographyForm>;
   recommended?: boolean;
-  isHelperTextVisible?: boolean;
   defaultLocaleOption?: { value: LocaleCode; label: string };
 };
 
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
-  const { control, recommended, isHelperTextVisible, defaultLocaleOption } = props;
+  const { control, recommended, defaultLocaleOption } = props;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -112,8 +110,6 @@ export const BiographyFormFields = (props: BiographyFormFieldsProps) => {
                   name={getBiographyFieldName(index)}
                   id={getBiographyFieldName(index)}
                   className="w-full"
-                  helperText={CONTRIBUTOR_BIOGRAPHY_HELPER_TEXT}
-                  isHelperTextVisible={isHelperTextVisible}
                   disableLineBreaks
                   extendedToolbar
                 />

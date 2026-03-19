@@ -29,16 +29,11 @@ const EditOclc = (props: BaseEditSectionProps) => {
       defaultValues={{ [LCCN.name]: lccnValue }}
       validationSchema={lccnValidationSchema}
       onSubmit={updateLccn}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={WORK_LCCN}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={LCCN.label} id={LCCN.name} />
-          <FormTextField
-            control={control}
-            name={LCCN.name}
-            id={LCCN.name}
-            helperText={WORK_LCCN}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={LCCN.name} id={LCCN.name} />
         </ContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (

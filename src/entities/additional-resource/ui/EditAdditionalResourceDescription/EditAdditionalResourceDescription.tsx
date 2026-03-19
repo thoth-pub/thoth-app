@@ -25,15 +25,14 @@ export const EditAdditionalResourceDescription = (props: EditAdditionalResourceD
       validationSchema={additionalResourceDescriptionValidationSchema}
       defaultValues={{ [ADDITIONAL_RESOURCE_DESCRIPTION.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.description)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={ADDITIONAL_RESOURCE_DESCRIPTION_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ADDITIONAL_RESOURCE_DESCRIPTION.label} id={ADDITIONAL_RESOURCE_DESCRIPTION.name} />
           <MarkdownField
             control={control}
             name={ADDITIONAL_RESOURCE_DESCRIPTION.name}
             id={ADDITIONAL_RESOURCE_DESCRIPTION.name}
-            helperText={ADDITIONAL_RESOURCE_DESCRIPTION_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             disableLineBreaks
           />
         </ContentWrapper>

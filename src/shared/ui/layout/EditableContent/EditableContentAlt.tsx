@@ -5,12 +5,12 @@ import type { Control, FieldValues, UseFormReset, UseFormSetValue, ValidationMod
 
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import { CloseButton, Modal, ModalWrapper } from '@/src/shared/ui';
 
 import { type FormProps, FormWrapper } from './FormWrapper';
 
 type FormFieldsProps = {
   control: Control<FieldValues>;
-  isHelperTextVisible?: boolean;
   reset: UseFormReset<FieldValues>;
   setValue: UseFormSetValue<FieldValues>;
 };
@@ -26,11 +26,12 @@ type EditableContentAltProps<T extends FieldValues> = {
   isDisabled?: boolean;
   borderTransparent?: boolean;
   onSubmit: (data: T) => void;
-  formFields: ({ control, isHelperTextVisible, reset, setValue }: FormFieldsProps) => Readonly<React.ReactNode>;
+  formFields: ({ control, reset, setValue }: FormFieldsProps) => Readonly<React.ReactNode>;
   preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
   resetOnSubmit?: boolean;
   validationMode?: keyof ValidationMode;
-} & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose' | 'onInfo'>;
+  faq?: string;
+} & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose'>;
 
 export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableContentAltProps<T>, 'onFormSubmit'>) => {
   const {
@@ -43,11 +44,13 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
     onSubmit,
     formFields,
     preview,
+    faq,
   } = props;
 
   const { activeFormId, edit, closeForm } = useFormStateMachine();
-  const [showInfo, setShowInfo] = useState(false);
+  const [showFaq, setShowFaq] = useState(false);
   const isActive = activeFormId === formId;
+  const showFaqButton = faq && faq.length > 0;
 
   const handleEdit = () => {
     if (isDisabled) return;
@@ -67,9 +70,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
     closeForm();
   };
 
-  const handleShowInfo = () => {
-    setShowInfo((prev) => !prev);
-  };
+  const handleToggleFaq = () => setShowFaq((prev) => !prev);
 
   return (
     <>
@@ -81,11 +82,12 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
           borderTransparent={borderTransparent}
           onSubmit={submit}
           onClose={onClose}
-          onInfo={handleShowInfo}
+          onInfo={handleToggleFaq}
+          showFaqButton={!!showFaqButton}
           className="items-end gap-1 bg-transparent p-0"
           controlsClassName="self-start mt-6"
         >
-          {({ control, reset, setValue }) => formFields({ control, isHelperTextVisible: showInfo, reset, setValue })}
+          {({ control, reset, setValue }) => formFields({ control, reset, setValue })}
         </FormWrapper>
       ) : (
         <div onDoubleClick={handleEdit} className="cursor-pointer">
@@ -95,6 +97,14 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
             onEdit: handleEdit,
           })}
         </div>
+      )}
+      {showFaqButton && (
+        <Modal open={showFaq} onClose={handleToggleFaq}>
+          <ModalWrapper>
+            {faq}
+            <CloseButton onClose={handleToggleFaq} />
+          </ModalWrapper>
+        </Modal>
       )}
     </>
   );

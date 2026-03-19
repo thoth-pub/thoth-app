@@ -61,7 +61,8 @@ const EditStatus = (props: EditStatusProps) => {
       validationSchema={workStatusValidationSchema}
       onSubmit={(data) => onUpdate?.(data.workStatus as WorkStatus)}
       isDisabled={isFieldDisable}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={WORK_STATUS_HELPER_TEXT}
+      formFields={({ control }) => (
         <div className="flex flex-col gap-2">
           <FormFieldLabel label={WORK_STATUS.label} id={WORK_STATUS.name} namespace={NAMESPACES.enum.common} />
           <FormTextField
@@ -71,8 +72,6 @@ const EditStatus = (props: EditStatusProps) => {
             select
             fullWidth
             options={availableNewStatusOptions}
-            helperText={WORK_STATUS_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             className="min-h-10"
             disabled={isFieldDisable}
             translateOptions

@@ -26,15 +26,14 @@ export const EditWebsite = (props: EditWebsiteProps) => {
       validationSchema={websiteUrlValidationSchema}
       onSubmit={onSubmit}
       borderTransparent
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={CONTRIBUTOR_WEBSITE_URL_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={WEBSITE_URL.label} id={WEBSITE_URL.name} />
           <FormTextField
             control={control}
             name={WEBSITE_URL.name}
             id={WEBSITE_URL.name}
-            helperText={CONTRIBUTOR_WEBSITE_URL_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             isUrlField
             disabled={disabled}
             predefinedPrefix={getProtocolPrefix(websiteUrl ?? '')}

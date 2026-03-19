@@ -39,7 +39,8 @@ const EditInstitutionForm = (props: InstitutionFormProps) => {
       validationSchema={institutionValidationSchema}
       defaultValues={{ [INSTITUTION.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={INSTITUTION_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={INSTITUTION.label} id={INSTITUTION.name} />
           <AutocompleteField
@@ -56,8 +57,6 @@ const EditInstitutionForm = (props: InstitutionFormProps) => {
                 <SearchIcon color="primary" />
               </InputAdornment>
             }
-            helperText={INSTITUTION_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
           />
         </ContentWrapper>
       )}

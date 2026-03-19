@@ -26,18 +26,11 @@ const EditOrcid = (props: EditOrcidProps) => {
       validationSchema={orcidValidationSchema}
       onSubmit={onSubmit}
       borderTransparent
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={CONTRIBUTOR_ORCID_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ORCID.label} id={ORCID.name} />
-          <FormTextField
-            control={control}
-            name={ORCID.name}
-            id={ORCID.name}
-            helperText={CONTRIBUTOR_ORCID_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            disabled={disabled}
-            isOrcidField
-          />
+          <FormTextField control={control} name={ORCID.name} id={ORCID.name} disabled={disabled} isOrcidField />
         </ContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (

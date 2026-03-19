@@ -2,15 +2,7 @@ import dayjs from 'dayjs';
 
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import {
-  DateField,
-  EditButton,
-  FormFieldLabel,
-  FormHelperText,
-  InputLabel,
-  TranslatedContent,
-  Typography,
-} from '@/src/shared/ui';
+import { DateField, EditButton, FormFieldLabel, InputLabel, TranslatedContent, Typography } from '@/src/shared/ui';
 import { EditableContentAlt } from '@/src/shared/ui/layout/EditableContent/EditableContentAlt';
 import { convertDateToFormattedDate } from '@/src/shared/utils';
 
@@ -39,7 +31,8 @@ const EditWithdrawDate = (props: EditWithdrawDateProps) => {
       defaultValues={{ [WITHDRAWN_DATE.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.withdrawnDate ?? '')}
       isDisabled={disabled}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={WITHDRAWN_DATE_HELPER_TEXT}
+      formFields={({ control }) => (
         <div className="flex flex-col gap-2">
           <FormFieldLabel label={WITHDRAWN_DATE.label} id={WITHDRAWN_DATE.name} />
           <DateField
@@ -50,7 +43,6 @@ const EditWithdrawDate = (props: EditWithdrawDateProps) => {
             className="h-10"
             disabled={disabled}
           />
-          {isHelperTextVisible && <FormHelperText>{WITHDRAWN_DATE_HELPER_TEXT}</FormHelperText>}
         </div>
       )}
       preview={({ data, disabled, onEdit }) => (

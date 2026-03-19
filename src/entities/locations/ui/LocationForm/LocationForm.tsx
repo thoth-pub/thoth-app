@@ -1,8 +1,6 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { FORM_FIELDS, HELPER_TEXT, locationPlatformOptions } from '@/src/shared/constants';
@@ -17,7 +15,6 @@ import {
   FormFieldWithControlsWrapper,
   FormFieldWrapper,
   FormTextField,
-  IconButton,
   Modal,
   ModalWrapper,
   SubmitButton,
@@ -55,12 +52,6 @@ export const LocationForm = (props: LocationFormProps) => {
     },
   });
 
-  const [isHelperTextVisible, setIsHelperTextVisible] = useState(false);
-
-  const handleShowInfo = () => {
-    setIsHelperTextVisible((prev) => !prev);
-  };
-
   const handleSubmitForm = ({ landingPage = '', fullTextUrl = '', platform, canonical }: LocationFormType) => {
     onSubmit?.({
       ...location,
@@ -84,7 +75,6 @@ export const LocationForm = (props: LocationFormProps) => {
             id={PLATFORM.name}
             options={locationPlatformOptions}
             helperText={LOCATION_PLATFORM}
-            isHelperTextVisible={isHelperTextVisible}
             groupBy={(option) => option.group ?? ''}
             renderGroup={({ group, children, key }) => (
               <AutocompleteGroup key={key} group={group}>
@@ -95,9 +85,6 @@ export const LocationForm = (props: LocationFormProps) => {
           <ButtonGroup>
             <SubmitButton type="submit" />
             <CloseButton onClose={onClose} />
-            <IconButton onClick={handleShowInfo} aria-label="Show info">
-              <InfoOutlineIcon />
-            </IconButton>
           </ButtonGroup>
         </FormFieldWithControlsWrapper>
       </FormFieldWrapper>
@@ -108,7 +95,6 @@ export const LocationForm = (props: LocationFormProps) => {
           name={LANDING_PAGE.name}
           id={LANDING_PAGE.name}
           helperText={LANDING_PAGE_HELPER_TEXT}
-          isHelperTextVisible={isHelperTextVisible}
           isUrlField
           predefinedPrefix={getProtocolPrefix(location.landingPage ?? '')}
         />
@@ -121,7 +107,6 @@ export const LocationForm = (props: LocationFormProps) => {
             name={FULL_TEXT_URL.name}
             id={FULL_TEXT_URL.name}
             helperText={LOCATION_URL_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             isUrlField
             predefinedPrefix={getProtocolPrefix(location.fullTextUrl ?? '')}
           />

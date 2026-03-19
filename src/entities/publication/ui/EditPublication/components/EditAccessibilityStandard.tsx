@@ -49,7 +49,8 @@ export const EditAccessibilityStandard = (props: EditAccessibilityStandardProps)
       validationSchema={accessibilityStandardValidationSchema}
       onSubmit={handleSubmit}
       borderTransparent
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PUBLICATION_ACCESSIBILITY_STANDARD_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel
             label={PUBLICATION_ACCESSIBILITY_STANDARD.label}
@@ -61,7 +62,6 @@ export const EditAccessibilityStandard = (props: EditAccessibilityStandardProps)
               select
               name={PUBLICATION_ACCESSIBILITY_STANDARD.name}
               id={PUBLICATION_ACCESSIBILITY_STANDARD.name}
-              helperText={isHelperTextVisible ? PUBLICATION_ACCESSIBILITY_STANDARD_HELPER_TEXT : ''}
               fullWidth
               slotProps={{ select: { multiple: true } }}
             >

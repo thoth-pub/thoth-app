@@ -27,15 +27,14 @@ export const EditAwardRole = (props: EditAwardRoleProps) => {
       validationSchema={awardRoleValidationSchema}
       defaultValues={{ [AWARD_ROLE.name]: defaultValue ?? '' }}
       onSubmit={(data) => onUpdate?.(data.role as AwardRole)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={AWARD_ROLE_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={AWARD_ROLE.label} id={AWARD_ROLE.name} />
           <FormTextField
             control={control}
             name={AWARD_ROLE.name}
             id={AWARD_ROLE.name}
-            helperText={AWARD_ROLE_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             options={awardRoleOptions}
             translateOptions
           />

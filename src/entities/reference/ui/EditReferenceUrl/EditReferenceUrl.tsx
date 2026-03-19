@@ -26,17 +26,11 @@ export const EditReferenceUrl = (props: EditReferenceUrlProps) => {
       validationSchema={referenceValidationSchema}
       defaultValues={{ [REFERENCE_URL.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.url)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={REFERENCE_URL_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={REFERENCE_URL.label} id={REFERENCE_URL.name} />
-          <FormTextField
-            control={control}
-            name={REFERENCE_URL.name}
-            id={REFERENCE_URL.name}
-            helperText={REFERENCE_URL_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            isUrlField
-          />
+          <FormTextField control={control} name={REFERENCE_URL.name} id={REFERENCE_URL.name} isUrlField />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

@@ -38,7 +38,6 @@ const {
 } = FORM_FIELDS;
 
 const {
-  SERIES_NAME: SERIES_NAME_HELPER_TEXT,
   SERIES_TYPE: SERIES_TYPE_HELPER_TEXT,
   IMPRINT: IMPRINT_HELPER_TEXT,
   ISSN: ISSN_HELPER_TEXT,
@@ -94,7 +93,8 @@ const EditSeriesForm = ({
         onSubmit={onNameChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control, isHelperTextVisible }) => (
+        faq={SERIES_TYPE_HELPER_TEXT}
+        formFields={({ control }) => (
           <ContentWrapper>
             <FormFieldLabel label={SERIES_NAME.label} id={SERIES_NAME.name} namespace={NAMESPACES.enum.common} />
             <FormTextField
@@ -102,8 +102,6 @@ const EditSeriesForm = ({
               name={SERIES_NAME.name}
               id={SERIES_NAME.name}
               placeholder={SERIES_NAME.placeholder}
-              helperText={SERIES_NAME_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
             />
           </ContentWrapper>
         )}
@@ -125,7 +123,8 @@ const EditSeriesForm = ({
         onSubmit={onTypeChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control, isHelperTextVisible }) => (
+        faq={SERIES_TYPE_HELPER_TEXT}
+        formFields={({ control }) => (
           <ContentWrapper>
             <FormFieldLabel label={SERIES_TYPE.label} id={SERIES_TYPE.name} />
             <FormTextField
@@ -134,8 +133,6 @@ const EditSeriesForm = ({
               id={SERIES_TYPE.name}
               select
               options={seriesTypeOptions}
-              helperText={SERIES_TYPE_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
               translateOptions
             />
           </ContentWrapper>
@@ -158,7 +155,8 @@ const EditSeriesForm = ({
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
         isDisabled={!isImprintEditable}
-        formFields={({ control, isHelperTextVisible }) => (
+        faq={IMPRINT_HELPER_TEXT}
+        formFields={({ control }) => (
           <ContentWrapper>
             <FormFieldLabel label={SERIES_IMPRINT.label} id={SERIES_IMPRINT.name} />
             <FormTextField
@@ -183,8 +181,6 @@ const EditSeriesForm = ({
                 },
               }}
               options={imprintOptions}
-              helperText={IMPRINT_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
               disabled={!isImprintEditable}
             />
           </ContentWrapper>
@@ -206,7 +202,8 @@ const EditSeriesForm = ({
         onSubmit={onIssnChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control, isHelperTextVisible }) => (
+        faq={ISSN_HELPER_TEXT}
+        formFields={({ control }) => (
           <ContentWrapper>
             <FormFieldLabel label="ISSN" id={SERIES_ISSN_PRINT.name} />
             <div className="flex flex-col gap-2 lg:flex-row">
@@ -216,8 +213,6 @@ const EditSeriesForm = ({
                 id={SERIES_ISSN_DIGITAL.name}
                 placeholder={SERIES_ISSN_DIGITAL.placeholder}
                 fullWidth
-                helperText={ISSN_HELPER_TEXT}
-                isHelperTextVisible={isHelperTextVisible}
               />
               <FormTextField
                 control={control as unknown as Control<SeriesIssnFormType>}
@@ -241,7 +236,8 @@ const EditSeriesForm = ({
         onSubmit={onUrlChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control, isHelperTextVisible }) => (
+        faq={SERIES_URL_HELPER_TEXT}
+        formFields={({ control }) => (
           <ContentWrapper>
             <FormFieldLabel label={SERIES_URL.label} id={SERIES_URL.name} />
             <FormTextField
@@ -250,8 +246,6 @@ const EditSeriesForm = ({
               id={SERIES_URL.name}
               placeholder={SERIES_URL.placeholder}
               isUrlField
-              helperText={SERIES_URL_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
             />
           </ContentWrapper>
         )}
@@ -267,7 +261,8 @@ const EditSeriesForm = ({
         onSubmit={onDescriptionChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        formFields={({ control, isHelperTextVisible }) => (
+        faq={SERIES_DESCRIPTION_HELPER_TEXT}
+        formFields={({ control }) => (
           <ContentWrapper>
             <FormFieldLabel
               label={SERIES_DESCRIPTION.label}
@@ -279,8 +274,6 @@ const EditSeriesForm = ({
               name={SERIES_DESCRIPTION.name}
               id={SERIES_DESCRIPTION.name}
               placeholder={SERIES_DESCRIPTION.placeholder}
-              helperText={SERIES_DESCRIPTION_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
               multiline
               maxRows={4}
               sx={{

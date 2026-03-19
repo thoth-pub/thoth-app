@@ -39,7 +39,8 @@ export const EditAccessibilityException = (props: EditAccessibilityExceptionProp
       validationSchema={accessibilityExceptionValidationSchema}
       onSubmit={handleSubmit}
       borderTransparent
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PUBLICATION_ACCESSIBILITY_EXCEPTION_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel
             label={PUBLICATION_ACCESSIBILITY_EXCEPTION.label}
@@ -52,8 +53,6 @@ export const EditAccessibilityException = (props: EditAccessibilityExceptionProp
               select
               name={PUBLICATION_ACCESSIBILITY_EXCEPTION.name}
               id={PUBLICATION_ACCESSIBILITY_EXCEPTION.name}
-              helperText={PUBLICATION_ACCESSIBILITY_EXCEPTION_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
               fullWidth
             />
             <DeleteButton onClick={onDelete} disabled={!exception} />

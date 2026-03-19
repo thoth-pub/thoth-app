@@ -70,7 +70,8 @@ const EditContact = () => {
       defaultValues={{ [PUBLISHER_CONTACT.name]: defaultValue }}
       onSubmit={handleSubmit}
       validationSchema={publisherContactValidationSchema}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PUBLISHER_CONTACT_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={PUBLISHER_CONTACT.label} id={PUBLISHER_CONTACT.name} />
           <FormFieldWithControlsWrapper>
@@ -80,8 +81,6 @@ const EditContact = () => {
               select
               options={contactTypeOptions}
               id={PUBLISHER_CONTACT.name}
-              helperText={PUBLISHER_CONTACT_HELPER_TEXT}
-              isHelperTextVisible={isHelperTextVisible}
               fullWidth
             />
             <DeleteButton onClick={handleDelete} disabled={!defaultValue || deleteLoading} />

@@ -25,25 +25,15 @@ export const EditBookReviewJournalName = (props: EditBookReviewJournalNameProps)
       validationSchema={bookReviewJournalNameValidationSchema}
       defaultValues={{ [BOOK_REVIEW_JOURNAL_NAME.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.journalName)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={BOOK_REVIEW_JOURNAL_NAME_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={BOOK_REVIEW_JOURNAL_NAME.label} id={BOOK_REVIEW_JOURNAL_NAME.name} />
-          <FormTextField
-            control={control}
-            name={BOOK_REVIEW_JOURNAL_NAME.name}
-            id={BOOK_REVIEW_JOURNAL_NAME.name}
-            helperText={BOOK_REVIEW_JOURNAL_NAME_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={BOOK_REVIEW_JOURNAL_NAME.name} id={BOOK_REVIEW_JOURNAL_NAME.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview
-          label={BOOK_REVIEW_JOURNAL_NAME.label}
-          value={data?.journalName}
-          disabled={disabled}
-          onEdit={onEdit}
-        />
+        <Preview label={BOOK_REVIEW_JOURNAL_NAME.label} value={data?.journalName} disabled={disabled} onEdit={onEdit} />
       )}
     />
   );

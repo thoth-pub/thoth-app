@@ -26,15 +26,14 @@ export const EditAdditionalResourceResourceType = (props: EditAdditionalResource
       validationSchema={additionalResourceResourceTypeValidationSchema}
       defaultValues={{ [ADDITIONAL_RESOURCE_RESOURCE_TYPE.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.resourceType)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={ADDITIONAL_RESOURCE_RESOURCE_TYPE_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ADDITIONAL_RESOURCE_RESOURCE_TYPE.label} id={ADDITIONAL_RESOURCE_RESOURCE_TYPE.name} />
           <FormTextField
             control={control}
             name={ADDITIONAL_RESOURCE_RESOURCE_TYPE.name}
             id={ADDITIONAL_RESOURCE_RESOURCE_TYPE.name}
-            helperText={ADDITIONAL_RESOURCE_RESOURCE_TYPE_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             select
             options={resourceTypeOptions}
             translateOptions

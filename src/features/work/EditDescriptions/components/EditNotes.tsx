@@ -15,8 +15,7 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 
 const { WORK_GENERAL_NOTE, WORK_BIBLIOGRAPHY_NOTE, WORK_NOTES } = FORM_FIELDS;
 
-const { WORK_GENERAL_NOTE: WORK_GENERAL_NOTE_HELPER_TEXT, WORK_BIBLIOGRAPHY_NOTE: WORK_BIBLIOGRAPHY_NOTE_HELPER_TEXT } =
-  HELPER_TEXT;
+const { WORK_GENERAL_NOTE: WORK_GENERAL_NOTE_HELPER_TEXT } = HELPER_TEXT;
 
 export const EditNotes = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
@@ -47,27 +46,16 @@ export const EditNotes = (props: BaseRecommendedSectionProps) => {
       }}
       onSubmit={handleSubmit}
       validationSchema={notesValidationSchema}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={WORK_GENERAL_NOTE_HELPER_TEXT}
+      formFields={({ control }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={WORK_GENERAL_NOTE.label} id={WORK_GENERAL_NOTE.name} />
-            <FormTextField
-              control={control}
-              name={WORK_GENERAL_NOTE.name}
-              id={WORK_GENERAL_NOTE.name}
-              isHelperTextVisible={isHelperTextVisible}
-              helperText={WORK_GENERAL_NOTE_HELPER_TEXT}
-            />
+            <FormTextField control={control} name={WORK_GENERAL_NOTE.name} id={WORK_GENERAL_NOTE.name} />
           </ContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={WORK_BIBLIOGRAPHY_NOTE.label} id={WORK_BIBLIOGRAPHY_NOTE.name} />
-            <FormTextField
-              control={control}
-              name={WORK_BIBLIOGRAPHY_NOTE.name}
-              id={WORK_BIBLIOGRAPHY_NOTE.name}
-              isHelperTextVisible={isHelperTextVisible}
-              helperText={WORK_BIBLIOGRAPHY_NOTE_HELPER_TEXT}
-            />
+            <FormTextField control={control} name={WORK_BIBLIOGRAPHY_NOTE.name} id={WORK_BIBLIOGRAPHY_NOTE.name} />
           </ContentWrapper>
         </MultipleContentWrapper>
       )}

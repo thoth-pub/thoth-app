@@ -32,7 +32,8 @@ const EditPublicationType = (props: EditPublicationTypeProps) => {
       validationSchema={publicationTypeValidationSchema}
       onSubmit={handleSubmit}
       borderTransparent
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PUBLICATION_TYPE_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={PUBLICATION_TYPE.label} id={PUBLICATION_TYPE.name} />
           <FormTextField
@@ -41,8 +42,6 @@ const EditPublicationType = (props: EditPublicationTypeProps) => {
             select
             options={publicationTypeOptions}
             id={PUBLICATION_TYPE.name}
-            helperText={PUBLICATION_TYPE_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             translateOptions
           />
         </ContentWrapper>

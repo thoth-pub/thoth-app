@@ -25,16 +25,11 @@ export const EditFeaturedVideoTitle = (props: EditFeaturedVideoTitleProps) => {
       validationSchema={featuredVideoTitleValidationSchema}
       defaultValues={{ [FEATURED_VIDEO_TITLE.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.title)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={FEATURED_VIDEO_TITLE_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={FEATURED_VIDEO_TITLE.label} id={FEATURED_VIDEO_TITLE.name} />
-          <FormTextField
-            control={control}
-            name={FEATURED_VIDEO_TITLE.name}
-            id={FEATURED_VIDEO_TITLE.name}
-            helperText={FEATURED_VIDEO_TITLE_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={FEATURED_VIDEO_TITLE.name} id={FEATURED_VIDEO_TITLE.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

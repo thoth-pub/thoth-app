@@ -16,7 +16,6 @@ type DimensionsFormFieldProps = {
   imperialFieldName: FormFieldName;
   label: string;
   recommended?: boolean;
-  isHelperTextVisible?: boolean;
   helperText?: string;
   measurementUnit?: typeof LengthUnit.enum.Mm | typeof WeightUnit.enum.G;
   onAutoConvert?: (name: FormFieldName, value: number) => void;
@@ -29,7 +28,6 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
     control,
     label,
     recommended = false,
-    isHelperTextVisible,
     helperText,
     measurementUnit = LengthUnit.enum.Mm,
     onAutoConvert,
@@ -90,12 +88,11 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
           name={metricFieldName}
           id={metricFieldName}
           helperText={helperText}
-          isHelperTextVisible={isHelperTextVisible}
           type="number"
           min={0}
           step="0.01"
         />
-        <IconButton onClick={handleAutoConvert} className={`relative m-auto ${isHelperTextVisible && '-top-3'}`}>
+        <IconButton onClick={handleAutoConvert} className="relative m-auto">
           <Activity mode={autoConvert ? 'visible' : 'hidden'}>
             <InsertLinkIcon color="primary" />
           </Activity>

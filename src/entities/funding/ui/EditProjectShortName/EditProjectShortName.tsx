@@ -27,16 +27,11 @@ const EditProjectShortNameForm = (props: EditProjectShortNameFormProps) => {
       validationSchema={projectShortNameValidationSchema}
       defaultValues={{ [PROJECT_SHORTNAME.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PROJECT_SHORTNAME_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={PROJECT_SHORTNAME.label} id={PROJECT_SHORTNAME.name} />
-          <FormTextField
-            control={control}
-            name={PROJECT_SHORTNAME.name}
-            id={PROJECT_SHORTNAME.name}
-            helperText={PROJECT_SHORTNAME_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={PROJECT_SHORTNAME.name} id={PROJECT_SHORTNAME.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

@@ -30,7 +30,8 @@ export const EditAccessibilityReport = (props: EditAccessibilityReportProps) => 
       validationSchema={accessibilityReportUrlValidationSchema}
       onSubmit={handleSubmit}
       borderTransparent
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PUBLICATION_ACCESSIBILITY_REPORT_URL_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel
             label={PUBLICATION_ACCESSIBILITY_REPORT_URL.label}
@@ -41,8 +42,6 @@ export const EditAccessibilityReport = (props: EditAccessibilityReportProps) => 
             control={control}
             name={PUBLICATION_ACCESSIBILITY_REPORT_URL.name}
             id={PUBLICATION_ACCESSIBILITY_REPORT_URL.name}
-            helperText={PUBLICATION_ACCESSIBILITY_REPORT_URL_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             isUrlField
           />
         </ContentWrapper>

@@ -2,7 +2,7 @@ import { type Control, useFieldArray } from 'react-hook-form';
 import { useEffectOnce } from 'react-use';
 
 import { appConfig } from '@/src/shared/config';
-import { currencyOptions, FORM_FIELDS, HELPER_TEXT } from '@/src/shared/constants';
+import { currencyOptions, FORM_FIELDS } from '@/src/shared/constants';
 import {
   AddButton,
   AutocompleteField,
@@ -20,7 +20,6 @@ import type { CurrencyCode, PricesForm } from '../../../model/price.types';
 
 type FormFieldsProps = {
   control: Control<PricesForm>;
-  isHelperTextVisible?: boolean;
   defaultCurrencyOption?: { value: CurrencyCode; label: string };
   onDelete?: (id: string) => void;
   onClose?: () => void;
@@ -28,14 +27,11 @@ type FormFieldsProps = {
 
 const { PRICES, CURRENCY, VALUE } = FORM_FIELDS;
 
-const { PRICE_CURRENCY, PRICE_VALUE } = HELPER_TEXT;
-
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const FormFields = (props: FormFieldsProps) => {
   const {
     control,
-    isHelperTextVisible = false,
     defaultCurrencyOption = currencyOptions[0] as { value: CurrencyCode; label: string },
     onDelete,
     onClose,
@@ -102,8 +98,6 @@ export const FormFields = (props: FormFieldsProps) => {
                   <FormTextField
                     control={control}
                     name={getValueFieldName(index)}
-                    helperText={PRICE_VALUE}
-                    isHelperTextVisible={isHelperTextVisible}
                     type={VALUE.type}
                     min={0.01}
                     step="0.01"
@@ -113,8 +107,6 @@ export const FormFields = (props: FormFieldsProps) => {
                     name={getCurrencyFieldName(index)}
                     fullWidth
                     options={currencyOptions}
-                    helperText={PRICE_CURRENCY}
-                    isHelperTextVisible={isHelperTextVisible}
                     groupBy={(option) => option.group ?? ''}
                     renderGroup={({ group, children, key }) => (
                       <AutocompleteGroup key={key} group={group}>

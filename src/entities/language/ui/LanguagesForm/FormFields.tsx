@@ -5,7 +5,7 @@ import { useEffectOnce } from 'react-use';
 
 import type { LanguageRelation } from '@/gql/graphql';
 import { appConfig } from '@/src/shared/config';
-import { FORM_FIELDS, HELPER_TEXT, languageOptions } from '@/src/shared/constants';
+import { FORM_FIELDS, languageOptions } from '@/src/shared/constants';
 import {
   AddButton,
   AutocompleteField,
@@ -23,19 +23,16 @@ import { LanguagesForm } from '../../model/language.types';
 
 type FormFieldsProps = {
   control: Control<LanguagesForm>;
-  isHelperTextVisible?: boolean;
   onDelete?: (id: string) => void;
   onClose?: () => void;
 };
 
 const { LANGUAGES, LANGUAGE, LANGUAGE_RELATION } = FORM_FIELDS;
-const { WORK_LANGUAGE: WORK_LANGUAGE_HELPER_TEXT, WORK_LANGUAGE_RELATION: WORK_LANGUAGE_RELATION_HELPER_TEXT } =
-  HELPER_TEXT;
 
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const FormFields = (props: FormFieldsProps) => {
-  const { control, isHelperTextVisible = false, onDelete, onClose } = props;
+  const { control, onDelete, onClose } = props;
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -99,8 +96,6 @@ export const FormFields = (props: FormFieldsProps) => {
                   fullWidth
                   id={getLanguageFieldName(index)}
                   options={languageOptions}
-                  isHelperTextVisible={isHelperTextVisible}
-                  helperText={WORK_LANGUAGE_HELPER_TEXT}
                 />
                 <DeleteButton onClick={() => handleRemove(index)} />
               </FormFieldWithControlsWrapper>
@@ -114,8 +109,6 @@ export const FormFields = (props: FormFieldsProps) => {
                 id={getLanguageRelationFieldName(index)}
                 select
                 options={languageRelationOptions}
-                isHelperTextVisible={isHelperTextVisible}
-                helperText={WORK_LANGUAGE_RELATION_HELPER_TEXT}
                 translateOptions
               />
             </FormFieldWrapper>

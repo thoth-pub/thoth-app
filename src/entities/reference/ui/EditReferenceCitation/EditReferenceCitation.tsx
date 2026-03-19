@@ -25,16 +25,11 @@ export const EditReferenceCitation = (props: EditReferenceCitationProps) => {
       validationSchema={referenceCitationValidationSchema}
       defaultValues={{ [REFERENCE_CITATION.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.unstructuredCitation)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={REFERENCE_CITATION_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={REFERENCE_CITATION.label} id={REFERENCE_CITATION.name} />
-          <FormTextField
-            control={control}
-            name={REFERENCE_CITATION.name}
-            id={REFERENCE_CITATION.name}
-            helperText={REFERENCE_CITATION_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={REFERENCE_CITATION.name} id={REFERENCE_CITATION.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

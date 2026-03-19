@@ -10,14 +10,16 @@ import type {
   ValidationMode,
 } from 'react-hook-form';
 
+import { useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
+import { CloseButton, MarkdownRenderer, Modal, ModalWrapper } from '@/src/shared/ui';
 
 import { type FormProps, FormWrapper } from './FormWrapper';
 
 type FormFieldsProps = {
   control: Control<FieldValues>;
-  isHelperTextVisible?: boolean;
   reset: UseFormReset<FieldValues>;
   setValue: UseFormSetValue<FieldValues>;
 };
@@ -34,11 +36,12 @@ type EditableContentProps<T extends FieldValues> = {
   isDisabled?: boolean;
   borderTransparent?: boolean;
   onSubmit: (data: T) => void | Promise<void>;
-  formFields: ({ control, isHelperTextVisible, reset, setValue }: FormFieldsProps) => Readonly<React.ReactNode>;
+  formFields: ({ control, reset, setValue }: FormFieldsProps) => Readonly<React.ReactNode>;
   preview: ({ data, onEdit }: PreviewProps<T>) => Readonly<React.ReactNode>;
   resetOnSubmit?: boolean;
   validationMode?: keyof ValidationMode;
-} & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose' | 'onInfo'>;
+  faq?: string;
+} & Omit<FormProps<T>, 'onSubmit' | 'onAutoSubmit' | 'children' | 'onClose'>;
 
 export const EditableContent = <T extends FieldValues>(props: Omit<EditableContentProps<T>, 'onFormSubmit'>) => {
   const {
@@ -49,15 +52,19 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     borderTransparent = false,
     isDisabled = false,
     validationMode = 'onChange',
+    faq = '',
     onSubmit,
     formFields,
     preview,
   } = props;
 
   const { activeFormId, edit, closeForm } = useFormStateMachine();
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
   const [formData, setFormData] = useState(defaultValues);
-  const [showInfo, setShowInfo] = useState(false);
+  const [showFaq, setShowFaq] = useState(false);
   const isActive = activeFormId === formId;
+
+  const showFaqButton = faq && faq.length > 0;
 
   useEffect(() => {
     setFormData(defaultValues);
@@ -83,9 +90,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     closeForm();
   };
 
-  const handleShowInfo = () => {
-    setShowInfo((prev) => !prev);
-  };
+  const handleToggleFaq = () => setShowFaq((prev) => !prev);
 
   return (
     <>
@@ -98,9 +103,10 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           borderTransparent={borderTransparent}
           onSubmit={submit}
           onClose={onClose}
-          onInfo={handleShowInfo}
+          onInfo={handleToggleFaq}
+          showFaqButton={!!showFaqButton}
         >
-          {({ control, reset, setValue }) => formFields({ control, isHelperTextVisible: showInfo, reset, setValue })}
+          {({ control, reset, setValue }) => formFields({ control, reset, setValue })}
         </FormWrapper>
       ) : (
         <div
@@ -110,6 +116,12 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           {preview({ data: formData as T, disabled: !!activeFormId && !isActive, onEdit: handleEdit })}
         </div>
       )}
+      <Modal open={showFaq} onClose={handleToggleFaq}>
+        <ModalWrapper>
+          <CloseButton onClose={handleToggleFaq} className="self-end" />
+          <MarkdownRenderer markdown={t(faq)} />
+        </ModalWrapper>
+      </Modal>
     </>
   );
 };

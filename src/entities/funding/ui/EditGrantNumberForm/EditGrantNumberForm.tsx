@@ -30,16 +30,11 @@ const EditGrantNumberForm = (props: EditGrantNumberFormProps) => {
       validationSchema={grantNumberValidationSchema}
       defaultValues={{ [GRANT_NUMBER.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={GRANT_NUMBER_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={GRANT_NUMBER.label} id={GRANT_NUMBER.name} recommended={showIndicator} />
-          <FormTextField
-            control={control}
-            name={GRANT_NUMBER.name}
-            id={GRANT_NUMBER.name}
-            helperText={GRANT_NUMBER_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={GRANT_NUMBER.name} id={GRANT_NUMBER.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

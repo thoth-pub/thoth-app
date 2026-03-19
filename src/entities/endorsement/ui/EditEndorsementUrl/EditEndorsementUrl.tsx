@@ -26,17 +26,11 @@ export const EditEndorsementUrl = (props: EditEndorsementUrlProps) => {
       validationSchema={endorsementUrlValidationSchema}
       defaultValues={{ [ENDORSEMENT_URL.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.url)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={ENDORSEMENT_URL_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ENDORSEMENT_URL.label} id={ENDORSEMENT_URL.name} />
-          <FormTextField
-            control={control}
-            name={ENDORSEMENT_URL.name}
-            id={ENDORSEMENT_URL.name}
-            helperText={ENDORSEMENT_URL_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            isUrlField
-          />
+          <FormTextField control={control} name={ENDORSEMENT_URL.name} id={ENDORSEMENT_URL.name} isUrlField />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

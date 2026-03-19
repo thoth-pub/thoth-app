@@ -8,7 +8,7 @@ import type { IssueValidationSchema } from '@/src/entities/series/model/series.t
 import { issueValidationSchema } from '@/src/entities/series/model/series.validation';
 import { useWork } from '@/src/entities/work';
 import { appConfig } from '@/src/shared/config';
-import { FORM_FIELDS, IDs } from '@/src/shared/constants';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -20,6 +20,7 @@ import { convertEntityToSelectFieldOptions } from '@/src/shared/utils';
 import { FormFields } from './components/FormFields';
 
 const { WORK_SERIES } = FORM_FIELDS;
+const { WORK_SERIES: WORK_SERIES_HELPER_TEXT } = HELPER_TEXT;
 
 const EditWorkSeries = (props: BaseEditSectionProps) => {
   const { workId } = props;
@@ -91,7 +92,8 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
       }}
       validationSchema={issueValidationSchema}
       onSubmit={editIssue}
-      formFields={({ control, setValue, isHelperTextVisible }) => (
+      faq={WORK_SERIES_HELPER_TEXT}
+      formFields={({ control, setValue }) => (
         <FormFields
           control={control}
           options={options}
@@ -101,7 +103,6 @@ const EditWorkSeries = (props: BaseEditSectionProps) => {
           onChange={setSearchValue}
           onDelete={deleteExistingIssue}
           setValue={setValue}
-          isHelperTextVisible={isHelperTextVisible}
         />
       )}
       preview={({ disabled, onEdit }) => (

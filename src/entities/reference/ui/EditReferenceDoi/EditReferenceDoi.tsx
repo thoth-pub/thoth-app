@@ -25,17 +25,11 @@ export const EditReferenceDoi = (props: EditReferenceDoiProps) => {
       validationSchema={doiValidationSchema}
       defaultValues={{ [REFERENCE_DOI.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.doi)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={REFERENCE_DOI_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={REFERENCE_DOI.label} id={REFERENCE_DOI.name} />
-          <FormTextField
-            control={control}
-            name={REFERENCE_DOI.name}
-            id={REFERENCE_DOI.name}
-            helperText={REFERENCE_DOI_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            isDoiField
-          />
+          <FormTextField control={control} name={REFERENCE_DOI.name} id={REFERENCE_DOI.name} isDoiField />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

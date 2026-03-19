@@ -24,16 +24,15 @@ export const EditAdditionalResourceTitle = (props: EditAdditionalResourceTitlePr
       isTableVariant
       validationSchema={additionalResourceTitleValidationSchema}
       defaultValues={{ [ADDITIONAL_RESOURCE_TITLE.name]: defaultValue }}
+      faq={ADDITIONAL_RESOURCE_TITLE_HELPER_TEXT}
       onSubmit={(data) => onUpdate?.(data.title)}
-      formFields={({ control, isHelperTextVisible }) => (
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ADDITIONAL_RESOURCE_TITLE.label} id={ADDITIONAL_RESOURCE_TITLE.name} />
           <MarkdownField
             control={control}
             name={ADDITIONAL_RESOURCE_TITLE.name}
             id={ADDITIONAL_RESOURCE_TITLE.name}
-            helperText={ADDITIONAL_RESOURCE_TITLE_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             disableLineBreaks
           />
         </ContentWrapper>

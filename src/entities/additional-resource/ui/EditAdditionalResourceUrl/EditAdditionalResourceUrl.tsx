@@ -26,15 +26,14 @@ export const EditAdditionalResourceUrl = (props: EditAdditionalResourceUrlProps)
       validationSchema={additionalResourceUrlValidationSchema}
       defaultValues={{ [ADDITIONAL_RESOURCE_URL.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.url)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={ADDITIONAL_RESOURCE_URL_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ADDITIONAL_RESOURCE_URL.label} id={ADDITIONAL_RESOURCE_URL.name} />
           <FormTextField
             control={control}
             name={ADDITIONAL_RESOURCE_URL.name}
             id={ADDITIONAL_RESOURCE_URL.name}
-            helperText={ADDITIONAL_RESOURCE_URL_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             isUrlField
           />
         </ContentWrapper>

@@ -2,7 +2,7 @@
 
 import { Control } from 'react-hook-form';
 
-import { FORM_FIELDS, IDs } from '@/src/shared/constants';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { DragAndDropWrapper, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
@@ -12,6 +12,7 @@ import { FormFields } from './AffiliationsForm/FormFields';
 import { PreviewItem } from './AffiliationsForm/PreviewItem';
 
 const { AFFILIATION, POSITION } = FORM_FIELDS;
+const { CONTRIBUTOR_AFFILIATION: AFFILIATIONS_HELPER_TEXT } = HELPER_TEXT;
 
 type AffiliationsFormProps = {
   defaultValue: AffiliationEntity[];
@@ -62,12 +63,9 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
         onSubmit={onSubmit}
         defaultValues={{ [AFFILIATIONS.name]: defaultValues }}
         borderTransparent
-        formFields={({ control, isHelperTextVisible }) => (
-          <FormFields
-            isHelperTextVisible={isHelperTextVisible}
-            control={control as unknown as Control<AffiliationsFormType>}
-            onDelete={onDelete}
-          />
+        faq={AFFILIATIONS_HELPER_TEXT}
+        formFields={({ control }) => (
+          <FormFields control={control as unknown as Control<AffiliationsFormType>} onDelete={onDelete} />
         )}
         preview={({ disabled, onEdit }) => (
           <Preview

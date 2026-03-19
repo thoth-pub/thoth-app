@@ -8,12 +8,11 @@ import { Controller, type FieldValues, type Path } from 'react-hook-form';
 
 import { appConfig } from '@/src/shared/config';
 import { InputTypes } from '@/src/shared/constants';
-import { Namespace, NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { Namespace } from '@/src/shared/i18n/model/i18n.types';
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
 import { removePrefix } from '@/src/shared/utils';
 
 import TextField, { type TextFieldProps } from '../../core/TextField/TextField';
-import TranslatedContent from '../../core/TranslatedContent/TranslatedContent';
 
 export type FormTextFieldComponentProps<T extends FieldValues> = {
   min?: number;
@@ -39,8 +38,6 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     defaultValue,
     options,
     min,
-    isHelperTextVisible = false,
-    helperText,
     step,
     id,
     type,
@@ -74,13 +71,6 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
           {...field}
           error={!!error}
           namespace={namespace}
-          helperText={
-            isHelperTextVisible ? (
-              <TranslatedContent content={(helperText as string) ?? ''} namespace={NAMESPACES.enum.forms} />
-            ) : (
-              ''
-            )
-          }
           value={typeof value === 'string' ? removePrefix(value) : value}
           type={showPassword ? 'text' : type}
           onChange={(e) => {
@@ -126,7 +116,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
               },
             },
             formHelperText: {
-              hidden: !isHelperTextVisible && !error,
+              hidden: !error,
             },
             input: {
               inputProps: {

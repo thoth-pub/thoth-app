@@ -37,7 +37,8 @@ export const EditImprint = ({ disabled = true, workId, imprintOptions, recommend
       validationSchema={imprintValidationSchema}
       onSubmit={updateImprint}
       isDisabled={disabled}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={HELPER_TEXT.IMPRINT}
+      formFields={({ control }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={IMPRINT.label} id={IMPRINT.name} recommended={showIndicator} />
@@ -47,21 +48,12 @@ export const EditImprint = ({ disabled = true, workId, imprintOptions, recommend
               id={IMPRINT.name}
               select
               options={imprintOptions}
-              helperText={HELPER_TEXT.IMPRINT}
-              isHelperTextVisible={isHelperTextVisible}
               disabled={disabled}
             />
           </ContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={PLACE.label} id={PLACE.name} recommended={showIndicator} />
-            <FormTextField
-              control={control}
-              name={PLACE.name}
-              id={PLACE.name}
-              helperText={HELPER_TEXT.PLACE}
-              isHelperTextVisible={isHelperTextVisible}
-              disabled={disabled}
-            />
+            <FormTextField control={control} name={PLACE.name} id={PLACE.name} disabled={disabled} />
           </ContentWrapper>
         </MultipleContentWrapper>
       )}

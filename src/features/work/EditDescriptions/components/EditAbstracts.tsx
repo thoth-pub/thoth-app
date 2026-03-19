@@ -7,7 +7,7 @@ import { useWork } from '@/src/entities/work';
 import { WorkAbstractsForm } from '@/src/entities/work/model/work.types';
 import { workAbstractsValidationSchema } from '@/src/entities/work/model/work.validation';
 import { appConfig } from '@/src/shared/config';
-import { FORM_FIELDS, IDs, languageOptionsAlt, QueryKeys } from '@/src/shared/constants';
+import { FORM_FIELDS, HELPER_TEXT, IDs, languageOptionsAlt, QueryKeys } from '@/src/shared/constants';
 import { AbstractTypes } from '@/src/shared/constants/abstracts';
 import { useDefaultLocaleOption } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -19,6 +19,7 @@ import { isDefaultId } from '@/src/shared/utils';
 import { AbstractsFormFields } from './AbstractsFormFields';
 
 const { WORK_ABSTRACTS } = FORM_FIELDS;
+const { WORK_ABSTRACT: WORK_ABSTRACT_HELPER_TEXT } = HELPER_TEXT;
 
 export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
@@ -137,10 +138,10 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
       }}
       validationSchema={workAbstractsValidationSchema}
       onSubmit={handleSubmit}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={WORK_ABSTRACT_HELPER_TEXT}
+      formFields={({ control }) => (
         <AbstractsFormFields
           control={control as unknown as Control<WorkAbstractsForm>}
-          isHelperTextVisible={isHelperTextVisible}
           defaultLocaleOption={defaultLocaleOption}
           deleteLoading={deleteAbstractLoading}
           onDelete={deleteAbstracts}

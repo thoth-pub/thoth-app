@@ -25,17 +25,11 @@ export const EditBookReviewText = (props: EditBookReviewTextProps) => {
       validationSchema={bookReviewTextValidationSchema}
       defaultValues={{ [BOOK_REVIEW_TEXT.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.text)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={BOOK_REVIEW_TEXT_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={BOOK_REVIEW_TEXT.label} id={BOOK_REVIEW_TEXT.name} />
-          <MarkdownField
-            control={control}
-            name={BOOK_REVIEW_TEXT.name}
-            id={BOOK_REVIEW_TEXT.name}
-            helperText={BOOK_REVIEW_TEXT_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            disableLineBreaks
-          />
+          <MarkdownField control={control} name={BOOK_REVIEW_TEXT.name} id={BOOK_REVIEW_TEXT.name} disableLineBreaks />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

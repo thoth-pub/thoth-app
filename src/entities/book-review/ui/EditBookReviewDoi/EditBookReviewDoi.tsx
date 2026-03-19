@@ -25,18 +25,12 @@ export const EditBookReviewDoi = (props: EditBookReviewDoiProps) => {
       isTableVariant
       validationSchema={bookReviewDoiValidationSchema}
       defaultValues={{ [DOI.name]: defaultValue }}
+      faq={DOI_HELPER_TEXT}
       onSubmit={(data) => onUpdate?.(data.doi)}
-      formFields={({ control, isHelperTextVisible }) => (
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={DOI.label} id={DOI.name} />
-          <FormTextField
-            control={control}
-            name={DOI.name}
-            id={DOI.name}
-            helperText={DOI_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            isDoiField
-          />
+          <FormTextField control={control} name={DOI.name} id={DOI.name} isDoiField />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

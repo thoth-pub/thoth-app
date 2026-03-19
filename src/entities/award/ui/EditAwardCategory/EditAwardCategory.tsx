@@ -25,16 +25,11 @@ export const EditAwardCategory = (props: EditAwardCategoryProps) => {
       validationSchema={awardCategoryValidationSchema}
       defaultValues={{ [AWARD_CATEGORY.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.category)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={AWARD_CATEGORY_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={AWARD_CATEGORY.label} id={AWARD_CATEGORY.name} />
-          <FormTextField
-            control={control}
-            name={AWARD_CATEGORY.name}
-            id={AWARD_CATEGORY.name}
-            helperText={AWARD_CATEGORY_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={AWARD_CATEGORY.name} id={AWARD_CATEGORY.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

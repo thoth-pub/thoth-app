@@ -58,7 +58,8 @@ const EditLicense = (props: EditLicenseProps) => {
       defaultValues={{ [LICENSE.name]: appliedLicenseValue, [COPYRIGHT_HOLDER.name]: appliedCopyrightHolderValue }}
       validationSchema={licenseAndCopyrightHolderValidationSchema}
       onSubmit={updateLicense}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={HELPER_TEXT.LICENSE}
+      formFields={({ control }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={LICENSE.label} id={LICENSE.name} />
@@ -67,8 +68,6 @@ const EditLicense = (props: EditLicenseProps) => {
               name={LICENSE.name}
               id={LICENSE.name}
               options={licenseOptions}
-              helperText={HELPER_TEXT.LICENSE}
-              isHelperTextVisible={isHelperTextVisible}
               groupBy={(option) => option.group ?? ''}
               renderGroup={({ group, children, key }) => (
                 <AutocompleteGroup key={key} group={group}>
@@ -79,13 +78,7 @@ const EditLicense = (props: EditLicenseProps) => {
           </ContentWrapper>
           <ContentWrapper>
             <FormFieldLabel label={COPYRIGHT_HOLDER.label} id={COPYRIGHT_HOLDER.name} />
-            <FormTextField
-              control={control}
-              name={COPYRIGHT_HOLDER.name}
-              id={COPYRIGHT_HOLDER.name}
-              helperText={HELPER_TEXT.COPYRIGHT_HOLDER}
-              isHelperTextVisible={isHelperTextVisible}
-            />
+            <FormTextField control={control} name={COPYRIGHT_HOLDER.name} id={COPYRIGHT_HOLDER.name} />
           </ContentWrapper>
         </MultipleContentWrapper>
       )}

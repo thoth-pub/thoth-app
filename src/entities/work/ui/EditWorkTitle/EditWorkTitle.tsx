@@ -26,7 +26,7 @@ import { getMainTitle } from '@/src/shared/utils';
 import { TitlesFormFields } from './components/TitlesFormFields';
 
 const { WORK_TITLE, EDITION, TITLES, SUBTITLE, LANGUAGE } = FORM_FIELDS;
-const { EDITION: EDITION_HELPER_TEXT } = HELPER_TEXT;
+const { WORK_TITLE: WORK_TITLE_HELPER_TEXT } = HELPER_TEXT;
 
 type EditWorkTitleProps = BaseRecommendedSectionProps &
   Partial<{
@@ -134,26 +134,19 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
       defaultValues={defaultValues}
       validationSchema={workTitlesValidationSchema}
       onSubmit={updateTitles}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={WORK_TITLE_HELPER_TEXT}
+      formFields={({ control }) => (
         <MultipleContentWrapper>
           <TitlesFormFields
             control={control as unknown as Control<WorkTitlesForm>}
             defaultLocaleOption={defaultLocaleOption}
             recommended={showIndicator}
-            isHelperTextVisible={isHelperTextVisible}
             onDelete={deleteTitle}
           />
           {withEdition && (
             <ContentWrapper>
               <FormFieldLabel label={EDITION.label} id={EDITION.name} />
-              <FormTextField
-                control={control}
-                name={EDITION.name}
-                id={EDITION.name}
-                type={EDITION.type}
-                helperText={EDITION_HELPER_TEXT}
-                isHelperTextVisible={isHelperTextVisible}
-              />
+              <FormTextField control={control} name={EDITION.name} id={EDITION.name} type={EDITION.type} />
             </ContentWrapper>
           )}
         </MultipleContentWrapper>

@@ -30,16 +30,11 @@ const EditInternalId = (props: BaseEditSectionProps) => {
       defaultValues={{ [INTERNAL_ID.name]: work.reference }}
       validationSchema={internalIdValidationSchema}
       onSubmit={({ internalId }) => updateInternalId(internalId)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={WORK_INTERNAL_ID}
+      formFields={({ control }) => (
         <div className="flex flex-col gap-2">
           <FormFieldLabel label={INTERNAL_ID.label} id={INTERNAL_ID.name} />
-          <FormTextField
-            control={control}
-            name={INTERNAL_ID.name}
-            id={INTERNAL_ID.name}
-            isHelperTextVisible={isHelperTextVisible}
-            helperText={WORK_INTERNAL_ID}
-          />
+          <FormTextField control={control} name={INTERNAL_ID.name} id={INTERNAL_ID.name} />
         </div>
       )}
       preview={({ disabled, onEdit }) => (

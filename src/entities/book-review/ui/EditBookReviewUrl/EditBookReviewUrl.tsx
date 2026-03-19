@@ -26,17 +26,11 @@ export const EditBookReviewUrl = (props: EditBookReviewUrlProps) => {
       validationSchema={bookReviewUrlValidationSchema}
       defaultValues={{ [BOOK_REVIEW_URL.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.url)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={BOOK_REVIEW_URL_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={BOOK_REVIEW_URL.label} id={BOOK_REVIEW_URL.name} />
-          <FormTextField
-            control={control}
-            name={BOOK_REVIEW_URL.name}
-            id={BOOK_REVIEW_URL.name}
-            helperText={BOOK_REVIEW_URL_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            isUrlField
-          />
+          <FormTextField control={control} name={BOOK_REVIEW_URL.name} id={BOOK_REVIEW_URL.name} isUrlField />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

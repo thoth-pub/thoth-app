@@ -25,17 +25,11 @@ export const EditEndorsementText = (props: EditEndorsementTextProps) => {
       validationSchema={endorsementTextValidationSchema}
       defaultValues={{ [ENDORSEMENT_TEXT.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.text)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={ENDORSEMENT_TEXT_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ENDORSEMENT_TEXT.label} id={ENDORSEMENT_TEXT.name} />
-          <MarkdownField
-            control={control}
-            name={ENDORSEMENT_TEXT.name}
-            id={ENDORSEMENT_TEXT.name}
-            helperText={ENDORSEMENT_TEXT_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            disableLineBreaks
-          />
+          <MarkdownField control={control} name={ENDORSEMENT_TEXT.name} id={ENDORSEMENT_TEXT.name} disableLineBreaks />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

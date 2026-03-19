@@ -10,6 +10,7 @@ type FormControlGroupProps = {
   loading?: boolean;
   formId?: string;
   className?: string;
+  showFaqButton?: boolean;
   onClose?: () => void;
   onInfo?: () => void;
 };
@@ -19,6 +20,7 @@ const FormControlGroup = ({
   loading = false,
   formId,
   className,
+  showFaqButton,
   onClose,
   onInfo,
 }: FormControlGroupProps) => {
@@ -26,9 +28,11 @@ const FormControlGroup = ({
     <div className={mergeStyles('flex gap-1', className)}>
       <SubmitButton form={formId} type="submit" disabled={isDisabled} loading={loading} aria-label="submit form" />
       <CloseButton onClose={onClose} />
-      <IconButton onClick={onInfo} aria-label="Show info">
-        <InfoOutlineIcon />
-      </IconButton>
+      {showFaqButton && (
+        <IconButton onClick={onInfo} aria-label="Show info">
+          <InfoOutlineIcon />
+        </IconButton>
+      )}
     </div>
   );
 };

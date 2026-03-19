@@ -25,16 +25,11 @@ export const EditAwardStatement = (props: EditAwardStatementProps) => {
       validationSchema={awardStatementValidationSchema}
       defaultValues={{ [AWARD_STATEMENT.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.statement)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={AWARD_STATEMENT_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={AWARD_STATEMENT.label} id={AWARD_STATEMENT.name} />
-          <FormTextField
-            control={control}
-            name={AWARD_STATEMENT.name}
-            id={AWARD_STATEMENT.name}
-            helperText={AWARD_STATEMENT_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={AWARD_STATEMENT.name} id={AWARD_STATEMENT.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

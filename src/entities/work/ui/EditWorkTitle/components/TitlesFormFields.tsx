@@ -6,8 +6,7 @@ import { useEffectOnce } from 'react-use';
 import { LocaleCode } from '@/gql/graphql';
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared/config';
-import { FORM_FIELDS, HELPER_TEXT, languageOptionsAlt } from '@/src/shared/constants';
-import { useTypedTranslation } from '@/src/shared/hooks';
+import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { TitleId } from '@/src/shared/types';
 import {
@@ -23,12 +22,10 @@ import {
 import { isDefaultId } from '@/src/shared/utils';
 
 const { TITLES, WORK_TITLE, SUBTITLE, LANGUAGE } = FORM_FIELDS;
-const { WORK_TITLE: WORK_TITLE_HELPER_TEXT, SUBTITLE: SUBTITLE_HELPER_TEXT } = HELPER_TEXT;
 
 type TitlesFormFieldsProps = {
   control: Control<WorkTitlesForm>;
   recommended?: boolean;
-  isHelperTextVisible?: boolean;
   defaultLocaleOption?: { value: LocaleCode; label: string };
   onDelete?: (titleId: TitleId) => void;
 };
@@ -43,13 +40,12 @@ const fieldsDefaultValues = {
 };
 
 export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
-  const { control, recommended, isHelperTextVisible, defaultLocaleOption, onDelete } = props;
+  const { control, recommended, defaultLocaleOption, onDelete } = props;
 
   const { fields, append, remove } = useFieldArray({
     control,
     name: TITLES.name,
   });
-  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
 
   useEffectOnce(() => {
     if (fields.length !== 0) return;
@@ -131,8 +127,6 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
                   name={getTitleFieldName(index)}
                   id={getTitleFieldName(index)}
                   className="w-full"
-                  isHelperTextVisible={isHelperTextVisible}
-                  helperText={t(WORK_TITLE_HELPER_TEXT)}
                   disableLineBreaks
                 />
                 {index > 0 && <DeleteButton onClick={() => handleRemove(index)} />}
@@ -144,8 +138,6 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
                 control={control}
                 name={getSubtitleFieldName(index)}
                 id={getSubtitleFieldName(index)}
-                isHelperTextVisible={isHelperTextVisible}
-                helperText={t(SUBTITLE_HELPER_TEXT)}
                 disableLineBreaks
               />
               <br />

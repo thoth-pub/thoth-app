@@ -25,17 +25,11 @@ export const EditAwardTitle = (props: EditAwardTitleProps) => {
       validationSchema={awardTitleValidationSchema}
       defaultValues={{ [AWARD_TITLE.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.title)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={AWARD_TITLE_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={AWARD_TITLE.label} id={AWARD_TITLE.name} />
-          <MarkdownField
-            control={control}
-            name={AWARD_TITLE.name}
-            id={AWARD_TITLE.name}
-            helperText={AWARD_TITLE_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-            disableLineBreaks
-          />
+          <MarkdownField control={control} name={AWARD_TITLE.name} id={AWARD_TITLE.name} disableLineBreaks />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

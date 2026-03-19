@@ -25,15 +25,14 @@ export const EditFeaturedVideoHeight = (props: EditFeaturedVideoHeightProps) => 
       validationSchema={featuredVideoHeightValidationSchema}
       defaultValues={{ [FEATURED_VIDEO_HEIGHT.name]: defaultValue ?? '' }}
       onSubmit={(data) => onUpdate?.(Number(data.height))}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={FEATURED_VIDEO_HEIGHT_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={FEATURED_VIDEO_HEIGHT.label} id={FEATURED_VIDEO_HEIGHT.name} />
           <FormTextField
             control={control}
             name={FEATURED_VIDEO_HEIGHT.name}
             id={FEATURED_VIDEO_HEIGHT.name}
-            helperText={FEATURED_VIDEO_HEIGHT_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
             type="number"
             inputProps={{ min: 1, step: '1' }}
           />

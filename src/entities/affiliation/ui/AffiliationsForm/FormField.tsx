@@ -6,7 +6,7 @@ import { type Control } from 'react-hook-form';
 
 import { useInstitutions } from '@/src/entities/institution';
 import { appConfig } from '@/src/shared/config';
-import { FORM_FIELDS, HELPER_TEXT } from '@/src/shared/constants';
+import { FORM_FIELDS } from '@/src/shared/constants';
 import { useDebouncedValue } from '@/src/shared/hooks';
 import {
   AutocompleteField,
@@ -27,17 +27,10 @@ type FormFieldProps = {
   control: Control<AffiliationsForm>;
   affiliationFieldName: string;
   positionFieldName: string;
-  isHelperTextVisible?: boolean;
   onRemove: () => void;
 };
 
-export const FormField = ({
-  control,
-  affiliationFieldName,
-  positionFieldName,
-  isHelperTextVisible = false,
-  onRemove,
-}: FormFieldProps) => {
+export const FormField = ({ control, affiliationFieldName, positionFieldName, onRemove }: FormFieldProps) => {
   const [searchValue, setSearchValue] = useState('');
   const debouncedValue = useDebouncedValue(searchValue, appConfig.fieldsDebounceDelay);
   const { institutions = [], loading } = useInstitutions({ filter: debouncedValue });
@@ -58,8 +51,6 @@ export const FormField = ({
             options={options}
             onInputChange={(_, value) => setSearchValue(value)}
             loading={loading}
-            helperText={HELPER_TEXT.CONTRIBUTOR_AFFILIATION}
-            isHelperTextVisible={isHelperTextVisible}
             icon={
               <InputAdornment position="start">
                 <SearchIcon color="primary" />
@@ -71,14 +62,7 @@ export const FormField = ({
       </FormFieldWrapper>
       <FormFieldWrapper>
         <FormFieldLabel label={POSITION.label} id={POSITION.name} />
-        <FormTextField
-          id={positionFieldName}
-          fullWidth
-          name={positionFieldName}
-          control={control}
-          helperText={HELPER_TEXT.CONTRIBUTOR_AFFILIATION_POSITION}
-          isHelperTextVisible={isHelperTextVisible}
-        />
+        <FormTextField id={positionFieldName} fullWidth name={positionFieldName} control={control} />
       </FormFieldWrapper>
     </>
   );

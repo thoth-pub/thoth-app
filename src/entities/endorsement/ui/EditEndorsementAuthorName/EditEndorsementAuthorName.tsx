@@ -25,25 +25,15 @@ export const EditEndorsementAuthorName = (props: EditEndorsementAuthorNameProps)
       validationSchema={endorsementAuthorNameValidationSchema}
       defaultValues={{ [ENDORSEMENT_AUTHOR_NAME.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.authorName)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={ENDORSEMENT_AUTHOR_NAME_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ENDORSEMENT_AUTHOR_NAME.label} id={ENDORSEMENT_AUTHOR_NAME.name} />
-          <FormTextField
-            control={control}
-            name={ENDORSEMENT_AUTHOR_NAME.name}
-            id={ENDORSEMENT_AUTHOR_NAME.name}
-            helperText={ENDORSEMENT_AUTHOR_NAME_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={ENDORSEMENT_AUTHOR_NAME.name} id={ENDORSEMENT_AUTHOR_NAME.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview
-          label={ENDORSEMENT_AUTHOR_NAME.label}
-          value={data?.authorName}
-          disabled={disabled}
-          onEdit={onEdit}
-        />
+        <Preview label={ENDORSEMENT_AUTHOR_NAME.label} value={data?.authorName} disabled={disabled} onEdit={onEdit} />
       )}
     />
   );

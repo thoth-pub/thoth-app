@@ -29,16 +29,11 @@ const EditOclc = (props: BaseEditSectionProps) => {
       defaultValues={{ [OCLC.name]: oclcValue }}
       validationSchema={oclcValidationSchema}
       onSubmit={updateOclc}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={WORK_OCLC}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={OCLC.label} id={OCLC.name} />
-          <FormTextField
-            control={control}
-            name={OCLC.name}
-            id={OCLC.name}
-            helperText={WORK_OCLC}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={OCLC.name} id={OCLC.name} />
         </ContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (

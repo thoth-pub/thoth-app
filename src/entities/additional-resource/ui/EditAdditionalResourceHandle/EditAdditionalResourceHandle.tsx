@@ -24,26 +24,20 @@ export const EditAdditionalResourceHandle = (props: EditAdditionalResourceHandle
       isTableVariant
       validationSchema={additionalResourceHandleValidationSchema}
       defaultValues={{ [ADDITIONAL_RESOURCE_HANDLE.name]: defaultValue }}
+      faq={ADDITIONAL_RESOURCE_HANDLE_HELPER_TEXT}
       onSubmit={(data) => onUpdate?.(data.handle)}
-      formFields={({ control, isHelperTextVisible }) => (
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ADDITIONAL_RESOURCE_HANDLE.label} id={ADDITIONAL_RESOURCE_HANDLE.name} />
           <FormTextField
             control={control}
             name={ADDITIONAL_RESOURCE_HANDLE.name}
             id={ADDITIONAL_RESOURCE_HANDLE.name}
-            helperText={ADDITIONAL_RESOURCE_HANDLE_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
           />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview
-          label={ADDITIONAL_RESOURCE_HANDLE.label}
-          value={data?.handle}
-          disabled={disabled}
-          onEdit={onEdit}
-        />
+        <Preview label={ADDITIONAL_RESOURCE_HANDLE.label} value={data?.handle} disabled={disabled} onEdit={onEdit} />
       )}
     />
   );

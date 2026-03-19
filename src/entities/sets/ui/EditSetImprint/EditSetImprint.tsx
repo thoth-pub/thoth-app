@@ -36,7 +36,8 @@ export const EditSetImprint = ({ imprintId, imprintOptions, disabled = true, onS
       isTableVariant
       borderTransparent
       isDisabled={isFieldDisable}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={HELPER_TEXT.IMPRINT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={IMPRINT.label} id={IMPRINT.name} />
           <FormTextField
@@ -45,8 +46,6 @@ export const EditSetImprint = ({ imprintId, imprintOptions, disabled = true, onS
             id={IMPRINT.name}
             select
             options={imprintOptions}
-            helperText={HELPER_TEXT.IMPRINT}
-            isHelperTextVisible={isHelperTextVisible}
             disabled={isFieldDisable}
             slotProps={{
               select: {

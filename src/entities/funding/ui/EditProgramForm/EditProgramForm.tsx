@@ -27,16 +27,11 @@ const EditProgramForm = (props: EditProgramFormProps) => {
       validationSchema={programValidationSchema}
       defaultValues={{ [PROGRAM.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PROGRAM_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={PROGRAM.label} id={PROGRAM.name} />
-          <FormTextField
-            control={control}
-            name={PROGRAM.name}
-            id={PROGRAM.name}
-            helperText={PROGRAM_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={PROGRAM.name} id={PROGRAM.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

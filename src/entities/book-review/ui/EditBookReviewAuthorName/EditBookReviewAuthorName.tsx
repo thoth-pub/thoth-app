@@ -25,25 +25,15 @@ export const EditBookReviewAuthorName = (props: EditBookReviewAuthorNameProps) =
       validationSchema={bookReviewAuthorNameValidationSchema}
       defaultValues={{ [BOOK_REVIEW_AUTHOR_NAME.name]: defaultValue }}
       onSubmit={(data) => onUpdate?.(data.authorName)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={BOOK_REVIEW_AUTHOR_NAME_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={BOOK_REVIEW_AUTHOR_NAME.label} id={BOOK_REVIEW_AUTHOR_NAME.name} />
-          <FormTextField
-            control={control}
-            name={BOOK_REVIEW_AUTHOR_NAME.name}
-            id={BOOK_REVIEW_AUTHOR_NAME.name}
-            helperText={BOOK_REVIEW_AUTHOR_NAME_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={BOOK_REVIEW_AUTHOR_NAME.name} id={BOOK_REVIEW_AUTHOR_NAME.name} />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview
-          label={BOOK_REVIEW_AUTHOR_NAME.label}
-          value={data?.authorName}
-          disabled={disabled}
-          onEdit={onEdit}
-        />
+        <Preview label={BOOK_REVIEW_AUTHOR_NAME.label} value={data?.authorName} disabled={disabled} onEdit={onEdit} />
       )}
     />
   );

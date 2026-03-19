@@ -7,7 +7,7 @@ import { useEffectOnce } from 'react-use';
 import { LocaleCode } from '@/gql/graphql';
 import type { WorkAbstractsForm } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared/config';
-import { FORM_FIELDS, HELPER_TEXT, languageOptionsAlt } from '@/src/shared/constants';
+import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants';
 import type { AbstractId } from '@/src/shared/types';
 import {
   AddButton,
@@ -20,11 +20,9 @@ import {
 } from '@/src/shared/ui';
 
 const { WORK_ABSTRACTS, WORK_ABSTRACT, WORK_SHORT_ABSTRACT, LANGUAGE } = FORM_FIELDS;
-const { WORK_ABSTRACT: WORK_ABSTRACT_HELPER_TEXT, WORK_SHORT_ABSTRACT: WORK_SHORT_ABSTRACT_HELPER_TEXT } = HELPER_TEXT;
 
 type AbstractsFormFieldsProps = {
   control: Control<WorkAbstractsForm>;
-  isHelperTextVisible?: boolean;
   defaultLocaleOption?: { value: LocaleCode; label: string };
   deleteLoading?: boolean;
   onDelete?: (shortAbstractId: AbstractId, longAbstractId: AbstractId) => void;
@@ -33,7 +31,7 @@ type AbstractsFormFieldsProps = {
 const itemsStyle = 'flex flex-col gap-[var(--default-gap)]';
 
 export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
-  const { control, isHelperTextVisible, defaultLocaleOption, onDelete, deleteLoading = false } = props;
+  const { control, defaultLocaleOption, onDelete, deleteLoading = false } = props;
 
   const fieldsDefaultValues = {
     longAbstractId: appConfig.defaultId,
@@ -119,8 +117,6 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
                   name={getAbstractFieldName(index)}
                   id={getAbstractFieldName(index)}
                   className="w-full"
-                  helperText={WORK_ABSTRACT_HELPER_TEXT}
-                  isHelperTextVisible={isHelperTextVisible}
                   disableLineBreaks
                   extendedToolbar
                 />
@@ -133,8 +129,6 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
                 control={control}
                 name={getShortAbstractFieldName(index)}
                 id={getShortAbstractFieldName(index)}
-                helperText={WORK_SHORT_ABSTRACT_HELPER_TEXT}
-                isHelperTextVisible={isHelperTextVisible}
                 disableLineBreaks
               />
               <br />

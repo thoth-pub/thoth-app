@@ -2,7 +2,7 @@
 
 import { Control } from 'react-hook-form';
 
-import { currencyOptions, FORM_FIELDS, IDs } from '@/src/shared/constants';
+import { currencyOptions, FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -12,6 +12,7 @@ import { pricesValidationSchema } from '../../model/price.validation';
 import { FormFields } from './components/FormFields';
 
 const { PRICES } = FORM_FIELDS;
+const { PRICE_CURRENCY } = HELPER_TEXT;
 
 type EditPriceProps = Partial<{
   prices: PriceEntity[];
@@ -52,10 +53,10 @@ const EditPrice = (props: EditPriceProps) => {
       borderTransparent
       isTableVariant
       onSubmit={(data) => onUpdate?.(data)}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PRICE_CURRENCY}
+      formFields={({ control }) => (
         <FormFields
           control={control as unknown as Control<PricesForm>}
-          isHelperTextVisible={isHelperTextVisible}
           defaultCurrencyOption={defaultCurrencyOption}
           onDelete={onDelete}
           onClose={onClose}

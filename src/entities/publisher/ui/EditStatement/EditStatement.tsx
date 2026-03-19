@@ -36,16 +36,11 @@ const EditStatement = () => {
       defaultValues={{ [PUBLISHER_STATEMENT.name]: defaultValue }}
       onSubmit={handleSubmit}
       validationSchema={publisherStatementValidationSchema}
-      formFields={({ control, isHelperTextVisible }) => (
+      faq={PUBLISHER_STATEMENT_HELPER_TEXT}
+      formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={PUBLISHER_STATEMENT.label} id={PUBLISHER_STATEMENT.name} />
-          <FormTextField
-            control={control}
-            name={PUBLISHER_STATEMENT.name}
-            id={PUBLISHER_STATEMENT.name}
-            helperText={PUBLISHER_STATEMENT_HELPER_TEXT}
-            isHelperTextVisible={isHelperTextVisible}
-          />
+          <FormTextField control={control} name={PUBLISHER_STATEMENT.name} id={PUBLISHER_STATEMENT.name} />
         </ContentWrapper>
       )}
       preview={({ disabled, onEdit }) => (

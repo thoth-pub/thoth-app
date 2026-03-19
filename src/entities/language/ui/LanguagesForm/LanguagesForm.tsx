@@ -1,7 +1,7 @@
 import { Control } from 'react-hook-form';
 
 import { LanguageRelation } from '@/gql/graphql';
-import { FORM_FIELDS, IDs, languageOptions } from '@/src/shared/constants';
+import { FORM_FIELDS, HELPER_TEXT, IDs, languageOptions } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, DeleteButton, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -12,6 +12,7 @@ import { languagesValidationSchema } from '../../model/language.validation';
 import { FormFields } from './FormFields';
 
 const { LANGUAGES } = FORM_FIELDS;
+const { WORK_LANGUAGE } = HELPER_TEXT;
 
 type LanguagesFormProps = Partial<{
   showRecommendations: boolean;
@@ -49,13 +50,9 @@ const LanguagesForm = (props: LanguagesFormProps) => {
       validationSchema={languagesValidationSchema}
       onSubmit={(data) => onUpdate?.(data)}
       defaultValues={{ [LANGUAGES.name]: defaultValues }}
-      formFields={({ control, isHelperTextVisible }) => (
-        <FormFields
-          isHelperTextVisible={isHelperTextVisible}
-          control={control as unknown as Control<LanguagesFormType>}
-          onDelete={onDelete}
-          onClose={onClose}
-        />
+      faq={WORK_LANGUAGE}
+      formFields={({ control }) => (
+        <FormFields control={control as unknown as Control<LanguagesFormType>} onDelete={onDelete} onClose={onClose} />
       )}
       preview={({ disabled, onEdit }) => (
         <Preview
