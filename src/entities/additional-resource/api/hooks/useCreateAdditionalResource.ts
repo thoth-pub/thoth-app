@@ -19,8 +19,8 @@ const useCreateAdditionalResource = (props: BaseEditSectionProps) => {
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async (data: AdditionalResourceEntity) => {
-      return additionalResourceService.createAdditionalResource(data, workId);
+    mutationFn: async ({ data, file }: { data: AdditionalResourceEntity; file?: File }) => {
+      return additionalResourceService.createAdditionalResource(data, workId, file);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });

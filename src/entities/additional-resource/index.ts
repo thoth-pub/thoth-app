@@ -4,6 +4,7 @@ export { default as useCreateAdditionalResource } from './api/hooks/useCreateAdd
 export { default as useDeleteAdditionalResource } from './api/hooks/useDeleteAdditionalResource';
 export { default as useMoveAdditionalResource } from './api/hooks/useMoveAdditionalResource';
 export { default as useUpdateAdditionalResource } from './api/hooks/useUpdateAdditionalResource';
+export { default as useUploadAdditionalResourceFile } from './api/hooks/useUploadAdditionalResourceFile';
 
 // Model
 export { AdditionalResourceDtoMapper } from './model/additional-resource.mapper';

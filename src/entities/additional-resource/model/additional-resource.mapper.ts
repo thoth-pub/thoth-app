@@ -4,8 +4,19 @@ import { AdditionalResourceDto, AdditionalResourceEntity } from './additional-re
 
 export class AdditionalResourceDtoMapper implements BaseMapper<AdditionalResourceEntity, AdditionalResourceDto> {
   toEntity(dto: AdditionalResourceDto): AdditionalResourceEntity {
-    const { workResourceId, workId, title, description, attribution, resourceType, doi, handle, url, resourceOrdinal } =
-      dto;
+    const {
+      workResourceId,
+      workId,
+      title,
+      description,
+      attribution,
+      resourceType,
+      doi,
+      handle,
+      url,
+      resourceOrdinal,
+      file,
+    } = dto;
 
     return {
       id: workResourceId,
@@ -17,12 +28,14 @@ export class AdditionalResourceDtoMapper implements BaseMapper<AdditionalResourc
       doi: doi ?? '',
       handle: handle ?? '',
       url: url ?? '',
+      fileUrl: file?.cdnUrl ?? '',
       orderNumber: resourceOrdinal,
     };
   }
 
   toDto(entity: AdditionalResourceEntity): AdditionalResourceDto {
-    const { id, workId, title, description, attribution, resourceType, doi, handle, url, orderNumber } = entity;
+    const { id, workId, title, description, attribution, resourceType, doi, handle, url, fileUrl, orderNumber } =
+      entity;
 
     return {
       workResourceId: id,
@@ -34,6 +47,7 @@ export class AdditionalResourceDtoMapper implements BaseMapper<AdditionalResourc
       doi: doi && doi.length > 0 ? doi : null,
       handle: handle && handle.length > 0 ? handle : null,
       url: url && url.length > 0 ? url : null,
+      file: fileUrl && fileUrl.length > 0 ? { cdnUrl: fileUrl } : null,
       resourceOrdinal: orderNumber,
     };
   }

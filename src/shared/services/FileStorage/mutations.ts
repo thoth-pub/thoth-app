@@ -42,6 +42,20 @@ export const INIT_WORK_FEATURED_VIDEO_FILE_UPLOAD = graphql(`
   }
 `);
 
+export const INIT_ADDITIONAL_RESOURCE_FILE_UPLOAD = graphql(`
+  mutation InitAdditionalResourceFileUpload($data: NewAdditionalResourceFileUpload!) {
+    initAdditionalResourceFileUpload(data: $data) {
+      fileUploadId
+      uploadUrl
+      uploadHeaders {
+        name
+        value
+      }
+      expiresAt
+    }
+  }
+`);
+
 export const COMPLETE_FILE_UPLOAD = graphql(`
   mutation CompleteFileUpload($data: CompleteFileUpload!) {
     completeFileUpload(data: $data) {

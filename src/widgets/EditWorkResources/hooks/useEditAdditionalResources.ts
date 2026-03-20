@@ -22,6 +22,7 @@ const defaultAdditionalResource: AdditionalResourceEntity = {
   doi: '',
   handle: '',
   url: '',
+  fileUrl: '',
   orderNumber: 0,
 };
 

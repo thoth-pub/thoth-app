@@ -75,7 +75,6 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
   const contributorService = new ContributorService(graphqlService);
   const subjectService = new SubjectService(graphqlService);
   const seriesService = new SeriesService(graphqlService);
-  const additionalResourceService = new AdditionalResourceService(graphqlService);
   const awardService = new AwardService(graphqlService);
   const bookReviewService = new BookReviewService(graphqlService);
   const endorsementService = new EndorsementService(graphqlService);
@@ -91,6 +90,7 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
   const userService = new UserService(graphqlService);
   const persistentStorage = new PersistentStorage();
   const fileStorage = new FileStorage(token);
+  const additionalResourceService = new AdditionalResourceService({ graphqlService, fileStorage });
   const featuredVideoService = new FeaturedVideoService({ graphqlService, fileStorage });
   const publicationService = new PublicationService({
     graphqlService,

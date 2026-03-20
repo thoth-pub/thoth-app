@@ -186,6 +186,9 @@ export const WORK_FRAGMENT = graphql(`
       handle
       url
       resourceOrdinal
+      file {
+        cdnUrl
+      }
     }
     bookReviews {
       bookReviewId

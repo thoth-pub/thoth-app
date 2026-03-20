@@ -24,16 +24,24 @@ const AddAdditionalResource = (props: AddAdditionalResourceProps) => {
   const [additionalResource, setAdditionalResource] = useState<AdditionalResourceEntity | null>(
     activeAdditionalResource,
   );
-  const { createAdditionalResource } = useCreateAdditionalResource({ workId });
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const { createAdditionalResource, loading } = useCreateAdditionalResource({ workId });
 
-  const create = () => {
+  const handleFileUpload = (file: File) => {
+    setPendingFile(file);
+  };
+
+  const create = async () => {
     if (!additionalResource) return;
 
     const lastOrderNumber = [...additionalResources].sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber;
 
-    createAdditionalResource({
-      ...additionalResource,
-      orderNumber: lastOrderNumber ? lastOrderNumber + 1 : 1,
+    await createAdditionalResource({
+      data: {
+        ...additionalResource,
+        orderNumber: lastOrderNumber ? lastOrderNumber + 1 : 1,
+      },
+      file: pendingFile ?? undefined,
     });
     finishEditing();
   };
@@ -94,6 +102,8 @@ const AddAdditionalResource = (props: AddAdditionalResourceProps) => {
         doi={doi}
         handle={handle}
         url={url}
+        uploadLoading={loading}
+        onFileUpload={handleFileUpload}
         isDoneDisabled={!title?.trim() || !resourceType?.trim()}
         onTitleUpdate={updateTitle}
         onDescriptionUpdate={updateDescription}

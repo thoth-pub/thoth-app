@@ -1,6 +1,7 @@
 import { sha256 } from 'js-sha256';
 
 import { FileUploadResponse, UploadRequestHeader } from '@/gql/graphql';
+import { AdditionalResourceId } from '@/src/entities/additional-resource/model/additional-resource.types';
 import { FeaturedVideoId } from '@/src/entities/featured-video/model/featured-video.types';
 import { PublicationId } from '@/src/entities/publication/model/publication.types';
 import { WorkId } from '@/src/entities/work/model/work.types';
@@ -9,6 +10,7 @@ import { GraphqlService } from '../../api/graphqlService';
 import { HTTP_METHODS } from '../../constants';
 import {
   COMPLETE_FILE_UPLOAD,
+  INIT_ADDITIONAL_RESOURCE_FILE_UPLOAD,
   INIT_FRONT_COVER_UPLOAD,
   INIT_PUBLICATION_FILE_UPLOAD,
   INIT_WORK_FEATURED_VIDEO_FILE_UPLOAD,
@@ -151,6 +153,46 @@ export class FileStorage {
 
     const initResponse = await this.initFeaturedVideoUpload({
       workFeaturedVideoId,
+      declaredExtension: fileExtension,
+      declaredMimeType: fileMimeType,
+      declaredSha256: hash,
+    });
+
+    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
+
+    const url = await this.completeFileUpload(initResponse.fileUploadId);
+
+    return url;
+  }
+
+  async initAdditionalResourceUpload({
+    additionalResourceId,
+    declaredExtension,
+    declaredMimeType,
+    declaredSha256,
+  }: {
+    additionalResourceId: AdditionalResourceId;
+    declaredExtension: string;
+    declaredMimeType: string;
+    declaredSha256: string;
+  }): Promise<FileUploadResponse> {
+    const response = await this.graphqlService.mutation(INIT_ADDITIONAL_RESOURCE_FILE_UPLOAD, {
+      data: {
+        declaredExtension,
+        declaredMimeType,
+        declaredSha256,
+        additionalResourceId,
+      },
+    });
+
+    return response.initAdditionalResourceFileUpload;
+  }
+
+  async uploadAdditionalResourceFile(additionalResourceId: AdditionalResourceId, file: File): Promise<string> {
+    const { hash, fileExtension, fileMimeType } = await this.generateFileMetadata(file);
+
+    const initResponse = await this.initAdditionalResourceUpload({
+      additionalResourceId,
       declaredExtension: fileExtension,
       declaredMimeType: fileMimeType,
       declaredSha256: hash,

@@ -12,5 +12,8 @@ export const WORK_RESOURCE_FRAGMENT = graphql(`
     handle
     url
     resourceOrdinal
+    file {
+      cdnUrl
+    }
   }
 `);

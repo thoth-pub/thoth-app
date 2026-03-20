@@ -2,9 +2,11 @@
 
 import { TableFormsHeader, TableFormsWrapper } from '@/src/shared/ui';
 
+import DownloadAdditionalResourceFile from '../DownloadAdditionalResourceFile/DownloadAdditionalResourceFile';
 import { EditAdditionalResourceAttribution } from '../EditAdditionalResourceAttribution/EditAdditionalResourceAttribution';
 import { EditAdditionalResourceDescription } from '../EditAdditionalResourceDescription/EditAdditionalResourceDescription';
 import { EditAdditionalResourceDoi } from '../EditAdditionalResourceDoi/EditAdditionalResourceDoi';
+import EditAdditionalResourceFile from '../EditAdditionalResourceFile/EditAdditionalResourceFile';
 import { EditAdditionalResourceHandle } from '../EditAdditionalResourceHandle/EditAdditionalResourceHandle';
 import { EditAdditionalResourceResourceType } from '../EditAdditionalResourceResourceType/EditAdditionalResourceResourceType';
 import { EditAdditionalResourceTitle } from '../EditAdditionalResourceTitle/EditAdditionalResourceTitle';
@@ -18,6 +20,9 @@ type EditAdditionalResourceFormProps = Partial<{
   doi: string;
   handle: string;
   url: string;
+  fileUrl: string;
+  uploadLoading: boolean;
+  onFileUpload: (file: File) => void;
   isDoneDisabled: boolean;
   onTitleUpdate: (data: string) => void;
   onDescriptionUpdate: (data: string) => void;
@@ -39,6 +44,9 @@ const EditAdditionalResourceForm = (props: EditAdditionalResourceFormProps) => {
     doi,
     handle,
     url,
+    fileUrl,
+    uploadLoading,
+    onFileUpload,
     onTitleUpdate,
     onDescriptionUpdate,
     onAttributionUpdate,
@@ -53,7 +61,22 @@ const EditAdditionalResourceForm = (props: EditAdditionalResourceFormProps) => {
 
   return (
     <TableFormsWrapper>
-      <TableFormsHeader title="additional resource" onDone={onDone} onClose={onClose} isDoneDisabled={isDoneDisabled} />
+      <TableFormsHeader
+        title="additional resource"
+        controls={
+          <>
+            <DownloadAdditionalResourceFile fileUrl={fileUrl} />
+            <EditAdditionalResourceFile
+              resourceType={resourceType ?? ''}
+              loading={uploadLoading ?? false}
+              onSubmit={onFileUpload}
+            />
+          </>
+        }
+        onDone={onDone}
+        onClose={onClose}
+        isDoneDisabled={isDoneDisabled}
+      />
       <EditAdditionalResourceTitle defaultValue={title} onUpdate={onTitleUpdate} />
       <EditAdditionalResourceResourceType defaultValue={resourceType} onUpdate={onResourceTypeUpdate} />
       <EditAdditionalResourceDescription defaultValue={description} onUpdate={onDescriptionUpdate} />

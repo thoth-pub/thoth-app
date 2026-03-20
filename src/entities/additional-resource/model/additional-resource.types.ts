@@ -14,5 +14,6 @@ export type AdditionalResourceEntity = {
   doi: string;
   handle: string;
   url: string;
+  fileUrl: string;
   orderNumber: number;
 };
