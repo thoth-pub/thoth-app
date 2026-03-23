@@ -113,7 +113,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           onDoubleClick={handleEdit}
           className={`group cursor-pointer ${borderTransparent ? '' : 'border border-transparent hover:border-(--color-hover-border)'} duration-300 hover:bg-(--color-hover-alt) ${isTableVariant ? '' : 'rounded-xl p-4'}`}
         >
-          {preview({ data: formData as T, disabled: !!activeFormId && !isActive, onEdit: handleEdit })}
+          {preview({ data: formData as T, disabled: isDisabled || (!!activeFormId && !isActive), onEdit: handleEdit })}
         </div>
       )}
       <Modal open={showFaq} onClose={handleToggleFaq}>

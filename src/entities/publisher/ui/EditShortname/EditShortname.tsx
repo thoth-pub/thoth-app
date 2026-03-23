@@ -14,7 +14,7 @@ const { PUBLISHER_SHORTNAME } = FORM_FIELDS;
 
 const { PUBLISHER_SHORTNAME: PUBLISHER_SHORTNAME_HELPER_TEXT } = HELPER_TEXT;
 
-const EditShortname = () => {
+const EditShortname = ({ isDisabled }: { isDisabled?: boolean }) => {
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher?.id ?? '';
   const { publisher } = usePublisher(publisherId);
@@ -32,6 +32,7 @@ const EditShortname = () => {
 
   return (
     <EditableContent
+      isDisabled={isDisabled}
       formId={IDs.PUBLISHER_SHORTNAME}
       defaultValues={{ [PUBLISHER_SHORTNAME.name]: defaultValue }}
       onSubmit={handleSubmit}

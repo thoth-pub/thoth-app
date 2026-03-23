@@ -1,3 +1,5 @@
+'use client';
+
 import { Typography } from '@mui/material';
 
 import {
@@ -9,11 +11,15 @@ import {
   EditUrl,
   EditZitadelId,
 } from '@/src/entities/publisher';
+import { useUser } from '@/src/entities/user';
 import { ImprintsList } from '@/src/features';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { ContentSection, TranslatedContent } from '@/src/shared/ui';
 
 const Profile = () => {
+  const { user } = useUser();
+  const isSettingsDisabled = !user.isSuperuser;
+
   return (
     <>
       <ContentSection>
@@ -25,10 +31,10 @@ const Profile = () => {
         <Typography component="h2" variant="h2" className="pl-4">
           <TranslatedContent content="settings" namespace={NAMESPACES.enum.profile} />
         </Typography>
-        <EditName />
-        <EditShortname />
-        <EditUrl />
-        <EditZitadelId />
+        <EditName isDisabled={isSettingsDisabled} />
+        <EditShortname isDisabled={isSettingsDisabled} />
+        <EditUrl isDisabled={isSettingsDisabled} />
+        <EditZitadelId isDisabled={isSettingsDisabled} />
       </ContentSection>
       <ContentSection>
         <Typography component="h2" variant="h2" className="pl-4">

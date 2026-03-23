@@ -15,7 +15,7 @@ const { PUBLISHER_URL } = FORM_FIELDS;
 
 const { PUBLISHER_URL: PUBLISHER_URL_HELPER_TEXT } = HELPER_TEXT;
 
-const EditUrl = () => {
+const EditUrl = ({ isDisabled }: { isDisabled?: boolean }) => {
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher?.id ?? '';
   const { publisher } = usePublisher(publisherId);
@@ -33,6 +33,7 @@ const EditUrl = () => {
 
   return (
     <EditableContent
+      isDisabled={isDisabled}
       formId={IDs.PUBLISHER_URL}
       defaultValues={{ [PUBLISHER_URL.name]: defaultValue }}
       onSubmit={handleSubmit}

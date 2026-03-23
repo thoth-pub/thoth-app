@@ -14,7 +14,7 @@ const { PUBLISHER_ZITADEL_ID } = FORM_FIELDS;
 
 const { PUBLISHER_ZITADEL_ID: PUBLISHER_ZITADEL_ID_HELPER_TEXT } = HELPER_TEXT;
 
-const EditZitadelId = () => {
+const EditZitadelId = ({ isDisabled }: { isDisabled?: boolean }) => {
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher?.id ?? '';
   const { publisher } = usePublisher(publisherId);
@@ -32,6 +32,7 @@ const EditZitadelId = () => {
 
   return (
     <EditableContent
+      isDisabled={isDisabled}
       formId={IDs.PUBLISHER_ZITADEL_ID}
       defaultValues={{ [PUBLISHER_ZITADEL_ID.name]: defaultValue }}
       onSubmit={handleSubmit}

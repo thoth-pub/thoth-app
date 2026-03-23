@@ -14,7 +14,7 @@ const { PUBLISHER_NAME } = FORM_FIELDS;
 
 const { PUBLISHER_NAME: PUBLISHER_NAME_HELPER_TEXT } = HELPER_TEXT;
 
-const EditName = () => {
+const EditName = ({ isDisabled }: { isDisabled?: boolean }) => {
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher?.id ?? '';
   const { publisher } = usePublisher(publisherId);
@@ -32,6 +32,7 @@ const EditName = () => {
 
   return (
     <EditableContent
+      isDisabled={isDisabled}
       formId={IDs.PUBLISHER_NAME}
       defaultValues={{ [PUBLISHER_NAME.name]: defaultValue }}
       onSubmit={handleSubmit}
