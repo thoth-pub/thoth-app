@@ -1,4 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { BookReviewDto, BookReviewEntity } from './book-review.types';
 
@@ -63,17 +64,17 @@ export class BookReviewDtoMapper implements BaseMapper<BookReviewEntity, BookRev
     return {
       bookReviewId: id,
       workId,
-      title: title && title.length > 0 ? title : null,
-      authorName: authorName && authorName.length > 0 ? authorName : null,
-      reviewerInstitutionId: reviewerInstitutionId && reviewerInstitutionId.length > 0 ? reviewerInstitutionId : null,
-      url: url && url.length > 0 ? url : null,
-      doi: doi && doi.length > 0 ? doi : null,
-      reviewDate: reviewDate && reviewDate.length > 0 ? reviewDate : null,
-      journalName: journalName && journalName.length > 0 ? journalName : null,
-      journalVolume: journalVolume && journalVolume.length > 0 ? journalVolume : null,
-      journalNumber: journalNumber && journalNumber.length > 0 ? journalNumber : null,
-      journalIssn: journalIssn && journalIssn.length > 0 ? journalIssn : null,
-      text: text && text.length > 0 ? text : null,
+      title: emptyToNull(title),
+      authorName: emptyToNull(authorName),
+      reviewerInstitutionId: emptyToNull(reviewerInstitutionId),
+      url: emptyToNull(url),
+      doi: emptyToNull(doi),
+      reviewDate: emptyToNull(reviewDate),
+      journalName: emptyToNull(journalName),
+      journalVolume: emptyToNull(journalVolume),
+      journalNumber: emptyToNull(journalNumber),
+      journalIssn: emptyToNull(journalIssn),
+      text: emptyToNull(text),
       reviewOrdinal: orderNumber,
     };
   }

@@ -1,4 +1,5 @@
 import { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import type { LocationDto, LocationEntity } from './location.types';
 
@@ -21,8 +22,8 @@ export class LocationDtoMapper implements BaseMapper<LocationEntity, LocationDto
     return {
       locationId: id,
       canonical,
-      fullTextUrl: fullTextUrl && fullTextUrl.length > 0 ? fullTextUrl : null,
-      landingPage: landingPage && landingPage.length > 0 ? landingPage : null,
+      fullTextUrl: emptyToNull(fullTextUrl),
+      landingPage: emptyToNull(landingPage),
       locationPlatform,
     };
   }

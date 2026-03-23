@@ -1,5 +1,6 @@
 import { appConfig } from '@/src/shared/config';
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { UserDto, UserEntity } from './user.types';
 
@@ -52,9 +53,9 @@ export class UserDtoMapper implements BaseMapper<UserEntity, UserDto> {
 
     return {
       userId: id,
-      email: email && email.length > 0 ? email : null,
-      firstName: firstName && firstName.length > 0 ? firstName : null,
-      lastName: lastName && lastName.length > 0 ? lastName : null,
+      email: emptyToNull(email),
+      firstName: emptyToNull(firstName),
+      lastName: emptyToNull(lastName),
       isSuperuser,
     };
   }

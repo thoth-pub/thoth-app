@@ -3,6 +3,7 @@ import { PublisherId } from '@/src/entities/publisher';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { appConfig } from '@/src/shared/config';
 import { BaseService } from '@/src/shared/interfaces/services';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { ImprintDtoMapper } from '../model/imprint.mapper';
 import { CREATE_IMPRINT, DELETE_IMPRINT, UPDATE_IMPRINT } from '../model/imprint.mutations';
@@ -79,11 +80,11 @@ export class ImprintService extends BaseService<ImprintEntity, ImprintDto, Impri
         imprintName: name,
         imprintId: id,
         publisherId,
-        imprintUrl: url && url.length > 0 ? url : null,
-        crossmarkDoi: crossmarkDoi && crossmarkDoi.length > 0 ? crossmarkDoi : null,
-        defaultPlace: defaultPlace && defaultPlace.length > 0 ? defaultPlace : null,
-        defaultCurrency: defaultCurrency && defaultCurrency.length > 0 ? defaultCurrency : null,
-        defaultLocale: defaultLocale && defaultLocale.length > 0 ? defaultLocale : null,
+        imprintUrl: emptyToNull(url),
+        crossmarkDoi: emptyToNull(crossmarkDoi),
+        defaultPlace: emptyToNull(defaultPlace),
+        defaultCurrency: emptyToNull(defaultCurrency) as CurrencyCode | null,
+        defaultLocale: emptyToNull(defaultLocale) as LocaleCode | null,
       },
     });
 

@@ -1,4 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { ReferenceDto, ReferenceEntity } from './reference.types';
 
@@ -35,13 +36,13 @@ export class ReferenceDtoMapper implements BaseMapper<ReferenceEntity, Reference
 
     return {
       referenceId: id,
-      doi: doi && doi.length > 0 ? doi : null,
-      journalTitle: journalTitle && journalTitle.length > 0 ? journalTitle : null,
-      articleTitle: articleTitle && articleTitle.length > 0 ? articleTitle : null,
-      seriesTitle: seriesTitle && seriesTitle.length > 0 ? seriesTitle : null,
-      volumeTitle: volumeTitle && volumeTitle.length > 0 ? volumeTitle : null,
-      url: url && url.length > 0 ? url : null,
-      unstructuredCitation: unstructuredCitation && unstructuredCitation.length > 0 ? unstructuredCitation : null,
+      doi: emptyToNull(doi),
+      journalTitle: emptyToNull(journalTitle),
+      articleTitle: emptyToNull(articleTitle),
+      seriesTitle: emptyToNull(seriesTitle),
+      volumeTitle: emptyToNull(volumeTitle),
+      url: emptyToNull(url),
+      unstructuredCitation: emptyToNull(unstructuredCitation),
       referenceOrdinal: orderNumber,
     };
   }

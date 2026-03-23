@@ -1,4 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { FundingDto, FundingEntity } from './funding.types';
 
@@ -31,11 +32,11 @@ export class FundingDtoMapper implements BaseMapper<FundingEntity, FundingDto> {
 
     return {
       fundingId: id,
-      grantNumber: grantNumber && grantNumber.length > 0 ? grantNumber : null,
+      grantNumber: emptyToNull(grantNumber),
       institutionId,
-      program: program && program.length > 0 ? program : null,
-      projectName: projectName && projectName.length > 0 ? projectName : null,
-      projectShortname: projectShortname && projectShortname.length > 0 ? projectShortname : null,
+      program: emptyToNull(program),
+      projectName: emptyToNull(projectName),
+      projectShortname: emptyToNull(projectShortname),
     };
   }
 }

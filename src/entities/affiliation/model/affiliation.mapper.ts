@@ -1,4 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import type { AffiliationDto, AffiliationEntity } from './affiliation.types';
 
@@ -31,7 +32,7 @@ export class AffiliationDtoMapper implements BaseMapper<AffiliationEntity, Affil
       contributionId,
       affiliationId: id,
       institutionId,
-      position: position?.length > 0 ? position : null,
+      position: emptyToNull(position),
       affiliationOrdinal: orderNumber,
     };
   }

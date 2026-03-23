@@ -1,6 +1,7 @@
 import { appConfig } from '@/src/shared/config';
 import type { BaseMapper } from '@/src/shared/interfaces';
 import { convertOrchidIdToText, convertRomanToArabic } from '@/src/shared/utils';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { TitleDtoMapper } from '../../title/model/title.mapper';
 import type { BookDto, BookEntity } from './book.types';
@@ -215,11 +216,11 @@ export class BookDtoMapper implements BaseMapper<BookEntity, BookDto> {
       titles: titles.map(titleMapper.toDto),
       imprintId,
       workType: type,
-      license: license && license.length > 0 ? license : null,
-      copyrightHolder: copyrightHolder && copyrightHolder.length > 0 ? copyrightHolder : null,
-      doi: doi && doi.length > 0 ? doi : null,
-      landingPage: landingPage && landingPage.length > 0 ? landingPage : null,
-      coverUrl: coverUrl && coverUrl.length > 0 ? coverUrl : null,
+      license: emptyToNull(license),
+      copyrightHolder: emptyToNull(copyrightHolder),
+      doi: emptyToNull(doi),
+      landingPage: emptyToNull(landingPage),
+      coverUrl: emptyToNull(coverUrl),
       imageCount: +imageCount > 0 ? +imageCount : null,
       tableCount: +tableCount > 0 ? +tableCount : null,
       audioCount: +audioCount > 0 ? +audioCount : null,

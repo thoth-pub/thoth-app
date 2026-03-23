@@ -2,6 +2,7 @@ import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { isDefaultId, isTextContainsAnyMarkdownTag } from '@/src/shared/utils';
 import { normalizedOrcidId } from '@/src/shared/utils/helpers/normalizedOrcidId';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { AffiliationService } from '../../affiliation/api/affiliation.service';
 import { ContributorService } from '../../contributor';
@@ -68,7 +69,7 @@ export class ContributionService {
         contributorId,
         contributionType: data.type,
         mainContribution: data.isMain,
-        firstName: data.firstName && data.firstName.length > 0 ? data.firstName : null,
+        firstName: emptyToNull(data.firstName),
         lastName: data.lastName,
         fullName: data.fullName,
         contributionOrdinal: data.orderNumber,
@@ -128,7 +129,7 @@ export class ContributionService {
         contributorId: data.contributorId,
         fullName: data.fullName,
         lastName: data.lastName,
-        firstName: data.firstName && data.firstName.length > 0 ? data.firstName : null,
+        firstName: emptyToNull(data.firstName),
       },
     });
 

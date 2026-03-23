@@ -8,6 +8,7 @@ import {
   isBookChapter,
   isDefaultId,
 } from '@/src/shared/utils';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { AbstractDtoMapper } from '../../abstract/model/abstract.mapper';
 import { AdditionalResourceDtoMapper } from '../../additional-resource/model/additional-resource.mapper';
@@ -298,15 +299,15 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       imprintId,
       workType: type,
       edition: isBookChapter(type) ? null : defaultEdition,
-      license: license && license.length > 0 ? license : null,
-      copyrightHolder: copyrightHolder && copyrightHolder.length > 0 ? copyrightHolder : null,
-      doi: doi && doi.length > 0 ? doi : null,
-      lccn: lccn && lccn.length > 0 ? lccn : null,
-      oclc: oclc && oclc.length > 0 ? oclc : null,
-      bibliographyNote: bibliographyNote && bibliographyNote.length > 0 ? bibliographyNote : null,
-      generalNote: generalNote && generalNote.length > 0 ? generalNote : null,
-      landingPage: landingPage && landingPage.length > 0 ? landingPage : null,
-      coverUrl: coverUrl && coverUrl.length > 0 ? coverUrl : null,
+      license: emptyToNull(license),
+      copyrightHolder: emptyToNull(copyrightHolder),
+      doi: emptyToNull(doi),
+      lccn: emptyToNull(lccn),
+      oclc: emptyToNull(oclc),
+      bibliographyNote: emptyToNull(bibliographyNote),
+      generalNote: emptyToNull(generalNote),
+      landingPage: emptyToNull(landingPage),
+      coverUrl: emptyToNull(coverUrl),
       publicationDate: appliedPublicationDate,
       withdrawnDate: appliedWithdrawnDate,
       imageCount: +imageCount > 0 ? +imageCount : null,
@@ -314,11 +315,11 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
       audioCount: +audioCount > 0 ? +audioCount : null,
       videoCount: +videoCount > 0 ? +videoCount : null,
       pageCount: +pageCount > 0 ? +pageCount : null,
-      firstPage: firstPage && firstPage.length > 0 ? firstPage : null,
-      lastPage: lastPage && lastPage.length > 0 ? lastPage : null,
-      pageBreakdown: pageBreakdownValue.length > 0 ? pageBreakdownValue : null,
-      place: place && place.length > 0 ? place : null,
-      reference: reference && reference.length > 0 ? reference : null,
+      firstPage: emptyToNull(firstPage),
+      lastPage: emptyToNull(lastPage),
+      pageBreakdown: emptyToNull(pageBreakdownValue),
+      place: emptyToNull(place),
+      reference: emptyToNull(reference),
     };
   }
 
@@ -328,7 +329,7 @@ export class WorkDtoMapper implements BaseMapper<WorkEntity, WorkDto> {
     return {
       fullName,
       lastName,
-      firstName: firstName && firstName.length > 0 ? firstName : null,
+      firstName: emptyToNull(firstName),
       contributionId: id && !isDefaultId(id) ? id : undefined,
       contributorId,
       contributionType: type,

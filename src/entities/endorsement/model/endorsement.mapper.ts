@@ -1,4 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { EndorsementDto, EndorsementEntity } from './endorsement.types';
 
@@ -26,11 +27,11 @@ export class EndorsementDtoMapper implements BaseMapper<EndorsementEntity, Endor
     return {
       endorsementId: id,
       workId,
-      authorName: authorName && authorName.length > 0 ? authorName : null,
-      authorRole: authorRole && authorRole.length > 0 ? authorRole : null,
-      authorInstitutionId: authorInstitutionId && authorInstitutionId.length > 0 ? authorInstitutionId : null,
-      url: url && url.length > 0 ? url : null,
-      text: text && text.length > 0 ? text : null,
+      authorName: emptyToNull(authorName),
+      authorRole: emptyToNull(authorRole),
+      authorInstitutionId: emptyToNull(authorInstitutionId),
+      url: emptyToNull(url),
+      text: emptyToNull(text),
       endorsementOrdinal: orderNumber,
     };
   }

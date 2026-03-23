@@ -1,5 +1,6 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
 import type { TitleDto, TitleEntity } from '@/src/shared/types';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 export class TitleDtoMapper implements BaseMapper<TitleEntity, TitleDto> {
   toEntity(dto: TitleDto): TitleEntity {
@@ -23,7 +24,7 @@ export class TitleDtoMapper implements BaseMapper<TitleEntity, TitleDto> {
       canonical,
       fullTitle,
       localeCode,
-      subtitle: subtitle.length > 0 ? subtitle : null,
+      subtitle: emptyToNull(subtitle),
       title,
     };
   }

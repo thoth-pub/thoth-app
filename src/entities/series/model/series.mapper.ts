@@ -1,4 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import type { SeriesDto, SeriesEntity } from './series.types';
 
@@ -47,12 +48,12 @@ export class SeriesDtoMapper implements BaseMapper<SeriesEntity, SeriesDto> {
       seriesId: id,
       seriesName: name,
       seriesType: type,
-      issnPrint: issnPrint && issnPrint.length > 0 ? issnPrint : null,
-      issnDigital: issnDigital && issnDigital.length > 0 ? issnDigital : null,
+      issnPrint: emptyToNull(issnPrint),
+      issnDigital: emptyToNull(issnDigital),
       updatedAt,
       imprintId,
-      seriesUrl: url && url.length > 0 ? url : null,
-      seriesDescription: description && description.length > 0 ? description : null,
+      seriesUrl: emptyToNull(url),
+      seriesDescription: emptyToNull(description),
     };
   }
 }

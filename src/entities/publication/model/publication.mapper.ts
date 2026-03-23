@@ -1,5 +1,6 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
 import { isDimensionsAvailable } from '@/src/shared/utils';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { TitleDtoMapper } from '../../title/model/title.mapper';
 import type { PublicationDto, PublicationEntity } from './publication.types';
@@ -121,7 +122,7 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
     return {
       publicationId: id,
       publicationType: type,
-      isbn: isbn && isbn.length > 0 ? isbn : null,
+      isbn: emptyToNull(isbn),
       widthMm: width && width > 0 && isPhysical ? +width : null,
       widthIn: widthIn && widthIn > 0 && isPhysical ? widthIn : null,
       heightMm: height && height > 0 && isPhysical ? +height : null,
@@ -130,7 +131,7 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       depthIn: depthIn && depthIn > 0 && isPhysical ? depthIn : null,
       weightG: weight && weight > 0 && isPhysical ? +weight : null,
       weightOz: weightOz && weightOz > 0 && isPhysical ? weightOz : null,
-      accessibilityReportUrl: accessibilityReportUrl.length > 0 ? accessibilityReportUrl : null,
+      accessibilityReportUrl: emptyToNull(accessibilityReportUrl),
       accessibilityAdditionalStandard: accessibilityAdditionalStandard ?? null,
       accessibilityException: accessibilityException ?? null,
       accessibilityStandard: accessibilityStandard ?? null,

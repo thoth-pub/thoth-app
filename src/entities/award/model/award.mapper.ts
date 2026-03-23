@@ -1,4 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { AwardDto, AwardEntity } from './award.types';
 
@@ -25,9 +26,9 @@ export class AwardDtoMapper implements BaseMapper<AwardEntity, AwardDto> {
       awardId: id,
       workId,
       title,
-      url: url && url.length > 0 ? url : null,
-      category: category && category.length > 0 ? category : null,
-      prizeStatement: statement && statement.length > 0 ? statement : null,
+      url: emptyToNull(url),
+      category: emptyToNull(category),
+      prizeStatement: emptyToNull(statement),
       role,
       awardOrdinal: orderNumber,
     };

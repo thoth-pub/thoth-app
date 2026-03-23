@@ -1,4 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import type { ContactDto, ContactEntity, PublisherDto, PublisherEntity } from './publisher.types';
 
@@ -35,11 +36,11 @@ export class PublisherDtoMapper implements BaseMapper<PublisherEntity, Publisher
     return {
       publisherId: id,
       publisherName: name,
-      publisherShortname: shortName && shortName.length > 0 ? shortName : null,
+      publisherShortname: emptyToNull(shortName),
       publisherUrl: url,
-      zitadelId: zitadelId.length > 0 ? zitadelId : null,
-      accessibilityReportUrl: accessibilityReportUrl.length > 0 ? accessibilityReportUrl : null,
-      accessibilityStatement: accessibilityStatement.length > 0 ? accessibilityStatement : null,
+      zitadelId: emptyToNull(zitadelId),
+      accessibilityReportUrl: emptyToNull(accessibilityReportUrl),
+      accessibilityStatement: emptyToNull(accessibilityStatement),
     };
   }
 

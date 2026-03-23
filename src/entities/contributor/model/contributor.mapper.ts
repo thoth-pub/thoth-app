@@ -2,6 +2,7 @@ import type { GetLinkedPublishersQuery } from '@/gql/graphql';
 import type { BaseMapper } from '@/src/shared/interfaces';
 import { convertOrchidIdToText, isDefaultId } from '@/src/shared/utils';
 import { normalizedOrcidId } from '@/src/shared/utils/helpers/normalizedOrcidId';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import type { PublisherId } from '../../publisher';
 import type { ContributorDto, ContributorEntity } from './contributor.types';
@@ -44,7 +45,7 @@ export class ContributorDtoMapper implements BaseMapper<ContributorEntity, Contr
       lastName,
       fullName,
       orcid: normalizedOrcidId(orcid),
-      website: website && website.length > 0 ? website : null,
+      website: emptyToNull(website),
     };
 
     return data;

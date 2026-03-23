@@ -1,4 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { AdditionalResourceDto, AdditionalResourceEntity } from './additional-resource.types';
 
@@ -41,13 +42,13 @@ export class AdditionalResourceDtoMapper implements BaseMapper<AdditionalResourc
       workResourceId: id,
       workId,
       title,
-      description: description && description.length > 0 ? description : null,
-      attribution: attribution && attribution.length > 0 ? attribution : null,
+      description: emptyToNull(description),
+      attribution: emptyToNull(attribution),
       resourceType,
-      doi: doi && doi.length > 0 ? doi : null,
-      handle: handle && handle.length > 0 ? handle : null,
-      url: url && url.length > 0 ? url : null,
-      file: fileUrl && fileUrl.length > 0 ? { cdnUrl: fileUrl } : null,
+      doi: emptyToNull(doi),
+      handle: emptyToNull(handle),
+      url: emptyToNull(url),
+      file: emptyToNull(fileUrl) ? { cdnUrl: fileUrl } : null,
       resourceOrdinal: orderNumber,
     };
   }

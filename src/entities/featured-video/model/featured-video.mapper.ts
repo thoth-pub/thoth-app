@@ -1,4 +1,5 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
+import { emptyToNull } from '@/src/shared/utils/strings';
 
 import { FeaturedVideoDto, FeaturedVideoEntity } from './featured-video.types';
 
@@ -23,8 +24,8 @@ export class FeaturedVideoDtoMapper implements BaseMapper<FeaturedVideoEntity, F
     return {
       workFeaturedVideoId: id,
       workId,
-      title: title && title.length > 0 ? title : null,
-      url: url && url.length > 0 ? url : null,
+      title: emptyToNull(title),
+      url: emptyToNull(url),
       width,
       height,
     };
