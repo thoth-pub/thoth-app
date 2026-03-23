@@ -819,6 +819,16 @@ export const FORM_FIELDS = {
     placeholder: 'publisherName.label',
     type: InputTypes.TEXT,
   },
+  PUBLISHER_SHORTNAME: {
+    label: 'publisherShortname.label',
+    name: 'publisherShortname',
+    type: InputTypes.TEXT,
+  },
+  PUBLISHER_URL: {
+    label: 'publisherUrl.label',
+    name: 'publisherUrl',
+    type: InputTypes.URL,
+  },
   SET_TITLE: {
     label: 'title',
     name: 'setTitle',

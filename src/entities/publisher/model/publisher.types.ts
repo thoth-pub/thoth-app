@@ -6,8 +6,11 @@ import type { ContactType } from '@/src/shared/types';
 import {
   newPublisherValidationSchema,
   publisherContactValidationSchema,
+  publisherNameValidationSchema,
   publisherReportValidationSchema,
+  publisherShortnameValidationSchema,
   publisherStatementValidationSchema,
+  publisherUrlValidationSchema,
 } from './publisher.validation';
 
 export type ContactDto = Pick<Contact, 'contactId' | 'contactType' | 'email'>;
@@ -47,6 +50,12 @@ export type PublisherEntity = {
 };
 
 export type PublisherContactForm = z.infer<typeof publisherContactValidationSchema>;
+
+export type PublisherNameForm = z.infer<typeof publisherNameValidationSchema>;
+
+export type PublisherShortnameForm = z.infer<typeof publisherShortnameValidationSchema>;
+
+export type PublisherUrlForm = z.infer<typeof publisherUrlValidationSchema>;
 
 export type PublisherReportForm = z.infer<typeof publisherReportValidationSchema>;
 

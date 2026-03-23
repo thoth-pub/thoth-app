@@ -19,5 +19,8 @@ export * from './model/publisher.types';
 // UI
 export { default as AddNewPublisher } from './ui/AddNewPublisher/AddNewPublisher';
 export { default as EditContact } from './ui/EditContact/EditContact';
+export { default as EditName } from './ui/EditName/EditName';
 export { default as EditReport } from './ui/EditReport/EditReport';
+export { default as EditShortname } from './ui/EditShortname/EditShortname';
 export { default as EditStatement } from './ui/EditStatement/EditStatement';
+export { default as EditUrl } from './ui/EditUrl/EditUrl';

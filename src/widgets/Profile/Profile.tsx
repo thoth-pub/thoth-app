@@ -1,9 +1,9 @@
 import { Typography } from '@mui/material';
 
-import { EditContact, EditReport, EditStatement } from '@/src/entities/publisher';
+import { EditContact, EditName, EditReport, EditShortname, EditStatement, EditUrl } from '@/src/entities/publisher';
 import { ImprintsList } from '@/src/features';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { ContentSection, InputLabel, TranslatedContent } from '@/src/shared/ui';
+import { ContentSection, TranslatedContent } from '@/src/shared/ui';
 
 const Profile = () => {
   return (
@@ -17,12 +17,9 @@ const Profile = () => {
         <Typography component="h2" variant="h2" className="pl-4">
           <TranslatedContent content="settings" namespace={NAMESPACES.enum.profile} />
         </Typography>
-        <InputLabel className="pl-4">
-          <TranslatedContent content="language" namespace={NAMESPACES.enum.profile} />
-        </InputLabel>
-        <InputLabel className="pl-4">
-          <TranslatedContent content="currency" namespace={NAMESPACES.enum.profile} />
-        </InputLabel>
+        <EditName />
+        <EditShortname />
+        <EditUrl />
       </ContentSection>
       <ContentSection>
         <Typography component="h2" variant="h2" className="pl-4">

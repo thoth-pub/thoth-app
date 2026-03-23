@@ -71,6 +71,14 @@
     "label": "Publisher Name",
     "helperText": "Enter the name of the publisher."
   },
+  "publisherShortname": {
+    "label": "Publisher Shortname",
+    "helperText": "Enter the shortname of the publisher."
+  },
+  "publisherUrl": {
+    "label": "Publisher URL",
+    "helperText": "Enter the website URL of the publisher."
+  },
   "wortType": {
     "label": "Werktyp",
     "helperText": "Den Publikationstyp des Werkes auswählen."
