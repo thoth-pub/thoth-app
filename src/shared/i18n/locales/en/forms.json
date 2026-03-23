@@ -79,6 +79,10 @@
     "label": "Publisher URL",
     "helperText": "Enter the website URL of the publisher."
   },
+  "publisherZitadelId": {
+    "label": "Zitadel Organisation ID",
+    "helperText": "Enter the Zitadel organisation ID for the publisher."
+  },
   "wortType": {
     "label": "Work Type",
     "helperText": "Choose the type of work."

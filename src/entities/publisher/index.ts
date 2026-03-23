@@ -24,3 +24,4 @@ export { default as EditReport } from './ui/EditReport/EditReport';
 export { default as EditShortname } from './ui/EditShortname/EditShortname';
 export { default as EditStatement } from './ui/EditStatement/EditStatement';
 export { default as EditUrl } from './ui/EditUrl/EditUrl';
+export { default as EditZitadelId } from './ui/EditZitadelId/EditZitadelId';

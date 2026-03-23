@@ -9,6 +9,7 @@ export class PublisherDtoMapper implements BaseMapper<PublisherEntity, Publisher
       publisherName,
       publisherShortname,
       publisherUrl,
+      zitadelId,
       updatedAt,
       contacts,
       accessibilityReportUrl,
@@ -20,6 +21,7 @@ export class PublisherDtoMapper implements BaseMapper<PublisherEntity, Publisher
       name: publisherName,
       shortName: publisherShortname ?? '',
       url: publisherUrl ?? '',
+      zitadelId: zitadelId ?? '',
       updatedAt,
       accessibilityReportUrl: accessibilityReportUrl ?? '',
       accessibilityStatement: accessibilityStatement ?? '',
@@ -28,13 +30,14 @@ export class PublisherDtoMapper implements BaseMapper<PublisherEntity, Publisher
   }
 
   toDto(entity: PublisherEntity): Omit<PublisherDto, 'contacts' | 'updatedAt'> {
-    const { id, name, shortName, url, accessibilityReportUrl, accessibilityStatement } = entity;
+    const { id, name, shortName, url, zitadelId, accessibilityReportUrl, accessibilityStatement } = entity;
 
     return {
       publisherId: id,
       publisherName: name,
       publisherShortname: shortName && shortName.length > 0 ? shortName : null,
       publisherUrl: url,
+      zitadelId: zitadelId.length > 0 ? zitadelId : null,
       accessibilityReportUrl: accessibilityReportUrl.length > 0 ? accessibilityReportUrl : null,
       accessibilityStatement: accessibilityStatement.length > 0 ? accessibilityStatement : null,
     };

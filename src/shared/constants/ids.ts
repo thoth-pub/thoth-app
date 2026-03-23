@@ -104,6 +104,7 @@ export const IDs = {
   PUBLISHER_NAME: 'publisher_name',
   PUBLISHER_SHORTNAME: 'publisher_shortname',
   PUBLISHER_URL: 'publisher_url',
+  PUBLISHER_ZITADEL_ID: 'publisher_zitadel_id',
   PUBLISHER_CONTACT: 'publisher_contact',
   PUBLISHER_REPORT: 'publisher_report',
   PUBLISHER_STATEMENT: 'publisher_statement',

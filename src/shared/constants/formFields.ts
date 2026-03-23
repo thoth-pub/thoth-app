@@ -829,6 +829,11 @@ export const FORM_FIELDS = {
     name: 'publisherUrl',
     type: InputTypes.URL,
   },
+  PUBLISHER_ZITADEL_ID: {
+    label: 'publisherZitadelId.label',
+    name: 'publisherZitadelId',
+    type: InputTypes.TEXT,
+  },
   SET_TITLE: {
     label: 'title',
     name: 'setTitle',

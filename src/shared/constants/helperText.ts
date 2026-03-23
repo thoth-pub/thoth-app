@@ -96,6 +96,7 @@ export const HELPER_TEXT = {
   PUBLISHER_NAME: 'publisherName.helperText',
   PUBLISHER_SHORTNAME: 'publisherShortname.helperText',
   PUBLISHER_URL: 'publisherUrl.helperText',
+  PUBLISHER_ZITADEL_ID: 'publisherZitadelId.helperText',
   PUBLISHER_CONTACT: 'contact.helperText',
   PUBLISHER_REPORT: 'report.helperText',
   PUBLISHER_STATEMENT: 'statement.helperText',

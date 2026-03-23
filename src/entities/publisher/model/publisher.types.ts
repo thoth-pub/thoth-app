@@ -11,6 +11,7 @@ import {
   publisherShortnameValidationSchema,
   publisherStatementValidationSchema,
   publisherUrlValidationSchema,
+  publisherZitadelIdValidationSchema,
 } from './publisher.validation';
 
 export type ContactDto = Pick<Contact, 'contactId' | 'contactType' | 'email'>;
@@ -21,6 +22,7 @@ export type PublisherDto = Pick<
   | 'publisherName'
   | 'publisherShortname'
   | 'publisherUrl'
+  | 'zitadelId'
   | 'updatedAt'
   | 'accessibilityReportUrl'
   | 'accessibilityStatement'
@@ -43,6 +45,7 @@ export type PublisherEntity = {
   name: string;
   shortName: string;
   url: string;
+  zitadelId: string;
   updatedAt: string;
   accessibilityReportUrl: string;
   accessibilityStatement: string;
@@ -60,5 +63,7 @@ export type PublisherUrlForm = z.infer<typeof publisherUrlValidationSchema>;
 export type PublisherReportForm = z.infer<typeof publisherReportValidationSchema>;
 
 export type PublisherStatementForm = z.infer<typeof publisherStatementValidationSchema>;
+
+export type PublisherZitadelIdForm = z.infer<typeof publisherZitadelIdValidationSchema>;
 
 export type NewPublisherForm = z.infer<typeof newPublisherValidationSchema>;

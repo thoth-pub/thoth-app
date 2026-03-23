@@ -1,6 +1,14 @@
 import { Typography } from '@mui/material';
 
-import { EditContact, EditName, EditReport, EditShortname, EditStatement, EditUrl } from '@/src/entities/publisher';
+import {
+  EditContact,
+  EditName,
+  EditReport,
+  EditShortname,
+  EditStatement,
+  EditUrl,
+  EditZitadelId,
+} from '@/src/entities/publisher';
 import { ImprintsList } from '@/src/features';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { ContentSection, TranslatedContent } from '@/src/shared/ui';
@@ -20,6 +28,7 @@ const Profile = () => {
         <EditName />
         <EditShortname />
         <EditUrl />
+        <EditZitadelId />
       </ContentSection>
       <ContentSection>
         <Typography component="h2" variant="h2" className="pl-4">

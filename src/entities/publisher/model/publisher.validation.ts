@@ -8,8 +8,15 @@ import {
   optionalUrlValidation,
 } from '@/src/shared/utils';
 
-const { PUBLISHER_CONTACT, PUBLISHER_REPORT, PUBLISHER_STATEMENT, PUBLISHER_NAME, PUBLISHER_SHORTNAME, PUBLISHER_URL } =
-  FORM_FIELDS;
+const {
+  PUBLISHER_CONTACT,
+  PUBLISHER_REPORT,
+  PUBLISHER_STATEMENT,
+  PUBLISHER_NAME,
+  PUBLISHER_SHORTNAME,
+  PUBLISHER_URL,
+  PUBLISHER_ZITADEL_ID,
+} = FORM_FIELDS;
 
 export const publisherContactValidationSchema = z.object({
   [PUBLISHER_CONTACT.name]: contactTypeValidation,
@@ -33,6 +40,10 @@ export const publisherShortnameValidationSchema = z.object({
 
 export const publisherUrlValidationSchema = z.object({
   [PUBLISHER_URL.name]: optionalUrlValidation,
+});
+
+export const publisherZitadelIdValidationSchema = z.object({
+  [PUBLISHER_ZITADEL_ID.name]: optionalStringValidation,
 });
 
 export const newPublisherValidationSchema = z.object({
