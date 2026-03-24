@@ -16,6 +16,9 @@ export class ImprintDtoMapper implements BaseMapper<ImprintEntity, ImprintDto> {
       defaultCurrency,
       defaultLocale,
       defaultPlace,
+      s3Bucket,
+      cdnDomain,
+      cloudfrontDistId,
       publisher: { publisherName },
     } = dto;
 
@@ -29,6 +32,9 @@ export class ImprintDtoMapper implements BaseMapper<ImprintEntity, ImprintDto> {
       defaultCurrency: defaultCurrency ?? publisherDefaultValues.defaultCurrency,
       defaultLocale: defaultLocale ?? publisherDefaultValues.defaultLocale,
       defaultPlace: defaultPlace ?? '',
+      s3Bucket: s3Bucket ?? '',
+      cdnDomain: cdnDomain ?? '',
+      cloudfrontDistId: cloudfrontDistId ?? '',
     };
   }
 

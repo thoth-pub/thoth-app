@@ -144,6 +144,24 @@ export const FORM_FIELDS = {
     placeholder: 'defaultLocale.label',
     type: InputTypes.TEXT,
   },
+  S3_BUCKET: {
+    label: 's3Bucket.label',
+    name: 's3Bucket',
+    placeholder: 's3Bucket.label',
+    type: InputTypes.TEXT,
+  },
+  CDN_DOMAIN: {
+    label: 'cdnDomain.label',
+    name: 'cdnDomain',
+    placeholder: 'cdnDomain.label',
+    type: InputTypes.TEXT,
+  },
+  CLOUDFRONT_DIST_ID: {
+    label: 'cloudfrontDistId.label',
+    name: 'cloudfrontDistId',
+    placeholder: 'cloudfrontDistId.label',
+    type: InputTypes.TEXT,
+  },
   WORK_TYPE: {
     label: 'wortType.label',
     name: 'workType',

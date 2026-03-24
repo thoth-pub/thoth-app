@@ -15,6 +15,9 @@ export type UpdateImprintData = {
   defaultPlace?: string;
   defaultCurrency?: CurrencyCode;
   defaultLocale?: LocaleCode;
+  s3Bucket?: string;
+  cdnDomain?: string;
+  cloudfrontDistId?: string;
 };
 
 const useUpdateImprint = () => {

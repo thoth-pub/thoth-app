@@ -19,6 +19,9 @@ export const UPDATE_IMPRINT = graphql(`
       defaultCurrency
       defaultLocale
       defaultPlace
+      s3Bucket
+      cdnDomain
+      cloudfrontDistId
       publisher {
         publisherName
       }

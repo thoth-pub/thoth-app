@@ -14,6 +14,9 @@ export type ImprintDto = Pick<
   | 'defaultCurrency'
   | 'defaultLocale'
   | 'defaultPlace'
+  | 's3Bucket'
+  | 'cdnDomain'
+  | 'cloudfrontDistId'
 > & {
   publisher: Pick<Publisher, 'publisherName'>;
 };
@@ -30,6 +33,9 @@ export type ImprintEntity = {
   defaultCurrency: CurrencyCode;
   defaultLocale: LocaleCode;
   defaultPlace: string;
+  s3Bucket: string;
+  cdnDomain: string;
+  cloudfrontDistId: string;
 };
 
 export type ImprintForm = z.infer<typeof imprintValidationSchema>;

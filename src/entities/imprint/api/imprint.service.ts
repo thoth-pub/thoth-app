@@ -70,10 +70,13 @@ export class ImprintService extends BaseService<ImprintEntity, ImprintDto, Impri
       defaultPlace?: string;
       defaultCurrency?: CurrencyCode;
       defaultLocale?: LocaleCode;
+      s3Bucket?: string;
+      cdnDomain?: string;
+      cloudfrontDistId?: string;
     },
     publisherId: PublisherId,
   ) {
-    const { name, id, url, crossmarkDoi, defaultPlace, defaultCurrency, defaultLocale } = data;
+    const { name, id, url, crossmarkDoi, defaultPlace, defaultCurrency, defaultLocale, s3Bucket, cdnDomain, cloudfrontDistId } = data;
 
     const result = await this.graphqlService.mutation(UPDATE_IMPRINT, {
       data: {
@@ -85,6 +88,9 @@ export class ImprintService extends BaseService<ImprintEntity, ImprintDto, Impri
         defaultPlace: emptyToNull(defaultPlace),
         defaultCurrency: emptyToNull(defaultCurrency) as CurrencyCode | null,
         defaultLocale: emptyToNull(defaultLocale) as LocaleCode | null,
+        s3Bucket: emptyToNull(s3Bucket),
+        cdnDomain: emptyToNull(cdnDomain),
+        cloudfrontDistId: emptyToNull(cloudfrontDistId),
       },
     });
 

@@ -380,6 +380,18 @@
     "label": "Default Language",
     "helperText": "Select the default language for this imprint."
   },
+  "s3Bucket": {
+    "label": "S3 Bucket",
+    "helperText": "Enter the S3 bucket name for this imprint."
+  },
+  "cdnDomain": {
+    "label": "CDN Domain",
+    "helperText": "Enter the CDN domain for this imprint."
+  },
+  "cloudfrontDistId": {
+    "label": "CloudFront Distribution ID",
+    "helperText": "Enter the CloudFront distribution ID for this imprint."
+  },
   "publicationFile": {
     "label": "File",
     "helperText": "Upload the publication file."

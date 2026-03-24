@@ -9,6 +9,7 @@ import {
   useUpdateImprint,
 } from '@/src/entities/imprint';
 import { useActivePublisherPermissions, usePublisherStateMachine } from '@/src/entities/publisher';
+import { useUser } from '@/src/entities/user';
 import { appConfig } from '@/src/shared/config';
 import { IDs } from '@/src/shared/constants';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -22,9 +23,13 @@ type ImprintFormData = {
   defaultPlace: string;
   defaultCurrency: CurrencyCode;
   defaultLocale: LocaleCode;
+  s3Bucket: string;
+  cdnDomain: string;
+  cloudfrontDistId: string;
 };
 
 export const useImprintsList = () => {
+  const { user } = useUser();
   const { isImprintEditable } = useActivePublisherPermissions();
   const { edit, activeFormId, closeForm } = useFormStateMachine();
   const { activePublisher } = usePublisherStateMachine();
@@ -58,6 +63,9 @@ export const useImprintsList = () => {
         defaultPlace: formData.defaultPlace,
         defaultCurrency: formData.defaultCurrency,
         defaultLocale: formData.defaultLocale,
+        s3Bucket: formData.s3Bucket,
+        cdnDomain: formData.cdnDomain,
+        cloudfrontDistId: formData.cloudfrontDistId,
       },
       publisherId,
     });
@@ -80,5 +88,6 @@ export const useImprintsList = () => {
     data,
     isAddNewButtonDisabled: !!activeFormId || !isImprintEditable,
     isImprintEditable,
+    isSuperuser: user.isSuperuser,
   };
 };

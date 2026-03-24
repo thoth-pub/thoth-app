@@ -24,6 +24,9 @@ type EditImprintData = {
   defaultPlace: string;
   defaultCurrency: CurrencyCode;
   defaultLocale: LocaleCode;
+  s3Bucket: string;
+  cdnDomain: string;
+  cloudfrontDistId: string;
 };
 
 type EditImprintProps = Partial<{
@@ -31,11 +34,12 @@ type EditImprintProps = Partial<{
   id: ImprintId;
   disabled: boolean;
   deleteDisabled: boolean;
+  superuserOnly: boolean;
   onUpdate: (data: EditImprintData) => void;
   onDelete: (imprintId: ImprintId) => void;
 }>;
 
-const { IMPRINT, IMPRINT_URL, CROSSMARK_DOI, DEFAULT_PLACE, DEFAULT_CURRENCY, DEFAULT_LOCALE } = FORM_FIELDS;
+const { IMPRINT, IMPRINT_URL, CROSSMARK_DOI, DEFAULT_PLACE, DEFAULT_CURRENCY, DEFAULT_LOCALE, S3_BUCKET, CDN_DOMAIN, CLOUDFRONT_DIST_ID } = FORM_FIELDS;
 
 const {
   EDIT_IMPRINT,
@@ -44,10 +48,13 @@ const {
   DEFAULT_PLACE: DEFAULT_PLACE_HELPER,
   DEFAULT_CURRENCY: DEFAULT_CURRENCY_HELPER,
   DEFAULT_LOCALE: DEFAULT_LOCALE_HELPER,
+  S3_BUCKET: S3_BUCKET_HELPER,
+  CDN_DOMAIN: CDN_DOMAIN_HELPER,
+  CLOUDFRONT_DIST_ID: CLOUDFRONT_DIST_ID_HELPER,
 } = HELPER_TEXT;
 
 const EditImprint = (props: EditImprintProps) => {
-  const { imprint, id = '', onUpdate, onDelete, deleteDisabled = false, disabled = false } = props;
+  const { imprint, id = '', onUpdate, onDelete, deleteDisabled = false, disabled = false, superuserOnly = true } = props;
 
   const defaultName = imprint?.name ?? '';
   const isDeleteDisabled = defaultName.length === 0 || id.length === 0 || id === appConfig.defaultId || deleteDisabled;
@@ -59,6 +66,9 @@ const EditImprint = (props: EditImprintProps) => {
     [DEFAULT_PLACE.name]: imprint?.defaultPlace ?? '',
     [DEFAULT_CURRENCY.name]: findCurrencyOption(imprint?.defaultCurrency) as { value: CurrencyCode; label: string },
     [DEFAULT_LOCALE.name]: findLocaleOption(imprint?.defaultLocale),
+    [S3_BUCKET.name]: imprint?.s3Bucket ?? '',
+    [CDN_DOMAIN.name]: imprint?.cdnDomain ?? '',
+    [CLOUDFRONT_DIST_ID.name]: imprint?.cloudfrontDistId ?? '',
   };
 
   const handleUpdate = (data: ImprintForm) => {
@@ -71,6 +81,9 @@ const EditImprint = (props: EditImprintProps) => {
       [DEFAULT_PLACE.name]: defaultPlace,
       [DEFAULT_CURRENCY.name]: defaultCurrency,
       [DEFAULT_LOCALE.name]: defaultLocale,
+      [S3_BUCKET.name]: s3Bucket,
+      [CDN_DOMAIN.name]: cdnDomain,
+      [CLOUDFRONT_DIST_ID.name]: cloudfrontDistId,
     } = data;
 
     onUpdate({
@@ -81,6 +94,9 @@ const EditImprint = (props: EditImprintProps) => {
       defaultPlace: defaultPlace ?? '',
       defaultCurrency: defaultCurrency.value,
       defaultLocale: defaultLocale.value,
+      s3Bucket: s3Bucket ?? '',
+      cdnDomain: cdnDomain ?? '',
+      cloudfrontDistId: cloudfrontDistId ?? '',
     });
   };
 
@@ -154,6 +170,39 @@ const EditImprint = (props: EditImprintProps) => {
               options={languageOptionsAlt}
               helperText={DEFAULT_LOCALE_HELPER}
               fullWidth
+            />
+          </MultipleContentWrapper>
+          <MultipleContentWrapper>
+            <FormFieldLabel label={S3_BUCKET.label} id={S3_BUCKET.name} />
+            <FormTextField
+              control={control}
+              name={S3_BUCKET.name}
+              id={S3_BUCKET.name}
+              helperText={S3_BUCKET_HELPER}
+              fullWidth
+              disabled={disabled || superuserOnly}
+            />
+          </MultipleContentWrapper>
+          <MultipleContentWrapper>
+            <FormFieldLabel label={CDN_DOMAIN.label} id={CDN_DOMAIN.name} />
+            <FormTextField
+              control={control}
+              name={CDN_DOMAIN.name}
+              id={CDN_DOMAIN.name}
+              helperText={CDN_DOMAIN_HELPER}
+              fullWidth
+              disabled={disabled || superuserOnly}
+            />
+          </MultipleContentWrapper>
+          <MultipleContentWrapper>
+            <FormFieldLabel label={CLOUDFRONT_DIST_ID.label} id={CLOUDFRONT_DIST_ID.name} />
+            <FormTextField
+              control={control}
+              name={CLOUDFRONT_DIST_ID.name}
+              id={CLOUDFRONT_DIST_ID.name}
+              helperText={CLOUDFRONT_DIST_ID_HELPER}
+              fullWidth
+              disabled={disabled || superuserOnly}
             />
           </MultipleContentWrapper>
         </div>
