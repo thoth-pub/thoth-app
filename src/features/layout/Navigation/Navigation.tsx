@@ -20,7 +20,7 @@ import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
 
 const Navigation = () => {
-  const [isUserMenuOpen, setIsUserMenuOpen] = useState(true);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const { user } = useUser();
   const { isExpanded, updateIsExpanded } = useUIContext();

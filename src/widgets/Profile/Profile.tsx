@@ -1,6 +1,7 @@
 'use client';
 
 import { Typography } from '@mui/material';
+import { Activity } from 'react';
 
 import {
   EditContact,
@@ -34,7 +35,9 @@ const Profile = () => {
         <EditName isDisabled={isSettingsDisabled} />
         <EditShortname isDisabled={isSettingsDisabled} />
         <EditUrl isDisabled={isSettingsDisabled} />
-        <EditZitadelId isDisabled={isSettingsDisabled} />
+        <Activity mode={isSettingsDisabled ? 'hidden' : 'visible'}>
+          <EditZitadelId isDisabled={isSettingsDisabled} />
+        </Activity>
       </ContentSection>
       <ContentSection>
         <Typography component="h2" variant="h2" className="pl-4">

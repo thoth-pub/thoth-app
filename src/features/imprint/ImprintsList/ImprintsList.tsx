@@ -29,7 +29,7 @@ const ImprintsList = () => {
               id={imprint.id}
               deleteDisabled={data.length <= 1}
               disabled={!isImprintEditable}
-              superuserOnly={!isSuperuser}
+              isSettingsDisabled={!isSuperuser}
               onUpdate={updateImprint}
               onDelete={deleteImprint}
             />
@@ -37,7 +37,12 @@ const ImprintsList = () => {
         ))}
       </ul>
       {isEditingNewImprint && (
-        <EditImprint id={appConfig.defaultId} disabled={!isImprintEditable} superuserOnly={!isSuperuser} onUpdate={createImprint} />
+        <EditImprint
+          id={appConfig.defaultId}
+          disabled={!isImprintEditable}
+          isSettingsDisabled={!isSuperuser}
+          onUpdate={createImprint}
+        />
       )}
       {isImprintEditable && (
         <Button className="mr-auto ml-4 capitalize xl:ml-0" onClick={addNewImprint} disabled={isAddNewButtonDisabled}>

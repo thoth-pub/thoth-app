@@ -1,3 +1,5 @@
+import { Activity } from 'react';
+
 import type { CurrencyCode, LocaleCode } from '@/gql/graphql';
 import { appConfig } from '@/src/shared/config';
 import { currencyOptions, FORM_FIELDS, HELPER_TEXT, IDs, languageOptionsAlt } from '@/src/shared/constants';
@@ -34,12 +36,22 @@ type EditImprintProps = Partial<{
   id: ImprintId;
   disabled: boolean;
   deleteDisabled: boolean;
-  superuserOnly: boolean;
+  isSettingsDisabled: boolean;
   onUpdate: (data: EditImprintData) => void;
   onDelete: (imprintId: ImprintId) => void;
 }>;
 
-const { IMPRINT, IMPRINT_URL, CROSSMARK_DOI, DEFAULT_PLACE, DEFAULT_CURRENCY, DEFAULT_LOCALE, S3_BUCKET, CDN_DOMAIN, CLOUDFRONT_DIST_ID } = FORM_FIELDS;
+const {
+  IMPRINT,
+  IMPRINT_URL,
+  CROSSMARK_DOI,
+  DEFAULT_PLACE,
+  DEFAULT_CURRENCY,
+  DEFAULT_LOCALE,
+  S3_BUCKET,
+  CDN_DOMAIN,
+  CLOUDFRONT_DIST_ID,
+} = FORM_FIELDS;
 
 const {
   EDIT_IMPRINT,
@@ -54,7 +66,15 @@ const {
 } = HELPER_TEXT;
 
 const EditImprint = (props: EditImprintProps) => {
-  const { imprint, id = '', onUpdate, onDelete, deleteDisabled = false, disabled = false, superuserOnly = true } = props;
+  const {
+    imprint,
+    id = '',
+    onUpdate,
+    onDelete,
+    deleteDisabled = false,
+    disabled = false,
+    isSettingsDisabled = true,
+  } = props;
 
   const defaultName = imprint?.name ?? '';
   const isDeleteDisabled = defaultName.length === 0 || id.length === 0 || id === appConfig.defaultId || deleteDisabled;
@@ -172,39 +192,42 @@ const EditImprint = (props: EditImprintProps) => {
               fullWidth
             />
           </MultipleContentWrapper>
-          <MultipleContentWrapper>
-            <FormFieldLabel label={S3_BUCKET.label} id={S3_BUCKET.name} />
-            <FormTextField
-              control={control}
-              name={S3_BUCKET.name}
-              id={S3_BUCKET.name}
-              helperText={S3_BUCKET_HELPER}
-              fullWidth
-              disabled={disabled || superuserOnly}
-            />
-          </MultipleContentWrapper>
-          <MultipleContentWrapper>
-            <FormFieldLabel label={CDN_DOMAIN.label} id={CDN_DOMAIN.name} />
-            <FormTextField
-              control={control}
-              name={CDN_DOMAIN.name}
-              id={CDN_DOMAIN.name}
-              helperText={CDN_DOMAIN_HELPER}
-              fullWidth
-              disabled={disabled || superuserOnly}
-            />
-          </MultipleContentWrapper>
-          <MultipleContentWrapper>
-            <FormFieldLabel label={CLOUDFRONT_DIST_ID.label} id={CLOUDFRONT_DIST_ID.name} />
-            <FormTextField
-              control={control}
-              name={CLOUDFRONT_DIST_ID.name}
-              id={CLOUDFRONT_DIST_ID.name}
-              helperText={CLOUDFRONT_DIST_ID_HELPER}
-              fullWidth
-              disabled={disabled || superuserOnly}
-            />
-          </MultipleContentWrapper>
+
+          <Activity mode={isSettingsDisabled ? 'hidden' : 'visible'}>
+            <MultipleContentWrapper>
+              <FormFieldLabel label={S3_BUCKET.label} id={S3_BUCKET.name} />
+              <FormTextField
+                control={control}
+                name={S3_BUCKET.name}
+                id={S3_BUCKET.name}
+                helperText={S3_BUCKET_HELPER}
+                fullWidth
+                disabled={disabled}
+              />
+            </MultipleContentWrapper>
+            <MultipleContentWrapper>
+              <FormFieldLabel label={CDN_DOMAIN.label} id={CDN_DOMAIN.name} />
+              <FormTextField
+                control={control}
+                name={CDN_DOMAIN.name}
+                id={CDN_DOMAIN.name}
+                helperText={CDN_DOMAIN_HELPER}
+                fullWidth
+                disabled={disabled}
+              />
+            </MultipleContentWrapper>
+            <MultipleContentWrapper>
+              <FormFieldLabel label={CLOUDFRONT_DIST_ID.label} id={CLOUDFRONT_DIST_ID.name} />
+              <FormTextField
+                control={control}
+                name={CLOUDFRONT_DIST_ID.name}
+                id={CLOUDFRONT_DIST_ID.name}
+                helperText={CLOUDFRONT_DIST_ID_HELPER}
+                fullWidth
+                disabled={disabled}
+              />
+            </MultipleContentWrapper>
+          </Activity>
         </div>
       )}
       preview={({ disabled: previewDisabled, onEdit }) => (
