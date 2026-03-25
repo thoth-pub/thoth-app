@@ -290,19 +290,19 @@
     "helperText": "Enter the dimensions of the publication."
   },
   "width": {
-    "label": "Width",
+    "label": "Width (mm/in)",
     "helperText": "Enter the width of the publication."
   },
   "height": {
-    "label": "Height",
+    "label": "Height (mm/in)",
     "helperText": "Enter the height of the publication."
   },
   "depth": {
-    "label": "Depth",
+    "label": "Depth (mm/in)",
     "helperText": "Enter the depth of the publication."
   },
   "weight": {
-    "label": "Weight",
+    "label": "Weight (g/oz)",
     "helperText": "Enter the weight of the publication."
   },
   "program": {

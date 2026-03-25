@@ -291,19 +291,19 @@
     "label": "Maße"
   },
   "width": {
-    "label": "Maße: Breite",
+    "label": "Maße: Breite (mm/in)",
     "helperText": "Maße: Breite des Print-Titels angeben"
   },
   "height": {
-    "label": "Höhe",
+    "label": "Höhe (mm/in)",
     "helperText": "Maße: Höhe des Print-Titels angeben."
   },
   "depth": {
-    "label": "Stärke",
+    "label": "Stärke (mm/in)",
     "helperText": "Maße: Dicke / Stärke des Print-Titels angeben."
   },
   "weight": {
-    "label": "Maße: Gewicht",
+    "label": "Maße: Gewicht (g/oz)",
     "helperText": "Maße: Gewicht des Print-Titels angeben."
   },
   "program": {

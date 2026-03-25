@@ -60,14 +60,6 @@ const ContributionForms = (props: ContributionFormsProps) => {
         onSubmit={onNamesSubmit}
       />
       <EditType contributorType={type} onSubmit={onContributorTypeSubmit} />
-      <EditBiography
-        contributionId={id}
-        biographies={biographies}
-        recommended={showRecommendations}
-        defaultLocaleOption={defaultLocaleOption}
-        onSubmit={onBiographySubmit}
-      />
-      {children}
       <ContentWrapper>
         <InputLabel component="span">
           <TranslatedContent content={CANONICAL_CONTRIBUTOR.label} namespace={NAMESPACES.enum.forms} />
@@ -78,6 +70,14 @@ const ContributionForms = (props: ContributionFormsProps) => {
           className="mr-auto p-0"
         />
       </ContentWrapper>
+      <EditBiography
+        contributionId={id}
+        biographies={biographies}
+        recommended={showRecommendations}
+        defaultLocaleOption={defaultLocaleOption}
+        onSubmit={onBiographySubmit}
+      />
+      {children}
     </TableFormsWrapper>
   );
 };

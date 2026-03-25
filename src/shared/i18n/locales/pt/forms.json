@@ -286,19 +286,19 @@
     "label": "Dimensões"
   },
   "width": {
-    "label": "Largura",
+    "label": "Largura (mm/in)",
     "helperText": "Insira a largura da publicação."
   },
   "height": {
-    "label": "Altura",
+    "label": "Altura (mm/in)",
     "helperText": "Insira a altura da publicação."
   },
   "depth": {
-    "label": "Profundidade",
+    "label": "Profundidade (mm/in)",
     "helperText": "Insira a profundidade da publicação."
   },
   "weight": {
-    "label": "Peso",
+    "label": "Peso (g/oz)",
     "helperText": "Insira o peso da publicação."
   },
   "program": {
