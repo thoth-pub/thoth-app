@@ -15,7 +15,7 @@
     "helperText": "Introduzca la declaración de accesibilidad de la editorial para lectores con discapacidad."
   },
   "title": {
-    "helperText": "Introduzca el título de la obra."
+    "helperText": "$md:title-helperText"
   },
   "subtitle": {
     "label": "Subtítulo",

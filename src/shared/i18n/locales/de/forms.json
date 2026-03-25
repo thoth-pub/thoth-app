@@ -15,7 +15,7 @@
     "helperText": "Enter the accessibility statement of the publisher for readers with impairments."
   },
   "title": {
-    "helperText": "Den Titel des Werkes eingeben."
+    "helperText": "$md:title-helperText"
   },
   "subtitle": {
     "label": "Subtitel",

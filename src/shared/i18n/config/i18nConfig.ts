@@ -5,11 +5,13 @@ import LanguageDetector from 'i18next-browser-languagedetector';
 import { initReactI18next } from 'react-i18next';
 
 import { LOCALES } from '../../constants';
+import { resolveMarkdownRefs } from '../lib/resolveMarkdownRefs';
 // Deutsch
 import commonDe from '../locales/de/common.json';
 import dashboardDe from '../locales/de/dashboard.json';
 import filtersDe from '../locales/de/filters.json';
 import formsDe from '../locales/de/forms.json';
+import markdownDe from '../locales/de/markdown';
 import navigationDe from '../locales/de/navigation.json';
 import profileDe from '../locales/de/profile.json';
 import seriesDe from '../locales/de/series.json';
@@ -21,6 +23,7 @@ import commonEn from '../locales/en/common.json';
 import dashboardEn from '../locales/en/dashboard.json';
 import filtersEn from '../locales/en/filters.json';
 import formsEn from '../locales/en/forms.json';
+import markdownEn from '../locales/en/markdown';
 import navigationEn from '../locales/en/navigation.json';
 import profileEn from '../locales/en/profile.json';
 import seriesEn from '../locales/en/series.json';
@@ -32,6 +35,7 @@ import commonEs from '../locales/es/common.json';
 import dashboardEs from '../locales/es/dashboard.json';
 import filtersEs from '../locales/es/filters.json';
 import formsEs from '../locales/es/forms.json';
+import markdownEs from '../locales/es/markdown';
 import navigationEs from '../locales/es/navigation.json';
 import profileEs from '../locales/es/profile.json';
 import seriesEs from '../locales/es/series.json';
@@ -43,6 +47,7 @@ import commonPt from '../locales/pt/common.json';
 import dashboardPt from '../locales/pt/dashboard.json';
 import filtersPt from '../locales/pt/filters.json';
 import formsPt from '../locales/pt/forms.json';
+import markdownPt from '../locales/pt/markdown';
 import navigationPt from '../locales/pt/navigation.json';
 import profilePt from '../locales/pt/profile.json';
 import seriesPt from '../locales/pt/series.json';
@@ -61,7 +66,7 @@ i18n
         dashboard: dashboardEn,
         navigation: navigationEn,
         profile: profileEn,
-        forms: formsEn,
+        forms: resolveMarkdownRefs(formsEn, markdownEn),
         filters: filtersEn,
         sets: setsEn,
         series: seriesEn,
@@ -73,7 +78,7 @@ i18n
         dashboard: dashboardPt,
         navigation: navigationPt,
         profile: profilePt,
-        forms: formsPt,
+        forms: resolveMarkdownRefs(formsPt, markdownPt),
         filters: filtersPt,
         sets: setsPt,
         series: seriesPt,
@@ -85,7 +90,7 @@ i18n
         dashboard: dashboardEs,
         navigation: navigationEs,
         profile: profileEs,
-        forms: formsEs,
+        forms: resolveMarkdownRefs(formsEs, markdownEs),
         filters: filtersEs,
         sets: setsEs,
         series: seriesEs,
@@ -97,7 +102,7 @@ i18n
         dashboard: dashboardDe,
         navigation: navigationDe,
         profile: profileDe,
-        forms: formsDe,
+        forms: resolveMarkdownRefs(formsDe, markdownDe),
         filters: filtersDe,
         sets: setsDe,
         series: seriesDe,
