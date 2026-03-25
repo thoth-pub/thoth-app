@@ -474,6 +474,10 @@ export const FORM_FIELDS = {
     placeholder: 'weight.label',
     type: InputTypes.NUMBER,
   },
+  PUBLICATION_ACCESSIBILITY: {
+    label: 'accessibility.accessibility',
+    name: 'accessibility',
+  },
   PUBLICATION_ACCESSIBILITY_STANDARD: {
     label: 'specification.label',
     name: 'accessibilityStandard',
@@ -2922,6 +2926,7 @@ export const accessibilityAdditionalEpubStandardOptions = [
 ];
 
 export const accessibilityExceptionOptions = [
+  { value: '', label: 'None' },
   {
     value: AccessibilityExceptions.enum.DisproportionateBurden,
     label: 'Disproportionate Burden',

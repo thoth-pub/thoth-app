@@ -154,7 +154,7 @@ const EditLocations = (props: EditLocationsProps) => {
       )}
 
       {isLocationsFilled && (
-        <AddButton onAdd={handleAddNewLocation} className="mt-4 mr-auto capitalize" disabled={!!activeFormId}>
+        <AddButton onAdd={handleAddNewLocation} className="mt-4 mr-auto p-0 capitalize" disabled={!!activeFormId}>
           add new location
         </AddButton>
       )}

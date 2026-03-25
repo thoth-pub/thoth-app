@@ -27,9 +27,7 @@ const EditPublication = (props: EditPublicationProps) => {
     updatePrices,
     updateLocations,
     deleteLocation,
-    updateAccessibilityStandards,
-    updateAccessibilityException,
-    updateAccessibilityReport,
+    updateAccessibility,
     deleteAccessibility,
     updateFile,
   } = useEditPublication({
@@ -67,9 +65,7 @@ const EditPublication = (props: EditPublicationProps) => {
       onDone={finishEditing}
       onClose={finishEditing}
       onUpdateDimensions={updateSizes}
-      onUpdateAccessibilityStandards={updateAccessibilityStandards}
-      onUpdateAccessibilityException={updateAccessibilityException}
-      onUpdateAccessibilityReport={updateAccessibilityReport}
+      onUpdateAccessibility={updateAccessibility}
       onDeleteAccessibility={deleteAccessibility}
       onUpdateFile={updateFile}
     >

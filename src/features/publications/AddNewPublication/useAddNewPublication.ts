@@ -7,6 +7,7 @@ import type { LocationEntity } from '@/src/entities/locations/model/location.typ
 import type { PricesForm } from '@/src/entities/price/model/price.types';
 import { useCreatePublication, usePublicationsStateMachine } from '@/src/entities/publication';
 import type {
+  PublicationAccessibilityForm,
   PublicationDimensionsForm,
   PublicationEntity,
   PublicationType,
@@ -18,7 +19,7 @@ import {
   getAccessibilityStandardOptions,
 } from '@/src/shared/constants';
 import { useDefaultCurrencyOption } from '@/src/shared/hooks';
-import type { AccessibilityExceptionType, AccessibilityStandardType, BaseEditSectionProps } from '@/src/shared/types';
+import type { BaseEditSectionProps } from '@/src/shared/types';
 import { isAccessibilityStandardAvailable } from '@/src/shared/utils';
 import { selectCanonicalLocation } from '@/src/shared/utils/locations';
 
@@ -137,36 +138,20 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     setPublication({ ...publication, locations: updatedLocationsWithCanonical });
   };
 
-  const updateAccessibilityStandards = (standards: AccessibilityStandardType[]) => {
-    if (!publication || standards.length === 0) return;
+  const updateAccessibility = (data: PublicationAccessibilityForm) => {
+    if (!publication) return;
 
-    const standard = standards.find((standard) => accessibilityStandards.includes(standard));
-    const additionalStandard = standards.find((standard) => accessibilityAdditionalStandards.includes(standard));
+    const standards = data.accessibilityStandard ?? [];
+    const standard = standards.find((s) => accessibilityStandards.includes(s));
+    const additionalStandard = standards.find((s) => accessibilityAdditionalStandards.includes(s));
 
     setPublication({
       ...publication,
       accessibilityStandard: standard ?? null,
       accessibilityAdditionalStandard: additionalStandard && standard ? additionalStandard : null,
-      accessibilityException: null,
+      accessibilityException: data.accessibilityException ?? null,
+      accessibilityReportUrl: data.accessibilityReportUrl ?? '',
     });
-  };
-
-  const updateAccessibilityException = (exception: AccessibilityExceptionType) => {
-    if (!publication) return;
-
-    setPublication({
-      ...publication,
-      accessibilityStandard: null,
-      accessibilityAdditionalStandard: null,
-      accessibilityException: exception,
-      accessibilityReportUrl: '',
-    });
-  };
-
-  const updateAccessibilityReport = (report: string) => {
-    if (!publication) return;
-
-    setPublication({ ...publication, accessibilityException: null, accessibilityReportUrl: report });
   };
 
   const deleteAccessibility = () => {
@@ -177,6 +162,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
       accessibilityStandard: null,
       accessibilityAdditionalStandard: null,
       accessibilityException: null,
+      accessibilityReportUrl: '',
     });
   };
 
@@ -198,9 +184,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
     updatePrices,
     updateLocations,
     deleteLocation,
-    updateAccessibilityStandards,
-    updateAccessibilityException,
-    updateAccessibilityReport,
+    updateAccessibility,
     deleteAccessibility,
     updateFile,
   };

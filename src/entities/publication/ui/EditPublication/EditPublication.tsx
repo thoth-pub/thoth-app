@@ -9,11 +9,9 @@ import {
   isFullTextUrlAvailable,
 } from '@/src/shared/utils';
 
-import type { PublicationDimensionsForm, PublicationType } from '../../model/publication.types';
+import type { PublicationAccessibilityForm, PublicationDimensionsForm, PublicationType } from '../../model/publication.types';
 import DownloadPublication from '../DownloadPublication/DownloadPublication';
-import { EditAccessibilityException } from './components/EditAccessibilityException';
-import { EditAccessibilityReport } from './components/EditAccessibilityReport';
-import { EditAccessibilityStandard } from './components/EditAccessibilityStandard';
+import { EditAccessibility } from './components/EditAccessibility';
 import { EditDimensions } from './components/EditDimensions';
 import EditFile from './components/EditFile';
 import EditIsbn from './components/EditIsbn';
@@ -43,9 +41,7 @@ type EditPublicationProps = {
   onUpdateType?: (type: PublicationType) => void;
   onUpdateIsbn?: (isbn: string) => void;
   onUpdateDimensions?: (dimensions: PublicationDimensionsForm) => void;
-  onUpdateAccessibilityStandards?: (standards: AccessibilityStandardType[]) => void;
-  onUpdateAccessibilityException?: (exception: AccessibilityExceptionType) => void;
-  onUpdateAccessibilityReport?: (report: string) => void;
+  onUpdateAccessibility?: (data: PublicationAccessibilityForm) => void;
   onDeleteAccessibility?: () => void;
   onUpdateFile?: (file: File) => void;
 };
@@ -75,9 +71,7 @@ const EditPublication = (props: EditPublicationProps) => {
     onUpdateType,
     onUpdateIsbn,
     onUpdateDimensions,
-    onUpdateAccessibilityStandards,
-    onUpdateAccessibilityException,
-    onUpdateAccessibilityReport,
+    onUpdateAccessibility,
     onDeleteAccessibility,
     onUpdateFile,
   } = props;
@@ -126,20 +120,14 @@ const EditPublication = (props: EditPublicationProps) => {
       {children?.(isFullTextUrlHidden)}
 
       <Activity mode={isAccessabilitySectionAvailable ? 'visible' : 'hidden'}>
-        <EditAccessibilityStandard
+        <EditAccessibility
           publicationType={publicationType}
           standards={accessibilityStandards}
-          onSubmit={onUpdateAccessibilityStandards}
-          onDelete={onDeleteAccessibility}
-        />
-
-        <EditAccessibilityException
           exception={accessibilityException}
-          onSubmit={onUpdateAccessibilityException}
+          reportUrl={accessibilityReportUrl}
+          onSubmit={onUpdateAccessibility}
           onDelete={onDeleteAccessibility}
         />
-
-        <EditAccessibilityReport report={accessibilityReportUrl} onSubmit={onUpdateAccessibilityReport} />
       </Activity>
     </TableFormsWrapper>
   );

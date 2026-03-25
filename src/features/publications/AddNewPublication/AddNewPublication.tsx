@@ -28,9 +28,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
     updatePrices,
     updateLocations,
     deleteLocation,
-    updateAccessibilityStandards,
-    updateAccessibilityException,
-    updateAccessibilityReport,
+    updateAccessibility,
     deleteAccessibility,
     updateFile,
   } = useAddNewPublication({
@@ -85,9 +83,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         onClose={finishEditing}
         onDone={create}
         onUpdateDimensions={updateDimensions}
-        onUpdateAccessibilityStandards={updateAccessibilityStandards}
-        onUpdateAccessibilityException={updateAccessibilityException}
-        onUpdateAccessibilityReport={updateAccessibilityReport}
+        onUpdateAccessibility={updateAccessibility}
         onDeleteAccessibility={deleteAccessibility}
         onUpdateFile={updateFile}
       >

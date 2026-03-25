@@ -35,6 +35,7 @@ export const IDs = {
   PUBLICATION_TYPE: 'publication_type',
   PUBLICATION_ISBN: 'publication_isbn',
   PUBLICATION_SIZES: 'publication_sizes',
+  PUBLICATION_ACCESSIBILITY: 'publication_accessibility',
   PUBLICATION_ACCESSIBILITY_STANDARD: 'publication_accessibility_standard',
   PUBLICATION_ACCESSIBILITY_EXCEPTION: 'publication_accessibility_exception',
   PUBLICATION_ACCESSIBILITY_REPORT_URL: 'publication_accessibility_report_url',

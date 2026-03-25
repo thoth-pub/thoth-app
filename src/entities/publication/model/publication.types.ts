@@ -9,6 +9,7 @@ import {
   accessibilityExceptionValidationSchema,
   accessibilityReportUrlValidationSchema,
   accessibilityStandardValidationSchema,
+  accessibilityValidationSchema,
   dimensionsValidationSchema,
   isbnValidationSchema,
   publicationFileValidationSchema,
@@ -78,5 +79,7 @@ export type PublicationAccessibilityStandardForm = z.infer<typeof accessibilityS
 export type PublicationAccessibilityExceptionForm = z.infer<typeof accessibilityExceptionValidationSchema>;
 
 export type PublicationAccessibilityReportUrlForm = z.infer<typeof accessibilityReportUrlValidationSchema>;
+
+export type PublicationAccessibilityForm = z.infer<typeof accessibilityValidationSchema>;
 
 export type PublicationFileForm = z.infer<typeof publicationFileValidationSchema>;

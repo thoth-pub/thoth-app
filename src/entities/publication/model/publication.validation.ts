@@ -74,6 +74,21 @@ export const accessibilityReportUrlValidationSchema = z.object({
   [PUBLICATION_ACCESSIBILITY_REPORT_URL.name]: optionalUrlValidation,
 });
 
+export const accessibilityValidationSchema = z
+  .object({
+    [PUBLICATION_ACCESSIBILITY_STANDARD.name]: z.array(accessibilityStandardValidation).min(0).optional().default([]),
+    [PUBLICATION_ACCESSIBILITY_EXCEPTION.name]: accessibilityExceptionValidation.optional().or(z.literal('')),
+    [PUBLICATION_ACCESSIBILITY_REPORT_URL.name]: optionalUrlValidation,
+  })
+  .refine(
+    (data) => {
+      const hasStandards = data.accessibilityStandard && data.accessibilityStandard.length > 0;
+      const hasException = !!data.accessibilityException;
+      return !(hasStandards && hasException);
+    },
+    { message: 'Cannot have both specification and exception' },
+  );
+
 export const publicationFileValidationSchema = z.object({
   [PUBLICATION_FILE.name]: getFileValidation(
     appConfig.minFileSize,
