@@ -3,7 +3,7 @@ import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublisherDtoMapper } from '../model/publisher.mapper';
 import { CREATE_CONTACT, CREATE_PUBLISHER, DELETE_CONTACT, UPDATE_CONTACT } from '../model/publisher.mutations';
-import { GET_PUBLISHER, GET_PUBLISHERS, UPDATE_PUBLISHER } from '../model/publisher.schema';
+import { GET_PUBLISHER, GET_PUBLISHER_ADMIN, GET_PUBLISHERS, UPDATE_PUBLISHER } from '../model/publisher.schema';
 import type { ContactEntity, ContactId, PublisherDto, PublisherEntity, PublisherId } from '../model/publisher.types';
 
 export class PublisherService extends BaseService<PublisherEntity, PublisherDto, PublisherDtoMapper> {
@@ -22,8 +22,9 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     return data;
   }
 
-  async getPublisher(publisherId: PublisherId): Promise<PublisherEntity> {
-    const { publisher } = await this.graphqlService.query(GET_PUBLISHER, {
+  async getPublisher(publisherId: PublisherId, isSuperuser = false): Promise<PublisherEntity> {
+    const query = isSuperuser ? GET_PUBLISHER_ADMIN : GET_PUBLISHER;
+    const { publisher } = await this.graphqlService.query(query, {
       publisherId,
     });
 
@@ -32,8 +33,8 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     return data;
   }
 
-  async updatePublisher(data: PublisherEntity): Promise<PublisherEntity> {
-    const dto = this.dtoMapper.toDto(data);
+  async updatePublisher(data: PublisherEntity, isSuperuser = false): Promise<PublisherEntity> {
+    const dto = this.dtoMapper.toDto(data, isSuperuser);
 
     const { updatePublisher } = await this.graphqlService.mutation(UPDATE_PUBLISHER, {
       data: dto,

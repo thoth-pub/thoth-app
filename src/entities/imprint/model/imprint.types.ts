@@ -4,22 +4,14 @@ import type { CurrencyCode, Imprint, LocaleCode, Publisher } from '@/gql/graphql
 
 import { imprintValidationSchema } from './imprint.validation';
 
-export type ImprintDto = Pick<
+export type ImprintBaseDto = Pick<
   Imprint,
-  | 'imprintId'
-  | 'imprintName'
-  | 'imprintUrl'
-  | 'updatedAt'
-  | 'crossmarkDoi'
-  | 'defaultCurrency'
-  | 'defaultLocale'
-  | 'defaultPlace'
-  | 's3Bucket'
-  | 'cdnDomain'
-  | 'cloudfrontDistId'
+  'imprintId' | 'imprintName' | 'imprintUrl' | 'updatedAt' | 'crossmarkDoi' | 'defaultCurrency' | 'defaultLocale' | 'defaultPlace'
 > & {
   publisher: Pick<Publisher, 'publisherName'>;
 };
+
+export type ImprintDto = ImprintBaseDto & Pick<Imprint, 's3Bucket' | 'cdnDomain' | 'cloudfrontDistId'>;
 
 export type ImprintId = string;
 

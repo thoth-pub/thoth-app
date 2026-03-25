@@ -6,7 +6,6 @@ export const PUBLISHER_FRAGMENT = graphql(`
     publisherName
     publisherShortname
     publisherUrl
-    zitadelId
     updatedAt
     accessibilityReportUrl
     accessibilityStatement

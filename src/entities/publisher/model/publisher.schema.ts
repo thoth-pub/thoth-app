@@ -16,6 +16,15 @@ export const GET_PUBLISHER = graphql(`
   }
 `);
 
+export const GET_PUBLISHER_ADMIN = graphql(`
+  query GetPublisherAdmin($publisherId: Uuid!) {
+    publisher(publisherId: $publisherId) {
+      ...PublisherFragment
+      zitadelId
+    }
+  }
+`);
+
 export const UPDATE_PUBLISHER = graphql(`
   mutation UpdatePublisher($data: PatchPublisher!) {
     updatePublisher(data: $data) {

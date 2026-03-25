@@ -1,37 +1,25 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import type { CurrencyCode, LocaleCode } from '@/gql/graphql';
 import { PublisherId } from '@/src/entities/publisher';
+import { useUser } from '@/src/entities/user';
 import { QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 
-import { type ImprintId } from '../../model/imprint.types';
-
-export type UpdateImprintData = {
-  name: string;
-  id: ImprintId;
-  url?: string;
-  crossmarkDoi?: string;
-  defaultPlace?: string;
-  defaultCurrency?: CurrencyCode;
-  defaultLocale?: LocaleCode;
-  s3Bucket?: string;
-  cdnDomain?: string;
-  cloudfrontDistId?: string;
-};
+import { type ImprintEntity } from '../../model/imprint.types';
 
 const useUpdateImprint = () => {
   const { imprintService } = useServices();
+  const { user } = useUser();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async ({ data, publisherId }: { data: UpdateImprintData; publisherId: PublisherId }) => {
-      return imprintService.updateImprint(data, publisherId);
+    mutationFn: async ({ entity, publisherId }: { entity: ImprintEntity; publisherId: PublisherId }) => {
+      return imprintService.updateImprint(entity, publisherId, user.isSuperuser);
     },
   });
 
-  const updateImprint = async ({ data, publisherId }: { data: UpdateImprintData; publisherId: PublisherId }) => {
-    await mutateAsync({ data, publisherId });
+  const updateImprint = async ({ entity, publisherId }: { entity: ImprintEntity; publisherId: PublisherId }) => {
+    await mutateAsync({ entity, publisherId });
     queryClient.invalidateQueries({ queryKey: [QueryKeys.publisherImprints, publisherId] });
     queryClient.invalidateQueries({ queryKey: [QueryKeys.userInfo] });
   };

@@ -21,9 +21,6 @@ export const GET_USER = graphql(`
             defaultCurrency
             defaultLocale
             defaultPlace
-            s3Bucket
-            cdnDomain
-            cloudfrontDistId
           }
         }
         permissions {

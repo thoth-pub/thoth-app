@@ -2,6 +2,7 @@
 
 import type { CurrencyCode, LocaleCode } from '@/gql/graphql';
 import {
+  type ImprintEntity,
   ImprintId,
   useCreateImprint,
   useDeleteImprint,
@@ -35,7 +36,7 @@ export const useImprintsList = () => {
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher ? activePublisher.id : '';
 
-  const { data } = useGetPublisherImprints(publisherId);
+  const { data } = useGetPublisherImprints(publisherId, user.isSuperuser);
   const defaultImprintId = IDs.IMPRINT(appConfig.defaultId);
   const isEditingNewImprint = activeFormId && isDefaultId(activeFormId as string);
   const { createImprint: createImprintMutation } = useCreateImprint();
@@ -54,21 +55,26 @@ export const useImprintsList = () => {
   };
 
   const updateImprint = async (formData: ImprintFormData) => {
-    await updateImprintMutation({
-      data: {
-        name: formData.imprintName,
-        id: formData.imprintId,
-        url: formData.imprintUrl,
-        crossmarkDoi: formData.crossmarkDoi,
-        defaultPlace: formData.defaultPlace,
-        defaultCurrency: formData.defaultCurrency,
-        defaultLocale: formData.defaultLocale,
-        s3Bucket: formData.s3Bucket,
-        cdnDomain: formData.cdnDomain,
-        cloudfrontDistId: formData.cloudfrontDistId,
-      },
-      publisherId,
-    });
+    const existingImprint = data.find((i) => i.id === formData.imprintId);
+
+    if (!existingImprint) return;
+
+    const entity: ImprintEntity = {
+      id: formData.imprintId,
+      name: formData.imprintName,
+      url: formData.imprintUrl,
+      crossmarkDoi: formData.crossmarkDoi,
+      defaultPlace: formData.defaultPlace,
+      defaultCurrency: formData.defaultCurrency,
+      defaultLocale: formData.defaultLocale,
+      s3Bucket: formData.s3Bucket,
+      cdnDomain: formData.cdnDomain,
+      cloudfrontDistId: formData.cloudfrontDistId,
+      updatedAt: existingImprint.updatedAt,
+      publisherName: existingImprint.publisherName,
+    };
+
+    await updateImprintMutation({ entity, publisherId });
     closeForm();
   };
 

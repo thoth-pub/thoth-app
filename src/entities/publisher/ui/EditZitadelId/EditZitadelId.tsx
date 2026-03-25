@@ -1,5 +1,6 @@
 'use client';
 
+import { useUser } from '@/src/entities/user';
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -15,9 +16,10 @@ const { PUBLISHER_ZITADEL_ID } = FORM_FIELDS;
 const { PUBLISHER_ZITADEL_ID: PUBLISHER_ZITADEL_ID_HELPER_TEXT } = HELPER_TEXT;
 
 const EditZitadelId = ({ isDisabled }: { isDisabled?: boolean }) => {
+  const { user } = useUser();
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher?.id ?? '';
-  const { publisher } = usePublisher(publisherId);
+  const { publisher } = usePublisher(publisherId, user.isSuperuser);
   const { updatePublisher } = useUpdatePublisher(publisherId);
 
   if (!activePublisher || !publisher) return null;
@@ -25,6 +27,8 @@ const EditZitadelId = ({ isDisabled }: { isDisabled?: boolean }) => {
   const defaultValue = publisher.zitadelId;
 
   const handleSubmit = (data: PublisherZitadelIdForm) => {
+    if (!user.isSuperuser) return;
+  
     const { publisherZitadelId } = data;
 
     updatePublisher({ ...publisher, zitadelId: publisherZitadelId ?? '' });

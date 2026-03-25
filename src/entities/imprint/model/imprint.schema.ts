@@ -17,6 +17,24 @@ export const GET_IMPRINTS = graphql(`
       defaultCurrency
       defaultLocale
       defaultPlace
+      publisher {
+        publisherName
+      }
+    }
+  }
+`);
+
+export const GET_IMPRINTS_ADMIN = graphql(`
+  query GetImprintsAdmin($offset: Int!, $limit: Int, $publishers: [Uuid!]!) {
+    imprints(offset: $offset, limit: $limit, publishers: $publishers) {
+      imprintId
+      imprintName
+      imprintUrl
+      updatedAt
+      crossmarkDoi
+      defaultCurrency
+      defaultLocale
+      defaultPlace
       s3Bucket
       cdnDomain
       cloudfrontDistId

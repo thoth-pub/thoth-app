@@ -16,19 +16,14 @@ import {
 
 export type ContactDto = Pick<Contact, 'contactId' | 'contactType' | 'email'>;
 
-export type PublisherDto = Pick<
+export type PublisherBaseDto = Pick<
   Publisher,
-  | 'publisherId'
-  | 'publisherName'
-  | 'publisherShortname'
-  | 'publisherUrl'
-  | 'zitadelId'
-  | 'updatedAt'
-  | 'accessibilityReportUrl'
-  | 'accessibilityStatement'
+  'publisherId' | 'publisherName' | 'publisherShortname' | 'publisherUrl' | 'updatedAt' | 'accessibilityReportUrl' | 'accessibilityStatement'
 > & {
   contacts: ContactDto[];
 };
+
+export type PublisherDto = PublisherBaseDto & Pick<Publisher, 'zitadelId'>;
 
 export type PublisherId = string;
 

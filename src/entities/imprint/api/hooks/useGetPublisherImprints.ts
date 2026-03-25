@@ -4,12 +4,12 @@ import { PublisherId } from '@/src/entities/publisher';
 import { QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 
-const useGetPublisherImprints = (publisherId: PublisherId) => {
+const useGetPublisherImprints = (publisherId: PublisherId, isSuperuser = false) => {
   const { imprintService } = useServices();
 
   const { data = [], isLoading } = useQuery({
-    queryKey: [QueryKeys.publisherImprints, publisherId],
-    queryFn: () => imprintService.getPublisherImprints(publisherId),
+    queryKey: [QueryKeys.publisherImprints, publisherId, isSuperuser],
+    queryFn: () => imprintService.getPublisherImprints(publisherId, isSuperuser),
     enabled: publisherId.length > 0,
   });
 

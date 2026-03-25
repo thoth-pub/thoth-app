@@ -23,19 +23,7 @@ export class UserDtoMapper implements BaseMapper<UserEntity, UserDto> {
         workLifecycle: permissions.workLifecycle,
         cdnWrite: permissions.cdnWrite,
         imprints: publisher.imprints.map(
-          ({
-            imprintId,
-            imprintName,
-            imprintUrl,
-            updatedAt,
-            crossmarkDoi,
-            defaultCurrency,
-            defaultLocale,
-            defaultPlace,
-            s3Bucket,
-            cdnDomain,
-            cloudfrontDistId,
-          }) => ({
+          ({ imprintId, imprintName, imprintUrl, updatedAt, crossmarkDoi, defaultCurrency, defaultLocale, defaultPlace }) => ({
             id: imprintId,
             name: imprintName,
             url: imprintUrl ?? '',
@@ -45,9 +33,9 @@ export class UserDtoMapper implements BaseMapper<UserEntity, UserDto> {
             defaultCurrency: defaultCurrency ?? publisherDefaultValues.defaultCurrency,
             defaultLocale: defaultLocale ?? publisherDefaultValues.defaultLocale,
             defaultPlace: defaultPlace ?? '',
-            s3Bucket: s3Bucket ?? '',
-            cdnDomain: cdnDomain ?? '',
-            cloudfrontDistId: cloudfrontDistId ?? '',
+            s3Bucket: '',
+            cdnDomain: '',
+            cloudfrontDistId: '',
           }),
         ),
       })),

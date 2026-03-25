@@ -2,6 +2,7 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
+import { useUser } from '@/src/entities/user';
 import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
@@ -12,12 +13,13 @@ const { PUBLISHER_UPDATE_FAILED } = NOTIFICATIONS;
 
 const useUpdatePublisher = (publisherId: PublisherId) => {
   const { publisherService } = useServices();
+  const { user } = useUser();
   const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: PublisherEntity) => {
-      return publisherService.updatePublisher(data);
+      return publisherService.updatePublisher(data, user.isSuperuser);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.publisher, publisherId] });

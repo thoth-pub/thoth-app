@@ -1,21 +1,22 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
 import { emptyToNull } from '@/src/shared/utils/strings';
 
-import type { ContactDto, ContactEntity, PublisherDto, PublisherEntity } from './publisher.types';
+import type { ContactDto, ContactEntity, PublisherBaseDto, PublisherDto, PublisherEntity } from './publisher.types';
 
 export class PublisherDtoMapper implements BaseMapper<PublisherEntity, PublisherDto> {
-  toEntity(dto: PublisherDto): PublisherEntity {
+  toEntity(dto: PublisherBaseDto | PublisherDto): PublisherEntity {
     const {
       publisherId,
       publisherName,
       publisherShortname,
       publisherUrl,
-      zitadelId,
       updatedAt,
       contacts,
       accessibilityReportUrl,
       accessibilityStatement,
     } = dto;
+
+    const zitadelId = 'zitadelId' in dto ? dto.zitadelId : null;
 
     return {
       id: publisherId,
@@ -30,7 +31,7 @@ export class PublisherDtoMapper implements BaseMapper<PublisherEntity, Publisher
     };
   }
 
-  toDto(entity: PublisherEntity): Omit<PublisherDto, 'contacts' | 'updatedAt'> {
+  toDto(entity: PublisherEntity, isSuperuser = false): Omit<PublisherBaseDto, 'contacts' | 'updatedAt'> & { zitadelId?: string | null } {
     const { id, name, shortName, url, zitadelId, accessibilityReportUrl, accessibilityStatement } = entity;
 
     return {
@@ -38,7 +39,7 @@ export class PublisherDtoMapper implements BaseMapper<PublisherEntity, Publisher
       publisherName: name,
       publisherShortname: emptyToNull(shortName),
       publisherUrl: url,
-      zitadelId: emptyToNull(zitadelId),
+      ...(isSuperuser ? { zitadelId: emptyToNull(zitadelId) } : {}),
       accessibilityReportUrl: emptyToNull(accessibilityReportUrl),
       accessibilityStatement: emptyToNull(accessibilityStatement),
     };
