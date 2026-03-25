@@ -42,6 +42,11 @@ const AddBookReview = (props: AddBookReviewProps) => {
     setBookReview({ ...bookReview, authorName });
   };
 
+  const updateReviewerOrcid = (reviewerOrcid: string) => {
+    if (!bookReview) return;
+    setBookReview({ ...bookReview, reviewerOrcid });
+  };
+
   const updateUrl = (url: string) => {
     if (!bookReview) return;
     setBookReview({ ...bookReview, url });
@@ -82,6 +87,11 @@ const AddBookReview = (props: AddBookReviewProps) => {
     setBookReview({ ...bookReview, reviewerInstitutionId: data.value, reviewerInstitutionName: data.label, reviewerInstitutionRor: data.ror });
   };
 
+  const updatePageRange = (pageRange: string) => {
+    if (!bookReview) return;
+    setBookReview({ ...bookReview, pageRange });
+  };
+
   const updateText = (text: string) => {
     if (!bookReview) return;
     setBookReview({ ...bookReview, text });
@@ -89,7 +99,7 @@ const AddBookReview = (props: AddBookReviewProps) => {
 
   if (!bookReview) return null;
 
-  const { title, authorName, reviewerInstitutionId, reviewerInstitutionName, url, doi, reviewDate, journalName, journalVolume, journalNumber, journalIssn, text } =
+  const { title, authorName, reviewerOrcid, reviewerInstitutionId, reviewerInstitutionName, url, doi, reviewDate, journalName, journalVolume, journalNumber, journalIssn, pageRange, text } =
     bookReview;
 
   return (
@@ -97,6 +107,7 @@ const AddBookReview = (props: AddBookReviewProps) => {
       <EditBookReviewForm
         title={title}
         authorName={authorName}
+        reviewerOrcid={reviewerOrcid}
         reviewerInstitutionId={reviewerInstitutionId}
         reviewerInstitutionName={reviewerInstitutionName}
         url={url}
@@ -106,9 +117,11 @@ const AddBookReview = (props: AddBookReviewProps) => {
         journalVolume={journalVolume}
         journalNumber={journalNumber}
         journalIssn={journalIssn}
+        pageRange={pageRange}
         text={text}
         onTitleUpdate={updateTitle}
         onAuthorNameUpdate={updateAuthorName}
+        onReviewerOrcidUpdate={updateReviewerOrcid}
         onReviewerInstitutionUpdate={updateReviewerInstitution}
         onUrlUpdate={updateUrl}
         onDoiUpdate={updateDoi}
@@ -117,6 +130,7 @@ const AddBookReview = (props: AddBookReviewProps) => {
         onJournalVolumeUpdate={updateJournalVolume}
         onJournalNumberUpdate={updateJournalNumber}
         onJournalIssnUpdate={updateJournalIssn}
+        onPageRangeUpdate={updatePageRange}
         onTextUpdate={updateText}
         onDone={create}
         onClose={finishEditing}

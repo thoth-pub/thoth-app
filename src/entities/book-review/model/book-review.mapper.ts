@@ -10,6 +10,7 @@ export class BookReviewDtoMapper implements BaseMapper<BookReviewEntity, BookRev
       workId,
       title,
       authorName,
+      reviewerOrcid,
       reviewerInstitutionId,
       reviewerInstitution,
       url,
@@ -19,6 +20,7 @@ export class BookReviewDtoMapper implements BaseMapper<BookReviewEntity, BookRev
       journalVolume,
       journalNumber,
       journalIssn,
+      pageRange,
       text,
       reviewOrdinal,
     } = dto;
@@ -28,6 +30,7 @@ export class BookReviewDtoMapper implements BaseMapper<BookReviewEntity, BookRev
       workId,
       title: title ?? '',
       authorName: authorName ?? '',
+      reviewerOrcid: reviewerOrcid ?? '',
       reviewerInstitutionId: reviewerInstitutionId ?? '',
       reviewerInstitutionName: reviewerInstitution?.institutionName ?? '',
       reviewerInstitutionRor: reviewerInstitution?.ror ?? '',
@@ -38,6 +41,7 @@ export class BookReviewDtoMapper implements BaseMapper<BookReviewEntity, BookRev
       journalVolume: journalVolume ?? '',
       journalNumber: journalNumber ?? '',
       journalIssn: journalIssn ?? '',
+      pageRange: pageRange ?? '',
       text: text ?? '',
       orderNumber: reviewOrdinal,
     };
@@ -49,6 +53,7 @@ export class BookReviewDtoMapper implements BaseMapper<BookReviewEntity, BookRev
       workId,
       title,
       authorName,
+      reviewerOrcid,
       reviewerInstitutionId,
       url,
       doi,
@@ -57,6 +62,7 @@ export class BookReviewDtoMapper implements BaseMapper<BookReviewEntity, BookRev
       journalVolume,
       journalNumber,
       journalIssn,
+      pageRange,
       text,
       orderNumber,
     } = entity;
@@ -66,6 +72,7 @@ export class BookReviewDtoMapper implements BaseMapper<BookReviewEntity, BookRev
       workId,
       title: emptyToNull(title),
       authorName: emptyToNull(authorName),
+      reviewerOrcid: emptyToNull(reviewerOrcid),
       reviewerInstitutionId: emptyToNull(reviewerInstitutionId),
       url: emptyToNull(url),
       doi: emptyToNull(doi),
@@ -74,6 +81,7 @@ export class BookReviewDtoMapper implements BaseMapper<BookReviewEntity, BookRev
       journalVolume: emptyToNull(journalVolume),
       journalNumber: emptyToNull(journalNumber),
       journalIssn: emptyToNull(journalIssn),
+      pageRange: emptyToNull(pageRange),
       text: emptyToNull(text),
       reviewOrdinal: orderNumber,
     };

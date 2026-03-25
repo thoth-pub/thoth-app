@@ -1,8 +1,8 @@
 import LinkIcon from '@mui/icons-material/Link';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 
-import { CardListItem, DeleteButton, DoiPreview, LinkTooltip, MarkdownRenderer, RorLogo, Typography } from '@/src/shared/ui';
-import { convertRorIdToText } from '@/src/shared/utils';
+import { CardListItem, DeleteButton, DoiPreview, LinkTooltip, MarkdownRenderer, OrchidLogo, RorLogo, Typography } from '@/src/shared/ui';
+import { convertOrchidIdToText, convertRorIdToText } from '@/src/shared/utils';
 
 import { BookReviewEntity } from '../../../model/book-review.types';
 
@@ -20,7 +20,7 @@ type BookReviewCardListItemProps = {
 export const BookReviewCardListItem = (props: BookReviewCardListItemProps) => {
   const { bookReview, draggable, editing, form, editDisabled = false, deleteLoading = false, onDelete, onEdit } = props;
 
-  const { id, title, authorName, reviewerInstitutionRor, url, doi } = bookReview;
+  const { id, title, authorName, reviewerOrcid, reviewerInstitutionRor, url, doi } = bookReview;
 
   return (
     <CardListItem
@@ -41,6 +41,11 @@ export const BookReviewCardListItem = (props: BookReviewCardListItemProps) => {
           {url.length > 0 && (
             <LinkTooltip link={url} linkText={url}>
               <LinkIcon fontSize="small" color="primary" />
+            </LinkTooltip>
+          )}
+          {reviewerOrcid && (
+            <LinkTooltip link={reviewerOrcid} linkText={convertOrchidIdToText(reviewerOrcid)}>
+              <OrchidLogo />
             </LinkTooltip>
           )}
           {reviewerInstitutionRor && (

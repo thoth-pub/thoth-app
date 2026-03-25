@@ -5,6 +5,7 @@ export const ENDORSEMENT_FRAGMENT = graphql(`
     endorsementId
     workId
     authorName
+    authorOrcid
     authorRole
     authorInstitutionId
     authorInstitution {

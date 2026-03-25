@@ -21,6 +21,12 @@ const EditBookReview = (props: BaseRecommendedSectionProps) => {
     updateBookReview({ ...activeBookReview, authorName });
   };
 
+  const updateReviewerOrcid = (reviewerOrcid: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, reviewerOrcid });
+    updateBookReview({ ...activeBookReview, reviewerOrcid });
+  };
+
   const updateUrl = (url: string) => {
     if (!activeBookReview) return;
     update({ ...activeBookReview, url });
@@ -69,6 +75,12 @@ const EditBookReview = (props: BaseRecommendedSectionProps) => {
     updateBookReview({ ...activeBookReview, reviewerInstitutionId: data.value, reviewerInstitutionName: data.label, reviewerInstitutionRor: data.ror });
   };
 
+  const updatePageRange = (pageRange: string) => {
+    if (!activeBookReview) return;
+    update({ ...activeBookReview, pageRange });
+    updateBookReview({ ...activeBookReview, pageRange });
+  };
+
   const updateText = (text: string) => {
     if (!activeBookReview) return;
     update({ ...activeBookReview, text });
@@ -80,6 +92,7 @@ const EditBookReview = (props: BaseRecommendedSectionProps) => {
   const {
     title,
     authorName,
+    reviewerOrcid,
     reviewerInstitutionId,
     reviewerInstitutionName,
     url,
@@ -89,6 +102,7 @@ const EditBookReview = (props: BaseRecommendedSectionProps) => {
     journalVolume,
     journalNumber,
     journalIssn,
+    pageRange,
     text,
   } = activeBookReview;
 
@@ -96,6 +110,7 @@ const EditBookReview = (props: BaseRecommendedSectionProps) => {
     <EditBookReviewForm
       title={title}
       authorName={authorName}
+      reviewerOrcid={reviewerOrcid}
       reviewerInstitutionId={reviewerInstitutionId}
       reviewerInstitutionName={reviewerInstitutionName}
       url={url}
@@ -105,9 +120,11 @@ const EditBookReview = (props: BaseRecommendedSectionProps) => {
       journalVolume={journalVolume}
       journalNumber={journalNumber}
       journalIssn={journalIssn}
+      pageRange={pageRange}
       text={text}
       onTitleUpdate={updateTitle}
       onAuthorNameUpdate={updateAuthorName}
+      onReviewerOrcidUpdate={updateReviewerOrcid}
       onReviewerInstitutionUpdate={updateReviewerInstitution}
       onUrlUpdate={updateUrl}
       onDoiUpdate={updateDoi}
@@ -116,6 +133,7 @@ const EditBookReview = (props: BaseRecommendedSectionProps) => {
       onJournalVolumeUpdate={updateJournalVolume}
       onJournalNumberUpdate={updateJournalNumber}
       onJournalIssnUpdate={updateJournalIssn}
+      onPageRangeUpdate={updatePageRange}
       onTextUpdate={updateText}
       onDone={finishEditing}
       onClose={finishEditing}

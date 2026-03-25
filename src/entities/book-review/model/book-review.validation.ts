@@ -2,18 +2,20 @@ import z from 'zod';
 
 import { FORM_FIELDS } from '@/src/shared/constants';
 import { optionalDateValidation, optionalStringValidation, optionalUrlValidation } from '@/src/shared/utils';
-import { doiValidation } from '@/src/shared/utils/validations';
+import { doiValidation, orcidValidation } from '@/src/shared/utils/validations';
 
 const {
   BOOK_REVIEW_URL,
   BOOK_REVIEW_TITLE,
   BOOK_REVIEW_AUTHOR_NAME,
   BOOK_REVIEW_REVIEWER_INSTITUTION,
+  BOOK_REVIEW_REVIEWER_ORCID,
   BOOK_REVIEW_REVIEW_DATE,
   BOOK_REVIEW_JOURNAL_NAME,
   BOOK_REVIEW_JOURNAL_VOLUME,
   BOOK_REVIEW_JOURNAL_NUMBER,
   BOOK_REVIEW_JOURNAL_ISSN,
+  BOOK_REVIEW_PAGE_RANGE,
   BOOK_REVIEW_TEXT,
   DOI,
 } = FORM_FIELDS;
@@ -52,6 +54,14 @@ export const bookReviewJournalNumberValidationSchema = z.object({
 
 export const bookReviewJournalIssnValidationSchema = z.object({
   [BOOK_REVIEW_JOURNAL_ISSN.name]: optionalStringValidation,
+});
+
+export const bookReviewPageRangeValidationSchema = z.object({
+  [BOOK_REVIEW_PAGE_RANGE.name]: optionalStringValidation,
+});
+
+export const bookReviewReviewerOrcidValidationSchema = z.object({
+  [BOOK_REVIEW_REVIEWER_ORCID.name]: orcidValidation,
 });
 
 export const bookReviewReviewerInstitutionValidationSchema = z.object({

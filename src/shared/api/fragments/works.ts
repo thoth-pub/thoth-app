@@ -195,6 +195,7 @@ export const WORK_FRAGMENT = graphql(`
       workId
       title
       authorName
+      reviewerOrcid
       reviewerInstitutionId
       reviewerInstitution {
         institutionId
@@ -208,6 +209,7 @@ export const WORK_FRAGMENT = graphql(`
       journalVolume
       journalNumber
       journalIssn
+      pageRange
       text
       reviewOrdinal
     }
@@ -215,6 +217,7 @@ export const WORK_FRAGMENT = graphql(`
       endorsementId
       workId
       authorName
+      authorOrcid
       authorRole
       authorInstitutionId
       authorInstitution {

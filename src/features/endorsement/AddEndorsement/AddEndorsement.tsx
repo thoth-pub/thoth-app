@@ -39,6 +39,12 @@ const AddEndorsement = (props: AddEndorsementProps) => {
     setEndorsement({ ...endorsement, authorName });
   };
 
+  const updateAuthorOrcid = (authorOrcid: string) => {
+    if (!endorsement) return;
+
+    setEndorsement({ ...endorsement, authorOrcid });
+  };
+
   const updateAuthorRole = (authorRole: string) => {
     if (!endorsement) return;
 
@@ -65,18 +71,20 @@ const AddEndorsement = (props: AddEndorsementProps) => {
 
   if (!endorsement) return null;
 
-  const { authorName, authorRole, authorInstitutionId, authorInstitutionName, url, text } = endorsement;
+  const { authorName, authorOrcid, authorRole, authorInstitutionId, authorInstitutionName, url, text } = endorsement;
 
   return (
     <TableNewEntityFormWrapper>
       <EditEndorsementForm
         authorName={authorName}
+        authorOrcid={authorOrcid}
         authorRole={authorRole}
         authorInstitutionId={authorInstitutionId}
         authorInstitutionName={authorInstitutionName}
         url={url}
         text={text}
         onAuthorNameUpdate={updateAuthorName}
+        onAuthorOrcidUpdate={updateAuthorOrcid}
         onAuthorRoleUpdate={updateAuthorRole}
         onAuthorInstitutionUpdate={updateAuthorInstitution}
         onUrlUpdate={updateUrl}

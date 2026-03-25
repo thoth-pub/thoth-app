@@ -5,12 +5,13 @@ import { EndorsementDto, EndorsementEntity } from './endorsement.types';
 
 export class EndorsementDtoMapper implements BaseMapper<EndorsementEntity, EndorsementDto> {
   toEntity(dto: EndorsementDto): EndorsementEntity {
-    const { endorsementId, workId, authorName, authorRole, authorInstitutionId, authorInstitution, url, text, endorsementOrdinal } = dto;
+    const { endorsementId, workId, authorName, authorOrcid, authorRole, authorInstitutionId, authorInstitution, url, text, endorsementOrdinal } = dto;
 
     return {
       id: endorsementId,
       workId,
       authorName: authorName ?? '',
+      authorOrcid: authorOrcid ?? '',
       authorRole: authorRole ?? '',
       authorInstitutionId: authorInstitutionId ?? '',
       authorInstitutionName: authorInstitution?.institutionName ?? '',
@@ -22,12 +23,13 @@ export class EndorsementDtoMapper implements BaseMapper<EndorsementEntity, Endor
   }
 
   toDto(entity: EndorsementEntity): EndorsementDto {
-    const { id, workId, authorName, authorRole, authorInstitutionId, url, text, orderNumber } = entity;
+    const { id, workId, authorName, authorOrcid, authorRole, authorInstitutionId, url, text, orderNumber } = entity;
 
     return {
       endorsementId: id,
       workId,
       authorName: emptyToNull(authorName),
+      authorOrcid: emptyToNull(authorOrcid),
       authorRole: emptyToNull(authorRole),
       authorInstitutionId: emptyToNull(authorInstitutionId),
       url: emptyToNull(url),

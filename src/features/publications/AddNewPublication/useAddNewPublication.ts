@@ -149,7 +149,8 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
       ...publication,
       accessibilityStandard: standard ?? null,
       accessibilityAdditionalStandard: additionalStandard && standard ? additionalStandard : null,
-      accessibilityException: data.accessibilityException ?? null,
+      accessibilityException:
+        data.accessibilityException && data.accessibilityException.length > 0 ? data.accessibilityException : null,
       accessibilityReportUrl: data.accessibilityReportUrl ?? '',
     });
   };

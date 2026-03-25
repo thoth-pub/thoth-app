@@ -2,7 +2,7 @@ import type { z } from 'zod';
 
 import type { EndorsementFragmentFragment } from '@/gql/graphql';
 
-import { endorsementAuthorInstitutionValidationSchema } from './endorsement.validation';
+import { endorsementAuthorInstitutionValidationSchema, endorsementAuthorOrcidValidationSchema } from './endorsement.validation';
 
 export type EndorsementDto = EndorsementFragmentFragment;
 
@@ -12,6 +12,7 @@ export type EndorsementEntity = {
   id: EndorsementId;
   workId: string;
   authorName: string;
+  authorOrcid: string;
   authorRole: string;
   authorInstitutionId: string;
   authorInstitutionName: string;
@@ -20,5 +21,7 @@ export type EndorsementEntity = {
   text: string;
   orderNumber: number;
 };
+
+export type EndorsementAuthorOrcidForm = z.infer<typeof endorsementAuthorOrcidValidationSchema>;
 
 export type EndorsementAuthorInstitutionForm = z.infer<typeof endorsementAuthorInstitutionValidationSchema>;

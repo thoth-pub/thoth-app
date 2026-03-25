@@ -6,6 +6,7 @@ export const CREATE_ENDORSEMENT = graphql(`
       endorsementId
       workId
       authorName
+      authorOrcid
       authorRole
       authorInstitutionId
       authorInstitution {
@@ -26,6 +27,7 @@ export const UPDATE_ENDORSEMENT = graphql(`
       endorsementId
       workId
       authorName
+      authorOrcid
       authorRole
       authorInstitutionId
       authorInstitution {
@@ -46,6 +48,7 @@ export const DELETE_ENDORSEMENT = graphql(`
       endorsementId
       workId
       authorName
+      authorOrcid
       authorRole
       authorInstitutionId
       authorInstitution {
@@ -66,6 +69,7 @@ export const MOVE_ENDORSEMENT = graphql(`
       endorsementId
       workId
       authorName
+      authorOrcid
       authorRole
       authorInstitutionId
       authorInstitution {

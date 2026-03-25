@@ -2,8 +2,9 @@ import z from 'zod';
 
 import { FORM_FIELDS } from '@/src/shared/constants';
 import { optionalStringValidation, optionalUrlValidation } from '@/src/shared/utils';
+import { orcidValidation } from '@/src/shared/utils/validations';
 
-const { ENDORSEMENT_URL, ENDORSEMENT_AUTHOR_NAME, ENDORSEMENT_AUTHOR_ROLE, ENDORSEMENT_AUTHOR_INSTITUTION, ENDORSEMENT_TEXT } = FORM_FIELDS;
+const { ENDORSEMENT_URL, ENDORSEMENT_AUTHOR_NAME, ENDORSEMENT_AUTHOR_ORCID, ENDORSEMENT_AUTHOR_ROLE, ENDORSEMENT_AUTHOR_INSTITUTION, ENDORSEMENT_TEXT } = FORM_FIELDS;
 
 export const endorsementUrlValidationSchema = z.object({
   [ENDORSEMENT_URL.name]: optionalUrlValidation,
@@ -11,6 +12,10 @@ export const endorsementUrlValidationSchema = z.object({
 
 export const endorsementAuthorNameValidationSchema = z.object({
   [ENDORSEMENT_AUTHOR_NAME.name]: optionalStringValidation,
+});
+
+export const endorsementAuthorOrcidValidationSchema = z.object({
+  [ENDORSEMENT_AUTHOR_ORCID.name]: orcidValidation,
 });
 
 export const endorsementAuthorRoleValidationSchema = z.object({

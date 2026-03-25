@@ -16,6 +16,7 @@ const defaultEndorsement: EndorsementEntity = {
   id: appConfig.defaultId,
   workId: '',
   authorName: '',
+  authorOrcid: '',
   authorRole: '',
   authorInstitutionId: '',
   authorInstitutionName: '',

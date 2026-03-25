@@ -16,6 +16,13 @@ const EditEndorsement = (props: BaseRecommendedSectionProps) => {
     updateEndorsement({ ...activeEndorsement, authorName });
   };
 
+  const updateAuthorOrcid = (authorOrcid: string) => {
+    if (!activeEndorsement) return;
+
+    update({ ...activeEndorsement, authorOrcid });
+    updateEndorsement({ ...activeEndorsement, authorOrcid });
+  };
+
   const updateAuthorRole = (authorRole: string) => {
     if (!activeEndorsement) return;
 
@@ -46,17 +53,19 @@ const EditEndorsement = (props: BaseRecommendedSectionProps) => {
 
   if (!activeEndorsement) return null;
 
-  const { authorName, authorRole, authorInstitutionId, authorInstitutionName, url, text } = activeEndorsement;
+  const { authorName, authorOrcid, authorRole, authorInstitutionId, authorInstitutionName, url, text } = activeEndorsement;
 
   return (
     <EditEndorsementForm
       authorName={authorName}
+      authorOrcid={authorOrcid}
       authorRole={authorRole}
       authorInstitutionId={authorInstitutionId}
       authorInstitutionName={authorInstitutionName}
       url={url}
       text={text}
       onAuthorNameUpdate={updateAuthorName}
+      onAuthorOrcidUpdate={updateAuthorOrcid}
       onAuthorRoleUpdate={updateAuthorRole}
       onAuthorInstitutionUpdate={updateAuthorInstitution}
       onUrlUpdate={updateUrl}

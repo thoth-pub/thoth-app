@@ -664,6 +664,16 @@ export const FORM_FIELDS = {
     name: 'journalIssn',
     placeholder: 'bookReviewJournalIssn.label',
   },
+  BOOK_REVIEW_PAGE_RANGE: {
+    label: 'bookReviewPageRange.label',
+    name: 'pageRange',
+    placeholder: 'bookReviewPageRange.label',
+  },
+  BOOK_REVIEW_REVIEWER_ORCID: {
+    label: 'bookReviewReviewerOrcid.label',
+    name: 'reviewerOrcid',
+    placeholder: 'bookReviewReviewerOrcid.label',
+  },
   BOOK_REVIEW_REVIEWER_INSTITUTION: {
     label: 'bookReviewReviewerInstitution.label',
     name: 'reviewerInstitution',
@@ -709,6 +719,11 @@ export const FORM_FIELDS = {
     label: 'endorsementAuthorName.label',
     name: 'authorName',
     placeholder: 'endorsementAuthorName.label',
+  },
+  ENDORSEMENT_AUTHOR_ORCID: {
+    label: 'endorsementAuthorOrcid.label',
+    name: 'authorOrcid',
+    placeholder: 'endorsementAuthorOrcid.label',
   },
   ENDORSEMENT_AUTHOR_ROLE: {
     label: 'endorsementAuthorRole.label',

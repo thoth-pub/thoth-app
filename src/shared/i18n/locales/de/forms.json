@@ -462,6 +462,14 @@
     "label": "Journal ISSN",
     "helperText": "Enter the ISSN of the journal."
   },
+  "bookReviewPageRange": {
+    "label": "Page Range",
+    "helperText": "Enter the page range of the review."
+  },
+  "bookReviewReviewerOrcid": {
+    "label": "Reviewer ORCID",
+    "helperText": "Enter the ORCID of the reviewer."
+  },
   "bookReviewReviewerInstitution": {
     "label": "Reviewer Institution",
     "helperText": "Search for and select the institution of the reviewer."
@@ -473,6 +481,10 @@
   "endorsementAuthorName": {
     "label": "Author Name",
     "helperText": "Enter the name of the endorsement author."
+  },
+  "endorsementAuthorOrcid": {
+    "label": "Author ORCID",
+    "helperText": "Enter the ORCID of the endorsement author."
   },
   "endorsementAuthorRole": {
     "label": "Author Role",

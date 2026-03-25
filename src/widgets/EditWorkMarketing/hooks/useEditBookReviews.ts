@@ -17,6 +17,7 @@ const defaultBookReview: BookReviewEntity = {
   workId: '',
   title: '',
   authorName: '',
+  reviewerOrcid: '',
   reviewerInstitutionId: '',
   reviewerInstitutionName: '',
   reviewerInstitutionRor: '',
@@ -27,6 +28,7 @@ const defaultBookReview: BookReviewEntity = {
   journalVolume: '',
   journalNumber: '',
   journalIssn: '',
+  pageRange: '',
   text: '',
   orderNumber: 0,
 };
