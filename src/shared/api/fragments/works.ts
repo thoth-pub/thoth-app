@@ -174,6 +174,9 @@ export const WORK_FRAGMENT = graphql(`
       role
       prizeStatement
       awardOrdinal
+      jury
+      year
+      country
     }
     additionalResources {
       workResourceId

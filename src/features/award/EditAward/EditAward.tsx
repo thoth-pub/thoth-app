@@ -1,5 +1,6 @@
 'use client';
 
+import type { CountryCode } from '@/gql/graphql';
 import { EditAwardForm, useAwardStateMachine, useUpdateAward } from '@/src/entities/award';
 import type { AwardRole } from '@/src/entities/award/model/award.types';
 import type { BaseRecommendedSectionProps } from '@/src/shared/types';
@@ -45,9 +46,30 @@ const EditAward = (props: BaseRecommendedSectionProps) => {
     updateAward({ ...activeAward, role });
   };
 
+  const updateJury = (jury: string) => {
+    if (!activeAward) return;
+
+    update({ ...activeAward, jury });
+    updateAward({ ...activeAward, jury });
+  };
+
+  const updateYear = (year: string) => {
+    if (!activeAward) return;
+
+    update({ ...activeAward, year });
+    updateAward({ ...activeAward, year });
+  };
+
+  const updateCountry = (country: CountryCode | null) => {
+    if (!activeAward) return;
+
+    update({ ...activeAward, country });
+    updateAward({ ...activeAward, country });
+  };
+
   if (!activeAward) return null;
 
-  const { title, url, category, statement, role } = activeAward;
+  const { title, url, category, statement, role, jury, year, country } = activeAward;
 
   return (
     <EditAwardForm
@@ -56,11 +78,17 @@ const EditAward = (props: BaseRecommendedSectionProps) => {
       category={category}
       statement={statement}
       role={role}
+      jury={jury}
+      year={year}
+      country={country}
       onTitleUpdate={updateTitle}
       onUrlUpdate={updateUrl}
       onCategoryUpdate={updateCategory}
       onStatementUpdate={updateStatement}
       onRoleUpdate={updateRole}
+      onJuryUpdate={updateJury}
+      onYearUpdate={updateYear}
+      onCountryUpdate={updateCountry}
       onDone={finishEditing}
       onClose={finishEditing}
       isDoneDisabled={!title?.trim()}

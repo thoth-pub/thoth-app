@@ -622,6 +622,21 @@ export const FORM_FIELDS = {
     name: 'role',
     placeholder: 'awardRole.label',
   },
+  AWARD_JURY: {
+    label: 'awardJury.label',
+    name: 'jury',
+    placeholder: 'awardJury.label',
+  },
+  AWARD_YEAR: {
+    label: 'awardYear.label',
+    name: 'year',
+    placeholder: 'awardYear.label',
+  },
+  AWARD_COUNTRY: {
+    label: 'awardCountry.label',
+    name: 'country',
+    placeholder: 'awardCountry.label',
+  },
   BOOK_REVIEW_TITLE: {
     label: 'bookReviewTitle.label',
     name: 'title',

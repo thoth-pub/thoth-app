@@ -17,6 +17,9 @@ const defaultAward: AwardEntity = {
   statement: '',
   role: null,
   orderNumber: 0,
+  jury: '',
+  year: '',
+  country: null,
 };
 
 export const useEditAwards = (workId: WorkId) => {

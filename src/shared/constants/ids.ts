@@ -62,6 +62,9 @@ export const IDs = {
   AWARD_CATEGORY: 'award_category',
   AWARD_STATEMENT: 'award_statement',
   AWARD_ROLE: 'award_role',
+  AWARD_JURY: 'award_jury',
+  AWARD_YEAR: 'award_year',
+  AWARD_COUNTRY: 'award_country',
   // BOOK REVIEWS
   BOOK_REVIEW_TITLE: 'book_review_title',
   BOOK_REVIEW_AUTHOR_NAME: 'book_review_author_name',

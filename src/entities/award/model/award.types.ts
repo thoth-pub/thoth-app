@@ -1,6 +1,6 @@
 import z from 'zod';
 
-import { AwardFragmentFragment } from '@/gql/graphql';
+import { AwardFragmentFragment, CountryCode } from '@/gql/graphql';
 import { AwardRoles as GQLAwardRoles } from '@/src/shared/constants';
 
 export type AwardDto = AwardFragmentFragment;
@@ -18,4 +18,7 @@ export type AwardEntity = {
   statement: string;
   role: AwardRole | null;
   orderNumber: number;
+  jury: string;
+  year: string;
+  country: CountryCode | null;
 };

@@ -8,6 +8,7 @@ export * from './defaultValues';
 export * from './fieldsOption/accessibilityExceptionOptions';
 export * from './fieldsOption/awardRoleOptions';
 export * from './fieldsOption/contributorTypeOptions';
+export * from './fieldsOption/countryCodeOptions';
 export * from './fieldsOption/languageRelationOptions';
 export * from './fieldsOption/resourceTypeOptions';
 export * from './fieldsOption/seriesTypeOptions';

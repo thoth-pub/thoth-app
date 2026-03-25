@@ -346,6 +346,18 @@
     "label": "Role",
     "helperText": "Select the role of the work in this award."
   },
+  "awardJury": {
+    "label": "Jury",
+    "helperText": "Enter the jury associated with the award."
+  },
+  "awardYear": {
+    "label": "Year",
+    "helperText": "Enter the year or year span associated with the award."
+  },
+  "awardCountry": {
+    "label": "Country",
+    "helperText": "Select the country associated with the award."
+  },
   "referenceDoi": {
     "label": "DOI",
     "helperText": "DOI der Referenz einfügen."

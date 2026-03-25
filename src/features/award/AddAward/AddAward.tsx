@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 
+import type { CountryCode } from '@/gql/graphql';
 import { EditAwardForm, useAwardStateMachine, useCreateAward } from '@/src/entities/award';
 import type { AwardEntity, AwardRole } from '@/src/entities/award/model/award.types';
 import type { BaseRecommendedSectionProps } from '@/src/shared/types';
@@ -62,9 +63,27 @@ const AddAward = (props: AddAwardProps) => {
     setAward({ ...award, role });
   };
 
+  const updateJury = (jury: string) => {
+    if (!award) return;
+
+    setAward({ ...award, jury });
+  };
+
+  const updateYear = (year: string) => {
+    if (!award) return;
+
+    setAward({ ...award, year });
+  };
+
+  const updateCountry = (country: CountryCode | null) => {
+    if (!award) return;
+
+    setAward({ ...award, country });
+  };
+
   if (!award) return null;
 
-  const { title, url, category, statement, role } = award;
+  const { title, url, category, statement, role, jury, year, country } = award;
 
   return (
     <TableNewEntityFormWrapper>
@@ -74,11 +93,17 @@ const AddAward = (props: AddAwardProps) => {
         category={category}
         statement={statement}
         role={role}
+        jury={jury}
+        year={year}
+        country={country}
         onTitleUpdate={updateTitle}
         onUrlUpdate={updateUrl}
         onCategoryUpdate={updateCategory}
         onStatementUpdate={updateStatement}
         onRoleUpdate={updateRole}
+        onJuryUpdate={updateJury}
+        onYearUpdate={updateYear}
+        onCountryUpdate={updateCountry}
         onDone={create}
         onClose={finishEditing}
         isDoneDisabled={!title?.trim()}

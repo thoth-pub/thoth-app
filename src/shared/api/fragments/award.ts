@@ -10,5 +10,8 @@ export const AWARD_FRAGMENT = graphql(`
     role
     prizeStatement
     awardOrdinal
+    jury
+    year
+    country
   }
 `);
