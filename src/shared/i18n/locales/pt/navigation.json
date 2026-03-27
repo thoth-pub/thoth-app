@@ -2,9 +2,9 @@
   "dashboard": "painel",
   "books": "livros",
   "series": "séries",
-  "sets": "sets",
+  "sets": "conjuntos",
   "profile": "perfil",
   "home": "início",
   "edit book": "Editar livro",
-  "publisher": "publisher"
+  "publisher": "editora"
 }

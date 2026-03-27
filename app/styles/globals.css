@@ -255,3 +255,7 @@
 .wmde-markdown h6:hover a.anchor {
   visibility: hidden !important;
 }
+
+.wmde-markdown a {
+  color: var(--color-link) !important;
+}

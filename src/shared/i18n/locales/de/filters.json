@@ -1,9 +1,9 @@
 {
-  "orderBy": "Order by",
-  "direction": "Direction",
+  "orderBy": "Sortieren nach",
+  "direction": "Richtung",
   "searchByTitle": "Suche mittels Titel",
   "worksSearch": "Suche mittels Titel, DOI, Referenz",
   "searchContributor": "Texteingabe, um nach einer/m Beitragenden zu suchen",
-  "searchSet": "type to search for set",
-  "searchSets": "Search sets"
+  "searchSet": "Eingabe zur Suche nach Set",
+  "searchSets": "Sets durchsuchen"
 }

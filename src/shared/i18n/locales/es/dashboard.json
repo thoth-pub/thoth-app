@@ -2,12 +2,12 @@
   "widgets": {
     "catalogue summary": "vista general del catálogo",
     "published": "publicado",
-    "this year": "this year",
-    "prev year": "prev year",
+    "this year": "Este año",
+    "prev year": "Año anterior",
     "last 12 months": "últimos 12 meses",
     "previous 12 months": "12 meses anteriores",
     "recently updated": "actualizado recientemente",
     "recently published": "publicado recientemente",
-    "empty": "No data found"
+    "empty": "No se encontraron datos"
   }
 }

@@ -372,7 +372,6 @@
     "helperText": "$md:editImprint-helperText"
   },
   "editImprintSuperuser": {
-    "label": "Imprint (Superuser)",
     "helperText": "$md:editImprintSuperuser-helperText"
   },
   "imprintUrl": {

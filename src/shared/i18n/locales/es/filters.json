@@ -1,9 +1,9 @@
 {
-  "orderBy": "Order by",
-  "direction": "Direction",
+  "orderBy": "Ordenar por",
+  "direction": "Dirección",
   "searchByTitle": "Buscar por título",
   "worksSearch": "Buscar por título, DOI, referencia interna",
   "searchContributor": "Escriba para buscar un colaborador",
-  "searchSet": "type to search for set",
-  "searchSets": "Search sets"
+  "searchSet": "Escriba para buscar un conjunto",
+  "searchSets": "Buscar conjuntos"
 }
