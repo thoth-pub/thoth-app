@@ -7,7 +7,6 @@ import { LocaleCode } from '@/gql/graphql';
 import type { WorkTitlesForm } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS, languageOptionsAlt } from '@/src/shared/constants';
-import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { TitleId } from '@/src/shared/types';
 import {
   AddButton,
@@ -115,12 +114,7 @@ export const TitlesFormFields = (props: TitlesFormFieldsProps) => {
         {fields.map((field, index) => (
           <li key={field.id} className={itemsStyle}>
             <ContentWrapper>
-              <FormFieldLabel
-                label={WORK_TITLE.label}
-                id={WORK_TITLE.name}
-                recommended={recommended}
-                namespace={NAMESPACES.enum.common}
-              />
+              <FormFieldLabel label={WORK_TITLE.label} id={WORK_TITLE.name} recommended={recommended} />
               <FormFieldWithControlsWrapper>
                 <MarkdownField
                   control={control}

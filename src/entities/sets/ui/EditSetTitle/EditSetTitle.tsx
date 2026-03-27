@@ -61,7 +61,7 @@ export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => 
           <Preview
             label={WORK_TITLE.label}
             value={placeholder ?? ''}
-            namespace={NAMESPACES.enum.common}
+            namespace={NAMESPACES.enum.forms}
             disabled={disabled}
             onEdit={onEdit}
           >

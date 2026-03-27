@@ -19,6 +19,7 @@ import {
   MenuItem,
   MultipleContentWrapper,
   Preview,
+  TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -112,7 +113,7 @@ export const EditAccessibility = (props: EditAccessibilityProps) => {
                   </MenuItem>
                 ))}
                 <Activity mode={additionalStandardOptions.length > 0 ? 'visible' : 'hidden'}>
-                  <ListSubheader className="text-center font-bold text-inherit">Additional Standards</ListSubheader>
+                  <ListSubheader className="text-center font-bold text-inherit"><TranslatedContent content="additional standards" /></ListSubheader>
                 </Activity>
                 {additionalStandardOptions.map((option) => (
                   <MenuItem key={option.value} value={option.value}>

@@ -155,7 +155,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
       preview={({ disabled, onEdit }) => (
         <Preview
           label={WORK_TITLE.label}
-          namespace={NAMESPACES.enum.common}
+          namespace={NAMESPACES.enum.forms}
           value={placeholder ?? ''}
           disabled={disabled}
           onEdit={onEdit}

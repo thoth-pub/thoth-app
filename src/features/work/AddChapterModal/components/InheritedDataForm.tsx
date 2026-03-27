@@ -54,7 +54,7 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
       <form className="pl-4">
         <ul className="flex flex-col gap-2">
           <div className={wrapperStyles}>
-            <FormFieldLabel label={WORK_STATUS.label} namespace={NAMESPACES.enum.common} className={labelStyles} />
+            <FormFieldLabel label={WORK_STATUS.label} className={labelStyles} />
             <Checkbox className={itemStyles} checked disabled />
           </div>
           <div className={wrapperStyles}>

@@ -64,7 +64,7 @@ const EditStatus = (props: EditStatusProps) => {
       faq={WORK_STATUS_HELPER_TEXT}
       formFields={({ control }) => (
         <div className="flex flex-col gap-2">
-          <FormFieldLabel label={WORK_STATUS.label} id={WORK_STATUS.name} namespace={NAMESPACES.enum.common} />
+          <FormFieldLabel label={WORK_STATUS.label} id={WORK_STATUS.name} />
           <FormTextField
             control={control}
             name={WORK_STATUS.name}
@@ -88,7 +88,7 @@ const EditStatus = (props: EditStatusProps) => {
         return (
           <div className="flex flex-col gap-2">
             <InputLabel>
-              <TranslatedContent content={WORK_STATUS.label} />
+              <TranslatedContent content={WORK_STATUS.label} namespace={NAMESPACES.enum.forms} />
             </InputLabel>
             <div className="group flex items-center gap-1">
               <WorkStatusChip status={defaultValue} />

@@ -35,31 +35,31 @@ export const InputTypes = {
 
 export const FORM_FIELDS = {
   EMAIL: {
-    label: 'Email',
+    label: 'email.label',
     name: 'email',
-    placeholder: 'Email',
+    placeholder: 'email.label',
     errorMessage: EMAIL_REQUIRED,
     type: InputTypes.EMAIL,
   },
   PASSWORD: {
-    label: 'Password',
+    label: 'password.label',
     name: 'password',
-    placeholder: 'Password',
+    placeholder: 'password.label',
     errorMessage: PASSWORD_REQUIRED,
     type: InputTypes.PASSWORD,
   },
   TITLE: {
-    label: 'title',
+    label: 'title.label',
     name: 'title',
-    placeholder: 'title',
+    placeholder: 'title.label',
     errorMessage: TITLE_REQUIRED,
     type: InputTypes.TEXT,
     defaultValue: '',
   },
   TITLE_LANGUAGE: {
-    label: 'Title Language',
+    label: 'titleLanguage.label',
     name: 'titleLanguage',
-    placeholder: 'Title Language',
+    placeholder: 'titleLanguage.label',
     type: InputTypes.TEXT,
     errorMessage: TITLE_LANGUAGE_REQUIRED,
     defaultValue: LanguageTypeAlt.enum.En,
@@ -67,7 +67,7 @@ export const FORM_FIELDS = {
   SUBTITLE: {
     label: 'subtitle.label',
     name: 'subtitle',
-    placeholder: 'Subtitle',
+    placeholder: 'subtitle.label',
     type: InputTypes.TEXT,
     defaultValue: '',
   },
@@ -86,7 +86,7 @@ export const FORM_FIELDS = {
   LANDING_PAGE: {
     label: 'landingPage.label',
     name: 'landingPage',
-    placeholder: 'URL',
+    placeholder: 'landingPage.label',
     type: InputTypes.URL,
   },
   LCCN: {
@@ -110,7 +110,7 @@ export const FORM_FIELDS = {
   IMPRINT: {
     label: 'imprint.label',
     name: 'imprintId',
-    placeholder: 'Imprint',
+    placeholder: 'imprint.label',
     errorMessage: IMPRINT_REQUIRED,
     defaultValue: '',
   },
@@ -176,9 +176,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   WORK_STATUS: {
-    label: 'status',
+    label: 'status.label',
     name: 'workStatus',
-    placeholder: 'status',
+    placeholder: 'status.label',
     errorMessage: WORK_STATUS_REQUIRED,
     type: InputTypes.TEXT,
   },
@@ -199,9 +199,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   PUBLICATION_DATE: {
-    label: 'publication date',
+    label: 'publicationDate.label',
     name: 'publicationDate',
-    placeholder: 'publication date',
+    placeholder: 'publicationDate.label',
   },
   WITHDRAWN_DATE: {
     label: 'withdrawnDate.label',
@@ -209,7 +209,7 @@ export const FORM_FIELDS = {
     placeholder: 'withdrawnDate.label',
   },
   WORK_TITLE: {
-    label: 'title',
+    label: 'title.label',
     name: 'workTitle',
     type: InputTypes.TEXT,
   },
@@ -265,7 +265,7 @@ export const FORM_FIELDS = {
   },
   BIOGRAPHIES: {
     name: 'biographies',
-    label: 'Biography',
+    label: 'contributorBiography.label',
   },
   CONTRIBUTOR_BIOGRAPHY: {
     label: 'contributorBiography.label',
@@ -292,9 +292,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   ORCID: {
-    label: 'ORCID',
+    label: 'contributorOrcid.label',
     name: 'orcid',
-    placeholder: 'ORCID',
+    placeholder: 'contributorOrcid.label',
     type: InputTypes.TEXT,
   },
   WEBSITE_URL: {
@@ -393,9 +393,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   WORK_COPY: {
-    label: 'Work',
+    label: 'work.label',
     name: 'workCopy',
-    placeholder: 'Work',
+    placeholder: 'work.label',
     type: InputTypes.TEXT,
   },
   WORK_GENERAL_NOTE: {
@@ -503,23 +503,23 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   PRICES: {
-    label: 'price',
+    label: 'publicationPrice.label',
     name: 'prices',
   },
   CURRENCY: {
-    label: 'Currency',
+    label: 'priceCurrency.label',
     name: 'currency',
-    placeholder: 'Currency',
+    placeholder: 'priceCurrency.label',
     type: InputTypes.TEXT,
   },
   VALUE: {
-    label: 'Price',
+    label: 'publicationPrice.label',
     name: 'priceValue',
-    placeholder: 'Price',
+    placeholder: 'publicationPrice.label',
     type: InputTypes.NUMBER,
   },
   LOCATIONS: {
-    label: 'locations',
+    label: 'locations.label',
     name: 'locations',
   },
   PLATFORM: {
@@ -583,9 +583,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   FUNDING: {
-    label: 'Funding',
+    label: 'funding.label',
     name: 'funding',
-    placeholder: 'Funding',
+    placeholder: 'funding.label',
   },
   REFERENCE_URL: {
     label: 'referenceUrl.label',
@@ -789,19 +789,19 @@ export const FORM_FIELDS = {
     name: 'subjects',
   },
   SUBJECT_TYPE: {
-    label: 'Subject Type',
+    label: 'subjectType.label',
     name: 'subjectType',
-    placeholder: 'Subject Type',
+    placeholder: 'subjectType.label',
   },
   SUBJECT_CODE: {
-    label: 'Subject Code',
+    label: 'subjectCode.label',
     name: 'subjectCode',
-    placeholder: 'Subject Code',
+    placeholder: 'subjectCode.label',
   },
   SUBJECT_CODE_ALT: {
-    label: 'Subject Code',
+    label: 'subjectCode.label',
     name: 'subjectCodeAlt',
-    placeholder: 'Subject Code',
+    placeholder: 'subjectCode.label',
   },
   SERIES_TYPE: {
     label: 'seriesType.label',
@@ -809,24 +809,24 @@ export const FORM_FIELDS = {
     placeholder: 'seriesType.label',
   },
   SERIES_NAME: {
-    label: 'name',
+    label: 'seriesName.label',
     name: 'seriesName',
-    placeholder: 'name',
+    placeholder: 'seriesName.label',
   },
   SERIES_ISSN_PRINT: {
-    label: 'ISSN Print',
+    label: 'issnPrint.label',
     name: 'issnPrint',
-    placeholder: 'ISSN Print',
+    placeholder: 'issnPrint.label',
   },
   SERIES_ISSN_DIGITAL: {
-    label: 'ISSN Digital',
+    label: 'issnDigital.label',
     name: 'issnDigital',
-    placeholder: 'ISSN Digital',
+    placeholder: 'issnDigital.label',
   },
   SERIES_URL: {
-    label: 'URL',
+    label: 'seriesUrl.label',
     name: 'url',
-    placeholder: 'URL',
+    placeholder: 'seriesUrl.label',
   },
   SERIES_DESCRIPTION: {
     label: 'seriesDescription.label',
@@ -845,9 +845,9 @@ export const FORM_FIELDS = {
     type: InputTypes.NUMBER,
   },
   BULK_UPLOAD: {
-    label: 'Template Upload',
+    label: 'templateUpload.label',
     name: 'templateUpload',
-    placeholder: 'Template Upload',
+    placeholder: 'templateUpload.label',
     type: InputTypes.FILE,
   },
   PUBLISHER_CONTACT: {
@@ -887,14 +887,14 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   SET_TITLE: {
-    label: 'title',
+    label: 'setTitle.label',
     name: 'setTitle',
     type: InputTypes.TEXT,
   },
   SET_WORK: {
-    label: 'Work',
+    label: 'work.label',
     name: 'work',
-    placeholder: 'Work',
+    placeholder: 'work.label',
     type: InputTypes.TEXT,
   },
   WORK_NOTES: {
@@ -910,21 +910,21 @@ export const FORM_FIELDS = {
 } as const;
 
 export const workStatusOptions = [
-  { value: WorkStatuses.enum.Forthcoming, label: 'Resume' },
-  { value: WorkStatuses.enum.Active, label: 'Publish' },
-  { value: WorkStatuses.enum.Cancelled, label: 'Cancel' },
-  { value: WorkStatuses.enum.PostponedIndefinitely, label: 'Postpone' },
-  { value: WorkStatuses.enum.Superseded, label: 'New edition' },
-  { value: WorkStatuses.enum.Withdrawn, label: 'Require Remove' },
+  { value: WorkStatuses.enum.Forthcoming, label: 'resume' },
+  { value: WorkStatuses.enum.Active, label: 'publish' },
+  { value: WorkStatuses.enum.Cancelled, label: 'cancel' },
+  { value: WorkStatuses.enum.PostponedIndefinitely, label: 'postpone' },
+  { value: WorkStatuses.enum.Superseded, label: 'new edition' },
+  { value: WorkStatuses.enum.Withdrawn, label: 'require remove' },
 ];
 
 export const workStatusOptionsAlt = [
-  { value: WorkStatuses.enum.Forthcoming, label: 'Forthcoming' },
-  { value: WorkStatuses.enum.Active, label: 'Active' },
-  { value: WorkStatuses.enum.Cancelled, label: 'Cancelled' },
-  { value: WorkStatuses.enum.PostponedIndefinitely, label: 'Postponed Indefinitely' },
-  { value: WorkStatuses.enum.Superseded, label: 'Superseded' },
-  { value: WorkStatuses.enum.Withdrawn, label: 'Withdrawn' },
+  { value: WorkStatuses.enum.Forthcoming, label: 'forthcoming' },
+  { value: WorkStatuses.enum.Active, label: 'active' },
+  { value: WorkStatuses.enum.Cancelled, label: 'cancelled' },
+  { value: WorkStatuses.enum.PostponedIndefinitely, label: 'postponed indefinitely' },
+  { value: WorkStatuses.enum.Superseded, label: 'superseded' },
+  { value: WorkStatuses.enum.Withdrawn, label: 'withdrawn' },
 ];
 
 export const seriesTypeOptions = convertFormFieldsToSelectFieldOptions(SeriesType.options);

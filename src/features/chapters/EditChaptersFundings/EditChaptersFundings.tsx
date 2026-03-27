@@ -6,7 +6,7 @@ import { FundingsList, useCreateFunding, useFundingStateMachine } from '@/src/en
 import type { FundingEntity } from '@/src/entities/funding/model/funding.types';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import type { BaseEditSectionProps } from '@/src/shared/types';
-import { AddButton, RecommendedSection, Typography } from '@/src/shared/ui';
+import { AddButton, RecommendedSection, TranslatedContent, Typography } from '@/src/shared/ui';
 import {
   areFundingsEqual,
   getDefaultFunding,
@@ -112,7 +112,7 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
   };
 
   return (
-    <RecommendedSection title="Fundings" isEmpty={isEmpty} isValid={isValid}>
+    <RecommendedSection title={<TranslatedContent content="fundings" />} isEmpty={isEmpty} isValid={isValid}>
       {({ showRecommendations }) => (
         <>
           <Activity mode={isSectionEnabled ? 'visible' : 'hidden'}>

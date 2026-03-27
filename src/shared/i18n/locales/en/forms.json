@@ -16,6 +16,7 @@
     "helperText": "$md:statement-helperText"
   },
   "title": {
+    "label": "Title",
     "helperText": "$md:title-helperText"
   },
   "subtitle": {
@@ -33,6 +34,7 @@
     "helperText": "$md:imprint-helperText"
   },
   "seriesName": {
+    "label": "Name",
     "helperText": "$md:seriesName-helperText"
   },
   "seriesType": {
@@ -44,6 +46,7 @@
     "helperText": "$md:issn-helperText"
   },
   "seriesUrl": {
+    "label": "URL",
     "helperText": "$md:seriesUrl-helperText"
   },
   "seriesDescription": {
@@ -70,9 +73,11 @@
     "helperText": "$md:internalId-helperText"
   },
   "status": {
+    "label": "Status",
     "helperText": "$md:status-helperText"
   },
   "publicationDate": {
+    "label": "Publication Date",
     "helperText": "$md:publicationDate-helperText"
   },
   "edition": {
@@ -225,6 +230,7 @@
     "helperText": "$md:contributorBiography-helperText"
   },
   "contributorOrcid": {
+    "label": "ORCID",
     "helperText": "$md:contributorOrcid-helperText"
   },
   "contributorWebsiteUrl": {
@@ -256,6 +262,7 @@
     "label": "Price"
   },
   "priceCurrency": {
+    "label": "Currency",
     "helperText": "$md:priceCurrency-helperText"
   },
   "locations": {
@@ -521,5 +528,23 @@
   "featuredVideoHeight": {
     "label": "Video Height",
     "helperText": "$md:featuredVideoHeight-helperText"
+  },
+  "titleLanguage": {
+    "label": "Title Language"
+  },
+  "issnPrint": {
+    "label": "ISSN Print"
+  },
+  "issnDigital": {
+    "label": "ISSN Digital"
+  },
+  "templateUpload": {
+    "label": "Template Upload"
+  },
+  "work": {
+    "label": "Work"
+  },
+  "funding": {
+    "label": "Funding"
   }
 }

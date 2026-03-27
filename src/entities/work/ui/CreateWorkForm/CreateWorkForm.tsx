@@ -25,6 +25,7 @@ const CreateWorkForm = () => {
   const { userImprintsOptions } = useUser();
 
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
+  const { t: tForms } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
 
   const defaultImprint = userImprintsOptions[0]?.value ?? '';
   const { control, isImprintVisible, isSubmitDisabled, isLoading, availableNewWorkOptions, submit } = useCreateWorkForm(
@@ -38,7 +39,7 @@ const CreateWorkForm = () => {
 
   return (
     <>
-      <PageHeader title="New work">
+      <PageHeader title={t("new work")}>
         <Button
           variant="contained"
           className="capitalize"
@@ -57,10 +58,9 @@ const CreateWorkForm = () => {
             <CreateWorkFormField
               label={TITLE.label}
               name={TITLE.name}
-              placeholder={t(TITLE.placeholder)}
+              placeholder={tForms(TITLE.placeholder)}
               control={control}
               type={TITLE.type}
-              namespace={NAMESPACES.enum.common}
             />
             <CreateWorkFormField
               name={TITLE_LANGUAGE.name}

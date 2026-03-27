@@ -7,7 +7,7 @@ import type { ContributionBiographyForm, WorkContribution } from '@/src/entities
 import type { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import type { BaseEditSectionProps } from '@/src/shared/types';
-import { RecommendedSection, Typography } from '@/src/shared/ui';
+import { RecommendedSection, TranslatedContent, Typography } from '@/src/shared/ui';
 import { isAllContributionRecommendationsFilled, isDefaultId } from '@/src/shared/utils';
 import { isChaptersContributionsEqual } from '@/src/shared/utils/chapters';
 
@@ -154,7 +154,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
   };
 
   return (
-    <RecommendedSection title="Contributors" isEmpty={isEmpty} isValid={isValid}>
+    <RecommendedSection title={<TranslatedContent content="contributors" />} isEmpty={isEmpty} isValid={isValid}>
       {({ showRecommendations }) => (
         <>
           {isSectionEnabled ? (

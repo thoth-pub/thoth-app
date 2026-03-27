@@ -38,7 +38,6 @@ const EditPublicationDate = (props: EditPublicationDateProps) => {
             <FormFieldLabel
               label={PUBLICATION_DATE.label}
               id={PUBLICATION_DATE.name}
-              namespace={NAMESPACES.enum.common}
             />
             <DateField
               control={control}
@@ -54,7 +53,7 @@ const EditPublicationDate = (props: EditPublicationDateProps) => {
       preview={({ data, disabled, onEdit }) => (
         <div className="flex flex-col gap-2">
           <InputLabel className="capitalize">
-            <TranslatedContent content={PUBLICATION_DATE.label} />
+            <TranslatedContent content={PUBLICATION_DATE.label} namespace={NAMESPACES.enum.forms} />
           </InputLabel>
           <div className="group flex items-center gap-1">
             <Typography>{data?.publicationDate ? convertDateToFormattedDate(data.publicationDate) : ''}</Typography>
