@@ -8,7 +8,7 @@ import { prettifyUrlPreview } from '@/src/shared/utils';
 import { bookReviewDoiValidationSchema } from '../../model/book-review.validation';
 
 const { DOI } = FORM_FIELDS;
-const { DOI: DOI_HELPER_TEXT } = HELPER_TEXT;
+const { BOOK_REVIEW_DOI: BOOK_REVIEW_DOI_HELPER_TEXT } = HELPER_TEXT;
 
 type EditBookReviewDoiProps = {
   defaultValue?: string;
@@ -25,7 +25,7 @@ export const EditBookReviewDoi = (props: EditBookReviewDoiProps) => {
       isTableVariant
       validationSchema={bookReviewDoiValidationSchema}
       defaultValues={{ [DOI.name]: defaultValue }}
-      faq={DOI_HELPER_TEXT}
+      faq={BOOK_REVIEW_DOI_HELPER_TEXT}
       onSubmit={(data) => onUpdate?.(data.doi)}
       formFields={({ control }) => (
         <ContentWrapper>

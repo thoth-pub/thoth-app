@@ -12,7 +12,7 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 
 const { WORK_IMAGE_COUNT, WORK_TABLE_COUNT, WORK_AUDIO_COUNT, WORK_VIDEO_COUNT, MEDIA_COUNT } = FORM_FIELDS;
 
-const { WORK_TABLE_COUNT: WORK_TABLE_COUNT_HELPER_TEXT } = HELPER_TEXT;
+const { WORK_MEDIA_COUNT: WORK_MEDIA_COUNT_HELPER_TEXT } = HELPER_TEXT;
 
 export const EditMedia = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
@@ -58,7 +58,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
       }}
       validationSchema={mediaValidationSchema}
       onSubmit={handleSubmit}
-      faq={WORK_TABLE_COUNT_HELPER_TEXT}
+      faq={WORK_MEDIA_COUNT_HELPER_TEXT}
       formFields={({ control }) => (
         <MultipleContentWrapper>
           <ContentWrapper>

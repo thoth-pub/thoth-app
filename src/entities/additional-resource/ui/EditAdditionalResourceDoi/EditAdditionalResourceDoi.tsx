@@ -7,7 +7,7 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 import { additionalResourceDoiValidationSchema } from '../../model/additional-resource.validation';
 
 const { DOI } = FORM_FIELDS;
-const { DOI: DOI_HELPER_TEXT } = HELPER_TEXT;
+const { ADDITIONAL_RESOURCE_DOI: ADDITIONAL_RESOURCE_DOI_HELPER_TEXT } = HELPER_TEXT;
 
 type EditAdditionalResourceDoiProps = {
   defaultValue?: string;
@@ -24,7 +24,7 @@ export const EditAdditionalResourceDoi = (props: EditAdditionalResourceDoiProps)
       isTableVariant
       validationSchema={additionalResourceDoiValidationSchema}
       defaultValues={{ [DOI.name]: defaultValue }}
-      faq={DOI_HELPER_TEXT}
+      faq={ADDITIONAL_RESOURCE_DOI_HELPER_TEXT}
       onSubmit={(data) => onUpdate?.(data.doi)}
       formFields={({ control }) => (
         <ContentWrapper>

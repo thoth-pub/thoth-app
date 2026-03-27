@@ -1,0 +1,1 @@
+ISBN der Publikation angeben.

@@ -29,7 +29,8 @@ const {
   WORK_LAST_PAGE,
 } = FORM_FIELDS;
 
-const { WORK_FIRST_PAGE: WORK_FIRST_PAGE_HELPER_TEXT } = HELPER_TEXT;
+const { WORK_PAGES_COUNT: WORK_PAGES_COUNT_HELPER_TEXT, CHAPTER_TOTAL_PAGES: CHAPTER_TOTAL_PAGES_HELPER_TEXT } =
+  HELPER_TEXT;
 
 type EditPagesCountProps = BaseRecommendedSectionProps & {
   isChapter?: boolean;
@@ -98,7 +99,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
       }}
       validationSchema={pagesCountValidationSchema}
       onSubmit={handleSubmit}
-      faq={WORK_FIRST_PAGE_HELPER_TEXT}
+      faq={isChapter ? CHAPTER_TOTAL_PAGES_HELPER_TEXT : WORK_PAGES_COUNT_HELPER_TEXT}
       formFields={({ control }) => (
         <MultipleContentWrapper>
           {isChapter && (

@@ -1,10 +1,13 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
+import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { FORM_FIELDS, HELPER_TEXT, locationPlatformOptions } from '@/src/shared/constants';
-import { useIsDesktop } from '@/src/shared/hooks';
+import { useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AutocompleteField,
   AutocompleteGroup,
@@ -15,6 +18,8 @@ import {
   FormFieldWithControlsWrapper,
   FormFieldWrapper,
   FormTextField,
+  IconButton,
+  MarkdownRenderer,
   Modal,
   ModalWrapper,
   SubmitButton,
@@ -33,10 +38,14 @@ type LocationFormProps = {
 };
 
 const { PLATFORM, LANDING_PAGE, FULL_TEXT_URL, CANONICAL } = FORM_FIELDS;
-const { LOCATION_PLATFORM, LANDING_PAGE_HELPER_TEXT, LOCATION_URL_HELPER_TEXT } = HELPER_TEXT;
+const { LOCATION: LOCATION_HELPER_TEXT } = HELPER_TEXT;
 
 export const LocationForm = (props: LocationFormProps) => {
   const { location, isFullTextUrlHidden, isCheckboxDisabled, onSubmit, onClose } = props;
+
+  const [showFaq, setShowFaq] = useState(false);
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
+  const handleToggleFaq = () => setShowFaq((prev) => !prev);
 
   const platformOption = locationPlatformOptions.find(
     (option) => option.value.toLowerCase() === location.locationPlatform.toLowerCase(),
@@ -74,7 +83,6 @@ export const LocationForm = (props: LocationFormProps) => {
             name={PLATFORM.name}
             id={PLATFORM.name}
             options={locationPlatformOptions}
-            helperText={LOCATION_PLATFORM}
             groupBy={(option) => option.group ?? ''}
             renderGroup={({ group, children, key }) => (
               <AutocompleteGroup key={key} group={group}>
@@ -85,6 +93,9 @@ export const LocationForm = (props: LocationFormProps) => {
           <ButtonGroup>
             <SubmitButton type="submit" />
             <CloseButton onClose={onClose} />
+            <IconButton onClick={handleToggleFaq} aria-label="Show info">
+              <InfoOutlineIcon />
+            </IconButton>
           </ButtonGroup>
         </FormFieldWithControlsWrapper>
       </FormFieldWrapper>
@@ -94,7 +105,6 @@ export const LocationForm = (props: LocationFormProps) => {
           control={control}
           name={LANDING_PAGE.name}
           id={LANDING_PAGE.name}
-          helperText={LANDING_PAGE_HELPER_TEXT}
           isUrlField
           predefinedPrefix={getProtocolPrefix(location.landingPage ?? '')}
         />
@@ -106,7 +116,6 @@ export const LocationForm = (props: LocationFormProps) => {
             control={control}
             name={FULL_TEXT_URL.name}
             id={FULL_TEXT_URL.name}
-            helperText={LOCATION_URL_HELPER_TEXT}
             isUrlField
             predefinedPrefix={getProtocolPrefix(location.fullTextUrl ?? '')}
           />
@@ -134,6 +143,14 @@ export const LocationForm = (props: LocationFormProps) => {
           <ModalWrapper>{formComponent}</ModalWrapper>
         </Modal>
       )}
+      <Modal open={showFaq} onClose={handleToggleFaq}>
+        <ModalWrapper>
+          <div className="flex flex-col gap-2">
+            <CloseButton onClose={handleToggleFaq} className="self-end" />
+            <MarkdownRenderer markdown={t(LOCATION_HELPER_TEXT)} />
+          </div>
+        </ModalWrapper>
+      </Modal>
     </>
   );
 };

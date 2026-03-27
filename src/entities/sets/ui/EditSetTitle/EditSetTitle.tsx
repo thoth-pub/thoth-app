@@ -19,7 +19,7 @@ type EditSetTitleProps = {
 };
 
 const { WORK_TITLE, TITLES, SUBTITLE, LANGUAGE } = FORM_FIELDS;
-const { WORK_TITLE: WORK_TITLE_HELPER_TEXT } = HELPER_TEXT;
+const { SET_TITLE: SET_TITLE_HELPER_TEXT } = HELPER_TEXT;
 
 export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => {
   const titlesDefaultValues = set.titles.map(({ id, title, subtitle, localeCode }) => ({
@@ -49,7 +49,7 @@ export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => 
         onSubmit={updateTitles}
         isTableVariant
         borderTransparent
-        faq={WORK_TITLE_HELPER_TEXT}
+        faq={SET_TITLE_HELPER_TEXT}
         formFields={({ control }) => (
           <TitlesFormFields
             control={control as unknown as Control<WorkTitlesForm>}

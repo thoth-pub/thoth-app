@@ -32,7 +32,7 @@ const {
   PUBLICATION_DIMENSIONS,
 } = FORM_FIELDS;
 
-const { PUBLICATION_WIDTH: PUBLICATION_WIDTH_HELPER_TEXT } = HELPER_TEXT;
+const { PUBLICATION_DIMENSIONS: PUBLICATION_DIMENSIONS_HELPER_TEXT } = HELPER_TEXT;
 
 export const EditDimensions = (props: EditSizesProps) => {
   const { width, height, depth, weight, widthIn, heightIn, depthIn, weightOz, onSubmit } = props;
@@ -112,7 +112,7 @@ export const EditDimensions = (props: EditSizesProps) => {
       }}
       validationSchema={dimensionsValidationSchema}
       onSubmit={handleSubmit}
-      faq={PUBLICATION_WIDTH_HELPER_TEXT}
+      faq={PUBLICATION_DIMENSIONS_HELPER_TEXT}
       formFields={({ control, setValue }) => (
         <MultipleContentWrapper>
           <div className="grid grid-cols-[1fr_1fr] border-b border-(--color-table-border) pb-2 lg:pl-45">

@@ -53,17 +53,7 @@ const {
   CLOUDFRONT_DIST_ID,
 } = FORM_FIELDS;
 
-const {
-  EDIT_IMPRINT,
-  IMPRINT_URL: IMPRINT_URL_HELPER,
-  CROSSMARK_DOI: CROSSMARK_DOI_HELPER,
-  DEFAULT_PLACE: DEFAULT_PLACE_HELPER,
-  DEFAULT_CURRENCY: DEFAULT_CURRENCY_HELPER,
-  DEFAULT_LOCALE: DEFAULT_LOCALE_HELPER,
-  S3_BUCKET: S3_BUCKET_HELPER,
-  CDN_DOMAIN: CDN_DOMAIN_HELPER,
-  CLOUDFRONT_DIST_ID: CLOUDFRONT_DIST_ID_HELPER,
-} = HELPER_TEXT;
+const { EDIT_IMPRINT, EDIT_IMPRINT_SUPERUSER } = HELPER_TEXT;
 
 const EditImprint = (props: EditImprintProps) => {
   const {
@@ -127,7 +117,7 @@ const EditImprint = (props: EditImprintProps) => {
       defaultValues={defaultValues}
       onSubmit={handleUpdate}
       isDisabled={disabled}
-      faq={EDIT_IMPRINT}
+      faq={isSettingsDisabled ? EDIT_IMPRINT : EDIT_IMPRINT_SUPERUSER}
       formFields={({ control }) => (
         <div className="flex flex-col gap-(--default-gap)">
           <MultipleContentWrapper>
@@ -143,7 +133,6 @@ const EditImprint = (props: EditImprintProps) => {
               control={control}
               name={IMPRINT_URL.name}
               id={IMPRINT_URL.name}
-              helperText={IMPRINT_URL_HELPER}
               fullWidth
               isUrlField
               disabled={disabled}
@@ -155,7 +144,6 @@ const EditImprint = (props: EditImprintProps) => {
               control={control}
               name={CROSSMARK_DOI.name}
               id={CROSSMARK_DOI.name}
-              helperText={CROSSMARK_DOI_HELPER}
               fullWidth
               isDoiField
               disabled={disabled}
@@ -167,30 +155,17 @@ const EditImprint = (props: EditImprintProps) => {
               control={control}
               name={DEFAULT_PLACE.name}
               id={DEFAULT_PLACE.name}
-              helperText={DEFAULT_PLACE_HELPER}
               fullWidth
               disabled={disabled}
             />
           </MultipleContentWrapper>
           <MultipleContentWrapper>
             <FormFieldLabel label={DEFAULT_CURRENCY.label} id={DEFAULT_CURRENCY.name} />
-            <AutocompleteField
-              control={control}
-              name={DEFAULT_CURRENCY.name}
-              options={currencyOptions}
-              helperText={DEFAULT_CURRENCY_HELPER}
-              fullWidth
-            />
+            <AutocompleteField control={control} name={DEFAULT_CURRENCY.name} options={currencyOptions} fullWidth />
           </MultipleContentWrapper>
           <MultipleContentWrapper>
             <FormFieldLabel label={DEFAULT_LOCALE.label} id={DEFAULT_LOCALE.name} />
-            <AutocompleteField
-              control={control}
-              name={DEFAULT_LOCALE.name}
-              options={languageOptionsAlt}
-              helperText={DEFAULT_LOCALE_HELPER}
-              fullWidth
-            />
+            <AutocompleteField control={control} name={DEFAULT_LOCALE.name} options={languageOptionsAlt} fullWidth />
           </MultipleContentWrapper>
 
           <Activity mode={isSettingsDisabled ? 'hidden' : 'visible'}>
@@ -200,7 +175,6 @@ const EditImprint = (props: EditImprintProps) => {
                 control={control}
                 name={S3_BUCKET.name}
                 id={S3_BUCKET.name}
-                helperText={S3_BUCKET_HELPER}
                 fullWidth
                 disabled={disabled}
               />
@@ -211,7 +185,6 @@ const EditImprint = (props: EditImprintProps) => {
                 control={control}
                 name={CDN_DOMAIN.name}
                 id={CDN_DOMAIN.name}
-                helperText={CDN_DOMAIN_HELPER}
                 fullWidth
                 disabled={disabled}
               />
@@ -222,7 +195,6 @@ const EditImprint = (props: EditImprintProps) => {
                 control={control}
                 name={CLOUDFRONT_DIST_ID.name}
                 id={CLOUDFRONT_DIST_ID.name}
-                helperText={CLOUDFRONT_DIST_ID_HELPER}
                 fullWidth
                 disabled={disabled}
               />

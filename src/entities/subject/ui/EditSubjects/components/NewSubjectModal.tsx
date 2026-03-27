@@ -1,13 +1,16 @@
 import { zodResolver } from '@hookform/resolvers/zod';
+import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 import { Activity, useEffect, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import type { SubjectType } from '@/gql/graphql';
-import { FORM_FIELDS, subjectTypeOptions } from '@/src/shared/constants';
+import { FORM_FIELDS, HELPER_TEXT, subjectTypeOptions } from '@/src/shared/constants';
 import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
 import { SubjectTypes } from '@/src/shared/constants/subjects';
 import { themaFormFields } from '@/src/shared/constants/themaFormFields';
+import { useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AutocompleteField,
   CloseButton,
@@ -15,6 +18,8 @@ import {
   FormFieldWithControlsWrapper,
   FormFieldWrapper,
   FormTextField,
+  IconButton,
+  MarkdownRenderer,
   Modal,
   ModalWrapper,
   SubmitButton,
@@ -42,6 +47,7 @@ const autocompleteOptions = {
 export const NewSubjectModal = (props: NewSubjectModalProps) => {
   const { open, onClose, onAdd } = props;
 
+  const [showFaq, setShowFaq] = useState(false);
   const [optionsLength, setOptionsLength] = useState(0);
   const isAutocomplete = optionsLength > 0;
 
@@ -83,6 +89,9 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
     reset();
   };
 
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
+  const handleToggleFaq = () => setShowFaq((prev) => !prev);
+
   const handleClose = () => {
     reset();
     onClose();
@@ -94,6 +103,9 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
         <div className="ml-auto flex gap-1">
           <SubmitButton type="button" onClick={onSubmit} />
           <CloseButton onClose={handleClose} />
+          <IconButton onClick={handleToggleFaq} aria-label="Show info">
+            <InfoOutlineIcon />
+          </IconButton>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-(--default-gap)">
@@ -114,6 +126,14 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
             </Activity>
           </FormFieldWrapper>
         </form>
+      <Modal open={showFaq} onClose={handleToggleFaq}>
+        <ModalWrapper>
+          <div className="flex flex-col gap-2">
+            <CloseButton onClose={handleToggleFaq} className="self-end" />
+            <MarkdownRenderer markdown={t(HELPER_TEXT.SUBJECT)} />
+          </div>
+        </ModalWrapper>
+      </Modal>
       </ModalWrapper>
     </Modal>
   );

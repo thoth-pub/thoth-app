@@ -36,7 +36,7 @@ export const EditSetImprint = ({ imprintId, imprintOptions, disabled = true, onS
       isTableVariant
       borderTransparent
       isDisabled={isFieldDisable}
-      faq={HELPER_TEXT.IMPRINT}
+      faq={HELPER_TEXT.SET_IMPRINT}
       formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={IMPRINT.label} id={IMPRINT.name} />

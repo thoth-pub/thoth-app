@@ -1,0 +1,1 @@
+Publikationstyp auswählen.

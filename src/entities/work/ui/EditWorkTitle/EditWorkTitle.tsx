@@ -26,15 +26,16 @@ import { getMainTitle } from '@/src/shared/utils';
 import { TitlesFormFields } from './components/TitlesFormFields';
 
 const { WORK_TITLE, EDITION, TITLES, SUBTITLE, LANGUAGE } = FORM_FIELDS;
-const { WORK_TITLE: WORK_TITLE_HELPER_TEXT } = HELPER_TEXT;
-
 type EditWorkTitleProps = BaseRecommendedSectionProps &
   Partial<{
     withEdition: boolean;
+    isChapter: boolean;
   }>;
 
 const EditWorkTitle = (props: EditWorkTitleProps) => {
-  const { workId, recommended = false, withEdition = true } = props;
+  const { workId, recommended = false, withEdition = true, isChapter = false } = props;
+
+  const TITLE_HELPER_TEXT = isChapter ? HELPER_TEXT.CHAPTER_TITLE : HELPER_TEXT.WORK_TITLE;
 
   const { work, updateWork } = useWork(workId);
 
@@ -134,7 +135,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
       defaultValues={defaultValues}
       validationSchema={workTitlesValidationSchema}
       onSubmit={updateTitles}
-      faq={WORK_TITLE_HELPER_TEXT}
+      faq={TITLE_HELPER_TEXT}
       formFields={({ control }) => (
         <MultipleContentWrapper>
           <TitlesFormFields

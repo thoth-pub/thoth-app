@@ -27,7 +27,7 @@ const EditChapterBasicDetails = (props: EditChapterBasicDetailsProps) => {
       {({ showRecommendations }) => (
         <div>
           {!isMultipleChaptersEdit && (
-            <EditWorkTitle workId={workId} recommended={showRecommendations} withEdition={false} />
+            <EditWorkTitle workId={workId} recommended={showRecommendations} withEdition={false} isChapter />
           )}
           <EditLicense workId={workId} license={license} copyrightHolder={copyrightHolder} onUpdate={onLicenseUpdate} />
           {!isMultipleChaptersEdit && <EditDoi workId={workId} recommended={showRecommendations} isChapter />}

@@ -38,8 +38,9 @@ const {
 } = FORM_FIELDS;
 
 const {
+  SERIES_NAME: SERIES_NAME_HELPER_TEXT,
   SERIES_TYPE: SERIES_TYPE_HELPER_TEXT,
-  IMPRINT: IMPRINT_HELPER_TEXT,
+  SERIES_IMPRINT: SERIES_IMPRINT_HELPER_TEXT,
   ISSN: ISSN_HELPER_TEXT,
   SERIES_URL: SERIES_URL_HELPER_TEXT,
   SERIES_DESCRIPTION: SERIES_DESCRIPTION_HELPER_TEXT,
@@ -93,7 +94,7 @@ const EditSeriesForm = ({
         onSubmit={onNameChange}
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
-        faq={SERIES_TYPE_HELPER_TEXT}
+        faq={SERIES_NAME_HELPER_TEXT}
         formFields={({ control }) => (
           <ContentWrapper>
             <FormFieldLabel label={SERIES_NAME.label} id={SERIES_NAME.name} namespace={NAMESPACES.enum.common} />
@@ -155,7 +156,7 @@ const EditSeriesForm = ({
         isTableVariant={isTableVariant}
         borderTransparent={borderTransparent}
         isDisabled={!isImprintEditable}
-        faq={IMPRINT_HELPER_TEXT}
+        faq={SERIES_IMPRINT_HELPER_TEXT}
         formFields={({ control }) => (
           <ContentWrapper>
             <FormFieldLabel label={SERIES_IMPRINT.label} id={SERIES_IMPRINT.name} />
@@ -273,7 +274,6 @@ const EditSeriesForm = ({
               control={control as unknown as Control<SeriesDescriptionFormType>}
               name={SERIES_DESCRIPTION.name}
               id={SERIES_DESCRIPTION.name}
-              placeholder={SERIES_DESCRIPTION.placeholder}
               multiline
               maxRows={4}
               sx={{

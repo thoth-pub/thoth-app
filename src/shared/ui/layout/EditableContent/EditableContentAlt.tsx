@@ -3,9 +3,11 @@
 import { useState } from 'react';
 import type { Control, FieldValues, UseFormReset, UseFormSetValue, ValidationMode } from 'react-hook-form';
 
+import { useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
-import { CloseButton, Modal, ModalWrapper } from '@/src/shared/ui';
+import { CloseButton, MarkdownRenderer, Modal, ModalWrapper } from '@/src/shared/ui';
 
 import { type FormProps, FormWrapper } from './FormWrapper';
 
@@ -48,6 +50,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
   } = props;
 
   const { activeFormId, edit, closeForm } = useFormStateMachine();
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
   const [showFaq, setShowFaq] = useState(false);
   const isActive = activeFormId === formId;
   const showFaqButton = faq && faq.length > 0;
@@ -84,7 +87,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
           onClose={onClose}
           onInfo={handleToggleFaq}
           showFaqButton={!!showFaqButton}
-          className="items-end gap-1 bg-transparent p-0"
+          className="items-end gap-1 bg-transparent p-0 capitalize"
           controlsClassName="self-start mt-6"
         >
           {({ control, reset, setValue }) => formFields({ control, reset, setValue })}
@@ -101,8 +104,10 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
       {showFaqButton && (
         <Modal open={showFaq} onClose={handleToggleFaq}>
           <ModalWrapper>
-            {faq}
-            <CloseButton onClose={handleToggleFaq} />
+            <div className="flex flex-col gap-2">
+              <CloseButton onClose={handleToggleFaq} className="self-end" />
+              <MarkdownRenderer markdown={t(faq)} />
+            </div>
           </ModalWrapper>
         </Modal>
       )}

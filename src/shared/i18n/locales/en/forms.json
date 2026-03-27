@@ -1,130 +1,136 @@
 {
   "accessibility": {
+    "helperText": "$md:accessibility-helperText",
     "accessibility": "Accessibility"
   },
   "contact": {
     "label": "Contact",
-    "helperText": "Choose the contact of the publisher."
+    "helperText": "$md:contact-helperText"
   },
   "report": {
     "label": "Report URL",
-    "helperText": "Enter the accessibility report or accessibility report URL of the publisher for readers with impairments."
+    "helperText": "$md:report-helperText"
   },
   "statement": {
     "label": "Statement",
-    "helperText": "Enter the accessibility statement of the publisher for readers with impairments."
+    "helperText": "$md:statement-helperText"
   },
   "title": {
     "helperText": "$md:title-helperText"
   },
   "subtitle": {
-    "label": "Subtitle",
-    "helperText": "Enter the subtitle of the work."
+    "label": "Subtitle"
   },
   "titles": {
     "label": "Titles"
   },
   "language": {
     "label": "Language",
-    "helperText": "Choose the language of the work."
+    "helperText": "$md:language-helperText"
   },
   "imprint": {
     "label": "Imprint",
-    "helperText": "Choose the imprint of the work."
+    "helperText": "$md:imprint-helperText"
   },
   "seriesName": {
-    "helperText": "Enter the name of the series."
+    "helperText": "$md:seriesName-helperText"
   },
   "seriesType": {
     "label": "Series Type",
-    "helperText": "Choose the type of work."
+    "helperText": "$md:seriesType-helperText"
   },
   "issn": {
     "label": "ISSN",
-    "helperText": "Enter the ISSN of the work."
+    "helperText": "$md:issn-helperText"
   },
   "seriesUrl": {
-    "helperText": "Enter the URL of the series."
+    "helperText": "$md:seriesUrl-helperText"
   },
   "seriesDescription": {
     "label": "Description",
-    "helperText": "Enter the description of the series."
+    "helperText": "$md:seriesDescription-helperText"
+  },
+  "seriesImprint": {
+    "label": "Imprint",
+    "helperText": "$md:seriesImprint-helperText"
+  },
+  "setTitle": {
+    "label": "Title",
+    "helperText": "$md:setTitle-helperText"
+  },
+  "setImprint": {
+    "label": "Imprint",
+    "helperText": "$md:setImprint-helperText"
   },
   "number": {
     "label": "Number"
   },
   "internalId": {
     "label": "Internal ID",
-    "helperText": "Enter the internal ID of the work."
+    "helperText": "$md:internalId-helperText"
   },
   "status": {
-    "helperText": "Change the status of the work."
+    "helperText": "$md:status-helperText"
   },
   "publicationDate": {
-    "helperText": "Enter the publication date of the work."
+    "helperText": "$md:publicationDate-helperText"
   },
   "edition": {
-    "label": "Edition",
-    "helperText": "Enter the edition of the work."
+    "label": "Edition"
   },
   "publisherName": {
     "label": "Publisher Name",
-    "helperText": "Enter the name of the publisher."
+    "helperText": "$md:publisherName-helperText"
   },
   "publisherShortname": {
     "label": "Publisher Shortname",
-    "helperText": "Enter the shortname of the publisher."
+    "helperText": "$md:publisherShortname-helperText"
   },
   "publisherUrl": {
     "label": "Publisher URL",
-    "helperText": "Enter the website URL of the publisher."
+    "helperText": "$md:publisherUrl-helperText"
   },
   "publisherZitadelId": {
     "label": "Zitadel Organisation ID",
-    "helperText": "Enter the Zitadel organisation ID for the publisher."
+    "helperText": "$md:publisherZitadelId-helperText"
   },
   "wortType": {
     "label": "Work Type",
-    "helperText": "Choose the type of work."
+    "helperText": "$md:wortType-helperText"
   },
   "license": {
     "label": "License",
-    "helperText": "Choose the license of the work."
+    "helperText": "$md:license-helperText"
   },
   "copyrightHolder": {
-    "label": "Copyright Holder",
-    "helperText": "Choose the copyright holder of the work."
+    "label": "Copyright Holder"
   },
   "doi": {
     "label": "DOI",
-    "helperText": "Enter the DOI URL of the work."
+    "helperText": "$md:doi-helperText"
   },
   "landingPage": {
-    "label": "Landing Page URL",
-    "helperText": "Enter the landing page URL of the work."
+    "label": "Landing Page URL"
   },
   "lccn": {
     "label": "LCCN",
-    "helperText": "Enter the LCCN of the work."
+    "helperText": "$md:lccn-helperText"
   },
   "oclc": {
     "label": "OCLC Number",
-    "helperText": "Enter the OCLC number of the work."
+    "helperText": "$md:oclc-helperText"
   },
   "workSeries": {
     "label": "Series",
-    "helperText": "Choose the series the work belongs to."
+    "helperText": "$md:workSeries-helperText"
   },
-  "workSeriesOrdinal": {
-    "helperText": "Enter the volume number of the work in the series."
-  },
+  "workSeriesOrdinal": {},
   "abstract": {
     "label": "Abstract",
-    "helperText": "Enter the abstract of the work."
+    "helperText": "$md:abstract-helperText"
   },
   "shortAbstract": {
-    "label": "Short Abstract",
-    "helperText": "Enter the short abstract of the work."
+    "label": "Short Abstract"
   },
   "workPageCount": {
     "label": "Page Count"
@@ -132,401 +138,388 @@
   "chapterPageCount": {
     "label": "Page Range"
   },
+  "chapterTitle": {
+    "helperText": "$md:chapterTitle-helperText"
+  },
+  "chapterTotalPages": {
+    "helperText": "$md:chapterTotalPages-helperText"
+  },
   "totalPageCount": {
     "label": "Total Page Count",
-    "helperText": "Enter the page count of the work."
+    "helperText": "$md:totalPageCount-helperText"
   },
   "frontmatterPageCount": {
-    "label": "Frontmatter Count",
-    "helperText": "Enter the frontmatter page count of the work."
+    "label": "Frontmatter Count"
   },
   "backmatterPageCount": {
-    "label": "Backmatter Count",
-    "helperText": "Enter the backmatter page count of the work."
+    "label": "Backmatter Count"
   },
   "firstPage": {
-    "label": "First Page",
-    "helperText": "Enter the first page of the work."
+    "label": "First Page"
   },
   "lastPage": {
-    "label": "Last Page",
-    "helperText": "Enter the last page of the work."
+    "label": "Last Page"
   },
   "notes": {
-    "label": "Notes"
+    "label": "Notes",
+    "helperText": "$md:notes-helperText"
   },
   "generalNote": {
-    "label": "General Note",
-    "helperText": "Enter the general note of the work."
+    "label": "General Note"
   },
   "bibliographyNote": {
-    "label": "Bibliography Note",
-    "helperText": "Enter the bibliography note of the work."
+    "label": "Bibliography Note"
   },
   "mediaCount": {
-    "label": "Media Count"
+    "label": "Media Count",
+    "helperText": "$md:mediaCount-helperText"
   },
   "tableCount": {
-    "label": "Table Count",
-    "helperText": "Enter the table count of the work."
+    "label": "Table Count"
   },
   "imageCount": {
-    "label": "Image Count",
-    "helperText": "Enter the image count of the work."
+    "label": "Image Count"
   },
   "audioCount": {
-    "label": "Audio Count",
-    "helperText": "Enter the audio count of the work."
+    "label": "Audio Count"
   },
   "videoCount": {
-    "label": "Video Count",
-    "helperText": "Enter the video count of the work."
+    "label": "Video Count"
   },
   "languages": {
     "label": "Languages"
   },
   "languagesRelation": {
-    "label": "Language Relation",
-    "helperText": "Choose the language relation of the work."
+    "label": "Language Relation"
   },
   "subjects": {
-    "label": "Subjects"
+    "label": "Subjects",
+    "helperText": "$md:subject-helperText"
   },
   "subjectType": {
-    "label": "Subject Type",
-    "helperText": "Choose the type of subject."
+    "label": "Subject Type"
   },
   "subjectCode": {
-    "label": "Subject Code",
-    "helperText": "Enter the code of the subject."
+    "label": "Subject Code"
   },
   "coverUrl": {
     "label": "Cover URL",
-    "helperText": "Enter the URL to the work's online cover image."
+    "helperText": "$md:coverUrl-helperText"
   },
   "fullName": {
     "label": "Full Name",
-    "helperText": "Enter the full name."
+    "helperText": "$md:fullName-helperText"
   },
   "givenName": {
-    "label": "Given Name(s)",
-    "helperText": "Enter the given name(s) and/or initial(s)."
+    "label": "Given Name(s)"
   },
   "familyName": {
-    "label": "Family Name(s)",
-    "helperText": "Enter the family name(s)."
+    "label": "Family Name(s)"
   },
   "contributorType": {
     "label": "Contributor Type",
-    "helperText": "Choose the type of contributor."
+    "helperText": "$md:contributorType-helperText"
   },
   "contributorBiography": {
     "label": "Biography",
-    "helperText": "Enter the biography of the contributor at the point of publication."
+    "helperText": "$md:contributorBiography-helperText"
   },
   "contributorOrcid": {
-    "helperText": "Enter the ORCID of the contributor."
+    "helperText": "$md:contributorOrcid-helperText"
   },
   "contributorWebsiteUrl": {
     "label": "Website URL",
-    "helperText": "Enter the website URL of the contributor."
+    "helperText": "$md:contributorWebsiteUrl-helperText"
   },
   "affiliation": {
-    "label": "Affiliation"
+    "label": "Affiliation",
+    "helperText": "$md:contributorAffiliation-helperText"
   },
   "contributorAffiliationPosition": {
-    "label": "Position",
-    "helperText": "Enter the position of the contributor at the affiliated institution at the point of publication."
+    "label": "Position"
   },
   "contributorAffiliationInstitution": {
-    "label": "Institution",
-    "helperText": "Choose the affiliated institution of the contributor at the point of publication."
+    "label": "Institution"
   },
   "canonicalContributor": {
     "label": "Lead Contributor"
   },
   "publicationType": {
     "label": "Publication Type",
-    "helperText": "Choose the type of publication."
+    "helperText": "$md:publicationType-helperText"
   },
   "isbn": {
     "label": "ISBN",
-    "helperText": "Enter the ISBN of the publication."
+    "helperText": "$md:isbn-helperText"
   },
   "publicationPrice": {
     "label": "Price"
   },
-  "priceValue": {
-    "helperText": "Enter the value of the price."
-  },
   "priceCurrency": {
-    "helperText": "Choose the currency of the price."
+    "helperText": "$md:priceCurrency-helperText"
+  },
+  "locations": {
+    "label": "Locations",
+    "helperText": "$md:location-helperText"
   },
   "fullTextUrl": {
-    "label": "Full Text URL",
-    "helperText": "Enter the full text URL of the publication."
+    "label": "Full Text URL"
   },
   "platform": {
-    "label": "Platform",
-    "helperText": "Choose the platform of the publication."
+    "label": "Platform"
   },
   "canonical": {
     "label": "Canonical"
   },
   "specification": {
-    "label": "Specification",
-    "helperText": "Select the accessibility standard of the publication."
+    "label": "Specification"
   },
   "exception": {
-    "label": "Exception",
-    "helperText": "Enter the accessibility report URL or report of the publication."
+    "label": "Exception"
   },
   "reportUrl": {
-    "label": "Report URL",
-    "helperText": "Enter the accessibility report URL or report of the publication."
+    "label": "Report URL"
   },
   "dimensions": {
     "label": "Dimensions",
-    "helperText": "Enter the dimensions of the publication."
+    "helperText": "$md:publicationDimensions-helperText"
   },
   "width": {
-    "label": "Width (mm/in)",
-    "helperText": "Enter the width of the publication."
+    "label": "Width (mm/in)"
   },
   "height": {
-    "label": "Height (mm/in)",
-    "helperText": "Enter the height of the publication."
+    "label": "Height (mm/in)"
   },
   "depth": {
-    "label": "Depth (mm/in)",
-    "helperText": "Enter the depth of the publication."
+    "label": "Depth (mm/in)"
   },
   "weight": {
-    "label": "Weight (g/oz)",
-    "helperText": "Enter the weight of the publication."
+    "label": "Weight (g/oz)"
   },
   "program": {
     "label": "Program",
-    "helperText": "Enter the name of the funding program."
+    "helperText": "$md:program-helperText"
   },
   "grantNumber": {
     "label": "Grant Number",
-    "helperText": "Enter the grant or award number."
+    "helperText": "$md:grantNumber-helperText"
   },
   "institution": {
     "label": "Institution",
-    "helperText": "Choose the funding institution."
+    "helperText": "$md:institution-helperText"
   },
   "projectName": {
     "label": "Project Name",
-    "helperText": "Enter the name of the project that funds the work."
+    "helperText": "$md:projectName-helperText"
   },
   "projectShortname": {
     "label": "Project Shortname",
-    "helperText": "Enter the short name of the project that funds the work."
+    "helperText": "$md:projectShortname-helperText"
   },
   "awardTitle": {
     "label": "Award Title",
-    "helperText": "Enter the title of the award."
+    "helperText": "$md:awardTitle-helperText"
   },
   "awardUrl": {
     "label": "Award URL",
-    "helperText": "Enter the URL of the award."
+    "helperText": "$md:awardUrl-helperText"
   },
   "awardCategory": {
     "label": "Category",
-    "helperText": "Enter the category of the award."
+    "helperText": "$md:awardCategory-helperText"
   },
   "awardStatement": {
     "label": "Statement",
-    "helperText": "Enter a statement about the award."
+    "helperText": "$md:awardStatement-helperText"
   },
   "awardRole": {
     "label": "Role",
-    "helperText": "Select the role of the work in this award."
+    "helperText": "$md:awardRole-helperText"
   },
   "awardJury": {
     "label": "Jury",
-    "helperText": "Enter the jury associated with the award."
+    "helperText": "$md:awardJury-helperText"
   },
   "awardYear": {
     "label": "Year",
-    "helperText": "Enter the year or year span associated with the award."
+    "helperText": "$md:awardYear-helperText"
   },
   "awardCountry": {
     "label": "Country",
-    "helperText": "Select the country associated with the award."
+    "helperText": "$md:awardCountry-helperText"
   },
   "referenceDoi": {
     "label": "DOI",
-    "helperText": "Enter the DOI of the reference."
+    "helperText": "$md:referenceDoi-helperText"
   },
   "referenceCitation": {
     "label": "Citation",
-    "helperText": "Enter the citation text of the reference."
+    "helperText": "$md:referenceCitation-helperText"
   },
   "referenceUrl": {
     "label": "URL",
-    "helperText": "Enter the URL of the reference."
+    "helperText": "$md:referenceUrl-helperText"
   },
   "editImprint": {
     "label": "Imprint",
-    "helperText": "Enter name of the imprint."
+    "helperText": "$md:editImprint-helperText"
+  },
+  "editImprintSuperuser": {
+    "label": "Imprint (Superuser)",
+    "helperText": "$md:editImprintSuperuser-helperText"
   },
   "imprintUrl": {
-    "label": "Imprint URL",
-    "helperText": "Enter the URL of the imprint."
+    "label": "Imprint URL"
   },
   "crossmarkDoi": {
-    "label": "Crossmark DOI",
-    "helperText": "Enter the Crossmark DOI for this imprint."
+    "label": "Crossmark DOI"
   },
   "defaultPlace": {
-    "label": "Default Place",
-    "helperText": "Enter the default place of work."
+    "label": "Default Place"
   },
   "defaultCurrency": {
-    "label": "Default Currency",
-    "helperText": "Select the default currency for this imprint."
+    "label": "Default Currency"
   },
   "defaultLocale": {
-    "label": "Default Language",
-    "helperText": "Select the default language for this imprint."
+    "label": "Default Language"
   },
   "s3Bucket": {
-    "label": "S3 Bucket",
-    "helperText": "Enter the S3 bucket name for this imprint."
+    "label": "S3 Bucket"
   },
   "cdnDomain": {
-    "label": "CDN Domain",
-    "helperText": "Enter the CDN domain for this imprint."
+    "label": "CDN Domain"
   },
   "cloudfrontDistId": {
-    "label": "CloudFront Distribution ID",
-    "helperText": "Enter the CloudFront distribution ID for this imprint."
+    "label": "CloudFront Distribution ID"
   },
   "publicationFile": {
-    "label": "File",
-    "helperText": "Upload the publication file."
+    "label": "File"
   },
   "place": {
-    "label": "Place",
-    "helperText": "Enter the place of the work."
+    "label": "Place"
   },
   "withdrawnDate": {
     "label": "Withdrawn Date",
-    "helperText": "Enter the withdrawn date of the work."
+    "helperText": "$md:withdrawnDate-helperText"
+  },
+  "additionalResourceDoi": {
+    "label": "Resource DOI",
+    "helperText": "$md:additionalResourceDoi-helperText"
   },
   "additionalResourceTitle": {
     "label": "Resource Title",
-    "helperText": "Enter the title of the additional resource."
+    "helperText": "$md:additionalResourceTitle-helperText"
   },
   "additionalResourceDescription": {
     "label": "Description",
-    "helperText": "Enter the description of the additional resource."
+    "helperText": "$md:additionalResourceDescription-helperText"
   },
   "additionalResourceAttribution": {
     "label": "Attribution",
-    "helperText": "Enter the attribution of the additional resource."
+    "helperText": "$md:additionalResourceAttribution-helperText"
   },
   "additionalResourceResourceType": {
     "label": "Resource Type",
-    "helperText": "Enter the type of the additional resource."
+    "helperText": "$md:additionalResourceResourceType-helperText"
   },
   "additionalResourceHandle": {
     "label": "Handle",
-    "helperText": "Enter the handle of the additional resource."
+    "helperText": "$md:additionalResourceHandle-helperText"
   },
   "additionalResourceUrl": {
     "label": "Resource URL",
-    "helperText": "Enter the URL of the additional resource."
+    "helperText": "$md:additionalResourceUrl-helperText"
+  },
+  "bookReviewDoi": {
+    "label": "Review DOI",
+    "helperText": "$md:bookReviewDoi-helperText"
   },
   "bookReviewTitle": {
     "label": "Review Title",
-    "helperText": "Enter the title of the book review."
+    "helperText": "$md:bookReviewTitle-helperText"
   },
   "bookReviewAuthorName": {
     "label": "Reviewer Name",
-    "helperText": "Enter the name of the reviewer."
+    "helperText": "$md:bookReviewAuthorName-helperText"
   },
   "bookReviewUrl": {
     "label": "Review URL",
-    "helperText": "Enter the URL of the book review."
+    "helperText": "$md:bookReviewUrl-helperText"
   },
   "bookReviewReviewDate": {
     "label": "Review Date",
-    "helperText": "Enter the date of the book review."
+    "helperText": "$md:bookReviewReviewDate-helperText"
   },
   "bookReviewJournalName": {
     "label": "Journal Name",
-    "helperText": "Enter the name of the journal."
+    "helperText": "$md:bookReviewJournalName-helperText"
   },
   "bookReviewJournalVolume": {
     "label": "Journal Volume",
-    "helperText": "Enter the volume of the journal."
+    "helperText": "$md:bookReviewJournalVolume-helperText"
   },
   "bookReviewJournalNumber": {
     "label": "Journal Number",
-    "helperText": "Enter the issue number of the journal."
+    "helperText": "$md:bookReviewJournalNumber-helperText"
   },
   "bookReviewJournalIssn": {
     "label": "Journal ISSN",
-    "helperText": "Enter the ISSN of the journal."
+    "helperText": "$md:bookReviewJournalIssn-helperText"
   },
   "bookReviewPageRange": {
     "label": "Page Range",
-    "helperText": "Enter the page range of the review."
+    "helperText": "$md:bookReviewPageRange-helperText"
   },
   "bookReviewReviewerOrcid": {
     "label": "Reviewer ORCID",
-    "helperText": "Enter the ORCID of the reviewer."
+    "helperText": "$md:bookReviewReviewerOrcid-helperText"
   },
   "bookReviewReviewerInstitution": {
     "label": "Reviewer Institution",
-    "helperText": "Search for and select the institution of the reviewer."
+    "helperText": "$md:bookReviewReviewerInstitution-helperText"
   },
   "bookReviewText": {
     "label": "Review Text",
-    "helperText": "Enter the text of the book review."
+    "helperText": "$md:bookReviewText-helperText"
   },
   "endorsementAuthorName": {
     "label": "Author Name",
-    "helperText": "Enter the name of the endorsement author."
+    "helperText": "$md:endorsementAuthorName-helperText"
   },
   "endorsementAuthorOrcid": {
     "label": "Author ORCID",
-    "helperText": "Enter the ORCID of the endorsement author."
+    "helperText": "$md:endorsementAuthorOrcid-helperText"
   },
   "endorsementAuthorRole": {
     "label": "Author Role",
-    "helperText": "Enter the role of the endorsement author."
+    "helperText": "$md:endorsementAuthorRole-helperText"
   },
   "endorsementUrl": {
     "label": "Endorsement URL",
-    "helperText": "Enter the URL of the endorsement."
+    "helperText": "$md:endorsementUrl-helperText"
   },
   "endorsementAuthorInstitution": {
     "label": "Author Institution",
-    "helperText": "Search for and select the institution of the endorsement author."
+    "helperText": "$md:endorsementAuthorInstitution-helperText"
   },
   "endorsementText": {
     "label": "Endorsement Text",
-    "helperText": "Enter the text of the endorsement."
+    "helperText": "$md:endorsementText-helperText"
   },
   "featuredVideoTitle": {
     "label": "Video Title",
-    "helperText": "Enter the title of the featured video."
+    "helperText": "$md:featuredVideoTitle-helperText"
   },
   "featuredVideoUrl": {
     "label": "Video URL",
-    "helperText": "Enter the URL of the featured video."
+    "helperText": "$md:featuredVideoUrl-helperText"
   },
   "featuredVideoWidth": {
     "label": "Video Width",
-    "helperText": "Enter the width of the featured video in pixels."
+    "helperText": "$md:featuredVideoWidth-helperText"
   },
   "featuredVideoHeight": {
     "label": "Video Height",
-    "helperText": "Enter the height of the featured video in pixels."
+    "helperText": "$md:featuredVideoHeight-helperText"
   }
 }

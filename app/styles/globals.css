@@ -237,3 +237,21 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+.wmde-markdown h1 a.anchor,
+.wmde-markdown h2 a.anchor,
+.wmde-markdown h3 a.anchor,
+.wmde-markdown h4 a.anchor,
+.wmde-markdown h5 a.anchor,
+.wmde-markdown h6 a.anchor {
+  display: none !important;
+}
+
+.wmde-markdown h1:hover a.anchor,
+.wmde-markdown h2:hover a.anchor,
+.wmde-markdown h3:hover a.anchor,
+.wmde-markdown h4:hover a.anchor,
+.wmde-markdown h5:hover a.anchor,
+.wmde-markdown h6:hover a.anchor {
+  visibility: hidden !important;
+}

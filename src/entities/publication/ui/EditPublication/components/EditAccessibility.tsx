@@ -43,7 +43,7 @@ const {
   PUBLICATION_ACCESSIBILITY_REPORT_URL,
 } = FORM_FIELDS;
 
-const { PUBLICATION_ACCESSIBILITY_STANDARD: PUBLICATION_ACCESSIBILITY_STANDARD_HELPER_TEXT } = HELPER_TEXT;
+const { PUBLICATION_ACCESSIBILITY: PUBLICATION_ACCESSIBILITY_HELPER_TEXT } = HELPER_TEXT;
 
 const EMPTY_STANDARDS: AccessibilityStandardType[] = [];
 
@@ -89,7 +89,7 @@ export const EditAccessibility = (props: EditAccessibilityProps) => {
       validationSchema={accessibilityValidationSchema}
       onSubmit={handleSubmit}
       borderTransparent
-      faq={PUBLICATION_ACCESSIBILITY_STANDARD_HELPER_TEXT}
+      faq={PUBLICATION_ACCESSIBILITY_HELPER_TEXT}
       formFields={({ control }) => (
         <MultipleContentWrapper>
           <ContentWrapper>
