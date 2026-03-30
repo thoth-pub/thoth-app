@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { LocationPlatform } from '@/gql/graphql';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS, IDs } from '@/src/shared/constants';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import {
   AddButton,
@@ -90,11 +91,11 @@ const EditLocations = (props: EditLocationsProps) => {
     <>
       <ContentWrapper>
         <InputLabel className="capitalize" component="span">
-          <TranslatedContent content={LOCATIONS.label} />
+          <TranslatedContent content={LOCATIONS.label} namespace={NAMESPACES.enum.forms} />
         </InputLabel>
         {!activeLocation && !isLocationsFilled && (
           <AddButton onAdd={handleAddNewLocation} className="mr-auto p-0 capitalize" disabled={!!activeFormId}>
-            add new location
+            <TranslatedContent content="actions.addNewLocation" />
           </AddButton>
         )}
       </ContentWrapper>

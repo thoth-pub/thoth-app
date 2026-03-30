@@ -3,7 +3,6 @@
 import type { Control } from 'react-hook-form';
 
 import { FORM_FIELDS, HELPER_TEXT, IDs, SeriesType, seriesTypeOptions } from '@/src/shared/constants';
-import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -97,7 +96,7 @@ const EditSeriesForm = ({
         faq={SERIES_NAME_HELPER_TEXT}
         formFields={({ control }) => (
           <ContentWrapper>
-            <FormFieldLabel label={SERIES_NAME.label} id={SERIES_NAME.name} namespace={NAMESPACES.enum.common} />
+            <FormFieldLabel label={SERIES_NAME.label} id={SERIES_NAME.name} />
             <FormTextField
               control={control as unknown as Control<SeriesNameFormType>}
               name={SERIES_NAME.name}
@@ -107,13 +106,7 @@ const EditSeriesForm = ({
           </ContentWrapper>
         )}
         preview={({ disabled, onEdit }) => (
-          <Preview
-            label={SERIES_NAME.label}
-            namespace={NAMESPACES.enum.common}
-            disabled={disabled}
-            onEdit={onEdit}
-            value={name}
-          />
+          <Preview label={SERIES_NAME.label} disabled={disabled} onEdit={onEdit} value={name} />
         )}
       />
 

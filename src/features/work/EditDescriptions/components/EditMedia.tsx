@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { useWork } from '@/src/entities/work';
 import type { MediaForm } from '@/src/entities/work/model/work.types';
@@ -18,6 +19,7 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
   const { workId } = props;
 
   const { work, updateWork } = useWork(workId);
+  const { t } = useTranslation();
 
   const { imageCount, tableCount, audioCount, videoCount } = work;
 
@@ -25,23 +27,23 @@ export const EditMedia = (props: BaseRecommendedSectionProps) => {
     const res: string[] = [];
 
     if (tableCount) {
-      res.push(`${tableCount} ${tableCount > 1 ? 'tables' : 'table'}`);
+      res.push(`${tableCount} ${tableCount > 1 ? t('tables') : t('table')}`);
     }
 
     if (imageCount) {
-      res.push(`${imageCount} ${imageCount > 1 ? 'images' : 'image'}`);
+      res.push(`${imageCount} ${imageCount > 1 ? t('images') : t('image')}`);
     }
 
     if (audioCount) {
-      res.push(`${audioCount} ${audioCount > 1 ? 'audios' : 'audio'}`);
+      res.push(`${audioCount} ${audioCount > 1 ? t('audios') : t('audio')}`);
     }
 
     if (videoCount) {
-      res.push(`${videoCount} ${videoCount > 1 ? 'videos' : 'video'}`);
+      res.push(`${videoCount} ${videoCount > 1 ? t('videos') : t('video')}`);
     }
 
-    return res.join(', ');
-  }, [imageCount, tableCount, audioCount, videoCount]);
+    return res.join(', ').toLowerCase();
+  }, [imageCount, tableCount, audioCount, videoCount, t]);
 
   const handleSubmit = (data: MediaForm) => {
     updateWork({ ...work, ...data });

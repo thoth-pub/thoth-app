@@ -86,6 +86,7 @@ import seriesTypeHelperText from './helperText/seriesType.md';
 import seriesUrlHelperText from './helperText/seriesUrl.md';
 import setImprintHelperText from './helperText/setImprint.md';
 import setTitleHelperText from './helperText/setTitle.md';
+import statementHelperText from './helperText/statement.md';
 import statusHelperText from './helperText/status.md';
 import subjectHelperText from './helperText/subject.md';
 import titleHelperText from './helperText/title.md';
@@ -181,6 +182,7 @@ const markdownContent: Record<string, string> = {
   'seriesName-helperText': seriesNameHelperText,
   'seriesType-helperText': seriesTypeHelperText,
   'seriesUrl-helperText': seriesUrlHelperText,
+  'statement-helperText': statementHelperText,
   'status-helperText': statusHelperText,
   'subject-helperText': subjectHelperText,
   'mediaCount-helperText': mediaCountHelperText,

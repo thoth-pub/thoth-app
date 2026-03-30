@@ -138,6 +138,7 @@ export const Header = (props: HeaderProps) => {
                 options={directionOptions}
                 value={direction}
                 onChange={(e) => changeDirection(e.target.value as Direction)}
+                translateOptions
               />
             </div>
           </motion.div>

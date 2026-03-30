@@ -3,6 +3,7 @@ import { useEffectOnce } from 'react-use';
 
 import { appConfig } from '@/src/shared/config';
 import { currencyOptions, FORM_FIELDS } from '@/src/shared/constants';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AddButton,
   AutocompleteField,
@@ -91,7 +92,7 @@ export const FormFields = (props: FormFieldsProps) => {
           <li key={field.id} className={itemsStyle}>
             <FormFieldWrapper>
               <InputLabel className={`capitalize ${index === 0 ? 'opacity-100' : 'opacity-0'}`}>
-                <TranslatedContent content={PRICES.label} />
+                <TranslatedContent content={PRICES.label} namespace={NAMESPACES.enum.forms} />
               </InputLabel>
               <FormFieldWithControlsWrapper>
                 <div className="grid w-full grid-cols-2 gap-1">
@@ -123,7 +124,7 @@ export const FormFields = (props: FormFieldsProps) => {
       </ul>
       <FormFieldWrapper>
         <InputLabel className={`capitalize ${fields.length === 0 ? 'opacity-1' : 'opacity-0'}`} component="span">
-          <TranslatedContent content={PRICES.label} />
+          <TranslatedContent content={PRICES.label} namespace={NAMESPACES.enum.forms} />
         </InputLabel>
         <AddButton type="button" className="mt-4 mr-auto capitalize xl:mt-8" onAdd={handleAdd}>
           <TranslatedContent content="actions.addNewPrice" />

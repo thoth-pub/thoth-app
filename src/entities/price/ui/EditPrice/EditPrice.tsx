@@ -68,7 +68,7 @@ const EditPrice = (props: EditPriceProps) => {
           disabled={disabled}
           onEdit={onEdit}
           value={placeholder}
-          namespace={NAMESPACES.enum.common}
+          namespace={NAMESPACES.enum.forms}
         />
       )}
     />

@@ -25,7 +25,7 @@ type InheritedDataFormProps = {
 const { COPYRIGHT_HOLDER, LICENSE, SUBJECTS, IMPRINT, WORK_STATUS } = FORM_FIELDS;
 
 const itemStyles = 'max-w-fit p-0';
-const labelStyles = 'min-w-45 lg:min-w-55 capitalize';
+const labelStyles = 'w-45 lg:w-55 capitalize text-wrap';
 const wrapperStyles = 'flex items-center gap-2';
 
 export const InheritedDataForm = (props: InheritedDataFormProps) => {

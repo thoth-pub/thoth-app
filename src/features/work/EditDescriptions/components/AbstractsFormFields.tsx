@@ -1,7 +1,6 @@
 'use client';
 
 import { type Control, useFieldArray } from 'react-hook-form';
-import { useTranslation } from 'react-i18next';
 import { useEffectOnce } from 'react-use';
 
 import { LocaleCode } from '@/gql/graphql';
@@ -17,6 +16,7 @@ import {
   FormFieldWithControlsWrapper,
   LanguageField,
   MarkdownField,
+  TranslatedContent,
 } from '@/src/shared/ui';
 
 const { WORK_ABSTRACTS, WORK_ABSTRACT, WORK_SHORT_ABSTRACT, LANGUAGE } = FORM_FIELDS;
@@ -40,8 +40,6 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
     [WORK_SHORT_ABSTRACT.name]: '',
     [LANGUAGE.name]: defaultLocaleOption,
   };
-
-  const { t } = useTranslation();
 
   const { fields, append, remove } = useFieldArray({
     control,
@@ -138,7 +136,7 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
               <ContentWrapper>
                 <br />
                 <AddButton type="button" className="mr-auto capitalize" onAdd={handleAdd}>
-                  {t('add new translation')}
+                  <TranslatedContent content="actions.addNewTranslation" />
                 </AddButton>
               </ContentWrapper>
             )}

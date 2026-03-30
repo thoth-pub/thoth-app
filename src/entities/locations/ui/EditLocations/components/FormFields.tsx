@@ -3,6 +3,7 @@ import { useEffectOnce } from 'react-use';
 
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS, locationPlatformOptions } from '@/src/shared/constants';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AddButton,
   AutocompleteField,
@@ -13,6 +14,7 @@ import {
   FormFieldWrapper,
   FormTextField,
   InputLabel,
+  TranslatedContent,
 } from '@/src/shared/ui';
 import { getProtocolPrefix, isDefaultId } from '@/src/shared/utils';
 
@@ -135,10 +137,10 @@ export const FormFields = (props: FormFieldsProps) => {
 
       <FormFieldWrapper>
         <InputLabel className={`${fields.length === 0 ? 'opacity-1' : 'opacity-0'}`} component="span">
-          {LOCATIONS.label}
+          <TranslatedContent content={LOCATIONS.label} namespace={NAMESPACES.enum.forms} />
         </InputLabel>
         <AddButton type="button" className="mt-4 mr-auto capitalize xl:mt-8" onAdd={handleAdd}>
-          add new location
+          <TranslatedContent content="actions.addNewLocation" />
         </AddButton>
       </FormFieldWrapper>
     </>
