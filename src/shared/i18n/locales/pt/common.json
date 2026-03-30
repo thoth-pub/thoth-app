@@ -213,5 +213,9 @@
   "resume": "Retomar",
   "publish": "Publicar",
   "cancel": "Cancelar",
-  "postpone": "Adiar"
+  "postpone": "Adiar",
+  "errors": {
+    "xmlParsingError": "Erro ao analisar o ficheiro XML. Certifique-se de que o ficheiro ONIX carregado segue a estrutura definida no nosso modelo",
+    "csvParsingError": "Erro ao analisar o ficheiro CSV. Certifique-se de que o ficheiro CSV carregado segue a estrutura definida no nosso modelo"
+  }
 }

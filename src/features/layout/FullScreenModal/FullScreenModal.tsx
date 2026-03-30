@@ -20,7 +20,7 @@ const FullScreenModal = (props: FullScreenModalProps) => {
       <div className="relative h-dvh w-dvw overflow-auto bg-(--color-modal-content-background) px-5 py-2 xl:py-3">
         <div className="m-auto flex h-full flex-row">
           <Navigation />
-          <div className="scrollbar-hidden flex grow flex-col gap-(--default-gap) overflow-x-auto px-8 py-[12px]">
+          <div className="flex grow flex-col gap-(--default-gap) overflow-x-auto px-8 py-[12px]">
             <ContentSection>
               <div className="flex justify-between">
                 <Typography variant="h1" component="h3" className="pl-4 text-(--color-typography)">

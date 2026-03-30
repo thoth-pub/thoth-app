@@ -40,3 +40,28 @@ export const selectCanonicalLocation = (locations: LocationEntity[]) => {
 
   return sortLocations(updatedLocations);
 };
+
+export const locationPlatformMapper = (platform: LocationPlatform) => {
+  const platformMap = {
+    [LocationPlatform.Thoth]: 'Thoth',
+    [LocationPlatform.PublisherWebsite]: 'Publisher Website',
+    [LocationPlatform.Doab]: 'DOAB',
+    [LocationPlatform.EbscoHost]: 'EBSCO Host',
+    [LocationPlatform.EbscoKb]: 'EBSCO Knowledge Base',
+    [LocationPlatform.GoogleBooks]: 'Google Books',
+    [LocationPlatform.InternetArchive]: 'Internet Archive',
+    [LocationPlatform.JiscKb]: 'JISC',
+    [LocationPlatform.Jstor]: 'JSTOR',
+    [LocationPlatform.Oapen]: 'OAPEN',
+    [LocationPlatform.OclcKb]: 'OCLC',
+    [LocationPlatform.Other]: 'Other',
+    [LocationPlatform.ProjectMuse]: 'Project MUSE',
+    [LocationPlatform.ProquestExlibris]: 'ProQuest ExLibris',
+    [LocationPlatform.ProquestKb]: 'ProQuest Knowledge Base',
+    [LocationPlatform.ScieloBooks]: 'SciELO Books',
+    [LocationPlatform.ScienceOpen]: 'ScienceOpen',
+    [LocationPlatform.Zenodo]: 'Zenodo',
+  };
+
+  return platformMap[platform];
+};

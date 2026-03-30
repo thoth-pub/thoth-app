@@ -28,11 +28,13 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
   const { activePublisher, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
 
-  const authorizedPublishers = user.linkedPublishers.map((publisher) => ({
-    ...publisher,
-    name: publisher.publisherName,
-    id: publisher.publisherId,
-  }));
+  const authorizedPublishers = user.linkedPublishers
+    .map((publisher) => ({
+      ...publisher,
+      name: publisher.publisherName,
+      id: publisher.publisherId,
+    }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
   const publishersOptions = convertEntityToSelectFieldOptions(authorizedPublishers, 'name');
 

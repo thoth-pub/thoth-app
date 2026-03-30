@@ -20,7 +20,8 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
-import { convertOptionToString, isDefaultId } from '@/src/shared/utils';
+import { isDefaultId } from '@/src/shared/utils';
+import { locationPlatformMapper } from '@/src/shared/utils/locations';
 
 import type { LocationEntity } from '../../model/location.types';
 import { useLocationStateMachine } from '../../store/location.store';
@@ -122,9 +123,15 @@ const EditLocations = (props: EditLocationsProps) => {
                     >
                       <>
                         {location.locationPlatform === LocationPlatform.Thoth && (
-                          <Image src="/logo_small.png" alt="Thoth" width={24} height={24} />
+                          <Image
+                            src="/logo_small.png"
+                            alt="Thoth"
+                            width={24}
+                            height={24}
+                            className="scale-50 xl:scale-100"
+                          />
                         )}
-                        {convertOptionToString(location.locationPlatform)}
+                        {locationPlatformMapper(location.locationPlatform)}
                       </>
                     </Typography>
                   }
@@ -156,7 +163,7 @@ const EditLocations = (props: EditLocationsProps) => {
 
       {isLocationsFilled && (
         <AddButton onAdd={handleAddNewLocation} className="mt-4 mr-auto p-0 capitalize" disabled={!!activeFormId}>
-          add new location
+          <TranslatedContent content="actions.addNewLocation" />
         </AddButton>
       )}
     </>

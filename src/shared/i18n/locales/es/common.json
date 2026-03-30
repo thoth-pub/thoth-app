@@ -213,5 +213,9 @@
   "resume": "Reanudar",
   "publish": "Publicar",
   "cancel": "Cancelar",
-  "postpone": "Posponer"
+  "postpone": "Posponer",
+  "errors": {
+    "xmlParsingError": "Error al analizar el archivo XML. Asegúrese de que el archivo ONIX cargado sigue la estructura establecida en nuestra plantilla",
+    "csvParsingError": "Error al analizar el archivo CSV. Asegúrese de que el archivo CSV cargado sigue la estructura establecida en nuestra plantilla"
+  }
 }

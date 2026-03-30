@@ -7,6 +7,8 @@ import { useAllUserSerieses } from '@/src/entities/series';
 import { useUser } from '@/src/entities/user';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { FORM_FIELDS } from '@/src/shared/constants';
+import { useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { SeriesForUpdateItems } from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
@@ -22,6 +24,7 @@ type UploadStepProps = {
 export const UploadStep = (props: UploadStepProps) => {
   const { onPreview } = props;
 
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
   const { userImprintsOptions } = useUser();
   const { serieses } = useAllUserSerieses();
   const [files, setFiles] = useState<FileList | null>(null);
@@ -87,7 +90,7 @@ export const UploadStep = (props: UploadStepProps) => {
             <Typography component="span" color="inherit">
               {index + 1}.
             </Typography>{' '}
-            {error}
+            {t(error)}
           </Typography>
         ))}
       </ul>

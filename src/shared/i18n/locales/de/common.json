@@ -213,5 +213,9 @@
   "resume": "Fortsetzen",
   "publish": "Veröffentlichen",
   "cancel": "Abbrechen",
-  "postpone": "Verschieben"
+  "postpone": "Verschieben",
+  "errors": {
+    "xmlParsingError": "Fehler beim Parsen der XML-Datei. Bitte stellen Sie sicher, dass die hochgeladene ONIX-Datei der Struktur unserer Vorlage entspricht",
+    "csvParsingError": "Fehler beim Parsen der CSV-Datei. Bitte stellen Sie sicher, dass die hochgeladene CSV-Datei der Struktur unserer Vorlage entspricht"
+  }
 }

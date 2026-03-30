@@ -213,5 +213,9 @@
   "resume": "Resume",
   "publish": "Publish",
   "cancel": "Cancel",
-  "postpone": "Postpone"
+  "postpone": "Postpone",
+  "errors": {
+    "xmlParsingError": "Error parsing XML file. Please ensure that the uploaded ONIX file follows the structure laid out in our template",
+    "csvParsingError": "Error parsing CSV file. Please ensure that the uploaded CSV file follows the structure laid out in our template"
+  }
 }

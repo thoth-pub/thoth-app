@@ -5,7 +5,7 @@ import { Activity, useEffect, useEffectEvent, useState } from 'react';
 import { validateXml } from '@/app/actions/validateXml';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
-import { currencyOptions, languageOptions, licenseOptions } from '@/src/shared/constants';
+import { currencyOptions, ERRORS, languageOptions, licenseOptions } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { XMLParser } from '@/src/shared/parsers';
@@ -40,7 +40,7 @@ export const XMLParse = (props: XMLParseProps) => {
     const response = await validateXml(file);
 
     if (response.status === 'error') {
-      onValidationFailure?.(['Invalid XML file']);
+      onValidationFailure?.([ERRORS.XML_PARSING_ERROR]);
       setIsValidatingFile(false);
       return;
     }
@@ -49,7 +49,7 @@ export const XMLParse = (props: XMLParseProps) => {
     const errors: string[] = [];
 
     if (!data) {
-      onValidationFailure?.(['Invalid XML file']);
+      onValidationFailure?.([ERRORS.XML_PARSING_ERROR]);
       setIsValidatingFile(false);
       return;
     }

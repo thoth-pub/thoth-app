@@ -35,6 +35,7 @@ import {
   WorkTypes,
 } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
+import { ERRORS } from '../../constants/errors';
 import { FormFieldOption } from '../../interfaces';
 import type { AbstractEntity, ContributorsForSelection, SeriesForUpdateItems, TitleEntity } from '../../types';
 import {
@@ -128,7 +129,7 @@ class XMLParser {
       return {
         status: 'failed',
         data: { works: [], series: {}, chapters: [], contributorsForSelection: {} },
-        errors: ['Error parsing XML file'],
+        errors: [ERRORS.XML_PARSING_ERROR],
       };
     }
   }

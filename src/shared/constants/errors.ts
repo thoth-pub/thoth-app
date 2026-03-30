@@ -15,4 +15,6 @@ export const ERRORS = {
   FILE_FORMAT_INVALID: 'File format is invalid',
   TITLE_LANGUAGE_REQUIRED: 'Title Language is required',
   DOI_IS_REQUIRED: 'DOI is required',
+  XML_PARSING_ERROR: 'errors.xmlParsingError',
+  CSV_PARSING_ERROR: 'errors.csvParsingError',
 } as const;

@@ -21,6 +21,7 @@ import {
   SubjectTypes,
 } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
+import { ERRORS } from '../../constants/errors';
 import { FormFieldOption } from '../../interfaces';
 import type { AbstractEntity, ContributorsForSelection, SeriesForUpdateItems, TitleEntity } from '../../types';
 import {
@@ -100,7 +101,11 @@ export class CSVParser {
         errors: [],
       };
     } catch (_error) {
-      return { status: 'failed', data: { works: [], series: {}, contributorsForSelection: {} }, errors: this.errors };
+      return {
+        status: 'failed',
+        data: { works: [], series: {}, contributorsForSelection: {} },
+        errors: [ERRORS.CSV_PARSING_ERROR],
+      };
     }
   }
 
