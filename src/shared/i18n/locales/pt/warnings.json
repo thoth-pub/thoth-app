@@ -4,5 +4,7 @@
   "postponed indefinitely": "Alterar o estado para Adiada Indefinidamente irá atualizar a data de publicação para a data atual.",
   "cancelled": "Alterar o estado para Cancelada irá atualizar a data de publicação para a data atual.",
   "superseded": "Alterar o estado para Substituída irá atualizar a data de publicação para a data atual.",
-  "withdrawn": "Alterar o estado para Retirada irá atualizar a data de publicação para a data atual."
+  "withdrawn": "Alterar o estado para Retirada irá atualizar a data de publicação para a data atual.",
+  "chaptersFundingsMismatch": "Esta secção não está disponível porque os financiamentos nos capítulos selecionados não são iguais. Por favor, verifique os financiamentos e tente novamente.",
+  "chaptersContributorsMismatch": "Esta secção não está disponível porque os contribuidores nos capítulos selecionados não são iguais. Por favor, verifique os contribuidores e tente novamente."
 }

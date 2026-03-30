@@ -309,9 +309,9 @@
     "label": "Número da Bolsa",
     "helperText": "$md:grantNumber-helperText"
   },
-  "fundingInstitution": {
+  "institution": {
     "label": "Instituição",
-    "helperText": "$md:fundingInstitution-helperText"
+    "helperText": "$md:institution-helperText"
   },
   "projectName": {
     "label": "Nome do Projeto",

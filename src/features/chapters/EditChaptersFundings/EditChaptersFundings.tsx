@@ -136,14 +136,13 @@ const EditChaptersFundings = (props: EditChaptersFundingsProps) => {
             />
             {isNewFunding && <AddFunding workId="" onCreate={createFunding} />}
             <AddButton className="px-4 capitalize" onAdd={addFunding} disabled={isNewFunding}>
-              add new funding
+              <TranslatedContent content="add new funding" />
             </AddButton>
           </Activity>
 
           <Activity mode={isSectionEnabled ? 'hidden' : 'visible'}>
             <Typography className="pl-4">
-              This section is unavailable because the fundings in selected chapters are not the same. Please check the
-              fundings and try again.
+              <TranslatedContent content="chaptersFundingsMismatch" namespace="warnings" />
             </Typography>
           </Activity>
         </>

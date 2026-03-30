@@ -260,9 +260,6 @@
   "publicationPrice": {
     "label": "Preis"
   },
-  "priceValue": {
-    "label": "Wert"
-  },
   "priceCurrency": {
     "label": "Währung",
     "helperText": "$md:priceCurrency-helperText"

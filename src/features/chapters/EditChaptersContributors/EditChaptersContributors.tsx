@@ -190,8 +190,7 @@ const EditChaptersContributors = (props: EditChaptersContributorsProps) => {
             </>
           ) : (
             <Typography className="pl-4">
-              This section is unavailable because the contributors in selected chapters are not the same. Please check
-              the contributors and try again.
+              <TranslatedContent content="chaptersContributorsMismatch" namespace="warnings" />
             </Typography>
           )}
         </>

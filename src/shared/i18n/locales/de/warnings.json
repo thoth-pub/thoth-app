@@ -4,5 +4,7 @@
   "postponed indefinitely": "Das Ändern des Status auf Auf unbestimmte Zeit verschoben aktualisiert das Erscheinungsdatum auf das heutige Datum.",
   "cancelled": "Das Ändern des Status auf Abgesagt aktualisiert das Erscheinungsdatum auf das heutige Datum.",
   "superseded": "Das Ändern des Status auf Ersetzt aktualisiert das Erscheinungsdatum auf das heutige Datum.",
-  "withdrawn": "Das Ändern des Status auf Zurückgezogen aktualisiert das Erscheinungsdatum auf das heutige Datum."
+  "withdrawn": "Das Ändern des Status auf Zurückgezogen aktualisiert das Erscheinungsdatum auf das heutige Datum.",
+  "chaptersFundingsMismatch": "Dieser Abschnitt ist nicht verfügbar, da die Finanzierungen in den ausgewählten Kapiteln nicht übereinstimmen. Bitte überprüfen Sie die Finanzierungen und versuchen Sie es erneut.",
+  "chaptersContributorsMismatch": "Dieser Abschnitt ist nicht verfügbar, da die Mitwirkenden in den ausgewählten Kapiteln nicht übereinstimmen. Bitte überprüfen Sie die Mitwirkenden und versuchen Sie es erneut."
 }
