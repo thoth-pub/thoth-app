@@ -1,7 +1,7 @@
 'use client';
 
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
-import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
+import { ContentWrapper, FormFieldLabel, MarkdownField, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { awardStatementValidationSchema } from '../../model/award.validation';
@@ -29,11 +29,21 @@ export const EditAwardStatement = (props: EditAwardStatementProps) => {
       formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={AWARD_STATEMENT.label} id={AWARD_STATEMENT.name} />
-          <FormTextField control={control} name={AWARD_STATEMENT.name} id={AWARD_STATEMENT.name} />
+          <MarkdownField
+            control={control}
+            name={AWARD_STATEMENT.name}
+            id={AWARD_STATEMENT.name}
+            disableLineBreaks
+            extendedToolbar
+          />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview label={AWARD_STATEMENT.label} value={data?.statement} disabled={disabled} onEdit={onEdit} />
+        <Preview label={AWARD_STATEMENT.label} value={data?.statement} disabled={disabled} onEdit={onEdit}>
+          <Typography component="span">
+            <MarkdownPreview source={data?.statement} />
+          </Typography>
+        </Preview>
       )}
     />
   );

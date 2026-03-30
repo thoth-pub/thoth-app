@@ -29,7 +29,13 @@ export const EditBookReviewText = (props: EditBookReviewTextProps) => {
       formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={BOOK_REVIEW_TEXT.label} id={BOOK_REVIEW_TEXT.name} />
-          <MarkdownField control={control} name={BOOK_REVIEW_TEXT.name} id={BOOK_REVIEW_TEXT.name} disableLineBreaks />
+          <MarkdownField
+            control={control}
+            name={BOOK_REVIEW_TEXT.name}
+            id={BOOK_REVIEW_TEXT.name}
+            disableLineBreaks
+            extendedToolbar
+          />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (

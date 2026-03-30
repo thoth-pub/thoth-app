@@ -29,7 +29,13 @@ export const EditEndorsementText = (props: EditEndorsementTextProps) => {
       formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ENDORSEMENT_TEXT.label} id={ENDORSEMENT_TEXT.name} />
-          <MarkdownField control={control} name={ENDORSEMENT_TEXT.name} id={ENDORSEMENT_TEXT.name} disableLineBreaks />
+          <MarkdownField
+            control={control}
+            name={ENDORSEMENT_TEXT.name}
+            id={ENDORSEMENT_TEXT.name}
+            disableLineBreaks
+            extendedToolbar
+          />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
