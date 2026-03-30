@@ -18,6 +18,7 @@ import type {
 import { useUser } from '@/src/entities/user';
 import { appConfig } from '@/src/shared/config';
 import { SeriesType } from '@/src/shared/constants';
+import { useEscapeKey } from '@/src/shared/hooks';
 import {
   CloseButton,
   Modal,
@@ -39,6 +40,8 @@ const AddSeries = () => {
   const { isImprintEditable } = useActivePublisherPermissions();
 
   const open = activeSeries && isDefaultId(activeSeries.id) ? true : false;
+
+  useEscapeKey(finishEditing, open);
 
   const defaultSeries: SeriesEntity = {
     id: appConfig.defaultId,
@@ -141,7 +144,7 @@ const AddSeries = () => {
         ))}
       </SpeedDial>
       <Modal open={open} onClose={finishEditing}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={finishEditing}>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) uppercase">
               <TranslatedContent content="actions.addSeries" />

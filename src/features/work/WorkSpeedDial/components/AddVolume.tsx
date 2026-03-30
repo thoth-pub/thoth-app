@@ -11,7 +11,7 @@ import { useWork } from '@/src/entities/work';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared/config';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants';
-import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
+import { useDebouncedValue, useEscapeKey, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { LocaleCodeType } from '@/src/shared/types';
 import {
@@ -42,6 +42,8 @@ const STEPS = {
 
 export const AddVolume = (props: AddVolumeProps) => {
   const { workId, open, onClose } = props;
+
+  useEscapeKey(onClose, open);
 
   const { work } = useWork(workId);
   const { activePublisher } = usePublisherStateMachine();
@@ -125,7 +127,7 @@ export const AddVolume = (props: AddVolumeProps) => {
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalWrapper>
+      <ModalWrapper onClickAway={onClose}>
         <div className="flex justify-between">
           <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
             {isNewStep ? (

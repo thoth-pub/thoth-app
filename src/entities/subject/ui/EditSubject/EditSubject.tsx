@@ -5,7 +5,7 @@ import { FORM_FIELDS, SubjectTypes } from '@/src/shared/constants';
 import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
 import { themaFormFields } from '@/src/shared/constants/themaFormFields';
-import { useIsDesktop } from '@/src/shared/hooks';
+import { useEscapeKey, useIsDesktop } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 import { AutocompleteField, CloseButton, FormTextField, Modal, ModalWrapper, SubmitButton } from '@/src/shared/ui';
@@ -56,6 +56,8 @@ export const EditSubject = ({ workId }: BaseEditSectionProps) => {
     finishEditing();
   };
 
+  useEscapeKey(onClose, !isDesktop);
+
   const onSubmit = (data: { subjectCode: { value: string; label: string } }) => {
     if (!activeSubject) return;
 
@@ -101,7 +103,7 @@ export const EditSubject = ({ workId }: BaseEditSectionProps) => {
         formComponent
       ) : (
         <Modal open>
-          <ModalWrapper>{formComponent}</ModalWrapper>
+          <ModalWrapper onClickAway={onClose}>{formComponent}</ModalWrapper>
         </Modal>
       )}
     </>

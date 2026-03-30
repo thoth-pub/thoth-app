@@ -14,7 +14,7 @@ import type { IssueValidationSchema, SeriesEntity } from '@/src/entities/series/
 import { issueValidationSchema } from '@/src/entities/series/model/series.validation';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS } from '@/src/shared/constants';
-import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
+import { useDebouncedValue, useEscapeKey, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AutocompleteField,
@@ -39,6 +39,8 @@ export const AddBookModal = (props: AddBookModalProps) => {
   const { series } = props;
 
   const [open, setOpen] = useState(false);
+
+  useEscapeKey(() => setOpen(false), open);
 
   const lastIssueOrdinal = series.issues.sort((a, b) => a.ordinal - b.ordinal).at(-1)?.ordinal ?? 1;
 
@@ -91,7 +93,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
         <TranslatedContent content="actions.addBook" />
       </Button>
       <Modal open={open} onClose={() => setOpen(false)}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={() => setOpen(false)}>
           <div className="flex flex-col justify-between gap-(--default-gap)">
             <div className="flex justify-between">
               <Typography variant="h2" component="h3" className="text-(--color-typography) uppercase">

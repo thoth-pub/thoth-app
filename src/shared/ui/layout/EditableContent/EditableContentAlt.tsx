@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import type { Control, FieldValues, UseFormReset, UseFormSetValue, ValidationMode } from 'react-hook-form';
 
-import { useTypedTranslation } from '@/src/shared/hooks';
+import { useEscapeKey, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -55,6 +55,8 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
   const isActive = activeFormId === formId;
   const showFaqButton = faq && faq.length > 0;
 
+  useEscapeKey(() => setShowFaq(false), showFaq);
+
   const handleEdit = () => {
     if (isDisabled) return;
 
@@ -103,7 +105,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
       )}
       {showFaqButton && (
         <Modal open={showFaq} onClose={handleToggleFaq}>
-          <ModalWrapper>
+          <ModalWrapper onClickAway={handleToggleFaq}>
             <div className="flex flex-col gap-2">
               <CloseButton onClose={handleToggleFaq} className="self-end" />
               <MarkdownRenderer markdown={t(faq)} />

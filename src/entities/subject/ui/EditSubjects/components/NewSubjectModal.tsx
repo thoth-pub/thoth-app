@@ -9,7 +9,7 @@ import { bicFormFields } from '@/src/shared/constants/bicFormFields';
 import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
 import { SubjectTypes } from '@/src/shared/constants/subjects';
 import { themaFormFields } from '@/src/shared/constants/themaFormFields';
-import { useTypedTranslation } from '@/src/shared/hooks';
+import { useEscapeKey, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AutocompleteField,
@@ -48,6 +48,10 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
   const { open, onClose, onAdd } = props;
 
   const [showFaq, setShowFaq] = useState(false);
+
+  useEscapeKey(onClose, open && !showFaq);
+  useEscapeKey(() => setShowFaq(false), showFaq);
+
   const [optionsLength, setOptionsLength] = useState(0);
   const isAutocomplete = optionsLength > 0;
 
@@ -99,7 +103,7 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
 
   return (
     <Modal open={open} onClose={onClose}>
-      <ModalWrapper>
+      <ModalWrapper onClickAway={handleClose}>
         <div className="ml-auto flex gap-1">
           <SubmitButton type="button" onClick={onSubmit} />
           <CloseButton onClose={handleClose} />
@@ -127,7 +131,7 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
           </FormFieldWrapper>
         </form>
       <Modal open={showFaq} onClose={handleToggleFaq}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={handleToggleFaq}>
           <div className="flex flex-col gap-2">
             <CloseButton onClose={handleToggleFaq} className="self-end" />
             <MarkdownRenderer markdown={t(HELPER_TEXT.SUBJECT)} />

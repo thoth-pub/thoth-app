@@ -10,7 +10,7 @@ import type {
   ValidationMode,
 } from 'react-hook-form';
 
-import { useTypedTranslation } from '@/src/shared/hooks';
+import { useEscapeKey, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
@@ -66,6 +66,8 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
 
   const showFaqButton = faq && faq.length > 0;
 
+  useEscapeKey(() => setShowFaq(false), showFaq);
+
   useEffect(() => {
     setFormData(defaultValues);
   }, [defaultValues]);
@@ -117,7 +119,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
         </div>
       )}
       <Modal open={showFaq} onClose={handleToggleFaq}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={handleToggleFaq}>
           <CloseButton onClose={handleToggleFaq} className="self-end" />
           <MarkdownRenderer markdown={t(faq)} />
         </ModalWrapper>

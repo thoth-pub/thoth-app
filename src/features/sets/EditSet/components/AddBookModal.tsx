@@ -13,7 +13,7 @@ import { SetId, SetWorkFormType, useAddToSet } from '@/src/entities/sets';
 import { setWorkValidationSchema } from '@/src/entities/sets/model/set.validation';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS } from '@/src/shared/constants';
-import { useDebouncedValue } from '@/src/shared/hooks';
+import { useDebouncedValue, useEscapeKey } from '@/src/shared/hooks';
 import {
   AutocompleteField,
   Button,
@@ -30,6 +30,8 @@ const { SET_WORK } = FORM_FIELDS;
 
 export const AddBookModal = ({ setId, totalBooks }: { setId: SetId; totalBooks: number }) => {
   const [open, setOpen] = useState(false);
+
+  useEscapeKey(() => setOpen(false), open);
 
   const { addToSet } = useAddToSet(setId);
 
@@ -73,7 +75,7 @@ export const AddBookModal = ({ setId, totalBooks }: { setId: SetId; totalBooks: 
         <TranslatedContent content="actions.addBook" />
       </Button>
       <Modal open={open} onClose={() => setOpen(false)}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={() => setOpen(false)}>
           <div className="flex flex-col justify-between gap-(--default-gap)">
             <div className="flex justify-between">
               <Typography variant="h2" component="h3" className="text-(--color-typography) uppercase">

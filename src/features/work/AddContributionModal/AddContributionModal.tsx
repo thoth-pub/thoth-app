@@ -8,7 +8,7 @@ import { useContributors } from '@/src/entities/contributor';
 import type { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { appConfig } from '@/src/shared/config';
 import { getDefaultContribution } from '@/src/shared/constants';
-import { useDebouncedValue, useTypedTranslation } from '@/src/shared/hooks';
+import { useDebouncedValue, useEscapeKey, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AddButton,
@@ -33,6 +33,8 @@ const AddContributionModal = () => {
   const [selected, setSelected] = useState<ContributorId | ''>('');
   const [open, setOpen] = useState(false);
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.filters });
+
+  useEscapeKey(() => setOpen(false), open);
 
   const selectedContributorRecord = contributors.find((contributor) => contributor.id === selected);
 
@@ -77,7 +79,7 @@ const AddContributionModal = () => {
         <TranslatedContent content="actions.addContributor" />
       </AddButton>
       <Modal open={open} onClose={handleModalState}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={handleModalState}>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="text-(--color-typography) uppercase">
               <TranslatedContent content="actions.addNewContributor" />

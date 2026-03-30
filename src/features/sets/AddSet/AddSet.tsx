@@ -11,6 +11,7 @@ import { AddNewSetForm } from '@/src/entities/sets/ui/AddNewSetForm/AddNewSetFor
 import { useUser } from '@/src/entities/user';
 import { appConfig } from '@/src/shared/config';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants';
+import { useEscapeKey } from '@/src/shared/hooks';
 import type { TitleEntity } from '@/src/shared/types';
 import {
   CloseButton,
@@ -34,6 +35,8 @@ const AddSet = () => {
   const [set, setSet] = useState(activeSet);
 
   const open = activeSet && isDefaultId(activeSet.id) ? true : false;
+
+  useEscapeKey(finishEditing, open);
 
   const defaultSet: SetEntity = {
     id: appConfig.defaultId,
@@ -105,7 +108,7 @@ const AddSet = () => {
         ))}
       </SpeedDial>
       <Modal open={open} onClose={finishEditing}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={finishEditing}>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) uppercase">
               <TranslatedContent content="actions.addSet" />

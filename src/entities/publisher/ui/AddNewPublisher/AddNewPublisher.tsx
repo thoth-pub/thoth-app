@@ -39,7 +39,7 @@ const AddNewPublisher = ({ className }: { className?: string }) => {
         <TranslatedContent content="actions.addPublisher" />
       </Button>
       <Modal open={isOpen} onClose={closeModal}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={closeModal}>
           <div className="flex flex-col justify-between gap-(--default-gap)">
             <div className="flex justify-between">
               <Typography variant="h2" component="h3" className="text-(--color-typography) uppercase">

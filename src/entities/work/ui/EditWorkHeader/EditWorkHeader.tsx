@@ -3,6 +3,7 @@
 import NextLink from 'next/link';
 
 import { ROUTES, WorkStatuses } from '@/src/shared/constants';
+import { useEscapeKey } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { BaseEditSectionProps } from '@/src/shared/types';
 import {
@@ -71,6 +72,8 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
   } = useEditWorkHeader({
     workId,
   });
+
+  useEscapeKey(declineWorkStatusChange, showChangeStatusModal);
 
   return (
     <ContentSection className="px-8 lg:px-11 lg:py-4">
@@ -217,7 +220,7 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
         </div>
       </div>
       <Modal open={showChangeStatusModal} onClose={applyWorkStatusChange}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={declineWorkStatusChange}>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) capitalize">
               <TranslatedContent content="status change" />

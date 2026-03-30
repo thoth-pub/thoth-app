@@ -93,7 +93,7 @@ export const CoverForm = (props: BaseEditSectionProps) => {
         )}
       </div>
       <Modal open={isOpen}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={handleClose}>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
               <TranslatedContent content="actions.changeCover" />

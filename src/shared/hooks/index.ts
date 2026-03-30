@@ -4,6 +4,7 @@ export { default as useDefaultCurrencyOption } from './useDefaultCurrencyOption'
 export { default as useDefaultLocaleOption } from './useDefaultLocaleOption';
 export { default as useDefaultPlace } from './useDefaultPlace';
 export { default as useEntityList } from './useEntityList';
+export { default as useEscapeKey } from './useEscapeKey';
 export { default as useIsDesktop } from './useIsDesktop';
 export { default as useNotifications } from './useNotifications';
 export { default as useQueryToken } from './useQueryToken';

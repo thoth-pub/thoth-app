@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { FORM_FIELDS, HELPER_TEXT, locationPlatformOptions } from '@/src/shared/constants';
-import { useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
+import { useEscapeKey, useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
   AutocompleteField,
@@ -47,6 +47,8 @@ export const LocationForm = (props: LocationFormProps) => {
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
   const handleToggleFaq = () => setShowFaq((prev) => !prev);
 
+  useEscapeKey(() => setShowFaq(false), showFaq);
+
   const platformOption = locationPlatformOptions.find(
     (option) => option.value.toLowerCase() === location.locationPlatform.toLowerCase(),
   );
@@ -72,6 +74,8 @@ export const LocationForm = (props: LocationFormProps) => {
   };
 
   const isDesktop = useIsDesktop(980);
+
+  useEscapeKey(onClose, !isDesktop && !showFaq);
 
   const formComponent = (
     <form onSubmit={handleSubmit(handleSubmitForm)} className="flex flex-col gap-(--default-gap)">
@@ -140,11 +144,11 @@ export const LocationForm = (props: LocationFormProps) => {
         formComponent
       ) : (
         <Modal open>
-          <ModalWrapper>{formComponent}</ModalWrapper>
+          <ModalWrapper onClickAway={onClose}>{formComponent}</ModalWrapper>
         </Modal>
       )}
       <Modal open={showFaq} onClose={handleToggleFaq}>
-        <ModalWrapper>
+        <ModalWrapper onClickAway={handleToggleFaq}>
           <div className="flex flex-col gap-2">
             <CloseButton onClose={handleToggleFaq} className="self-end" />
             <MarkdownRenderer markdown={t(LOCATION_HELPER_TEXT)} />

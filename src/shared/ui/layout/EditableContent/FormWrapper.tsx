@@ -12,7 +12,7 @@ import {
 } from 'react-hook-form';
 import type { ZodType } from 'zod';
 
-import { useIsDesktop } from '@/src/shared/hooks';
+import { useEscapeKey, useIsDesktop } from '@/src/shared/hooks';
 import { mergeStyles } from '@/src/shared/utils';
 
 import ModalWrapper from '../../core/ModalWrapper/ModalWrapper';
@@ -67,6 +67,8 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
 
   const isDesktop = useIsDesktop(980);
 
+  useEscapeKey(onClose, !isDesktop);
+
   const isSubmitDisabled = !isValid || !isDirty || isSubmitting;
 
   const handleSubmitForm = handleSubmit(async (data) => {
@@ -95,7 +97,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
         </form>
       ) : (
         <Modal open>
-          <ModalWrapper>
+          <ModalWrapper onClickAway={onClose}>
             <form
               onSubmit={handleSubmitForm}
               className={mergeStyles('flex gap-1 rounded-xl bg-(--color-form-background) p-4', className)}
