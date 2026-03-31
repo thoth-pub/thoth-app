@@ -25,7 +25,7 @@ export const useDragAndDropForm = (workId: WorkId) => {
   const isDragStarted = useIsDragStarted();
   const [, copyToClipboard] = useCopyToClipboard();
   const { updateWorkFrontCover, loading } = useUpdateWorkFrontCover(workId);
-  const { sendErrorNotification } = useNotifications();
+  const { sendErrorNotification, sendSuccessNotification } = useNotifications();
 
   const { register, handleSubmit, setValue, reset, watch } = useForm({
     reValidateMode: 'onSubmit',
@@ -92,6 +92,7 @@ export const useDragAndDropForm = (workId: WorkId) => {
     e.stopPropagation();
 
     copyToClipboard(defaultValue);
+    sendSuccessNotification(NOTIFICATIONS.COVER_URL_COPY_SUCCESS);
   };
 
   const uploadFileClick = (e: React.MouseEvent<HTMLInputElement>) => {

@@ -100,5 +100,6 @@
   "featuredVideoDeleteFailed": "Falha ao eliminar o vídeo em destaque",
   "uploadFileFailed": "Falha ao carregar o ficheiro",
   "publicationUploadFileDisabled": "O DOI e a página de destino são necessários para carregar um ficheiro",
-  "doiIsRequired": "O DOI é obrigatório"
+  "doiIsRequired": "O DOI é obrigatório",
+  "coverUrlCopySuccess": "URL da capa copiada para a área de transferência"
 }

@@ -17,6 +17,7 @@ export const NOTIFICATIONS = {
   WORK_CONTRIBUTION_DELETION_FAILED: 'workContributionDeletionFailed',
   WORK_CONTRIBUTION_UPDATE_FAILED: 'workContributionUpdateFailed',
   WORK_MOVE_RELATION_FAILED: 'workMoveRelationFailed',
+  COVER_URL_COPY_SUCCESS: 'coverUrlCopySuccess',
   // Chapters
   CHAPTER_CREATION_SUCCESS: 'chapterCreationSuccess',
   CHAPTER_CREATION_FAILED: 'chapterCreationFailed',

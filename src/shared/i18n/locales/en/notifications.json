@@ -100,5 +100,6 @@
   "featuredVideoDeleteFailed": "Failed to delete featured video",
   "uploadFileFailed": "Failed to upload file",
   "publicationUploadFileDisabled": "DOI and landing page are required to upload a file",
-  "doiIsRequired": "DOI is required"
+  "doiIsRequired": "DOI is required",
+  "coverUrlCopySuccess": "Cover URL copied to clipboard"
 }

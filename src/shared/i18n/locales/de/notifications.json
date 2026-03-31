@@ -100,5 +100,6 @@
   "featuredVideoDeleteFailed": "Empfohlenes Video konnte nicht gelöscht werden",
   "uploadFileFailed": "Datei konnte nicht hochgeladen werden",
   "publicationUploadFileDisabled": "DOI und Landingpage sind erforderlich, um eine Datei hochzuladen",
-  "doiIsRequired": "DOI ist erforderlich"
+  "doiIsRequired": "DOI ist erforderlich",
+  "coverUrlCopySuccess": "Cover-URL in die Zwischenablage kopiert"
 }

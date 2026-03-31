@@ -100,5 +100,6 @@
   "featuredVideoDeleteFailed": "Error al eliminar el vídeo destacado",
   "uploadFileFailed": "Error al subir el archivo",
   "publicationUploadFileDisabled": "Se requieren el DOI y la página de destino para subir un archivo",
-  "doiIsRequired": "El DOI es obligatorio"
+  "doiIsRequired": "El DOI es obligatorio",
+  "coverUrlCopySuccess": "URL de la portada copiada al portapapeles"
 }

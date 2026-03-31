@@ -10,7 +10,8 @@ import { useCopyToClipboard } from 'react-use';
 import { useWork } from '@/src/entities/work';
 import { CoverUrlAltForm } from '@/src/entities/work/model/work.types';
 import { coverUrlAltValidationSchema } from '@/src/entities/work/model/work.validation';
-import { FORM_FIELDS } from '@/src/shared/constants';
+import { FORM_FIELDS, NOTIFICATIONS } from '@/src/shared/constants';
+import { useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 import {
   CloseButton,
@@ -36,6 +37,7 @@ export const CoverForm = (props: BaseEditSectionProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const { work, updateWork } = useWork(workId);
   const [, copyToClipboard] = useCopyToClipboard();
+  const { sendSuccessNotification } = useNotifications();
 
   const { control, handleSubmit } = useForm({
     defaultValues: {
@@ -61,6 +63,7 @@ export const CoverForm = (props: BaseEditSectionProps) => {
     e.stopPropagation();
 
     copyToClipboard(work.coverUrl ?? '');
+    sendSuccessNotification(NOTIFICATIONS.COVER_URL_COPY_SUCCESS);
   };
 
   return (
