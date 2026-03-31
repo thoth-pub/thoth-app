@@ -8,13 +8,11 @@ import { useCopyToClipboard } from 'react-use';
 import { useUpdateWorkFrontCover, useWork } from '@/src/entities/work';
 import type { CoverUrlForm, WorkId } from '@/src/entities/work/model/work.types';
 import { coverUrlValidationSchema } from '@/src/entities/work/model/work.validation';
-import { ERRORS, FORM_FIELDS } from '@/src/shared/constants';
+import { FORM_FIELDS, NOTIFICATIONS } from '@/src/shared/constants';
 import { useNotifications } from '@/src/shared/hooks';
 import useIsDragStarted from '@/src/shared/hooks/useIsDragStarted';
 
 const { COVER_URL } = FORM_FIELDS;
-
-const { DOI_IS_REQUIRED } = ERRORS;
 
 export const useDragAndDropForm = (workId: WorkId) => {
   const { work, loading: isWorkLoading } = useWork(workId);
@@ -39,7 +37,7 @@ export const useDragAndDropForm = (workId: WorkId) => {
   const { ref, ...fieldProps } = register(COVER_URL.name);
 
   const sendDoiRequiredError = () => {
-    sendErrorNotification(DOI_IS_REQUIRED);
+    sendErrorNotification(NOTIFICATIONS.DOI_IS_REQUIRED);
   };
 
   const onSubmit = async (data: CoverUrlForm) => {

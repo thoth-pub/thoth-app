@@ -103,6 +103,7 @@ const CreateWorkForm = () => {
             placeholder={WORK_TYPE.placeholder}
             control={control}
             select
+            translateOptions
             options={availableNewWorkOptions}
           />
           <CreateWorkFormAutocompleteField

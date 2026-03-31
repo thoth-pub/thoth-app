@@ -13,6 +13,7 @@ import filtersDe from '../locales/de/filters.json';
 import formsDe from '../locales/de/forms.json';
 import markdownDe from '../locales/de/markdown';
 import navigationDe from '../locales/de/navigation.json';
+import notificationsDe from '../locales/de/notifications.json';
 import profileDe from '../locales/de/profile.json';
 import seriesDe from '../locales/de/series.json';
 import setsDe from '../locales/de/sets.json';
@@ -25,6 +26,7 @@ import filtersEn from '../locales/en/filters.json';
 import formsEn from '../locales/en/forms.json';
 import markdownEn from '../locales/en/markdown';
 import navigationEn from '../locales/en/navigation.json';
+import notificationsEn from '../locales/en/notifications.json';
 import profileEn from '../locales/en/profile.json';
 import seriesEn from '../locales/en/series.json';
 import setsEn from '../locales/en/sets.json';
@@ -37,6 +39,7 @@ import filtersEs from '../locales/es/filters.json';
 import formsEs from '../locales/es/forms.json';
 import markdownEs from '../locales/es/markdown';
 import navigationEs from '../locales/es/navigation.json';
+import notificationsEs from '../locales/es/notifications.json';
 import profileEs from '../locales/es/profile.json';
 import seriesEs from '../locales/es/series.json';
 import setsEs from '../locales/es/sets.json';
@@ -49,6 +52,7 @@ import filtersPt from '../locales/pt/filters.json';
 import formsPt from '../locales/pt/forms.json';
 import markdownPt from '../locales/pt/markdown';
 import navigationPt from '../locales/pt/navigation.json';
+import notificationsPt from '../locales/pt/notifications.json';
 import profilePt from '../locales/pt/profile.json';
 import seriesPt from '../locales/pt/series.json';
 import setsPt from '../locales/pt/sets.json';
@@ -72,6 +76,7 @@ i18n
         series: seriesEn,
         works: worksEn,
         warnings: warningsEn,
+        notifications: notificationsEn,
       },
       [LOCALES.enum.pt]: {
         common: commonPt,
@@ -84,6 +89,7 @@ i18n
         series: seriesPt,
         works: worksPt,
         warnings: warningsPt,
+        notifications: notificationsPt,
       },
       [LOCALES.enum.es]: {
         common: commonEs,
@@ -96,6 +102,7 @@ i18n
         series: seriesEs,
         works: worksEs,
         warnings: warningsEs,
+        notifications: notificationsEs,
       },
       [LOCALES.enum.de]: {
         common: commonDe,
@@ -108,6 +115,7 @@ i18n
         series: seriesDe,
         works: worksDe,
         warnings: warningsDe,
+        notifications: notificationsDe,
       },
     },
     // debug: true,
