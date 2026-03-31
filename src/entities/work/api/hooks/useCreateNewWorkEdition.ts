@@ -4,16 +4,20 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
 import { appConfig } from '@/src/shared/config';
-import { QueryKeys, WorkStatuses } from '@/src/shared/constants';
+import { NOTIFICATIONS, QueryKeys, WorkStatuses } from '@/src/shared/constants';
 import { ROUTES } from '@/src/shared/constants/routes';
 import { useServices } from '@/src/shared/context';
+import { useNotifications } from '@/src/shared/hooks';
 import { getDefaultWork } from '@/src/shared/utils';
 
 import { WorkEntity } from '../../model/work.types';
 
+const { WORK_EDITION_CREATION_SUCCESS, WORK_EDITION_CREATION_FAILED } = NOTIFICATIONS;
+
 const useCreateNewWorkEdition = () => {
   const { workService } = useServices();
   const router = useRouter();
+  const { sendSuccessNotification, sendErrorNotification } = useNotifications();
 
   const queryClient = useQueryClient();
 
@@ -22,6 +26,7 @@ const useCreateNewWorkEdition = () => {
       return workService.createNewWorkEdition(originalWork, edition);
     },
     onSuccess: (data) => {
+      sendSuccessNotification(WORK_EDITION_CREATION_SUCCESS);
       queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.booksCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.forthcomingBooksCount] });
@@ -37,6 +42,9 @@ const useCreateNewWorkEdition = () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workPrevEditions] });
 
       router.push(ROUTES.WORK_PAGE(data.id));
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? WORK_EDITION_CREATION_FAILED);
     },
   });
 

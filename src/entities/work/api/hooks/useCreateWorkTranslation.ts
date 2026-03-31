@@ -4,22 +4,27 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 
 import { appConfig } from '@/src/shared/config';
-import { LanguageRelation, QueryKeys, ROUTES, WorkStatuses } from '@/src/shared/constants';
+import { LanguageRelation, NOTIFICATIONS, QueryKeys, ROUTES, WorkStatuses } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
+import { useNotifications } from '@/src/shared/hooks';
 import { getDefaultWork } from '@/src/shared/utils';
 
 import { WorkEntity, WorkId } from '../../model/work.types';
+
+const { WORK_TRANSLATION_CREATION_SUCCESS, WORK_TRANSLATION_CREATION_FAILED } = NOTIFICATIONS;
 
 const useCreateWorkTranslation = () => {
   const { workService } = useServices();
   const queryClient = useQueryClient();
   const router = useRouter();
+  const { sendSuccessNotification, sendErrorNotification } = useNotifications();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ originalWorkId, translation }: { originalWorkId: WorkId; translation: WorkEntity }) => {
       return workService.createWorkTranslation(originalWorkId, translation);
     },
     onSuccess: (data) => {
+      sendSuccessNotification(WORK_TRANSLATION_CREATION_SUCCESS);
       queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.booksCount] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.forthcomingBooksCount] });
@@ -36,6 +41,9 @@ const useCreateWorkTranslation = () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.sets] });
 
       router.push(ROUTES.WORK_PAGE(data.id));
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? WORK_TRANSLATION_CREATION_FAILED);
     },
   });
 

@@ -5,6 +5,7 @@ import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import PlusOneIcon from '@mui/icons-material/PlusOne';
 import SaveAltIcon from '@mui/icons-material/SaveAlt';
 import TranslateIcon from '@mui/icons-material/Translate';
+import CircularProgress from '@mui/material/CircularProgress';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
 import { useState } from 'react';
 
@@ -58,27 +59,39 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
   } = useWorkRecommendations({ workId });
   const { work } = useWork(workId);
   const { workSet } = useWorkSet(workId);
-  const { createNewWorkEdition } = useCreateNewWorkEdition();
-  const { createWorkTranslation } = useCreateWorkTranslation();
-  const { deleteWork } = useDeleteWork({});
+  const { createNewWorkEdition, loading: isEditionPending } = useCreateNewWorkEdition();
+  const { createWorkTranslation, loading: isTranslationPending } = useCreateWorkTranslation();
+  const { deleteWork, loading: isDeletePending } = useDeleteWork({});
+
+  const isActionPending = isEditionPending || isTranslationPending || isDeletePending;
 
   const onCreateNewEdition = () => {
+    if (isActionPending) return;
+
     createNewWorkEdition(work);
   };
 
   const onCreateTranslation = () => {
+    if (isActionPending) return;
+
     createWorkTranslation(work);
   };
 
+  const onDeleteWork = () => {
+    if (isActionPending) return;
+
+    deleteWork(workId);
+  };
+
   const addToSet = () => {
-    if (workSet.length > 0) return;
+    if (isActionPending || workSet.length > 0) return;
 
     setOpenAddVolume(true);
   };
 
   const actions = [
     {
-      icon: <SaveAltIcon color="primary" onClick={() => setOpenMetaDialog(true)} />,
+      icon: <SaveAltIcon color={isActionPending ? 'disabled' : 'primary'} onClick={() => !isActionPending && setOpenMetaDialog(true)} />,
       name: 'metadata',
     },
     {
@@ -93,22 +106,22 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
       name: 'Recommendations',
     },
     {
-      icon: <DeleteOutlineIcon color="primary" onClick={() => deleteWork(workId)} />,
+      icon: <DeleteOutlineIcon color={isActionPending ? 'disabled' : 'primary'} onClick={onDeleteWork} />,
       name: 'delete',
     },
     {
-      icon: <PlusOneIcon color="primary" onClick={onCreateNewEdition} />,
+      icon: <PlusOneIcon color={isActionPending ? 'disabled' : 'primary'} onClick={onCreateNewEdition} />,
       name: 'reissue',
     },
     {
-      icon: <TranslateIcon color="primary" onClick={onCreateTranslation} />,
+      icon: <TranslateIcon color={isActionPending ? 'disabled' : 'primary'} onClick={onCreateTranslation} />,
       name: 'translation',
     },
   ];
 
   if (workSet.length === 0) {
     actions.push({
-      icon: <AddToPhotosIcon color="primary" onClick={addToSet} />,
+      icon: <AddToPhotosIcon color={isActionPending ? 'disabled' : 'primary'} onClick={addToSet} />,
       name: 'extend',
     });
   }
@@ -124,7 +137,7 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
           '& .MuiSpeedDial-fab': { color: 'secondary.main' },
         }}
         direction="up"
-        icon={<SpeedDialIcon />}
+        icon={isActionPending ? <CircularProgress size={24} color="inherit" /> : <SpeedDialIcon />}
       >
         {actions.map((action) => (
           <SpeedDialActions

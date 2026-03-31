@@ -8,7 +8,7 @@ import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
 import { BaseEditSectionProps } from '@/src/shared/types';
 
-const { WORK_DELETE_FAILED } = NOTIFICATIONS;
+const { WORK_DELETE_SUCCESS, WORK_DELETE_FAILED } = NOTIFICATIONS;
 
 type UseDeleteWorkProps = Omit<BaseEditSectionProps, 'workId'> & {
   redirect?: boolean;
@@ -16,7 +16,7 @@ type UseDeleteWorkProps = Omit<BaseEditSectionProps, 'workId'> & {
 
 const useDeleteWork = ({ redirect = true }: UseDeleteWorkProps) => {
   const router = useRouter();
-  const { sendErrorNotification } = useNotifications();
+  const { sendSuccessNotification, sendErrorNotification } = useNotifications();
   const { workService } = useServices();
   const queryClient = useQueryClient();
 
@@ -25,6 +25,7 @@ const useDeleteWork = ({ redirect = true }: UseDeleteWorkProps) => {
       return workService.deleteWork(workId);
     },
     onSuccess: () => {
+      sendSuccessNotification(WORK_DELETE_SUCCESS);
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.works] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.worksCount] });
