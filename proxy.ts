@@ -5,6 +5,10 @@ import { ROUTES } from './src/shared/constants';
 import { authOptions } from './src/shared/lib/auth/auth';
 
 export async function proxy(request: NextRequest) {
+  if (request.nextUrl.pathname === ROUTES.ADMIN) {
+    return NextResponse.redirect(new URL(ROUTES.ROOT, request.url));
+  }
+
   const session = await getServerSession(authOptions); // Get the session
 
   // Check the session existence to optimistically redirect
