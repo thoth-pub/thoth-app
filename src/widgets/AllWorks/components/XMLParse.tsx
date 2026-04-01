@@ -7,6 +7,8 @@ import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { currencyOptions, ERRORS, languageOptions, licenseOptions } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
+import { useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { XMLParser } from '@/src/shared/parsers';
 import { ContributorsForSelection, SeriesForUpdateItems } from '@/src/shared/types';
@@ -26,6 +28,7 @@ export const XMLParse = (props: XMLParseProps) => {
   const { file, imprints, serieses, onValidationFailure, onPreview } = props;
 
   const { contributorService, institutionService } = useServices();
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
   const [isValidatingFile, setIsValidatingFile] = useState(false);
   const [works, setWorks] = useState<WorkEntity[]>([]);
@@ -40,7 +43,7 @@ export const XMLParse = (props: XMLParseProps) => {
     const response = await validateXml(file);
 
     if (response.status === 'error') {
-      onValidationFailure?.([ERRORS.XML_PARSING_ERROR]);
+      onValidationFailure?.([t(ERRORS.XML_PARSING_ERROR)]);
       setIsValidatingFile(false);
       return;
     }
@@ -49,7 +52,7 @@ export const XMLParse = (props: XMLParseProps) => {
     const errors: string[] = [];
 
     if (!data) {
-      onValidationFailure?.([ERRORS.XML_PARSING_ERROR]);
+      onValidationFailure?.([t(ERRORS.XML_PARSING_ERROR)]);
       setIsValidatingFile(false);
       return;
     }

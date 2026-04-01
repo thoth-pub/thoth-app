@@ -11,6 +11,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { SeriesForUpdateItems } from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
+import { isCsv as isCsvFile, isXml as isXmlFile } from '@/src/shared/utils';
 
 import { CSVParse } from './CSVParse';
 import { XMLParse } from './XMLParse';
@@ -31,8 +32,9 @@ export const UploadStep = (props: UploadStepProps) => {
   const [validationErrors, setValidationErrors] = useState<string[]>([]);
 
   const isFileUploaded = files && files.length > 0;
-  const isCsv = isFileUploaded && files[0].type === 'text/csv';
-  const isXml = isFileUploaded && files[0].type === 'text/xml';
+  const file = isFileUploaded ? files[0] : null;
+  const isCsv = file && isCsvFile(file);
+  const isXml = file && isXmlFile(file);
 
   const handleErrors = (errors: string[]) => {
     setValidationErrors(errors);
@@ -41,7 +43,21 @@ export const UploadStep = (props: UploadStepProps) => {
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setValidationErrors([]);
-    setFiles(event.target.files);
+
+    const uploadedFiles = event.target.files;
+    const uploadedFile = uploadedFiles?.[0];
+
+    if (uploadedFile && uploadedFile.size === 0) {
+      handleErrors([t('errors.emptyFile')]);
+      return;
+    }
+
+    if (uploadedFile && !isCsvFile(uploadedFile) && !isXmlFile(uploadedFile)) {
+      handleErrors([t('errors.unsupportedFileType')]);
+      return;
+    }
+
+    setFiles(uploadedFiles);
   };
 
   return (
@@ -65,18 +81,18 @@ export const UploadStep = (props: UploadStepProps) => {
           />
         </Button>
       </Activity>
-      {isCsv && (
+      {isCsv && file && (
         <CSVParse
-          file={files[0]}
+          file={file}
           imprints={userImprintsOptions}
           serieses={serieses}
           onValidationFailure={handleErrors}
           onPreview={onPreview}
         />
       )}
-      {isXml && (
+      {isXml && file && (
         <XMLParse
-          file={files[0]}
+          file={file}
           imprints={userImprintsOptions}
           serieses={serieses}
           onValidationFailure={handleErrors}
@@ -90,7 +106,7 @@ export const UploadStep = (props: UploadStepProps) => {
             <Typography component="span" color="inherit">
               {index + 1}.
             </Typography>{' '}
-            {t(error)}
+            {error}
           </Typography>
         ))}
       </ul>

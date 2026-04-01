@@ -216,6 +216,16 @@
   "postpone": "Adiar",
   "errors": {
     "xmlParsingError": "Erro ao analisar o ficheiro XML. Certifique-se de que o ficheiro ONIX carregado segue a estrutura definida no nosso modelo",
-    "csvParsingError": "Erro ao analisar o ficheiro CSV. Certifique-se de que o ficheiro CSV carregado segue a estrutura definida no nosso modelo"
+    "csvParsingError": "Erro ao analisar o ficheiro CSV. Certifique-se de que o ficheiro CSV carregado segue a estrutura definida no nosso modelo",
+    "csvFieldRequired": "{{field}} é obrigatório na linha {{row}} / coluna {{column}}",
+    "csvFieldNotValid": "{{field}} não é válido na linha {{row}} / coluna {{column}}",
+    "csvFieldNotValidOptions": "{{field}} não é válido na linha {{row}} / coluna {{column}}. Deve ser um dos seguintes: {{options}}",
+    "csvFieldNotString": "{{field}} não é um texto na linha {{row}}",
+    "csvFieldNotNumber": "{{field}} não é um número na linha {{row}}",
+    "csvImprintNotFound": "Chancela \"{{name}}\" não encontrada na linha {{row}}",
+    "csvLicenseNotFound": "Licença \"{{value}}\" não encontrada na linha {{row}}",
+    "csvSeriesNotFound": "Série \"{{name}}\" não encontrada",
+    "unsupportedFileType": "Tipo de ficheiro não suportado. Por favor, carregue um ficheiro CSV ou XML.",
+    "emptyFile": "O ficheiro carregado está vazio."
   }
 }
