@@ -102,8 +102,8 @@ export const EditSubject = ({ workId }: BaseEditSectionProps) => {
       {isDesktop ? (
         formComponent
       ) : (
-        <Modal open>
-          <ModalWrapper onClickAway={onClose}>{formComponent}</ModalWrapper>
+        <Modal open onClose={onClose}>
+          <ModalWrapper>{formComponent}</ModalWrapper>
         </Modal>
       )}
     </>

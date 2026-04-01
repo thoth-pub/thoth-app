@@ -93,7 +93,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
         <TranslatedContent content="actions.addBook" />
       </Button>
       <Modal open={open} onClose={() => setOpen(false)}>
-        <ModalWrapper onClickAway={() => setOpen(false)}>
+        <ModalWrapper>
           <div className="flex flex-col justify-between gap-(--default-gap)">
             <div className="flex justify-between">
               <Typography variant="h2" component="h3" className="text-(--color-typography) uppercase">

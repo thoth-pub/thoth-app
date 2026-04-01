@@ -102,8 +102,8 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
   };
 
   return (
-    <Modal open={open} onClose={onClose}>
-      <ModalWrapper onClickAway={handleClose}>
+    <Modal open={open} onClose={handleClose}>
+      <ModalWrapper>
         <div className="ml-auto flex gap-1">
           <SubmitButton type="button" onClick={onSubmit} />
           <CloseButton onClose={handleClose} />
