@@ -1,0 +1,613 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
+    <Header>
+        <Sender>
+            <SenderName>My Publisher</SenderName>
+            <EmailAddress>contact@publisher.com</EmailAddress>
+        </Sender>
+        <SentDateTime>20240101T120000</SentDateTime>
+    </Header>
+
+    <!-- Publications -->
+    <Product>
+        <!-- ISBN Recommended -->
+        <RecordReference>978853330227</RecordReference>
+
+        <NotificationType>03</NotificationType>
+        <RecordSourceType>01</RecordSourceType>
+
+        <!-- ISBN -->
+        <ProductIdentifier>
+            <ProductIDType>15</ProductIDType>
+            <IDValue>9781800649866</IDValue>
+        </ProductIdentifier>
+
+        <!-- DOI -->
+        <ProductIdentifier>
+            <ProductIDType>06</ProductIDType>
+            <IDValue>10.12345/12345678</IDValue>
+        </ProductIdentifier>
+
+        <!-- LCCN -->
+        <ProductIdentifier>
+            <ProductIDType>13</ProductIDType>
+            <IDValue>2017123456</IDValue>
+        </ProductIdentifier>
+
+        <!-- OCLC -->
+        <ProductIdentifier>
+            <ProductIDType>23</ProductIDType>
+            <IDValue>1086123456</IDValue>
+        </ProductIdentifier>
+
+        <DescriptiveDetail>
+            <ProductComposition>00</ProductComposition>
+            <!-- Paperback -->
+            <ProductForm>BC</ProductForm>
+            <PrimaryContentType>10</PrimaryContentType>
+
+            <!-- Issue Series -->
+            <Collection>
+                <CollectionType>10</CollectionType>
+
+                <!-- Thoth Series ID -->
+                <CollectionIdentifier>
+                    <CollectionIDType>01</CollectionIDType>
+                    <IDTypeName>Series ID</IDTypeName>
+                    <IDValue>574e57ec-c039-4ab2-b8b9-87376c0235fc</IDValue>
+                </CollectionIdentifier>
+
+                <!-- ISSN -->
+                <CollectionIdentifier>
+                    <CollectionIDType>02</CollectionIDType>
+                    <IDValue>11112222</IDValue>
+                </CollectionIdentifier>
+
+                <!-- Series URL -->
+                <CollectionIdentifier>
+                    <CollectionIDType>01</CollectionIDType>
+                    <IDTypeName>Series URL</IDTypeName>
+                    <IDValue>https://series.url</IDValue>
+                </CollectionIdentifier>
+
+                <!-- Series CFP URL -->
+                <CollectionIdentifier>
+                    <CollectionIDType>01</CollectionIDType>
+                    <IDTypeName>Series Call for Proposals URL</IDTypeName>
+                    <IDValue>https://series.cfp.url</IDValue>
+                </CollectionIdentifier>
+
+                <!-- Series Issue Number -->
+                <CollectionSequence>
+                    <CollectionSequenceType>03</CollectionSequenceType>
+                    <CollectionSequenceNumber>1</CollectionSequenceNumber>
+                </CollectionSequence>
+
+                <!-- Series Name -->
+                <TitleDetail>
+                    <TitleType>01</TitleType>
+                    <TitleElement>
+                        <TitleElementLevel>02</TitleElementLevel>
+                        <PartNumber>1</PartNumber>
+                        <TitleText>My Series Name</TitleText>
+                    </TitleElement>
+                </TitleDetail>
+            </Collection>
+
+            <!-- Dimensions of the product -->
+            <!-- Height -->
+            <Measure>
+                <MeasureType>01</MeasureType>
+                <Measurement>229</Measurement>
+                <MeasureUnitCode>mm</MeasureUnitCode>
+            </Measure>
+            <Measure>
+                <MeasureType>01</MeasureType>
+                <Measurement>9.02</Measurement>
+                <MeasureUnitCode>in</MeasureUnitCode>
+            </Measure>
+
+            <!-- Width -->
+            <Measure>
+                <MeasureType>02</MeasureType>
+                <Measurement>152</Measurement>
+                <MeasureUnitCode>mm</MeasureUnitCode>
+            </Measure>
+            <Measure>
+                <MeasureType>02</MeasureType>
+                <Measurement>5.98</Measurement>
+                <MeasureUnitCode>in</MeasureUnitCode>
+            </Measure>
+
+            <!-- Depth -->
+            <Measure>
+                <MeasureType>03</MeasureType>
+                <Measurement>20</Measurement>
+                <MeasureUnitCode>mm</MeasureUnitCode>
+            </Measure>
+            <Measure>
+                <MeasureType>03</MeasureType>
+                <Measurement>0.79</Measurement>
+                <MeasureUnitCode>in</MeasureUnitCode>
+            </Measure>
+
+            <!-- Weight -->
+            <Measure>
+                <MeasureType>08</MeasureType>
+                <Measurement>706</Measurement>
+                <MeasureUnitCode>gr</MeasureUnitCode>
+            </Measure>
+            <Measure>
+                <MeasureType>08</MeasureType>
+                <Measurement>24.9034</Measurement>
+                <MeasureUnitCode>oz</MeasureUnitCode>
+            </Measure>
+
+            <!-- License -->
+            <EpubLicense>
+                <EpubLicenseName>Creative Commons Attribution 4.0 International license (CC BY 4.0).</EpubLicenseName>
+                <EpubLicenseExpression>
+                    <EpubLicenseExpressionType>02</EpubLicenseExpressionType>
+                    <EpubLicenseExpressionLink>https://creativecommons.org/licenses/by/4.0</EpubLicenseExpressionLink>
+                </EpubLicenseExpression>
+            </EpubLicense>
+
+            <!-- Product Title -->
+            <TitleDetail>
+                <TitleType>01</TitleType>
+                <TitleElement>
+                    <TitleElementLevel>01</TitleElementLevel>
+                    <TitleText>My Book Title</TitleText>
+                    <Subtitle>My Book Subtitle</Subtitle>
+                </TitleElement>
+            </TitleDetail>
+
+            <!-- Authorship -->
+            <Contributor>
+                <SequenceNumber>1</SequenceNumber>
+                <ContributorRole>A01</ContributorRole>
+
+                <!-- ORCID -->
+                <NameIdentifier>
+                    <NameIDType>21</NameIDType>
+                    <IDValue>0000-0001-2345-678X</IDValue>
+                </NameIdentifier>
+
+                <PersonName>John Doe</PersonName>
+                <NamesBeforeKey>John</NamesBeforeKey>
+                <KeyNames>Doe</KeyNames>
+
+                <ProfessionalAffiliation>
+                    <ProfessionalPosition>Professor</ProfessionalPosition>
+
+                    <!-- ROR -->
+                    <AffiliationIdentifier>
+                        <AffiliationIDType>40</AffiliationIDType>
+                        <IDValue>03vek6s52</IDValue>
+                    </AffiliationIdentifier>
+
+                    <Affiliation>Harvard University</Affiliation>
+                </ProfessionalAffiliation>
+
+                <BiographicalNote>John Doe is a Professor at the Harvard University.</BiographicalNote>
+
+                <Website>
+                    <WebsiteRole>06</WebsiteRole>
+                    <WebsiteDescription>Own website</WebsiteDescription>
+                    <WebsiteLink>https://john.doe.org/</WebsiteLink>
+                </Website>
+            </Contributor>
+
+            <Edition>
+                <EditionNumber>2</EditionNumber>
+            </Edition>
+
+            <!-- Language Original -->
+            <Language>
+                <LanguageRole>01</LanguageRole>
+                <LanguageCode>eng</LanguageCode>
+            </Language>
+
+            <!-- Page Count -->
+            <Extent>
+                <ExtentType>00</ExtentType>
+                <ExtentValue>284</ExtentValue>
+                <ExtentUnit>03</ExtentUnit>
+            </Extent>
+
+            <!-- Bibliography note -->
+            <IllustrationsNote>Includes bibliographical references and index.</IllustrationsNote>
+
+            <!-- Image count -->
+            <AncillaryContent>
+                <AncillaryContentType>09</AncillaryContentType>
+                <Number>16</Number>
+            </AncillaryContent>
+
+            <!-- Table count -->
+            <AncillaryContent>
+                <AncillaryContentType>11</AncillaryContentType>
+                <Number>5</Number>
+            </AncillaryContent>
+
+            <!-- Audio count -->
+            <AncillaryContent>
+                <AncillaryContentType>19</AncillaryContentType>
+                <Number>1</Number>
+            </AncillaryContent>
+
+            <!-- Video count -->
+            <AncillaryContent>
+                <AncillaryContentType>00</AncillaryContentType>
+                <AncillaryContentDescription>Videos</AncillaryContentDescription>
+                <Number>4</Number>
+            </AncillaryContent>
+
+            <!-- LCC -->
+            <Subject>
+                <MainSubject />
+                <SubjectSchemeIdentifier>04</SubjectSchemeIdentifier>
+                <SubjectCode>BD183</SubjectCode>
+            </Subject>
+
+            <!-- BISAC -->
+            <Subject>
+                <MainSubject />
+                <SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>
+                <SubjectCode>1.1.2.2.0.0.0</SubjectCode>
+            </Subject>
+
+            <!-- BIC -->
+            <Subject>
+                <MainSubject />
+                <SubjectSchemeIdentifier>12</SubjectSchemeIdentifier>
+                <SubjectCode>1D</SubjectCode>
+            </Subject>
+
+            <!-- Keywords -->
+            <Subject>
+                <MainSubject />
+                <SubjectSchemeIdentifier>20</SubjectSchemeIdentifier>
+                <SubjectHeadingText>Interest-Relative Epistemology</SubjectHeadingText>
+            </Subject>
+
+            <!-- Thema -->
+            <Subject>
+                <MainSubject />
+                <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+                <SubjectCode>1A</SubjectCode>
+            </Subject>
+
+            <!-- Custom -->
+            <Subject>
+                <MainSubject />
+                <SubjectSchemeIdentifier>B2</SubjectSchemeIdentifier>
+                <SubjectHeadingText>Philosophy</SubjectHeadingText>
+            </Subject>
+
+            <Audience>
+                <AudienceCodeType>01</AudienceCodeType>
+                <AudienceCodeValue>06</AudienceCodeValue>
+            </Audience>
+
+        </DescriptiveDetail>
+
+        <CollateralDetail>
+            <!-- Short abstract -->
+            <TextContent>
+                <TextType>02</TextType>
+                <ContentAudience>00</ContentAudience>
+                <Text>This is the short abstract of my book.</Text>
+            </TextContent>
+
+            <!-- Long abstract -->
+            <TextContent>
+                <TextType>03</TextType>
+                <ContentAudience>00</ContentAudience>
+                <Text>This is the long abstract of my book.</Text>
+            </TextContent>
+            <TextContent>
+                <TextType>30</TextType>
+                <ContentAudience>00</ContentAudience>
+                <Text>This is the long abstract of my book.</Text>
+            </TextContent>
+
+            <!-- Table of Content -->
+            <TextContent>
+                <TextType>04</TextType>
+                <ContentAudience>00</ContentAudience>
+                <Text>1. Introduction;2. List of tables;3. References</Text>
+            </TextContent>
+
+            <!-- Open Acess (licensed books) -->
+            <TextContent>
+                <TextType>20</TextType>
+                <ContentAudience>00</ContentAudience>
+                <Text language="eng">Open Access</Text>
+            </TextContent>
+
+            <!-- General Note -->
+            <TextContent>
+                <TextType>13</TextType>
+                <ContentAudience>00</ContentAudience>
+                <Text>Links to additional resources are available from my publisher's website.</Text>
+            </TextContent>
+
+            <!-- Cover -->
+            <SupportingResource>
+                <ResourceContentType>01</ResourceContentType>
+                <ContentAudience>00</ContentAudience>
+                <ResourceMode>03</ResourceMode>
+                <ResourceFeature>
+                    <ResourceFeatureType>02</ResourceFeatureType>
+                    <FeatureNote>My book cover caption</FeatureNote>
+                </ResourceFeature>
+                <ResourceVersion>
+                    <ResourceForm>02</ResourceForm>
+                    <ResourceLink>https://my.publisher.com/catalog/book/1/cover.jpg</ResourceLink>
+                </ResourceVersion>
+            </SupportingResource>
+
+        </CollateralDetail>
+
+        <!-- Chapters -->
+        <ContentDetail>
+            <ContentItem>
+                <LevelSequenceNumber>1</LevelSequenceNumber>
+
+                <TextItem>
+                    <TextItemType>03</TextItemType>
+
+                    <!-- DOI -->
+                    <TextItemIdentifier>
+                        <TextItemIDType>06</TextItemIDType>
+                        <IDValue>10.12345/00010001</IDValue>
+                    </TextItemIdentifier>
+
+                    <PageRun>
+                        <!-- First page of the chapter -->
+                        <FirstPageNumber>1</FirstPageNumber>
+                        <!-- Last page of the chapter -->
+                        <LastPageNumber>21</LastPageNumber>
+                    </PageRun>
+
+                    <!-- Chapter page count -->
+                    <NumberOfPages>20</NumberOfPages>
+                </TextItem>
+
+                <ComponentTypeName>Chapter</ComponentTypeName>
+            </ContentItem>
+
+        </ContentDetail>
+
+        <PublishingDetail>
+            <Imprint>
+                <ImprintIdentifier>
+                    <ImprintIDType>01</ImprintIDType>
+                    <IDTypeName>URL</IDTypeName>
+                    <IDValue>https://my.publisher.imprint.com</IDValue>
+                </ImprintIdentifier>
+                <ImprintName>My Publisher Imprint</ImprintName>
+            </Imprint>
+
+            <!-- Publisher -->
+            <Publisher>
+                <PublishingRole>01</PublishingRole>
+                <PublisherName>My Publisher Name</PublisherName>
+
+                <Website>
+                    <WebsiteRole>01</WebsiteRole>
+                    <WebsiteDescription>Publisher's website: home page</WebsiteDescription>
+                    <WebsiteLink>https://my.publisher.com</WebsiteLink>
+                </Website>
+
+                <!-- Book landing page -->
+                <Website>
+                    <WebsiteRole>02</WebsiteRole>
+                    <WebsiteDescription>Publisher's website: webpage for this title</WebsiteDescription>
+                    <WebsiteLink>https://my.publisher.com/catalog/book/1</WebsiteLink>
+                </Website>
+            </Publisher>
+
+            <!-- Funding -->
+            <Publisher>
+                <PublishingRole>16</PublishingRole>
+
+                <!-- ROR -->
+                <PublisherIdentifier>
+                    <PublisherIDType>40</PublisherIDType>
+                    <IDValue>0123abc45</IDValue>
+                </PublisherIdentifier>
+
+                <!-- DOI -->
+                <PublisherIdentifier>
+                    <PublisherIDType>32</PublisherIDType>
+                    <IDValue>10.12345/01020102</IDValue>
+                </PublisherIdentifier>
+
+                <PublisherName>My Funding Institution</PublisherName>
+
+                <Funding>
+                    <!-- Program -->
+                    <FundingIdentifier>
+                        <FundingIDType>01</FundingIDType>
+                        <IDTypeName>programname</IDTypeName>
+                        <IDValue>My Funding Program Name</IDValue>
+                    </FundingIdentifier>
+
+                    <!-- Project Name -->
+                    <FundingIdentifier>
+                        <FundingIDType>01</FundingIDType>
+                        <IDTypeName>projectname</IDTypeName>
+                        <IDValue>My Funding Project Name</IDValue>
+                    </FundingIdentifier>
+
+                    <!-- Project Short Name -->
+                    <FundingIdentifier>
+                        <FundingIDType>01</FundingIDType>
+                        <IDTypeName>projectshortname</IDTypeName>
+                        <IDValue>My Funding Project Short Name</IDValue>
+                    </FundingIdentifier>
+
+                    <!-- Grant Number -->
+                    <FundingIdentifier>
+                        <FundingIDType>01</FundingIDType>
+                        <IDTypeName>grantnumber</IDTypeName>
+                        <IDValue>0102-3345</IDValue>
+                    </FundingIdentifier>
+
+                    <!-- Jurisdiction -->
+                    <FundingIdentifier>
+                        <FundingIDType>01</FundingIDType>
+                        <IDTypeName>jurisdiction</IDTypeName>
+                        <IDValue>My Funding Jurisdiction</IDValue>
+                    </FundingIdentifier>
+                </Funding>
+            </Publisher>
+
+            <!-- Book Place -->
+            <CityOfPublication>Earth, Milky Way</CityOfPublication>
+
+            <!-- Book Status (Active) -->
+            <PublishingStatus>04</PublishingStatus>
+
+            <!-- Publication Date -->
+            <PublishingDate>
+                <PublishingDateRole>01</PublishingDateRole>
+                <Date dateformat="00">20240101</Date>
+            </PublishingDate>
+
+            <!-- Withdrawn Date -->
+            <PublishingDate>
+                <PublishingDateRole>13</PublishingDateRole>
+                <Date dateformat="00">20250101</Date>
+            </PublishingDate>
+
+            <!-- Copyright Holder -->
+            <CopyrightStatement>
+                <CopyrightOwner>
+                    <PersonName>John Doe</PersonName>
+                </CopyrightOwner>
+            </CopyrightStatement>
+
+            <SalesRights>
+                <SalesRightsType>02</SalesRightsType>
+                <Territory>
+                    <RegionsIncluded>WORLD</RegionsIncluded>
+                </Territory>
+            </SalesRights>
+
+        </PublishingDetail>
+
+        <RelatedMaterial>
+            <!-- Translations -->
+            <RelatedWork>
+                <WorkRelationCode>49</WorkRelationCode>
+                <!-- DOI -->
+                <WorkIdentifier>
+                    <WorkIDType>06</WorkIDType>
+                    <IDValue>10.12345/01902080</IDValue>
+                </WorkIdentifier>
+            </RelatedWork>
+
+            <!-- Related Books -->
+            <RelatedProduct>
+                <ProductRelationCode>01</ProductRelationCode>
+                <!-- DOI -->
+                <ProductIdentifier>
+                    <ProductIDType>06</ProductIDType>
+                    <IDValue>10.12345/01234098</IDValue>
+                </ProductIdentifier>
+            </RelatedProduct>
+
+            <!-- Other publication formats with ISBN -->
+            <RelatedProduct>
+                <ProductRelationCode>06</ProductRelationCode>
+                <!-- ISBN-13 -->
+                <ProductIdentifier>
+                    <ProductIDType>15</ProductIDType>
+                    <IDValue>9124825761045</IDValue>
+                </ProductIdentifier>
+            </RelatedProduct>
+
+            <!-- References with DOI -->
+            <RelatedProduct>
+                <ProductRelationCode>34</ProductRelationCode>
+                <ProductIdentifier>
+                    <ProductIDType>06</ProductIDType>
+                    <IDValue>10.12345/12123232</IDValue>
+                </ProductIdentifier>
+            </RelatedProduct>
+
+            <!-- References without DOI -->
+            <RelatedProduct>
+                <ProductRelationCode>34</ProductRelationCode>
+                <ProductIdentifier>
+                    <ProductIDType>01</ProductIDType>
+                    <IDTypeName>Unstructured citation</IDTypeName>
+                    <IDValue>Roe, Richard. (2019). A reference used in my book. University of Harvard.</IDValue>
+                </ProductIdentifier>
+            </RelatedProduct>
+
+        </RelatedMaterial>
+
+        <ProductSupply>
+            <Market>
+                <Territory>
+                    <RegionsIncluded>WORLD</RegionsIncluded>
+                </Territory>
+            </Market>
+
+            <!-- Publication Locations -->
+            <SupplyDetail>
+                <Supplier>
+                    <SupplierRole>09</SupplierRole>
+                    <SupplierName>My Publisher Name</SupplierName>
+
+                    <!-- Landing Page -->
+                    <Website>
+                        <WebsiteRole>02</WebsiteRole>
+                        <WebsiteDescription>Publisher's website: webpage for this product</WebsiteDescription>
+                        <WebsiteLink>https://my.publisher.com/catalog/book/1</WebsiteLink>
+                    </Website>
+
+                    <!-- Full Text URL -->
+                    <Website>
+                        <WebsiteRole>29</WebsiteRole>
+                        <WebsiteDescription>Publisher's website: download the title</WebsiteDescription>
+                        <WebsiteLink>https://my.publisher.com/catalog/book/1/view</WebsiteLink>
+                    </Website>
+                </Supplier>
+
+                <!-- Book Status (Active) -->
+                <ProductAvailability>20</ProductAvailability>
+
+                <!-- Publication Date -->
+                <SupplyDate>
+                    <SupplyDateRole>08</SupplyDateRole>
+                    <Date dateformat="00">20240101</Date>
+                </SupplyDate>
+
+                <!-- Prices -->
+                <Price>
+                    <PriceType>02</PriceType>
+                    <PriceAmount>9.99</PriceAmount>
+                    <CurrencyCode>USD</CurrencyCode>
+                    <Territory>
+                        <RegionsIncluded>WORLD</RegionsIncluded>
+                    </Territory>
+                </Price>
+
+                <Price>
+                    <PriceType>02</PriceType>
+                    <PriceAmount>6.99</PriceAmount>
+                    <CurrencyCode>EUR</CurrencyCode>
+                    <Territory>
+                        <RegionsIncluded>WORLD</RegionsIncluded>
+                    </Territory>
+                </Price>
+            </SupplyDetail>
+
+        </ProductSupply>
+    </Product>
+</ONIXMessage>

@@ -1,0 +1,37 @@
+'use client';
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
+import { useNotifications } from '@/src/shared/hooks';
+
+const { ISSUE_DELETE_FAILED } = NOTIFICATIONS;
+
+const useDeleteIssue = () => {
+  const { sendErrorNotification } = useNotifications();
+  const { seriesService } = useServices();
+  const queryClient = useQueryClient();
+
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async (issueId: string) => {
+      return seriesService.deleteIssue(issueId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? ISSUE_DELETE_FAILED);
+    },
+  });
+
+  return {
+    deleteIssue: mutateAsync,
+    loading: isPending,
+  };
+};
+
+export default useDeleteIssue;

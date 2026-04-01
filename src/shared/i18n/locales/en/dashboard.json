@@ -1,0 +1,13 @@
+{
+  "widgets": {
+    "catalogue summary": "catalogue summary",
+    "published": "published",
+    "this year": "this year",
+    "prev year": "prev year",
+    "last 12 months": "last 12 months",
+    "previous 12 months": "previous 12 months",
+    "recently updated": "recently updated",
+    "recently published": "recently published",
+    "empty": "No data found"
+  }
+}

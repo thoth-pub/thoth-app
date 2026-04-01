@@ -1,0 +1,9 @@
+{
+  "orderBy": "Ordenar por",
+  "direction": "Dirección",
+  "searchByTitle": "Buscar por título",
+  "worksSearch": "Buscar por título, DOI, referencia interna",
+  "searchContributor": "Escriba para buscar un colaborador",
+  "searchSet": "Escriba para buscar un conjunto",
+  "searchSets": "Buscar conjuntos"
+}

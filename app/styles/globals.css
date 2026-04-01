@@ -1,0 +1,261 @@
+@layer reset, theme, base, mui, components, utilities;
+
+@import 'tailwindcss';
+
+@layer reset {
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+  }
+  body {
+    margin: unset;
+  }
+  button,
+  input,
+  textarea,
+  select {
+    font: inherit;
+  }
+  img,
+  picture,
+  svg,
+  canvas {
+    display: block;
+    max-inline-size: 100%;
+    height: auto;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@font-face {
+  font-family: 'Academicons';
+  src: url('/academicons.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  body {
+    margin: unset;
+    background: var(--color-background);
+    color: var(--color-typography);
+    font-family: var(--font-open-sans), sans-serif;
+    font-display: swap;
+  }
+  html[lang='de'] .capitalize {
+    text-transform: none !important;
+  }
+}
+
+:root {
+  /* Tier 1 */
+  --yellow: #fff2d9;
+  --purple: #744d82;
+  --purple-opacity-25: rgba(110, 79, 127, 0.25);
+  --purple-opacity-16: rgba(110, 79, 127, 0.15);
+  --purple-secondary: #bfb1c4;
+  --purple-light: #f4e5f9;
+  --purple-light-alt: #f2cdff;
+  --white: #fff;
+  --white-opacity-30: rgba(255, 255, 255, 0.3);
+  --white-opacity-50: rgba(255, 255, 255, 0.5);
+  --black: #0e1828;
+  --black-opacity-50: rgba(14, 24, 40, 0.5);
+  --gray: #bdbfc2;
+  --gray-alt: #e9e9e9;
+  --green: #42b072;
+  --green-opacity-50: rgba(66, 176, 114, 0.5);
+  --red: #ff0000;
+  --color-blue: #394963;
+  --warning: #ffdd75;
+
+  --max-width: 1920px;
+
+  --side-padding: 1.25rem;
+
+  --default-content-padding: 2rem;
+
+  --default-gap: 1.25rem;
+
+  --default-letter-spacing: 0.025rem;
+  --default-line-height: 1.5;
+
+  --default-radius: 0.3215rem;
+
+  /* Tier 2 */
+  --color-background: var(--yellow);
+  --color-background-alt: var(--white-opacity-50);
+  --color-typography: var(--black);
+  --color-typography-secondary: var(--white);
+  --color-typography-alt: var(--purple);
+  --color-border: var(--green);
+  --color-border-alt: var(--purple);
+  --color-purple: var(--purple);
+  --color-yellow: var(--yellow);
+  --color-primary: var(--purple);
+  --color-success: var(--green);
+  --color-error: var(--red);
+  --color-hover: var(--purple-light);
+  --color-hover-alt: var(--white);
+  --color-hover-border: var(--purple-opacity-25);
+  --color-placeholder: var(--gray);
+  --color-icon: var(--purple);
+  --color-warning: var(--warning);
+
+  /* Tier 3 */
+  --header-height: 5.625rem;
+
+  --color-link: var(--purple);
+
+  --color-nav-background: var(--white-opacity-50);
+  --color-nav-border: var(--purple-opacity-25);
+  --border-nav-radius: var(--default-radius);
+
+  --color-button-contained-background: var(--color-primary);
+  --color-button-contained-text: var(--color-yellow);
+  --color-button-outlined-border: var(--color-primary);
+  --border-button-radius: var(--default-radius);
+
+  --color-icon-button: var(--color-primary);
+  --color-icon-button-medium-background: var(--color-primary);
+  --color-icon-button-medium-text: var(--color-yellow);
+
+  --color-markdown-background: var(--white);
+  --color-markdown-text: var(--color-typography);
+  --color-markdown-border: var(--color-primary);
+  --color-markdown-radius: var(--default-radius);
+  --color-markdown-error: var(--color-error);
+
+  --color-switch: var(--purple);
+
+  --color-text-field-background: var(--white-opacity-30);
+  --color-text-field-border: var(--color-primary);
+  --color-text-field-label: var(--black-opacity-50);
+  --color-text-field-text: var(--color-typography);
+  --color-text-field-error: var(--color-error);
+  --color-text-field-helper-text: var(--color-typography);
+
+  --color-form-field-label: var(--color-typography);
+  --color-form-background: var(--white);
+  --color-form-border: var(--purple-opacity-25);
+
+  --color-notification-text: var(--color-yellow);
+  --color-notification-background-success: var(--color-success);
+  --color-notification-background-error: var(--color-error);
+  --color-notification-border: var(--color-yellow);
+
+  --color-chip-background: var(--white);
+  --color-chip-text: var(--color-typography);
+  --color-chip-border: var(--purple-opacity-25);
+
+  --color-autocomplete-group-background: var(--purple-light-alt);
+
+  --color-table-text: var(--color-typography);
+  --color-table-border: var(--color-success);
+  --color-table-border-alt: var(--purple-opacity-25);
+  --color-table-row-hover-background: var(--white);
+  --color-table-row-hover-border: var(--purple-opacity-25);
+  --color-table-edit-row-form-background: var(--white);
+  --color-table-cell-recommendations-background: var(--green-opacity-50);
+
+  --color-tooltip-background: var(--white);
+  --color-tooltip-border: var(--gray);
+
+  --color-modal-background: var(--white);
+
+  --color-list-item-selected: var(--purple-light-alt);
+
+  --color-data-indicator-border: var(--color-success);
+  --color-data-indicator-border-error: var(--color-success);
+
+  --color-checkbox-border: var(--color-primary);
+
+  --color-breadcrumb-text: var(--color-blue);
+
+  --color-chart-1: #60afd2;
+  --color-chart-2: #cb6b7d;
+  --color-chart-3: #f195a8;
+  --color-chart-4: #f1b68d;
+  --color-chart-5: #ffdd75;
+
+  --color-image-placeholder: var(--purple-opacity-16);
+
+  --color-modal-content-background: var(--yellow);
+}
+
+@theme inline {
+  --animate-fade-in: fade-in 1s ease-in-out;
+
+  --font-economica: var(--font-economica), sans-serif;
+
+  @keyframes fade-in {
+    0% {
+      opacity: 0;
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+}
+
+@layer components {
+  .firstCell {
+    @apply rounded-tl-2xl rounded-bl-2xl border border-r-0 border-transparent capitalize group-hover:border-t-(--color-form-border) group-hover:border-b-(--color-form-border) group-hover:border-l-(--color-form-border);
+  }
+  .lastCell {
+    @apply rounded-tr-2xl rounded-br-2xl border border-l-0 border-transparent group-hover:border-t-(--color-form-border) group-hover:border-r-(--color-form-border) group-hover:border-b-(--color-form-border);
+  }
+  .middleCell {
+    @apply border-t border-b border-transparent group-hover:border-t-(--color-form-border) group-hover:border-b-(--color-form-border);
+  }
+  .cardItem {
+    @apply flex items-center gap-1;
+  }
+  .cardWithImageWrapper {
+    @apply flex items-start gap-2;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hidden::-webkit-scrollbar {
+    display: none;
+  }
+}
+.scrollbar-hidden {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.wmde-markdown h1 a.anchor,
+.wmde-markdown h2 a.anchor,
+.wmde-markdown h3 a.anchor,
+.wmde-markdown h4 a.anchor,
+.wmde-markdown h5 a.anchor,
+.wmde-markdown h6 a.anchor {
+  display: none !important;
+}
+
+.wmde-markdown h1:hover a.anchor,
+.wmde-markdown h2:hover a.anchor,
+.wmde-markdown h3:hover a.anchor,
+.wmde-markdown h4:hover a.anchor,
+.wmde-markdown h5:hover a.anchor,
+.wmde-markdown h6:hover a.anchor {
+  visibility: hidden !important;
+}
+
+.wmde-markdown a {
+  color: var(--color-link) !important;
+}

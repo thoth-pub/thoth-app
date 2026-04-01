@@ -1,0 +1,128 @@
+'use client';
+
+import { Typography } from '@mui/material';
+
+import { useActivePublisherPermissions } from '@/src/entities/publisher';
+import { EditSeriesForm, useSeries, useSeriesStateMachine, useUpdateSeries } from '@/src/entities/series';
+import {
+  SeriesDescriptionFormType,
+  SeriesImprintFormType,
+  SeriesIssnFormType,
+  SeriesNameFormType,
+  SeriesTypeFormType,
+  SeriesUrlFormType,
+} from '@/src/entities/series/model/series.types';
+import { useUser } from '@/src/entities/user';
+import { CloseButton, MultipleContentWrapper, SubmitButton } from '@/src/shared/ui';
+
+import { IssuesList } from '../../work/EditWorkSeries/components/IssuesList';
+import { AddBookModal } from './components/AddBookModal';
+
+const EditSeries = () => {
+  const { activeEntity: activeSeries, finishEditing } = useSeriesStateMachine();
+  const { userImprintsOptions } = useUser();
+  const { series, loading, fetching } = useSeries({ seriesId: activeSeries?.id ?? '' });
+  const { updateSeries } = useUpdateSeries();
+  const { isImprintEditable } = useActivePublisherPermissions();
+
+  const done = () => {
+    finishEditing();
+  };
+
+  const updateType = (data: SeriesTypeFormType) => {
+    if (!series) return;
+
+    const newData = { ...series, type: data.seriesType };
+
+    updateSeries(newData);
+  };
+
+  const updateName = (data: SeriesNameFormType) => {
+    if (!series) return;
+
+    const newData = { ...series, name: data.seriesName };
+
+    updateSeries(newData);
+  };
+
+  const updateIssn = (data: SeriesIssnFormType) => {
+    if (!series) return;
+
+    const newData = { ...series, issnPrint: data.issnPrint ?? '', issnDigital: data.issnDigital ?? '' };
+
+    updateSeries(newData);
+  };
+
+  const updateImprint = (data: SeriesImprintFormType) => {
+    if (!series) return;
+
+    const imprintOption = userImprintsOptions.find((option) => option.value === data.imprintId);
+
+    if (!imprintOption) return;
+
+    const newData = { ...series, imprintId: data.imprintId, imprintName: imprintOption.label };
+
+    updateSeries(newData);
+  };
+
+  const updateUrl = (data: SeriesUrlFormType) => {
+    if (!series) return;
+
+    const newData = { ...series, url: data.url ?? '' };
+
+    updateSeries(newData);
+  };
+
+  const updateDescription = (data: SeriesDescriptionFormType) => {
+    if (!series) return;
+
+    const newData = { ...series, description: data.description ?? '' };
+
+    updateSeries(newData);
+  };
+
+  if (!series) return null;
+
+  return (
+    <MultipleContentWrapper>
+      <div className="flex justify-between">
+        <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
+          {series.name}
+        </Typography>
+        <div className="flex gap-2">
+          <SubmitButton onClick={done} />
+          <CloseButton onClose={finishEditing} />
+        </div>
+      </div>
+      {series && (
+        <>
+          <EditSeriesForm
+            isImprintEditable={isImprintEditable}
+            isTableVariant
+            borderTransparent
+            imprintOptions={userImprintsOptions}
+            type={series.type}
+            name={series.name}
+            issnPrint={series.issnPrint}
+            issnDigital={series.issnDigital}
+            imprint={series.imprintName}
+            url={series.url}
+            description={series.description}
+            onTypeChange={updateType}
+            onNameChange={updateName}
+            onIssnChange={updateIssn}
+            onImprintChange={updateImprint}
+            onUrlChange={updateUrl}
+            onDescriptionChange={updateDescription}
+          />
+          {series.issues.length > 0 && (
+            <IssuesList seriesId={series.id} withDelete issues={series.issues} loading={loading || fetching} />
+          )}
+          <AddBookModal series={series} />
+        </>
+      )}
+    </MultipleContentWrapper>
+  );
+};
+
+export default EditSeries;

@@ -1,0 +1,170 @@
+import { graphql } from '@/gql';
+
+export const GET_WORKS = graphql(`
+  query GetWorks(
+    $offset: Int!
+    $limit: Int
+    $publishers: [Uuid!]!
+    $direction: Direction = ASC
+    $field: WorkField = UPDATED_AT_WITH_RELATIONS
+    $workStatus: WorkStatus
+    $filter: String
+    $workTypes: [WorkType!]
+    $markupFormat: MarkupFormat = JATS_XML
+  ) {
+    works(
+      offset: $offset
+      limit: $limit
+      publishers: $publishers
+      order: { direction: $direction, field: $field }
+      workStatus: $workStatus
+      filter: $filter
+      workTypes: $workTypes
+    ) {
+      ...WorkFragment
+    }
+  }
+`);
+
+export const GET_WORK = graphql(`
+  query GetWork($workId: Uuid!, $markupFormat: MarkupFormat = JATS_XML) {
+    work(workId: $workId) {
+      ...WorkFragment
+    }
+  }
+`);
+
+export const UPDATE_WORK = graphql(`
+  mutation UpdateWork($data: PatchWork!, $markupFormat: MarkupFormat = JATS_XML) {
+    updateWork(data: $data) {
+      ...WorkFragment
+    }
+  }
+`);
+
+export const DELETE_WORK = graphql(`
+  mutation DeleteWork($workId: Uuid!) {
+    deleteWork(workId: $workId) {
+      workId
+    }
+  }
+`);
+
+export const GET_WORKS_COUNT = graphql(`
+  query GetWorksCount($publishers: [Uuid!]!, $filter: String, $workStatus: WorkStatus, $workTypes: [WorkType!]) {
+    workCount(publishers: $publishers, filter: $filter, workStatus: $workStatus, workTypes: $workTypes)
+  }
+`);
+
+export const GET_WORK_CHAPTERS = graphql(`
+  query GetWorkChapters($workId: Uuid!, $limit: Int, $offset: Int, $markupFormat: MarkupFormat = JATS_XML) {
+    work(workId: $workId) {
+      relations(
+        relationTypes: HAS_CHILD
+        limit: $limit
+        offset: $offset
+        order: { direction: ASC, field: RELATION_ORDINAL }
+      ) {
+        workRelationId
+        relatedWork {
+          ...WorkFragment
+        }
+      }
+    }
+  }
+`);
+
+export const GET_WORK_TRANSLATIONS = graphql(`
+  query GetWorkTranslations($workId: Uuid!, $limit: Int, $offset: Int, $markupFormat: MarkupFormat = JATS_XML) {
+    work(workId: $workId) {
+      relations(
+        relationTypes: HAS_TRANSLATION
+        limit: $limit
+        offset: $offset
+        order: { direction: ASC, field: RELATION_ORDINAL }
+      ) {
+        workRelationId
+        relatedWork {
+          ...WorkFragment
+        }
+      }
+    }
+  }
+`);
+
+export const GET_WORK_EDITIONS = graphql(`
+  query GetWorkEditions($workId: Uuid!, $limit: Int, $offset: Int, $markupFormat: MarkupFormat = JATS_XML) {
+    work(workId: $workId) {
+      relations(
+        relationTypes: IS_REPLACED_BY
+        limit: $limit
+        offset: $offset
+        order: { direction: ASC, field: RELATION_ORDINAL }
+      ) {
+        workRelationId
+        relatedWork {
+          ...WorkFragment
+        }
+      }
+    }
+  }
+`);
+
+export const GET_WORK_PREV_EDITIONS = graphql(`
+  query GetWorkPrevEditions($workId: Uuid!, $limit: Int, $offset: Int, $markupFormat: MarkupFormat = JATS_XML) {
+    work(workId: $workId) {
+      relations(
+        relationTypes: REPLACES
+        limit: $limit
+        offset: $offset
+        order: { direction: ASC, field: RELATION_ORDINAL }
+      ) {
+        workRelationId
+        relatedWork {
+          ...WorkFragment
+        }
+      }
+    }
+  }
+`);
+
+export const GET_TRANSLATED_WORKS = graphql(`
+  query GetTranslatedWorks($workId: Uuid!, $limit: Int, $offset: Int, $markupFormat: MarkupFormat = JATS_XML) {
+    work(workId: $workId) {
+      relations(
+        relationTypes: IS_TRANSLATION_OF
+        limit: $limit
+        offset: $offset
+        order: { direction: ASC, field: RELATION_ORDINAL }
+      ) {
+        workRelationId
+        relatedWork {
+          ...WorkFragment
+        }
+      }
+    }
+  }
+`);
+
+export const CREATE_WORK_RELATION = graphql(`
+  mutation CreateWorkRelation($data: NewWorkRelation!) {
+    createWorkRelation(data: $data) {
+      workRelationId
+    }
+  }
+`);
+
+export const GET_WORK_SET = graphql(`
+  query GetWorkSet($workId: Uuid!) {
+    work(workId: $workId) {
+      relations(relationTypes: IS_PART_OF) {
+        workRelationId
+        relatedWork {
+          titles(markupFormat: PLAIN_TEXT) {
+            ...TitleFragment
+          }
+        }
+      }
+    }
+  }
+`);

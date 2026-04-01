@@ -1,0 +1,547 @@
+{
+  "accessibility": {
+    "helperText": "$md:accessibility-helperText",
+    "accessibility": "Accesibilidad"
+  },
+  "contact": {
+    "label": "Contacto",
+    "helperText": "$md:contact-helperText"
+  },
+  "report": {
+    "label": "URL Del Informe",
+    "helperText": "$md:report-helperText"
+  },
+  "statement": {
+    "label": "Declaración",
+    "helperText": "$md:statement-helperText"
+  },
+  "title": {
+    "label": "Título",
+    "helperText": "$md:title-helperText"
+  },
+  "subtitle": {
+    "label": "Subtítulo"
+  },
+  "titles": {
+    "label": "Títulos"
+  },
+  "language": {
+    "label": "Idioma",
+    "helperText": "$md:language-helperText"
+  },
+  "imprint": {
+    "label": "Sello Editorial",
+    "helperText": "$md:imprint-helperText"
+  },
+  "seriesName": {
+    "label": "Nombre",
+    "helperText": "$md:seriesName-helperText"
+  },
+  "seriesType": {
+    "label": "Tipo de serie",
+    "helperText": "$md:seriesType-helperText"
+  },
+  "issn": {
+    "label": "ISSN",
+    "helperText": "$md:issn-helperText"
+  },
+  "seriesUrl": {
+    "label": "URL",
+    "helperText": "$md:seriesUrl-helperText"
+  },
+  "seriesDescription": {
+    "label": "Descripción",
+    "helperText": "$md:seriesDescription-helperText"
+  },
+  "seriesImprint": {
+    "label": "Imprint",
+    "helperText": "$md:seriesImprint-helperText"
+  },
+  "setTitle": {
+    "label": "Título",
+    "helperText": "$md:setTitle-helperText"
+  },
+  "setImprint": {
+    "label": "Imprint",
+    "helperText": "$md:setImprint-helperText"
+  },
+  "number": {
+    "label": "Número"
+  },
+  "internalId": {
+    "label": "ID Interno",
+    "helperText": "$md:internalId-helperText"
+  },
+  "status": {
+    "label": "Status",
+    "helperText": "$md:status-helperText"
+  },
+  "publicationDate": {
+    "label": "Fecha de publicación",
+    "helperText": "$md:publicationDate-helperText"
+  },
+  "edition": {
+    "label": "Edición"
+  },
+  "publisherName": {
+    "label": "Nombre del editor",
+    "helperText": "$md:publisherName-helperText"
+  },
+  "publisherShortname": {
+    "label": "Nombre abreviado del editor",
+    "helperText": "$md:publisherShortname-helperText"
+  },
+  "publisherUrl": {
+    "label": "URL del editor",
+    "helperText": "$md:publisherUrl-helperText"
+  },
+  "publisherZitadelId": {
+    "label": "ID de organización en Zitadel",
+    "helperText": "$md:publisherZitadelId-helperText"
+  },
+  "wortType": {
+    "label": "Tipo de obra",
+    "helperText": "$md:wortType-helperText"
+  },
+  "license": {
+    "label": "Licencia",
+    "helperText": "$md:license-helperText"
+  },
+  "copyrightHolder": {
+    "label": "Titular de los derechos de autor"
+  },
+  "doi": {
+    "label": "DOI",
+    "helperText": "$md:doi-helperText"
+  },
+  "landingPage": {
+    "label": "URL de la página de destino"
+  },
+  "lccn": {
+    "label": "LCCN",
+    "helperText": "$md:lccn-helperText"
+  },
+  "oclc": {
+    "label": "Número OCLC",
+    "helperText": "$md:oclc-helperText"
+  },
+  "workSeries": {
+    "label": "Series",
+    "helperText": "$md:workSeries-helperText"
+  },
+  "abstract": {
+    "label": "Resumen",
+    "helperText": "$md:abstract-helperText"
+  },
+  "shortAbstract": {
+    "label": "Resumen Corto"
+  },
+  "workPageCount": {
+    "label": "Número De Páginas"
+  },
+  "chapterPageCount": {
+    "label": "Rango De Páginas"
+  },
+  "chapterTitle": {
+    "helperText": "$md:chapterTitle-helperText"
+  },
+  "chapterTotalPages": {
+    "helperText": "$md:chapterTotalPages-helperText"
+  },
+  "totalPageCount": {
+    "label": "Número Total De Páginas",
+    "helperText": "$md:totalPageCount-helperText"
+  },
+  "frontmatterPageCount": {
+    "label": "Número De Elementos Iniciales"
+  },
+  "backmatterPageCount": {
+    "label": "Número De Elementos Finales"
+  },
+  "firstPage": {
+    "label": "Primera página"
+  },
+  "lastPage": {
+    "label": "Última página"
+  },
+  "notes": {
+    "label": "Notas",
+    "helperText": "$md:notes-helperText"
+  },
+  "generalNote": {
+    "label": "Nota General"
+  },
+  "bibliographyNote": {
+    "label": "Nota Bibliográfica"
+  },
+  "mediaCount": {
+    "label": "Número De Elementos Multimedia",
+    "helperText": "$md:mediaCount-helperText"
+  },
+  "tableCount": {
+    "label": "Número De Tablas"
+  },
+  "imageCount": {
+    "label": "Número De Imágenes"
+  },
+  "audioCount": {
+    "label": "Número De Archivos De Audio"
+  },
+  "videoCount": {
+    "label": "Número De Vídeos"
+  },
+  "languages": {
+    "label": "Idiomas"
+  },
+  "languagesRelation": {
+    "label": "Relación De Idioma"
+  },
+  "subjects": {
+    "label": "Materias",
+    "helperText": "$md:subject-helperText"
+  },
+  "subjectType": {
+    "label": "Tipo De Materia"
+  },
+  "subjectCode": {
+    "label": "Código De Materia"
+  },
+  "coverUrl": {
+    "label": "URL De La Cubierta",
+    "helperText": "$md:coverUrl-helperText"
+  },
+  "fullName": {
+    "label": "Nombre Completo",
+    "helperText": "$md:fullName-helperText"
+  },
+  "givenName": {
+    "label": "Nombre(s) de pila"
+  },
+  "familyName": {
+    "label": "Apellido(s)"
+  },
+  "contributorType": {
+    "label": "Tipo De Colaborador",
+    "helperText": "$md:contributorType-helperText"
+  },
+  "contributorBiography": {
+    "label": "Biografía",
+    "helperText": "$md:contributorBiography-helperText"
+  },
+  "contributorOrcid": {
+    "label": "ORCID",
+    "helperText": "$md:contributorOrcid-helperText"
+  },
+  "contributorWebsiteUrl": {
+    "label": "URL del sitio web",
+    "helperText": "$md:contributorWebsiteUrl-helperText"
+  },
+  "affiliation": {
+    "label": "Afiliación",
+    "helperText": "$md:contributorAffiliation-helperText"
+  },
+  "contributorAffiliationPosition": {
+    "label": "Cargo"
+  },
+  "contributorAffiliationInstitution": {
+    "label": "Institución"
+  },
+  "canonicalContributor": {
+    "label": "Colaborador principal"
+  },
+  "publicationType": {
+    "label": "Tipo de publicación",
+    "helperText": "$md:publicationType-helperText"
+  },
+  "isbn": {
+    "label": "ISBN",
+    "helperText": "$md:isbn-helperText"
+  },
+  "publicationPrice": {
+    "label": "Precio"
+  },
+  "priceCurrency": {
+    "label": "Moneda",
+    "helperText": "$md:priceCurrency-helperText"
+  },
+  "locations": {
+    "label": "Ubicaciones",
+    "helperText": "$md:location-helperText"
+  },
+  "fullTextUrl": {
+    "label": "URL del archivo"
+  },
+  "platform": {
+    "label": "Plataforma"
+  },
+  "canonical": {
+    "label": "Canónica"
+  },
+  "specification": {
+    "label": "Especificación"
+  },
+  "exception": {
+    "label": "Excepción"
+  },
+  "reportUrl": {
+    "label": "URL del informe"
+  },
+  "dimensions": {
+    "label": "Dimensiones"
+  },
+  "width": {
+    "label": "Ancho (mm/in)"
+  },
+  "height": {
+    "label": "Altura (mm/in)"
+  },
+  "depth": {
+    "label": "Profundidad (mm/in)"
+  },
+  "weight": {
+    "label": "Peso (g/oz)"
+  },
+  "program": {
+    "label": "Programa",
+    "helperText": "$md:program-helperText"
+  },
+  "grantNumber": {
+    "label": "Número de subvención",
+    "helperText": "$md:grantNumber-helperText"
+  },
+  "institution": {
+    "label": "Institución",
+    "helperText": "$md:institution-helperText"
+  },
+  "projectName": {
+    "label": "Nombre del proyecto",
+    "helperText": "$md:projectName-helperText"
+  },
+  "projectShortname": {
+    "label": "Nombre abreviado del proyecto",
+    "helperText": "$md:projectShortname-helperText"
+  },
+  "awardTitle": {
+    "label": "Título del premio",
+    "helperText": "$md:awardTitle-helperText"
+  },
+  "awardUrl": {
+    "label": "URL del premio",
+    "helperText": "$md:awardUrl-helperText"
+  },
+  "awardCategory": {
+    "label": "Categoría",
+    "helperText": "$md:awardCategory-helperText"
+  },
+  "awardStatement": {
+    "label": "Declaración",
+    "helperText": "$md:awardStatement-helperText"
+  },
+  "awardRole": {
+    "label": "Papel",
+    "helperText": "$md:awardRole-helperText"
+  },
+  "awardJury": {
+    "label": "Jurado",
+    "helperText": "$md:awardJury-helperText"
+  },
+  "awardYear": {
+    "label": "Año",
+    "helperText": "$md:awardYear-helperText"
+  },
+  "awardCountry": {
+    "label": "País",
+    "helperText": "$md:awardCountry-helperText"
+  },
+  "referenceDoi": {
+    "label": "DOI",
+    "helperText": "$md:referenceDoi-helperText"
+  },
+  "referenceCitation": {
+    "label": "Cita",
+    "helperText": "$md:referenceCitation-helperText"
+  },
+  "referenceUrl": {
+    "label": "URL",
+    "helperText": "$md:referenceUrl-helperText"
+  },
+  "editImprint": {
+    "label": "Sello editorial",
+    "helperText": "$md:editImprint-helperText"
+  },
+  "editImprintSuperuser": {
+    "helperText": "$md:editImprintSuperuser-helperText"
+  },
+  "imprintUrl": {
+    "label": "URL del sello editorial"
+  },
+  "crossmarkDoi": {
+    "label": "DOI de Crossmark"
+  },
+  "defaultPlace": {
+    "label": "Lugar predeterminado"
+  },
+  "defaultCurrency": {
+    "label": "Moneda predeterminada"
+  },
+  "defaultLocale": {
+    "label": "Idioma predeterminado"
+  },
+  "s3Bucket": {
+    "label": "Bucket S3"
+  },
+  "cdnDomain": {
+    "label": "Dominio CDN"
+  },
+  "cloudfrontDistId": {
+    "label": "ID de distribución de CloudFront"
+  },
+  "publicationFile": {
+    "label": "Archivo"
+  },
+  "place": {
+    "label": "Lugar"
+  },
+  "withdrawnDate": {
+    "label": "Fecha de retirada",
+    "helperText": "$md:withdrawnDate-helperText"
+  },
+  "additionalResourceDoi": {
+    "label": "DOI del recurso",
+    "helperText": "$md:additionalResourceDoi-helperText"
+  },
+  "additionalResourceTitle": {
+    "label": "Título del recurso",
+    "helperText": "$md:additionalResourceTitle-helperText"
+  },
+  "additionalResourceDescription": {
+    "label": "Descripción",
+    "helperText": "$md:additionalResourceDescription-helperText"
+  },
+  "additionalResourceAttribution": {
+    "label": "Atribución",
+    "helperText": "$md:additionalResourceAttribution-helperText"
+  },
+  "additionalResourceResourceType": {
+    "label": "Tipo de recurso",
+    "helperText": "$md:additionalResourceResourceType-helperText"
+  },
+  "additionalResourceHandle": {
+    "label": "Handle",
+    "helperText": "$md:additionalResourceHandle-helperText"
+  },
+  "additionalResourceUrl": {
+    "label": "URL del recurso",
+    "helperText": "$md:additionalResourceUrl-helperText"
+  },
+  "bookReviewDoi": {
+    "label": "DOI de la reseña",
+    "helperText": "$md:bookReviewDoi-helperText"
+  },
+  "bookReviewTitle": {
+    "label": "Título de la reseña",
+    "helperText": "$md:bookReviewTitle-helperText"
+  },
+  "bookReviewAuthorName": {
+    "label": "Nombre del reseñador",
+    "helperText": "$md:bookReviewAuthorName-helperText"
+  },
+  "bookReviewUrl": {
+    "label": "URL de la reseña",
+    "helperText": "$md:bookReviewUrl-helperText"
+  },
+  "bookReviewReviewDate": {
+    "label": "Fecha de la reseña",
+    "helperText": "$md:bookReviewReviewDate-helperText"
+  },
+  "bookReviewJournalName": {
+    "label": "Nombre de la revista",
+    "helperText": "$md:bookReviewJournalName-helperText"
+  },
+  "bookReviewJournalVolume": {
+    "label": "Volumen de la revista",
+    "helperText": "$md:bookReviewJournalVolume-helperText"
+  },
+  "bookReviewJournalNumber": {
+    "label": "Número de la revista",
+    "helperText": "$md:bookReviewJournalNumber-helperText"
+  },
+  "bookReviewJournalIssn": {
+    "label": "ISSN de la revista",
+    "helperText": "$md:bookReviewJournalIssn-helperText"
+  },
+  "bookReviewPageRange": {
+    "label": "Intervalo de páginas",
+    "helperText": "$md:bookReviewPageRange-helperText"
+  },
+  "bookReviewReviewerOrcid": {
+    "label": "ORCID del reseñador",
+    "helperText": "$md:bookReviewReviewerOrcid-helperText"
+  },
+  "bookReviewReviewerInstitution": {
+    "label": "Institución del reseñador",
+    "helperText": "$md:bookReviewReviewerInstitution-helperText"
+  },
+  "bookReviewText": {
+    "label": "Texto de la reseña",
+    "helperText": "$md:bookReviewText-helperText"
+  },
+  "endorsementAuthorName": {
+    "label": "Nombre del autor",
+    "helperText": "$md:endorsementAuthorName-helperText"
+  },
+  "endorsementAuthorOrcid": {
+    "label": "ORCID del autor",
+    "helperText": "$md:endorsementAuthorOrcid-helperText"
+  },
+  "endorsementAuthorRole": {
+    "label": "Cargo del autor",
+    "helperText": "$md:endorsementAuthorRole-helperText"
+  },
+  "endorsementUrl": {
+    "label": "URL del aval",
+    "helperText": "$md:endorsementUrl-helperText"
+  },
+  "endorsementAuthorInstitution": {
+    "label": "Institución del autor",
+    "helperText": "$md:endorsementAuthorInstitution-helperText"
+  },
+  "endorsementText": {
+    "label": "Texto del aval",
+    "helperText": "$md:endorsementText-helperText"
+  },
+  "featuredVideoTitle": {
+    "label": "Título del vídeo",
+    "helperText": "$md:featuredVideoTitle-helperText"
+  },
+  "featuredVideoUrl": {
+    "label": "URL del vídeo",
+    "helperText": "$md:featuredVideoUrl-helperText"
+  },
+  "featuredVideoWidth": {
+    "label": "Anchura del vídeo",
+    "helperText": "$md:featuredVideoWidth-helperText"
+  },
+  "featuredVideoHeight": {
+    "label": "Altura del vídeo",
+    "helperText": "$md:featuredVideoHeight-helperText"
+  },
+  "titleLanguage": {
+    "label": "Idioma del título"
+  },
+  "issnPrint": {
+    "label": "ISSN impreso"
+  },
+  "issnDigital": {
+    "label": "ISSN digital"
+  },
+  "templateUpload": {
+    "label": "Subir plantilla"
+  },
+  "work": {
+    "label": "Obra"
+  },
+  "funding": {
+    "label": "Financiación"
+  }
+}

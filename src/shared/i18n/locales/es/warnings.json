@@ -1,0 +1,10 @@
+{
+  "active": "Cambiar el estado a Activa actualizará la fecha de publicación a la fecha actual.",
+  "forthcoming": "Cambiar el estado a Próxima publicación actualizará la fecha de publicación a la fecha actual.",
+  "postponed indefinitely": "Cambiar el estado a Pospuesta indefinidamente actualizará la fecha de publicación a la fecha actual.",
+  "cancelled": "Cambiar el estado a Cancelada actualizará la fecha de publicación a la fecha actual.",
+  "superseded": "Cambiar el estado a Sustituida actualizará la fecha de publicación a la fecha actual.",
+  "withdrawn": "Cambiar el estado a Retirada actualizará la fecha de publicación a la fecha actual.",
+  "chaptersFundingsMismatch": "Esta sección no está disponible porque las financiaciones en los capítulos seleccionados no son iguales. Por favor, revise las financiaciones e inténtelo de nuevo.",
+  "chaptersContributorsMismatch": "Esta sección no está disponible porque los contribuyentes en los capítulos seleccionados no son iguales. Por favor, revise los contribuyentes e inténtelo de nuevo."
+}

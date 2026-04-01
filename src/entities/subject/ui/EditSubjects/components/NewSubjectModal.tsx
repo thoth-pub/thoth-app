@@ -1,0 +1,144 @@
+import { zodResolver } from '@hookform/resolvers/zod';
+import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
+import { Activity, useEffect, useState } from 'react';
+import { useForm, useWatch } from 'react-hook-form';
+
+import type { SubjectType } from '@/gql/graphql';
+import { FORM_FIELDS, HELPER_TEXT, subjectTypeOptions } from '@/src/shared/constants';
+import { bicFormFields } from '@/src/shared/constants/bicFormFields';
+import { bisacFormFields } from '@/src/shared/constants/bisacFormFields';
+import { SubjectTypes } from '@/src/shared/constants/subjects';
+import { themaFormFields } from '@/src/shared/constants/themaFormFields';
+import { useEscapeKey, useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import {
+  AutocompleteField,
+  CloseButton,
+  FormFieldLabel,
+  FormFieldWithControlsWrapper,
+  FormFieldWrapper,
+  FormTextField,
+  IconButton,
+  MarkdownRenderer,
+  Modal,
+  ModalWrapper,
+  SubmitButton,
+} from '@/src/shared/ui';
+
+import { addSubjectAutocompleteValidationSchema, addSubjectValidationSchema } from '../../../model/subject.validation';
+
+type NewSubjectModalProps = {
+  open: boolean;
+  onAdd: (value: { type: SubjectType; code: string }) => void;
+  onClose: () => void;
+};
+
+const { SUBJECT_TYPE, SUBJECT_CODE } = FORM_FIELDS;
+
+const autocompleteOptions = {
+  [SubjectTypes.enum.Bisac]: bisacFormFields,
+  [SubjectTypes.enum.Bic]: bicFormFields,
+  [SubjectTypes.enum.Thema]: themaFormFields,
+  [SubjectTypes.enum.Custom]: [],
+  [SubjectTypes.enum.Keyword]: [],
+  [SubjectTypes.enum.Lcc]: [],
+};
+
+export const NewSubjectModal = (props: NewSubjectModalProps) => {
+  const { open, onClose, onAdd } = props;
+
+  const [showFaq, setShowFaq] = useState(false);
+
+  useEscapeKey(onClose, open && !showFaq);
+  useEscapeKey(() => setShowFaq(false), showFaq);
+
+  const [optionsLength, setOptionsLength] = useState(0);
+  const isAutocomplete = optionsLength > 0;
+
+  const { control, setValue, handleSubmit, reset } = useForm({
+    resolver: zodResolver(isAutocomplete ? addSubjectAutocompleteValidationSchema : addSubjectValidationSchema),
+    defaultValues: {
+      [SUBJECT_TYPE.name]: subjectTypeOptions[0].value as SubjectType,
+      [SUBJECT_CODE.name]: '',
+    },
+  });
+  const typeField = useWatch({ control, name: SUBJECT_TYPE.name });
+  const codeField = useWatch({ control, name: SUBJECT_CODE.name });
+
+  const options = autocompleteOptions[typeField];
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setOptionsLength(options.length);
+
+    if (options.length > 0) {
+      setValue(SUBJECT_CODE.name, {
+        value: '',
+        label: '',
+      });
+      return;
+    }
+
+    setValue(SUBJECT_CODE.name, '');
+  }, [typeField]);
+
+  const onSubmit = () => {
+    const isString = typeof codeField === 'string';
+
+    if (!codeField || (isString && codeField.length === 0) || (!isString && codeField?.value?.length === 0)) {
+      return;
+    }
+
+    onAdd({ type: typeField, code: isString ? codeField : codeField?.value });
+    reset();
+  };
+
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
+  const handleToggleFaq = () => setShowFaq((prev) => !prev);
+
+  const handleClose = () => {
+    reset();
+    onClose();
+  };
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <ModalWrapper onClickAway={handleClose}>
+        <div className="ml-auto flex gap-1">
+          <SubmitButton type="button" onClick={onSubmit} />
+          <CloseButton onClose={handleClose} />
+          <IconButton onClick={handleToggleFaq} aria-label="Show info">
+            <InfoOutlineIcon />
+          </IconButton>
+        </div>
+
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-(--default-gap)">
+          <FormFieldWrapper>
+            <FormFieldLabel label={SUBJECT_TYPE.label} id={SUBJECT_TYPE.name} />
+            <FormFieldWithControlsWrapper>
+              <FormTextField name={SUBJECT_TYPE.name} control={control} select fullWidth options={subjectTypeOptions} />
+            </FormFieldWithControlsWrapper>
+          </FormFieldWrapper>
+
+          <FormFieldWrapper>
+            <FormFieldLabel label={SUBJECT_CODE.label} id={SUBJECT_CODE.name} />
+            <Activity mode={options.length === 0 ? 'visible' : 'hidden'}>
+              <FormTextField name={SUBJECT_CODE.name} control={control} />
+            </Activity>
+            <Activity mode={options.length > 0 ? 'visible' : 'hidden'}>
+              <AutocompleteField name={SUBJECT_CODE.name} control={control} options={options} />
+            </Activity>
+          </FormFieldWrapper>
+        </form>
+      <Modal open={showFaq} onClose={handleToggleFaq}>
+        <ModalWrapper onClickAway={handleToggleFaq}>
+          <div className="flex flex-col gap-2">
+            <CloseButton onClose={handleToggleFaq} className="self-end" />
+            <MarkdownRenderer markdown={t(HELPER_TEXT.SUBJECT)} />
+          </div>
+        </ModalWrapper>
+      </Modal>
+      </ModalWrapper>
+    </Modal>
+  );
+};

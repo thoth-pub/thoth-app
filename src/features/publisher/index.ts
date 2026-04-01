@@ -1,0 +1,1 @@
+export { default as ChangeActivePublisher } from './ui/ChangeActivePublisher/ChangeActivePublisher';

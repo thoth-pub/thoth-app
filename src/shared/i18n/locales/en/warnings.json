@@ -1,0 +1,10 @@
+{
+  "active": "Changing the status to Active will update the publication date to the current date.",
+  "forthcoming": "Changing the status to Forthcoming will update the publication date to the current date.",
+  "postponed indefinitely": "Changing the status to Postponed Indefinitely will update the publication date to the current date.",
+  "cancelled": "Changing the status to Cancelled will update the publication date to the current date.",
+  "superseded": "Changing the status to Superseded will update the publication date to the current date.",
+  "withdrawn": "Changing the status to Withdrawn will update the publication date to the current date.",
+  "chaptersFundingsMismatch": "This section is unavailable because the fundings in selected chapters are not the same. Please check the fundings and try again.",
+  "chaptersContributorsMismatch": "This section is unavailable because the contributors in selected chapters are not the same. Please check the contributors and try again."
+}

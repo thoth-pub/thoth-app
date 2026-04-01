@@ -1,0 +1,113 @@
+'use client';
+
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import { useWork } from '@/src/entities/work';
+import type { MediaForm } from '@/src/entities/work/model/work.types';
+import { mediaValidationSchema } from '@/src/entities/work/model/work.validation';
+import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
+import type { BaseRecommendedSectionProps } from '@/src/shared/types';
+import { ContentWrapper, FormFieldLabel, FormTextField, MultipleContentWrapper, Preview } from '@/src/shared/ui';
+import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
+
+const { WORK_IMAGE_COUNT, WORK_TABLE_COUNT, WORK_AUDIO_COUNT, WORK_VIDEO_COUNT, MEDIA_COUNT } = FORM_FIELDS;
+
+const { WORK_MEDIA_COUNT: WORK_MEDIA_COUNT_HELPER_TEXT } = HELPER_TEXT;
+
+export const EditMedia = (props: BaseRecommendedSectionProps) => {
+  const { workId } = props;
+
+  const { work, updateWork } = useWork(workId);
+  const { t } = useTranslation();
+
+  const { imageCount, tableCount, audioCount, videoCount } = work;
+
+  const placeholderValue = useMemo(() => {
+    const res: string[] = [];
+
+    if (tableCount) {
+      res.push(`${tableCount} ${tableCount > 1 ? t('tables') : t('table')}`);
+    }
+
+    if (imageCount) {
+      res.push(`${imageCount} ${imageCount > 1 ? t('images') : t('image')}`);
+    }
+
+    if (audioCount) {
+      res.push(`${audioCount} ${audioCount > 1 ? t('audios') : t('audio')}`);
+    }
+
+    if (videoCount) {
+      res.push(`${videoCount} ${videoCount > 1 ? t('videos') : t('video')}`);
+    }
+
+    return res.join(', ').toLowerCase();
+  }, [imageCount, tableCount, audioCount, videoCount, t]);
+
+  const handleSubmit = (data: MediaForm) => {
+    updateWork({ ...work, ...data });
+  };
+
+  return (
+    <EditableContent
+      formId={IDs.WORK_MEDIA}
+      defaultValues={{
+        [WORK_IMAGE_COUNT.name]: work.imageCount,
+        [WORK_TABLE_COUNT.name]: work.tableCount,
+        [WORK_AUDIO_COUNT.name]: work.audioCount,
+        [WORK_VIDEO_COUNT.name]: work.videoCount,
+      }}
+      validationSchema={mediaValidationSchema}
+      onSubmit={handleSubmit}
+      faq={WORK_MEDIA_COUNT_HELPER_TEXT}
+      formFields={({ control }) => (
+        <MultipleContentWrapper>
+          <ContentWrapper>
+            <FormFieldLabel label={WORK_TABLE_COUNT.label} id={WORK_TABLE_COUNT.name} />
+            <FormTextField
+              control={control}
+              name={WORK_TABLE_COUNT.name}
+              type={WORK_TABLE_COUNT.type}
+              id={WORK_TABLE_COUNT.name}
+              min={0}
+            />
+          </ContentWrapper>
+          <ContentWrapper>
+            <FormFieldLabel label={WORK_IMAGE_COUNT.label} id={WORK_IMAGE_COUNT.name} />
+            <FormTextField
+              control={control}
+              name={WORK_IMAGE_COUNT.name}
+              type={WORK_IMAGE_COUNT.type}
+              id={WORK_IMAGE_COUNT.name}
+              min={0}
+            />
+          </ContentWrapper>
+          <ContentWrapper>
+            <FormFieldLabel label={WORK_AUDIO_COUNT.label} id={WORK_AUDIO_COUNT.name} />
+            <FormTextField
+              control={control}
+              name={WORK_AUDIO_COUNT.name}
+              type={WORK_AUDIO_COUNT.type}
+              id={WORK_AUDIO_COUNT.name}
+              min={0}
+            />
+          </ContentWrapper>
+          <ContentWrapper>
+            <FormFieldLabel label={WORK_VIDEO_COUNT.label} id={WORK_VIDEO_COUNT.name} />
+            <FormTextField
+              control={control}
+              name={WORK_VIDEO_COUNT.name}
+              type={WORK_VIDEO_COUNT.type}
+              id={WORK_VIDEO_COUNT.name}
+              min={0}
+            />
+          </ContentWrapper>
+        </MultipleContentWrapper>
+      )}
+      preview={({ disabled, onEdit }) => (
+        <Preview label={MEDIA_COUNT.label} value={placeholderValue} disabled={disabled} onEdit={onEdit} />
+      )}
+    />
+  );
+};

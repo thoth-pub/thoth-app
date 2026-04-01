@@ -1,0 +1,37 @@
+'use client';
+
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
+import { useServices } from '@/src/shared/context';
+import { useNotifications } from '@/src/shared/hooks';
+import type { BaseEditSectionProps } from '@/src/shared/types';
+
+const { CONTRIBUTION_MOVE_FAILED } = NOTIFICATIONS;
+
+export const useMoveContribution = (props: BaseEditSectionProps) => {
+  const { workId = '' } = props;
+
+  const { sendErrorNotification } = useNotifications();
+  const { contributionService } = useServices();
+
+  const queryClient = useQueryClient();
+
+  const { mutateAsync, isPending } = useMutation({
+    mutationFn: async ({ contributionId, newOrdinal }: { contributionId: string; newOrdinal: number }) => {
+      return contributionService.moveContribution(contributionId, newOrdinal);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? CONTRIBUTION_MOVE_FAILED);
+    },
+  });
+
+  return {
+    moveContribution: mutateAsync,
+    loading: isPending,
+  };
+};
