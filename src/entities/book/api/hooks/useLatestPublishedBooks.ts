@@ -21,7 +21,7 @@ const useLatestPublishedBooks = (publishersIds: PublisherId[]) => {
         limit: 3,
         workStatus: WorkStatus.Active,
         direction: Direction.Desc,
-        field: WorkField.UpdatedAtWithRelations,
+        field: WorkField.PublicationDate,
       }),
     enabled: publishersIds.length > 0,
   });
