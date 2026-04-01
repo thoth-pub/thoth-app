@@ -12,9 +12,9 @@ import {
 import { ContributorTypes, currencyOptions, languageOptions, WorkStatuses, WorkTypes } from '@/src/shared/constants';
 import { CSV_KEYS } from '@/src/shared/constants/csvKeys';
 
-import { CSVFieldType } from '../../../widgets/AllWorks/components/CSVParse';
 import { FormFieldOption } from '../../interfaces';
 import { workStatusValidation } from '../../utils';
+import { CSVFieldType, TranslateFunction } from './CSVParser';
 
 const {
   IMPRINT,
@@ -246,6 +246,7 @@ export const getCsvConfig = (
   imprints: FormFieldOption[],
   licenseOptions: FormFieldOption[],
   serieses: SeriesEntity[],
+  t: TranslateFunction,
 ) => {
   const imprintLabels = imprints.map((imprint) => imprint.label);
 
@@ -256,11 +257,11 @@ export const getCsvConfig = (
         inputName: IMPRINT,
         required: true,
         requiredError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is required in the ${rowNumber} row / ${columnNumber} column`;
+          return t('errors.csvFieldRequired', { field: headerName, row: rowNumber, column: columnNumber });
         },
         validate: (field: CSVFieldType) => imprintLabels.includes(`${field}`),
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column. Publisher should be one of the following: ${imprintLabels.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: imprintLabels.join(', ') });
         },
       },
       {
@@ -269,7 +270,7 @@ export const getCsvConfig = (
         required: true,
         validate: (field: CSVFieldType) => workTypeValidation.safeParse(`${field}`).success,
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, work type should be one of the following: ${WorkTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: WorkTypes.options.join(', ') });
         },
       },
       {
@@ -278,7 +279,7 @@ export const getCsvConfig = (
         required: true,
         validate: (field: CSVFieldType) => workStatusValidation.safeParse(`${field}`).success,
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, work status should be one of the following: ${WorkStatuses.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: WorkStatuses.options.join(', ') });
         },
       },
       {
@@ -287,7 +288,7 @@ export const getCsvConfig = (
         required: true,
         validate: (field: CSVFieldType) => titleValidation.safeParse(`${field}`).success,
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column`;
+          return t('errors.csvFieldNotValid', { field: headerName, row: rowNumber, column: columnNumber });
         },
       },
       {
@@ -296,7 +297,7 @@ export const getCsvConfig = (
         required: false,
         validate: (field: CSVFieldType) => subtitleValidation.safeParse(`${field}`).success,
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column`;
+          return t('errors.csvFieldNotValid', { field: headerName, row: rowNumber, column: columnNumber });
         },
       },
       {
@@ -305,7 +306,7 @@ export const getCsvConfig = (
         required: false,
         validate: (field: CSVFieldType) => editionValidation.safeParse(`${field}`).success,
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column`;
+          return t('errors.csvFieldNotValid', { field: headerName, row: rowNumber, column: columnNumber });
         },
       },
       {
@@ -375,7 +376,7 @@ export const getCsvConfig = (
           return licenseOptions.some((option) => option.value === data);
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column`;
+          return t('errors.csvFieldNotValid', { field: headerName, row: rowNumber, column: columnNumber });
         },
       },
       {
@@ -413,7 +414,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_1_biography', inputName: CONTRIBUTION_1_BIOGRAPHY, required: false },
@@ -448,7 +449,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_2_biography', inputName: CONTRIBUTION_2_BIOGRAPHY, required: false },
@@ -483,7 +484,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_3_biography', inputName: CONTRIBUTION_3_BIOGRAPHY, required: false },
@@ -519,7 +520,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_4_biography', inputName: CONTRIBUTION_4_BIOGRAPHY, required: false },
@@ -555,7 +556,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_5_biography', inputName: CONTRIBUTION_5_BIOGRAPHY, required: false },
@@ -591,7 +592,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_6_biography', inputName: CONTRIBUTION_6_BIOGRAPHY, required: false },
@@ -627,7 +628,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_7_biography', inputName: CONTRIBUTION_7_BIOGRAPHY, required: false },
@@ -663,7 +664,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_8_biography', inputName: CONTRIBUTION_8_BIOGRAPHY, required: false },
@@ -699,7 +700,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_9_biography', inputName: CONTRIBUTION_9_BIOGRAPHY, required: false },
@@ -735,7 +736,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_10_biography', inputName: CONTRIBUTION_10_BIOGRAPHY, required: false },
@@ -771,7 +772,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_11_biography', inputName: CONTRIBUTION_11_BIOGRAPHY, required: false },
@@ -807,7 +808,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_12_biography', inputName: CONTRIBUTION_12_BIOGRAPHY, required: false },
@@ -843,7 +844,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_13_biography', inputName: CONTRIBUTION_13_BIOGRAPHY, required: false },
@@ -879,7 +880,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_14_biography', inputName: CONTRIBUTION_14_BIOGRAPHY, required: false },
@@ -915,7 +916,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_15_biography', inputName: CONTRIBUTION_15_BIOGRAPHY, required: false },
@@ -951,7 +952,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_16_biography', inputName: CONTRIBUTION_16_BIOGRAPHY, required: false },
@@ -987,7 +988,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_17_biography', inputName: CONTRIBUTION_17_BIOGRAPHY, required: false },
@@ -1023,7 +1024,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_18_biography', inputName: CONTRIBUTION_18_BIOGRAPHY, required: false },
@@ -1059,7 +1060,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_19_biography', inputName: CONTRIBUTION_19_BIOGRAPHY, required: false },
@@ -1095,7 +1096,7 @@ export const getCsvConfig = (
           return ContributorTypes.safeParse(data).success;
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, contribution role should be one of the following: ${ContributorTypes.options.join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
       { name: 'contribution_20_biography', inputName: CONTRIBUTION_20_BIOGRAPHY, required: false },
@@ -1128,7 +1129,7 @@ export const getCsvConfig = (
           return languageOptions.some((option) => option.value === data);
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, original language should be one of the following: ${languageOptions.map((option) => option.value).join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: languageOptions.map((option) => option.value).join(', ') });
         },
       },
       {
@@ -1143,7 +1144,7 @@ export const getCsvConfig = (
           return languageOptions.some((option) => option.value === data);
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, translated from language should be one of the following: ${languageOptions.map((option) => option.value).join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: languageOptions.map((option) => option.value).join(', ') });
         },
       },
       {
@@ -1158,7 +1159,7 @@ export const getCsvConfig = (
           return languageOptions.some((option) => option.value === data);
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, translated into language should be one of the following: ${languageOptions.map((option) => option.value).join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: languageOptions.map((option) => option.value).join(', ') });
         },
       },
       { name: 'thema_subjects', inputName: THEMA_SUBJECTS, required: false },
@@ -1190,7 +1191,7 @@ export const getCsvConfig = (
           return currencyOptions.some((option) => option.value === data);
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, publication paperback price 1 currency code should be one of the following: ${currencyOptions.map((option) => option.value).join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: currencyOptions.map((option) => option.value).join(', ') });
         },
       },
       {
@@ -1222,7 +1223,7 @@ export const getCsvConfig = (
           return currencyOptions.some((option) => option.value === data);
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, publication hardback price 1 currency code should be one of the following: ${currencyOptions.map((option) => option.value).join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: currencyOptions.map((option) => option.value).join(', ') });
         },
       },
       {
@@ -1276,7 +1277,7 @@ export const getCsvConfig = (
           return serieses.some((series) => series.name === data);
         },
         validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return `${headerName} is not valid in the ${rowNumber} row / ${columnNumber} column, series should be one of the following: ${serieses.map((series) => series.name).join(', ')}`;
+          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: serieses.map((series) => series.name).join(', ') });
         },
       },
       { name: 'series_issn', inputName: SERIES_ISSN, required: false },

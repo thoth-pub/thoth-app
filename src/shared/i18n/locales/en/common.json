@@ -216,6 +216,16 @@
   "postpone": "Postpone",
   "errors": {
     "xmlParsingError": "Error parsing XML file. Please ensure that the uploaded ONIX file follows the structure laid out in our template",
-    "csvParsingError": "Error parsing CSV file. Please ensure that the uploaded CSV file follows the structure laid out in our template"
+    "csvParsingError": "Error parsing CSV file. Please ensure that the uploaded CSV file follows the structure laid out in our template",
+    "csvFieldRequired": "{{field}} is required in row {{row}} / column {{column}}",
+    "csvFieldNotValid": "{{field}} is not valid in row {{row}} / column {{column}}",
+    "csvFieldNotValidOptions": "{{field}} is not valid in row {{row}} / column {{column}}. Should be one of: {{options}}",
+    "csvFieldNotString": "{{field}} is not a string in row {{row}}",
+    "csvFieldNotNumber": "{{field}} is not a number in row {{row}}",
+    "csvImprintNotFound": "Imprint \"{{name}}\" not found in row {{row}}",
+    "csvLicenseNotFound": "License \"{{value}}\" not found in row {{row}}",
+    "csvSeriesNotFound": "Series \"{{name}}\" not found",
+    "unsupportedFileType": "Unsupported file type. Please upload a CSV or XML file.",
+    "emptyFile": "The uploaded file is empty."
   }
 }

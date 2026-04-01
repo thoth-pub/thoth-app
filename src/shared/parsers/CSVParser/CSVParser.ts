@@ -34,6 +34,8 @@ import {
 
 export type CSVFieldType = string | number | boolean;
 
+export type TranslateFunction = (key: string, options?: Record<string, unknown>) => string;
+
 type Row = {
   [CSVKey in (typeof CSV_KEYS)[keyof typeof CSV_KEYS]]: CSVFieldType;
 };
@@ -51,6 +53,7 @@ export class CSVParser {
   private defaultId: string = appConfig.defaultId;
   private contributorService: ContributorService;
   private institutionService: InstitutionService;
+  private t: TranslateFunction;
 
   constructor(
     csv: File,
@@ -60,6 +63,7 @@ export class CSVParser {
     serieses: SeriesEntity[],
     contributorService: ContributorService,
     institutionService: InstitutionService,
+    t: TranslateFunction,
   ) {
     this.csv = csv;
     this.csvConfig = csvConfig;
@@ -68,6 +72,7 @@ export class CSVParser {
     this.serieses = serieses;
     this.contributorService = contributorService;
     this.institutionService = institutionService;
+    this.t = t;
   }
 
   async parse() {
@@ -104,7 +109,7 @@ export class CSVParser {
       return {
         status: 'failed',
         data: { works: [], series: {}, contributorsForSelection: {} },
-        errors: [ERRORS.CSV_PARSING_ERROR],
+        errors: [this.t(ERRORS.CSV_PARSING_ERROR)],
       };
     }
   }
@@ -112,8 +117,9 @@ export class CSVParser {
   private async parseRow(row: Row, rowNumber: number) {
     const workId = this.generateId();
 
-    const { frontmatterCount, backmatterCount } = this.parsePageBreakdownField(row, CSV_KEYS.PAGE_BREAKDOWN, rowNumber);
+    const breakdown = this.parsePageBreakdownField(row, CSV_KEYS.PAGE_BREAKDOWN, rowNumber);
     const contributions = await this.parseContributors(row, workId);
+    const explicitPageCount = this.parseNumberField(row, CSV_KEYS.PAGE_COUNT, rowNumber);
 
     const parsedWork = getDefaultWork({
       id: workId,
@@ -135,9 +141,9 @@ export class CSVParser {
       tableCount: this.parseNumberField(row, CSV_KEYS.TABLE_COUNT, rowNumber),
       audioCount: this.parseNumberField(row, CSV_KEYS.AUDIO_COUNT, rowNumber),
       videoCount: this.parseNumberField(row, CSV_KEYS.VIDEO_COUNT, rowNumber),
-      pageCount: this.parseNumberField(row, CSV_KEYS.PAGE_COUNT, rowNumber),
-      frontmatterCount,
-      backmatterCount,
+      pageCount: breakdown.pageCount || explicitPageCount,
+      frontmatterCount: breakdown.frontmatterCount,
+      backmatterCount: breakdown.backmatterCount,
       languages: this.parseLanguages(
         row,
         CSV_KEYS.ORIGINAL_LANGUAGE,
@@ -165,7 +171,7 @@ export class CSVParser {
     const value = row[field];
 
     if (typeof value !== 'string') {
-      this.errors.push(`${field} is not a string ${rowNumber ? `in row ${rowNumber}` : ''}`);
+      this.errors.push(this.t('errors.csvFieldNotString', { field, row: rowNumber ?? '' }));
 
       return '';
     }
@@ -183,7 +189,7 @@ export class CSVParser {
     const numberValue = parseInt(value);
 
     if (isNaN(numberValue)) {
-      this.errors.push(`${field} is not a number ${rowNumber ? `in row ${rowNumber}` : ''}`);
+      this.errors.push(this.t('errors.csvFieldNotNumber', { field, row: rowNumber ?? '' }));
 
       return 1;
     }
@@ -201,7 +207,7 @@ export class CSVParser {
     const numberValue = parseFloat(value);
 
     if (isNaN(numberValue)) {
-      this.errors.push(`${field} is not a number ${rowNumber ? `in row ${rowNumber}` : ''}`);
+      this.errors.push(this.t('errors.csvFieldNotNumber', { field, row: rowNumber ?? '' }));
 
       return 0;
     }
@@ -215,7 +221,7 @@ export class CSVParser {
     const imprint = this.imprints.find((imprint) => imprint.label === imprintName);
 
     if (!imprint) {
-      this.errors.push(`Imprint ${imprintName} not found in row ${rowNumber}`);
+      this.errors.push(this.t('errors.csvImprintNotFound', { name: imprintName, row: rowNumber }));
       return '';
     }
 
@@ -237,7 +243,7 @@ export class CSVParser {
   private parseTitles(row: Row, rowNumber: number): TitleEntity[] {
     const title = this.parseStringField(row, CSV_KEYS.TITLE, rowNumber);
     const subtitle = this.parseStringField(row, CSV_KEYS.SUBTITLE, rowNumber);
-    const fullTitle = this.parseStringField(row, CSV_KEYS.TITLE, rowNumber);
+    const fullTitle = subtitle ? `${title}: ${subtitle}` : title;
 
     return [getDefaultTitle({ canonical: true, title, subtitle, fullTitle })];
   }
@@ -268,7 +274,7 @@ export class CSVParser {
     const license = this.licenses.find((option) => option.value.startsWith(`${value}`));
 
     if (!license) {
-      this.errors.push(`License ${value} not found in row ${rowNumber}`);
+      this.errors.push(this.t('errors.csvLicenseNotFound', { value, row: rowNumber }));
 
       return '';
     }
@@ -491,7 +497,7 @@ export class CSVParser {
     const existingSeries = this.serieses.find((series) => series.name === seriesName);
 
     if (!existingSeries) {
-      this.errors.push(`Series ${seriesName} not found`);
+      this.errors.push(this.t('errors.csvSeriesNotFound', { name: seriesName }));
 
       return;
     }

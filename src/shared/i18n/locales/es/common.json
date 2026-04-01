@@ -216,6 +216,16 @@
   "postpone": "Posponer",
   "errors": {
     "xmlParsingError": "Error al analizar el archivo XML. Asegúrese de que el archivo ONIX cargado sigue la estructura establecida en nuestra plantilla",
-    "csvParsingError": "Error al analizar el archivo CSV. Asegúrese de que el archivo CSV cargado sigue la estructura establecida en nuestra plantilla"
+    "csvParsingError": "Error al analizar el archivo CSV. Asegúrese de que el archivo CSV cargado sigue la estructura establecida en nuestra plantilla",
+    "csvFieldRequired": "{{field}} es obligatorio en la fila {{row}} / columna {{column}}",
+    "csvFieldNotValid": "{{field}} no es válido en la fila {{row}} / columna {{column}}",
+    "csvFieldNotValidOptions": "{{field}} no es válido en la fila {{row}} / columna {{column}}. Debe ser uno de: {{options}}",
+    "csvFieldNotString": "{{field}} no es un texto en la fila {{row}}",
+    "csvFieldNotNumber": "{{field}} no es un número en la fila {{row}}",
+    "csvImprintNotFound": "Sello \"{{name}}\" no encontrado en la fila {{row}}",
+    "csvLicenseNotFound": "Licencia \"{{value}}\" no encontrada en la fila {{row}}",
+    "csvSeriesNotFound": "Serie \"{{name}}\" no encontrada",
+    "unsupportedFileType": "Tipo de archivo no compatible. Por favor, suba un archivo CSV o XML.",
+    "emptyFile": "El archivo cargado está vacío."
   }
 }

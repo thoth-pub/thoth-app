@@ -216,6 +216,16 @@
   "postpone": "Verschieben",
   "errors": {
     "xmlParsingError": "Fehler beim Parsen der XML-Datei. Bitte stellen Sie sicher, dass die hochgeladene ONIX-Datei der Struktur unserer Vorlage entspricht",
-    "csvParsingError": "Fehler beim Parsen der CSV-Datei. Bitte stellen Sie sicher, dass die hochgeladene CSV-Datei der Struktur unserer Vorlage entspricht"
+    "csvParsingError": "Fehler beim Parsen der CSV-Datei. Bitte stellen Sie sicher, dass die hochgeladene CSV-Datei der Struktur unserer Vorlage entspricht",
+    "csvFieldRequired": "{{field}} ist erforderlich in Zeile {{row}} / Spalte {{column}}",
+    "csvFieldNotValid": "{{field}} ist ungültig in Zeile {{row}} / Spalte {{column}}",
+    "csvFieldNotValidOptions": "{{field}} ist ungültig in Zeile {{row}} / Spalte {{column}}. Muss eines der folgenden sein: {{options}}",
+    "csvFieldNotString": "{{field}} ist kein Text in Zeile {{row}}",
+    "csvFieldNotNumber": "{{field}} ist keine Zahl in Zeile {{row}}",
+    "csvImprintNotFound": "Imprint \"{{name}}\" nicht gefunden in Zeile {{row}}",
+    "csvLicenseNotFound": "Lizenz \"{{value}}\" nicht gefunden in Zeile {{row}}",
+    "csvSeriesNotFound": "Reihe \"{{name}}\" nicht gefunden",
+    "unsupportedFileType": "Nicht unterstütztes Dateiformat. Bitte laden Sie eine CSV- oder XML-Datei hoch.",
+    "emptyFile": "Die hochgeladene Datei ist leer."
   }
 }
