@@ -1,7 +1,6 @@
 'use client';
 
-import { LinkTooltip, OrchidLogo, TableFormsHeader } from '@/src/shared/ui';
-import { convertOrchidIdToText } from '@/src/shared/utils';
+import { OrcidLink, TableFormsHeader } from '@/src/shared/ui';
 
 type FormHeaderProps = {
   title: string;
@@ -13,11 +12,7 @@ type FormHeaderProps = {
 export const FormHeader = ({ title, orcidId, onDone, onClose }: FormHeaderProps) => {
   return (
     <TableFormsHeader title={title} onDone={onDone} onClose={onClose}>
-      {orcidId && (
-        <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
-          <OrchidLogo />
-        </LinkTooltip>
-      )}
+      {orcidId && <OrcidLink orcidId={orcidId} />}
     </TableFormsHeader>
   );
 };

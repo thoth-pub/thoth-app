@@ -1,8 +1,7 @@
 import LinkIcon from '@mui/icons-material/Link';
 import RateReviewIcon from '@mui/icons-material/RateReview';
 
-import { CardListItem, DeleteButton, DoiPreview, LinkTooltip, MarkdownRenderer, OrchidLogo, RorLogo, Typography } from '@/src/shared/ui';
-import { convertOrchidIdToText, convertRorIdToText } from '@/src/shared/utils';
+import { CardListItem, DeleteButton, DoiPreview, LinkTooltip, MarkdownRenderer, OrcidLink, RorLink, Typography } from '@/src/shared/ui';
 
 import { BookReviewEntity } from '../../../model/book-review.types';
 
@@ -43,16 +42,8 @@ export const BookReviewCardListItem = (props: BookReviewCardListItemProps) => {
               <LinkIcon fontSize="small" color="primary" />
             </LinkTooltip>
           )}
-          {reviewerOrcid && (
-            <LinkTooltip link={reviewerOrcid} linkText={convertOrchidIdToText(reviewerOrcid)}>
-              <OrchidLogo />
-            </LinkTooltip>
-          )}
-          {reviewerInstitutionRor && (
-            <LinkTooltip link={reviewerInstitutionRor} linkText={convertRorIdToText(reviewerInstitutionRor)}>
-              <RorLogo />
-            </LinkTooltip>
-          )}
+          {reviewerOrcid && <OrcidLink orcidId={reviewerOrcid} />}
+          {reviewerInstitutionRor && <RorLink rorId={reviewerInstitutionRor} />}
         </Typography>
       )}
     </CardListItem>

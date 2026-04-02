@@ -1,7 +1,6 @@
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 
-import { CardListItem, DeleteButton, Indicator, LinkTooltip, RorLogo, Typography } from '@/src/shared/ui';
-import { convertRorIdToText } from '@/src/shared/utils';
+import { CardListItem, DeleteButton, Indicator, RorLink, Typography } from '@/src/shared/ui';
 
 import { FundingEntity } from '../../../model/funding.types';
 
@@ -44,11 +43,7 @@ export const FundingsCardListItem = (props: FundingsCardListItemProps) => {
         <Typography className="cardItem normal-case">
           <AccountBalanceIcon fontSize="small" color="primary" />
           {institutionName}{' '}
-          {institutionRor && (
-            <LinkTooltip link={institutionRor} linkText={convertRorIdToText(institutionRor)}>
-              <RorLogo />
-            </LinkTooltip>
-          )}
+          {institutionRor && <RorLink rorId={institutionRor} />}
           {showRecommendations && grantNumber.length === 0 && <Indicator />}
         </Typography>
       )}
