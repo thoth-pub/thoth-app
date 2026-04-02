@@ -1,5 +1,5 @@
 import { TypedDocumentNode } from '@graphql-typed-document-node/core';
-import request, { RequestDocument, Variables } from 'graphql-request';
+import request, { ClientError, RequestDocument, Variables } from 'graphql-request';
 
 import { getAuthorizationHeaders } from '../utils';
 
@@ -14,12 +14,16 @@ export class GraphqlService {
   ): Promise<TResult> {
     const headers = getAuthorizationHeaders(this.token);
 
-    return request<TResult>(
-      process.env.NEXT_PUBLIC_THOTH_API_URL ?? '',
-      query as RequestDocument,
-      variables as Variables,
-      headers,
-    );
+    try {
+      return await request<TResult>(
+        process.env.NEXT_PUBLIC_THOTH_API_URL ?? '',
+        query as RequestDocument,
+        variables as Variables,
+        headers,
+      );
+    } catch (error) {
+      this.handleError(error);
+    }
   }
 
   async mutation<TResult, TVariables extends Variables>(
@@ -28,11 +32,24 @@ export class GraphqlService {
   ): Promise<TResult> {
     const headers = getAuthorizationHeaders(this.token);
 
-    return request<TResult>(
-      process.env.NEXT_PUBLIC_THOTH_API_URL ?? '',
-      mutation as RequestDocument,
-      variables as Variables,
-      headers,
-    );
+    try {
+      return await request<TResult>(
+        process.env.NEXT_PUBLIC_THOTH_API_URL ?? '',
+        mutation as RequestDocument,
+        variables as Variables,
+        headers,
+      );
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
+  private handleError(error: unknown): never {
+    if (error instanceof ClientError) {
+      const message = error.response.errors?.[0]?.message ?? error.message;
+      throw new Error(message);
+    }
+
+    throw error;
   }
 }
