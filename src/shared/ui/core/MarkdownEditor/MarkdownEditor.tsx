@@ -17,6 +17,7 @@ export type MarkdownEditorProps = Partial<{
   errorMessage: string;
   extendedToolbar?: boolean;
   disableLineBreaks?: boolean;
+  maxCharsLimit?: number;
   id?: string;
   children: Readonly<ReactNode>;
   onChange: (value?: string) => void;
@@ -31,11 +32,12 @@ const MarkdownEditor = (props: MarkdownEditorProps) => {
     errorMessage,
     extendedToolbar = false,
     disableLineBreaks = false,
+    maxCharsLimit,
     children,
     onChange,
     id,
   } = props;
-  const { editorRef, customizeText, update, toggleTextCase } = useMarkdownEditor({ disableLineBreaks, onChange });
+  const { editorRef, customizeText, update, toggleTextCase } = useMarkdownEditor({ disableLineBreaks, maxCharsLimit, onChange });
 
   return (
     <div className="flex flex-1 flex-col gap-1">
@@ -73,6 +75,15 @@ const MarkdownEditor = (props: MarkdownEditorProps) => {
           onAddParagraphPressed={() => customizeText(PARAGRAPH)}
         />
         {children}
+        {maxCharsLimit && (
+          <Typography
+            variant="body2"
+            component="span"
+            color={value && value.length >= maxCharsLimit ? 'error' : 'textSecondary'}
+          >
+            {value?.length ?? 0}/{maxCharsLimit}
+          </Typography>
+        )}
       </div>
       {error && (
         <Typography variant="body2" color="error">

@@ -128,6 +128,7 @@ export const AbstractsFormFields = (props: AbstractsFormFieldsProps) => {
                 name={getShortAbstractFieldName(index)}
                 id={getShortAbstractFieldName(index)}
                 disableLineBreaks
+                maxCharsLimit={appConfig.maxShortAbstractChars}
               />
               <br />
               <LanguageField className="ml-auto" control={control} languageFieldName={getLanguageFieldName(index)} />
