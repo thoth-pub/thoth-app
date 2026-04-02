@@ -1,18 +1,25 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { PublisherId } from '@/src/entities/publisher';
-import { QueryKeys } from '@/src/shared/constants';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { ImprintId } from '../../model/imprint.types';
 
+const { IMPRINT_DELETE_FAILED } = NOTIFICATIONS;
+
 const useDeleteImprint = () => {
+  const { sendErrorNotification } = useNotifications();
   const { imprintService } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (imprintId: ImprintId) => {
       return imprintService.deleteImprint(imprintId);
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? IMPRINT_DELETE_FAILED);
     },
   });
 
