@@ -17,6 +17,7 @@ export const NOTIFICATIONS = {
   WORK_CONTRIBUTION_DELETION_FAILED: 'workContributionDeletionFailed',
   WORK_CONTRIBUTION_UPDATE_FAILED: 'workContributionUpdateFailed',
   WORK_MOVE_RELATION_FAILED: 'workMoveRelationFailed',
+  WORK_COVER_UPDATE_FAILED: 'workCoverUpdateFailed',
   COVER_URL_COPY_SUCCESS: 'coverUrlCopySuccess',
   // Chapters
   CHAPTER_CREATION_SUCCESS: 'chapterCreationSuccess',
@@ -34,6 +35,7 @@ export const NOTIFICATIONS = {
   AFFILIATION_CREATION_FAILED: 'affiliationCreationFailed',
   AFFILIATION_UPDATE_SUCCESS: 'affiliationUpdateSuccess',
   AFFILIATION_UPDATE_FAILED: 'affiliationUpdateFailed',
+  AFFILIATION_DELETE_FAILED: 'affiliationDeleteFailed',
   AFFILIATION_MOVE_FAILED: 'affiliationMoveFailed',
   // Languages
   LANGUAGE_CREATION_FAILED: 'languageCreationFailed',
@@ -42,6 +44,7 @@ export const NOTIFICATIONS = {
   // Publications
   PUBLICATION_CREATION_FAILED: 'publicationCreationFailed',
   PUBLICATION_UPDATE_FAILED: 'publicationUpdateFailed',
+  PUBLICATION_DELETE_FAILED: 'publicationDeleteFailed',
   // Prices
   PRICE_CREATION_FAILED: 'priceCreationFailed',
   PRICE_UPDATE_FAILED: 'priceUpdateFailed',
@@ -120,6 +123,8 @@ export const NOTIFICATIONS = {
   SET_MOVE_RELATION_FAILED: 'setMoveRelationFailed',
   // Imprints
   IMPRINT_CREATION_FAILED: 'imprintCreationFailed',
+  IMPRINT_UPDATE_FAILED: 'imprintUpdateFailed',
+  IMPRINT_DELETE_FAILED: 'imprintDeleteFailed',
   // Featured Video
   FEATURED_VIDEO_CREATION_FAILED: 'featuredVideoCreationFailed',
   FEATURED_VIDEO_UPDATE_FAILED: 'featuredVideoUpdateFailed',

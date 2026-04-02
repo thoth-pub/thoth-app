@@ -2,10 +2,13 @@
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { QueryKeys } from '@/src/shared/constants';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
+import { useNotifications } from '@/src/shared/hooks';
 
 import { WorkContribution } from '../../model/contribution.types';
+
+const { WORK_CONTRIBUTION_UPDATE_FAILED } = NOTIFICATIONS;
 
 type UseUpdateContributionProps = {
   relatedWorkId: string;
@@ -14,6 +17,7 @@ type UseUpdateContributionProps = {
 export const useUpdateContribution = (props: UseUpdateContributionProps & { relatedWorkId: string }) => {
   const { relatedWorkId } = props;
 
+  const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
   const { contributionService } = useServices();
 
@@ -24,6 +28,9 @@ export const useUpdateContribution = (props: UseUpdateContributionProps & { rela
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? WORK_CONTRIBUTION_UPDATE_FAILED);
     },
   });
 

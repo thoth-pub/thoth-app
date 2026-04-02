@@ -1,17 +1,24 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { QueryKeys } from '@/src/shared/constants';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context/servicesContext';
+import { useNotifications } from '@/src/shared/hooks';
 
 import type { WorkId } from '../../model/work.types';
 
+const { WORK_COVER_UPDATE_FAILED } = NOTIFICATIONS;
+
 const useUpdateWorkFrontCover = (workId: WorkId) => {
+  const { sendErrorNotification } = useNotifications();
   const { fileStorage } = useServices();
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async (file: File) => {
       return fileStorage.uploadWorkCover(workId, file);
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? WORK_COVER_UPDATE_FAILED);
     },
   });
 

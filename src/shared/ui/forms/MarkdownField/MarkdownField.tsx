@@ -18,6 +18,7 @@ const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T>) => {
     id,
     disableLineBreaks,
     extendedToolbar,
+    maxCharsLimit,
     className,
   } = props;
 
@@ -36,6 +37,7 @@ const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T>) => {
             disableLineBreaks={disableLineBreaks}
             id={id}
             extendedToolbar={extendedToolbar}
+            maxCharsLimit={maxCharsLimit}
           >
             {children}
           </MarkdownEditor>

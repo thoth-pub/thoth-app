@@ -1,12 +1,16 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { QueryKeys } from '@/src/shared/constants';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
+import { useNotifications } from '@/src/shared/hooks';
 import { type BaseEditSectionProps } from '@/src/shared/types';
+
+const { PUBLICATION_DELETE_FAILED } = NOTIFICATIONS;
 
 const useDeletePublication = (props: BaseEditSectionProps) => {
   const { workId = '' } = props;
 
+  const { sendErrorNotification } = useNotifications();
   const queryClient = useQueryClient();
   const { publicationService } = useServices();
 
@@ -16,6 +20,9 @@ const useDeletePublication = (props: BaseEditSectionProps) => {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
+    },
+    onError: (error) => {
+      sendErrorNotification(error?.message ?? PUBLICATION_DELETE_FAILED);
     },
   });
 

@@ -7,3 +7,9 @@
     border-color: var(--color-error) !important;
   }
 }
+
+@-moz-document url-prefix() {
+  .w-md-editor-text-input {
+    -webkit-text-fill-color: inherit !important;
+  }
+}

@@ -8,10 +8,11 @@ import type { TextEditorTagTypes } from '@/src/shared/interfaces';
 
 type UseMarkdownEditorProps = Partial<{
   disableLineBreaks: boolean;
+  maxCharsLimit: number;
   onChange: (value?: string) => void;
 }>;
 
-export const useMarkdownEditor = ({ disableLineBreaks, onChange }: UseMarkdownEditorProps) => {
+export const useMarkdownEditor = ({ disableLineBreaks, maxCharsLimit, onChange }: UseMarkdownEditorProps) => {
   const editorRef = useRef<RefMDEditor>(null);
 
   const handleTag = (tag: TextEditorTagTypes) => {
@@ -61,9 +62,15 @@ export const useMarkdownEditor = ({ disableLineBreaks, onChange }: UseMarkdownEd
   const handleChange = (value?: string) => {
     if (!onChange) return;
 
-    if (!disableLineBreaks || !value) return onChange(value);
+    let processed = value;
 
-    onChange(value.replace(/\n/g, ''));
+    if (disableLineBreaks && processed) {
+      processed = processed.replace(/\n/g, '');
+    }
+
+    if (maxCharsLimit && processed && processed.length > maxCharsLimit) return;
+
+    onChange(processed);
   };
 
   return {
