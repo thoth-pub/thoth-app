@@ -7,8 +7,7 @@ import { WorkTypes } from '@/src/shared/constants';
 import type { ContributorsForSelection } from '@/src/shared/types';
 import {
   Button,
-  LinkTooltip,
-  OrchidLogo,
+  OrcidLink,
   Radio,
   TableBody,
   TableCell,
@@ -18,7 +17,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
-import { convertOrchidIdToText, getMainTitle, isDefaultId } from '@/src/shared/utils';
+import { getMainTitle, isDefaultId } from '@/src/shared/utils';
 
 type ContributorsSelectionProps = {
   contributors: ContributorsForSelection;
@@ -147,9 +146,7 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
                                   <Typography className="flex items-center gap-1" fontWeight="bold" component="span">
                                     {fullName}
                                     {orcidId && (
-                                      <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
-                                        <OrchidLogo />
-                                      </LinkTooltip>
+                                      <OrcidLink orcidId={orcidId} />
                                     )}
                                   </Typography>
                                   {lastContribution && lastContribution.length > 0 && (

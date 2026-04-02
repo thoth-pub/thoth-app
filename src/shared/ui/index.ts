@@ -88,6 +88,8 @@ export { default as MarkdownSwitch } from './forms/MarkdownSwitch/MarkdownSwitch
 export { default as SubmitButton } from './forms/SubmitButton/SubmitButton';
 export { default as DashboardChartSkeleton } from './layout/DashboardChartSkeleton/DashboardChartSkeleton';
 // Icons
+export { default as OrcidLink } from './core/OrcidLink/OrcidLink';
+export { default as RorLink } from './core/RorLink/RorLink';
 export { default as DoiLogo } from './icons/DoiLogo/DoiLogo';
 export { default as OrchidLogo } from './icons/OrcidLogo/OrcidLogo';
 export { default as RorLogo } from './icons/RorLogo/RorLogo';

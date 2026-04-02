@@ -6,13 +6,12 @@ import {
   CardListItem,
   DeleteButton,
   Indicator,
-  LinkTooltip,
   MarkdownPreview,
-  OrchidLogo,
-  RorLogo,
+  OrcidLink,
+  RorLink,
   Typography,
 } from '@/src/shared/ui';
-import { convertOptionToString, convertOrchidIdToText, convertRorIdToText } from '@/src/shared/utils';
+import { convertOptionToString } from '@/src/shared/utils';
 
 import type { WorkContribution } from '../../../model/contribution.types';
 
@@ -58,11 +57,7 @@ export const ContributionListItem = (props: ContributionListItemProps) => {
       <Typography className="cardItem normal-case" variant="h2">
         {fullName}
         {isMain && <StarIcon color="primary" fontSize="small" />}
-        {orcidId && (
-          <LinkTooltip link={orcidId} linkText={convertOrchidIdToText(orcidId)}>
-            <OrchidLogo />
-          </LinkTooltip>
-        )}
+        {orcidId && <OrcidLink orcidId={orcidId} />}
         {showRecommendations && <Indicator />}
       </Typography>
       <Typography>{convertOptionToString(type)}</Typography>
@@ -72,11 +67,7 @@ export const ContributionListItem = (props: ContributionListItemProps) => {
             <Typography key={id} component="li" className="cardItem">
               <AccountBalanceIcon fontSize="small" color="primary" />
               {institutionName}
-              {rorId && (
-                <LinkTooltip link={rorId} linkText={convertRorIdToText(rorId)}>
-                  <RorLogo />
-                </LinkTooltip>
-              )}
+              {rorId && <RorLink rorId={rorId} />}
             </Typography>
           ))}
         </Typography>
