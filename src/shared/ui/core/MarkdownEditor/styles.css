@@ -11,5 +11,11 @@
 @-moz-document url-prefix() {
   .w-md-editor-text-input {
     -webkit-text-fill-color: inherit !important;
+
+    &::selection,
+    &::-moz-selection {
+      background-color: #accef7 !important;
+      color: black !important;
+    }
   }
 }

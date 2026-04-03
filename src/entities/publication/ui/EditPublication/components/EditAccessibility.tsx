@@ -23,7 +23,7 @@ import {
   Typography,
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
-import { convertOptionToString, prettifyUrlPreview } from '@/src/shared/utils';
+import { mapOptionsToLabels, mapOptionToLabel, prettifyUrlPreview } from '@/src/shared/utils';
 
 import type { PublicationAccessibilityForm, PublicationType } from '../../../model/publication.types';
 import { accessibilityValidationSchema } from '../../../model/publication.validation';
@@ -73,8 +73,8 @@ export const EditAccessibility = (props: EditAccessibilityProps) => {
   const hasValues = standards.length > 0 || !!exception || !!reportUrl;
 
   const previewParts = [
-    standards.length > 0 ? convertOptionToString(standards.join(', ')) : '',
-    exception ? convertOptionToString(exception) : '',
+    standards.length > 0 ? mapOptionsToLabels(standards, getAccessibilityStandardOptions(publicationType)) : '',
+    exception ? mapOptionToLabel(exception, accessibilityExceptionOptions) : '',
     reportUrl ? prettifyUrlPreview(reportUrl) : '',
   ].filter(Boolean);
 
