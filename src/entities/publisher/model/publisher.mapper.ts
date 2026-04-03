@@ -38,7 +38,7 @@ export class PublisherDtoMapper implements BaseMapper<PublisherEntity, Publisher
       publisherId: id,
       publisherName: name,
       publisherShortname: emptyToNull(shortName),
-      publisherUrl: url,
+      publisherUrl: emptyToNull(url),
       ...(isSuperuser ? { zitadelId: emptyToNull(zitadelId) } : {}),
       accessibilityReportUrl: emptyToNull(accessibilityReportUrl),
       accessibilityStatement: emptyToNull(accessibilityStatement),

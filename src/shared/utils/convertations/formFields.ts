@@ -67,3 +67,13 @@ export const convertOrchidIdToText = (orcidId: string) => {
 export const convertRorIdToText = (rorId: string) => {
   return rorId.replace(rorPrefix, '');
 };
+
+export const mapOptionsToLabels = (values: string[], options: FormFieldOption[]): string => {
+  return values
+    .map((value) => options.find((option) => option.value === value)?.label ?? value)
+    .join(', ');
+};
+
+export const mapOptionToLabel = (value: string, options: FormFieldOption[]): string => {
+  return options.find((option) => option.value === value)?.label ?? value;
+};

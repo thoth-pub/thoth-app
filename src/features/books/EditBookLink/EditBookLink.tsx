@@ -50,8 +50,8 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
           </div>
           <div className="mt-auto flex flex-col gap-1">
             <Typography className="max-w-[170px] truncate 2xl:max-w-[240px]">{mainContributor}</Typography>
-            <div className="flex items-center gap-4">
-              <Typography className="max-w-[100px] truncate capitalize">
+            <div className="flex flex-wrap items-center gap-4 w-full">
+              <Typography className="max-w-[100px] flex-1 truncate capitalize">
                 <TranslatedContent content={convertOptionToString(convertedType).toLowerCase()} />
               </Typography>
               <WorkStatusChip status={status} />
