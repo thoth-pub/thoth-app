@@ -1,3 +1,11 @@
+export const isArabicNumeral = (value: string) => {
+  if (!value || value.length === 0) return false;
+
+  const num = Number(value);
+
+  return Number.isInteger(num) && num >= 1;
+};
+
 export const getPagesPlaceholder = (
   firstPage: string,
   lastPage: string,

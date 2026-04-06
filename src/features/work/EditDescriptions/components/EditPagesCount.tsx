@@ -19,6 +19,8 @@ import {
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 import { convertArabicToRoman, getPagesPlaceholder } from '@/src/shared/utils';
 
+import { PageCountAutoCalculator } from './PageCountCalculator';
+
 const {
   WORK_PAGES_COUNT,
   PAGES_COUNT,
@@ -100,10 +102,11 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
       validationSchema={pagesCountValidationSchema}
       onSubmit={handleSubmit}
       faq={isChapter ? CHAPTER_TOTAL_PAGES_HELPER_TEXT : WORK_PAGES_COUNT_HELPER_TEXT}
-      formFields={({ control }) => (
+      formFields={({ control, setValue }) => (
         <MultipleContentWrapper>
           {isChapter && (
             <>
+              <PageCountAutoCalculator control={control} setValue={setValue} />
               <ContentWrapper>
                 <FormFieldLabel label={WORK_FIRST_PAGE.label} id={WORK_FIRST_PAGE.name} />
                 <FormTextField
