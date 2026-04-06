@@ -8,6 +8,7 @@ import {
   CardListItem,
   Checkbox,
   DeleteButton,
+  DoiPreview,
   IconButton,
   MarkdownRenderer,
   Typography,
@@ -41,7 +42,7 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
 
   const actionsClassName = `opacity-0 ${!disableControls && 'group-hover:opacity-100'}`;
 
-  const { id, titles, pageCount, contributions, firstPage, lastPage } = chapter;
+  const { id, titles, pageCount, contributions, firstPage, lastPage, doi } = chapter;
 
   const contributorsNames = contributions.map((contribution) => contribution.fullName);
 
@@ -89,6 +90,8 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
           {getPagesPlaceholder(firstPage, lastPage, pageCount, '', '')}
         </Typography>
       )}
+
+      {doi.length > 0 && <DoiPreview doi={doi} />}
     </CardListItem>
   );
 };
