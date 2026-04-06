@@ -60,6 +60,7 @@ const CardListItem = (props: CardListItemProps) => {
               onClick={handleEdit}
               role="button"
               aria-label={ariaLabel}
+              component="li"
             >
               <CardContent className="p-4">
                 <div className="cardItem">

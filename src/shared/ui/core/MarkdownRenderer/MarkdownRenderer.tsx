@@ -3,11 +3,12 @@
 import MDEditor from '@uiw/react-md-editor';
 
 import { jatsToHtml } from '@/src/shared/utils/jats';
+import { escapeMarkdownList } from '@/src/shared/utils/strings';
 
 const MarkdownRenderer = ({ markdown }: { markdown: string }) => {
   return (
     <MDEditor.Markdown
-      source={jatsToHtml(markdown)}
+      source={escapeMarkdownList(jatsToHtml(markdown))}
       style={{
         backgroundColor: 'transparent',
         color: 'inherit',
