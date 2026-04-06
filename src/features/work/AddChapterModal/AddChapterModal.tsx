@@ -59,7 +59,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
     const { landingPage, license, copyrightHolder, contributors, fundings, subjects } = data;
 
     const defaultChapter = getDefaultChapter({
-      titles: work.titles.map((title) => ({ ...title, id: appConfig.defaultId })),
+      titles: work.titles.map(({subtitle, title, fullTitle, ...rest}) => ({ ...rest, id: appConfig.defaultId, subtitle: '', title: "New chapter", fullTitle: "New chapter" })),
       status: work.status,
       coverUrl: work.coverUrl,
       landingPage: landingPage ? work.landingPage : '',
