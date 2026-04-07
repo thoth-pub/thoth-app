@@ -17,6 +17,7 @@
   "workMoveRelationFailed": "Error al cambiar el orden de los capítulos",
   "chapterCreationSuccess": "Capítulo creado correctamente",
   "chapterCreationFailed": "Error al crear el capítulo",
+  "chapterBulkCreationSuccess": "{{count}} capítulos creados correctamente",
   "chapterUpdateFailed": "Error al actualizar el capítulo",
   "chapterDeleteFailed": "Error al eliminar el capítulo",
   "contributorCreationSuccess": "Colaborador creado correctamente",

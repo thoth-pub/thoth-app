@@ -111,6 +111,7 @@
   "chapters": "Capítulos",
   "page range": "Intervalo de páginas",
   "inherited work data": "Dados herdados da obra",
+  "creatingChapter": "Criando capítulo {{current}} de {{total}}...",
   "funding": "Financiamento",
   "cover": "Capa",
   "landing page": "Página De Destino",

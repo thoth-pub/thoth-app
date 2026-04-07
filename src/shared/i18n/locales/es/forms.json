@@ -399,6 +399,9 @@
   "publicationFile": {
     "label": "Archivo"
   },
+  "chapterCount": {
+    "label": "Número de capítulos"
+  },
   "place": {
     "label": "Lugar"
   },

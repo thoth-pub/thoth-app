@@ -22,6 +22,7 @@ export const NOTIFICATIONS = {
   // Chapters
   CHAPTER_CREATION_SUCCESS: 'chapterCreationSuccess',
   CHAPTER_CREATION_FAILED: 'chapterCreationFailed',
+  CHAPTER_BULK_CREATION_SUCCESS: 'chapterBulkCreationSuccess',
   CHAPTER_UPDATE_FAILED: 'chapterUpdateFailed',
   CHAPTER_DELETE_FAILED: 'chapterDeleteFailed',
   // Contributors

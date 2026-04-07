@@ -29,6 +29,7 @@ export { default as IconButton } from './core/IconButton/IconButton';
 export { default as ImageWithFallback } from './core/ImageWithFallback/ImageWithFallback';
 export { default as Indicator } from './core/Indicator/Indicator';
 export { default as InputAdornment } from './core/InputAdornment/InputAdornment';
+export { default as LinearProgress } from './core/LinearProgress/LinearProgress';
 export { default as Link } from './core/Link/Link';
 export { default as LinkTooltip } from './core/LinkTooltip/LinkTooltip';
 export { default as ListSubheader, type ListSubheaderComponentProps } from './core/ListSubheader/ListSubheader';
