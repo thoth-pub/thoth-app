@@ -22,8 +22,9 @@ type EditAdditionalResourceFormProps = Partial<{
   url: string;
   fileUrl: string;
   uploadLoading: boolean;
-  onFileUpload: (file: File) => void;
+  uploadProgress: number | null;
   isDoneDisabled: boolean;
+  onFileUpload: (file: File) => void;
   onTitleUpdate: (data: string) => void;
   onDescriptionUpdate: (data: string) => void;
   onAttributionUpdate: (data: string) => void;
@@ -46,6 +47,7 @@ const EditAdditionalResourceForm = (props: EditAdditionalResourceFormProps) => {
     url,
     fileUrl,
     uploadLoading,
+    uploadProgress,
     onFileUpload,
     onTitleUpdate,
     onDescriptionUpdate,
@@ -67,15 +69,18 @@ const EditAdditionalResourceForm = (props: EditAdditionalResourceFormProps) => {
           <>
             <DownloadAdditionalResourceFile fileUrl={fileUrl} />
             <EditAdditionalResourceFile
+              title={title ?? ''}
               resourceType={resourceType ?? ''}
               loading={uploadLoading ?? false}
+              progress={uploadProgress}
               onSubmit={onFileUpload}
             />
           </>
         }
+        isDoneDisabled={isDoneDisabled}
+        isCloseDisabled={uploadLoading}
         onDone={onDone}
         onClose={onClose}
-        isDoneDisabled={isDoneDisabled}
       />
       <EditAdditionalResourceTitle defaultValue={title} onUpdate={onTitleUpdate} />
       <EditAdditionalResourceResourceType defaultValue={resourceType} onUpdate={onResourceTypeUpdate} />

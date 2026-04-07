@@ -43,7 +43,8 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { createLocation, loading: isCreateLocationLoading } = useCreateLocation({ workId });
   const { updateLocation, loading: isUpdateLocationLoading } = useUpdateLocation({ workId });
   const { deleteLocation: deleteLocationMutation, loading: isDeleteLocationLoading } = useDeleteLocation({ workId });
-  const { uploadPublicationFile, loading: isUploadPublicationFileLoading } = useUploadPublicationFile(workId);
+  const { uploadPublicationFile, loading: isUploadPublicationFileLoading, progress: uploadProgress } =
+    useUploadPublicationFile(workId);
 
   useEffect(() => {
     if (!activePublication || publication) return;
@@ -276,6 +277,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   return {
     activePublication: publication,
     loading,
+    uploadProgress,
     defaultCurrencyOption,
     deleteLocationLoading: isDeleteLocationLoading,
     finishEditing,

@@ -7,5 +7,8 @@ export { default as useEntityList } from './useEntityList';
 export { default as useEscapeKey } from './useEscapeKey';
 export { default as useIsDesktop } from './useIsDesktop';
 export { default as useNotifications } from './useNotifications';
+export { default as usePreventInteraction } from './usePreventInteraction';
+export { default as usePreventNavigation } from './usePreventNavigation';
+export { default as useProgress } from './useProgress';
 export { default as useQueryToken } from './useQueryToken';
 export { default as useTypedTranslation } from './useTypedTranslation';

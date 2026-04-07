@@ -25,7 +25,7 @@ const AddAdditionalResource = (props: AddAdditionalResourceProps) => {
     activeAdditionalResource,
   );
   const [pendingFile, setPendingFile] = useState<File | null>(null);
-  const { createAdditionalResource, loading } = useCreateAdditionalResource({ workId });
+  const { createAdditionalResource, loading, progress: uploadProgress } = useCreateAdditionalResource({ workId });
 
   const handleFileUpload = (file: File) => {
     setPendingFile(file);
@@ -103,8 +103,9 @@ const AddAdditionalResource = (props: AddAdditionalResourceProps) => {
         handle={handle}
         url={url}
         uploadLoading={loading}
-        onFileUpload={handleFileUpload}
+        uploadProgress={uploadProgress}
         isDoneDisabled={!title?.trim() || !resourceType?.trim()}
+        onFileUpload={handleFileUpload}
         onTitleUpdate={updateTitle}
         onDescriptionUpdate={updateDescription}
         onAttributionUpdate={updateAttribution}

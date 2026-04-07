@@ -36,7 +36,12 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     this.fileStorage = fileStorage;
   }
 
-  async createPublication(data: PublicationEntity, workId: WorkId, file?: File): Promise<PublicationEntity> {
+  async createPublication(
+    data: PublicationEntity,
+    workId: WorkId,
+    file?: File,
+    onProgress?: (progress: number) => void,
+  ): Promise<PublicationEntity> {
     const { publicationId: _, publicationType, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(CREATE_PUBLICATION, {
@@ -67,7 +72,7 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     }
 
     if (file) {
-      const fileUrl = await this.uploadPublicationFile(publication.id, file);
+      const fileUrl = await this.uploadPublicationFile(publication.id, file, onProgress);
       publication.fileUrl = fileUrl;
     }
 
@@ -126,8 +131,12 @@ export class PublicationService extends BaseService<PublicationEntity, Publicati
     return response.deletePublication;
   }
 
-  async uploadPublicationFile(publicationId: PublicationId, file: File): Promise<string> {
-    const url = await this.fileStorage.uploadPublicationFile(publicationId, file);
+  async uploadPublicationFile(
+    publicationId: PublicationId,
+    file: File,
+    onProgress?: (progress: number) => void,
+  ): Promise<string> {
+    const url = await this.fileStorage.uploadPublicationFile(publicationId, file, onProgress);
 
     return url;
   }

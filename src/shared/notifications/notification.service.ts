@@ -17,4 +17,17 @@ export class NotificationService {
       },
     });
   }
+  sendProgressNotification(message: NotificationMessage | string, id: string | number) {
+    toast.loading(message, {
+      id,
+      style: {
+        background: 'var(--color-notification-background-system)',
+        color: 'var(--color-notification-text-system)',
+      },
+      duration: Infinity,
+    });
+  }
+  dismissNotification(id: string | number) {
+    toast.dismiss(id);
+  }
 }

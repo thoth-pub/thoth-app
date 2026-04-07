@@ -35,6 +35,7 @@ type EditPublicationProps = {
   accessibilityReportUrl: string;
   isDimensionFormHidden: boolean;
   isUploadFileFormDisabled: boolean;
+  uploadProgress?: number | null;
   children?: (isFullTextUrlHidden: boolean) => Readonly<React.ReactNode>;
   onDone?: () => void;
   onClose?: () => void;
@@ -74,6 +75,7 @@ const EditPublication = (props: EditPublicationProps) => {
     onUpdateAccessibility,
     onDeleteAccessibility,
     onUpdateFile,
+    uploadProgress,
   } = props;
 
   const isDimensionsHidden = isDimensionFormHidden || !isDimensionsAvailable(publicationType);
@@ -93,6 +95,7 @@ const EditPublication = (props: EditPublicationProps) => {
                 publicationType={publicationType}
                 disabled={isUploadFileFormDisabled}
                 loading={loading}
+                progress={uploadProgress}
                 onSubmit={onUpdateFile}
               />
             )}
@@ -100,6 +103,7 @@ const EditPublication = (props: EditPublicationProps) => {
         }
         onDone={onDone}
         onClose={onClose}
+        isCloseDisabled={loading}
       />
       <EditPublicationType publicationType={publicationType} onSubmit={onUpdateType} />
       <EditIsbn isbn={isbn} onSubmit={onUpdateIsbn} />

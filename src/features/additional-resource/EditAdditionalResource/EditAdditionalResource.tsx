@@ -13,7 +13,8 @@ const EditAdditionalResource = (props: BaseRecommendedSectionProps) => {
 
   const { activeEntity: activeAdditionalResource, update, finishEditing } = useAdditionalResourceStateMachine();
   const { updateAdditionalResource } = useUpdateAdditionalResource({ workId });
-  const { uploadAdditionalResourceFile, loading: uploadLoading } = useUploadAdditionalResourceFile(workId);
+  const { uploadAdditionalResourceFile, loading: uploadLoading, progress: uploadProgress } =
+    useUploadAdditionalResourceFile(workId);
 
   const updateTitle = (title: string) => {
     if (!activeAdditionalResource) return;
@@ -88,6 +89,7 @@ const EditAdditionalResource = (props: BaseRecommendedSectionProps) => {
       url={url}
       fileUrl={fileUrl}
       uploadLoading={uploadLoading}
+      uploadProgress={uploadProgress}
       onFileUpload={handleFileUpload}
       isDoneDisabled={!title?.trim() || !resourceType?.trim()}
       onTitleUpdate={updateTitle}

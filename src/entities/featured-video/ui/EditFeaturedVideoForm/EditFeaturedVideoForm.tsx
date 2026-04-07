@@ -16,6 +16,7 @@ type EditFeaturedVideoFormProps = {
   height?: number;
   fileUrl?: string;
   uploadLoading?: boolean;
+  uploadProgress?: number | null;
   onFileUpload?: (file: File) => void;
   onTitleUpdate?: (data: string) => void;
   onUrlUpdate?: (data: string) => void;
@@ -34,6 +35,7 @@ const EditFeaturedVideoForm = (props: EditFeaturedVideoFormProps) => {
     height,
     fileUrl,
     uploadLoading,
+    uploadProgress,
     onFileUpload,
     onTitleUpdate,
     onUrlUpdate,
@@ -51,12 +53,13 @@ const EditFeaturedVideoForm = (props: EditFeaturedVideoFormProps) => {
         controls={
           <>
             <DownloadFeaturedVideo fileUrl={fileUrl} />
-            <EditFeaturedVideoFile disabled={false} loading={uploadLoading ?? false} onSubmit={onFileUpload} />
+            <EditFeaturedVideoFile disabled={!width || !height} loading={uploadLoading ?? false} progress={uploadProgress} onSubmit={onFileUpload} />
           </>
         }
         onDone={onDone}
         onClose={onClose}
         isDoneDisabled={isDoneDisabled}
+        isCloseDisabled={uploadLoading}
       />
       <EditFeaturedVideoTitle defaultValue={title} onUpdate={onTitleUpdate} />
       <EditFeaturedVideoUrl defaultValue={url} onUpdate={onUrlUpdate} />

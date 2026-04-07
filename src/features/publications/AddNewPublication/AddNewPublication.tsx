@@ -19,6 +19,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
   const {
     publication,
     loading,
+    uploadProgress,
     defaultCurrencyOption,
     finishEditing,
     create,
@@ -78,6 +79,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         fileUrl=""
         loading={loading}
         isUploadFileFormDisabled={isUploadFileFormDisabled}
+        uploadProgress={uploadProgress}
         onUpdateIsbn={updateIsbn}
         onUpdateType={updateType}
         onClose={finishEditing}

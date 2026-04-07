@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
-import { useNotifications } from '@/src/shared/hooks';
+import { useNotifications, usePreventInteraction, usePreventNavigation, useProgress } from '@/src/shared/hooks';
 import { type BaseEditSectionProps } from '@/src/shared/types';
 
 import { PublicationEntity } from '../../model/publication.types';
@@ -21,11 +21,14 @@ const useCreatePublication = (props: UseCreatePublicationProps) => {
   const { sendErrorNotification } = useNotifications();
   const { publicationService } = useServices();
   const queryClient = useQueryClient();
+  const { progress, setProgress, startProgress, resetProgress } = useProgress();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ data, file }: { data: PublicationEntity; file?: File }) => {
-      return publicationService.createPublication(data, workId, file);
+      startProgress();
+      return publicationService.createPublication(data, workId, file, setProgress);
     },
+    onSettled: resetProgress,
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
 
@@ -36,9 +39,13 @@ const useCreatePublication = (props: UseCreatePublicationProps) => {
     },
   });
 
+  usePreventNavigation(isPending);
+  usePreventInteraction(isPending);
+
   return {
     createPublication: mutateAsync,
     loading: isPending,
+    progress,
   };
 };
 

@@ -32,7 +32,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const defaultCurrencyOption = useDefaultCurrencyOption(work.imprintId);
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
   const [file, setFile] = useState<File | null>(null);
-  const { createPublication, loading } = useCreatePublication({
+  const { createPublication, loading, progress: uploadProgress } = useCreatePublication({
     workId,
   });
 
@@ -176,6 +176,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   return {
     publication,
     loading,
+    uploadProgress,
     defaultCurrencyOption,
     finishEditing,
     create,

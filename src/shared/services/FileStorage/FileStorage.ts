@@ -78,7 +78,7 @@ export class FileStorage {
     return response.initPublicationFileUpload;
   }
 
-  async uploadFile(url: string, headers: UploadRequestHeader[], file: File) {
+  async uploadFile(url: string, headers: UploadRequestHeader[], file: File, onProgress?: (progress: number) => void) {
     const headersObject = headers.reduce(
       (acc, header) => {
         acc[header.name] = header.value;
@@ -89,10 +89,34 @@ export class FileStorage {
 
     const fileBuffer = await file.arrayBuffer();
 
-    await fetch(url, {
-      method: HTTP_METHODS.PUT,
-      headers: headersObject,
-      body: fileBuffer,
+    return new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+
+      xhr.open(HTTP_METHODS.PUT, url);
+
+      Object.entries(headersObject).forEach(([key, value]) => {
+        xhr.setRequestHeader(key, value);
+      });
+
+      xhr.upload.onprogress = (event) => {
+        if (!event.lengthComputable || !onProgress) return;
+
+        const percent = Math.round((event.loaded / event.total) * 100);
+        onProgress(percent);
+      };
+
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+          return;
+        }
+
+        reject(new Error(`Upload failed with status ${xhr.status}`));
+      };
+
+      xhr.onerror = () => reject(new Error('Upload failed'));
+      xhr.onabort = () => reject(new Error('Upload aborted'));
+      xhr.send(fileBuffer);
     });
   }
 
@@ -106,7 +130,7 @@ export class FileStorage {
     return response.completeFileUpload.cdnUrl;
   }
 
-  async uploadWorkCover(workId: WorkId, file: File): Promise<string> {
+  async uploadWorkCover(workId: WorkId, file: File, onProgress?: (progress: number) => void): Promise<string> {
     const { hash, fileExtension, fileMimeType } = await this.generateFileMetadata(file);
 
     const initResponse = await this.initFrontCoverUpload({
@@ -116,7 +140,7 @@ export class FileStorage {
       declaredSha256: hash,
     });
 
-    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
+    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file, onProgress);
 
     await this.completeFileUpload(initResponse.fileUploadId);
     // Delay to ensure the file is updated in the database
@@ -148,7 +172,11 @@ export class FileStorage {
     return response.initWorkFeaturedVideoFileUpload;
   }
 
-  async uploadFeaturedVideoFile(workFeaturedVideoId: FeaturedVideoId, file: File): Promise<string> {
+  async uploadFeaturedVideoFile(
+    workFeaturedVideoId: FeaturedVideoId,
+    file: File,
+    onProgress?: (progress: number) => void,
+  ): Promise<string> {
     const { hash, fileExtension, fileMimeType } = await this.generateFileMetadata(file);
 
     const initResponse = await this.initFeaturedVideoUpload({
@@ -158,7 +186,7 @@ export class FileStorage {
       declaredSha256: hash,
     });
 
-    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
+    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file, onProgress);
 
     const url = await this.completeFileUpload(initResponse.fileUploadId);
 
@@ -188,7 +216,11 @@ export class FileStorage {
     return response.initAdditionalResourceFileUpload;
   }
 
-  async uploadAdditionalResourceFile(additionalResourceId: AdditionalResourceId, file: File): Promise<string> {
+  async uploadAdditionalResourceFile(
+    additionalResourceId: AdditionalResourceId,
+    file: File,
+    onProgress?: (progress: number) => void,
+  ): Promise<string> {
     const { hash, fileExtension, fileMimeType } = await this.generateFileMetadata(file);
 
     const initResponse = await this.initAdditionalResourceUpload({
@@ -198,14 +230,18 @@ export class FileStorage {
       declaredSha256: hash,
     });
 
-    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
+    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file, onProgress);
 
     const url = await this.completeFileUpload(initResponse.fileUploadId);
 
     return url;
   }
 
-  async uploadPublicationFile(publicationId: PublicationId, file: File): Promise<string> {
+  async uploadPublicationFile(
+    publicationId: PublicationId,
+    file: File,
+    onProgress?: (progress: number) => void,
+  ): Promise<string> {
     const { hash, fileExtension, fileMimeType } = await this.generateFileMetadata(file);
 
     const initResponse = await this.initPublicationUpload({
@@ -215,7 +251,7 @@ export class FileStorage {
       declaredSha256: hash,
     });
 
-    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file);
+    await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file, onProgress);
 
     const url = await this.completeFileUpload(initResponse.fileUploadId);
 
