@@ -8,7 +8,7 @@ import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePu
 import { useCreateNewWorkEdition, useCreateWorkTranslation, useWorks, useWorksCount } from '@/src/entities/work';
 import type { WorkStatus, WorkType } from '@/src/entities/work/model/work.types';
 import { ROUTES, WorkTypes } from '@/src/shared/constants';
-import { useEntityList } from '@/src/shared/hooks';
+import { useFilterSearchParams } from '@/src/shared/hooks';
 import type { WorkCopyVariant } from '@/src/shared/types';
 import { getPagesCount } from '@/src/shared/utils';
 
@@ -20,8 +20,6 @@ export const useAllWorks = () => {
   const { activePublisher } = usePublisherStateMachine();
   const publisherId = activePublisher && activePublisher.id ? activePublisher.id : '';
 
-  const [workStatus, setWorkStatus] = useState<WorkStatus | 'All'>('All');
-  const [workType, setWorkType] = useState<WorkType | 'All'>('All');
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
   const {
@@ -36,7 +34,28 @@ export const useAllWorks = () => {
     changePage,
     changeDirection,
     changeOrderBy,
-  } = useEntityList({ initialOrderBy: WorkField.UpdatedAtWithRelations });
+    extraState,
+    changeExtra,
+  } = useFilterSearchParams({
+    defaults: { orderBy: WorkField.UpdatedAtWithRelations },
+    extraParams: {
+      workStatus: {
+        key: 'workStatus',
+        defaultValue: 'All',
+        parse: (raw: string) => raw as WorkStatus | 'All',
+        serialize: (val: string) => val,
+      },
+      workType: {
+        key: 'workType',
+        defaultValue: 'All',
+        parse: (raw: string) => raw as WorkType | 'All',
+        serialize: (val: string) => val,
+      },
+    },
+  });
+
+  const workStatus = extraState.workStatus as WorkStatus | 'All';
+  const workType = extraState.workType as WorkType | 'All';
 
   const baseProps = {
     publishersIds: [publisherId],
@@ -65,11 +84,11 @@ export const useAllWorks = () => {
   };
 
   const changeWorkStatus = (value: WorkStatus | 'All') => {
-    setWorkStatus(value);
+    changeExtra.workStatus(value);
   };
 
   const changeWorkType = (value: WorkType | 'All') => {
-    setWorkType(value);
+    changeExtra.workType(value);
   };
 
   const openUpload = () => {

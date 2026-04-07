@@ -1,18 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-
 import { SeriesField, SeriesType } from '@/gql/graphql';
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import { useSerieses, useSeriesesCount } from '@/src/entities/series';
-import { useEntityList } from '@/src/shared/hooks';
+import { useFilterSearchParams } from '@/src/shared/hooks';
 import { getPagesCount } from '@/src/shared/utils';
 
 export const useSeriesList = () => {
   const { activePublisher } = usePublisherStateMachine();
   const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
-
-  const [seriesType, setSeriesType] = useState<SeriesType | 'All'>('All');
 
   const {
     activePage,
@@ -26,7 +22,20 @@ export const useSeriesList = () => {
     changePage,
     changeDirection,
     changeOrderBy,
-  } = useEntityList({});
+    extraState,
+    changeExtra,
+  } = useFilterSearchParams({
+    extraParams: {
+      seriesType: {
+        key: 'seriesType',
+        defaultValue: 'All',
+        parse: (raw: string) => raw as SeriesType | 'All',
+        serialize: (val: string) => val,
+      },
+    },
+  });
+
+  const seriesType = extraState.seriesType as SeriesType | 'All';
 
   const { seriesCount } = useSeriesesCount({ publishersIds, filter: debouncedValue });
 
@@ -43,7 +52,7 @@ export const useSeriesList = () => {
   });
 
   const changeSeriesType = (value: SeriesType | 'All') => {
-    setSeriesType(value);
+    changeExtra.seriesType(value);
   };
 
   return {
