@@ -65,7 +65,7 @@ const CardListItem = (props: CardListItemProps) => {
               <CardContent className="p-4">
                 <div className="cardItem">
                   {draggable && !editDisabled && (
-                    <div onClick={handleActionsClick}>
+                    <div onClick={handleActionsClick} className="shrink-0">
                       <DragIndicatorIcon className="cursor-move" color="primary" fontSize="small" {...listeners} />
                     </div>
                   )}
