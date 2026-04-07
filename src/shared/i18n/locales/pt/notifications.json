@@ -17,6 +17,7 @@
   "workMoveRelationFailed": "Falha ao alterar a ordem dos capítulos",
   "chapterCreationSuccess": "Capítulo criado com sucesso",
   "chapterCreationFailed": "Falha ao criar o capítulo",
+  "chapterBulkCreationSuccess": "{{count}} capítulos criados com sucesso",
   "chapterUpdateFailed": "Falha ao atualizar o capítulo",
   "chapterDeleteFailed": "Falha ao eliminar o capítulo",
   "contributorCreationSuccess": "Colaborador criado com sucesso",

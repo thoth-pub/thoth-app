@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
-import { useCreateWorkChapter, useWork, useWorkChapters } from '@/src/entities/work';
+import { useWork, useWorkChapters } from '@/src/entities/work';
+import useBulkCreateWorkChapters from '@/src/entities/work/api/hooks/useBulkCreateWorkChapters';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
 import { appConfig } from '@/src/shared/config';
 import { licenseOptions } from '@/src/shared/constants';
@@ -25,6 +26,21 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
 
   const [isOpen, setIsOpen] = useState(false);
 
+  const closeModal = () => {
+    setIsOpen(false);
+    finishEditingContribution();
+  };
+
+  const { createChapters, isCreating, progress } = useBulkCreateWorkChapters({
+    onSingleCompleted: (chapter) => {
+      closeModal();
+      edit([chapter]);
+    },
+    onBulkCompleted: () => {
+      closeModal();
+    },
+  });
+
   useEffect(() => {
     return () => {
       finishEditing();
@@ -32,23 +48,8 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
     };
   }, []);
 
-  const openModal = () => {
-    setIsOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsOpen(false);
-    finishEditingContribution();
-  };
-
-  const { createChapter } = useCreateWorkChapter({
-    onCompleted: (chapter) => {
-      closeModal();
-      edit([chapter]);
-    },
-  });
-
   const handleInheritedDataSubmit = (data: {
+    chapterCount: number;
     landingPage: boolean;
     license: boolean;
     copyrightHolder: boolean;
@@ -56,40 +57,50 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
     fundings: boolean;
     subjects: boolean;
   }) => {
-    const { landingPage, license, copyrightHolder, contributors, fundings, subjects } = data;
+    const { chapterCount, landingPage, license, copyrightHolder, contributors, fundings, subjects } = data;
 
-    const defaultChapter = getDefaultChapter({
-      titles: work.titles.map(({subtitle, title, fullTitle, ...rest}) => ({ ...rest, id: appConfig.defaultId, subtitle: '', title: "New chapter", fullTitle: "New chapter" })),
-      status: work.status,
-      coverUrl: work.coverUrl,
-      landingPage: landingPage ? work.landingPage : '',
-      imprintId: work.imprintId,
-      place: work.place,
-      license: license ? work.license : licenseOptions[0].value,
-      copyrightHolder: copyrightHolder ? work.copyrightHolder : '',
-      publicationDate: work.publicationDate,
-      withdrawnDate: work.withdrawnDate,
-      doi: '',
-      fundings: fundings ? work.fundings : [],
-      subjects: subjects ? work.subjects : [],
-      contributions: contributors ? work.contributions : [],
+    const chaptersToCreate = Array.from({ length: chapterCount }, (_, i) => {
+      const ordinal = chapters.length + i + 1;
+
+      return getDefaultChapter({
+        titles: work.titles.map(({ subtitle: _subtitle, title: _title, fullTitle: _fullTitle, ...rest }) => ({
+          ...rest,
+          id: appConfig.defaultId,
+          subtitle: '',
+          title: `New chapter ${ordinal}`,
+          fullTitle: `New chapter ${ordinal}`,
+        })),
+        status: work.status,
+        coverUrl: work.coverUrl,
+        landingPage: landingPage ? work.landingPage : '',
+        imprintId: work.imprintId,
+        place: work.place,
+        license: license ? work.license : licenseOptions[0].value,
+        copyrightHolder: copyrightHolder ? work.copyrightHolder : '',
+        publicationDate: work.publicationDate,
+        withdrawnDate: work.withdrawnDate,
+        doi: '',
+        fundings: fundings ? work.fundings : [],
+        subjects: subjects ? work.subjects : [],
+        contributions: contributors ? work.contributions : [],
+      });
     });
 
-    createChapter({ chapter: defaultChapter, relatedWorkId: workId, ordinal: chapters.length + 1 });
+    createChapters(chaptersToCreate, workId, chapters.length + 1);
   };
 
   return (
     <>
-      <AddButton className="px-4 capitalize" onAdd={openModal} disabled={isOpen}>
+      <AddButton className="px-4 capitalize" onAdd={() => setIsOpen(true)} disabled={isOpen}>
         <TranslatedContent content="actions.addNewChapter" />
       </AddButton>
       <FullScreenModal
         title={<TranslatedContent content={'actions.addNewChapter'} />}
         isOpen={isOpen}
         isSubmitHidden
-        onClose={closeModal}
+        onClose={isCreating ? undefined : closeModal}
       >
-        <InheritedDataForm onSubmit={handleInheritedDataSubmit} />
+        <InheritedDataForm onSubmit={handleInheritedDataSubmit} isLoading={isCreating} progress={progress} />
       </FullScreenModal>
     </>
   );

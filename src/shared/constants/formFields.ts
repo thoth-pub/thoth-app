@@ -907,6 +907,11 @@ export const FORM_FIELDS = {
     placeholder: 'publicationFile.label',
     type: InputTypes.FILE,
   },
+  CHAPTER_COUNT: {
+    label: 'chapterCount.label',
+    name: 'chapterCount',
+    type: InputTypes.NUMBER,
+  },
 } as const;
 
 export const workStatusOptions = [

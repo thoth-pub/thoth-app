@@ -17,6 +17,7 @@
   "workMoveRelationFailed": "Kapitelreihenfolge konnte nicht geändert werden",
   "chapterCreationSuccess": "Kapitel erfolgreich erstellt",
   "chapterCreationFailed": "Kapitel konnte nicht erstellt werden",
+  "chapterBulkCreationSuccess": "{{count}} Kapitel erfolgreich erstellt",
   "chapterUpdateFailed": "Kapitel konnte nicht aktualisiert werden",
   "chapterDeleteFailed": "Kapitel konnte nicht gelöscht werden",
   "contributorCreationSuccess": "Beitragende erfolgreich erstellt",

@@ -17,6 +17,7 @@
   "workMoveRelationFailed": "Failed to change work chapters order",
   "chapterCreationSuccess": "Chapter created successfully",
   "chapterCreationFailed": "Failed to create chapter",
+  "chapterBulkCreationSuccess": "{{count}} chapters created successfully",
   "chapterUpdateFailed": "Failed to update chapter",
   "chapterDeleteFailed": "Failed to delete chapter",
   "contributorCreationSuccess": "Contributor created successfully",

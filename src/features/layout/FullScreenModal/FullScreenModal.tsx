@@ -1,6 +1,5 @@
 'use client';
 
-import { Navigation } from '@/src/features';
 import { CloseButton, ContentSection, Modal, SubmitButton, Typography } from '@/src/shared/ui';
 
 type FullScreenModalProps = {
@@ -17,9 +16,8 @@ const FullScreenModal = (props: FullScreenModalProps) => {
 
   return (
     <Modal open={isOpen} onClose={onClose}>
-      <div className="relative h-dvh w-dvw overflow-auto bg-(--color-modal-content-background) px-5 py-2 xl:py-3">
+      <div className="relative h-dvh w-dvw m-auto xl:top-[10dvh] xl:rounded-2xl overflow-auto bg-(--color-modal-content-background) px-5 py-2 xl:h-[80dvh] xl:w-[90dvw] xl:py-3">
         <div className="m-auto flex h-full flex-row">
-          <Navigation />
           <div className="flex grow flex-col gap-(--default-gap) overflow-x-auto px-8 py-[12px]">
             <ContentSection>
               <div className="flex justify-between">

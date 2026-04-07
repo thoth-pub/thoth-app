@@ -14,15 +14,15 @@ export const useNotification = () => {
   const [{ sendSuccessNotification, sendErrorNotification }] = useState(notificationService);
 
   const sendTranslatedSuccessNotification = useCallback(
-    (message: NotificationMessage) => {
-      sendSuccessNotification(t(message));
+    (message: NotificationMessage, options?: Record<string, unknown>) => {
+      sendSuccessNotification(t(message, options));
     },
     [sendSuccessNotification, t],
   );
 
   const sendTranslatedErrorNotification = useCallback(
-    (message: NotificationMessage) => {
-      sendErrorNotification(t(message));
+    (message: NotificationMessage, options?: Record<string, unknown>) => {
+      sendErrorNotification(t(message, options));
     },
     [sendErrorNotification, t],
   );

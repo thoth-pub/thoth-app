@@ -111,6 +111,7 @@
   "chapters": "Chapters",
   "page range": "Page Range",
   "inherited work data": "inherited work data",
+  "creatingChapter": "Creating chapter {{current}} of {{total}}...",
   "funding": "Funding",
   "cover": "Cover",
   "landing page": "Landing Page",

@@ -111,6 +111,7 @@
   "chapters": "Kapitel",
   "page range": "Seitenumfang",
   "inherited work data": "Vererbte Titeldaten",
+  "creatingChapter": "Kapitel {{current}} von {{total}} wird erstellt...",
   "funding": "Funding",
   "cover": "Titelumschlag",
   "landing page": "Website des Titels",
