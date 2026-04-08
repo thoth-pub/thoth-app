@@ -3,7 +3,7 @@
 import { usePublisherStateMachine } from '@/src/entities/publisher';
 import useSets from '@/src/entities/sets/api/hooks/useSets';
 import useSetsCount from '@/src/entities/sets/api/hooks/useSetsCount';
-import { useEntityList } from '@/src/shared/hooks';
+import { useFilterSearchParams } from '@/src/shared/hooks';
 import { getPagesCount } from '@/src/shared/utils';
 
 export const useSetsList = () => {
@@ -22,7 +22,7 @@ export const useSetsList = () => {
     changePage,
     changeDirection,
     changeOrderBy,
-  } = useEntityList({});
+  } = useFilterSearchParams({});
 
   const { setsCount } = useSetsCount({ publishersIds, filter: debouncedValue });
 

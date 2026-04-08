@@ -18,6 +18,7 @@ const EditPublication = (props: EditPublicationProps) => {
   const {
     activePublication,
     loading,
+    uploadProgress,
     defaultCurrencyOption,
     deleteLocationLoading,
     finishEditing,
@@ -60,6 +61,7 @@ const EditPublication = (props: EditPublicationProps) => {
       fileUrl={activePublication.fileUrl ?? ''}
       isUploadFileFormDisabled={isUploadFileFormDisabled}
       loading={loading}
+      uploadProgress={uploadProgress}
       onUpdateIsbn={updateIsbn}
       onUpdateType={updateType}
       onDone={finishEditing}

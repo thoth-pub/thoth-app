@@ -129,7 +129,7 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_WIDTH_MM.name}
             imperialFieldName={PUBLICATION_WIDTH_IN.name}
             label={PUBLICATION_WIDTH_MM.label}
-            onAutoConvert={setValue}
+            onAutoConvert={(name, value) => setValue(name, value, { shouldDirty: true })}
           />
 
           <DimensionsFormField
@@ -137,7 +137,7 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_HEIGHT_MM.name}
             imperialFieldName={PUBLICATION_HEIGHT_IN.name}
             label={PUBLICATION_HEIGHT_MM.label}
-            onAutoConvert={setValue}
+            onAutoConvert={(name, value) => setValue(name, value, { shouldDirty: true })}
           />
 
           <DimensionsFormField
@@ -145,7 +145,7 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_DEPTH_MM.name}
             imperialFieldName={PUBLICATION_DEPTH_IN.name}
             label={PUBLICATION_DEPTH_MM.label}
-            onAutoConvert={setValue}
+            onAutoConvert={(name, value) => setValue(name, value, { shouldDirty: true })}
           />
 
           <DimensionsFormField
@@ -154,7 +154,7 @@ export const EditDimensions = (props: EditSizesProps) => {
             imperialFieldName={PUBLICATION_WEIGHT_OZ.name}
             label={PUBLICATION_WEIGHT_G.label}
             measurementUnit={WeightUnit.enum.G}
-            onAutoConvert={setValue}
+            onAutoConvert={(name, value) => setValue(name, value, { shouldDirty: true })}
           />
         </MultipleContentWrapper>
       )}

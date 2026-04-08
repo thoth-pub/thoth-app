@@ -130,7 +130,10 @@ export const NOTIFICATIONS = {
   FEATURED_VIDEO_CREATION_FAILED: 'featuredVideoCreationFailed',
   FEATURED_VIDEO_UPDATE_FAILED: 'featuredVideoUpdateFailed',
   FEATURED_VIDEO_DELETE_FAILED: 'featuredVideoDeleteFailed',
+  FEATURED_VIDEO_UPLOAD_FILE_DISABLED: 'featuredVideoUploadFileDisabled',
+  ADDITIONAL_RESOURCE_UPLOAD_FILE_DISABLED: 'additionalResourceUploadFileDisabled',
   // File Upload
+  FILE_UPLOAD_PROGRESS: 'fileUploadProgress',
   UPLOAD_FILE_FAILED: 'uploadFileFailed',
   PUBLICATION_UPLOAD_FILE_DISABLED: 'publicationUploadFileDisabled',
   DOI_IS_REQUIRED: 'doiIsRequired',

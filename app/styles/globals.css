@@ -155,6 +155,8 @@
   --color-notification-background-success: var(--color-success);
   --color-notification-background-error: var(--color-error);
   --color-notification-border: var(--color-yellow);
+  --color-notification-background-system: var(--color-yellow);
+  --color-notification-text-system: var(--color-typography);
 
   --color-chip-background: var(--white);
   --color-chip-text: var(--color-typography);

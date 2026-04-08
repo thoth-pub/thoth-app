@@ -27,7 +27,12 @@ export class FeaturedVideoService extends BaseService<FeaturedVideoEntity, Featu
     this.fileStorage = fileStorage;
   }
 
-  async createFeaturedVideo(data: FeaturedVideoEntity, relatedWorkId: WorkId, file: File): Promise<FeaturedVideoEntity> {
+  async createFeaturedVideo(
+    data: FeaturedVideoEntity,
+    relatedWorkId: WorkId,
+    file: File,
+    onProgress?: (progress: number) => void,
+  ): Promise<FeaturedVideoEntity> {
     const { workFeaturedVideoId: _, workId: __, ...dto } = this.dtoMapper.toDto(data);
 
     const response = await this.graphqlService.mutation(CREATE_FEATURED_VIDEO, {
@@ -40,7 +45,7 @@ export class FeaturedVideoService extends BaseService<FeaturedVideoEntity, Featu
     transactions.onRollback(() => this.deleteFeaturedVideo(featuredVideo.id));
 
     try {
-      const fileUrl = await this.uploadFile(featuredVideo.id, file);
+      const fileUrl = await this.uploadFile(featuredVideo.id, file, onProgress);
       featuredVideo.fileUrl = fileUrl;
     } catch (error) {
       await transactions.rollback();
@@ -66,8 +71,8 @@ export class FeaturedVideoService extends BaseService<FeaturedVideoEntity, Featu
     });
   }
 
-  async uploadFile(featuredVideoId: FeaturedVideoId, file: File): Promise<string> {
-    const url = await this.fileStorage.uploadFeaturedVideoFile(featuredVideoId, file);
+  async uploadFile(featuredVideoId: FeaturedVideoId, file: File, onProgress?: (progress: number) => void): Promise<string> {
+    const url = await this.fileStorage.uploadFeaturedVideoFile(featuredVideoId, file, onProgress);
 
     return url;
   }

@@ -14,7 +14,8 @@ const EditFeaturedVideo = (props: BaseRecommendedSectionProps) => {
 
   const { activeEntity: activeFeaturedVideo, update, finishEditing } = useFeaturedVideoStateMachine();
   const { updateFeaturedVideo } = useUpdateFeaturedVideo({ workId });
-  const { uploadFeaturedVideoFile, loading: uploadLoading } = useUploadFeaturedVideoFile(workId);
+  const { uploadFeaturedVideoFile, loading: uploadLoading, progress: uploadProgress } =
+    useUploadFeaturedVideoFile(workId);
 
   const updateTitle = (title: string) => {
     if (!activeFeaturedVideo) return;
@@ -66,6 +67,8 @@ const EditFeaturedVideo = (props: BaseRecommendedSectionProps) => {
         height={height}
         fileUrl={fileUrl}
         uploadLoading={uploadLoading}
+        uploadProgress={uploadProgress}
+        isDoneDisabled={!fileUrl || !activeFeaturedVideo?.width || !activeFeaturedVideo?.height}
         onFileUpload={handleFileUpload}
         onTitleUpdate={updateTitle}
         onUrlUpdate={updateUrl}
@@ -73,7 +76,6 @@ const EditFeaturedVideo = (props: BaseRecommendedSectionProps) => {
         onHeightUpdate={updateHeight}
         onDone={finishEditing}
         onClose={finishEditing}
-        isDoneDisabled={!fileUrl || !activeFeaturedVideo?.width || !activeFeaturedVideo?.height}
       />
     </TableNewEntityFormWrapper>
   );

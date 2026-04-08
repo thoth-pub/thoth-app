@@ -7,6 +7,14 @@ export const GET_PUBLICATIONS = graphql(`
       publicationId
       publicationType
       updatedAt
+      weightG: weight(units: G)
+      weightOz: weight(units: OZ)
+      widthMm: width(units: MM)
+      widthIn: width(units: IN)
+      heightMm: height(units: MM)
+      heightIn: height(units: IN)
+      depthMm: depth(units: MM)
+      depthIn: depth(units: IN)
       work {
         doi
         titles {

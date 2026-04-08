@@ -42,6 +42,7 @@ export class AdditionalResourceService extends BaseService<AdditionalResourceEnt
     data: AdditionalResourceEntity,
     relatedWorkId: WorkId,
     file?: File,
+    onProgress?: (progress: number) => void,
   ): Promise<AdditionalResourceEntity> {
     const { workResourceId: _, file: _file, ...dto } = this.dtoMapper.toDto(data);
 
@@ -65,7 +66,7 @@ export class AdditionalResourceService extends BaseService<AdditionalResourceEnt
       transactions.onRollback(() => this.deleteAdditionalResource(additionalResource.id));
 
       try {
-        const fileUrl = await this.uploadFile(additionalResource.id, file);
+        const fileUrl = await this.uploadFile(additionalResource.id, file, onProgress);
         additionalResource.fileUrl = fileUrl;
       } catch (error) {
         await transactions.rollback();
@@ -107,8 +108,12 @@ export class AdditionalResourceService extends BaseService<AdditionalResourceEnt
     });
   }
 
-  async uploadFile(additionalResourceId: AdditionalResourceId, file: File): Promise<string> {
-    const url = await this.fileStorage.uploadAdditionalResourceFile(additionalResourceId, file);
+  async uploadFile(
+    additionalResourceId: AdditionalResourceId,
+    file: File,
+    onProgress?: (progress: number) => void,
+  ): Promise<string> {
+    const url = await this.fileStorage.uploadAdditionalResourceFile(additionalResourceId, file, onProgress);
 
     return url;
   }

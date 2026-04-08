@@ -4,7 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 
 import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
-import { useNotifications } from '@/src/shared/hooks';
+import { useNotifications, usePreventInteraction, usePreventNavigation, useProgress } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { AdditionalResourceEntity } from '../../model/additional-resource.types';
@@ -17,11 +17,14 @@ const useCreateAdditionalResource = (props: BaseEditSectionProps) => {
   const { sendErrorNotification } = useNotifications();
   const { additionalResourceService } = useServices();
   const queryClient = useQueryClient();
+  const { progress, setProgress, startProgress, resetProgress } = useProgress();
 
   const { mutateAsync, isPending } = useMutation({
     mutationFn: async ({ data, file }: { data: AdditionalResourceEntity; file?: File }) => {
-      return additionalResourceService.createAdditionalResource(data, workId, file);
+      startProgress();
+      return additionalResourceService.createAdditionalResource(data, workId, file, setProgress);
     },
+    onSettled: resetProgress,
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work, workId] });
     },
@@ -30,9 +33,13 @@ const useCreateAdditionalResource = (props: BaseEditSectionProps) => {
     },
   });
 
+  usePreventNavigation(isPending);
+  usePreventInteraction(isPending);
+
   return {
     createAdditionalResource: mutateAsync,
     loading: isPending,
+    progress,
   };
 };
 

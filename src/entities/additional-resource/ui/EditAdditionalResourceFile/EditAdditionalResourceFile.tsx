@@ -1,63 +1,40 @@
 'use client';
 
-import AttachFileIcon from '@mui/icons-material/AttachFile';
-import { useEffect } from 'react';
-import { useForm } from 'react-hook-form';
-
 import { appConfig } from '@/src/shared/config';
 import { NOTIFICATIONS } from '@/src/shared/constants';
 import { useNotifications } from '@/src/shared/hooks';
-import { IconButton } from '@/src/shared/ui';
+import { UploadFileButton } from '@/src/shared/ui';
 
-const { UPLOAD_FILE_FAILED } = NOTIFICATIONS;
+const { ADDITIONAL_RESOURCE_UPLOAD_FILE_DISABLED } = NOTIFICATIONS;
 const { additionalResourceFileTypesByResourceType, additionalResourceUploadableTypes } = appConfig;
 
 type EditAdditionalResourceFileProps = {
+  title: string;
   resourceType: string;
   loading: boolean;
+  progress?: number | null;
   onSubmit?: (file: File) => void;
 };
 
-const EditAdditionalResourceFile = ({ resourceType, loading, onSubmit }: EditAdditionalResourceFileProps) => {
-  const { register, handleSubmit, reset, watch } = useForm({
-    reValidateMode: 'onSubmit',
-  });
+const EditAdditionalResourceFile = ({ title, resourceType, loading, progress, onSubmit }: EditAdditionalResourceFileProps) => {
   const { sendErrorNotification } = useNotifications();
 
-  const isUploadable = additionalResourceUploadableTypes.includes(resourceType);
+  const isUploadable = additionalResourceUploadableTypes.includes(resourceType) && !!title.trim();
   const acceptedTypes = additionalResourceFileTypesByResourceType[resourceType] ?? [];
 
-  const onFormClick = () => {
-    if (!isUploadable) return;
-
-    sendErrorNotification(UPLOAD_FILE_FAILED);
+  const onDisabledClick = () => {
+    sendErrorNotification(ADDITIONAL_RESOURCE_UPLOAD_FILE_DISABLED);
   };
-
-  const onSubmitForm = (data: Record<string, FileList>) => {
-    if (!data.additionalResourceFile || data.additionalResourceFile.length === 0) return;
-    const file = data.additionalResourceFile[0];
-
-    onSubmit?.(file);
-    reset();
-  };
-
-  useEffect(() => {
-    const subscription = watch(async () => {
-      await handleSubmit(onSubmitForm)();
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
 
   return (
-    <form onClick={!isUploadable ? onFormClick : undefined}>
-      <IconButton loading={loading} tabIndex={-1} component="label" className="p-0" disabled={!isUploadable}>
-        <AttachFileIcon fontSize="small" />
-        <input type="file" hidden {...register('additionalResourceFile')} accept={acceptedTypes.join(', ')} />
-      </IconButton>
-    </form>
+    <UploadFileButton
+      accept={acceptedTypes}
+      disabled={!isUploadable}
+      loading={loading}
+      progress={progress}
+      onSubmit={onSubmit}
+      onDisabledClick={!isUploadable ? onDisabledClick : undefined}
+    />
   );
 };
 

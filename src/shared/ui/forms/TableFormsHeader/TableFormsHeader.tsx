@@ -7,9 +7,18 @@ type TableFormsHeaderProps = {
   onDone?: () => void;
   onClose?: () => void;
   isDoneDisabled?: boolean;
+  isCloseDisabled?: boolean;
 };
 
-const TableFormsHeader = ({ title, children, controls, onDone, onClose, isDoneDisabled }: TableFormsHeaderProps) => {
+const TableFormsHeader = ({
+  title,
+  children,
+  controls,
+  onDone,
+  onClose,
+  isDoneDisabled,
+  isCloseDisabled,
+}: TableFormsHeaderProps) => {
   return (
     <div className="flex justify-between">
       <Typography variant="h2" component="h3" className="flex items-center gap-1 text-(--color-typography)">
@@ -18,8 +27,8 @@ const TableFormsHeader = ({ title, children, controls, onDone, onClose, isDoneDi
       </Typography>
       <div className="flex gap-1">
         {controls}
-        <SubmitButton type="button" onClick={onDone} disabled={isDoneDisabled} />
-        <CloseButton onClose={onClose} />
+        <SubmitButton type="button" onClick={onDone} disabled={isDoneDisabled || isCloseDisabled} />
+        <CloseButton onClose={isCloseDisabled ? undefined : onClose} />
       </div>
     </div>
   );
