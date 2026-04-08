@@ -22,16 +22,21 @@ export type PublicationDto = Pick<
   | 'isbn'
   | 'publicationType'
   | 'updatedAt'
-  | 'width'
-  | 'height'
-  | 'depth'
-  | 'weight'
   | 'accessibilityAdditionalStandard'
   | 'accessibilityException'
   | 'accessibilityReportUrl'
   | 'accessibilityStandard'
   | 'file'
 > & {
+  widthMm?: number | null;
+  widthIn?: number | null;
+  heightMm?: number | null;
+  heightIn?: number | null;
+  depthMm?: number | null;
+  depthIn?: number | null;
+  weightG?: number | null;
+  weightOz?: number | null;
+} & {
   work: Pick<Work, 'doi' | 'titles'> & {
     imprint: { publisher: Pick<Publisher, 'publisherName'> };
   };

@@ -42,40 +42,42 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
   };
 
   useEffect(() => {
-    const newSizeValue = convertMmToIn(metricValue);
-    const newWeightValue = convertGToOz(metricValue);
-
-    if (
-      !autoConvert ||
-      Math.abs(newSizeValue - imperialValue) < 0.01 ||
-      Math.abs(newWeightValue - imperialValue) < 0.01
-    )
-      return;
+    if (!autoConvert) return;
 
     if (measurementUnit === LengthUnit.enum.Mm) {
-      onAutoConvert?.(imperialFieldName, newSizeValue);
-      return;
+      const converted = convertMmToIn(metricValue);
+
+      if (Math.abs(converted - imperialValue) < 0.01) return;
+
+      onAutoConvert?.(imperialFieldName, converted);
     }
 
     if (measurementUnit === WeightUnit.enum.G) {
-      onAutoConvert?.(imperialFieldName, newWeightValue);
+      const converted = convertGToOz(metricValue);
+
+      if (Math.abs(converted - imperialValue) < 0.01) return;
+
+      onAutoConvert?.(imperialFieldName, converted);
     }
   }, [metricValue]);
 
   useEffect(() => {
-    const newSizeValue = convertInToMm(imperialValue);
-    const newWeightValue = convertOzToG(imperialValue);
-
-    if (!autoConvert || Math.abs(newSizeValue - metricValue) < 0.01 || Math.abs(newWeightValue - metricValue) < 0.01)
-      return;
+    if (!autoConvert) return;
 
     if (measurementUnit === LengthUnit.enum.Mm) {
-      onAutoConvert?.(metricFieldName, newSizeValue);
-      return;
+      const converted = convertInToMm(imperialValue);
+
+      if (Math.abs(converted - metricValue) < 0.01) return;
+
+      onAutoConvert?.(metricFieldName, converted);
     }
 
     if (measurementUnit === WeightUnit.enum.G) {
-      onAutoConvert?.(metricFieldName, newWeightValue);
+      const converted = convertOzToG(imperialValue);
+
+      if (Math.abs(converted - metricValue) < 0.01) return;
+
+      onAutoConvert?.(metricFieldName, converted);
     }
   }, [imperialValue]);
 

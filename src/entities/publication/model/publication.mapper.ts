@@ -14,10 +14,14 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       publicationType,
       updatedAt,
       isbn = '',
-      width,
-      height,
-      depth,
-      weight,
+      widthMm,
+      widthIn,
+      heightMm,
+      heightIn,
+      depthMm,
+      depthIn,
+      weightG,
+      weightOz,
       work: {
         titles,
         doi = '',
@@ -42,14 +46,14 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       isbn,
       doi,
       publisherName,
-      width: width ?? 0,
-      widthIn: 0,
-      height: height ?? 0,
-      heightIn: 0,
-      depth: depth ?? 0,
-      depthIn: 0,
-      weight: weight ?? 0,
-      weightOz: 0,
+      width: widthMm ?? 0,
+      widthIn: widthIn ?? 0,
+      height: heightMm ?? 0,
+      heightIn: heightIn ?? 0,
+      depth: depthMm ?? 0,
+      depthIn: depthIn ?? 0,
+      weight: weightG ?? 0,
+      weightOz: weightOz ?? 0,
       accessibilityReportUrl: accessibilityReportUrl ?? '',
       accessibilityAdditionalStandard: accessibilityAdditionalStandard ?? null,
       accessibilityException: accessibilityException ?? null,
@@ -89,7 +93,7 @@ export class PublicationDtoMapper implements BaseMapper<PublicationEntity, Publi
       | 'accessibilityException'
       | 'accessibilityStandard'
     >,
-  ): Omit<PublicationDto, 'weight' | 'height' | 'width' | 'depth' | 'updatedAt' | 'work' | 'prices' | 'locations'> & {
+  ): Omit<PublicationDto, 'widthMm' | 'widthIn' | 'heightMm' | 'heightIn' | 'depthMm' | 'depthIn' | 'weightG' | 'weightOz' | 'updatedAt' | 'work' | 'prices' | 'locations'> & {
     widthMm: number | null;
     widthIn: number | null;
     heightMm: number | null;

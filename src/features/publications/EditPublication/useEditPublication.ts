@@ -64,11 +64,22 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const updateSizes = (sizes: PublicationDimensionsForm) => {
     if (!publication) return;
 
-    const updatedPublication = { ...publication, ...sizes };
+    const mappedSizes = {
+      width: sizes.widthMm ?? 0,
+      widthIn: sizes.widthIn ?? 0,
+      height: sizes.heightMm ?? 0,
+      heightIn: sizes.heightIn ?? 0,
+      depth: sizes.depthMm ?? 0,
+      depthIn: sizes.depthIn ?? 0,
+      weight: sizes.weightG ?? 0,
+      weightOz: sizes.weightOz ?? 0,
+    };
+
+    const updatedPublication = { ...publication, ...mappedSizes };
 
     updatePublication(updatedPublication);
 
-    setPublication({ ...publication, ...sizes });
+    setPublication(updatedPublication);
   };
 
   const updateIsbn = (isbn: string) => {
