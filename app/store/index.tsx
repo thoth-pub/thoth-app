@@ -17,10 +17,11 @@ import { SubjectStateMachineContext } from '@/src/entities/subject';
 import { WorkStateMachineContext } from '@/src/entities/work';
 import { ServicesProvider } from '@/src/shared/context';
 import { FormStateMachineContext } from '@/src/shared/store/forms/forms.provider';
+import { RouteChangeHandler } from '@/src/shared/store/RouteChangeHandler';
 import { UIProvider } from '@/src/shared/store/ui/ui.context';
 import { composeProviders } from '@/src/shared/utils';
 
-const StoreProvider = composeProviders(
+const ComposedProviders = composeProviders(
   PublisherStateMachineContext.Provider,
   FormStateMachineContext.Provider,
   ContributionStateMachineContext.Provider,
@@ -39,6 +40,13 @@ const StoreProvider = composeProviders(
   LocationStateMachineContext.Provider,
   UIProvider,
   ServicesProvider,
+);
+
+const StoreProvider = ({ children }: { children: React.ReactNode }) => (
+  <ComposedProviders>
+    <RouteChangeHandler />
+    {children}
+  </ComposedProviders>
 );
 
 export default StoreProvider;
