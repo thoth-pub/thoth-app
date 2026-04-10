@@ -19,27 +19,27 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 const { LICENSE, COPYRIGHT_HOLDER } = FORM_FIELDS;
 
 type EditLicenseProps = BaseRecommendedSectionProps & {
-  license?: string;
-  copyrightHolder?: string;
   onUpdate?: (data: LicenseAndCopyrightHolderForm) => void;
 };
 
 const EditLicense = (props: EditLicenseProps) => {
-  const { onUpdate, workId, license, copyrightHolder } = props;
+  const { onUpdate, workId } = props;
 
   const { work, updateWork } = useWork(workId);
 
-  const nullableLicense = { label: 'All Rights Reserved', value: '' };
-
-  const licenseValue = licenseOptions.find((option) => option.value === work.license) ?? nullableLicense;
-  const defaultLicenseValue = licenseOptions.find((option) => option.value === license) ?? nullableLicense;
-  const appliedLicenseValue = license ? defaultLicenseValue : licenseValue;
+  const defaultLicenseValue = licenseOptions.find((option) => option.value === work.license);
 
   const copyrightHolderValue = work?.copyrightHolder ?? '';
-  const appliedCopyrightHolderValue = copyrightHolder ?? copyrightHolderValue;
 
-  const placeholderValue =
-    appliedLicenseValue.label + `${appliedCopyrightHolderValue ? ` © ${appliedCopyrightHolderValue}` : ''}`;
+  let placeholderValue = '';
+
+  if (defaultLicenseValue) {
+    placeholderValue += defaultLicenseValue.label;
+  }
+
+  if (copyrightHolderValue && copyrightHolderValue.length > 0) {
+    placeholderValue += ` © ${copyrightHolderValue}`;
+  }
 
   const updateLicense = ({ license, copyrightHolder }: LicenseAndCopyrightHolderForm) => {
     if (onUpdate) {
@@ -55,7 +55,7 @@ const EditLicense = (props: EditLicenseProps) => {
   return (
     <EditableContent
       formId={IDs.WORK_LICENSE_AND_COPYRIGHT_HOLDER}
-      defaultValues={{ [LICENSE.name]: appliedLicenseValue, [COPYRIGHT_HOLDER.name]: appliedCopyrightHolderValue }}
+      defaultValues={{ [LICENSE.name]: defaultLicenseValue, [COPYRIGHT_HOLDER.name]: copyrightHolderValue }}
       validationSchema={licenseAndCopyrightHolderValidationSchema}
       onSubmit={updateLicense}
       faq={HELPER_TEXT.LICENSE}

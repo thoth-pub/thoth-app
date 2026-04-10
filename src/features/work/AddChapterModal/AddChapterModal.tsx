@@ -7,7 +7,6 @@ import { useWork, useWorkChapters } from '@/src/entities/work';
 import useBulkCreateWorkChapters from '@/src/entities/work/api/hooks/useBulkCreateWorkChapters';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
 import { appConfig } from '@/src/shared/config';
-import { licenseOptions } from '@/src/shared/constants';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 import { AddButton, TranslatedContent } from '@/src/shared/ui';
 import { getDefaultChapter } from '@/src/shared/utils';
@@ -75,7 +74,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
         landingPage: landingPage ? work.landingPage : '',
         imprintId: work.imprintId,
         place: work.place,
-        license: license ? work.license : licenseOptions[0].value,
+        license: license ? work.license : '',
         copyrightHolder: copyrightHolder ? work.copyrightHolder : '',
         publicationDate: work.publicationDate,
         withdrawnDate: work.withdrawnDate,

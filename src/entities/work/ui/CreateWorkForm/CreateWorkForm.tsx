@@ -1,24 +1,16 @@
 'use client';
 
 import { useUser } from '@/src/entities/user';
-import { FORM_FIELDS, IDs, languageOptionsAlt, licenseOptions } from '@/src/shared/constants';
+import { FORM_FIELDS, IDs, languageOptionsAlt } from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import {
-  AutocompleteGroup,
-  Button,
-  CircularProgress,
-  ContentSection,
-  PageHeader,
-  TranslatedContent,
-} from '@/src/shared/ui';
+import { Button, CircularProgress, ContentSection, PageHeader, TranslatedContent } from '@/src/shared/ui';
 import { workTypeOptions } from '@/src/shared/utils';
 
-import CreateWorkFormAutocompleteField from './components/CreateWorkFormAutocompleteField';
 import CreateWorkFormField from './components/CreateWorkFormField';
 import useCreateWorkForm from './useCreateWorkForm';
 
-const { TITLE, TITLE_LANGUAGE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
+const { TITLE, TITLE_LANGUAGE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 const { CREATE_WORK } = IDs;
 
 const CreateWorkForm = () => {
@@ -32,14 +24,13 @@ const CreateWorkForm = () => {
     {
       imprintOptions: userImprintsOptions,
       workTypeOptions,
-      licenseOptions,
       defaultImprint,
     },
   );
 
   return (
     <>
-      <PageHeader title={t("new work")}>
+      <PageHeader title={t('new work')}>
         <Button
           variant="contained"
           className="capitalize"
@@ -105,18 +96,6 @@ const CreateWorkForm = () => {
             select
             translateOptions
             options={availableNewWorkOptions}
-          />
-          <CreateWorkFormAutocompleteField
-            label={LICENSE.label}
-            name={LICENSE.name}
-            control={control}
-            options={licenseOptions}
-            groupBy={(option) => option.group ?? ''}
-            renderGroup={({ group, children, key }) => (
-              <AutocompleteGroup key={key} group={group}>
-                {children}
-              </AutocompleteGroup>
-            )}
           />
         </form>
       </ContentSection>
