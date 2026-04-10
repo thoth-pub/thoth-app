@@ -102,7 +102,6 @@ export const createWorkValidationSchema = z.object({
   [TITLE_LANGUAGE.name]: titleLanguageCodeValidation,
   [IMPRINT.name]: imprintValidation,
   [WORK_TYPE.name]: workTypeValidation,
-  [LICENSE.name]: licenseValidation,
 });
 
 export const titleValidationSchema = z.object({

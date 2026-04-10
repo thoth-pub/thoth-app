@@ -7,7 +7,6 @@ import { useFundingStateMachine } from '@/src/entities/funding';
 import { useUpdateWorks, useWorkChapters } from '@/src/entities/work';
 import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
-import { licenseOptions } from '@/src/shared/constants';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
@@ -92,12 +91,11 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   if (!chapters || !isMultipleChaptersSelected) return null;
 
-  const license = chapters[0].license ? chapters[0].license : licenseOptions[0].value;
   const firstChapterId = activeWorkChapters?.[0].id ?? '';
 
   return (
     <FullScreenModal title={title} isOpen={isMultipleChaptersSelected} onClose={handleClose} onDone={handleDone}>
-      <EditChapterBasicDetails workId="" isMultipleChaptersEdit license={license} onLicenseUpdate={onLicenseUpdate} />
+      <EditChapterBasicDetails workId="" isMultipleChaptersEdit onLicenseUpdate={onLicenseUpdate} />
       <EditDescriptions
         workId={firstChapterId}
         isMultipleChaptersEdit

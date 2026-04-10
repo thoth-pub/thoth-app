@@ -18,18 +18,12 @@ import { createWorkValidationSchema } from '../../model/work.validation';
 type UseCreateWorkFormProps = {
   imprintOptions: FormFieldOption[];
   workTypeOptions: FormFieldOption[];
-  licenseOptions: FormFieldOption[];
   defaultImprint: string;
 };
 
-const { TITLE, TITLE_LANGUAGE, LICENSE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
+const { TITLE, TITLE_LANGUAGE, IMPRINT, WORK_TYPE } = FORM_FIELDS;
 
-const useCreateWorkForm = ({
-  imprintOptions,
-  workTypeOptions,
-  licenseOptions,
-  defaultImprint,
-}: UseCreateWorkFormProps) => {
+const useCreateWorkForm = ({ imprintOptions, workTypeOptions, defaultImprint }: UseCreateWorkFormProps) => {
   const router = useRouter();
 
   const availableNewWorkOptions = useMemo(() => {
@@ -52,7 +46,6 @@ const useCreateWorkForm = ({
       [TITLE_LANGUAGE.name]: TITLE_LANGUAGE.defaultValue,
       [WORK_TYPE.name]: workTypeOptions.length > 0 ? workTypeOptions[0].value : WORK_TYPE.defaultValue,
       [IMPRINT.name]: defaultImprint,
-      [LICENSE.name]: licenseOptions.length > 0 ? licenseOptions[0] : undefined,
     },
     reValidateMode: 'onSubmit',
   });
@@ -80,7 +73,7 @@ const useCreateWorkForm = ({
   const isImprintVisible = imprintOptions.length !== 1;
 
   const submit = handleSubmit((data) => {
-    const { workType, imprintId, license, titleLanguage, title } = data;
+    const { workType, imprintId, titleLanguage, title } = data;
 
     const titleEntity = getDefaultTitle({
       title: title,
@@ -95,7 +88,6 @@ const useCreateWorkForm = ({
       status: WorkStatuses.enum.Forthcoming,
       type: workType as WorkType,
       imprintId,
-      license: license.value,
       edition: 1,
       titles: [titleEntity],
       place: imprintPlace,
