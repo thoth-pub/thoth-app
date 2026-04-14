@@ -2,10 +2,11 @@
 
 import InsertLinkIcon from '@mui/icons-material/InsertLink';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
-import { Activity, useEffect, useState } from 'react';
+import { Activity, useEffect } from 'react';
 import { Control, FieldValues, useWatch } from 'react-hook-form';
 
 import { LengthUnit, WeightUnit } from '@/src/shared/constants';
+import useDebounceValue from '@/src/shared/hooks/useDebouncedValue';
 import type { FormFieldName } from '@/src/shared/interfaces';
 import { ContentWrapper, FormFieldLabel, FormTextField, IconButton } from '@/src/shared/ui';
 import { convertGToOz, convertInToMm, convertMmToIn, convertOzToG } from '@/src/shared/utils';
@@ -15,6 +16,8 @@ type DimensionsFormFieldProps = {
   metricFieldName: FormFieldName;
   imperialFieldName: FormFieldName;
   label: string;
+  autoConvert: boolean;
+  onToggleAutoConvert: () => void;
   recommended?: boolean;
   helperText?: string;
   measurementUnit?: typeof LengthUnit.enum.Mm | typeof WeightUnit.enum.G;
@@ -27,25 +30,24 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
     imperialFieldName,
     control,
     label,
+    autoConvert,
+    onToggleAutoConvert,
     recommended = false,
     helperText,
     measurementUnit = LengthUnit.enum.Mm,
     onAutoConvert,
   } = props;
 
-  const [autoConvert, setAutoConvert] = useState(false);
   const metricValue = useWatch({ control, name: metricFieldName });
   const imperialValue = useWatch({ control, name: imperialFieldName });
-
-  const handleAutoConvert = () => {
-    setAutoConvert((prev) => !prev);
-  };
+  const debouncedMetricValue = useDebounceValue(metricValue, 500);
+  const debouncedImperialValue = useDebounceValue(imperialValue, 500);
 
   useEffect(() => {
     if (!autoConvert) return;
 
     if (measurementUnit === LengthUnit.enum.Mm) {
-      const converted = convertMmToIn(metricValue);
+      const converted = convertMmToIn(debouncedMetricValue);
 
       if (Math.abs(converted - imperialValue) < 0.01) return;
 
@@ -53,19 +55,19 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
     }
 
     if (measurementUnit === WeightUnit.enum.G) {
-      const converted = convertGToOz(metricValue);
+      const converted = convertGToOz(debouncedMetricValue);
 
       if (Math.abs(converted - imperialValue) < 0.01) return;
 
       onAutoConvert?.(imperialFieldName, converted);
     }
-  }, [metricValue]);
+  }, [debouncedMetricValue]);
 
   useEffect(() => {
     if (!autoConvert) return;
 
     if (measurementUnit === LengthUnit.enum.Mm) {
-      const converted = convertInToMm(imperialValue);
+      const converted = convertInToMm(debouncedImperialValue);
 
       if (Math.abs(converted - metricValue) < 0.01) return;
 
@@ -73,13 +75,13 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
     }
 
     if (measurementUnit === WeightUnit.enum.G) {
-      const converted = convertOzToG(imperialValue);
+      const converted = convertOzToG(debouncedImperialValue);
 
       if (Math.abs(converted - metricValue) < 0.01) return;
 
       onAutoConvert?.(metricFieldName, converted);
     }
-  }, [imperialValue]);
+  }, [debouncedImperialValue]);
 
   return (
     <ContentWrapper>
@@ -94,7 +96,7 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
           min={0}
           step="0.01"
         />
-        <IconButton onClick={handleAutoConvert} className="relative m-auto">
+        <IconButton onClick={onToggleAutoConvert} className="relative m-auto">
           <Activity mode={autoConvert ? 'visible' : 'hidden'}>
             <InsertLinkIcon color="primary" />
           </Activity>
