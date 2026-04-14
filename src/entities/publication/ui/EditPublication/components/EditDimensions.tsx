@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { FORM_FIELDS, HELPER_TEXT, IDs, WeightUnit } from '@/src/shared/constants';
 import { MultipleContentWrapper, Preview, TranslatedContent, Typography } from '@/src/shared/ui';
@@ -36,6 +36,12 @@ const { PUBLICATION_DIMENSIONS: PUBLICATION_DIMENSIONS_HELPER_TEXT } = HELPER_TE
 
 export const EditDimensions = (props: EditSizesProps) => {
   const { width, height, depth, weight, widthIn, heightIn, depthIn, weightOz, onSubmit } = props;
+  
+  const [autoConvert, setAutoConvert] = useState(true);
+
+  const handleToggleAutoConvert = () => {
+    setAutoConvert((prev) => !prev);
+  };
 
   const handleSubmit = (data: PublicationDimensionsForm) => {
     onSubmit?.(data);
@@ -129,6 +135,8 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_WIDTH_MM.name}
             imperialFieldName={PUBLICATION_WIDTH_IN.name}
             label={PUBLICATION_WIDTH_MM.label}
+            autoConvert={autoConvert}
+            onToggleAutoConvert={handleToggleAutoConvert}
             onAutoConvert={(name, value) => setValue(name, value, { shouldDirty: true })}
           />
 
@@ -137,6 +145,8 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_HEIGHT_MM.name}
             imperialFieldName={PUBLICATION_HEIGHT_IN.name}
             label={PUBLICATION_HEIGHT_MM.label}
+            autoConvert={autoConvert}
+            onToggleAutoConvert={handleToggleAutoConvert}
             onAutoConvert={(name, value) => setValue(name, value, { shouldDirty: true })}
           />
 
@@ -145,6 +155,8 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_DEPTH_MM.name}
             imperialFieldName={PUBLICATION_DEPTH_IN.name}
             label={PUBLICATION_DEPTH_MM.label}
+            autoConvert={autoConvert}
+            onToggleAutoConvert={handleToggleAutoConvert}
             onAutoConvert={(name, value) => setValue(name, value, { shouldDirty: true })}
           />
 
@@ -153,6 +165,8 @@ export const EditDimensions = (props: EditSizesProps) => {
             metricFieldName={PUBLICATION_WEIGHT_G.name}
             imperialFieldName={PUBLICATION_WEIGHT_OZ.name}
             label={PUBLICATION_WEIGHT_G.label}
+            autoConvert={autoConvert}
+            onToggleAutoConvert={handleToggleAutoConvert}
             measurementUnit={WeightUnit.enum.G}
             onAutoConvert={(name, value) => setValue(name, value, { shouldDirty: true })}
           />
