@@ -64,13 +64,16 @@ export const AddBookModal = (props: AddBookModalProps) => {
   const { books, isLoading } = useBooks({ publishersIds, filter: debouncedValue });
   const { createIssue } = useCreateIssue();
 
-  const filteredBooks = books.filter((book) => book.issues.length === 0);
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
 
-  const options = filteredBooks.map((book) => ({
-    label: removeMd(getMainTitle(book.titles).title),
-    value: book.id,
-  }));
+  const disabledBookIds = new Set(books.filter((book) => book.issues.length > 0).map((book) => book.id));
+
+  const options = books
+    .map((book) => ({
+      label: removeMd(getMainTitle(book.titles).fullTitle),
+      value: book.id,
+    }))
+    .sort((a, b) => Number(disabledBookIds.has(a.value)) - Number(disabledBookIds.has(b.value)));
 
   useEffect(() => {
     if (debouncedValue.length > 0) return;
@@ -109,6 +112,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
                   name={WORK_SERIES.name}
                   control={control}
                   options={options}
+                  getOptionDisabled={(option) => disabledBookIds.has(option.value)}
                   onInputChange={(_, value) => setSearchValue(value)}
                   loading={isLoading}
                   icon={

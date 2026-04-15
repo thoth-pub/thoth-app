@@ -1,5 +1,7 @@
 'use client';
 
+import removeMd from 'remove-markdown';
+
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
 import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
@@ -33,7 +35,12 @@ export const EditEndorsementAuthorRole = (props: EditEndorsementAuthorRoleProps)
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview label={ENDORSEMENT_AUTHOR_ROLE.label} value={data?.authorRole} disabled={disabled} onEdit={onEdit} />
+        <Preview
+          label={ENDORSEMENT_AUTHOR_ROLE.label}
+          value={removeMd(data?.authorRole ?? '')}
+          disabled={disabled}
+          onEdit={onEdit}
+        />
       )}
     />
   );
