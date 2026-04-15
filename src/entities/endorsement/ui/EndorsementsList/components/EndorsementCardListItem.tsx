@@ -1,4 +1,5 @@
 import LinkIcon from '@mui/icons-material/Link';
+import removeMd from 'remove-markdown';
 
 import { CardListItem, DeleteButton, LinkTooltip, OrcidLink, RorLink, Typography } from '@/src/shared/ui';
 
@@ -42,7 +43,7 @@ export const EndorsementCardListItem = (props: EndorsementCardListItemProps) => 
     >
       {authorName.length > 0 && (
         <Typography className="cardItem normal-case">
-          {authorName} {authorRole.length > 0 && `(${authorRole})`}{' '}
+          {authorName} {authorRole.length > 0 && `(${removeMd(authorRole)})`}{' '}
           {url.length > 0 && (
             <LinkTooltip link={url} linkText={url}>
               <LinkIcon fontSize="small" color="primary" />
