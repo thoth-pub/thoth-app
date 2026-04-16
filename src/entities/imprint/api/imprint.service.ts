@@ -4,9 +4,9 @@ import { appConfig } from '@/src/shared/config';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { ImprintDtoMapper } from '../model/imprint.mapper';
-import { CREATE_IMPRINT, DELETE_IMPRINT, UPDATE_IMPRINT } from '../model/imprint.mutations';
+import { CREATE_IMPRINT, DELETE_IMPRINT, UPDATE_IMPRINT, UPDATE_IMPRINT_ADMIN } from '../model/imprint.mutations';
 import { GET_IMPRINTS, GET_IMPRINTS_ADMIN, GET_IMPRINTS_COUNT } from '../model/imprint.schema';
-import type { ImprintDto, ImprintEntity, ImprintId } from '../model/imprint.types';
+import type { ImprintBaseDto, ImprintDto, ImprintEntity, ImprintId } from '../model/imprint.types';
 
 const { itemsPerRequestLimit, maxImprintsPerRequestLimit } = appConfig.data;
 
@@ -65,19 +65,16 @@ export class ImprintService extends BaseService<ImprintEntity, ImprintDto, Impri
 
   async updateImprint(entity: ImprintEntity, publisherId: PublisherId, isSuperuser = false) {
     const { imprintId, imprintName, publisher: _publisher, updatedAt: _updatedAt, ...fields } = this.dtoMapper.toDto(entity, isSuperuser);
+    const data = { imprintId, imprintName, publisherId, ...fields };
 
-    const result = await this.graphqlService.mutation(UPDATE_IMPRINT, {
-      data: {
-        imprintId,
-        imprintName,
-        publisherId,
-        ...fields,
-      },
-    });
+    if (isSuperuser) {
+      const result = await this.graphqlService.mutation(UPDATE_IMPRINT_ADMIN, { data });
 
-    const imprint = this.dtoMapper.toEntity(result.updateImprint as ImprintDto);
+      return this.dtoMapper.toEntity(result.updateImprint as ImprintDto);
+    }
 
-    return imprint;
+    const result = await this.graphqlService.mutation(UPDATE_IMPRINT, { data });
+    return this.dtoMapper.toEntity(result.updateImprint as ImprintBaseDto);
   }
 
   async deleteImprint(imprintId: ImprintId) {

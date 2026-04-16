@@ -2,7 +2,7 @@ import z from 'zod';
 
 import type { CurrencyCode, Imprint, LocaleCode, Publisher } from '@/gql/graphql';
 
-import { imprintValidationSchema } from './imprint.validation';
+import { imprintAdminValidationSchema, imprintValidationSchema } from './imprint.validation';
 
 export type ImprintBaseDto = Pick<
   Imprint,
@@ -31,3 +31,4 @@ export type ImprintEntity = {
 };
 
 export type ImprintForm = z.infer<typeof imprintValidationSchema>;
+export type ImprintAdminForm = z.infer<typeof imprintAdminValidationSchema>;

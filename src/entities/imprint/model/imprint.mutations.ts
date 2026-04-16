@@ -19,6 +19,24 @@ export const UPDATE_IMPRINT = graphql(`
       defaultCurrency
       defaultLocale
       defaultPlace
+      publisher {
+        publisherName
+      }
+    }
+  }
+`);
+
+export const UPDATE_IMPRINT_ADMIN = graphql(`
+  mutation UpdateImprintAdmin($data: PatchImprint!) {
+    updateImprint(data: $data) {
+      imprintId
+      imprintName
+      imprintUrl
+      updatedAt
+      crossmarkDoi
+      defaultCurrency
+      defaultLocale
+      defaultPlace
       s3Bucket
       cdnDomain
       cloudfrontDistId
