@@ -15,8 +15,8 @@ import {
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 import { findCurrencyOption, findLocaleOption } from '@/src/shared/utils';
 
-import type { ImprintEntity, ImprintForm, ImprintId } from '../../model/imprint.types';
-import { imprintValidationSchema } from '../../model/imprint.validation';
+import type { ImprintAdminForm, ImprintEntity, ImprintForm, ImprintId } from '../../model/imprint.types';
+import { imprintAdminValidationSchema, imprintValidationSchema } from '../../model/imprint.validation';
 
 type EditImprintData = {
   imprintId: string;
@@ -68,6 +68,7 @@ const EditImprint = (props: EditImprintProps) => {
 
   const defaultName = imprint?.name ?? '';
   const isDeleteDisabled = defaultName.length === 0 || id.length === 0 || id === appConfig.defaultId || deleteDisabled;
+  const validationSchema = isSettingsDisabled ? imprintValidationSchema : imprintAdminValidationSchema;
 
   const defaultValues = {
     [IMPRINT.name]: defaultName,
@@ -81,7 +82,7 @@ const EditImprint = (props: EditImprintProps) => {
     [CLOUDFRONT_DIST_ID.name]: imprint?.cloudfrontDistId ?? '',
   };
 
-  const handleUpdate = (data: ImprintForm) => {
+  const handleUpdate = (data: ImprintForm | ImprintAdminForm) => {
     if (!onUpdate) return;
 
     const {
@@ -91,10 +92,11 @@ const EditImprint = (props: EditImprintProps) => {
       [DEFAULT_PLACE.name]: defaultPlace,
       [DEFAULT_CURRENCY.name]: defaultCurrency,
       [DEFAULT_LOCALE.name]: defaultLocale,
-      [S3_BUCKET.name]: s3Bucket,
-      [CDN_DOMAIN.name]: cdnDomain,
-      [CLOUDFRONT_DIST_ID.name]: cloudfrontDistId,
     } = data;
+
+    const s3Bucket = S3_BUCKET.name in data ? (data as ImprintAdminForm)[S3_BUCKET.name] : '';
+    const cdnDomain = CDN_DOMAIN.name in data ? (data as ImprintAdminForm)[CDN_DOMAIN.name] : '';
+    const cloudfrontDistId = CLOUDFRONT_DIST_ID.name in data ? (data as ImprintAdminForm)[CLOUDFRONT_DIST_ID.name] : '';
 
     onUpdate({
       imprintId: id,
@@ -113,7 +115,7 @@ const EditImprint = (props: EditImprintProps) => {
   return (
     <EditableContent
       formId={IDs.IMPRINT(id)}
-      validationSchema={imprintValidationSchema}
+      validationSchema={validationSchema}
       defaultValues={defaultValues}
       onSubmit={handleUpdate}
       isDisabled={disabled}
