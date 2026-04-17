@@ -93,6 +93,7 @@ export const appConfig = {
     maxPreviewLength: 150,
   },
   maxShortAbstractChars: 350,
+  maxLongAbstractPreviewChars: 500,
   minFileSize: 6250,
   maxFileSize: 50000000,
   maxPublicationFileSize: 5368709120,

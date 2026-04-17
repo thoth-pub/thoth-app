@@ -94,6 +94,7 @@ export const RESOURCES = z.enum([
   'abstracts',
   'abstract',
   'short abstract',
+  'short abstracts',
   'language',
   'text',
   'add abstracts',
