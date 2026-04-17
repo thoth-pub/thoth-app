@@ -915,12 +915,12 @@ export const FORM_FIELDS = {
 } as const;
 
 export const workStatusOptions = [
-  { value: WorkStatuses.enum.Forthcoming, label: 'resume' },
-  { value: WorkStatuses.enum.Active, label: 'publish' },
-  { value: WorkStatuses.enum.Cancelled, label: 'cancel' },
-  { value: WorkStatuses.enum.PostponedIndefinitely, label: 'postpone' },
-  { value: WorkStatuses.enum.Superseded, label: 'new edition' },
-  { value: WorkStatuses.enum.Withdrawn, label: 'require remove' },
+  { value: WorkStatuses.enum.Forthcoming, label: 'Forthcoming' },
+  { value: WorkStatuses.enum.Active, label: 'Active' },
+  { value: WorkStatuses.enum.Cancelled, label: 'Cancelled' },
+  { value: WorkStatuses.enum.PostponedIndefinitely, label: 'Postponed Indefinitely' },
+  { value: WorkStatuses.enum.Superseded, label: 'Superseded' },
+  { value: WorkStatuses.enum.Withdrawn, label: 'Withdrawn' },
 ];
 
 export const workStatusOptionsAlt = [

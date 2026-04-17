@@ -9,12 +9,13 @@ import { workAbstractsValidationSchema } from '@/src/entities/work/model/work.va
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS, HELPER_TEXT, IDs, languageOptionsAlt, QueryKeys } from '@/src/shared/constants';
 import { AbstractTypes } from '@/src/shared/constants/abstracts';
-import { useDefaultLocaleOption } from '@/src/shared/hooks';
+import { useDefaultLocaleOption, useTypedTranslation } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import type { AbstractEntity, AbstractId, BaseRecommendedSectionProps, LocaleCodeType } from '@/src/shared/types';
 import { Chip, MarkdownRenderer, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
-import { isDefaultId } from '@/src/shared/utils';
+import { isDefaultId, truncateString } from '@/src/shared/utils';
 
 import { AbstractsFormFields } from './AbstractsFormFields';
 
@@ -30,17 +31,14 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const { deleteAbstract, loading: deleteAbstractLoading } = useDeleteAbstract(workId);
   const { activeFormId, closeForm } = useFormStateMachine();
   const defaultLocaleOption = useDefaultLocaleOption(work.imprintId);
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
   const longAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Long);
   const shortAbstracts = work.abstracts.filter((abstract) => abstract.type === AbstractTypes.enum.Short);
 
   const longAbstract = longAbstracts.find((abstract) => abstract.canonical);
-  const shortAbstract = shortAbstracts.find((abstract) => abstract.canonical);
-  const shortAbstractContent = shortAbstract?.content ?? '';
   const longAbstractContent = longAbstract?.content ?? '';
-
-  const placeholderValue =
-    shortAbstractContent.length > 0 ? `${longAbstractContent} \n ${shortAbstractContent}` : longAbstractContent;
+  const longAbstractPreview = truncateString(longAbstractContent, appConfig.maxLongAbstractPreviewChars);
 
   const uniqueLocales = [...new Set(work.abstracts.map(({ localeCode }) => localeCode))];
 
@@ -148,12 +146,25 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
         />
       )}
       preview={({ onEdit }) => (
-        <Preview label={WORK_ABSTRACTS.label} value={placeholderValue} onEdit={onEdit} disabled={!!activeFormId}>
+        <Preview
+          label={WORK_ABSTRACTS.label}
+          value={work.abstracts.length > 0 ? longAbstractContent || ' ' : ''}
+          onEdit={onEdit}
+          disabled={!!activeFormId}
+        >
           <div className="flex flex-col gap-2">
             <Typography component="span">
-              <MarkdownRenderer markdown={placeholderValue} />
+              <MarkdownRenderer markdown={longAbstractPreview} />
             </Typography>
             <ul className="flex flex-wrap gap-1">
+              {shortAbstracts.length > 0 && (
+                <Chip
+                  label={`${t('short abstracts')}: ${shortAbstracts.length}`}
+                  size="small"
+                  component="li"
+                  variant="outlined"
+                />
+              )}
               {longAbstracts.map(({ id, localeCode }) => (
                 <Chip key={id} label={localeCode} size="small" component="li" />
               ))}
