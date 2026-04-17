@@ -53,6 +53,17 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication(activePublication);
   }, [activePublication, publication]);
 
+  useEffect(() => {
+    if (!publication?.id) return;
+
+    const freshPublication = work.publications.find(({ id }) => id === publication.id);
+
+    if (!freshPublication) return;
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPublication(freshPublication);
+  }, [work, publication?.id]);
+
   const loading =
     isUpdatePublicationLoading ||
     isCreatePriceLoading ||
