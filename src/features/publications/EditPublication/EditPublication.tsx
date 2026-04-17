@@ -3,6 +3,7 @@
 import { EditLocations } from '@/src/entities/locations';
 import { EditPrice } from '@/src/entities/price';
 import { EditPublication as EditPublicationForm } from '@/src/entities/publication';
+import { useUser } from '@/src/entities/user';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
 import { useEditPublication } from './useEditPublication';
@@ -34,6 +35,8 @@ const EditPublication = (props: EditPublicationProps) => {
   } = useEditPublication({
     workId,
   });
+
+  const { user } = useUser();
 
   if (!activePublication) return null;
 
@@ -83,6 +86,7 @@ const EditPublication = (props: EditPublicationProps) => {
             locations={activePublication.locations}
             isFullTextUrlHidden={isFullTextUrlHidden}
             deleteLoading={deleteLocationLoading}
+            canDelete={user.isSuperuser}
             onUpdate={updateLocations}
             onDelete={deleteLocation}
           />
