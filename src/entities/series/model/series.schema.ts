@@ -29,6 +29,7 @@ export const GET_SERIESES = graphql(`
         imprintName
       }
       seriesUrl
+      seriesCfpUrl
       seriesDescription
       issues {
         issueId
@@ -63,6 +64,7 @@ export const GET_SERIES = graphql(`
         imprintName
       }
       seriesUrl
+      seriesCfpUrl
       seriesDescription
       issues {
         issueId

@@ -93,6 +93,7 @@ export const HELPER_TEXT = {
   SERIES_TYPE: 'seriesType.helperText',
   ISSN: 'issn.helperText',
   SERIES_URL: 'seriesUrl.helperText',
+  SERIES_CFP_URL: 'seriesCfpUrl.helperText',
   SERIES_DESCRIPTION: 'seriesDescription.helperText',
   PUBLICATION_FILE: 'publicationFile.helperText',
   SUBJECT: 'subjects.helperText',

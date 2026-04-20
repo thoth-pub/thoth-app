@@ -9,6 +9,7 @@ import { EditableContent } from '@/src/shared/ui/layout/EditableContent/Editable
 import { convertOptionToString, prettifyUrlPreview } from '@/src/shared/utils';
 
 import type {
+  SeriesCfpUrlFormType,
   SeriesDescriptionFormType,
   SeriesImprintFormType,
   SeriesIssnFormType,
@@ -18,6 +19,7 @@ import type {
   SeriesUrlFormType,
 } from '../../model/series.types';
 import {
+  seriesCfpUrlValidation,
   seriesDescriptionValidation,
   seriesImprintValidation,
   seriesIssnValidation,
@@ -33,6 +35,7 @@ const {
   SERIES_ISSN_DIGITAL,
   SERIES_IMPRINT,
   SERIES_URL,
+  SERIES_CFP_URL,
   SERIES_DESCRIPTION,
 } = FORM_FIELDS;
 
@@ -42,6 +45,7 @@ const {
   SERIES_IMPRINT: SERIES_IMPRINT_HELPER_TEXT,
   ISSN: ISSN_HELPER_TEXT,
   SERIES_URL: SERIES_URL_HELPER_TEXT,
+  SERIES_CFP_URL: SERIES_CFP_URL_HELPER_TEXT,
   SERIES_DESCRIPTION: SERIES_DESCRIPTION_HELPER_TEXT,
 } = HELPER_TEXT;
 
@@ -52,6 +56,7 @@ type EditSeriesFormProps = {
   issnPrint?: string;
   issnDigital?: string;
   url?: string;
+  cfpUrl?: string;
   imprint?: string;
   description?: string;
   isTableVariant?: boolean;
@@ -59,6 +64,7 @@ type EditSeriesFormProps = {
   isImprintEditable?: boolean;
   onTypeChange: (type: SeriesTypeFormType) => void;
   onUrlChange: (url: SeriesUrlFormType) => void;
+  onCfpUrlChange: (cfpUrl: SeriesCfpUrlFormType) => void;
   onNameChange: (name: SeriesNameFormType) => void;
   onIssnChange: (data: SeriesIssnFormType) => void;
   onImprintChange: (data: SeriesImprintFormType) => void;
@@ -72,12 +78,14 @@ const EditSeriesForm = ({
   issnPrint = '',
   issnDigital = '',
   url = '',
+  cfpUrl = '',
   imprint = '',
   description = '',
   isTableVariant = false,
   borderTransparent = false,
   isImprintEditable = false,
   onUrlChange,
+  onCfpUrlChange,
   onTypeChange,
   onNameChange,
   onIssnChange,
@@ -101,7 +109,6 @@ const EditSeriesForm = ({
               control={control as unknown as Control<SeriesNameFormType>}
               name={SERIES_NAME.name}
               id={SERIES_NAME.name}
-              placeholder={SERIES_NAME.placeholder}
             />
           </ContentWrapper>
         )}
@@ -205,14 +212,12 @@ const EditSeriesForm = ({
                 control={control as unknown as Control<SeriesIssnFormType>}
                 name={SERIES_ISSN_DIGITAL.name}
                 id={SERIES_ISSN_DIGITAL.name}
-                placeholder={SERIES_ISSN_DIGITAL.placeholder}
                 fullWidth
               />
               <FormTextField
                 control={control as unknown as Control<SeriesIssnFormType>}
                 name={SERIES_ISSN_PRINT.name}
                 id={SERIES_ISSN_PRINT.name}
-                placeholder={SERIES_ISSN_PRINT.placeholder}
                 fullWidth
               />
             </div>
@@ -238,13 +243,41 @@ const EditSeriesForm = ({
               control={control as unknown as Control<SeriesUrlFormType>}
               name={SERIES_URL.name}
               id={SERIES_URL.name}
-              placeholder={SERIES_URL.placeholder}
               isUrlField
             />
           </ContentWrapper>
         )}
         preview={({ disabled, onEdit }) => (
           <Preview label={SERIES_URL.label} disabled={disabled} onEdit={onEdit} value={prettifyUrlPreview(url)} />
+        )}
+      />
+
+      <EditableContent
+        formId={IDs.SERIES_CFP_URL}
+        validationSchema={seriesCfpUrlValidation}
+        defaultValues={{ [SERIES_CFP_URL.name]: cfpUrl }}
+        onSubmit={onCfpUrlChange}
+        isTableVariant={isTableVariant}
+        borderTransparent={borderTransparent}
+        faq={SERIES_CFP_URL_HELPER_TEXT}
+        formFields={({ control }) => (
+          <ContentWrapper>
+            <FormFieldLabel label={SERIES_CFP_URL.label} id={SERIES_CFP_URL.name} />
+            <FormTextField
+              control={control as unknown as Control<SeriesCfpUrlFormType>}
+              name={SERIES_CFP_URL.name}
+              id={SERIES_CFP_URL.name}
+              isUrlField
+            />
+          </ContentWrapper>
+        )}
+        preview={({ disabled, onEdit }) => (
+          <Preview
+            label={SERIES_CFP_URL.label}
+            disabled={disabled}
+            onEdit={onEdit}
+            value={prettifyUrlPreview(cfpUrl)}
+          />
         )}
       />
 

@@ -79,6 +79,7 @@ import referenceCitationHelperText from './helperText/referenceCitation.md';
 import referenceDoiHelperText from './helperText/referenceDoi.md';
 import referenceUrlHelperText from './helperText/referenceUrl.md';
 import reportHelperText from './helperText/report.md';
+import seriesCfpUrlHelperText from './helperText/seriesCfpUrl.md';
 import seriesDescriptionHelperText from './helperText/seriesDescription.md';
 import seriesImprintHelperText from './helperText/seriesImprint.md';
 import seriesNameHelperText from './helperText/seriesName.md';
@@ -182,6 +183,7 @@ const markdownContent: Record<string, string> = {
   'seriesName-helperText': seriesNameHelperText,
   'seriesType-helperText': seriesTypeHelperText,
   'seriesUrl-helperText': seriesUrlHelperText,
+  'seriesCfpUrl-helperText': seriesCfpUrlHelperText,
   'statement-helperText': statementHelperText,
   'status-helperText': statusHelperText,
   'subject-helperText': subjectHelperText,

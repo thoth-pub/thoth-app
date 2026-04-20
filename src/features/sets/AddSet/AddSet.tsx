@@ -108,7 +108,7 @@ const AddSet = () => {
         ))}
       </SpeedDial>
       <Modal open={open} onClose={finishEditing}>
-        <ModalWrapper onClickAway={finishEditing}>
+        <ModalWrapper>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) uppercase">
               <TranslatedContent content="actions.addSet" />

@@ -81,6 +81,7 @@ describe('XMLParser', () => {
         imprintId: faker.string.uuid(),
         imprintName: faker.company.name(),
         url: faker.internet.url(),
+        cfpUrl: faker.internet.url(),
         description: faker.lorem.sentence(),
         issues: [],
       },

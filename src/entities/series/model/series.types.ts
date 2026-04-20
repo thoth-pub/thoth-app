@@ -5,6 +5,7 @@ import { SeriesType as SeriesTypeEnum } from '@/src/shared/constants';
 
 import {
   issueValidationSchema,
+  seriesCfpUrlValidation,
   seriesDescriptionValidation,
   seriesImprintValidation,
   seriesIssnValidation,
@@ -24,6 +25,7 @@ export type SeriesDto = Pick<
   | 'imprintId'
   | 'seriesDescription'
   | 'seriesUrl'
+  | 'seriesCfpUrl'
 > & {
   imprint: {
     imprintName: string;
@@ -49,6 +51,7 @@ export type SeriesEntity = {
   imprintId: string;
   imprintName: string;
   url: string;
+  cfpUrl: string;
   description: string;
   issues: {
     id: string;
@@ -69,6 +72,8 @@ export type SeriesNameFormType = z.infer<typeof seriesNameValidation>;
 export type SeriesIssnFormType = z.infer<typeof seriesIssnValidation>;
 
 export type SeriesUrlFormType = z.infer<typeof seriesUrlValidation>;
+
+export type SeriesCfpUrlFormType = z.infer<typeof seriesCfpUrlValidation>;
 
 export type SeriesDescriptionFormType = z.infer<typeof seriesDescriptionValidation>;
 

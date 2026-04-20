@@ -5,6 +5,7 @@ import { Typography } from '@mui/material';
 import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import { EditSeriesForm, useSeries, useSeriesStateMachine, useUpdateSeries } from '@/src/entities/series';
 import {
+  SeriesCfpUrlFormType,
   SeriesDescriptionFormType,
   SeriesImprintFormType,
   SeriesIssnFormType,
@@ -73,6 +74,14 @@ const EditSeries = () => {
     updateSeries(newData);
   };
 
+  const updateCfpUrl = (data: SeriesCfpUrlFormType) => {
+    if (!series) return;
+
+    const newData = { ...series, cfpUrl: data.cfpUrl ?? '' };
+
+    updateSeries(newData);
+  };
+
   const updateDescription = (data: SeriesDescriptionFormType) => {
     if (!series) return;
 
@@ -107,12 +116,14 @@ const EditSeries = () => {
             issnDigital={series.issnDigital}
             imprint={series.imprintName}
             url={series.url}
+            cfpUrl={series.cfpUrl}
             description={series.description}
             onTypeChange={updateType}
             onNameChange={updateName}
             onIssnChange={updateIssn}
             onImprintChange={updateImprint}
             onUrlChange={updateUrl}
+            onCfpUrlChange={updateCfpUrl}
             onDescriptionChange={updateDescription}
           />
           {series.issues.length > 0 && (

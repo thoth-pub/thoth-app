@@ -829,6 +829,11 @@ export const FORM_FIELDS = {
     name: 'url',
     placeholder: 'seriesUrl.label',
   },
+  SERIES_CFP_URL: {
+    label: 'seriesCfpUrl.label',
+    name: 'cfpUrl',
+    placeholder: 'seriesCfpUrl.label',
+  },
   SERIES_DESCRIPTION: {
     label: 'seriesDescription.label',
     name: 'description',
