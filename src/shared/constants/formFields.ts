@@ -641,6 +641,7 @@ export const FORM_FIELDS = {
     label: 'bookReviewTitle.label',
     name: 'title',
     placeholder: 'bookReviewTitle.label',
+    errorMessage: TITLE_REQUIRED,
   },
   BOOK_REVIEW_AUTHOR_NAME: {
     label: 'bookReviewAuthorName.label',

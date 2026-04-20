@@ -68,7 +68,7 @@ const AddFeaturedVideo = (props: BaseRecommendedSectionProps) => {
         height={height}
         uploadLoading={loading}
         uploadProgress={uploadProgress}
-        isDoneDisabled={!pendingFile || !featuredVideo?.width || !featuredVideo?.height}
+        isDoneDisabled={!title?.trim() || !pendingFile || !featuredVideo?.width || !featuredVideo?.height}
         onFileUpload={handleFileUpload}
         onTitleUpdate={updateTitle}
         onUrlUpdate={updateUrl}

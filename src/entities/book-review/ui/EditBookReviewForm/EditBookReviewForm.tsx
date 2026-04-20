@@ -31,6 +31,7 @@ type EditBookReviewFormProps = {
   journalIssn?: string;
   pageRange?: string;
   text?: string;
+  isDoneDisabled?: boolean;
   onTitleUpdate?: (data: string) => void;
   onAuthorNameUpdate?: (data: string) => void;
   onReviewerOrcidUpdate?: (data: string) => void;
@@ -64,6 +65,7 @@ const EditBookReviewForm = (props: EditBookReviewFormProps) => {
     journalIssn,
     pageRange,
     text,
+    isDoneDisabled,
     onTitleUpdate,
     onAuthorNameUpdate,
     onReviewerOrcidUpdate,
@@ -83,7 +85,7 @@ const EditBookReviewForm = (props: EditBookReviewFormProps) => {
 
   return (
     <TableFormsWrapper>
-      <TableFormsHeader title="book review" onDone={onDone} onClose={onClose} />
+      <TableFormsHeader title="book review" onDone={onDone} onClose={onClose} isDoneDisabled={isDoneDisabled} />
       <EditBookReviewTitle defaultValue={title} onUpdate={onTitleUpdate} />
       <EditBookReviewAuthorName defaultValue={authorName} onUpdate={onAuthorNameUpdate} />
       <EditBookReviewReviewerOrcid defaultValue={reviewerOrcid} onUpdate={onReviewerOrcidUpdate} />

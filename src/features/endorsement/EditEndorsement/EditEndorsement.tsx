@@ -40,8 +40,18 @@ const EditEndorsement = (props: BaseRecommendedSectionProps) => {
   const updateAuthorInstitution = (data: { value: string; label: string; ror: string }) => {
     if (!activeEndorsement) return;
 
-    update({ ...activeEndorsement, authorInstitutionId: data.value, authorInstitutionName: data.label, authorInstitutionRor: data.ror });
-    updateEndorsement({ ...activeEndorsement, authorInstitutionId: data.value, authorInstitutionName: data.label, authorInstitutionRor: data.ror });
+    update({
+      ...activeEndorsement,
+      authorInstitutionId: data.value,
+      authorInstitutionName: data.label,
+      authorInstitutionRor: data.ror,
+    });
+    updateEndorsement({
+      ...activeEndorsement,
+      authorInstitutionId: data.value,
+      authorInstitutionName: data.label,
+      authorInstitutionRor: data.ror,
+    });
   };
 
   const updateText = (text: string) => {
@@ -53,7 +63,8 @@ const EditEndorsement = (props: BaseRecommendedSectionProps) => {
 
   if (!activeEndorsement) return null;
 
-  const { authorName, authorOrcid, authorRole, authorInstitutionId, authorInstitutionName, url, text } = activeEndorsement;
+  const { authorName, authorOrcid, authorRole, authorInstitutionId, authorInstitutionName, url, text } =
+    activeEndorsement;
 
   return (
     <EditEndorsementForm
@@ -64,6 +75,7 @@ const EditEndorsement = (props: BaseRecommendedSectionProps) => {
       authorInstitutionName={authorInstitutionName}
       url={url}
       text={text}
+      isDoneDisabled={!authorName?.trim()}
       onAuthorNameUpdate={updateAuthorName}
       onAuthorOrcidUpdate={updateAuthorOrcid}
       onAuthorRoleUpdate={updateAuthorRole}

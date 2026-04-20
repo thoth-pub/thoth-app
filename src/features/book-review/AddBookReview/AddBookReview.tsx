@@ -34,66 +34,79 @@ const AddBookReview = (props: AddBookReviewProps) => {
 
   const updateTitle = (title: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, title });
   };
 
   const updateAuthorName = (authorName: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, authorName });
   };
 
   const updateReviewerOrcid = (reviewerOrcid: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, reviewerOrcid });
   };
 
   const updateUrl = (url: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, url });
   };
 
   const updateDoi = (doi: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, doi });
   };
 
   const updateReviewDate = (reviewDate: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, reviewDate });
   };
 
   const updateJournalName = (journalName: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, journalName });
   };
 
   const updateJournalVolume = (journalVolume: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, journalVolume });
   };
 
   const updateJournalNumber = (journalNumber: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, journalNumber });
   };
 
   const updateJournalIssn = (journalIssn: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, journalIssn });
   };
 
   const updateReviewerInstitution = (data: { value: string; label: string; ror: string }) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, reviewerInstitutionId: data.value, reviewerInstitutionName: data.label, reviewerInstitutionRor: data.ror });
   };
 
   const updatePageRange = (pageRange: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, pageRange });
   };
 
   const updateText = (text: string) => {
     if (!bookReview) return;
+
     setBookReview({ ...bookReview, text });
   };
 
@@ -119,6 +132,7 @@ const AddBookReview = (props: AddBookReviewProps) => {
         journalIssn={journalIssn}
         pageRange={pageRange}
         text={text}
+        isDoneDisabled={!title?.trim()}
         onTitleUpdate={updateTitle}
         onAuthorNameUpdate={updateAuthorName}
         onReviewerOrcidUpdate={updateReviewerOrcid}
