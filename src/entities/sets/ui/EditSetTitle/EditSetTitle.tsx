@@ -46,6 +46,8 @@ export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => 
       defaultValues={defaultValues}
       validationSchema={setTitleValidationSchema}
       onSubmit={updateTitles}
+      isTableVariant
+      borderTransparent
       faq={SET_TITLE_HELPER_TEXT}
       formFields={({ control }) => (
         <MultipleContentWrapper>

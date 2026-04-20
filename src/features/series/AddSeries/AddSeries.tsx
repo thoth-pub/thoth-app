@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { useActivePublisherPermissions } from '@/src/entities/publisher';
 import { EditSeriesForm, useCreateSeries, useSeriesStateMachine } from '@/src/entities/series';
 import type {
+  SeriesCfpUrlFormType,
   SeriesDescriptionFormType,
   SeriesEntity,
   SeriesImprintFormType,
@@ -53,6 +54,7 @@ const AddSeries = () => {
     imprintId: userImprintsOptions.length > 0 ? userImprintsOptions[0].value : '',
     imprintName: userImprintsOptions.length > 0 ? userImprintsOptions[0].label : '',
     url: '',
+    cfpUrl: '',
     description: '',
     updatedAt: '',
   };
@@ -60,7 +62,7 @@ const AddSeries = () => {
   const submit = () => {
     if (!series) return;
 
-    const { type, name, issnPrint, issnDigital, imprintId, description, url } = series;
+    const { type, name, issnPrint, issnDigital, imprintId, description, url, cfpUrl } = series;
 
     createSeries({
       type,
@@ -70,6 +72,7 @@ const AddSeries = () => {
       imprintId,
       description,
       url,
+      cfpUrl,
     });
     finishEditing();
   };
@@ -113,6 +116,12 @@ const AddSeries = () => {
     setSeries({ ...series, url: data.url ?? '' });
   };
 
+  const updateCfpUrl = (data: SeriesCfpUrlFormType) => {
+    if (!series) return;
+
+    setSeries({ ...series, cfpUrl: data.cfpUrl ?? '' });
+  };
+
   const updateDescription = (data: SeriesDescriptionFormType) => {
     if (!series) return;
 
@@ -144,7 +153,7 @@ const AddSeries = () => {
         ))}
       </SpeedDial>
       <Modal open={open} onClose={finishEditing}>
-        <ModalWrapper onClickAway={finishEditing}>
+        <ModalWrapper>
           <div className="flex justify-between">
             <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) uppercase">
               <TranslatedContent content="actions.addSeries" />
@@ -164,6 +173,7 @@ const AddSeries = () => {
               issnDigital={series.issnDigital}
               imprint={series.imprintName}
               url={series.url}
+              cfpUrl={series.cfpUrl}
               description={series.description}
               isImprintEditable={isImprintEditable}
               onTypeChange={updateType}
@@ -171,6 +181,7 @@ const AddSeries = () => {
               onIssnChange={updateIssn}
               onImprintChange={updateImprint}
               onUrlChange={updateUrl}
+              onCfpUrlChange={updateCfpUrl}
               onDescriptionChange={updateDescription}
             />
           )}

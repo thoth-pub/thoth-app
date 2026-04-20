@@ -16,6 +16,7 @@ const {
   SERIES_ISSN_DIGITAL,
   SERIES_IMPRINT,
   SERIES_URL,
+  SERIES_CFP_URL,
   SERIES_DESCRIPTION,
   WORK_SERIES,
   ISSUE_ORDINAL,
@@ -36,6 +37,10 @@ export const seriesIssnValidation = z.object({
 
 export const seriesUrlValidation = z.object({
   [SERIES_URL.name]: optionalUrlValidation,
+});
+
+export const seriesCfpUrlValidation = z.object({
+  [SERIES_CFP_URL.name]: optionalUrlValidation,
 });
 
 export const seriesDescriptionValidation = z.object({

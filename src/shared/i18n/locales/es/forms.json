@@ -49,6 +49,10 @@
     "label": "URL",
     "helperText": "$md:seriesUrl-helperText"
   },
+  "seriesCfpUrl": {
+    "label": "URL de la convocatoria de propuestas",
+    "helperText": "$md:seriesCfpUrl-helperText"
+  },
   "seriesDescription": {
     "label": "Descripción",
     "helperText": "$md:seriesDescription-helperText"

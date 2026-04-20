@@ -105,6 +105,7 @@ export const IDs = {
   SERIES_ISSN_PRINT: 'series_issn_print',
   SERIES_ISSN_DIGITAL: 'series_issn_digital',
   SERIES_URL: 'series_url',
+  SERIES_CFP_URL: 'series_cfp_url',
   SERIES_DESCRIPTION: 'series_description',
   SERIES_IMPRINT: 'series_imprint',
   // PUBLISHERS
