@@ -228,6 +228,7 @@
     "csvLicenseNotFound": "License \"{{value}}\" not found in row {{row}}",
     "csvSeriesNotFound": "Series \"{{name}}\" not found",
     "unsupportedFileType": "Unsupported file type. Please upload a CSV or XML file.",
-    "emptyFile": "The uploaded file is empty."
+    "emptyFile": "The uploaded file is empty.",
+    "titleRequired": "Title is required"
   }
 }

@@ -17,6 +17,7 @@ type EditEndorsementFormProps = {
   authorInstitutionName?: string;
   url?: string;
   text?: string;
+  isDoneDisabled?: boolean;
   onAuthorNameUpdate?: (data: string) => void;
   onAuthorOrcidUpdate?: (data: string) => void;
   onAuthorRoleUpdate?: (data: string) => void;
@@ -36,6 +37,7 @@ const EditEndorsementForm = (props: EditEndorsementFormProps) => {
     authorInstitutionName,
     url,
     text,
+    isDoneDisabled,
     onAuthorNameUpdate,
     onAuthorOrcidUpdate,
     onAuthorRoleUpdate,
@@ -48,7 +50,7 @@ const EditEndorsementForm = (props: EditEndorsementFormProps) => {
 
   return (
     <TableFormsWrapper>
-      <TableFormsHeader title="endorsement" onDone={onDone} onClose={onClose} />
+      <TableFormsHeader title="endorsement" onDone={onDone} onClose={onClose} isDoneDisabled={isDoneDisabled} />
       <EditEndorsementAuthorName defaultValue={authorName} onUpdate={onAuthorNameUpdate} />
       <EditEndorsementAuthorOrcid defaultValue={authorOrcid} onUpdate={onAuthorOrcidUpdate} />
       <EditEndorsementAuthorRole defaultValue={authorRole} onUpdate={onAuthorRoleUpdate} />

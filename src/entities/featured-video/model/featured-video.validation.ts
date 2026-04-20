@@ -1,12 +1,12 @@
 import z from 'zod';
 
 import { FORM_FIELDS } from '@/src/shared/constants';
-import { optionalUrlValidation } from '@/src/shared/utils';
+import { getRequiredStringValidation, optionalUrlValidation } from '@/src/shared/utils';
 
 const { FEATURED_VIDEO_TITLE, FEATURED_VIDEO_URL, FEATURED_VIDEO_WIDTH, FEATURED_VIDEO_HEIGHT } = FORM_FIELDS;
 
 export const featuredVideoTitleValidationSchema = z.object({
-  [FEATURED_VIDEO_TITLE.name]: z.string().optional(),
+  [FEATURED_VIDEO_TITLE.name]: getRequiredStringValidation(),
 });
 
 export const featuredVideoUrlValidationSchema = z.object({

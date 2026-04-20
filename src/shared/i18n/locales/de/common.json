@@ -228,6 +228,7 @@
     "csvLicenseNotFound": "Lizenz \"{{value}}\" nicht gefunden in Zeile {{row}}",
     "csvSeriesNotFound": "Reihe \"{{name}}\" nicht gefunden",
     "unsupportedFileType": "Nicht unterstütztes Dateiformat. Bitte laden Sie eine CSV- oder XML-Datei hoch.",
-    "emptyFile": "Die hochgeladene Datei ist leer."
+    "emptyFile": "Die hochgeladene Datei ist leer.",
+    "titleRequired": "Titel ist erforderlich"
   }
 }

@@ -23,8 +23,7 @@ const AddEndorsement = (props: AddEndorsementProps) => {
   const create = () => {
     if (!endorsement) return;
 
-    const lastEndorsementOrderNumber = [...endorsements].sort((a, b) => b.orderNumber - a.orderNumber)[0]
-      ?.orderNumber;
+    const lastEndorsementOrderNumber = [...endorsements].sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber;
 
     createEndorsement({
       ...endorsement,
@@ -60,7 +59,12 @@ const AddEndorsement = (props: AddEndorsementProps) => {
   const updateAuthorInstitution = (data: { value: string; label: string; ror: string }) => {
     if (!endorsement) return;
 
-    setEndorsement({ ...endorsement, authorInstitutionId: data.value, authorInstitutionName: data.label, authorInstitutionRor: data.ror });
+    setEndorsement({
+      ...endorsement,
+      authorInstitutionId: data.value,
+      authorInstitutionName: data.label,
+      authorInstitutionRor: data.ror,
+    });
   };
 
   const updateText = (text: string) => {
@@ -83,6 +87,7 @@ const AddEndorsement = (props: AddEndorsementProps) => {
         authorInstitutionName={authorInstitutionName}
         url={url}
         text={text}
+        isDoneDisabled={!authorName?.trim()}
         onAuthorNameUpdate={updateAuthorName}
         onAuthorOrcidUpdate={updateAuthorOrcid}
         onAuthorRoleUpdate={updateAuthorRole}

@@ -3,7 +3,7 @@ export const ERRORS = {
   INVALID_URL: 'Invalid URL',
   EMAIL_REQUIRED: 'Email is required',
   PASSWORD_REQUIRED: 'Password is required',
-  TITLE_REQUIRED: 'Title is required',
+  TITLE_REQUIRED: 'errors.titleRequired',
   URL_REQUIRED: 'URL is required',
   IMPRINT_REQUIRED: 'Imprint is required',
   WORK_TYPE_REQUIRED: 'Work Type is required',

@@ -1,6 +1,7 @@
 'use client';
 
 import { Controller, type FieldValues, type Path } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { BaseFieldProps } from '@/src/shared/interfaces';
 import { MarkdownEditor, type MarkdownEditorProps } from '@/src/shared/ui';
@@ -22,6 +23,8 @@ const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T>) => {
     className,
   } = props;
 
+  const { t } = useTranslation('common');
+
   return (
     <Controller
       name={name as Path<T>}
@@ -33,7 +36,7 @@ const MarkdownField = <T extends FieldValues>(props: MarkdownFieldProps<T>) => {
             value={value}
             onChange={onChange}
             error={!!error}
-            errorMessage={error?.message}
+            errorMessage={error?.message ? t(error.message) : ''}
             disableLineBreaks={disableLineBreaks}
             id={id}
             extendedToolbar={extendedToolbar}

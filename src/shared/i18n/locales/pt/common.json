@@ -228,6 +228,7 @@
     "csvLicenseNotFound": "Licença \"{{value}}\" não encontrada na linha {{row}}",
     "csvSeriesNotFound": "Série \"{{name}}\" não encontrada",
     "unsupportedFileType": "Tipo de ficheiro não suportado. Por favor, carregue um ficheiro CSV ou XML.",
-    "emptyFile": "O ficheiro carregado está vazio."
+    "emptyFile": "O ficheiro carregado está vazio.",
+    "titleRequired": "O título é obrigatório"
   }
 }
