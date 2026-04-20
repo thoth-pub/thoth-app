@@ -4225,6 +4225,10 @@ export enum LocaleCode {
   Val = 'VAL',
   /** Valencian (Spain) (val-ES) */
   ValEs = 'VAL_ES',
+  /** Venda (ve) */
+  Ve = 'VE',
+  /** Venda (South Africa) (ve-ZA) */
+  VeZa = 'VE_ZA',
   /** Vietnamese (vi) */
   Vi = 'VI',
   /** Virgin Islands Creole English */
@@ -4686,6 +4690,7 @@ export type MutationRootCreateReferenceArgs = {
 
 export type MutationRootCreateSeriesArgs = {
   data: NewSeries;
+  markupFormat?: InputMaybe<MarkupFormat>;
 };
 
 
@@ -5033,6 +5038,7 @@ export type MutationRootUpdateReferenceArgs = {
 
 export type MutationRootUpdateSeriesArgs = {
   data: PatchSeries;
+  markupFormat?: InputMaybe<MarkupFormat>;
 };
 
 
@@ -6841,6 +6847,12 @@ export type SeriesIssuesArgs = {
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   order?: InputMaybe<IssueOrderBy>;
+};
+
+
+/** A periodical of publications about a particular subject. */
+export type SeriesSeriesDescriptionArgs = {
+  markupFormat?: InputMaybe<MarkupFormat>;
 };
 
 /** Field to use when sorting series list */
