@@ -2042,6 +2042,8 @@ export const languageOptionsAlt = [
   { label: 'Valencian', value: LanguageTypeAlt.enum.Val },
   { label: 'Valencian (Spain)', value: LanguageTypeAlt.enum.ValEs },
   { label: 'Catalan (Spain, Valencia)', value: LanguageTypeAlt.enum.CaEsValencia },
+  { label: 'Venda', value: LanguageTypeAlt.enum.Ve },
+  { label: 'Venda (South Africa)', value: LanguageTypeAlt.enum.VeZa },
   { label: 'Vietnamese', value: LanguageTypeAlt.enum.Vi },
   { label: 'Vietnamese (Vietnam)', value: LanguageTypeAlt.enum.ViVn },
   { label: 'Vunjo', value: LanguageTypeAlt.enum.Vun },
