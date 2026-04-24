@@ -85,10 +85,10 @@ export const EditDimensions = (props: EditSizesProps) => {
       imperialWeightPlaceholderValues.push(`${weightOz} ${WeightUnit.enum.Oz}`);
     }
 
-    const geometryPlaceholderValue = geometryPlaceholderValues.join(' x ');
-    const imperialGeometryPlaceholderValue = imperialGeometryPlaceholderValues.join(' x ');
-    const weightPlaceholderValue = weightPlaceholderValues.join(' x ');
-    const imperialWeightPlaceholderValue = imperialWeightPlaceholderValues.join(' x ');
+    const geometryPlaceholderValue = geometryPlaceholderValues.join(' ⤫ ');
+    const imperialGeometryPlaceholderValue = imperialGeometryPlaceholderValues.join(' ⤫ ');
+    const weightPlaceholderValue = weightPlaceholderValues.join(' ⤫ ');
+    const imperialWeightPlaceholderValue = imperialWeightPlaceholderValues.join(' ⤫ ');
 
     return [
       geometryPlaceholderValue,
