@@ -21,7 +21,21 @@ const DateField = <T extends FieldValues>(props: DateFieldProps<T>) => {
       render={({ field: { onChange, value, ...fieldProps } }) => (
         <DatePicker
           value={value ? dayjs(value) : null}
-          onChange={onChange}
+          onChange={(newValue, context) => {
+            if (newValue === null) {
+              onChange('');
+
+              return;
+            }
+
+            if (context.validationError != null) {
+              return;
+            }
+
+            if (dayjs.isDayjs(newValue) && newValue.isValid()) {
+              onChange(newValue.format(dateFormat));
+            }
+          }}
           {...fieldProps}
           {...rest}
           format={dateFormat}
