@@ -14,14 +14,16 @@ export class TitleService extends BaseService<TitleEntity, TitleDto, TitleDtoMap
     super(graphqlService, mapper);
   }
 
-  private getMarkupFormat(text: string) {
-    return isTextContainsAnyMarkdownTag(text) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+  private getMarkupFormat(data: TitleEntity) {
+    const hasMarkup = isTextContainsAnyMarkdownTag(data.title) || isTextContainsAnyMarkdownTag(data.subtitle);
+
+    return hasMarkup ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
   }
 
   async createTitle(data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
     const { titleId: _, ...dto } = this.dtoMapper.toDto(data);
 
-    const markupFormat = this.getMarkupFormat(data.title);
+    const markupFormat = this.getMarkupFormat(data);
 
     const response = await this.graphqlService.mutation(CREATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
@@ -36,7 +38,7 @@ export class TitleService extends BaseService<TitleEntity, TitleDto, TitleDtoMap
   async updateTitle(data: TitleEntity, relatedWorkId: WorkId): Promise<TitleEntity> {
     const dto = this.dtoMapper.toDto(data);
 
-    const markupFormat = this.getMarkupFormat(data.title);
+    const markupFormat = this.getMarkupFormat(data);
 
     const response = await this.graphqlService.mutation(UPDATE_TITLE, {
       data: { ...dto, workId: relatedWorkId },
