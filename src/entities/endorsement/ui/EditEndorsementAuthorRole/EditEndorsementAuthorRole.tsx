@@ -1,9 +1,7 @@
 'use client';
 
-import removeMd from 'remove-markdown';
-
 import { FORM_FIELDS, HELPER_TEXT, IDs } from '@/src/shared/constants';
-import { ContentWrapper, FormFieldLabel, FormTextField, Preview } from '@/src/shared/ui';
+import { ContentWrapper, FormFieldLabel, MarkdownField, MarkdownPreview, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 
 import { endorsementAuthorRoleValidationSchema } from '../../model/endorsement.validation';
@@ -31,16 +29,21 @@ export const EditEndorsementAuthorRole = (props: EditEndorsementAuthorRoleProps)
       formFields={({ control }) => (
         <ContentWrapper>
           <FormFieldLabel label={ENDORSEMENT_AUTHOR_ROLE.label} id={ENDORSEMENT_AUTHOR_ROLE.name} />
-          <FormTextField control={control} name={ENDORSEMENT_AUTHOR_ROLE.name} id={ENDORSEMENT_AUTHOR_ROLE.name} />
+          <MarkdownField
+            control={control}
+            name={ENDORSEMENT_AUTHOR_ROLE.name}
+            id={ENDORSEMENT_AUTHOR_ROLE.name}
+            disableLineBreaks
+            extendedToolbar
+          />
         </ContentWrapper>
       )}
       preview={({ data, disabled, onEdit }) => (
-        <Preview
-          label={ENDORSEMENT_AUTHOR_ROLE.label}
-          value={removeMd(data?.authorRole ?? '')}
-          disabled={disabled}
-          onEdit={onEdit}
-        />
+        <Preview label={ENDORSEMENT_AUTHOR_ROLE.label} value={data?.authorRole} disabled={disabled} onEdit={onEdit}>
+          <Typography component="span">
+            <MarkdownPreview source={data?.authorRole} />
+          </Typography>
+        </Preview>
       )}
     />
   );

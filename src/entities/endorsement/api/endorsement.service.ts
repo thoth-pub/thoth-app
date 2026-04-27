@@ -18,14 +18,16 @@ export class EndorsementService extends BaseService<EndorsementEntity, Endorseme
     super(graphqlService, mapper);
   }
 
-  private getMarkupFormat(text: string) {
-    return isTextContainsAnyMarkdownTag(text) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
+  private getMarkupFormat(data: EndorsementEntity) {
+    const hasMarkup = isTextContainsAnyMarkdownTag(data.text) || isTextContainsAnyMarkdownTag(data.authorRole);
+
+    return hasMarkup ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT;
   }
 
   async createEndorsement(data: EndorsementEntity, relatedWorkId: WorkId): Promise<EndorsementEntity> {
     const { endorsementId: _, ...dto } = this.dtoMapper.toDto(data);
 
-    const markupFormat = this.getMarkupFormat(data.text);
+    const markupFormat = this.getMarkupFormat(data);
 
     const response = await this.graphqlService.mutation(CREATE_ENDORSEMENT, {
       data: { ...dto, workId: relatedWorkId, endorsementOrdinal: data.orderNumber ?? 1 },
@@ -40,7 +42,7 @@ export class EndorsementService extends BaseService<EndorsementEntity, Endorseme
   async updateEndorsement(data: EndorsementEntity, relatedWorkId: WorkId): Promise<EndorsementEntity> {
     const dto = this.dtoMapper.toDto(data);
 
-    const markupFormat = this.getMarkupFormat(data.text);
+    const markupFormat = this.getMarkupFormat(data);
 
     const response = await this.graphqlService.mutation(UPDATE_ENDORSEMENT, {
       data: { ...dto, workId: relatedWorkId, endorsementId: data.id, endorsementOrdinal: data.orderNumber ?? 1 },

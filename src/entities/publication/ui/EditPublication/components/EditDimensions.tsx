@@ -34,9 +34,11 @@ const {
 
 const { PUBLICATION_DIMENSIONS: PUBLICATION_DIMENSIONS_HELPER_TEXT } = HELPER_TEXT;
 
+const formatNumber = (n: number) => Number(n.toFixed(2)).toString();
+
 export const EditDimensions = (props: EditSizesProps) => {
   const { width, height, depth, weight, widthIn, heightIn, depthIn, weightOz, onSubmit } = props;
-  
+
   const [autoConvert, setAutoConvert] = useState(true);
 
   const handleToggleAutoConvert = () => {
@@ -54,35 +56,35 @@ export const EditDimensions = (props: EditSizesProps) => {
     const imperialWeightPlaceholderValues = [];
 
     if (width > 0) {
-      geometryPlaceholderValues.push(`${width} mm`);
+      geometryPlaceholderValues.push(`${formatNumber(width)} mm`);
     }
 
     if (widthIn > 0) {
-      imperialGeometryPlaceholderValues.push(`${widthIn} in`);
+      imperialGeometryPlaceholderValues.push(`${formatNumber(widthIn)} in`);
     }
 
     if (height > 0) {
-      geometryPlaceholderValues.push(`${height} mm`);
+      geometryPlaceholderValues.push(`${formatNumber(height)} mm`);
     }
 
     if (heightIn > 0) {
-      imperialGeometryPlaceholderValues.push(`${heightIn} in`);
+      imperialGeometryPlaceholderValues.push(`${formatNumber(heightIn)} in`);
     }
 
     if (depth > 0) {
-      geometryPlaceholderValues.push(`${depth} mm`);
+      geometryPlaceholderValues.push(`${formatNumber(depth)} mm`);
     }
 
     if (depthIn > 0) {
-      imperialGeometryPlaceholderValues.push(`${depthIn} in`);
+      imperialGeometryPlaceholderValues.push(`${formatNumber(depthIn)} in`);
     }
 
     if (weight > 0) {
-      weightPlaceholderValues.push(`${weight} ${WeightUnit.enum.G}`);
+      weightPlaceholderValues.push(`${formatNumber(weight)} ${WeightUnit.enum.G}`);
     }
 
     if (weightOz > 0) {
-      imperialWeightPlaceholderValues.push(`${weightOz} ${WeightUnit.enum.Oz}`);
+      imperialWeightPlaceholderValues.push(`${formatNumber(weightOz)} ${WeightUnit.enum.Oz}`);
     }
 
     const geometryPlaceholderValue = geometryPlaceholderValues.join(' ⤫ ');
