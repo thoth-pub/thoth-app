@@ -7,6 +7,7 @@ import SaveAltIcon from '@mui/icons-material/SaveAlt';
 import TranslateIcon from '@mui/icons-material/Translate';
 import CircularProgress from '@mui/material/CircularProgress';
 import SpeedDialIcon from '@mui/material/SpeedDialIcon';
+import type { ReactNode } from 'react';
 import { useState } from 'react';
 
 import { MetadataModal } from '@/src/entities/metadata';
@@ -20,7 +21,17 @@ import {
 import useDeleteWork from '@/src/entities/work/api/hooks/useDeleteWork';
 import type { WorkId } from '@/src/entities/work/model/work.types';
 // import { ANCHORS } from '@/src/shared/constants';
-import { SpeedDial, SpeedDialActions, TranslatedContent } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import {
+  CloseButton,
+  Modal,
+  ModalWrapper,
+  SpeedDial,
+  SpeedDialActions,
+  SubmitButton,
+  TranslatedContent,
+  Typography,
+} from '@/src/shared/ui';
 
 // import DataIndicator from '@/src/shared/ui/core/DataIndicator/DataIndicator';
 import { AddVolume } from './components/AddVolume';
@@ -39,11 +50,21 @@ type WorkSpeedDialProps = {
 
 // const { BASIC_DETAILS, DESCRIPTIONS, CONTRIBUTIONS, FUNDINGS } = ANCHORS;
 
+type PendingAction = 'delete' | 'reissue' | 'translation' | 'extend';
+
+const WORK_SPEEDDIAL_WARNINGS: Record<PendingAction, ReactNode> = {
+  delete: <TranslatedContent content="deleteWorkWarning" namespace={NAMESPACES.enum.warnings} />,
+  reissue: <TranslatedContent content="reissueWorkWarning" namespace={NAMESPACES.enum.warnings} />,
+  translation: <TranslatedContent content="translateWorkWarning" namespace={NAMESPACES.enum.warnings} />,
+  extend: <TranslatedContent content="extendWorkWarning" namespace={NAMESPACES.enum.warnings} />,
+};
+
 const WorkSpeedDial = (props: WorkSpeedDialProps) => {
   const { workId } = props;
 
   const [openAddVolume, setOpenAddVolume] = useState(false);
   const [openMetaDialog, setOpenMetaDialog] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
 
   // const {
   //   isAllInformationFilled,
@@ -65,28 +86,34 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
 
   const isActionPending = isEditionPending || isTranslationPending || isDeletePending;
 
-  const onCreateNewEdition = () => {
+  const requestAction = (action: PendingAction) => {
     if (isActionPending) return;
+    if (action === 'extend' && workSet.length > 0) return;
 
-    createNewWorkEdition(work);
+    setPendingAction(action);
   };
 
-  const onCreateTranslation = () => {
-    if (isActionPending) return;
+  const cancelPendingAction = () => setPendingAction(null);
 
-    createWorkTranslation(work);
-  };
+  const confirmPendingAction = () => {
+    if (!pendingAction) return;
 
-  const onDeleteWork = () => {
-    if (isActionPending) return;
+    switch (pendingAction) {
+      case 'delete':
+        deleteWork(workId);
+        break;
+      case 'reissue':
+        createNewWorkEdition(work);
+        break;
+      case 'translation':
+        createWorkTranslation(work);
+        break;
+      case 'extend':
+        setOpenAddVolume(true);
+        break;
+    }
 
-    deleteWork(workId);
-  };
-
-  const addToSet = () => {
-    if (isActionPending || workSet.length > 0) return;
-
-    setOpenAddVolume(true);
+    setPendingAction(null);
   };
 
   const actions = [
@@ -111,22 +138,39 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
     //   name: 'Recommendations',
     // },
     {
-      icon: <DeleteOutlineIcon color={isActionPending ? 'disabled' : 'primary'} onClick={onDeleteWork} />,
+      icon: (
+        <DeleteOutlineIcon
+          color={isActionPending ? 'disabled' : 'primary'}
+          onClick={() => requestAction('delete')}
+        />
+      ),
       name: 'delete',
     },
     {
-      icon: <PlusOneIcon color={isActionPending ? 'disabled' : 'primary'} onClick={onCreateNewEdition} />,
+      icon: (
+        <PlusOneIcon color={isActionPending ? 'disabled' : 'primary'} onClick={() => requestAction('reissue')} />
+      ),
       name: 'reissue',
     },
     {
-      icon: <TranslateIcon color={isActionPending ? 'disabled' : 'primary'} onClick={onCreateTranslation} />,
+      icon: (
+        <TranslateIcon
+          color={isActionPending ? 'disabled' : 'primary'}
+          onClick={() => requestAction('translation')}
+        />
+      ),
       name: 'translation',
     },
   ];
 
   if (workSet.length === 0) {
     actions.push({
-      icon: <AddToPhotosIcon color={isActionPending ? 'disabled' : 'primary'} onClick={addToSet} />,
+      icon: (
+        <AddToPhotosIcon
+          color={isActionPending ? 'disabled' : 'primary'}
+          onClick={() => requestAction('extend')}
+        />
+      ),
       name: 'extend',
     });
   }
@@ -207,6 +251,21 @@ const WorkSpeedDial = (props: WorkSpeedDialProps) => {
       </SpeedDial>
       <AddVolume workId={workId} open={openAddVolume} onClose={() => setOpenAddVolume(false)} />
       <MetadataModal open={openMetaDialog} workId={workId} onClose={() => setOpenMetaDialog(false)} />
+
+      <Modal open={pendingAction !== null} onClose={confirmPendingAction}>
+        <ModalWrapper onClickAway={cancelPendingAction}>
+          <div className="flex justify-between">
+            <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) capitalize">
+              <TranslatedContent content={pendingAction ?? ''} />
+            </Typography>
+            <div className="flex gap-2">
+              <SubmitButton onClick={confirmPendingAction} />
+              <CloseButton onClose={cancelPendingAction} />
+            </div>
+          </div>
+          <Typography className="pl-4">{pendingAction && WORK_SPEEDDIAL_WARNINGS[pendingAction]}</Typography>
+        </ModalWrapper>
+      </Modal>
     </>
   );
 };

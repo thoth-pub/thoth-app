@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 
+import { useUser } from '@/src/entities/user';
 import {
   FORM_FIELDS,
   HELPER_TEXT,
@@ -27,8 +28,13 @@ type EditStatusProps = {
 
 const EditStatus = (props: EditStatusProps) => {
   const { disabled = true, defaultValue, onUpdate } = props;
+  const { user } = useUser();
 
   const availableNewStatusOptions = useMemo(() => {
+    if (user.isSuperuser) {
+      return workStatusOptions.filter((option) => option.value !== defaultValue);
+    }
+
     if (defaultValue === WorkStatuses.enum.Forthcoming) {
       return workStatusOptions.filter(
         (option) =>
@@ -49,7 +55,7 @@ const EditStatus = (props: EditStatusProps) => {
     }
 
     return [];
-  }, [defaultValue]);
+  }, [defaultValue, user.isSuperuser]);
 
   const isFieldDisable = disabled || availableNewStatusOptions.length < 1;
 

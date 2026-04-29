@@ -6,5 +6,9 @@
   "superseded": "Das Ändern des Status auf Ersetzt aktualisiert das Erscheinungsdatum auf das heutige Datum.",
   "withdrawn": "Das Ändern des Status auf Zurückgezogen aktualisiert das Erscheinungsdatum auf das heutige Datum.",
   "chaptersFundingsMismatch": "Dieser Abschnitt ist nicht verfügbar, da die Finanzierungen in den ausgewählten Kapiteln nicht übereinstimmen. Bitte überprüfen Sie die Finanzierungen und versuchen Sie es erneut.",
-  "chaptersContributorsMismatch": "Dieser Abschnitt ist nicht verfügbar, da die Mitwirkenden in den ausgewählten Kapiteln nicht übereinstimmen. Bitte überprüfen Sie die Mitwirkenden und versuchen Sie es erneut."
+  "chaptersContributorsMismatch": "Dieser Abschnitt ist nicht verfügbar, da die Mitwirkenden in den ausgewählten Kapiteln nicht übereinstimmen. Bitte überprüfen Sie die Mitwirkenden und versuchen Sie es erneut.",
+  "deleteWorkWarning": "Dadurch wird das Werk dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
+  "reissueWorkWarning": "Dadurch wird eine neue Ausgabe des Werks erstellt.",
+  "translateWorkWarning": "Dadurch wird eine Übersetzung des Werks erstellt.",
+  "extendWorkWarning": "Dadurch wird das Werk zu einer Reihe hinzugefügt."
 }
