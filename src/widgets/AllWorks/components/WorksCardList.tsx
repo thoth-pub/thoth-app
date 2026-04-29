@@ -1,10 +1,29 @@
 'use client';
 
+import type { ReactNode } from 'react';
+import { useState } from 'react';
+
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import { CardsList, Pagination, TranslatedContent, Typography } from '@/src/shared/ui';
+import {
+  CardsList,
+  CloseButton,
+  Modal,
+  ModalWrapper,
+  Pagination,
+  SubmitButton,
+  TranslatedContent,
+  Typography,
+} from '@/src/shared/ui';
 
 import { WorkCardListItem } from './WorkCardListItem';
+
+type PendingAction = 'reissue' | 'translation';
+
+const WORK_CARD_WARNINGS: Record<PendingAction, ReactNode> = {
+  reissue: <TranslatedContent content="reissueWorkWarning" namespace={NAMESPACES.enum.warnings} />,
+  translation: <TranslatedContent content="translateWorkWarning" namespace={NAMESPACES.enum.warnings} />,
+};
 
 type WorksCardListProps = {
   loading: boolean;
@@ -21,6 +40,24 @@ export const WorksCardList = (props: WorksCardListProps) => {
   const { loading, works, page, pagesCount, onPageChange, navigateToWork, onCreateNewEdition, onCreateTranslation } =
     props;
 
+  const [pending, setPending] = useState<{ type: PendingAction; work: WorkEntity } | null>(null);
+
+  const requestEdition = (work: WorkEntity) => setPending({ type: 'reissue', work });
+  const requestTranslation = (work: WorkEntity) => setPending({ type: 'translation', work });
+  const cancelPending = () => setPending(null);
+
+  const confirmPending = () => {
+    if (!pending) return;
+
+    if (pending.type === 'reissue') {
+      onCreateNewEdition(pending.work);
+    } else {
+      onCreateTranslation(pending.work);
+    }
+
+    setPending(null);
+  };
+
   return (
     <>
       {works.length === 0 && !loading && (
@@ -35,8 +72,8 @@ export const WorksCardList = (props: WorksCardListProps) => {
               <WorkCardListItem
                 key={work.id}
                 work={work}
-                createNewEdition={onCreateNewEdition}
-                createTranslation={onCreateTranslation}
+                createNewEdition={requestEdition}
+                createTranslation={requestTranslation}
                 navigateToWork={navigateToWork}
               />
             ))}
@@ -53,6 +90,21 @@ export const WorksCardList = (props: WorksCardListProps) => {
         onChange={(_, value) => onPageChange(value)}
         disabled={loading}
       />
+
+      <Modal open={pending !== null} onClose={confirmPending}>
+        <ModalWrapper onClickAway={cancelPending}>
+          <div className="flex justify-between">
+            <Typography variant="h2" component="h3" className="pl-4 text-(--color-typography) capitalize">
+              <TranslatedContent content={pending?.type ?? ''} />
+            </Typography>
+            <div className="flex gap-2">
+              <SubmitButton onClick={confirmPending} />
+              <CloseButton onClose={cancelPending} />
+            </div>
+          </div>
+          <Typography className="pl-4">{pending && WORK_CARD_WARNINGS[pending.type]}</Typography>
+        </ModalWrapper>
+      </Modal>
     </>
   );
 };

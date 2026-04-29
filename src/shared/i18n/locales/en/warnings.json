@@ -6,5 +6,9 @@
   "superseded": "Changing the status to Superseded will update the publication date to the current date.",
   "withdrawn": "Changing the status to Withdrawn will update the publication date to the current date.",
   "chaptersFundingsMismatch": "This section is unavailable because the fundings in selected chapters are not the same. Please check the fundings and try again.",
-  "chaptersContributorsMismatch": "This section is unavailable because the contributors in selected chapters are not the same. Please check the contributors and try again."
+  "chaptersContributorsMismatch": "This section is unavailable because the contributors in selected chapters are not the same. Please check the contributors and try again.",
+  "deleteWorkWarning": "This will permanently delete the work. This action cannot be undone.",
+  "reissueWorkWarning": "This will create a new edition of the work.",
+  "translateWorkWarning": "This will create a translation of the work.",
+  "extendWorkWarning": "This will add the work to a set."
 }
