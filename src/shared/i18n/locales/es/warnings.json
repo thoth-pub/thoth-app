@@ -8,7 +8,7 @@
   "chaptersFundingsMismatch": "Esta sección no está disponible porque las financiaciones en los capítulos seleccionados no son iguales. Por favor, revise las financiaciones e inténtelo de nuevo.",
   "chaptersContributorsMismatch": "Esta sección no está disponible porque los contribuyentes en los capítulos seleccionados no son iguales. Por favor, revise los contribuyentes e inténtelo de nuevo.",
   "deleteWorkWarning": "Esto eliminará la obra de forma permanente. Esta acción no se puede deshacer.",
-  "reissueWorkWarning": "Esto creará una nueva edición de la obra.",
+  "reissueWorkWarning": "Esto creará una nueva edición de la obra. La obra actual será movida al estado Sustituida.",
   "translateWorkWarning": "Esto creará una traducción de la obra.",
   "extendWorkWarning": "Esto añadirá la obra a un conjunto."
 }

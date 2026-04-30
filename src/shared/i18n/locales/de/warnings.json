@@ -8,7 +8,7 @@
   "chaptersFundingsMismatch": "Dieser Abschnitt ist nicht verfügbar, da die Finanzierungen in den ausgewählten Kapiteln nicht übereinstimmen. Bitte überprüfen Sie die Finanzierungen und versuchen Sie es erneut.",
   "chaptersContributorsMismatch": "Dieser Abschnitt ist nicht verfügbar, da die Mitwirkenden in den ausgewählten Kapiteln nicht übereinstimmen. Bitte überprüfen Sie die Mitwirkenden und versuchen Sie es erneut.",
   "deleteWorkWarning": "Dadurch wird das Werk dauerhaft gelöscht. Diese Aktion kann nicht rückgängig gemacht werden.",
-  "reissueWorkWarning": "Dadurch wird eine neue Ausgabe des Werks erstellt.",
+  "reissueWorkWarning": "Dadurch wird eine neue Ausgabe des Werks erstellt. Das aktuelle Werk wird auf den Status „Ersetzt“ gesetzt.",
   "translateWorkWarning": "Dadurch wird eine Übersetzung des Werks erstellt.",
   "extendWorkWarning": "Dadurch wird das Werk zu einer Reihe hinzugefügt."
 }
