@@ -109,4 +109,7 @@ export const appConfig = {
     defaultCurrency: CurrencyCode.enum.Gbp,
     defaultLocale: LanguageTypeAlt.enum.En,
   },
+  titles: {
+    terminalPunctuation: ['?', '!', ':', '.'],
+  },
 };

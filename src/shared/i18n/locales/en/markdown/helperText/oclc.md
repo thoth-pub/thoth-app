@@ -1,6 +1,6 @@
 # OCLC Number
 
-This section manages the [**OCLC Number**](https://www.oclc.org/bibformats/en/fixedfield/oclc.html). This persistent identifier is only relevant for US-based publishers.
+This section manages the [**OCLC Number**](https://www.oclc.org/bibformats/en/fixedfield/oclc.html).
 
 Edit mode allows the editing of the following field:
 

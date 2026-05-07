@@ -25,6 +25,7 @@ type InheritedDataFormValues = {
   contributors: boolean;
   fundings: boolean;
   subjects: boolean;
+  languages: boolean;
 };
 
 type InheritedDataFormProps = {
@@ -33,7 +34,7 @@ type InheritedDataFormProps = {
   progress?: { current: number; total: number } | null;
 };
 
-const { COPYRIGHT_HOLDER, LICENSE, SUBJECTS, IMPRINT, WORK_STATUS, CHAPTER_COUNT } = FORM_FIELDS;
+const { COPYRIGHT_HOLDER, LICENSE, SUBJECTS, LANGUAGES, IMPRINT, WORK_STATUS, CHAPTER_COUNT } = FORM_FIELDS;
 
 const itemStyles = 'max-w-fit p-0';
 const labelStyles = 'w-45 lg:w-55 capitalize text-wrap';
@@ -52,6 +53,7 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
       contributors: false,
       fundings: false,
       subjects: false,
+      languages: false,
     },
   });
 
@@ -103,6 +105,10 @@ export const InheritedDataForm = (props: InheritedDataFormProps) => {
                   className={itemStyles}
                   disabled={isLoading}
                 />
+              </div>
+              <div className={wrapperStyles}>
+                <FormFieldLabel label={LANGUAGES.label} className={labelStyles} />
+                <CheckboxFormField control={control} name="languages" className={itemStyles} disabled={isLoading} />
               </div>
               <div className={wrapperStyles}>
                 <FormFieldLabel label={SUBJECTS.label} className={labelStyles} />

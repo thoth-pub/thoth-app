@@ -1,6 +1,6 @@
 # OCLC-Nummer
 
-Dieser Bereich verwaltet die [**OCLC-Nummer**](https://www.oclc.org/bibformats/en/fixedfield/oclc.html). Dieser persistente Identifikator ist ausschließlich für Verlage mit Sitz in den USA relevant.
+Dieser Bereich verwaltet die [**OCLC-Nummer**](https://www.oclc.org/bibformats/en/fixedfield/oclc.html).
 
 Im Bearbeitungsmodus kann das folgende Feld bearbeitet werden:
 

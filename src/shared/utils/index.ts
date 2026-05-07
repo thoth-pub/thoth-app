@@ -32,6 +32,7 @@ export * from './publishers';
 export * from './strings';
 export * from './styles';
 export * from './subjects';
+export * from './titles';
 export * from './validations';
 export * from './work';
 export * from './xml';

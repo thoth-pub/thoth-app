@@ -7,7 +7,7 @@ import { useDefaultLocaleOption } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { Chip, MarkdownPreview, MultipleContentWrapper, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
-import { getMainTitle } from '@/src/shared/utils';
+import { compileFullTitle, getMainTitle } from '@/src/shared/utils';
 
 import type { SetEntity, SetTitleFormType } from '../../model/set.types';
 import { setTitleValidationSchema } from '../../model/set.validation';
@@ -34,7 +34,8 @@ export const EditSetTitle = ({ set, onSubmit, onDelete }: EditSetTitleProps) => 
 
   const defaultLocaleOption = useDefaultLocaleOption(set.imprintId);
 
-  const placeholder = getMainTitle(set.titles).fullTitle;
+  const mainTitle = getMainTitle(set.titles);
+  const placeholder = compileFullTitle(mainTitle.title, mainTitle.subtitle);
 
   const updateTitles = async (data: SetTitleFormType) => {
     onSubmit(data);
