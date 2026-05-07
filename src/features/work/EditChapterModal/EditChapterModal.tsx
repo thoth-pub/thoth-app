@@ -15,6 +15,7 @@ import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
 import EditContributors from '../EditContributors/EditContributors';
 import EditDescriptions from '../EditDescriptions/EditDescriptions';
 import EditFundings from '../EditFundings/EditFundings';
+import EditPublications from '../EditPublications/EditPublications';
 
 type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'> & {
   onDone?: () => void;
@@ -65,6 +66,7 @@ const EditChapterModal = (props: EditChapterModalProps) => {
       <EditChapterBasicDetails workId={chapter.id} />
       <EditDescriptions workId={chapter.id} isSingleChapterEdit={isSingleChapterSelected} />
       <EditContributors workId={chapter.id} />
+      <EditPublications workId={chapter.id} />
       <EditFundings workId={chapter.id} />
     </FullScreenModal>
   );
