@@ -55,8 +55,9 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
     contributors: boolean;
     fundings: boolean;
     subjects: boolean;
+    languages: boolean;
   }) => {
-    const { chapterCount, landingPage, license, copyrightHolder, contributors, fundings, subjects } = data;
+    const { chapterCount, landingPage, license, copyrightHolder, contributors, fundings, subjects, languages } = data;
 
     const chaptersToCreate = Array.from({ length: chapterCount }, (_, i) => {
       const ordinal = chapters.length + i + 1;
@@ -82,6 +83,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
         fundings: fundings ? work.fundings : [],
         subjects: subjects ? work.subjects : [],
         contributions: contributors ? work.contributions : [],
+        languages: languages ? work.languages : [],
       });
     });
 
