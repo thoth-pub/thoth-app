@@ -21,7 +21,7 @@ import {
   Typography,
 } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
-import { compileFullTitle, getMainTitle } from '@/src/shared/utils';
+import { getMainTitle } from '@/src/shared/utils';
 
 import { TitlesFormFields } from './components/TitlesFormFields';
 
@@ -47,7 +47,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
   const { deleteTitle } = useDeleteTitle(workId);
 
   const mainTitle = getMainTitle(work.titles);
-  const placeholder = compileFullTitle(mainTitle.title, mainTitle.subtitle);
+  const placeholder = mainTitle.fullTitle;
   const showIndicator = recommended && !placeholder;
 
   const titlesDefaultValues = work.titles.map(({ id, title, subtitle, localeCode }) => ({

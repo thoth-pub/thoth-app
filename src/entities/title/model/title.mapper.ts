@@ -1,28 +1,31 @@
 import type { BaseMapper } from '@/src/shared/interfaces';
 import type { TitleDto, TitleEntity } from '@/src/shared/types';
 import { emptyToNull } from '@/src/shared/utils/strings';
+import { compileFullTitle } from '@/src/shared/utils/titles';
 
 export class TitleDtoMapper implements BaseMapper<TitleEntity, TitleDto> {
   toEntity(dto: TitleDto): TitleEntity {
-    const { titleId, canonical, fullTitle, localeCode, subtitle, title } = dto;
+    const { titleId, canonical, localeCode, subtitle, title } = dto;
+
+    const normalizedSubtitle = subtitle ?? '';
 
     return {
       id: titleId,
       canonical,
-      fullTitle,
+      fullTitle: compileFullTitle(title, normalizedSubtitle),
       localeCode,
-      subtitle: subtitle ?? '',
+      subtitle: normalizedSubtitle,
       title,
     };
   }
 
   toDto(entity: TitleEntity): TitleDto {
-    const { id, canonical, fullTitle, localeCode, subtitle, title } = entity;
+    const { id, canonical, localeCode, subtitle, title } = entity;
 
     return {
       titleId: id,
       canonical,
-      fullTitle,
+      fullTitle: compileFullTitle(title, subtitle),
       localeCode,
       subtitle: emptyToNull(subtitle),
       title,
