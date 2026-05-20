@@ -69,8 +69,13 @@ const AddContributionModal = () => {
   };
 
   const handleCreate = () => {
-    edit({ ...defaultContribution });
+    const trimmed = searchValue.trim();
+
+    edit({ ...defaultContribution, ...(trimmed && { fullName: trimmed }) });
+
     handleModalState();
+    setSearchValue('');
+    setSelected('');
   };
 
   return (
