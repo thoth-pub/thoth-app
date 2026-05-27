@@ -15,6 +15,7 @@ export { default as Chip } from './core/Chip/Chip';
 export { default as CircularProgress } from './core/CircularProgress/CircularProgress';
 export { default as ClickAwayListener } from './core/ClickAwayListener/ClickAwayListener';
 export { default as CloseButton } from './core/CloseButton/CloseButton';
+export { default as ConfirmDialog } from './core/ConfirmDialog/ConfirmDialog';
 export { default as DeleteButton } from './core/DeleteButton/DeleteButton';
 export { default as DoiPreview } from './core/DoiPreview/DoiPreview';
 export { default as DragAndDropWrapper } from './core/DragAndDropWrapper/DragAndDropWrapper';

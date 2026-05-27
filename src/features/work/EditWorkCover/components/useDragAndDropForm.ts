@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useCopyToClipboard } from 'react-use';
 
@@ -15,7 +15,7 @@ import useIsDragStarted from '@/src/shared/hooks/useIsDragStarted';
 const { COVER_URL } = FORM_FIELDS;
 
 export const useDragAndDropForm = (workId: WorkId) => {
-  const { work, loading: isWorkLoading } = useWork(workId);
+  const { work, loading: isWorkLoading, updateWork } = useWork(workId);
 
   const time = Date.now().toString();
   const defaultValue = work.coverUrl ? `${work.coverUrl}?${time}` : '';
@@ -26,6 +26,7 @@ export const useDragAndDropForm = (workId: WorkId) => {
   const [, copyToClipboard] = useCopyToClipboard();
   const { updateWorkFrontCover, loading } = useUpdateWorkFrontCover(workId);
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
 
   const { register, handleSubmit, setValue, reset, watch } = useForm({
     reValidateMode: 'onSubmit',
@@ -95,6 +96,22 @@ export const useDragAndDropForm = (workId: WorkId) => {
     sendSuccessNotification(NOTIFICATIONS.COVER_URL_COPY_SUCCESS);
   };
 
+  const openRemoveDialog = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+    setIsRemoveDialogOpen(true);
+  };
+
+  const closeRemoveDialog = () => {
+    setIsRemoveDialogOpen(false);
+  };
+
+  const confirmRemoveCover = async () => {
+    await updateWork({ ...work, coverUrl: '' });
+
+    setIsRemoveDialogOpen(false);
+    sendSuccessNotification(NOTIFICATIONS.COVER_REMOVE_SUCCESS);
+  };
+
   const uploadFileClick = (e: React.MouseEvent<HTMLInputElement>) => {
     if (isDoiEmpty) {
       e.preventDefault();
@@ -111,10 +128,14 @@ export const useDragAndDropForm = (workId: WorkId) => {
     fieldProps,
     isUrlCoverFilled,
     inputRef,
+    isRemoveDialogOpen,
     ref,
     copyCoverUrlToClipboard,
     dropFile,
     uploadFile,
     uploadFileClick,
+    openRemoveDialog,
+    closeRemoveDialog,
+    confirmRemoveCover,
   };
 };

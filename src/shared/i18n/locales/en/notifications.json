@@ -110,5 +110,6 @@
   "publicationUploadFileDisabled": "DOI and landing page are required to upload a file",
   "doiIsRequired": "DOI is required",
   "workCoverUpdateFailed": "Failed to update work cover",
-  "coverUrlCopySuccess": "Cover URL copied to clipboard"
+  "coverUrlCopySuccess": "Cover URL copied to clipboard",
+  "coverRemoveSuccess": "Cover removed successfully"
 }

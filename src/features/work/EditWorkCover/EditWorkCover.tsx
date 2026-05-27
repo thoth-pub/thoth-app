@@ -15,14 +15,14 @@ type EditWorkCoverProps = BaseEditSectionProps & {
 const EditWorkCover = (props: EditWorkCoverProps) => {
   const { workId } = props;
 
-  const { idDragAndDropEnabled } = useActivePublisherPermissions();
+  const { isCoverDragAndDropEnabled } = useActivePublisherPermissions();
 
   return (
     <>
-      <Activity mode={idDragAndDropEnabled ? 'visible' : 'hidden'}>
+      <Activity mode={isCoverDragAndDropEnabled ? 'visible' : 'hidden'}>
         <DragAndDropForm workId={workId} />
       </Activity>
-      <Activity mode={idDragAndDropEnabled ? 'hidden' : 'visible'}>
+      <Activity mode={isCoverDragAndDropEnabled ? 'hidden' : 'visible'}>
         <CoverForm workId={workId} />
       </Activity>
     </>

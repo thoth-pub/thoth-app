@@ -10,5 +10,6 @@
   "deleteWorkWarning": "This will permanently delete the work. This action cannot be undone.",
   "reissueWorkWarning": "This will create a new edition of the work. The current work will be moved to Superseded status.",
   "translateWorkWarning": "This will create a translation of the work.",
-  "extendWorkWarning": "This will add the work to a set."
+  "extendWorkWarning": "This will add the work to a set.",
+  "removeCoverWarning": "This will remove the cover from the work. You can upload or set a new one anytime."
 }
