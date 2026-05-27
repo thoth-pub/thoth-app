@@ -10,5 +10,6 @@
   "deleteWorkWarning": "Isto irá apagar a obra permanentemente. Esta ação não pode ser desfeita.",
   "reissueWorkWarning": "Isto irá criar uma nova edição da obra. A obra atual será movida para o estado Substituída.",
   "translateWorkWarning": "Isto irá criar uma tradução da obra.",
-  "extendWorkWarning": "Isto irá adicionar a obra a um conjunto."
+  "extendWorkWarning": "Isto irá adicionar a obra a um conjunto.",
+  "removeCoverWarning": "Isto irá remover a capa da obra. Pode carregar ou definir uma nova a qualquer momento."
 }

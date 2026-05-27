@@ -17,6 +17,7 @@
     "browseFile": "Browse File",
     "addCover": "Add Cover",
     "changeCover": "Change Cover",
+    "removeCover": "Remove Cover",
     "addContributor": "Add Contributor",
     "addNewContributor": "Add New Contributor",
     "createNew": "Create New",

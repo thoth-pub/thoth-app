@@ -11,7 +11,7 @@ const useActivePublisherPermissions = () => {
   const isFileUploadEditable = user.isSuperuser || (activePublisher ? activePublisher.cdnWrite : false);
 
   return {
-    idDragAndDropEnabled: isFileUploadEditable,
+    isCoverDragAndDropEnabled: isFileUploadEditable,
     isImprintEditable: isImprintEditable,
     isStatusEditable: isLifecycleEditable,
     isPublicationDateEditable: isLifecycleEditable,

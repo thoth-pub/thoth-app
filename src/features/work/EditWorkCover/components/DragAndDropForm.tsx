@@ -1,11 +1,13 @@
 'use client';
 
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import Image from 'next/image';
 
 import type { WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared/config';
-import { Button, CircularProgress, IconButton, TranslatedContent, Typography } from '@/src/shared/ui';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { Button, CircularProgress, ConfirmDialog, IconButton, TranslatedContent, Typography } from '@/src/shared/ui';
 
 import { PlaceholderLogo } from './PlaceholderLogo';
 import { useDragAndDropForm } from './useDragAndDropForm';
@@ -30,6 +32,10 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
     uploadFile,
     uploadFileClick,
     copyCoverUrlToClipboard,
+    isRemoveDialogOpen,
+    openRemoveDialog,
+    closeRemoveDialog,
+    confirmRemoveCover,
   } = useDragAndDropForm(workId);
 
   return (
@@ -57,14 +63,14 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
         )}
 
         {isUrlCoverFilled && (
-          <IconButton
-            className="absolute top-0 right-0 z-100 h-12 w-12 p-0"
-            onClick={copyCoverUrlToClipboard}
-            size="large"
-            disabled={loading}
-          >
-            <ContentCopyIcon color="primary" />
-          </IconButton>
+          <div className="absolute top-0 right-0 z-100 flex">
+            <IconButton className="h-12 w-12 p-0" onClick={copyCoverUrlToClipboard} size="large" disabled={loading}>
+              <ContentCopyIcon color="primary" />
+            </IconButton>
+            <IconButton className="h-12 w-12 p-0" onClick={openRemoveDialog} size="large" disabled={loading}>
+              <DeleteOutlineIcon color="primary" />
+            </IconButton>
+          </div>
         )}
 
         {loading && <CircularProgress />}
@@ -82,6 +88,13 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
           disabled={loading}
         />
       </form>
+      <ConfirmDialog
+        open={isRemoveDialogOpen}
+        title={<TranslatedContent content="actions.removeCover" />}
+        description={<TranslatedContent content="removeCoverWarning" namespace={NAMESPACES.enum.warnings} />}
+        onConfirm={confirmRemoveCover}
+        onCancel={closeRemoveDialog}
+      />
     </Wrapper>
   );
 };

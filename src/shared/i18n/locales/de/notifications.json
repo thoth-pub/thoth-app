@@ -110,5 +110,6 @@
   "publicationUploadFileDisabled": "DOI und Landingpage sind erforderlich, um eine Datei hochzuladen",
   "doiIsRequired": "DOI ist erforderlich",
   "workCoverUpdateFailed": "Cover des Werks konnte nicht aktualisiert werden",
-  "coverUrlCopySuccess": "Cover-URL in die Zwischenablage kopiert"
+  "coverUrlCopySuccess": "Cover-URL in die Zwischenablage kopiert",
+  "coverRemoveSuccess": "Cover erfolgreich entfernt"
 }

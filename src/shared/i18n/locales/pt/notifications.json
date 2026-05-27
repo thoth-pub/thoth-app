@@ -110,5 +110,6 @@
   "publicationUploadFileDisabled": "O DOI e a página de destino são necessários para carregar um ficheiro",
   "doiIsRequired": "O DOI é obrigatório",
   "workCoverUpdateFailed": "Falha ao atualizar a capa da obra",
-  "coverUrlCopySuccess": "URL da capa copiada para a área de transferência"
+  "coverUrlCopySuccess": "URL da capa copiada para a área de transferência",
+  "coverRemoveSuccess": "Capa removida com sucesso"
 }

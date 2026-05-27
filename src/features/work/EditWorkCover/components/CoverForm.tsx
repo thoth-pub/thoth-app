@@ -2,6 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import { IconButton } from '@mui/material';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -12,9 +13,11 @@ import { CoverUrlAltForm } from '@/src/entities/work/model/work.types';
 import { coverUrlAltValidationSchema } from '@/src/entities/work/model/work.validation';
 import { FORM_FIELDS, NOTIFICATIONS } from '@/src/shared/constants';
 import { useNotifications } from '@/src/shared/hooks';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 import {
   CloseButton,
+  ConfirmDialog,
   ContentWrapper,
   FormFieldLabel,
   FormTextField,
@@ -35,6 +38,7 @@ export const CoverForm = (props: BaseEditSectionProps) => {
   const { workId } = props;
 
   const [isOpen, setIsOpen] = useState(false);
+  const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
   const { work, updateWork } = useWork(workId);
   const [, copyToClipboard] = useCopyToClipboard();
   const { sendSuccessNotification } = useNotifications();
@@ -66,6 +70,22 @@ export const CoverForm = (props: BaseEditSectionProps) => {
     sendSuccessNotification(NOTIFICATIONS.COVER_URL_COPY_SUCCESS);
   };
 
+  const handleRemoveCoverClick = (e: React.MouseEvent<HTMLButtonElement>) => {
+    e.stopPropagation();
+
+    setIsRemoveDialogOpen(true);
+  };
+
+  const handleRemoveCoverCancel = () => {
+    setIsRemoveDialogOpen(false);
+  };
+
+  const handleRemoveCoverConfirm = () => {
+    updateWork({ ...work, coverUrl: '' });
+    setIsRemoveDialogOpen(false);
+    sendSuccessNotification(NOTIFICATIONS.COVER_REMOVE_SUCCESS);
+  };
+
   return (
     <Wrapper>
       <div className="relative h-full w-full">
@@ -90,9 +110,14 @@ export const CoverForm = (props: BaseEditSectionProps) => {
           )}
         </button>
         {work.coverUrl && (
-          <IconButton className="absolute top-0 right-0 h-12 w-12 p-0" onClick={handleCopyToClipboard}>
-            <ContentCopyIcon color="primary" />
-          </IconButton>
+          <div className="absolute top-0 right-0 flex">
+            <IconButton className="h-12 w-12 p-0" onClick={handleCopyToClipboard}>
+              <ContentCopyIcon color="primary" />
+            </IconButton>
+            <IconButton className="h-12 w-12 p-0" onClick={handleRemoveCoverClick}>
+              <DeleteOutlineIcon color="primary" />
+            </IconButton>
+          </div>
         )}
       </div>
       <Modal open={isOpen}>
@@ -121,6 +146,13 @@ export const CoverForm = (props: BaseEditSectionProps) => {
           </form>
         </ModalWrapper>
       </Modal>
+      <ConfirmDialog
+        open={isRemoveDialogOpen}
+        title={<TranslatedContent content="actions.removeCover" />}
+        description={<TranslatedContent content="removeCoverWarning" namespace={NAMESPACES.enum.warnings} />}
+        onConfirm={handleRemoveCoverConfirm}
+        onCancel={handleRemoveCoverCancel}
+      />
     </Wrapper>
   );
 };

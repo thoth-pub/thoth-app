@@ -19,6 +19,7 @@ export const NOTIFICATIONS = {
   WORK_MOVE_RELATION_FAILED: 'workMoveRelationFailed',
   WORK_COVER_UPDATE_FAILED: 'workCoverUpdateFailed',
   COVER_URL_COPY_SUCCESS: 'coverUrlCopySuccess',
+  COVER_REMOVE_SUCCESS: 'coverRemoveSuccess',
   // Chapters
   CHAPTER_CREATION_SUCCESS: 'chapterCreationSuccess',
   CHAPTER_CREATION_FAILED: 'chapterCreationFailed',
