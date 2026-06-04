@@ -94,7 +94,6 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
             <EditPrice
               defaultCurrencyOption={defaultCurrencyOption}
               onUpdate={updatePrices}
-              onClose={finishEditing}
               prices={publication.prices}
             />
             <EditLocations

@@ -19,13 +19,12 @@ type EditPriceProps = Partial<{
   defaultCurrencyOption?: { value: CurrencyCode; label: string };
   onUpdate: (data: PricesForm) => void;
   onDelete: (id: string) => void;
-  onClose?: () => void;
 }>;
 
 const { CURRENCY, VALUE } = FORM_FIELDS;
 
 const EditPrice = (props: EditPriceProps) => {
-  const { prices = [], defaultCurrencyOption, onUpdate, onDelete, onClose } = props;
+  const { prices = [], defaultCurrencyOption, onUpdate, onDelete } = props;
 
   const defaultValues = prices.map(({ id, currencyCode, unitPrice }) => {
     const currencyOption = currencyOptions.find((option) => option.value.toLowerCase() === currencyCode.toLowerCase());
@@ -59,7 +58,6 @@ const EditPrice = (props: EditPriceProps) => {
           control={control as unknown as Control<PricesForm>}
           defaultCurrencyOption={defaultCurrencyOption}
           onDelete={onDelete}
-          onClose={onClose}
         />
       )}
       preview={({ disabled, onEdit }) => (

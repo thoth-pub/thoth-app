@@ -23,7 +23,6 @@ type FormFieldsProps = {
   control: Control<PricesForm>;
   defaultCurrencyOption?: { value: CurrencyCode; label: string };
   onDelete?: (id: string) => void;
-  onClose?: () => void;
 };
 
 const { PRICES, CURRENCY, VALUE } = FORM_FIELDS;
@@ -35,7 +34,6 @@ export const FormFields = (props: FormFieldsProps) => {
     control,
     defaultCurrencyOption = currencyOptions[0] as { value: CurrencyCode; label: string },
     onDelete,
-    onClose,
   } = props;
 
   const { fields, append, remove } = useFieldArray({
@@ -79,10 +77,6 @@ export const FormFields = (props: FormFieldsProps) => {
     }
 
     remove(index);
-
-    if (fields.length === 1) {
-      onClose?.();
-    }
   };
 
   return (
