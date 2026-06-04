@@ -80,7 +80,6 @@ const EditPublication = (props: EditPublicationProps) => {
             defaultCurrencyOption={defaultCurrencyOption}
             prices={activePublication.prices}
             onUpdate={updatePrices}
-            onClose={finishEditing}
           />
           <EditLocations
             locations={activePublication.locations}
