@@ -42,7 +42,7 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
 
   const actionsClassName = `opacity-0 ${!disableControls && 'group-hover:opacity-100'}`;
 
-  const { id, titles, pageCount, contributions, firstPage, lastPage, doi } = chapter;
+  const { id, titles, pageCount, contributions, firstPage, lastPage, doi, landingPage } = chapter;
 
   const contributorsNames = contributions.map((contribution) => contribution.fullName);
 
@@ -91,7 +91,7 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
         </Typography>
       )}
 
-      {doi.length > 0 && <DoiPreview doi={doi} />}
+      {doi.length > 0 && <DoiPreview doi={doi} landingPage={landingPage ?? ''} />}
     </CardListItem>
   );
 };
