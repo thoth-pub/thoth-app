@@ -96,8 +96,8 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
           />
         </form>
       ) : (
-        <Modal open>
-          <ModalWrapper onClickAway={onClose}>
+        <Modal open onClose={onClose}>
+          <ModalWrapper>
             <form
               onSubmit={handleSubmitForm}
               className={mergeStyles('flex gap-1 rounded-xl bg-(--color-form-background) p-4', className)}
