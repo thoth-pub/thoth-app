@@ -578,12 +578,13 @@ export const getCsvConfig = (
         required: false,
       },
 
-      { name: 'contribution_6_first_name', inputName: CONTRIBUTION_6_FIRST_NAME, required: false },
-      { name: 'contribution_6_surname', inputName: CONTRIBUTION_6_LAST_NAME, required: false },
+      { name: 'contribution_6_first_name', inputName: CONTRIBUTION_6_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_6_surname', inputName: CONTRIBUTION_6_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_6_role',
         inputName: CONTRIBUTION_6_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -595,31 +596,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_6_biography', inputName: CONTRIBUTION_6_BIOGRAPHY, required: false },
-      { name: 'contribution_6_orcid', inputName: CONTRIBUTION_6_ORCID, required: false },
-      { name: 'contribution_6_website', inputName: CONTRIBUTION_6_WEBSITE, required: false },
+      { name: 'contribution_6_biography', inputName: CONTRIBUTION_6_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_6_orcid', inputName: CONTRIBUTION_6_ORCID, required: false, optional: true },
+      { name: 'contribution_6_website', inputName: CONTRIBUTION_6_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_6_affiliation_position',
         inputName: CONTRIBUTION_6_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_6_affiliation_institution_name',
         inputName: CONTRIBUTION_6_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_6_affiliation_institution_ror',
         inputName: CONTRIBUTION_6_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_7_first_name', inputName: CONTRIBUTION_7_FIRST_NAME, required: false },
-      { name: 'contribution_7_surname', inputName: CONTRIBUTION_7_LAST_NAME, required: false },
+      { name: 'contribution_7_first_name', inputName: CONTRIBUTION_7_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_7_surname', inputName: CONTRIBUTION_7_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_7_role',
         inputName: CONTRIBUTION_7_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -631,31 +636,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_7_biography', inputName: CONTRIBUTION_7_BIOGRAPHY, required: false },
-      { name: 'contribution_7_orcid', inputName: CONTRIBUTION_7_ORCID, required: false },
-      { name: 'contribution_7_website', inputName: CONTRIBUTION_7_WEBSITE, required: false },
+      { name: 'contribution_7_biography', inputName: CONTRIBUTION_7_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_7_orcid', inputName: CONTRIBUTION_7_ORCID, required: false, optional: true },
+      { name: 'contribution_7_website', inputName: CONTRIBUTION_7_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_7_affiliation_position',
         inputName: CONTRIBUTION_7_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_7_affiliation_institution_name',
         inputName: CONTRIBUTION_7_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_7_affiliation_institution_ror',
         inputName: CONTRIBUTION_7_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_8_first_name', inputName: CONTRIBUTION_8_FIRST_NAME, required: false },
-      { name: 'contribution_8_surname', inputName: CONTRIBUTION_8_LAST_NAME, required: false },
+      { name: 'contribution_8_first_name', inputName: CONTRIBUTION_8_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_8_surname', inputName: CONTRIBUTION_8_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_8_role',
         inputName: CONTRIBUTION_8_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -667,31 +676,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_8_biography', inputName: CONTRIBUTION_8_BIOGRAPHY, required: false },
-      { name: 'contribution_8_orcid', inputName: CONTRIBUTION_8_ORCID, required: false },
-      { name: 'contribution_8_website', inputName: CONTRIBUTION_8_WEBSITE, required: false },
+      { name: 'contribution_8_biography', inputName: CONTRIBUTION_8_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_8_orcid', inputName: CONTRIBUTION_8_ORCID, required: false, optional: true },
+      { name: 'contribution_8_website', inputName: CONTRIBUTION_8_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_8_affiliation_position',
         inputName: CONTRIBUTION_8_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_8_affiliation_institution_name',
         inputName: CONTRIBUTION_8_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_8_affiliation_institution_ror',
         inputName: CONTRIBUTION_8_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_9_first_name', inputName: CONTRIBUTION_9_FIRST_NAME, required: false },
-      { name: 'contribution_9_surname', inputName: CONTRIBUTION_9_LAST_NAME, required: false },
+      { name: 'contribution_9_first_name', inputName: CONTRIBUTION_9_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_9_surname', inputName: CONTRIBUTION_9_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_9_role',
         inputName: CONTRIBUTION_9_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -703,31 +716,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_9_biography', inputName: CONTRIBUTION_9_BIOGRAPHY, required: false },
-      { name: 'contribution_9_orcid', inputName: CONTRIBUTION_9_ORCID, required: false },
-      { name: 'contribution_9_website', inputName: CONTRIBUTION_9_WEBSITE, required: false },
+      { name: 'contribution_9_biography', inputName: CONTRIBUTION_9_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_9_orcid', inputName: CONTRIBUTION_9_ORCID, required: false, optional: true },
+      { name: 'contribution_9_website', inputName: CONTRIBUTION_9_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_9_affiliation_position',
         inputName: CONTRIBUTION_9_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_9_affiliation_institution_name',
         inputName: CONTRIBUTION_9_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_9_affiliation_institution_ror',
         inputName: CONTRIBUTION_9_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_10_first_name', inputName: CONTRIBUTION_10_FIRST_NAME, required: false },
-      { name: 'contribution_10_surname', inputName: CONTRIBUTION_10_LAST_NAME, required: false },
+      { name: 'contribution_10_first_name', inputName: CONTRIBUTION_10_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_10_surname', inputName: CONTRIBUTION_10_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_10_role',
         inputName: CONTRIBUTION_10_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -739,31 +756,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_10_biography', inputName: CONTRIBUTION_10_BIOGRAPHY, required: false },
-      { name: 'contribution_10_orcid', inputName: CONTRIBUTION_10_ORCID, required: false },
-      { name: 'contribution_10_website', inputName: CONTRIBUTION_10_WEBSITE, required: false },
+      { name: 'contribution_10_biography', inputName: CONTRIBUTION_10_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_10_orcid', inputName: CONTRIBUTION_10_ORCID, required: false, optional: true },
+      { name: 'contribution_10_website', inputName: CONTRIBUTION_10_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_10_affiliation_position',
         inputName: CONTRIBUTION_10_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_10_affiliation_institution_name',
         inputName: CONTRIBUTION_10_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_10_affiliation_institution_ror',
         inputName: CONTRIBUTION_10_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_11_first_name', inputName: CONTRIBUTION_11_FIRST_NAME, required: false },
-      { name: 'contribution_11_surname', inputName: CONTRIBUTION_11_LAST_NAME, required: false },
+      { name: 'contribution_11_first_name', inputName: CONTRIBUTION_11_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_11_surname', inputName: CONTRIBUTION_11_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_11_role',
         inputName: CONTRIBUTION_11_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -775,31 +796,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_11_biography', inputName: CONTRIBUTION_11_BIOGRAPHY, required: false },
-      { name: 'contribution_11_orcid', inputName: CONTRIBUTION_11_ORCID, required: false },
-      { name: 'contribution_11_website', inputName: CONTRIBUTION_11_WEBSITE, required: false },
+      { name: 'contribution_11_biography', inputName: CONTRIBUTION_11_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_11_orcid', inputName: CONTRIBUTION_11_ORCID, required: false, optional: true },
+      { name: 'contribution_11_website', inputName: CONTRIBUTION_11_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_11_affiliation_position',
         inputName: CONTRIBUTION_11_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_11_affiliation_institution_name',
         inputName: CONTRIBUTION_11_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_11_affiliation_institution_ror',
         inputName: CONTRIBUTION_11_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_12_first_name', inputName: CONTRIBUTION_12_FIRST_NAME, required: false },
-      { name: 'contribution_12_surname', inputName: CONTRIBUTION_12_LAST_NAME, required: false },
+      { name: 'contribution_12_first_name', inputName: CONTRIBUTION_12_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_12_surname', inputName: CONTRIBUTION_12_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_12_role',
         inputName: CONTRIBUTION_12_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -811,31 +836,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_12_biography', inputName: CONTRIBUTION_12_BIOGRAPHY, required: false },
-      { name: 'contribution_12_orcid', inputName: CONTRIBUTION_12_ORCID, required: false },
-      { name: 'contribution_12_website', inputName: CONTRIBUTION_12_WEBSITE, required: false },
+      { name: 'contribution_12_biography', inputName: CONTRIBUTION_12_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_12_orcid', inputName: CONTRIBUTION_12_ORCID, required: false, optional: true },
+      { name: 'contribution_12_website', inputName: CONTRIBUTION_12_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_12_affiliation_position',
         inputName: CONTRIBUTION_12_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_12_affiliation_institution_name',
         inputName: CONTRIBUTION_12_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_12_affiliation_institution_ror',
         inputName: CONTRIBUTION_12_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_13_first_name', inputName: CONTRIBUTION_13_FIRST_NAME, required: false },
-      { name: 'contribution_13_surname', inputName: CONTRIBUTION_13_LAST_NAME, required: false },
+      { name: 'contribution_13_first_name', inputName: CONTRIBUTION_13_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_13_surname', inputName: CONTRIBUTION_13_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_13_role',
         inputName: CONTRIBUTION_13_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -847,31 +876,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_13_biography', inputName: CONTRIBUTION_13_BIOGRAPHY, required: false },
-      { name: 'contribution_13_orcid', inputName: CONTRIBUTION_13_ORCID, required: false },
-      { name: 'contribution_13_website', inputName: CONTRIBUTION_13_WEBSITE, required: false },
+      { name: 'contribution_13_biography', inputName: CONTRIBUTION_13_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_13_orcid', inputName: CONTRIBUTION_13_ORCID, required: false, optional: true },
+      { name: 'contribution_13_website', inputName: CONTRIBUTION_13_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_13_affiliation_position',
         inputName: CONTRIBUTION_13_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_13_affiliation_institution_name',
         inputName: CONTRIBUTION_13_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_13_affiliation_institution_ror',
         inputName: CONTRIBUTION_13_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_14_first_name', inputName: CONTRIBUTION_14_FIRST_NAME, required: false },
-      { name: 'contribution_14_surname', inputName: CONTRIBUTION_14_LAST_NAME, required: false },
+      { name: 'contribution_14_first_name', inputName: CONTRIBUTION_14_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_14_surname', inputName: CONTRIBUTION_14_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_14_role',
         inputName: CONTRIBUTION_14_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -883,31 +916,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_14_biography', inputName: CONTRIBUTION_14_BIOGRAPHY, required: false },
-      { name: 'contribution_14_orcid', inputName: CONTRIBUTION_14_ORCID, required: false },
-      { name: 'contribution_14_website', inputName: CONTRIBUTION_14_WEBSITE, required: false },
+      { name: 'contribution_14_biography', inputName: CONTRIBUTION_14_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_14_orcid', inputName: CONTRIBUTION_14_ORCID, required: false, optional: true },
+      { name: 'contribution_14_website', inputName: CONTRIBUTION_14_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_14_affiliation_position',
         inputName: CONTRIBUTION_14_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_14_affiliation_institution_name',
         inputName: CONTRIBUTION_14_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_14_affiliation_institution_ror',
         inputName: CONTRIBUTION_14_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_15_first_name', inputName: CONTRIBUTION_15_FIRST_NAME, required: false },
-      { name: 'contribution_15_surname', inputName: CONTRIBUTION_15_LAST_NAME, required: false },
+      { name: 'contribution_15_first_name', inputName: CONTRIBUTION_15_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_15_surname', inputName: CONTRIBUTION_15_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_15_role',
         inputName: CONTRIBUTION_15_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -919,31 +956,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_15_biography', inputName: CONTRIBUTION_15_BIOGRAPHY, required: false },
-      { name: 'contribution_15_orcid', inputName: CONTRIBUTION_15_ORCID, required: false },
-      { name: 'contribution_15_website', inputName: CONTRIBUTION_15_WEBSITE, required: false },
+      { name: 'contribution_15_biography', inputName: CONTRIBUTION_15_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_15_orcid', inputName: CONTRIBUTION_15_ORCID, required: false, optional: true },
+      { name: 'contribution_15_website', inputName: CONTRIBUTION_15_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_15_affiliation_position',
         inputName: CONTRIBUTION_15_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_15_affiliation_institution_name',
         inputName: CONTRIBUTION_15_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_15_affiliation_institution_ror',
         inputName: CONTRIBUTION_15_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_16_first_name', inputName: CONTRIBUTION_16_FIRST_NAME, required: false },
-      { name: 'contribution_16_surname', inputName: CONTRIBUTION_16_LAST_NAME, required: false },
+      { name: 'contribution_16_first_name', inputName: CONTRIBUTION_16_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_16_surname', inputName: CONTRIBUTION_16_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_16_role',
         inputName: CONTRIBUTION_16_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -955,31 +996,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_16_biography', inputName: CONTRIBUTION_16_BIOGRAPHY, required: false },
-      { name: 'contribution_16_orcid', inputName: CONTRIBUTION_16_ORCID, required: false },
-      { name: 'contribution_16_website', inputName: CONTRIBUTION_16_WEBSITE, required: false },
+      { name: 'contribution_16_biography', inputName: CONTRIBUTION_16_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_16_orcid', inputName: CONTRIBUTION_16_ORCID, required: false, optional: true },
+      { name: 'contribution_16_website', inputName: CONTRIBUTION_16_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_16_affiliation_position',
         inputName: CONTRIBUTION_16_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_16_affiliation_institution_name',
         inputName: CONTRIBUTION_16_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_16_affiliation_institution_ror',
         inputName: CONTRIBUTION_16_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_17_first_name', inputName: CONTRIBUTION_17_FIRST_NAME, required: false },
-      { name: 'contribution_17_surname', inputName: CONTRIBUTION_17_LAST_NAME, required: false },
+      { name: 'contribution_17_first_name', inputName: CONTRIBUTION_17_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_17_surname', inputName: CONTRIBUTION_17_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_17_role',
         inputName: CONTRIBUTION_17_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -991,31 +1036,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_17_biography', inputName: CONTRIBUTION_17_BIOGRAPHY, required: false },
-      { name: 'contribution_17_orcid', inputName: CONTRIBUTION_17_ORCID, required: false },
-      { name: 'contribution_17_website', inputName: CONTRIBUTION_17_WEBSITE, required: false },
+      { name: 'contribution_17_biography', inputName: CONTRIBUTION_17_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_17_orcid', inputName: CONTRIBUTION_17_ORCID, required: false, optional: true },
+      { name: 'contribution_17_website', inputName: CONTRIBUTION_17_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_17_affiliation_position',
         inputName: CONTRIBUTION_17_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_17_affiliation_institution_name',
         inputName: CONTRIBUTION_17_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_17_affiliation_institution_ror',
         inputName: CONTRIBUTION_17_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_18_first_name', inputName: CONTRIBUTION_18_FIRST_NAME, required: false },
-      { name: 'contribution_18_surname', inputName: CONTRIBUTION_18_LAST_NAME, required: false },
+      { name: 'contribution_18_first_name', inputName: CONTRIBUTION_18_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_18_surname', inputName: CONTRIBUTION_18_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_18_role',
         inputName: CONTRIBUTION_18_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -1027,31 +1076,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_18_biography', inputName: CONTRIBUTION_18_BIOGRAPHY, required: false },
-      { name: 'contribution_18_orcid', inputName: CONTRIBUTION_18_ORCID, required: false },
-      { name: 'contribution_18_website', inputName: CONTRIBUTION_18_WEBSITE, required: false },
+      { name: 'contribution_18_biography', inputName: CONTRIBUTION_18_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_18_orcid', inputName: CONTRIBUTION_18_ORCID, required: false, optional: true },
+      { name: 'contribution_18_website', inputName: CONTRIBUTION_18_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_18_affiliation_position',
         inputName: CONTRIBUTION_18_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_18_affiliation_institution_name',
         inputName: CONTRIBUTION_18_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_18_affiliation_institution_ror',
         inputName: CONTRIBUTION_18_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_19_first_name', inputName: CONTRIBUTION_19_FIRST_NAME, required: false },
-      { name: 'contribution_19_surname', inputName: CONTRIBUTION_19_LAST_NAME, required: false },
+      { name: 'contribution_19_first_name', inputName: CONTRIBUTION_19_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_19_surname', inputName: CONTRIBUTION_19_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_19_role',
         inputName: CONTRIBUTION_19_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -1063,31 +1116,35 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_19_biography', inputName: CONTRIBUTION_19_BIOGRAPHY, required: false },
-      { name: 'contribution_19_orcid', inputName: CONTRIBUTION_19_ORCID, required: false },
-      { name: 'contribution_19_website', inputName: CONTRIBUTION_19_WEBSITE, required: false },
+      { name: 'contribution_19_biography', inputName: CONTRIBUTION_19_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_19_orcid', inputName: CONTRIBUTION_19_ORCID, required: false, optional: true },
+      { name: 'contribution_19_website', inputName: CONTRIBUTION_19_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_19_affiliation_position',
         inputName: CONTRIBUTION_19_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_19_affiliation_institution_name',
         inputName: CONTRIBUTION_19_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_19_affiliation_institution_ror',
         inputName: CONTRIBUTION_19_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
 
-      { name: 'contribution_20_first_name', inputName: CONTRIBUTION_20_FIRST_NAME, required: false },
-      { name: 'contribution_20_surname', inputName: CONTRIBUTION_20_LAST_NAME, required: false },
+      { name: 'contribution_20_first_name', inputName: CONTRIBUTION_20_FIRST_NAME, required: false, optional: true },
+      { name: 'contribution_20_surname', inputName: CONTRIBUTION_20_LAST_NAME, required: false, optional: true },
       {
         name: 'contribution_20_role',
         inputName: CONTRIBUTION_20_ROLE,
         required: false,
+        optional: true,
         validate: (field: CSVFieldType) => {
           const data = `${field}`.trim();
 
@@ -1099,23 +1156,26 @@ export const getCsvConfig = (
           return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: ContributorTypes.options.join(', ') });
         },
       },
-      { name: 'contribution_20_biography', inputName: CONTRIBUTION_20_BIOGRAPHY, required: false },
-      { name: 'contribution_20_orcid', inputName: CONTRIBUTION_20_ORCID, required: false },
-      { name: 'contribution_20_website', inputName: CONTRIBUTION_20_WEBSITE, required: false },
+      { name: 'contribution_20_biography', inputName: CONTRIBUTION_20_BIOGRAPHY, required: false, optional: true },
+      { name: 'contribution_20_orcid', inputName: CONTRIBUTION_20_ORCID, required: false, optional: true },
+      { name: 'contribution_20_website', inputName: CONTRIBUTION_20_WEBSITE, required: false, optional: true },
       {
         name: 'contribution_20_affiliation_position',
         inputName: CONTRIBUTION_20_AFFILIATION_POSITION,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_20_affiliation_institution_name',
         inputName: CONTRIBUTION_20_AFFILIATION_INSTITUTION_NAME,
         required: false,
+        optional: true,
       },
       {
         name: 'contribution_20_affiliation_institution_ror',
         inputName: CONTRIBUTION_20_AFFILIATION_INSTITUTION_ROR,
         required: false,
+        optional: true,
       },
       {
         name: 'original_language',
@@ -1165,7 +1225,7 @@ export const getCsvConfig = (
       { name: 'thema_subjects', inputName: THEMA_SUBJECTS, required: false },
       { name: 'bic_subjects', inputName: BIC_SUBJECTS, required: false },
       { name: 'bisac_subjects', inputName: BISAC_SUBJECTS, required: false },
-      { name: 'lcc_subjects', inputName: LCC_SUBJECTS, required: false },
+      { name: 'lcc_subjects', inputName: LCC_SUBJECTS, required: false, optional: true },
       { name: 'keywords', inputName: KEYWORDS, required: false },
       {
         name: 'publication_paperback_isbn',
