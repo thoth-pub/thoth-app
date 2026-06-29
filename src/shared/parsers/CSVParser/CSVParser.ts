@@ -1,7 +1,18 @@
 import CSVFileValidator, { type ValidatorConfig } from 'csv-file-validator';
+import Papa from 'papaparse';
 import { v4 as uuidv4 } from 'uuid';
 
-import { ContributionType, CurrencyCode, LanguageCode, LocaleCode, LocationPlatform } from '@/gql/graphql';
+import {
+  ContributionType,
+  ContributionType as GQLContributionType,
+  CurrencyCode,
+  LanguageCode,
+  LocaleCode,
+  LocationPlatform,
+  LocationPlatform as GQLLocationPlatform,
+  WorkStatus as GQLWorkStatus,
+  WorkType as GQLWorkType,
+} from '@/gql/graphql';
 import { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
@@ -35,6 +46,18 @@ import {
 export type CSVFieldType = string | number | boolean;
 
 export type TranslateFunction = (key: string, options?: Record<string, unknown>) => string;
+
+// For enum entry { EditedBook: 'EDITED_BOOK' } accepts 'EDITED_BOOK', 'EditedBook', and 'Edited Book'
+function buildEnumAliasMap(enumObj: Record<string, string>): Map<string, string> {
+  const map = new Map<string, string>();
+  for (const [key, value] of Object.entries(enumObj)) {
+    const display = key.replace(/([A-Z])/g, ' $1').trim();
+    map.set(value.toLowerCase(), value);
+    map.set(key.toLowerCase(), value);
+    map.set(display.toLowerCase(), value);
+  }
+  return map;
+}
 
 type Row = {
   [CSVKey in (typeof CSV_KEYS)[keyof typeof CSV_KEYS]]: CSVFieldType;
@@ -77,7 +100,7 @@ export class CSVParser {
 
   async parse() {
     try {
-      const csvParseResult = await CSVFileValidator(this.csv, this.csvConfig);
+      const csvParseResult = await CSVFileValidator(await this.normalizeFile(), this.csvConfig);
 
       const isErrors = csvParseResult.inValidData.length > 0;
 
@@ -169,6 +192,8 @@ export class CSVParser {
 
   private parseStringField(row: Row, field: keyof Row, rowNumber?: number) {
     const value = row[field];
+
+    if (value === undefined) return '';
 
     if (typeof value !== 'string') {
       this.errors.push(this.t('errors.csvFieldNotString', { field, row: rowNumber ?? '' }));
@@ -644,6 +669,65 @@ export class CSVParser {
     this.contributorsForSelection = { ...this.contributorsForSelection, ...contributorsForSelection };
 
     return workContributions;
+  }
+
+  private normalizeFile(): Promise<File> {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const text = reader.result as string;
+        const parsed = Papa.parse<string[]>(text, { skipEmptyLines: true });
+
+        if (parsed.errors.length > 0 || !parsed.data.length) {
+          resolve(this.csv);
+          return;
+        }
+
+        const [headerRow, ...dataRows] = parsed.data;
+
+        const normalizedHeaders = headerRow.map((h) =>
+          h.trim().toLowerCase() === 'publisher' ? 'imprint' : h.trim(),
+        );
+
+        const headerIndex = new Map<string, number>(normalizedHeaders.map((h, i) => [h, i]));
+
+        type HeaderDef = { name: string };
+        const configHeaders = (this.csvConfig as { headers: HeaderDef[] }).headers;
+
+        const ENUM_COLUMN_MAPS: Record<string, Map<string, string>> = {
+          work_type: buildEnumAliasMap(GQLWorkType as unknown as Record<string, string>),
+          work_status: buildEnumAliasMap(GQLWorkStatus as unknown as Record<string, string>),
+          publication_pdf_location_platform: buildEnumAliasMap(
+            GQLLocationPlatform as unknown as Record<string, string>,
+          ),
+        };
+        for (let i = 1; i <= appConfig.maxCsvContributorsCount; i++) {
+          ENUM_COLUMN_MAPS[`contribution_${i}_role`] = buildEnumAliasMap(
+            GQLContributionType as unknown as Record<string, string>,
+          );
+        }
+
+        const normalizeEnumValue = (columnName: string, value: string) => {
+          const aliasMap = ENUM_COLUMN_MAPS[columnName];
+          if (!aliasMap || value.trim() === '') return value;
+          return aliasMap.get(value.trim().toLowerCase()) ?? value;
+        };
+
+        const rewriteRow = (row: string[]) =>
+          configHeaders.map(({ name }) => {
+            const pos = headerIndex.get(name);
+            const raw = pos !== undefined ? (row[pos] ?? '') : '';
+            return normalizeEnumValue(name, raw);
+          });
+
+        const newRows = [configHeaders.map((h) => h.name), ...dataRows.map(rewriteRow)];
+        const newCsv = Papa.unparse(newRows);
+
+        resolve(new File([newCsv], this.csv.name, { type: this.csv.type }));
+      };
+      reader.onerror = () => resolve(this.csv);
+      reader.readAsText(this.csv);
+    });
   }
 
   private generateId() {

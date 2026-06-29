@@ -1,0 +1,708 @@
+import { readFileSync } from 'fs';
+import { join } from 'path';
+import { describe, expect, it, vi } from 'vitest';
+
+import { ContributorService } from '@/src/entities/contributor';
+import { InstitutionService } from '@/src/entities/institution';
+import { SeriesEntity } from '@/src/entities/series/model/series.types';
+
+import { licenseOptions } from '@/src/shared/constants/formFields';
+import { getCsvConfig } from './getCsvConfig';
+import CSVParser from './CSVParser';
+
+// ---------------------------------------------------------------------------
+// Fixtures
+// ---------------------------------------------------------------------------
+
+const IMPRINT_LABEL = 'My Publisher';
+const IMPRINT_VALUE = 'pub-id';
+const SERIES_NAME = 'My Series Name';
+const SERIES_ISSN = '1122-1122';
+const SERIES_ID = 'series-id-1';
+
+const imprints = [{ label: IMPRINT_LABEL, value: IMPRINT_VALUE }];
+
+const testSeries: SeriesEntity[] = [
+  {
+    id: SERIES_ID,
+    name: SERIES_NAME,
+    type: 'BOOK_SERIES' as SeriesEntity['type'],
+    issnPrint: SERIES_ISSN,
+    issnDigital: '',
+    updatedAt: '',
+    imprintId: IMPRINT_VALUE,
+    imprintName: IMPRINT_LABEL,
+    url: '',
+    cfpUrl: '',
+    description: '',
+    issues: [],
+  },
+];
+
+const t = (key: string, opts?: Record<string, unknown>) =>
+  opts ? `${key}:${JSON.stringify(opts)}` : key;
+
+const makeFile = (content: string) => new File([content], 'test.csv', { type: 'text/csv' });
+
+const makeParser = (
+  file: File,
+  opts: {
+    series?: SeriesEntity[];
+    contributorResults?: object[];
+    institutionResults?: object[];
+  } = {},
+) => {
+  const series = opts.series ?? testSeries;
+  const config = getCsvConfig(imprints, licenseOptions, series, t);
+  return new CSVParser(
+    file,
+    config,
+    imprints,
+    licenseOptions,
+    series,
+    { getContributors: vi.fn().mockResolvedValue(opts.contributorResults ?? []) } as unknown as ContributorService,
+    { getInstitutions: vi.fn().mockResolvedValue(opts.institutionResults ?? []) } as unknown as InstitutionService,
+    t,
+  );
+};
+
+// Builds a full 223-column CSV in getCsvConfig header order.
+// Supply only the columns you want; the rest are filled with empty strings.
+const buildCsv = (values: Record<string, string>) => {
+  const headers = (getCsvConfig(imprints, licenseOptions, testSeries, t) as any).headers.map(
+    (h: any) => h.name,
+  ) as string[];
+  const headerRow = headers.join(',');
+  const dataRow = headers
+    .map((name) => {
+      const v = values[name] ?? '';
+      return v.includes(',') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v;
+    })
+    .join(',');
+  return `${headerRow}\n${dataRow}`;
+};
+
+// Minimum required fields for a valid row
+const BASE: Record<string, string> = {
+  imprint: IMPRINT_LABEL,
+  work_type: 'EDITED_BOOK',
+  work_status: 'ACTIVE',
+  title: 'Test Book',
+};
+
+// Minimal template header matching the downloadable template structure
+const TEMPLATE_HEADER =
+  'publisher,work_type,work_status,title,subtitle,edition,publication_date,withdrawn_date,' +
+  'place_of_publication,cover_url,doi,page_count,page_breakdown,image_count,table_count,' +
+  'audio_count,video_count,license,copyright_holder,landing_page,short_abstract,long_abstract,' +
+  'contribution_1_first_name,contribution_1_surname,contribution_1_role,contribution_1_biography,' +
+  'contribution_1_orcid,contribution_1_website,contribution_1_affiliation_position,' +
+  'contribution_1_affiliation_institution_name,contribution_1_affiliation_institution_ror,' +
+  'contribution_2_first_name,contribution_2_surname,contribution_2_role,contribution_2_biography,' +
+  'contribution_2_orcid,contribution_2_website,contribution_2_affiliation_position,' +
+  'contribution_2_affiliation_institution_name,contribution_2_affiliation_institution_ror,' +
+  'contribution_3_first_name,contribution_3_surname,contribution_3_role,contribution_3_biography,' +
+  'contribution_3_orcid,contribution_3_website,contribution_3_affiliation_position,' +
+  'contribution_3_affiliation_institution_name,contribution_3_affiliation_institution_ror,' +
+  'contribution_4_first_name,contribution_4_surname,contribution_4_role,contribution_4_biography,' +
+  'contribution_4_orcid,contribution_4_website,contribution_4_affiliation_position,' +
+  'contribution_4_affiliation_institution_name,contribution_4_affiliation_institution_ror,' +
+  'contribution_5_first_name,contribution_5_surname,contribution_5_role,contribution_5_biography,' +
+  'contribution_5_orcid,contribution_5_website,contribution_5_affiliation_position,' +
+  'contribution_5_affiliation_institution_name,contribution_5_affiliation_institution_ror,' +
+  'original_language,translated_from_language,translated_into_language,' +
+  'thema_subjects,bic_subjects,bisac_subjects,keywords,' +
+  'publication_paperback_isbn,publication_paperback_price_1_currency_code,publication_paperback_price_1_unit_price,' +
+  'publication_paperback_price_2_currency_code,publication_paperback_price_2_unit_price,' +
+  'publication_hardback_isbn,publication_hardback_price_1_currency_code,publication_hardback_price_1_unit_price,' +
+  'publication_hardback_price_2_currency_code,publication_hardback_price_2_unit_price,' +
+  'publication_pdf_isbn,publication_pdf_location_landing_page,publication_pdf_location_full_text_url,' +
+  'publication_pdf_location_platform,' +
+  'publication_epub_isbn,publication_epub_location_landing_page,publication_epub_location_full_text_url,' +
+  'publication_epub_location_platform,' +
+  'series_name,series_issn,series_issue_number';
+
+const makeTemplateDataRow = (imprintValue: string) => {
+  const cols = TEMPLATE_HEADER.split(',').length;
+  const values: string[] = new Array(cols).fill('');
+  values[0] = imprintValue;
+  values[1] = 'EDITED_BOOK';
+  values[2] = 'ACTIVE';
+  values[3] = 'Test Book';
+  return values.join(',');
+};
+
+// ---------------------------------------------------------------------------
+// Tests
+// ---------------------------------------------------------------------------
+
+describe('CSVParser', () => {
+  // -------------------------------------------------------------------------
+  // Header normalisation
+  // -------------------------------------------------------------------------
+  describe('header normalisation', () => {
+    it('accepts "imprint" as the first column', async () => {
+      const header = TEMPLATE_HEADER.replace(/^publisher/, 'imprint');
+      const csv = makeFile(`${header}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
+      const result = await makeParser(csv).parse();
+      expect(result.errors).toEqual([]);
+      expect(result.status).toBe('success');
+    });
+
+    it('accepts "publisher" as an alias for "imprint"', async () => {
+      const csv = makeFile(`${TEMPLATE_HEADER}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
+      const result = await makeParser(csv).parse();
+      expect(result.errors).toEqual([]);
+      expect(result.status).toBe('success');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Optional columns
+  // -------------------------------------------------------------------------
+  describe('optional columns', () => {
+    it('does not error when contribution columns 6-20 are absent', async () => {
+      const csv = makeFile(`${TEMPLATE_HEADER}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
+      const result = await makeParser(csv).parse();
+      const headerErrors = result.errors.filter(
+        (e) => e.includes('contribution_6') || e.includes('contribution_7'),
+      );
+      expect(headerErrors).toEqual([]);
+    });
+
+    it('does not error when lcc_subjects column is absent', async () => {
+      const csv = makeFile(`${TEMPLATE_HEADER}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
+      const result = await makeParser(csv).parse();
+      expect(result.errors.filter((e) => e.includes('lcc_subjects'))).toEqual([]);
+    });
+
+    it('does not error when extra epub and price_2 columns are present', async () => {
+      const csv = makeFile(`${TEMPLATE_HEADER}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
+      const result = await makeParser(csv).parse();
+      expect(result.errors).toEqual([]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Template data — the downloadable template must parse successfully
+  // -------------------------------------------------------------------------
+  describe('template data', () => {
+    it('parses the downloadable template file without errors', async () => {
+      const templatePath = join(process.cwd(), 'public/templates/template.csv');
+      const content = readFileSync(templatePath, 'utf-8');
+      const file = makeFile(content);
+      const result = await makeParser(file).parse();
+      expect(result.errors).toEqual([]);
+      expect(result.status).toBe('success');
+      expect(result.data.works).toHaveLength(1);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Titles
+  // -------------------------------------------------------------------------
+  describe('titles', () => {
+    it('creates a canonical title when only title is provided', async () => {
+      const csv = buildCsv({ ...BASE, title: 'Only Title' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      const work = result.data.works[0];
+      expect(work.titles).toHaveLength(1);
+      expect(work.titles[0]).toMatchObject({ canonical: true, title: 'Only Title', subtitle: '' });
+    });
+
+    it('includes subtitle in fullTitle when both are provided', async () => {
+      const csv = buildCsv({ ...BASE, title: 'Main Title', subtitle: 'The Subtitle' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      const title = result.data.works[0].titles[0];
+      expect(title.title).toBe('Main Title');
+      expect(title.subtitle).toBe('The Subtitle');
+      expect(title.fullTitle).toBe('Main Title: The Subtitle');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Abstracts
+  // -------------------------------------------------------------------------
+  describe('abstracts', () => {
+    it('parses a long abstract', async () => {
+      const csv = buildCsv({ ...BASE, long_abstract: 'The long text.' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      const abstracts = result.data.works[0].abstracts;
+      expect(abstracts).toHaveLength(1);
+      expect(abstracts[0]).toMatchObject({ content: 'The long text.', type: 'LONG' });
+    });
+
+    it('parses a short abstract', async () => {
+      const csv = buildCsv({ ...BASE, short_abstract: 'The short text.' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const abstracts = result.data.works[0].abstracts;
+      expect(abstracts).toHaveLength(1);
+      expect(abstracts[0]).toMatchObject({ content: 'The short text.', type: 'SHORT' });
+    });
+
+    it('parses both long and short abstracts', async () => {
+      const csv = buildCsv({ ...BASE, long_abstract: 'Long.', short_abstract: 'Short.' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const abstracts = result.data.works[0].abstracts;
+      expect(abstracts).toHaveLength(2);
+      expect(abstracts.find((a) => a.type === 'LONG')).toBeTruthy();
+      expect(abstracts.find((a) => a.type === 'SHORT')).toBeTruthy();
+    });
+
+    it('produces no abstracts when both fields are empty', async () => {
+      const csv = buildCsv({ ...BASE });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.data.works[0].abstracts).toHaveLength(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Page breakdown
+  // -------------------------------------------------------------------------
+  describe('page breakdown', () => {
+    it('parses Roman-numeral frontmatter from page_breakdown', async () => {
+      const csv = buildCsv({ ...BASE, page_breakdown: 'xxiv+278' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const work = result.data.works[0];
+      expect(work.pageCount).toBe(278);
+      expect(work.frontmatterCount).toBe(24);
+    });
+
+    it('falls back to page_count when page_breakdown is empty', async () => {
+      const csv = buildCsv({ ...BASE, page_count: '150' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.data.works[0].pageCount).toBe(150);
+    });
+
+    it('uses page_breakdown pageCount over explicit page_count', async () => {
+      const csv = buildCsv({ ...BASE, page_breakdown: 'iv+100', page_count: '999' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.data.works[0].pageCount).toBe(100);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Imprint
+  // -------------------------------------------------------------------------
+  describe('imprint', () => {
+    it('resolves the imprint id from the label', async () => {
+      const csv = buildCsv({ ...BASE });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      expect(result.data.works[0].imprintId).toBe(IMPRINT_VALUE);
+    });
+
+    it('returns failed status when the imprint label is not found', async () => {
+      const csv = buildCsv({ ...BASE, imprint: 'Unknown Publisher' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('failed');
+      expect(result.errors.some((e) => e.includes('csvFieldNotValidOptions'))).toBe(true);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // License
+  // -------------------------------------------------------------------------
+  describe('license', () => {
+    it('resolves a valid license URL', async () => {
+      const licenseUrl = 'https://creativecommons.org/licenses/by-nc/4.0/';
+      const csv = buildCsv({ ...BASE, license: licenseUrl });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      expect(result.data.works[0].license).toBe(licenseUrl);
+    });
+
+    it('returns failed status for an unknown license URL', async () => {
+      const csv = buildCsv({ ...BASE, license: 'https://unknown-license.example/' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('failed');
+      expect(result.errors.some((e) => e.includes('csvFieldNotValid'))).toBe(true);
+    });
+
+    it('allows an empty license field without error', async () => {
+      const csv = buildCsv({ ...BASE, license: '' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      expect(result.data.works[0].license).toBe('');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Languages
+  // -------------------------------------------------------------------------
+  describe('languages', () => {
+    it('adds an ORIGINAL language relation', async () => {
+      const csv = buildCsv({ ...BASE, original_language: 'ENG' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const langs = result.data.works[0].languages;
+      expect(langs.find((l) => l.relation === 'ORIGINAL')?.code).toBe('ENG');
+    });
+
+    it('adds a TRANSLATED_FROM language relation', async () => {
+      const csv = buildCsv({ ...BASE, translated_from_language: 'GER' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const langs = result.data.works[0].languages;
+      expect(langs.find((l) => l.relation === 'TRANSLATED_FROM')?.code).toBe('GER');
+    });
+
+    it('adds a TRANSLATED_INTO language relation', async () => {
+      const csv = buildCsv({ ...BASE, translated_into_language: 'SPA' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const langs = result.data.works[0].languages;
+      expect(langs.find((l) => l.relation === 'TRANSLATED_INTO')?.code).toBe('SPA');
+    });
+
+    it('adds all three language relations when all are provided', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        original_language: 'ENG',
+        translated_from_language: 'FRE',
+        translated_into_language: 'SPA',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.data.works[0].languages).toHaveLength(3);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Subjects
+  // -------------------------------------------------------------------------
+  describe('subjects', () => {
+    it('parses comma-separated thema subjects', async () => {
+      const csv = buildCsv({ ...BASE, thema_subjects: 'FYM,QDTK' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const subjects = result.data.works[0].subjects;
+      const thema = subjects.filter((s) => s.type === 'THEMA');
+      expect(thema.map((s) => s.code)).toEqual(['FYM', 'QDTK']);
+    });
+
+    it('parses BIC subjects', async () => {
+      const csv = buildCsv({ ...BASE, bic_subjects: 'HPK' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const bic = result.data.works[0].subjects.filter((s) => s.type === 'BIC');
+      expect(bic).toHaveLength(1);
+      expect(bic[0].code).toBe('HPK');
+    });
+
+    it('parses BISAC subjects', async () => {
+      const csv = buildCsv({ ...BASE, bisac_subjects: 'FIC057000,PHI014000' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const bisac = result.data.works[0].subjects.filter((s) => s.type === 'BISAC');
+      expect(bisac.map((s) => s.code)).toEqual(['FIC057000', 'PHI014000']);
+    });
+
+    it('parses LCC subjects', async () => {
+      const csv = buildCsv({ ...BASE, lcc_subjects: 'PN1650' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const lcc = result.data.works[0].subjects.filter((s) => s.type === 'LCC');
+      expect(lcc).toHaveLength(1);
+      expect(lcc[0].code).toBe('PN1650');
+    });
+
+    it('parses keyword subjects', async () => {
+      const csv = buildCsv({ ...BASE, keywords: 'embodiment,philosophy' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const keywords = result.data.works[0].subjects.filter((s) => s.type === 'KEYWORD');
+      expect(keywords.map((s) => s.code)).toEqual(['embodiment', 'philosophy']);
+    });
+
+    it('assigns sequential ordinals across all subject types', async () => {
+      const csv = buildCsv({ ...BASE, thema_subjects: 'A', bic_subjects: 'B', keywords: 'C' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const ordinals = result.data.works[0].subjects.map((s) => s.ordinal);
+      expect(ordinals).toEqual([1, 2, 3]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Publications
+  // -------------------------------------------------------------------------
+  describe('publications', () => {
+    // 9789800000007 is a valid ISBN-13 (check digit = 7)
+    it('creates a paperback publication from ISBN alone', async () => {
+      const csv = buildCsv({ ...BASE, publication_paperback_isbn: '9789800000007' });
+      const result = await makeParser(makeFile(csv)).parse();
+      const pubs = result.data.works[0].publications;
+      expect(pubs).toHaveLength(1);
+      expect(pubs[0]).toMatchObject({ isbn: '9789800000007', type: 'PAPERBACK' });
+    });
+
+    it('attaches a price to a hardback publication', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        publication_hardback_isbn: '9789800000014',
+        publication_hardback_price_1_currency_code: 'USD',
+        publication_hardback_price_1_unit_price: '29.99',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      const hardback = result.data.works[0].publications.find((p) => p.type === 'HARDBACK');
+      expect(hardback).toBeDefined();
+      expect(hardback!.prices).toHaveLength(1);
+      expect(hardback!.prices[0]).toMatchObject({ currencyCode: 'USD', unitPrice: 29.99 });
+    });
+
+    it('attaches a location to a PDF publication', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        publication_pdf_isbn: '9789800000021',
+        publication_pdf_location_landing_page: 'https://example.com/landing',
+        publication_pdf_location_full_text_url: 'https://example.com/pdf',
+        publication_pdf_location_platform: 'PUBLISHER_WEBSITE',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      const pdf = result.data.works[0].publications.find((p) => p.type === 'PDF');
+      expect(pdf).toBeDefined();
+      expect(pdf!.locations).toHaveLength(1);
+      expect(pdf!.locations[0]).toMatchObject({
+        landingPage: 'https://example.com/landing',
+        fullTextUrl: 'https://example.com/pdf',
+        locationPlatform: 'PUBLISHER_WEBSITE',
+      });
+    });
+
+    it('skips a publication when the ISBN field is empty', async () => {
+      const csv = buildCsv({ ...BASE, publication_paperback_isbn: '' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.data.works[0].publications).toHaveLength(0);
+    });
+
+    it('creates three publications when all ISBNs are present', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        publication_paperback_isbn: '9789800000007',
+        publication_hardback_isbn: '9789800000014',
+        publication_pdf_isbn: '9789800000021',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      const types = result.data.works[0].publications.map((p) => p.type);
+      expect(types).toContain('PAPERBACK');
+      expect(types).toContain('HARDBACK');
+      expect(types).toContain('PDF');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Series
+  // -------------------------------------------------------------------------
+  describe('series', () => {
+    it('associates the work with a known series', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        series_name: SERIES_NAME,
+        series_issue_number: '3',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      expect(result.data.series[SERIES_ID]).toHaveLength(1);
+      expect(result.data.series[SERIES_ID][0].orderNumber).toBe(3);
+    });
+
+    it('returns failed status when the series name is not found', async () => {
+      const csv = buildCsv({ ...BASE, series_name: 'Unknown Series' });
+      const result = await makeParser(makeFile(csv), { series: testSeries }).parse();
+      expect(result.status).toBe('failed');
+      expect(result.errors.some((e) => e.includes('csvFieldNotValidOptions'))).toBe(true);
+    });
+
+    it('produces no series entries when series_name is empty', async () => {
+      const csv = buildCsv({ ...BASE, series_name: '' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      expect(Object.keys(result.data.series)).toHaveLength(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Contributors
+  // -------------------------------------------------------------------------
+  describe('contributors', () => {
+    it('parses a single contributor', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      const contributions = result.data.works[0].contributions;
+      expect(contributions).toHaveLength(1);
+      expect(contributions[0]).toMatchObject({
+        firstName: 'Jane',
+        lastName: 'Doe',
+        type: 'AUTHOR',
+      });
+    });
+
+    it('parses multiple contributors in order', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Alice',
+        contribution_1_surname: 'Smith',
+        contribution_1_role: 'AUTHOR',
+        contribution_2_first_name: 'Bob',
+        contribution_2_surname: 'Jones',
+        contribution_2_role: 'EDITOR',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      const contributions = result.data.works[0].contributions;
+      expect(contributions).toHaveLength(2);
+      expect(contributions[0].firstName).toBe('Alice');
+      expect(contributions[1].firstName).toBe('Bob');
+    });
+
+    it('stores contributor ORCID', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+        contribution_1_orcid: '0000-0001-6365-5189',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      const contribution = result.data.works[0].contributions[0];
+      expect(contribution.orcidId).toBe('0000-0001-6365-5189');
+    });
+
+    it('skips contributor rows where both first name and surname are empty', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+        contribution_2_first_name: '',
+        contribution_2_surname: '',
+        contribution_2_role: '',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.data.works[0].contributions).toHaveLength(1);
+    });
+
+    it('includes found contributors from ContributorService in selection options', async () => {
+      const existingContributor = {
+        id: 'contributor-1',
+        fullName: 'Jane Doe',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        orcid: '0000-0001-6365-5189',
+        website: '',
+        lastContributionTitle: 'Some Book',
+      };
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+      });
+      const result = await makeParser(makeFile(csv), {
+        contributorResults: [existingContributor],
+      }).parse();
+      const workId = result.data.works[0].id;
+      const selectionOptions = Object.values(result.data.contributorsForSelection[workId]);
+      expect(selectionOptions[0]).toHaveLength(2);
+      expect(selectionOptions[0][0].selected).toBe(true);
+      expect(selectionOptions[0][1].selected).toBe(false);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Enum value aliases (human-readable labels accepted alongside canonical codes)
+  // -------------------------------------------------------------------------
+  describe('enum aliases', () => {
+    it('accepts "Edited Book" as work_type (normalises to EDITED_BOOK)', async () => {
+      const csv = buildCsv({ ...BASE, work_type: 'Edited Book' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+    });
+
+    it('accepts "Active" as work_status (normalises to ACTIVE)', async () => {
+      const csv = buildCsv({ ...BASE, work_status: 'Active' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+    });
+
+    it('accepts "Author" as contribution role (normalises to AUTHOR)', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'Author',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      expect(result.data.works[0].contributions[0].type).toBe('AUTHOR');
+    });
+
+    it('accepts "Introduction By" as contribution role (normalises to INTRODUCTION_BY)', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'James',
+        contribution_1_surname: 'Holden',
+        contribution_1_role: 'Introduction By',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      expect(result.data.works[0].contributions[0].type).toBe('INTRODUCTION_BY');
+    });
+
+    it('accepts "Publisher Website" as pdf_location_platform (normalises to PUBLISHER_WEBSITE)', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        publication_pdf_isbn: '9789800000021',
+        publication_pdf_location_platform: 'Publisher Website',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      const pdf = result.data.works[0].publications.find((p) => p.type === 'PDF');
+      expect(pdf!.locations[0].locationPlatform).toBe('PUBLISHER_WEBSITE');
+    });
+
+    it('still accepts canonical codes (EDITED_BOOK, ACTIVE, AUTHOR)', async () => {
+      const csv = buildCsv({
+        ...BASE,
+        work_type: 'EDITED_BOOK',
+        work_status: 'ACTIVE',
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('success');
+      expect(result.data.works[0].contributions[0].type).toBe('AUTHOR');
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Validation errors
+  // -------------------------------------------------------------------------
+  describe('validation errors', () => {
+    it('returns failed status for an unrecognised work_status value', async () => {
+      // work_status uses a real enum validator; a nonsense value fails it
+      const csv = buildCsv({ ...BASE, work_status: 'Published' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('failed');
+      expect(result.errors.length).toBeGreaterThan(0);
+    });
+
+    it('returns failed status when required title is blank', async () => {
+      const csv = buildCsv({ ...BASE, title: '' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('failed');
+    });
+
+    it('returns failed status for an invalid ISBN-13 check digit', async () => {
+      const csv = buildCsv({ ...BASE, publication_paperback_isbn: '9789800000001' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('failed');
+    });
+
+    it('returns failed status when work_status is missing', async () => {
+      const csv = buildCsv({ ...BASE, work_status: '' });
+      const result = await makeParser(makeFile(csv)).parse();
+      expect(result.status).toBe('failed');
+    });
+  });
+});
