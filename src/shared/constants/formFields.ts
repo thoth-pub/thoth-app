@@ -163,9 +163,9 @@ export const FORM_FIELDS = {
     type: InputTypes.TEXT,
   },
   WORK_TYPE: {
-    label: 'wortType.label',
+    label: 'workType.label',
     name: 'workType',
-    placeholder: 'wortType.label',
+    placeholder: 'workType.label',
     defaultValue: '',
     errorMessage: WORK_TYPE_REQUIRED,
   },

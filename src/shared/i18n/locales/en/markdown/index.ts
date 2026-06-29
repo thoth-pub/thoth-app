@@ -193,7 +193,7 @@ const markdownContent: Record<string, string> = {
   'publicationDimensions-helperText': publicationDimensionsHelperText,
   'withdrawnDate-helperText': withdrawnDateHelperText,
   'workSeries-helperText': workSeriesHelperText,
-  'wortType-helperText': wortTypeHelperText,
+  'workType-helperText': wortTypeHelperText,
 };
 
 export default markdownContent;
