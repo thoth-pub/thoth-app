@@ -3,7 +3,7 @@ export const HELPER_TEXT = {
   WORK_TITLE: 'title.helperText',
   WITHDRAWN_DATE: 'withdrawnDate.helperText',
   PUBLICATION_DATE: 'publicationDate.helperText',
-  WORK_TYPE: 'wortType.helperText',
+  WORK_TYPE: 'workType.helperText',
   WORK_STATUS: 'status.helperText',
   IMPRINT: 'imprint.helperText',
   EDIT_IMPRINT: 'editImprint.helperText',

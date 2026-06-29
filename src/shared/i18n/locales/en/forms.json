@@ -103,9 +103,9 @@
     "label": "Zitadel Organisation ID",
     "helperText": "$md:publisherZitadelId-helperText"
   },
-  "wortType": {
+  "workType": {
     "label": "Work Type",
-    "helperText": "$md:wortType-helperText"
+    "helperText": "$md:workType-helperText"
   },
   "license": {
     "label": "License",
