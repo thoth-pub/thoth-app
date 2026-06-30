@@ -1,6 +1,24 @@
 import { describe, expect, it } from 'vitest';
 
-import { emptyToNull } from './index';
+import { emptyToNull, escapeMarkdownList } from './index';
+
+describe('escapeMarkdownList', () => {
+  it('escapes a literal leading ordered-list marker', () => {
+    expect(escapeMarkdownList('1. foo')).toBe('1\\. foo');
+  });
+
+  it('leaves converted <ol> list HTML untouched', () => {
+    const html = '<ol><li>a</li></ol>';
+
+    expect(escapeMarkdownList(html)).toBe(html);
+  });
+
+  it('leaves converted <ul> list HTML untouched', () => {
+    const html = '<ul><li>a</li></ul>';
+
+    expect(escapeMarkdownList(html)).toBe(html);
+  });
+});
 
 describe('emptyToNull', () => {
   it('returns value for non-empty string', () => {
