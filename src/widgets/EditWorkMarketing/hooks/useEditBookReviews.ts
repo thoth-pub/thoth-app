@@ -57,7 +57,7 @@ export const useEditBookReviews = (workId: WorkId) => {
   const dragEnd = async (data: BookReviewEntity[]) => {
     const updatedData = data.map((bookReview, index) => ({ ...bookReview, orderNumber: index + 1 }));
 
-    const bookReviewToUpdate = updatedData.find((bookReview, index) => work.bookReviews[index].id !== bookReview.id);
+    const bookReviewToUpdate = updatedData.find((bookReview, index) => work.bookReviews[index]?.id !== bookReview.id);
 
     if (!bookReviewToUpdate) return;
 

@@ -58,7 +58,7 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
 
     const promises = chapters.map(async (chapter) => {
       const lastOrderNumber =
-        chapter.contributions.sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber ||
+        [...chapter.contributions].sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber ||
         chapter.contributions.length + 1;
 
       return createContribution({

@@ -56,8 +56,10 @@ export const useDeleteChaptersAffiliations = (props: UseDeleteChaptersAffiliatio
 
     await deleteBulkAffiliations(ids);
 
+    const sameContributionIds = sameContributions.map((contribution) => contribution.id);
+
     const updatedUniqueContributions = uniqueContributors.map((contribution) => {
-      if (!ids.includes(contribution.id)) return contribution;
+      if (!sameContributionIds.includes(contribution.id)) return contribution;
 
       return {
         ...contribution,

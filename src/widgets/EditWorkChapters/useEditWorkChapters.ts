@@ -40,7 +40,7 @@ export const useEditWorkChapters = (workId: WorkId) => {
   const dragEnd = (data: WorkEntity[]) => {
     const reorderedChapters = data.map((chapter, index) => ({ ...chapter, ordinal: index + 1 }));
 
-    const firstChangedChapter = reorderedChapters.find((chapter, index) => chapter.id !== chapters[index].id);
+    const firstChangedChapter = reorderedChapters.find((chapter, index) => chapter.id !== chapters[index]?.id);
 
     if (!firstChangedChapter || !firstChangedChapter.relationId) return;
 

@@ -51,7 +51,7 @@ export const useEditAdditionalResources = (workId: WorkId) => {
   const dragEnd = async (data: AdditionalResourceEntity[]) => {
     const updatedData = data.map((resource, index) => ({ ...resource, orderNumber: index + 1 }));
 
-    const resourceToUpdate = updatedData.find((resource, index) => work.additionalResources[index].id !== resource.id);
+    const resourceToUpdate = updatedData.find((resource, index) => work.additionalResources[index]?.id !== resource.id);
 
     if (!resourceToUpdate) return;
 

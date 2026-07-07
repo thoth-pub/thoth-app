@@ -46,7 +46,7 @@ export const useEditAwards = (workId: WorkId) => {
   const dragEnd = async (data: AwardEntity[]) => {
     const updatedData = data.map((award, index) => ({ ...award, orderNumber: index + 1 }));
 
-    const awardToUpdate = updatedData.find((award, index) => work.awards[index].id !== award.id);
+    const awardToUpdate = updatedData.find((award, index) => work.awards[index]?.id !== award.id);
 
     if (!awardToUpdate) return;
 

@@ -35,7 +35,7 @@ export const SetBooksList = ({ setId }: { setId: SetId }) => {
       orderNumber: index + 1,
     }));
 
-    const firstUpdatedBook = updatedBooks.find((book, index) => book.id !== bookSetWorks[index].id);
+    const firstUpdatedBook = updatedBooks.find((book, index) => book.id !== bookSetWorks[index]?.id);
 
     if (!firstUpdatedBook) return;
 
