@@ -212,7 +212,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   };
 
   const updateOrcid = ({ orcid = '' }: OrcidForm) => {
-    if (!contribution || orcid.length === 0) return;
+    if (!contribution) return;
 
     if (onOrcidUpdate) {
       onOrcidUpdate({ orcid });
@@ -237,7 +237,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   };
 
   const updateWebsiteUrl = ({ websiteUrl = '' }: WebsiteUrlForm) => {
-    if (!contribution || websiteUrl.length === 0) return;
+    if (!contribution) return;
 
     if (onWebsiteUrlUpdate) {
       onWebsiteUrlUpdate({ websiteUrl });
