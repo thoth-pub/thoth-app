@@ -17,10 +17,12 @@ type ChaptersListProps = {
   onDragEnd?: (data: WorkEntity[]) => void;
 };
 
+const emptySelectedChapters: NonNullable<ChaptersListProps['selectedChapters']> = [];
+
 export const ChaptersList = (props: ChaptersListProps) => {
   const {
     chapters,
-    selectedChapters = [],
+    selectedChapters = emptySelectedChapters,
     disableControls = false,
     draggable = false,
     loading = false,

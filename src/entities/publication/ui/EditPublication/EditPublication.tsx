@@ -47,6 +47,8 @@ type EditPublicationProps = {
   onUpdateFile?: (file: File) => void;
 };
 
+const emptyAccessibilityStandards: EditPublicationProps['accessibilityStandards'] = [];
+
 const EditPublication = (props: EditPublicationProps) => {
   const {
     publicationType,
@@ -61,7 +63,7 @@ const EditPublication = (props: EditPublicationProps) => {
     weightOz,
     loading,
     isDimensionFormHidden,
-    accessibilityStandards = [],
+    accessibilityStandards = emptyAccessibilityStandards,
     accessibilityException,
     accessibilityReportUrl,
     fileUrl,

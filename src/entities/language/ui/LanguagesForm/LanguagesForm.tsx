@@ -24,8 +24,10 @@ type LanguagesFormProps = Partial<{
 
 const { LANGUAGE, LANGUAGE_RELATION } = FORM_FIELDS;
 
+const emptyLanguages: NonNullable<LanguagesFormProps['languages']> = [];
+
 const LanguagesForm = (props: LanguagesFormProps) => {
-  const { showRecommendations = false, languages = [], onUpdate, onDelete, onClose } = props;
+  const { showRecommendations = false, languages = emptyLanguages, onUpdate, onDelete, onClose } = props;
 
   const placeholder = languages.length > 0 ? languages.map(({ code }) => code).join(', ') : undefined;
 

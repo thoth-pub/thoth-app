@@ -102,6 +102,7 @@ export const UploadStep = (props: UploadStepProps) => {
 
       <ul>
         {validationErrors.map((error, index) => (
+          // eslint-disable-next-line @eslint-react/no-array-index-key -- static error list, regenerated wholesale on each validation; messages may repeat
           <Typography key={index} color="error">
             <Typography component="span" color="inherit">
               {index + 1}.
