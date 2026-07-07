@@ -12,11 +12,13 @@ const sortLocations = (locations: LocationEntity[]) => {
 };
 
 export const selectCanonicalLocation = (locations: LocationEntity[]) => {
-  const canonicalLocation = locations.reverse().find((location) => location.canonical);
-  const thothLocation = locations.find((location) => location.locationPlatform === LocationPlatform.Thoth);
+  // Reversed copy so the most recently submitted location wins, without mutating the caller's array.
+  const reversedLocations = [...locations].reverse();
+  const canonicalLocation = reversedLocations.find((location) => location.canonical);
+  const thothLocation = reversedLocations.find((location) => location.locationPlatform === LocationPlatform.Thoth);
 
   if (thothLocation) {
-    const updatedLocations = locations.map((location) => ({
+    const updatedLocations = reversedLocations.map((location) => ({
       ...location,
       canonical: location.id === thothLocation.id,
     }));
@@ -25,7 +27,7 @@ export const selectCanonicalLocation = (locations: LocationEntity[]) => {
   }
 
   if (!canonicalLocation) {
-    const updatedLocations = locations.map((location, index) => ({
+    const updatedLocations = reversedLocations.map((location, index) => ({
       ...location,
       canonical: index === 0,
     }));
@@ -33,7 +35,7 @@ export const selectCanonicalLocation = (locations: LocationEntity[]) => {
     return sortLocations(updatedLocations);
   }
 
-  const updatedLocations = locations.map((location) => ({
+  const updatedLocations = reversedLocations.map((location) => ({
     ...location,
     canonical: location.id === canonicalLocation.id,
   }));
