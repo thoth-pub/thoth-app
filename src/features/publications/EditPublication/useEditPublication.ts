@@ -256,6 +256,11 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     const promotedLocations = updatedLocations.filter(({ canonical }) => canonical);
     const demotedLocations = updatedLocations.filter(({ canonical }) => !canonical);
 
+    // Local state must hold the server ids of created locations right away: until the
+    // work refetch lands, a re-edit of a location still stored with its temporary id
+    // would be classified as new again and created twice.
+    const createdLocations: LocationEntity[] = [];
+
     try {
       for (const location of promotedLocations) {
         await updateLocation({ ...location, publicationId: publication.id });
@@ -272,6 +277,8 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
         if (isDeferredCanonical) {
           await updateLocation({ ...location, id: created.id, publicationId: publication.id });
         }
+
+        createdLocations.push({ ...location, id: created.id });
       }
 
       for (const location of demotedLocations) {
@@ -283,7 +290,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       return false;
     }
 
-    setPublication({ ...publication, locations: [...newLocations, ...updatedLocations, ...notUpdatedLocations] });
+    setPublication({ ...publication, locations: [...createdLocations, ...updatedLocations, ...notUpdatedLocations] });
 
     return true;
   };

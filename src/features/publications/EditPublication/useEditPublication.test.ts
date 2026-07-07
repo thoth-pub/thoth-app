@@ -34,6 +34,9 @@ const mocks = vi.hoisted(() => {
     canonicalLocation,
     otherLocation,
     publication,
+    // Stable reference, like react-query data before a refetch lands: the hook's
+    // fresh-publication effect must not overwrite local state between submits.
+    work: { imprintId: 'imprint-1', publications: [publication] },
     updateLocation: vi.fn().mockResolvedValue({}),
     createLocation: vi.fn().mockResolvedValue({ id: 'loc-3' }),
     deleteLocationMutation: vi.fn().mockResolvedValue({}),
@@ -59,7 +62,7 @@ vi.mock('@/src/entities/publication', () => ({
 }));
 
 vi.mock('@/src/entities/work', () => ({
-  useWork: () => ({ work: { imprintId: 'imprint-1', publications: [mocks.publication] } }),
+  useWork: () => ({ work: mocks.work }),
 }));
 
 vi.mock('@/src/shared/hooks', () => ({
@@ -146,6 +149,42 @@ describe('useEditPublication updateLocations', () => {
     expect(mocks.updateLocation.mock.calls[0][0]).toMatchObject({ id: 'loc-3', canonical: true });
     expect(mocks.createLocation.mock.invocationCallOrder[0]).toBeLessThan(
       mocks.updateLocation.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('stores the server id of a created location so a re-edit before the refetch updates it', async () => {
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await result.current.updateLocations([
+        { ...mocks.canonicalLocation },
+        { ...mocks.otherLocation },
+        {
+          id: '0000-0000-0000-0000-3',
+          locationPlatform: 'DOAB',
+          canonical: false,
+          landingPage: 'https://doabooks.org/book',
+          fullTextUrl: '',
+        },
+      ] as LocationEntity[]);
+    });
+
+    // The work refetch has not landed yet; local state must already hold the server id.
+    const storedLocations = result.current.activePublication?.locations ?? [];
+    expect(storedLocations).toContainEqual(expect.objectContaining({ id: 'loc-3' }));
+
+    // Re-submit an edit of the just-created location, as the form does from local state.
+    await act(async () => {
+      await result.current.updateLocations(
+        storedLocations.map((location) =>
+          location.id === 'loc-3' ? { ...location, fullTextUrl: 'https://doabooks.org/book.pdf' } : { ...location },
+        ) as LocationEntity[],
+      );
+    });
+
+    expect(mocks.createLocation).toHaveBeenCalledTimes(1);
+    expect(mocks.updateLocation).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'loc-3', fullTextUrl: 'https://doabooks.org/book.pdf' }),
     );
   });
 
