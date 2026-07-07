@@ -1,7 +1,7 @@
 import LinkIcon from '@mui/icons-material/Link';
 
 import { mergeStyles } from '@/src/shared/utils';
-import { convertDoiToText } from '@/src/shared/utils/convertations/formFields';
+import { convertDoiToText } from '@/src/shared/utils/conversions/formFields';
 
 import DoiLogo from '../../icons/DoiLogo/DoiLogo';
 import LinkTooltip from '../LinkTooltip/LinkTooltip';
