@@ -2,7 +2,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import type { Control } from 'react-hook-form';
 
-import { useCreateAbstract, useDeleteAbstract } from '@/src/entities/abstract';
+import { useCreateAbstract, useDeleteAbstract, useUpdateAbstract } from '@/src/entities/abstract';
 import { useWork } from '@/src/entities/work';
 import { WorkAbstractsForm } from '@/src/entities/work/model/work.types';
 import { workAbstractsValidationSchema } from '@/src/entities/work/model/work.validation';
@@ -17,6 +17,7 @@ import { Chip, MarkdownRenderer, Preview, Typography } from '@/src/shared/ui';
 import { EditableContent } from '@/src/shared/ui/layout/EditableContent/EditableContent';
 import { isDefaultId, truncateString } from '@/src/shared/utils';
 
+import { computeAbstractsDiff } from './abstractsDiff';
 import { AbstractsFormFields } from './AbstractsFormFields';
 
 const { WORK_ABSTRACTS } = FORM_FIELDS;
@@ -28,6 +29,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const { work } = useWork(workId);
   const queryClient = useQueryClient();
   const { createAbstract } = useCreateAbstract(workId);
+  const { updateAbstract } = useUpdateAbstract(workId);
   const { deleteAbstract, loading: deleteAbstractLoading } = useDeleteAbstract(workId);
   const { activeFormId, closeForm } = useFormStateMachine();
   const defaultLocaleOption = useDefaultLocaleOption(work.imprintId);
@@ -62,50 +64,49 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
 
     if (abstracts.length === 0) return;
 
-    await Promise.all(work.abstracts.map(({ id }) => deleteAbstract(id)));
+    const desiredAbstracts = abstracts.flatMap(
+      ({ longAbstractId, shortAbstractId, abstract, shortAbstract, language }) => {
+        const entries: AbstractEntity[] = [];
 
-    const createPromises: Promise<AbstractEntity>[] = [];
+        if (abstract && abstract.length > 0) {
+          entries.push({
+            id: longAbstractId,
+            content: abstract,
+            localeCode: language.value as LocaleCodeType,
+            type: AbstractTypes.enum.Long,
+            canonical: false,
+          });
+        }
 
-    let firstLongAbstractFound = false;
-    let firstShortAbstractFound = false;
+        if (shortAbstract && shortAbstract.length > 0) {
+          entries.push({
+            id: shortAbstractId,
+            content: shortAbstract,
+            localeCode: language.value as LocaleCodeType,
+            type: AbstractTypes.enum.Short,
+            canonical: false,
+          });
+        }
 
-    abstracts.forEach(({ abstract, shortAbstract, language }) => {
-      if (abstract && abstract.length > 0) {
-        const canonical = !firstLongAbstractFound;
-        firstLongAbstractFound = true;
+        return entries;
+      },
+    );
 
-        createPromises.push(
-          createAbstract({
-            data: {
-              id: appConfig.defaultId,
-              content: abstract,
-              localeCode: language.value as LocaleCodeType,
-              type: AbstractTypes.enum.Long,
-              canonical,
-            },
-          }),
-        );
-      }
+    const { abstractsToDelete, updatedAbstracts, newAbstracts } = computeAbstractsDiff(
+      desiredAbstracts,
+      work.abstracts,
+    );
 
-      if (shortAbstract && shortAbstract.length > 0) {
-        const canonical = !firstShortAbstractFound;
-        firstShortAbstractFound = true;
-
-        createPromises.push(
-          createAbstract({
-            data: {
-              id: appConfig.defaultId,
-              content: shortAbstract,
-              localeCode: language.value as LocaleCodeType,
-              type: AbstractTypes.enum.Short,
-              canonical,
-            },
-          }),
-        );
-      }
-    });
-
-    await Promise.all(createPromises);
+    try {
+      // Deletions only remove content the user discarded, and must run first so a
+      // replacement canonical abstract does not clash with the deleted one.
+      await Promise.all(abstractsToDelete.map(({ id }) => deleteAbstract(id)));
+      await Promise.all(updatedAbstracts.map((abstract) => updateAbstract({ data: abstract })));
+      await Promise.all(newAbstracts.map((abstract) => createAbstract({ data: abstract })));
+    } catch {
+      // The mutation hooks surface the error notification; the remaining phases are
+      // skipped so kept abstracts are never deleted.
+    }
   };
 
   const deleteAbstracts = async (shortAbstractId: AbstractId, longAbstractId: AbstractId) => {
