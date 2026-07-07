@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useEffectEvent } from 'react';
 
 import { type PublisherId } from '@/src/entities/publisher';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
@@ -68,10 +68,16 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
     updateActivePublisher(persistedPublisherId as PublisherId, true);
   };
 
-  useEffect(() => {
+  // Initialise the active publisher only when loading completes, reading the latest
+  // user and store state without re-firing on them.
+  const initializeActivePublisher = useEffectEvent(() => {
     if (loading || user.linkedPublishers.length === 0 || activePublisher) return;
 
     setActivePublisher();
+  });
+
+  useEffect(() => {
+    initializeActivePublisher();
   }, [loading]);
 
   const hideSelector = publishersOptions.length <= 1 || isHidden;

@@ -44,10 +44,12 @@ type UseEditContributionProps = BaseEditSectionProps &
     onIsMainSubmit: (isMain: boolean) => void;
   }>;
 
+const emptyLinkedPublishers: PublisherId[] = [];
+
 export const useEditContribution = (props: UseEditContributionProps) => {
   const {
     workId,
-    linkedPublishers = [],
+    linkedPublishers = emptyLinkedPublishers,
     onNamesUpdate,
     onTypeUpdate,
     onBiographiesUpdate,
@@ -104,7 +106,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setContribution(contribution);
-  }, [work]);
+  }, [work, activeContribution?.id]);
 
   useEffect(() => {
     if (!activeContribution) return;
@@ -113,12 +115,11 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     setContribution(activeContribution);
   }, [activeContribution]);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const isContributedOnlyToCurrentPublisher = useMemo(() => {
     const contributions = Array.from(new Set(contributedToPublishers));
 
     return contributions.every((contribution) => linkedPublishers.includes(contribution));
-  }, [contributedToPublishers, workId]);
+  }, [contributedToPublishers, linkedPublishers]);
 
   const isOrchidEditionDisabled =
     !!activeContribution?.orcidId && !user.isSuperuser && !isContributedOnlyToCurrentPublisher;

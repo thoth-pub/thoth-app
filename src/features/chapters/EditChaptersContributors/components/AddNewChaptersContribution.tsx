@@ -34,7 +34,7 @@ export const AddNewChaptersContribution = (props: AddNewChaptersContributionProp
     return () => {
       finishEditing();
     };
-  }, []);
+  }, [finishEditing]);
 
   const createChaptersContribution = async (contribution: WorkContribution) => {
     if (!activeContribution) return;

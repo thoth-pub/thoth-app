@@ -71,7 +71,7 @@ export const EditPagesCount = (props: EditPagesCountProps) => {
     }
 
     return res.join(' + ').toLowerCase();
-  }, [pageCount, frontmatterCount, backmatterCount, pagePlaceholder]);
+  }, [pageCount, frontmatterCount, backmatterCount, pagePlaceholder, pagesPlaceholder, frontmatterValue, backmatterValue]);
 
   const workPlaceholder = pageCount
     ? `${pageCount} ${pageCount > 1 ? pagesPlaceholder : pagePlaceholder} (${pageBreakdownValue})`

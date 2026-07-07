@@ -54,7 +54,7 @@ export const FormFields = (props: FormFieldsProps) => {
 
   useEffect(() => {
     setValue(ISSUE_ORDINAL.name, defaultValue);
-  }, [defaultValue]);
+  }, [defaultValue, setValue]);
 
   return (
     <MultipleContentWrapper>

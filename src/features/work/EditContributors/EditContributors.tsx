@@ -27,7 +27,7 @@ const EditContributors = (props: EditContributorsProps) => {
     return () => {
       finishEditing();
     };
-  }, []);
+  }, [finishEditing]);
 
   return (
     <RecommendedSection

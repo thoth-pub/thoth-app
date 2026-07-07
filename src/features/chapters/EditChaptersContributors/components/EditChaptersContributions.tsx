@@ -37,7 +37,7 @@ export const EditChaptersContributions = (props: EditChaptersContributionsProps)
     return () => {
       finishEditing();
     };
-  }, []);
+  }, [finishEditing]);
 
   const handleNamesUpdate = (data: ContributionNamesForm) => {
     if (!activeContribution) return;

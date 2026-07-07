@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useCopyToClipboard } from 'react-use';
 
@@ -54,15 +54,20 @@ export const useDragAndDropForm = (workId: WorkId) => {
     reset();
   };
 
+  // Submit through the latest onSubmit closure without re-subscribing the watcher.
+  const submitOnChange = useEffectEvent(async () => {
+    await handleSubmit(onSubmit)();
+  });
+
   useEffect(() => {
-    const subscription = watch(async () => {
-      await handleSubmit(onSubmit)();
+    const subscription = watch(() => {
+      void submitOnChange();
     });
 
     return () => {
       subscription.unsubscribe();
     };
-  }, [isDoiEmpty]);
+  }, [watch]);
 
   const dropFile = (event: React.DragEvent<HTMLFormElement>) => {
     event.preventDefault();

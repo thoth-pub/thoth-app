@@ -80,7 +80,7 @@ export const CSVParse = (props: CSVParseProps) => {
     if (!isFileUploaded || !isCsvFile) return;
 
     parseFile();
-  }, [file]);
+  }, [file, isFileUploaded, isCsvFile]);
 
   const handleSubmit = async (works: WorkEntity[]) => {
     onPreview?.(works, [], seriesForUpdate);

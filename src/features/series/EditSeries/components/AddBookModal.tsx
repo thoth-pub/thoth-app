@@ -75,7 +75,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
     if (debouncedValue.length > 0) return;
 
     reset();
-  }, [debouncedValue.length]);
+  }, [debouncedValue.length, reset]);
 
   const onSubmit = (data: IssueValidationSchema) => {
     createIssue({

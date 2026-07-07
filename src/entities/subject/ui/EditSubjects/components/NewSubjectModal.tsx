@@ -80,7 +80,7 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
     }
 
     setValue(SUBJECT_CODE.name, '');
-  }, [typeField]);
+  }, [typeField, options.length, setValue]);
 
   const onSubmit = () => {
     const isString = typeof codeField === 'string';

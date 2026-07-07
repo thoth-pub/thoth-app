@@ -4,7 +4,7 @@ import { CircularProgress } from '@mui/material';
 import { useSearchParams } from 'next/navigation';
 import { BuiltInProviderType } from 'next-auth/providers/index';
 import { ClientSafeProvider, getCsrfToken, getProviders, LiteralUnion } from 'next-auth/react';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useEffect, useEffectEvent, useRef, useState } from 'react';
 
 import { AuthWrapper } from '@/src/entities/auth';
 import { useNotifications } from '@/src/shared/hooks';
@@ -33,12 +33,16 @@ function SignInContent() {
     void fetchProviders();
   }, []);
 
+  // Notify only when the error code changes; sendErrorNotification's identity follows
+  // the translation function, and re-firing on it would re-toast a stale error.
+  const notifySignInError = useEffectEvent(() => {
+    sendErrorNotification(getMessage(error, 'signin-error').message);
+  });
+
   useEffect(() => {
     if (!error) return;
 
-    const message = getMessage(error, 'signin-error').message;
-
-    sendErrorNotification(message);
+    notifySignInError();
   }, [error]);
 
   useEffect(() => {

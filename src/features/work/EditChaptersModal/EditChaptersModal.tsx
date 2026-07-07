@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useFundingStateMachine } from '@/src/entities/funding';
@@ -35,7 +35,10 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
 
   const { chapters: currentWorkChapters } = useWorkChapters({ workId });
 
-  useEffect(() => {
+  // Refresh the store's chapters when the query data changes, reading the latest store
+  // value without re-firing on it: `update` writes a new array to the store, so listing
+  // `activeWorkChapters` as a dependency would loop.
+  const syncActiveWorkChapters = useEffectEvent(() => {
     if (!activeWorkChapters) return;
 
     const chaptersIds = activeWorkChapters.map((chapter) => chapter.id);
@@ -45,6 +48,10 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
     if (activeChapters.length !== chaptersIds.length) return;
 
     update(activeChapters);
+  });
+
+  useEffect(() => {
+    syncActiveWorkChapters();
   }, [currentWorkChapters]);
 
   useEffect(() => {
@@ -53,7 +60,7 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
       finishEditingContribution();
       finishEditingFunding();
     };
-  }, []);
+  }, [finishEditing, finishEditingContribution, finishEditingFunding]);
 
   useEffect(() => {
     setChapters(activeWorkChapters);

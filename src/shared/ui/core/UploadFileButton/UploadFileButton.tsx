@@ -1,7 +1,7 @@
 'use client';
 
 import AttachFileIcon from '@mui/icons-material/AttachFile';
-import { useEffect, useId } from 'react';
+import { useEffect, useEffectEvent, useId } from 'react';
 import { useForm } from 'react-hook-form';
 
 import { NOTIFICATIONS } from '@/src/shared/constants';
@@ -35,7 +35,9 @@ const UploadFileButton = ({
   const { sendProgressNotification, dismissNotification } = useNotifications();
   const toastId = useId();
 
-  useEffect(() => {
+  // Toast only when the upload state changes; the notification functions' identities
+  // follow the translation function and must not re-fire the toast.
+  const notifyUploadProgress = useEffectEvent(() => {
     if (!loading) return;
 
     if (progress) {
@@ -45,6 +47,10 @@ const UploadFileButton = ({
     if (progress && progress === 100) {
       dismissNotification(toastId);
     }
+  });
+
+  useEffect(() => {
+    notifyUploadProgress();
   }, [loading, progress]);
 
   const onSubmitForm = (data: Record<string, FileList>) => {
@@ -54,16 +60,25 @@ const UploadFileButton = ({
     reset();
   };
 
+  // Submit through the latest closures without re-subscribing the watcher.
+  const submitOnChange = useEffectEvent(async () => {
+    await handleSubmit(onSubmitForm)();
+  });
+
+  const dismissUploadToast = useEffectEvent(() => {
+    dismissNotification(toastId);
+  });
+
   useEffect(() => {
-    const subscription = watch(async () => {
-      await handleSubmit(onSubmitForm)();
+    const subscription = watch(() => {
+      void submitOnChange();
     });
 
     return () => {
       subscription.unsubscribe();
-      dismissNotification(toastId);
+      dismissUploadToast();
     };
-  }, []);
+  }, [watch]);
 
   if (loading) {
     const isProgressAvailable = !!progress;

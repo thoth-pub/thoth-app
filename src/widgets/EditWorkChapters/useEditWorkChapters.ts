@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useEffectEvent, useState } from 'react';
 
 import { useCreateWorkChapter, useDeleteChapter, useWorkChapters, useWorkMoveRelation } from '@/src/entities/work';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
@@ -30,11 +30,16 @@ export const useEditWorkChapters = (workId: WorkId) => {
 
   const selectedChaptersTitle = `${selectedChapters.length} of ${chapters.length}`;
 
-  useEffect(() => {
+  // Clear the selection only when the number of chapters changes (add/delete), not on
+  // every refetch, reading the latest loading flags without re-firing on them.
+  const clearSelectedChapters = useEffectEvent(() => {
     if (isLoading || isFetching) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setSelectedChapters([]);
+  });
+
+  useEffect(() => {
+    clearSelectedChapters();
   }, [chapters.length]);
 
   const dragEnd = (data: WorkEntity[]) => {

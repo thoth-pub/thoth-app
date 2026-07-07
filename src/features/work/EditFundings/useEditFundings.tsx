@@ -19,7 +19,7 @@ export const useEditFundings = (workId: WorkId) => {
     return () => {
       finishEditing();
     };
-  }, []);
+  }, [finishEditing]);
 
   const addFunding = () => {
     edit({ ...getDefaultFunding() });
