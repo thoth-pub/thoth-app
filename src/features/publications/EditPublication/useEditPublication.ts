@@ -6,7 +6,7 @@ import { AccessibilityStandard } from '@/gql/graphql';
 import { useCreateLocation, useDeleteLocation, useUpdateLocation } from '@/src/entities/locations';
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
 import { useCreatePrice, useDeletePrice, useUpdatePrice } from '@/src/entities/price';
-import type { CurrencyCode, PricesForm } from '@/src/entities/price/model/price.types';
+import type { PricesForm } from '@/src/entities/price/model/price.types';
 import {
   usePublicationsStateMachine,
   useUpdatePublication,
@@ -180,10 +180,8 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication(updatedPublication);
   };
 
-  const updatePrices = (data: PricesForm) => {
+  const updatePrices = async (data: PricesForm) => {
     if (!publication) return;
-
-    const existingCodes = publication.prices.map(({ currencyCode }) => currencyCode);
 
     const prices = data.prices.map(({ priceId, currency, priceValue }) => ({
       id: priceId,
@@ -191,36 +189,44 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       unitPrice: priceValue,
     }));
 
-    const updatedCodes: CurrencyCode[] = [];
+    const newPrices = prices.filter(({ id }) => isDefaultId(id));
+    const existingPrices = prices.filter(({ id }) => !isDefaultId(id));
 
-    prices.forEach(({ id, currencyCode, unitPrice }) => {
-      updatedCodes.push(currencyCode);
+    const updatedPrices = existingPrices.filter((price) => {
+      const previousPrice = publication.prices.find(({ id }) => id === price.id);
 
-      if (existingCodes.includes(currencyCode)) {
-        updatePrice({
-          id,
-          currencyCode,
-          unitPrice,
-          publicationId: publication.id,
-        });
-        return;
-      }
+      if (!previousPrice) return true;
 
-      createPrice({
-        id,
-        publicationId: publication.id,
-        currencyCode,
-        unitPrice,
-      });
+      return previousPrice.currencyCode !== price.currencyCode || previousPrice.unitPrice !== price.unitPrice;
     });
 
-    publication.prices.forEach(({ currencyCode, id }) => {
-      if (!updatedCodes.includes(currencyCode)) {
-        deletePrice(id);
-      }
-    });
+    const submittedIds = prices.map(({ id }) => id);
+    const deletedPrices = publication.prices.filter(({ id }) => !submittedIds.includes(id));
 
-    setPublication({ ...publication, prices });
+    // Local state must hold the server ids of created prices right away: until the work
+    // refetch lands, a re-edit of a price still stored with its temporary id would be
+    // classified as new again and created twice.
+    const createdPrices: typeof prices = [];
+
+    try {
+      await Promise.all([
+        ...updatedPrices.map(({ id, currencyCode, unitPrice }) =>
+          updatePrice({ id, currencyCode, unitPrice, publicationId: publication.id }),
+        ),
+        ...newPrices.map(async (price) => {
+          const created = await createPrice({ ...price, publicationId: publication.id });
+
+          createdPrices.push({ ...price, id: created.id });
+        }),
+        ...deletedPrices.map(({ id }) => deletePrice(id)),
+      ]);
+    } catch {
+      // The mutation hooks surface the error notification; keep the local state on the
+      // persisted values instead of pretending the change saved.
+      return;
+    }
+
+    setPublication({ ...publication, prices: [...existingPrices, ...createdPrices] });
   };
 
   const updateLocations = async (data: LocationEntity[]) => {
