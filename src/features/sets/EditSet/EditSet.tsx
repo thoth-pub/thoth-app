@@ -36,11 +36,37 @@ const EditSet = (props: EditSetProps) => {
     updateSet({ ...set, imprintId });
   };
 
+  const handleDeleteTitle = async (titleId: string) => {
+    const deletedTitle = set.titles.find(({ id }) => id === titleId);
+
+    try {
+      await deleteTitle(titleId);
+
+      // The backend allows deleting the canonical title, so promote a replacement to
+      // avoid leaving the set without one.
+      if (!deletedTitle?.canonical) return;
+
+      const replacementTitle = set.titles.find(({ id }) => id !== titleId);
+
+      if (!replacementTitle) return;
+
+      await updateTitle({ data: { ...replacementTitle, canonical: true }, relatedWorkId: set.id });
+    } catch {
+      // The mutation hooks surface the error notification.
+    }
+  };
+
   const updateTitles = async (data: SetTitleFormType) => {
     const { titles } = data;
 
     const newTitles = titles.filter((title) => !set.titles.some((setTitle) => setTitle.id === title.titleId));
     const updatedTitles = titles.filter((title) => set.titles.some((setTitle) => setTitle.id === title.titleId));
+
+    // One canonical title is allowed per work. If none exists (e.g. the canonical one
+    // was deleted), promote the first existing title, or the first new one.
+    const hasCanonicalTitle = set.titles.some(({ canonical }) => canonical);
+    const shouldPromoteUpdatedTitle = !hasCanonicalTitle && updatedTitles.length > 0;
+    const shouldPromoteNewTitle = !hasCanonicalTitle && updatedTitles.length === 0;
 
     const promises: Promise<TitleEntity>[] = [];
 
@@ -52,7 +78,7 @@ const EditSet = (props: EditSetProps) => {
             title: workTitle,
             subtitle,
             localeCode: language.value as LocaleCodeType,
-            canonical: set.titles.length === 0 && index === 0,
+            canonical: shouldPromoteNewTitle && index === 0,
             fullTitle: `${workTitle} ${subtitle}`,
           },
           relatedWorkId: set.id,
@@ -60,7 +86,7 @@ const EditSet = (props: EditSetProps) => {
       );
     });
 
-    updatedTitles.forEach(({ titleId, workTitle, subtitle = '', language }) => {
+    updatedTitles.forEach(({ titleId, workTitle, subtitle = '', language }, index) => {
       const existingTitle = set.titles.find((title) => title.id === titleId);
 
       if (!existingTitle) return;
@@ -72,7 +98,7 @@ const EditSet = (props: EditSetProps) => {
             title: workTitle,
             subtitle,
             localeCode: language.value as LocaleCodeType,
-            canonical: existingTitle.canonical ?? false,
+            canonical: (existingTitle.canonical ?? false) || (shouldPromoteUpdatedTitle && index === 0),
             fullTitle: `${workTitle} ${subtitle}`,
           },
           relatedWorkId: set.id,
@@ -99,7 +125,7 @@ const EditSet = (props: EditSetProps) => {
         </div>
       </div>
       <div className="flex flex-col gap-(--default-gap)">
-        <EditSetTitle set={set} onSubmit={updateTitles} onDelete={deleteTitle} />
+        <EditSetTitle set={set} onSubmit={updateTitles} onDelete={handleDeleteTitle} />
         <EditSetImprint
           disabled={!isImprintEditable}
           imprintId={set.imprintId}
