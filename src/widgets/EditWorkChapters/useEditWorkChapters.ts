@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useEffectEvent, useState } from 'react';
+import { useState } from 'react';
 
 import { useCreateWorkChapter, useDeleteChapter, useWorkChapters, useWorkMoveRelation } from '@/src/entities/work';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
@@ -21,7 +21,11 @@ export const useEditWorkChapters = (workId: WorkId) => {
   });
   const { edit, finishEditing: finishEditingWorkChaptersEdit } = useWorkChaptersStateMachine();
 
-  const [selectedChapters, setSelectedChapters] = useState<string[]>([]);
+  const [selectedChapterIds, setSelectedChapterIds] = useState<string[]>([]);
+
+  // Only chapters that still exist can be selected, so deleted chapters drop out of the
+  // selection by derivation instead of an effect clearing it.
+  const selectedChapters = selectedChapterIds.filter((id) => chapters.some((chapter) => chapter.id === id));
 
   const { deleteChapter: deleteChapterMutation, deleteChapters: deleteChaptersMutation } = useDeleteChapter();
 
@@ -29,18 +33,6 @@ export const useEditWorkChapters = (workId: WorkId) => {
   const isMultipleChaptersSelected = selectedChapters.length > 1;
 
   const selectedChaptersTitle = `${selectedChapters.length} of ${chapters.length}`;
-
-  // Clear the selection only when the number of chapters changes (add/delete), not on
-  // every refetch, reading the latest loading flags without re-firing on them.
-  const clearSelectedChapters = useEffectEvent(() => {
-    if (isLoading || isFetching) return;
-
-    setSelectedChapters([]);
-  });
-
-  useEffect(() => {
-    clearSelectedChapters();
-  }, [chapters.length]);
 
   const dragEnd = (data: WorkEntity[]) => {
     const reorderedChapters = data.map((chapter, index) => ({ ...chapter, ordinal: index + 1 }));
@@ -53,20 +45,20 @@ export const useEditWorkChapters = (workId: WorkId) => {
   };
 
   const selectChapter = (id: string) => {
-    setSelectedChapters((selectedChapters) => [...selectedChapters, id]);
+    setSelectedChapterIds((selectedIds) => [...selectedIds, id]);
   };
 
   const deselectChapter = (id: string) => {
-    setSelectedChapters((selectedChapters) => selectedChapters.filter((chapter) => chapter !== id));
+    setSelectedChapterIds((selectedIds) => selectedIds.filter((chapter) => chapter !== id));
   };
 
   const selectAllChapters = () => {
     if (selectedChapters.length === chapters.length) {
-      setSelectedChapters([]);
+      setSelectedChapterIds([]);
       return;
     }
 
-    setSelectedChapters(chapters.map((chapter) => chapter.id));
+    setSelectedChapterIds(chapters.map((chapter) => chapter.id));
   };
 
   const editChapter = (id: string) => {
@@ -110,16 +102,20 @@ export const useEditWorkChapters = (workId: WorkId) => {
 
   const deleteChapter = async (id: string) => {
     await deleteChapterMutation(id);
+
+    setSelectedChapterIds([]);
   };
 
   const deleteChapters = async () => {
     const selected = [...selectedChapters];
 
     await deleteChaptersMutation(selected);
+
+    setSelectedChapterIds([]);
   };
 
   const closeMultipleChaptersEdit = () => {
-    setSelectedChapters([]);
+    setSelectedChapterIds([]);
     closeForm();
     finishEditingWorkChaptersEdit();
   };

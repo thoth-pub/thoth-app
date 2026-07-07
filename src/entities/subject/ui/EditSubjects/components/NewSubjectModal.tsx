@@ -67,10 +67,14 @@ export const NewSubjectModal = (props: NewSubjectModalProps) => {
 
   const options = autocompleteOptions[typeField];
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  // The resolver above depends on optionsLength, so it must be state; keep it in sync
+  // during render instead of in an effect:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  if (optionsLength !== options.length) {
     setOptionsLength(options.length);
+  }
 
+  useEffect(() => {
     if (options.length > 0) {
       setValue(SUBJECT_CODE.name, {
         value: '',

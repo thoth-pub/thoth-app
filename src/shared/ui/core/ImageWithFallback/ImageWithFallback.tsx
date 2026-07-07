@@ -1,18 +1,21 @@
 'use client';
 
 import Image, { ImageProps } from 'next/image';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 
 type ImageWithFallbackProps = ImageProps & { fallback?: string; placeholderOpacity?: number };
 
 const ImageWithFallback = (props: ImageWithFallbackProps) => {
   const { fallback = '/placeholder.svg', placeholderOpacity = 1, alt, src, ...rest } = props;
   const [isError, setIsError] = useState<boolean>(false);
+  // Reset the error during render when the source changes, instead of in an effect:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevSrc, setPrevSrc] = useState(src);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  if (prevSrc !== src) {
+    setPrevSrc(src);
     setIsError(false);
-  }, [src]);
+  }
 
   return (
     <Image
