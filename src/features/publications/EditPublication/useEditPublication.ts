@@ -224,7 +224,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   };
 
   const updateLocations = async (data: LocationEntity[]) => {
-    if (!publication) return;
+    if (!publication) return false;
 
     const locations = selectCanonicalLocation(data);
 
@@ -232,13 +232,13 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     const existingLocations = locations.filter(({ id }) => !isDefaultId(id));
     const notUpdatedLocations: LocationEntity[] = [];
 
-    const updatedLocations = locations.filter((location) => {
-      const existingLocation = existingLocations.find(({ id }) => id === location.id);
+    const updatedLocations = existingLocations.filter((location) => {
+      const previousLocation = publication.locations.find(({ id }) => id === location.id);
 
-      if (!existingLocation) return false;
+      if (!previousLocation) return true;
 
-      const keys = Object.keys(existingLocation).filter((key) => key !== 'canonical') as (keyof LocationEntity)[];
-      const isUpdated = keys.some((key) => existingLocation[key] !== location[key]);
+      const keys = Object.keys(location) as (keyof LocationEntity)[];
+      const isUpdated = keys.some((key) => previousLocation[key] !== location[key]);
 
       if (!isUpdated) {
         notUpdatedLocations.push(location);
@@ -247,32 +247,48 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       return isUpdated;
     });
 
-    updatedLocations.forEach(({ id, locationPlatform, canonical, fullTextUrl, landingPage }) => {
-      updateLocation({
-        id,
-        locationPlatform,
-        canonical,
-        fullTextUrl,
-        landingPage,
-        publicationId: publication.id,
-      });
-    });
+    // The backend allows exactly one canonical location per publication: promoting a
+    // location demotes the current canonical one in the same transaction, while directly
+    // demoting it or inserting a second one is rejected. So the promotion must be sent
+    // before any demoted location's update, and a new location that should become
+    // canonical must be created as non-canonical and promoted afterwards.
+    const hasPersistedCanonical = publication.locations.some(({ canonical }) => canonical);
+    const promotedLocations = updatedLocations.filter(({ canonical }) => canonical);
+    const demotedLocations = updatedLocations.filter(({ canonical }) => !canonical);
 
-    newLocations.forEach(({ id, locationPlatform, canonical, fullTextUrl, landingPage }) => {
-      createLocation({
-        id,
-        publicationId: publication.id,
-        locationPlatform,
-        canonical,
-        fullTextUrl,
-        landingPage,
-      });
-    });
+    try {
+      for (const location of promotedLocations) {
+        await updateLocation({ ...location, publicationId: publication.id });
+      }
+
+      for (const location of newLocations) {
+        const isDeferredCanonical = location.canonical && hasPersistedCanonical;
+        const created = await createLocation({
+          ...location,
+          canonical: isDeferredCanonical ? false : location.canonical,
+          publicationId: publication.id,
+        });
+
+        if (isDeferredCanonical) {
+          await updateLocation({ ...location, id: created.id, publicationId: publication.id });
+        }
+      }
+
+      for (const location of demotedLocations) {
+        await updateLocation({ ...location, publicationId: publication.id });
+      }
+    } catch {
+      // The mutation hooks surface the error notification; keep the local state on the
+      // persisted values instead of pretending the change saved.
+      return false;
+    }
 
     setPublication({ ...publication, locations: [...newLocations, ...updatedLocations, ...notUpdatedLocations] });
+
+    return true;
   };
 
-  const deleteLocation = (platformId: string) => {
+  const deleteLocation = async (platformId: string) => {
     if (!publication) return;
 
     const item = publication.locations.find(({ id }) => id === platformId);
@@ -282,9 +298,19 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     const updatedLocations = publication.locations.filter(({ id }) => id !== platformId);
     const updatedLocationsWithCanonical = selectCanonicalLocation(updatedLocations);
 
-    updateLocations(updatedLocationsWithCanonical);
+    // If the deleted location was canonical, its replacement must be promoted first,
+    // which also demotes the location being deleted.
+    const isCanonicalReassigned = await updateLocations(updatedLocationsWithCanonical);
 
-    deleteLocationMutation(platformId);
+    if (!isCanonicalReassigned) return;
+
+    try {
+      await deleteLocationMutation(platformId);
+    } catch {
+      // The mutation hook surfaces the error notification; keep the location visible.
+      return;
+    }
+
     setPublication({ ...publication, locations: updatedLocationsWithCanonical });
   };
 
