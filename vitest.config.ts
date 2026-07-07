@@ -7,6 +7,23 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./vitest.setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+      include: ['src/**'],
+      exclude: [
+        'src/**/*.test.ts',
+        'src/**/*.test.tsx',
+        'src/**/*.d.ts',
+        'src/**/index.ts',
+      ],
+      thresholds: {
+        functions: 10,
+        lines: 10,
+        branches: 8,
+        statements: 10,
+      },
+    },
   },
   css: {
     postcss: {
