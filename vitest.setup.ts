@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom/vitest';
 import { vi } from 'vitest';
 
 // Mock the servicesContext to prevent service instantiation during module load
