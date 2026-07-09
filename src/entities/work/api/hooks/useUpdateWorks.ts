@@ -15,7 +15,7 @@ const useUpdateWorks = () => {
   const { workService } = useServices();
   const queryClient = useQueryClient();
 
-  const { mutate, isPending } = useMutation({
+  const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: WorkEntity) => {
       return workService.updateWork(data);
     },
@@ -25,7 +25,7 @@ const useUpdateWorks = () => {
   });
 
   const updateWorks = async (data: WorkEntity[]) => {
-    const promises = data.map((work) => mutate(work));
+    const promises = data.map((work) => mutateAsync(work));
 
     await Promise.all(promises);
 

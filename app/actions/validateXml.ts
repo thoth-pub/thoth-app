@@ -22,7 +22,8 @@ export const validateXml = async (file: File) => {
 
     return { status: 'success', data: result };
   } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
     console.error('ERROR: ', error);
-    return { status: 'error' };
+    return { status: 'error', error: message };
   }
 };
