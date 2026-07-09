@@ -97,18 +97,18 @@ describe('useUpdateReference', () => {
 });
 
 describe('useDeleteReference', () => {
-  it('deletes reference via service with no invalidation', async () => {
+  it('deletes reference via service and invalidates work query', async () => {
     setup();
-    const { deleteReference } = useDeleteReference();
+    const { deleteReference } = useDeleteReference({ workId: WORK_ID });
     await deleteReference(REF_ID);
     expect(mockServices.referenceService.deleteReference).toHaveBeenCalledWith(REF_ID);
-    expect(mockInvalidate).not.toHaveBeenCalled();
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['work', WORK_ID] });
   });
 
   it('sends error notification on failure', async () => {
     setup();
     mockServices.referenceService.deleteReference.mockRejectedValue(new Error('fail'));
-    const { deleteReference } = useDeleteReference();
+    const { deleteReference } = useDeleteReference({ workId: WORK_ID });
     await expect(deleteReference(REF_ID)).rejects.toThrow('fail');
     expect(mockSendError).toHaveBeenCalled();
   });

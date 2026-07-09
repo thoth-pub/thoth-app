@@ -1,7 +1,8 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useEffectEvent } from 'react';
+import { useEffect, useEffectEvent, useRef } from 'react';
 
 import { type PublisherId } from '@/src/entities/publisher';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
@@ -25,8 +26,9 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   const pathname = usePathname();
   const router = useRouter();
   const { persistentStorage } = useServices();
+  const queryClient = useQueryClient();
 
-  const { activePublisher, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
+  const { activePublisher, linkedPublishers, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
 
   const authorizedPublishers = user.linkedPublishers
     .map((publisher) => ({
@@ -44,6 +46,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
     if (!publisher) return;
 
     changeActivePublisher(publisher);
+    queryClient.clear();
 
     try {
       await persistentStorage.set(activePublisherIdKey, publisher.id);
@@ -68,17 +71,38 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
     updateActivePublisher(persistedPublisherId as PublisherId, true);
   };
 
+  // Tracks whether the initial publisher setup has been performed.
+  const hasInitialized = useRef(false);
+
   // Initialise the active publisher only when loading completes, reading the latest
   // user and store state without re-firing on them.
   const initializeActivePublisher = useEffectEvent(() => {
     if (loading || user.linkedPublishers.length === 0 || activePublisher) return;
 
+    hasInitialized.current = true;
     setActivePublisher();
   });
 
   useEffect(() => {
     initializeActivePublisher();
   }, [loading]);
+
+  // After initialisation, sync the XState context whenever the user's linked publisher
+  // list changes (e.g. permissions updated on the backend).
+  useEffect(() => {
+    if (!hasInitialized.current) return;
+    if (authorizedPublishers.length === 0) return;
+
+    const currentIds = new Set(authorizedPublishers.map((p) => p.id));
+    const stateIds = new Set(linkedPublishers.map((p) => p.id));
+
+    if (
+      currentIds.size !== stateIds.size ||
+      ![...currentIds].every((id) => stateIds.has(id))
+    ) {
+      setLinkedPublishers(authorizedPublishers, user.isSuperuser);
+    }
+  }, [authorizedPublishers]);
 
   const hideSelector = publishersOptions.length <= 1 || isHidden;
 

@@ -111,11 +111,19 @@ export const getDefaultAbstract = (data?: Partial<AbstractEntity>): AbstractEnti
   };
 };
 
+const UNTITLED = 'Untitled';
+
 export const getMainTitle = (titles: TitleEntity[]) => {
   const defaultTitle = titles.length === 0 ? getDefaultTitle() : titles[0];
   const mainTitle = titles.find((title) => title.canonical);
 
-  return mainTitle ?? defaultTitle;
+  const result = mainTitle ?? defaultTitle;
+
+  return {
+    ...result,
+    title: result.title || UNTITLED,
+    fullTitle: result.fullTitle || UNTITLED,
+  };
 };
 
 export const isTextContainsAnyMarkdownTag = (text: string): boolean => {

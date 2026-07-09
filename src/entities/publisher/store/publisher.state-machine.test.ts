@@ -94,7 +94,7 @@ describe('publisherStateMachine', () => {
     expect(actor.getSnapshot().context.activePublisher).toBeNull();
   });
 
-  it('ignores setLinkedPublishers in authenticated state', () => {
+  it('updates linkedPublishers via setLinkedPublishers in authenticated state', () => {
     const actor = interpret(publisherStateMachine).start();
     const initialPublishers = [
       { id: 'pub-1', name: 'First', publisherAdmin: true, workLifecycle: true, cdnWrite: false, imprints: [] },
@@ -106,6 +106,8 @@ describe('publisherStateMachine', () => {
     ];
     actor.send({ type: 'setLinkedPublishers', linkedPublishers: newPublishers, isSuperAdmin: false });
 
-    expect(actor.getSnapshot().context.linkedPublishers).toEqual(initialPublishers);
+    expect(actor.getSnapshot().value).toBe('authenticated');
+    expect(actor.getSnapshot().context.linkedPublishers).toEqual(newPublishers);
+    expect(actor.getSnapshot().context.activePublisher).toBeNull();
   });
 });

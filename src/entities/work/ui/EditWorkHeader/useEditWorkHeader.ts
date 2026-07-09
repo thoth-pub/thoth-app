@@ -56,7 +56,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
       withdrawnDate = getDateInFutureFromDate(publicationDate ?? getDateInFuture(1));
     }
 
-    updateWork({
+    await updateWork({
       ...work,
       status: pendingStatus,
       publicationDate,
@@ -81,7 +81,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
   };
 
   const changePublicationDate = async (publicationDate: string) => {
-    updateWork({
+    await updateWork({
       ...work,
       publicationDate,
     });
@@ -99,7 +99,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
   const changeWithdrawnDate = async (withdrawnDate: string) => {
     if (withdrawnDate.length === 0) return;
 
-    updateWork({
+    await updateWork({
       ...work,
       withdrawnDate,
     });

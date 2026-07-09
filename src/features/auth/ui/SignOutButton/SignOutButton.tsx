@@ -11,11 +11,7 @@ const SignOutButton = () => {
   const { resetLinkedPublishers, activePublisher } = usePublisherStateMachine();
   const client = useQueryClient();
 
-  // On unmount, clear publisher-scoped state unless a publisher is active, reading the
-  // state as it is at unmount time.
   const clearPublisherState = useEffectEvent(() => {
-    if (activePublisher) return;
-
     resetLinkedPublishers();
     client.clear();
   });

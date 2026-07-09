@@ -23,8 +23,13 @@ const mocks = vi.hoisted(() => {
     },
     pathname: '/dashboard',
     router: { push: vi.fn() },
+    queryClient: { clear: vi.fn() },
   };
 });
+
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => mocks.queryClient,
+}));
 
 vi.mock('@/src/entities/user', () => ({
   useUser: () => ({ user: mocks.user, loading: mocks.loading }),

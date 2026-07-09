@@ -34,6 +34,7 @@ import {
 import { AbstractTypes } from '../../constants/abstracts';
 import { ERRORS } from '../../constants/errors';
 import { FormFieldOption } from '../../interfaces';
+import { compileFullTitle } from '../../utils/titles';
 import type { AbstractEntity, ContributorsForSelection, SeriesForUpdateItems, TitleEntity } from '../../types';
 import {
   convertRomanToArabic,
@@ -278,7 +279,7 @@ export class CSVParser {
   private parseTitles(row: Row, rowNumber: number): TitleEntity[] {
     const title = this.parseStringField(row, CSV_KEYS.TITLE, rowNumber);
     const subtitle = this.parseStringField(row, CSV_KEYS.SUBTITLE, rowNumber);
-    const fullTitle = subtitle ? `${title}: ${subtitle}` : title;
+    const fullTitle = compileFullTitle(title, subtitle);
 
     return [getDefaultTitle({ canonical: true, title, subtitle, fullTitle })];
   }

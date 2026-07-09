@@ -29,42 +29,32 @@ exports[`AddNewSetForm > renders snapshot > AddNewSetForm 1`] = `
               <div
                 class="wmde-markdown wmde-markdown-color text-sm md:text-base"
                 style="white-space: pre-wrap; width: 100%; background-color: transparent; color: var(--color-markdown-text); font-size: 1rem;"
-              />
+              >
+                <p>
+                  Untitled
+                </p>
+              </div>
             </span>
             <ul
               class="flex flex-wrap gap-1"
             />
           </div>
           <button
-            class="MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeMedium MuiButton-textSizeMedium MuiButton-colorPrimary MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeMedium MuiButton-textSizeMedium MuiButton-colorPrimary mr-2 w-full justify-between p-0 css-zmd0ac-MuiButtonBase-root-MuiButton-root"
+            class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"
             tabindex="0"
             type="button"
           >
-            <span
-              class="flex gap-1 flex-row"
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+              data-testid="EditIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
             >
-              <span>
-                actions.add
-              </span>
-              <span>
-                title.label
-              </span>
-            </span>
-            <span
-              class="MuiButton-icon MuiButton-endIcon MuiButton-iconSizeMedium css-1wyk03i-MuiButton-endIcon"
-            >
-              <svg
-                aria-hidden="true"
-                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium opacity-0 group-hover:opacity-100 css-1umw9bq-MuiSvgIcon-root"
-                data-testid="AddIcon"
-                focusable="false"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"
-                />
-              </svg>
-            </span>
+              <path
+                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+              />
+            </svg>
           </button>
         </div>
       </div>
