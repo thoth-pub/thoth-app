@@ -1,0 +1,31 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`PublishedBooksChart > renders snapshot > PublishedBooksChart 1`] = `
+<div>
+  <div
+    class="MuiGrid-root MuiGrid-direction-xs-row MuiGrid-grid-xs-4 css-1y1kq7m-MuiGrid-root"
+  >
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation3 h-30 max-h-30 rounded-xl bg-(--color-background-alt) p-3 xl:h-40 xl:max-h-40 css-1gtchvp-MuiPaper-root"
+      style="--Paper-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,0.14),0px 1px 8px 0px rgba(0,0,0,0.12);"
+    >
+      <div>
+        <div
+          class="flex w-full flex-col gap-1"
+        >
+          <h2
+            class="MuiTypography-root MuiTypography-h2 mb-2 css-10p1e2f-MuiTypography-root"
+          >
+            widgets.published
+          </h2>
+          <p
+            class="MuiTypography-root MuiTypography-body1 m-auto css-pucm0b-MuiTypography-root"
+          >
+            widgets.empty
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

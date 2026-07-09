@@ -1,0 +1,441 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ChaptersContributionsList > renders snapshot > ChaptersContributionsList 1`] = `
+<div>
+  <ul
+    class="flex flex-col gap-1 relative"
+  >
+    <li
+      aria-describedby="DndDescribedBy-0"
+      aria-disabled="false"
+      aria-label="Edit contribution"
+      aria-roledescription="sortable"
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root group border border-transparent bg-(--color-background-alt) cursor-pointer hover:border-(--color-hover-border) hover:bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      role="button"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12);"
+      tabindex="0"
+    >
+      <div
+        class="MuiCardContent-root p-4 css-1lt5qva-MuiCardContent-root"
+      >
+        <div
+          class="cardItem"
+        >
+          <div
+            class="shrink-0"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall cursor-move css-hxgng1-MuiSvgIcon-root"
+              data-testid="DragIndicatorIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2m-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-2"
+          >
+            <h2
+              class="MuiTypography-root MuiTypography-h2 cardItem normal-case css-10p1e2f-MuiTypography-root"
+            >
+              John Doe
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+                data-testid="StarIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+                />
+              </svg>
+            </h2>
+            <p
+              class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+            >
+              Author
+            </p>
+          </div>
+          <div
+            class="MuiCardActions-root MuiCardActions-spacing ml-auto opacity-0 *:cursor-auto group-hover:opacity-100 css-1q4nm6f-MuiCardActions-root"
+          >
+            <button
+              class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+              tabindex="0"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                data-testid="DeleteOutlineIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root border border-(--color-hover-border) bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12); display: none !important;"
+    >
+      <div
+        class="MuiCardContent-root css-1lt5qva-MuiCardContent-root"
+      >
+        <div />
+      </div>
+    </div>
+    <li
+      aria-describedby="DndDescribedBy-0"
+      aria-disabled="false"
+      aria-label="Edit contribution"
+      aria-roledescription="sortable"
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root group border border-transparent bg-(--color-background-alt) cursor-pointer hover:border-(--color-hover-border) hover:bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      role="button"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12);"
+      tabindex="0"
+    >
+      <div
+        class="MuiCardContent-root p-4 css-1lt5qva-MuiCardContent-root"
+      >
+        <div
+          class="cardItem"
+        >
+          <div
+            class="shrink-0"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall cursor-move css-hxgng1-MuiSvgIcon-root"
+              data-testid="DragIndicatorIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2m-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-2"
+          >
+            <h2
+              class="MuiTypography-root MuiTypography-h2 cardItem normal-case css-10p1e2f-MuiTypography-root"
+            >
+              Jane Smith
+            </h2>
+            <p
+              class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+            >
+              Editor
+            </p>
+          </div>
+          <div
+            class="MuiCardActions-root MuiCardActions-spacing ml-auto opacity-0 *:cursor-auto group-hover:opacity-100 css-1q4nm6f-MuiCardActions-root"
+          >
+            <button
+              class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+              tabindex="0"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                data-testid="DeleteOutlineIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root border border-(--color-hover-border) bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12); display: none !important;"
+    >
+      <div
+        class="MuiCardContent-root css-1lt5qva-MuiCardContent-root"
+      >
+        <div />
+      </div>
+    </div>
+    <div
+      aria-hidden="true"
+      class="MuiBackdrop-root absolute h-full w-full bg-white/50 css-1rxxzfv-MuiBackdrop-root"
+      style="opacity: 0; visibility: hidden;"
+    >
+      <span
+        class="MuiCircularProgress-root MuiCircularProgress-indeterminate MuiCircularProgress-colorPrimary css-nbluux-MuiCircularProgress-root"
+        role="progressbar"
+        style="width: 40px; height: 40px;"
+      >
+        <svg
+          class="MuiCircularProgress-svg css-54pwck-MuiCircularProgress-svg"
+          viewBox="22 22 44 44"
+        >
+          <circle
+            class="MuiCircularProgress-circle MuiCircularProgress-circleIndeterminate css-19t5dcl-MuiCircularProgress-circle"
+            cx="44"
+            cy="44"
+            fill="none"
+            r="20.2"
+            stroke-width="3.6"
+          />
+        </svg>
+      </span>
+    </div>
+  </ul>
+  <div
+    id="DndDescribedBy-0"
+    style="display: none;"
+  >
+    
+    To pick up a draggable item, press the space bar.
+    While dragging, use the arrow keys to move the item.
+    Press space again to drop the item in its new position, or press escape to cancel.
+  
+  </div>
+  <div
+    aria-atomic="true"
+    aria-live="assertive"
+    id="DndLiveRegion-0"
+    role="status"
+    style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;"
+  />
+</div>
+`;
+
+exports[`ChaptersContributionsList > renders with active contribution > ChaptersContributionsList - active 1`] = `
+<div>
+  <ul
+    class="flex flex-col gap-1 relative"
+  >
+    <li
+      aria-describedby="DndDescribedBy-1"
+      aria-disabled="false"
+      aria-label="Edit contribution"
+      aria-roledescription="sortable"
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root group border border-transparent bg-(--color-background-alt) cursor-pointer hover:border-(--color-hover-border) hover:bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      role="button"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12); display: none !important;"
+      tabindex="0"
+    >
+      <div
+        class="MuiCardContent-root p-4 css-1lt5qva-MuiCardContent-root"
+      >
+        <div
+          class="cardItem"
+        >
+          <div
+            class="shrink-0"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall cursor-move css-hxgng1-MuiSvgIcon-root"
+              data-testid="DragIndicatorIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2m-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-2"
+          >
+            <h2
+              class="MuiTypography-root MuiTypography-h2 cardItem normal-case css-10p1e2f-MuiTypography-root"
+            >
+              John Doe
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+                data-testid="StarIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+                />
+              </svg>
+            </h2>
+            <p
+              class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+            >
+              Author
+            </p>
+          </div>
+          <div
+            class="MuiCardActions-root MuiCardActions-spacing ml-auto opacity-0 *:cursor-auto group-hover:opacity-100 css-1q4nm6f-MuiCardActions-root"
+          >
+            <button
+              class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+              tabindex="0"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                data-testid="DeleteOutlineIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root border border-(--color-hover-border) bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12);"
+    >
+      <div
+        class="MuiCardContent-root css-1lt5qva-MuiCardContent-root"
+      >
+        <div />
+      </div>
+    </div>
+    <li
+      aria-describedby="DndDescribedBy-1"
+      aria-disabled="false"
+      aria-label="Edit contribution"
+      aria-roledescription="sortable"
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root group border border-transparent bg-(--color-background-alt) cursor-pointer hover:border-(--color-hover-border) hover:bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      role="button"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12);"
+      tabindex="0"
+    >
+      <div
+        class="MuiCardContent-root p-4 css-1lt5qva-MuiCardContent-root"
+      >
+        <div
+          class="cardItem"
+        >
+          <div
+            class="shrink-0"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall cursor-move css-hxgng1-MuiSvgIcon-root"
+              data-testid="DragIndicatorIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M11 18c0 1.1-.9 2-2 2s-2-.9-2-2 .9-2 2-2 2 .9 2 2m-2-8c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0-6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m6 4c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2m0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2m0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2"
+              />
+            </svg>
+          </div>
+          <div
+            class="flex flex-col gap-2"
+          >
+            <h2
+              class="MuiTypography-root MuiTypography-h2 cardItem normal-case css-10p1e2f-MuiTypography-root"
+            >
+              Jane Smith
+            </h2>
+            <p
+              class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+            >
+              Editor
+            </p>
+          </div>
+          <div
+            class="MuiCardActions-root MuiCardActions-spacing ml-auto opacity-0 *:cursor-auto group-hover:opacity-100 css-1q4nm6f-MuiCardActions-root"
+          >
+            <button
+              class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+              tabindex="0"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                data-testid="DeleteOutlineIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root border border-(--color-hover-border) bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12); display: none !important;"
+    >
+      <div
+        class="MuiCardContent-root css-1lt5qva-MuiCardContent-root"
+      >
+        <div />
+      </div>
+    </div>
+    <div
+      aria-hidden="true"
+      class="MuiBackdrop-root absolute h-full w-full bg-white/50 css-1rxxzfv-MuiBackdrop-root"
+      style="opacity: 0; visibility: hidden;"
+    >
+      <span
+        class="MuiCircularProgress-root MuiCircularProgress-indeterminate MuiCircularProgress-colorPrimary css-nbluux-MuiCircularProgress-root"
+        role="progressbar"
+        style="width: 40px; height: 40px;"
+      >
+        <svg
+          class="MuiCircularProgress-svg css-54pwck-MuiCircularProgress-svg"
+          viewBox="22 22 44 44"
+        >
+          <circle
+            class="MuiCircularProgress-circle MuiCircularProgress-circleIndeterminate css-19t5dcl-MuiCircularProgress-circle"
+            cx="44"
+            cy="44"
+            fill="none"
+            r="20.2"
+            stroke-width="3.6"
+          />
+        </svg>
+      </span>
+    </div>
+  </ul>
+  <div
+    id="DndDescribedBy-1"
+    style="display: none;"
+  >
+    
+    To pick up a draggable item, press the space bar.
+    While dragging, use the arrow keys to move the item.
+    Press space again to drop the item in its new position, or press escape to cancel.
+  
+  </div>
+  <div
+    aria-atomic="true"
+    aria-live="assertive"
+    id="DndLiveRegion-1"
+    role="status"
+    style="position: fixed; top: 0px; left: 0px; width: 1px; height: 1px; margin: -1px; border: 0px; padding: 0px; overflow: hidden; clip: rect(0px); clip-path: inset(100%); white-space: nowrap;"
+  />
+</div>
+`;

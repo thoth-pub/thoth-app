@@ -32,43 +32,13 @@ export function createMockServices(overrides: Record<string, unknown> = {}) {
   };
 }
 
-export function setupHookMocks(overrides: Record<string, unknown> = {}) {
-  const mockServices = createMockServices(overrides);
+export type MockRefs = ReturnType<typeof setupMockRefs>;
+
+export function setupMockRefs() {
+  const mockServices = createMockServices();
   const mockSendError = vi.fn();
   const mockSendSuccess = vi.fn();
   const mockInvalidate = vi.fn();
   const mockQueryClient = { invalidateQueries: mockInvalidate };
-
-  vi.mock('@/src/shared/context/servicesContext', () => ({
-    useServices: vi.fn(() => mockServices),
-    ServicesProvider: ({ children }: { children: React.ReactNode }) => children,
-  }));
-
-  vi.mock('@/src/shared/hooks/useNotifications', () => ({
-    useNotifications: vi.fn(() => ({
-      sendErrorNotification: mockSendError,
-      sendSuccessNotification: mockSendSuccess,
-      sendProgressNotification: vi.fn(),
-      dismissNotification: vi.fn(),
-    })),
-  }));
-
-  vi.mock('@tanstack/react-query', async (importOriginal) => {
-    const actual = await importOriginal<typeof import('@tanstack/react-query')>();
-    return {
-      ...actual,
-      useQueryClient: vi.fn(() => mockQueryClient),
-    };
-  });
-
-  return {
-    mockServices,
-    mockSendError,
-    mockSendSuccess,
-    mockInvalidate,
-    mockQueryClient,
-    reset: () => {
-      vi.clearAllMocks();
-    },
-  };
+  return { mockServices, mockSendError, mockSendSuccess, mockInvalidate, mockQueryClient };
 }

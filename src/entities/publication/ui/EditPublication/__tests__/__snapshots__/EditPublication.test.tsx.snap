@@ -1,0 +1,229 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`EditPublication > renders snapshot > EditPublication 1`] = `
+<div>
+  <div
+    class="m-4 flex max-w-full flex-col gap-(--default-gap) rounded-xl bg-(--color-form-background) lg:my-4 lg:ml-0.5"
+    style="opacity: 0; height: 0px;"
+  >
+    <div
+      class="flex justify-between"
+    >
+      <h3
+        class="MuiTypography-root MuiTypography-h2 flex items-center gap-1 text-(--color-typography) css-10p1e2f-MuiTypography-root"
+      >
+        PAPERBACK
+      </h3>
+      <div
+        class="flex gap-1"
+      >
+        <button
+          class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1af78t4-MuiButtonBase-root-MuiIconButton-root"
+          tabindex="0"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="CheckIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M9 16.17 4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"
+            />
+          </svg>
+        </button>
+        <button
+          aria-label="Close"
+          class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+          tabindex="0"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="CloseIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+    <div
+      class="group cursor-pointer  duration-300 hover:bg-(--color-hover-alt) "
+    >
+      <div
+        class="grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300"
+      >
+        <div
+          class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated flex items-center gap-3 css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+        >
+          publicationType.label
+           
+        </div>
+        <div
+          class="flex justify-between"
+        >
+          <p
+            class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+          >
+            paperback
+          </p>
+          <button
+            class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"
+            tabindex="0"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+              data-testid="EditIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      class="group cursor-pointer  duration-300 hover:bg-(--color-hover-alt) "
+    >
+      <div
+        class="grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300"
+      >
+        <div
+          class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated flex items-center gap-3 css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+        >
+          isbn.label
+           
+        </div>
+        <div
+          class="flex justify-between"
+        >
+          <p
+            class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+          >
+            978-1-234-56789-0
+          </p>
+          <button
+            class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"
+            tabindex="0"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+              data-testid="EditIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      class="group cursor-pointer  duration-300 hover:bg-(--color-hover-alt) "
+    >
+      <div
+        class="grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300"
+      >
+        <div
+          class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated flex items-center gap-3 css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+        >
+          dimensions.label
+           
+        </div>
+        <div
+          class="flex justify-between"
+        >
+          <p
+            class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+          >
+            6 mm ⤫ 9 mm ⤫ 0.5 mm | 6 in ⤫ 9 in ⤫ 0.5 in | 12 g | 12 oz
+          </p>
+          <button
+            class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"
+            tabindex="0"
+            type="button"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+              data-testid="EditIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+              />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div
+      class="group cursor-pointer  duration-300 hover:bg-(--color-hover-alt) "
+      style="display: none !important;"
+    >
+      <div
+        class="grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300"
+      >
+        <div
+          class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated flex items-center gap-3 css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+        >
+          accessibility.accessibility
+           
+        </div>
+        <div
+          class="flex justify-between"
+        >
+          <button
+            class="MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeMedium MuiButton-textSizeMedium MuiButton-colorPrimary MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeMedium MuiButton-textSizeMedium MuiButton-colorPrimary mr-2 w-full justify-between p-0 css-zmd0ac-MuiButtonBase-root-MuiButton-root"
+            tabindex="0"
+            type="button"
+          >
+            <span
+              class="flex gap-1 flex-row"
+            >
+              <span>
+                actions.add
+              </span>
+              <span>
+                accessibility.accessibility
+              </span>
+            </span>
+            <span
+              class="MuiButton-icon MuiButton-endIcon MuiButton-iconSizeMedium css-1wyk03i-MuiButton-endIcon"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium opacity-0 group-hover:opacity-100 css-1umw9bq-MuiSvgIcon-root"
+                data-testid="AddIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"
+                />
+              </svg>
+            </span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

@@ -1,0 +1,85 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`RecentlyPublishedBooks > renders with books > RecentlyPublishedBooks 1`] = `
+<div>
+  <div
+    data-testid="section-wrapper"
+  >
+    widgets.recently published
+    <div
+      class="MuiGrid-root MuiGrid-container MuiGrid-direction-xs-row MuiGrid-spacing-xs-1 MuiGrid-spacing-xl-2 css-p2kthq-MuiGrid-root"
+    >
+      <div
+        class="MuiGrid-root MuiGrid-direction-xs-row MuiGrid-grid-xs-4 css-1y1kq7m-MuiGrid-root"
+      >
+        <div
+          class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation3 h-30 max-h-30 rounded-xl bg-(--color-background-alt) p-3 xl:h-40 xl:max-h-40 css-1gtchvp-MuiPaper-root"
+          style="--Paper-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,0.14),0px 1px 8px 0px rgba(0,0,0,0.12);"
+        >
+          <a
+            href="/admin/works/1"
+          >
+            <div
+              class="flex h-full w-full"
+            >
+              <div
+                class="cover relative h-full shrink-0"
+              >
+                <img
+                  alt="image placeholder"
+                  class="h-full max-w-[70px] rounded object-cover object-center xl:max-w-[80px]"
+                  data-nimg="1"
+                  decoding="async"
+                  height="135"
+                  loading="lazy"
+                  src="http://localhost:3000/placeholder.svg"
+                  style="color: transparent; opacity: 1;"
+                  width="80"
+                />
+              </div>
+              <div
+                class="flex grow flex-col justify-between pl-2"
+              >
+                <div
+                  class="flex items-center justify-between"
+                >
+                  <h3
+                    class="MuiTypography-root MuiTypography-h2 max-w-[170px] grow truncate 2xl:max-w-[240px] css-10p1e2f-MuiTypography-root"
+                  >
+                    Test
+                  </h3>
+                </div>
+                <div
+                  class="mt-auto flex flex-col gap-1"
+                >
+                  <p
+                    class="MuiTypography-root MuiTypography-body1 max-w-[170px] truncate 2xl:max-w-[240px] css-pucm0b-MuiTypography-root"
+                  />
+                  <div
+                    class="flex flex-wrap items-center gap-4 w-full"
+                  >
+                    <p
+                      class="MuiTypography-root MuiTypography-body1 max-w-[100px] flex-1 truncate capitalize css-pucm0b-MuiTypography-root"
+                    >
+                      monograph
+                    </p>
+                    <div
+                      class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-3xlim2-MuiChip-root"
+                    >
+                      <span
+                        class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
+                      >
+                        active
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
