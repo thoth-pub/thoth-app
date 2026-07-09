@@ -1,9 +1,18 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 const mockParse = vi.fn();
+const mockGetServerSession = vi.fn();
 
 vi.mock('@5stones/onix', () => ({
   parse: (...args: unknown[]) => mockParse(...args),
+}));
+
+vi.mock('next-auth', () => ({
+  getServerSession: (...args: unknown[]) => mockGetServerSession(...args),
+}));
+
+vi.mock('@/src/shared/lib/auth/auth', () => ({
+  authOptions: {},
 }));
 
 import { validateXml } from '../validateXml';
@@ -24,6 +33,10 @@ function createMockFile(content: string): File {
 }
 
 describe('validateXml', () => {
+  beforeEach(() => {
+    mockGetServerSession.mockResolvedValue({ user: { name: 'Test' } });
+  });
+
   it('returns success with parsed data on valid XML', async () => {
     const mockData = { record: { reference: '123' } };
     mockParse.mockResolvedValue(mockData);
@@ -47,5 +60,13 @@ describe('validateXml', () => {
     const result = await validateXml(createMockFile('<xml></xml>'));
 
     expect(result).toEqual({ status: 'error', error: 'Unknown error' });
+  });
+
+  it('returns unauthorized when no session', async () => {
+    mockGetServerSession.mockResolvedValue(null);
+
+    const result = await validateXml(createMockFile('<ONIX></ONIX>'));
+
+    expect(result).toEqual({ status: 'error', error: 'Unauthorized' });
   });
 });

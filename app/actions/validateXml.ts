@@ -1,13 +1,14 @@
 'use server';
 
 import { parse } from '@5stones/onix';
+import { getServerSession } from 'next-auth';
 
-import type { OnixData } from '@/src/shared/types';
+import { authOptions } from '@/src/shared/lib/auth/auth';
 
 export type ValidationResult =
   | {
       status: 'success';
-      data: OnixData;
+      data: unknown;
     }
   | {
       status: 'error';
@@ -15,6 +16,11 @@ export type ValidationResult =
     };
 
 export const validateXml = async (file: File) => {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return { status: 'error', error: 'Unauthorized' };
+  }
+
   const xmlString = await file.text();
 
   try {
