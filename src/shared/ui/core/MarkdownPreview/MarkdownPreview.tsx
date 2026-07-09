@@ -4,6 +4,7 @@ import MDEditor from '@uiw/react-md-editor';
 
 import { useIsDesktop } from '@/src/shared/hooks';
 import { jatsToHtml } from '@/src/shared/utils/jats';
+import { sanitizeHtml } from '@/src/shared/utils/sanitize';
 import { escapeMarkdownList } from '@/src/shared/utils/strings';
 
 type MarkdownPreviewProps = {
@@ -15,7 +16,7 @@ const MarkdownPreview = ({ source }: MarkdownPreviewProps) => {
 
   return (
     <MDEditor.Markdown
-      source={escapeMarkdownList(jatsToHtml(source ?? ''))}
+      source={escapeMarkdownList(sanitizeHtml(jatsToHtml(source ?? '')))}
       className="text-sm md:text-base"
       style={{
         whiteSpace: 'pre-wrap',
