@@ -32,8 +32,8 @@ export const useEditFunding = (props: UseEditFundingProps) => {
   const { activeEntity: activeFunding, finishEditing, update } = useFundingStateMachine();
   const { updateFunding } = useUpdateFunding({ workId });
 
-  const updateProject = ({ projectName }: FundingProjectNameFormType) => {
-    if (!activeFunding || !projectName) return;
+  const updateProject = ({ projectName = '' }: FundingProjectNameFormType) => {
+    if (!activeFunding) return;
 
     const updatedFunding = { ...activeFunding, projectName };
 
@@ -47,8 +47,8 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     updateFunding(updatedFunding);
   };
 
-  const updateProjectShortName = ({ projectShortname }: FundingProjectShortNameFormType) => {
-    if (!activeFunding || !projectShortname) return;
+  const updateProjectShortName = ({ projectShortname = '' }: FundingProjectShortNameFormType) => {
+    if (!activeFunding) return;
 
     const updatedFunding = { ...activeFunding, projectShortname };
 
@@ -62,8 +62,8 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     updateFunding(updatedFunding);
   };
 
-  const updateProgram = ({ program }: FundingProgramFormType) => {
-    if (!activeFunding || !program) return;
+  const updateProgram = ({ program = '' }: FundingProgramFormType) => {
+    if (!activeFunding) return;
 
     const updatedFunding = { ...activeFunding, program };
 
@@ -77,8 +77,8 @@ export const useEditFunding = (props: UseEditFundingProps) => {
     updateFunding(updatedFunding);
   };
 
-  const updateGrantNumber = ({ grantNumber }: FundingGrantNumberFormType) => {
-    if (!activeFunding || !grantNumber) return;
+  const updateGrantNumber = ({ grantNumber = '' }: FundingGrantNumberFormType) => {
+    if (!activeFunding) return;
 
     const updatedFunding = { ...activeFunding, grantNumber };
 
@@ -89,7 +89,7 @@ export const useEditFunding = (props: UseEditFundingProps) => {
       return;
     }
 
-    updateFunding({ ...activeFunding, grantNumber });
+    updateFunding(updatedFunding);
   };
 
   const updateInstitution = (data: InstitutionFormType) => {

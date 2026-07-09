@@ -5,10 +5,10 @@ import { describe, expect, it, vi } from 'vitest';
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
-
 import { licenseOptions } from '@/src/shared/constants/formFields';
-import { getCsvConfig } from './getCsvConfig';
+
 import CSVParser from './CSVParser';
+import { getCsvConfig } from './getCsvConfig';
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -69,9 +69,7 @@ const makeParser = (
 // Builds a full 223-column CSV in getCsvConfig header order.
 // Supply only the columns you want; the rest are filled with empty strings.
 const buildCsv = (values: Record<string, string>) => {
-  const headers = (getCsvConfig(imprints, licenseOptions, testSeries, t) as any).headers.map(
-    (h: any) => h.name,
-  ) as string[];
+  const headers = getCsvConfig(imprints, licenseOptions, testSeries, t).headers.map((h) => h.name);
   const headerRow = headers.join(',');
   const dataRow = headers
     .map((name) => {

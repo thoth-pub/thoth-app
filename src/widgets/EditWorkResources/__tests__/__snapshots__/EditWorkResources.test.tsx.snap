@@ -1,0 +1,49 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`EditWorkResources > renders snapshot > EditWorkResources 1`] = `
+<div>
+  <div
+    class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation3 rounded-2xl bg-(--color-background-alt) p-4 lg:p-7 css-1gtchvp-MuiPaper-root"
+    style="--Paper-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,0.14),0px 1px 8px 0px rgba(0,0,0,0.12);"
+  >
+    <div
+      class="mb-9 flex items-center justify-between pl-4"
+    >
+      <h2
+        class="MuiTypography-root MuiTypography-h2 text-1 xl:text-[1.5rem] css-10p1e2f-MuiTypography-root"
+      >
+        additional resources
+      </h2>
+    </div>
+    <div
+      class="flex flex-col gap-5"
+    >
+      <div
+        data-testid="additional-resources-list"
+      />
+      <button
+        class="MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeSmall MuiButton-textSizeSmall MuiButton-colorPrimary MuiButton-fullWidth MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeSmall MuiButton-textSizeSmall MuiButton-colorPrimary MuiButton-fullWidth capitalized flex w-full min-w-max justify-between hover:[&>span>svg]:opacity-100 px-4 capitalize css-1d1z1nn-MuiButtonBase-root-MuiButton-root"
+        tabindex="0"
+        type="button"
+      >
+        actions.addNewAdditionalResource
+        <span
+          class="MuiButton-icon MuiButton-endIcon MuiButton-iconSizeSmall css-dp0v3c-MuiButton-endIcon"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall opacity-0 transition duration-300 ease-in-out ml-1 css-120dh41-MuiSvgIcon-root"
+            data-testid="AddIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"
+            />
+          </svg>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+`;

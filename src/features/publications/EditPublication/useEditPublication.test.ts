@@ -3,6 +3,7 @@ import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
+import type { CurrencyCode } from '@/src/entities/price/model/price.types';
 
 import { useEditPublication } from './useEditPublication';
 
@@ -23,16 +24,21 @@ const mocks = vi.hoisted(() => {
     fullTextUrl: 'https://library.oapen.org/book.pdf',
   };
 
+  const gbpPrice = { id: 'price-1', currencyCode: 'GBP', unitPrice: 25 };
+  const usdPrice = { id: 'price-2', currencyCode: 'USD', unitPrice: 30 };
+
   const publication = {
     id: 'pub-1',
     isbn: '978-3-16-148410-0',
-    prices: [],
+    prices: [gbpPrice, usdPrice],
     locations: [canonicalLocation, otherLocation],
   };
 
   return {
     canonicalLocation,
     otherLocation,
+    gbpPrice,
+    usdPrice,
     publication,
     // Stable reference, like react-query data before a refetch lands: the hook's
     // fresh-publication effect must not overwrite local state between submits.
@@ -40,6 +46,9 @@ const mocks = vi.hoisted(() => {
     updateLocation: vi.fn().mockResolvedValue({}),
     createLocation: vi.fn().mockResolvedValue({ id: 'loc-3' }),
     deleteLocationMutation: vi.fn().mockResolvedValue({}),
+    updatePrice: vi.fn().mockResolvedValue({}),
+    createPrice: vi.fn().mockResolvedValue({ id: 'price-3' }),
+    deletePrice: vi.fn().mockResolvedValue({}),
   };
 });
 
@@ -50,9 +59,9 @@ vi.mock('@/src/entities/locations', () => ({
 }));
 
 vi.mock('@/src/entities/price', () => ({
-  useCreatePrice: () => ({ createPrice: vi.fn(), loading: false }),
-  useUpdatePrice: () => ({ updatePrice: vi.fn(), loading: false }),
-  useDeletePrice: () => ({ deletePrice: vi.fn(), loading: false }),
+  useCreatePrice: () => ({ createPrice: mocks.createPrice, loading: false }),
+  useUpdatePrice: () => ({ updatePrice: mocks.updatePrice, loading: false }),
+  useDeletePrice: () => ({ deletePrice: mocks.deletePrice, loading: false }),
 }));
 
 vi.mock('@/src/entities/publication', () => ({
@@ -247,5 +256,122 @@ describe('useEditPublication updateLocations', () => {
     });
 
     expect(mocks.deleteLocationMutation).not.toHaveBeenCalled();
+  });
+});
+
+const priceRow = (priceId: string, currency: string, priceValue: number) => ({
+  priceId,
+  currency: { value: currency as CurrencyCode, label: currency },
+  priceValue,
+});
+
+describe('useEditPublication updatePrices', () => {
+  beforeEach(() => {
+    mocks.publication.prices = [mocks.gbpPrice, mocks.usdPrice];
+    mocks.updatePrice.mockClear();
+    mocks.createPrice.mockClear();
+    mocks.deletePrice.mockClear();
+  });
+
+  it('updates an edited price by its id', async () => {
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await result.current.updatePrices({
+        prices: [priceRow('price-1', 'GBP', 27.5), priceRow('price-2', 'USD', 30)],
+      });
+    });
+
+    expect(mocks.updatePrice).toHaveBeenCalledTimes(1);
+    expect(mocks.updatePrice).toHaveBeenCalledWith({
+      id: 'price-1',
+      currencyCode: 'GBP',
+      unitPrice: 27.5,
+      publicationId: 'pub-1',
+    });
+    expect(mocks.createPrice).not.toHaveBeenCalled();
+    expect(mocks.deletePrice).not.toHaveBeenCalled();
+  });
+
+  it('sends nothing when the submitted prices are unchanged', async () => {
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await result.current.updatePrices({
+        prices: [priceRow('price-1', 'GBP', 25), priceRow('price-2', 'USD', 30)],
+      });
+    });
+
+    expect(mocks.updatePrice).not.toHaveBeenCalled();
+    expect(mocks.createPrice).not.toHaveBeenCalled();
+    expect(mocks.deletePrice).not.toHaveBeenCalled();
+  });
+
+  it('creates a new row even when its currency matches an existing price', async () => {
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await result.current.updatePrices({
+        prices: [
+          priceRow('price-1', 'GBP', 25),
+          priceRow('price-2', 'USD', 30),
+          priceRow('0000-0000-0000-0000-3', 'GBP', 20),
+        ],
+      });
+    });
+
+    expect(mocks.updatePrice).not.toHaveBeenCalled();
+    expect(mocks.createPrice).toHaveBeenCalledTimes(1);
+    expect(mocks.createPrice.mock.calls[0][0]).toMatchObject({ currencyCode: 'GBP', unitPrice: 20 });
+  });
+
+  it('deletes the removed row, not the row that took over its currency', async () => {
+    const { result } = renderEditPublication();
+
+    // The USD row is removed and the GBP row is switched to USD.
+    await act(async () => {
+      await result.current.updatePrices({
+        prices: [priceRow('price-1', 'USD', 25)],
+      });
+    });
+
+    expect(mocks.deletePrice).toHaveBeenCalledTimes(1);
+    expect(mocks.deletePrice).toHaveBeenCalledWith('price-2');
+    expect(mocks.updatePrice).toHaveBeenCalledWith({
+      id: 'price-1',
+      currencyCode: 'USD',
+      unitPrice: 25,
+      publicationId: 'pub-1',
+    });
+  });
+
+  it('stores the server id of a created price so a re-edit before the refetch updates it', async () => {
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await result.current.updatePrices({
+        prices: [
+          priceRow('price-1', 'GBP', 25),
+          priceRow('price-2', 'USD', 30),
+          priceRow('0000-0000-0000-0000-3', 'EUR', 22),
+        ],
+      });
+    });
+
+    expect(result.current.activePublication?.prices).toContainEqual(expect.objectContaining({ id: 'price-3' }));
+  });
+
+  it('keeps local state on the persisted values when a mutation fails', async () => {
+    mocks.updatePrice.mockRejectedValueOnce(new Error('Update failed'));
+
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await result.current.updatePrices({
+        prices: [priceRow('price-1', 'GBP', 99), priceRow('price-2', 'USD', 30)],
+      });
+    });
+
+    expect(result.current.activePublication?.prices).toContainEqual(expect.objectContaining({ unitPrice: 25 }));
   });
 });

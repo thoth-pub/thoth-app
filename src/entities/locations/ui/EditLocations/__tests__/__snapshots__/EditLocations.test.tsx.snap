@@ -1,0 +1,149 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`EditLocations > renders empty state > EditLocations - empty 1`] = `
+<div>
+  <div
+    class="grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300"
+  >
+    <span
+      class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated capitalize css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+    >
+      locations.label
+    </span>
+    <button
+      class="MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeSmall MuiButton-textSizeSmall MuiButton-colorPrimary MuiButton-fullWidth MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeSmall MuiButton-textSizeSmall MuiButton-colorPrimary MuiButton-fullWidth capitalized flex w-full min-w-max justify-between hover:[&>span>svg]:opacity-100 mr-auto p-0 capitalize css-1d1z1nn-MuiButtonBase-root-MuiButton-root"
+      tabindex="0"
+      type="button"
+    >
+      actions.addNewLocation
+      <span
+        class="MuiButton-icon MuiButton-endIcon MuiButton-iconSizeSmall css-dp0v3c-MuiButton-endIcon"
+      >
+        <svg
+          aria-hidden="true"
+          class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall opacity-0 transition duration-300 ease-in-out ml-1 css-120dh41-MuiSvgIcon-root"
+          data-testid="AddIcon"
+          focusable="false"
+          viewBox="0 0 24 24"
+        >
+          <path
+            d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"
+          />
+        </svg>
+      </span>
+    </button>
+  </div>
+</div>
+`;
+
+exports[`EditLocations > renders snapshot > EditLocations 1`] = `
+<div>
+  <div
+    class="grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300"
+  >
+    <span
+      class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated capitalize css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+    >
+      locations.label
+    </span>
+  </div>
+  <ul
+    class="flex w-full flex-col gap-(--default-gap)"
+  >
+    <li
+      class="flex items-center gap-1"
+    >
+      <span
+        class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorDefault MuiChip-filledDefault css-hdcm1p-MuiChip-root"
+      >
+        <span
+          class="MuiChip-label MuiChip-labelSmall css-qmwq9b-MuiChip-label"
+        >
+          <span
+            class="MuiTypography-root MuiTypography-body1 flex items-center gap-1 css-pucm0b-MuiTypography-root"
+          >
+            Project MUSE
+          </span>
+        </span>
+      </span>
+      <p
+        class="MuiTypography-root MuiTypography-body1 max-w-[30%] truncate css-pucm0b-MuiTypography-root"
+      >
+        https://muse.jhu.edu
+      </p>
+      <svg
+        aria-hidden="true"
+        class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeMedium css-1lsm75s-MuiSvgIcon-root"
+        data-testid="StarIcon"
+        focusable="false"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M12 17.27 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+        />
+      </svg>
+      <div
+        class="MuiButtonGroup-root MuiButtonGroup-outlined MuiButtonGroup-horizontal MuiButtonGroup-colorPrimary ml-auto css-zv9ro0-MuiButtonGroup-root"
+        role="group"
+      >
+        <button
+          class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+          tabindex="0"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="DeleteOutlineIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+            />
+          </svg>
+        </button>
+        <button
+          class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+          tabindex="0"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="EditIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+            />
+          </svg>
+        </button>
+      </div>
+    </li>
+  </ul>
+  <button
+    class="MuiButtonBase-root MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeSmall MuiButton-textSizeSmall MuiButton-colorPrimary MuiButton-fullWidth MuiButton-root MuiButton-text MuiButton-textPrimary MuiButton-sizeSmall MuiButton-textSizeSmall MuiButton-colorPrimary MuiButton-fullWidth capitalized flex w-full min-w-max justify-between hover:[&>span>svg]:opacity-100 mt-4 mr-auto p-0 capitalize css-1d1z1nn-MuiButtonBase-root-MuiButton-root"
+    tabindex="0"
+    type="button"
+  >
+    actions.addNewLocation
+    <span
+      class="MuiButton-icon MuiButton-endIcon MuiButton-iconSizeSmall css-dp0v3c-MuiButton-endIcon"
+    >
+      <svg
+        aria-hidden="true"
+        class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall opacity-0 transition duration-300 ease-in-out ml-1 css-120dh41-MuiSvgIcon-root"
+        data-testid="AddIcon"
+        focusable="false"
+        viewBox="0 0 24 24"
+      >
+        <path
+          d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"
+        />
+      </svg>
+    </span>
+  </button>
+</div>
+`;

@@ -71,6 +71,12 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
     const newTitles = titles.filter((title) => !work.titles.some((workTitle) => workTitle.id === title.titleId));
     const updatedTitles = titles.filter((title) => work.titles.some((workTitle) => workTitle.id === title.titleId));
 
+    // One canonical title is allowed per work. If none exists (e.g. the canonical one
+    // was deleted), promote the first existing title, or the first new one.
+    const hasCanonicalTitle = work.titles.some(({ canonical }) => canonical);
+    const shouldPromoteUpdatedTitle = !hasCanonicalTitle && updatedTitles.length > 0;
+    const shouldPromoteNewTitle = !hasCanonicalTitle && updatedTitles.length === 0;
+
     const promises: Promise<TitleEntity>[] = [];
 
     newTitles.forEach(({ titleId, workTitle, subtitle = '', language }, index) => {
@@ -81,7 +87,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
             title: workTitle,
             subtitle,
             localeCode: language.value as LocaleCodeType,
-            canonical: work.titles.length === 0 && index === 0,
+            canonical: shouldPromoteNewTitle && index === 0,
             fullTitle: `${workTitle} ${subtitle}`,
           },
           relatedWorkId: work.id,
@@ -89,7 +95,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
       );
     });
 
-    updatedTitles.forEach(({ titleId, workTitle, subtitle = '', language }) => {
+    updatedTitles.forEach(({ titleId, workTitle, subtitle = '', language }, index) => {
       const existingTitle = work.titles.find((title) => title.id === titleId);
 
       if (!existingTitle) return;
@@ -101,7 +107,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
             title: workTitle,
             subtitle,
             localeCode: language.value as LocaleCodeType,
-            canonical: existingTitle.canonical ?? false,
+            canonical: (existingTitle.canonical ?? false) || (shouldPromoteUpdatedTitle && index === 0),
             fullTitle: `${workTitle} ${subtitle}`,
           },
           relatedWorkId: work.id,
@@ -130,6 +136,26 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
     queryClient.invalidateQueries({ queryKey: [QueryKeys.sets] });
   };
 
+  const handleDeleteTitle = async (titleId: string) => {
+    const deletedTitle = work.titles.find(({ id }) => id === titleId);
+
+    try {
+      await deleteTitle(titleId);
+
+      // The backend allows deleting the canonical title, so promote a replacement to
+      // avoid leaving the work without one.
+      if (!deletedTitle?.canonical) return;
+
+      const replacementTitle = work.titles.find(({ id }) => id !== titleId);
+
+      if (!replacementTitle) return;
+
+      await updateTitle({ data: { ...replacementTitle, canonical: true }, relatedWorkId: work.id });
+    } catch {
+      // The mutation hooks surface the error notification.
+    }
+  };
+
   return (
     <EditableContent
       formId={IDs.WORK_TITLE}
@@ -143,7 +169,7 @@ const EditWorkTitle = (props: EditWorkTitleProps) => {
             control={control as unknown as Control<WorkTitlesForm>}
             defaultLocaleOption={defaultLocaleOption}
             recommended={showIndicator}
-            onDelete={deleteTitle}
+            onDelete={handleDeleteTitle}
           />
           {withEdition && (
             <ContentWrapper>

@@ -1,0 +1,193 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`WorksSpeedDial > renders snapshot > WorksSpeedDial 1`] = `
+<div>
+  <div
+    class="MuiSpeedDial-root MuiSpeedDial-directionUp css-lixu4t-MuiSpeedDial-root"
+    role="presentation"
+  >
+    <button
+      aria-controls="WorksSpeedDial-actions"
+      aria-expanded="false"
+      aria-haspopup="true"
+      aria-label="Works SpeedDial"
+      class="MuiButtonBase-root MuiFab-root MuiFab-circular MuiFab-sizeLarge MuiFab-primary MuiFab-root MuiFab-circular MuiFab-sizeLarge MuiFab-primary MuiSpeedDial-fab css-ceftat-MuiButtonBase-root-MuiFab-root-MuiSpeedDial-fab"
+      style="transform: none; transition: transform 225ms cubic-bezier(0.4, 0, 0.2, 1) 0ms;"
+      tabindex="0"
+      type="button"
+    >
+      <span
+        class="MuiSpeedDialIcon-root css-1rfsytv-MuiSpeedDialIcon-root"
+      >
+        <svg
+          aria-hidden="true"
+          class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium MuiSpeedDialIcon-icon css-1umw9bq-MuiSvgIcon-root"
+          data-testid="AddIcon"
+          focusable="false"
+          viewBox="0 0 24 24"
+        >
+          <path
+            d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"
+          />
+        </svg>
+      </span>
+    </button>
+    <div
+      aria-orientation="vertical"
+      class="MuiSpeedDial-actions MuiSpeedDial-actionsClosed css-18b6z52-MuiSpeedDial-actions"
+      id="WorksSpeedDial-actions"
+      role="menu"
+    >
+      <span
+        class="MuiSpeedDialAction-staticTooltip MuiSpeedDialAction-tooltipPlacementLeft MuiSpeedDialAction-staticTooltipClosed css-1skoeac-MuiSpeedDialAction-staticTooltip"
+        id="WorksSpeedDial-action-0"
+      >
+        <span
+          class="MuiSpeedDialAction-staticTooltipLabel css-18jk8o7-MuiSpeedDialAction-staticTooltipLabel"
+          id="WorksSpeedDial-action-0-label"
+          style="transition-delay: 120ms;"
+        >
+          <span
+            class="capitalize"
+          >
+            actions.reissue
+          </span>
+        </span>
+        <button
+          aria-labelledby="WorksSpeedDial-action-0-label"
+          class="MuiButtonBase-root MuiFab-root MuiFab-circular MuiFab-sizeSmall MuiFab-default MuiFab-root MuiFab-circular MuiFab-sizeSmall MuiFab-default MuiSpeedDialAction-fab MuiSpeedDialAction-fabClosed css-13e5ut0-MuiButtonBase-root-MuiFab-root-MuiSpeedDialAction-fab"
+          role="menuitem"
+          style="transition-delay: 120ms;"
+          tabindex="-1"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeMedium css-1lsm75s-MuiSvgIcon-root"
+            data-testid="PlusOneIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M10 8H8v4H4v2h4v4h2v-4h4v-2h-4zm4.5-1.92V7.9l2.5-.5V18h2V5z"
+            />
+          </svg>
+        </button>
+      </span>
+      <span
+        class="MuiSpeedDialAction-staticTooltip MuiSpeedDialAction-tooltipPlacementLeft MuiSpeedDialAction-staticTooltipClosed css-1skoeac-MuiSpeedDialAction-staticTooltip"
+        id="WorksSpeedDial-action-1"
+      >
+        <span
+          class="MuiSpeedDialAction-staticTooltipLabel css-18jk8o7-MuiSpeedDialAction-staticTooltipLabel"
+          id="WorksSpeedDial-action-1-label"
+          style="transition-delay: 90ms;"
+        >
+          <span
+            class="capitalize"
+          >
+            actions.translation
+          </span>
+        </span>
+        <button
+          aria-labelledby="WorksSpeedDial-action-1-label"
+          class="MuiButtonBase-root MuiFab-root MuiFab-circular MuiFab-sizeSmall MuiFab-default MuiFab-root MuiFab-circular MuiFab-sizeSmall MuiFab-default MuiSpeedDialAction-fab MuiSpeedDialAction-fabClosed css-13e5ut0-MuiButtonBase-root-MuiFab-root-MuiSpeedDialAction-fab"
+          role="menuitem"
+          style="transition-delay: 90ms;"
+          tabindex="-1"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeMedium css-1lsm75s-MuiSvgIcon-root"
+            data-testid="TranslateIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="m12.87 15.07-2.54-2.51.03-.03c1.74-1.94 2.98-4.17 3.71-6.53H17V4h-7V2H8v2H1v1.99h11.17C11.5 7.92 10.44 9.75 9 11.35 8.07 10.32 7.3 9.19 6.69 8h-2c.73 1.63 1.73 3.17 2.98 4.56l-5.09 5.02L4 19l5-5 3.11 3.11zM18.5 10h-2L12 22h2l1.12-3h4.75L21 22h2zm-2.62 7 1.62-4.33L19.12 17z"
+            />
+          </svg>
+        </button>
+      </span>
+      <span
+        class="MuiSpeedDialAction-staticTooltip MuiSpeedDialAction-tooltipPlacementLeft MuiSpeedDialAction-staticTooltipClosed css-1skoeac-MuiSpeedDialAction-staticTooltip"
+        id="WorksSpeedDial-action-2"
+      >
+        <span
+          class="MuiSpeedDialAction-staticTooltipLabel css-18jk8o7-MuiSpeedDialAction-staticTooltipLabel"
+          id="WorksSpeedDial-action-2-label"
+          style="transition-delay: 60ms;"
+        >
+          <span
+            class="capitalize"
+          >
+            actions.upload
+          </span>
+        </span>
+        <button
+          aria-labelledby="WorksSpeedDial-action-2-label"
+          class="MuiButtonBase-root MuiFab-root MuiFab-circular MuiFab-sizeSmall MuiFab-default MuiFab-root MuiFab-circular MuiFab-sizeSmall MuiFab-default MuiSpeedDialAction-fab MuiSpeedDialAction-fabClosed css-13e5ut0-MuiButtonBase-root-MuiFab-root-MuiSpeedDialAction-fab"
+          role="menuitem"
+          style="transition-delay: 60ms;"
+          tabindex="-1"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeMedium css-1lsm75s-MuiSvgIcon-root"
+            data-testid="FileUploadIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"
+            />
+          </svg>
+        </button>
+      </span>
+      <span
+        class="MuiSpeedDialAction-staticTooltip MuiSpeedDialAction-tooltipPlacementLeft MuiSpeedDialAction-staticTooltipClosed css-1skoeac-MuiSpeedDialAction-staticTooltip"
+        id="WorksSpeedDial-action-3"
+      >
+        <span
+          class="MuiSpeedDialAction-staticTooltipLabel css-18jk8o7-MuiSpeedDialAction-staticTooltipLabel"
+          id="WorksSpeedDial-action-3-label"
+          style="transition-delay: 30ms;"
+        >
+          <span
+            class="capitalize"
+          >
+            actions.create
+          </span>
+        </span>
+        <button
+          aria-labelledby="WorksSpeedDial-action-3-label"
+          class="MuiButtonBase-root MuiFab-root MuiFab-circular MuiFab-sizeSmall MuiFab-default MuiFab-root MuiFab-circular MuiFab-sizeSmall MuiFab-default MuiSpeedDialAction-fab MuiSpeedDialAction-fabClosed css-13e5ut0-MuiButtonBase-root-MuiFab-root-MuiSpeedDialAction-fab"
+          role="menuitem"
+          style="transition-delay: 30ms;"
+          tabindex="-1"
+          type="button"
+        >
+          <a
+            class="MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-1dqfxx0-MuiTypography-root-MuiLink-root"
+            href="/admin/works/new"
+          >
+            <svg
+              aria-hidden="true"
+              class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeMedium css-1lsm75s-MuiSvgIcon-root"
+              data-testid="AddIcon"
+              focusable="false"
+              viewBox="0 0 24 24"
+            >
+              <path
+                d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"
+              />
+            </svg>
+          </a>
+        </button>
+      </span>
+    </div>
+  </div>
+</div>
+`;

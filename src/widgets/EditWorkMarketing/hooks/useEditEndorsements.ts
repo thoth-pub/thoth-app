@@ -51,7 +51,7 @@ export const useEditEndorsements = (workId: WorkId) => {
     const updatedData = data.map((endorsement, index) => ({ ...endorsement, orderNumber: index + 1 }));
 
     const endorsementToUpdate = updatedData.find(
-      (endorsement, index) => work.endorsements[index].id !== endorsement.id,
+      (endorsement, index) => work.endorsements[index]?.id !== endorsement.id,
     );
 
     if (!endorsementToUpdate) return;

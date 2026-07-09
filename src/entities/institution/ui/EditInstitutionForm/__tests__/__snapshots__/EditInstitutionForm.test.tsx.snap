@@ -1,0 +1,46 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`EditInstitutionForm > renders snapshot > EditInstitutionForm 1`] = `
+<div>
+  <div
+    class="group cursor-pointer  duration-300 hover:bg-(--color-hover-alt) "
+  >
+    <div
+      class="grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300"
+    >
+      <div
+        class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated flex items-center gap-3 css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+      >
+        institution.label
+         
+      </div>
+      <div
+        class="flex justify-between"
+      >
+        <p
+          class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+        >
+          University of Test
+        </p>
+        <button
+          class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"
+          tabindex="0"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="EditIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;

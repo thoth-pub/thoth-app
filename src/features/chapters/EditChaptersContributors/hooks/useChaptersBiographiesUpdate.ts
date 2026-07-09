@@ -1,11 +1,16 @@
 import { useQueryClient } from '@tanstack/react-query';
 
-import { useCreateBiography, useDeleteBiography } from '@/src/entities/contribution';
-import type { ContributionBiographyForm, WorkContribution } from '@/src/entities/contribution/model/contribution.types';
+import { useCreateBiography, useDeleteBiography, useUpdateBiography } from '@/src/entities/contribution';
+import type {
+  BiographyEntity,
+  ContributionBiographyForm,
+  WorkContribution,
+} from '@/src/entities/contribution/model/contribution.types';
 import { ContributionId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { appConfig } from '@/src/shared/config';
 import { QueryKeys } from '@/src/shared/constants';
+import { computeBiographiesDiff } from '@/src/shared/utils/biographies';
 
 import { findAllSameContributions } from '../components/utils';
 
@@ -13,6 +18,7 @@ export const useChaptersBiographiesUpdate = () => {
   const queryClient = useQueryClient();
   const { deleteBiography } = useDeleteBiography();
   const { createBiography } = useCreateBiography();
+  const { updateBiography } = useUpdateBiography('');
 
   const updateChaptersBiographies = async ({
     contributionId,
@@ -26,62 +32,58 @@ export const useChaptersBiographiesUpdate = () => {
     uniqueContributors: WorkContribution[];
   }) => {
     const sameContributions = findAllSameContributions(contributionId, chapters, uniqueContributors);
-    const contributionsToUpdateIds = sameContributions.map((contribution) => contribution.id);
-    const updatedContributions: WorkContribution[] = [];
 
     if (sameContributions.length === 0) return [];
 
-    const existingBiographies = sameContributions.flatMap((contribution) => contribution.biographies);
-
-    const deletePromises = existingBiographies.map((biography) => deleteBiography(biography.id));
-
-    await Promise.all(deletePromises);
-
-    const contributionsIds = sameContributions.map((contribution) => contribution.id);
-
-    const biographiesToCreate = data.biographies
-      .map((biography, index) => ({
-        id: appConfig.defaultId,
-        canonical: index === 0,
-        content: biography.contributorBiography ?? '',
-        localeCode: biography.language.value,
-        contributionId: contributionId,
+    const desiredRows = data.biographies
+      .map(({ contributorBiography, language }) => ({
+        content: contributorBiography ?? '',
+        localeCode: language.value,
       }))
-      .filter((biography) => biography.content.length > 0);
+      .filter((row) => row.content.length > 0);
 
-    for (contributionId of contributionsIds) {
-      const updatedBiographies = await Promise.all(
-        biographiesToCreate.map((biography) =>
-          createBiography({
-            data: biography,
-            contributionId,
-          }),
-        ),
-      );
+    const updatedContributions: WorkContribution[] = [];
 
-      const contributionToUpdate = uniqueContributors.find((contribution) => contribution.id === contributionId);
+    try {
+      for (const contribution of sameContributions) {
+        // The form rows carry the active contribution's biography ids, so resolve each
+        // row against this contribution's own biographies by locale instead.
+        const desiredBiographies: BiographyEntity[] = desiredRows.map((row) => ({
+          id:
+            contribution.biographies.find(({ localeCode }) => localeCode === row.localeCode)?.id ??
+            appConfig.defaultId,
+          canonical: false,
+          content: row.content,
+          localeCode: row.localeCode,
+          contributionId: contribution.id,
+        }));
 
-      if (!contributionToUpdate) continue;
+        const { biographiesToDelete, updatedBiographies, unchangedBiographies, newBiographies } =
+          computeBiographiesDiff(desiredBiographies, contribution.biographies);
 
-      updatedContributions.push({
-        ...contributionToUpdate,
-        biographies: updatedBiographies,
-      });
+        // Deletions only remove content the user discarded, and must run first so a
+        // replacement canonical biography does not clash with the deleted one.
+        await Promise.all(biographiesToDelete.map(({ id }) => deleteBiography(id)));
+        await Promise.all(updatedBiographies.map((biography) => updateBiography({ data: biography })));
+        const createdBiographies = await Promise.all(
+          newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
+        );
+
+        updatedContributions.push({
+          ...contribution,
+          biographies: [...updatedBiographies, ...unchangedBiographies, ...createdBiographies],
+        });
+      }
+    } catch {
+      // The mutation hooks surface the error notification; the remaining contributions
+      // are skipped so kept biographies are never deleted. The invalidation below
+      // resyncs local state with whatever was persisted.
     }
 
     const updatedUniqueContributions = uniqueContributors.map((contribution) => {
-      if (!contributionsToUpdateIds.includes(contribution.id)) return contribution;
+      const updatedContribution = updatedContributions.find(({ id }) => id === contribution.id);
 
-      const foundedContribution = updatedContributions.find(
-        (updatedContribution) => updatedContribution.id === contribution.id,
-      );
-
-      if (!foundedContribution) return contribution;
-
-      return {
-        ...contribution,
-        biographies: foundedContribution.biographies,
-      };
+      return updatedContribution ?? contribution;
     });
 
     queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });

@@ -2,7 +2,7 @@
 
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect } from 'react';
+import { useEffect, useEffectEvent } from 'react';
 
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { IconButton } from '@/src/shared/ui';
@@ -11,12 +11,18 @@ const SignOutButton = () => {
   const { resetLinkedPublishers, activePublisher } = usePublisherStateMachine();
   const client = useQueryClient();
 
-  useEffect(() => {
+  // On unmount, clear publisher-scoped state unless a publisher is active, reading the
+  // state as it is at unmount time.
+  const clearPublisherState = useEffectEvent(() => {
     if (activePublisher) return;
 
+    resetLinkedPublishers();
+    client.clear();
+  });
+
+  useEffect(() => {
     return () => {
-      resetLinkedPublishers();
-      client.clear();
+      clearPublisherState();
     };
   }, []);
 

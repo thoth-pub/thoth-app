@@ -24,7 +24,7 @@ export const IssuesList = (props: IssuesListProps) => {
       orderNumber: index + 1,
     }));
 
-    const firstUpdatedIssue = updatedIssues.find((issue, index) => issue.id !== issues[index].id);
+    const firstUpdatedIssue = updatedIssues.find((issue, index) => issue.id !== issues[index]?.id);
 
     if (!firstUpdatedIssue) return;
 

@@ -83,7 +83,7 @@ const EditLocations = (props: EditLocationsProps) => {
 
   const isThothLocationSelected = locations.some((location) => location.locationPlatform === LocationPlatform.Thoth);
 
-  const sortedLocations = locations.sort((a, b) => {
+  const sortedLocations = [...locations].sort((a, b) => {
     if (a.locationPlatform === LocationPlatform.Thoth) return -1;
     if (b.locationPlatform === LocationPlatform.Thoth) return 1;
     return 0;

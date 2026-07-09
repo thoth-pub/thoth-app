@@ -121,7 +121,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
       });
     }
 
-    const lastOrderNumber = work.contributions.sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber || 1;
+    const lastOrderNumber = [...work.contributions].sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber || 1;
 
     createContribution({
       data: { ...activeContribution, orderNumber: lastOrderNumber + 1 },

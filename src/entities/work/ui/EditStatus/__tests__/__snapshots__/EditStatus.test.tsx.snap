@@ -1,0 +1,147 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`EditStatus > calls onUpdate when onSubmit is triggered > EditStatus - with onUpdate 1`] = `
+<div>
+  <div
+    class="cursor-pointer"
+  >
+    <div
+      class="flex flex-col gap-2"
+    >
+      <label
+        class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+      >
+        status.label
+      </label>
+      <div
+        class="group flex items-center gap-1"
+      >
+        <div
+          class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-3xlim2-MuiChip-root"
+        >
+          <span
+            class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
+          >
+            active
+          </span>
+        </div>
+        <button
+          class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+          disabled=""
+          tabindex="-1"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="EditIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`EditStatus > renders snapshot > EditStatus 1`] = `
+<div>
+  <div
+    class="cursor-pointer"
+  >
+    <div
+      class="flex flex-col gap-2"
+    >
+      <label
+        class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+      >
+        status.label
+      </label>
+      <div
+        class="group flex items-center gap-1"
+      >
+        <div
+          class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-3xlim2-MuiChip-root"
+        >
+          <span
+            class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
+          >
+            active
+          </span>
+        </div>
+        <button
+          class="MuiButtonBase-root Mui-disabled MuiIconButton-root Mui-disabled MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+          disabled=""
+          tabindex="-1"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="EditIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`EditStatus > renders with disabled false > EditStatus - editable 1`] = `
+<div>
+  <div
+    class="cursor-pointer"
+  >
+    <div
+      class="flex flex-col gap-2"
+    >
+      <label
+        class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+      >
+        status.label
+      </label>
+      <div
+        class="group flex items-center gap-1"
+      >
+        <div
+          class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-4v7kzb-MuiChip-root"
+        >
+          <span
+            class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
+          >
+            forthcoming
+          </span>
+        </div>
+        <button
+          class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+          tabindex="0"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="EditIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;

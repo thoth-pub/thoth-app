@@ -5,7 +5,12 @@ import { useEffect, useMemo, useState } from 'react';
 
 import { useAffiliationsForm, useMoveAffiliation } from '@/src/entities/affiliation';
 import type { AffiliationsForm } from '@/src/entities/affiliation/model/affiliation.types';
-import { useContributionStateMachine, useCreateBiography, useDeleteBiography } from '@/src/entities/contribution';
+import {
+  useContributionStateMachine,
+  useCreateBiography,
+  useDeleteBiography,
+  useUpdateBiography,
+} from '@/src/entities/contribution';
 import type {
   ContributionBiographyForm,
   ContributionNamesForm,
@@ -17,12 +22,12 @@ import type { OrcidForm, WebsiteUrlForm } from '@/src/entities/contributor/model
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
 import { useUser } from '@/src/entities/user';
 import { useWork } from '@/src/entities/work';
-import { appConfig } from '@/src/shared/config';
 import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useDefaultLocaleOption, useNotifications } from '@/src/shared/hooks';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 import { removePrefix } from '@/src/shared/utils';
+import { computeBiographiesDiff } from '@/src/shared/utils/biographies';
 
 type UseEditContributionProps = BaseEditSectionProps &
   Partial<{
@@ -39,10 +44,12 @@ type UseEditContributionProps = BaseEditSectionProps &
     onIsMainSubmit: (isMain: boolean) => void;
   }>;
 
+const emptyLinkedPublishers: PublisherId[] = [];
+
 export const useEditContribution = (props: UseEditContributionProps) => {
   const {
     workId,
-    linkedPublishers = [],
+    linkedPublishers = emptyLinkedPublishers,
     onNamesUpdate,
     onTypeUpdate,
     onBiographiesUpdate,
@@ -82,6 +89,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   });
   const queryClient = useQueryClient();
   const { createBiography } = useCreateBiography();
+  const { updateBiography: updateBiographyMutation } = useUpdateBiography(workId ?? '');
   const { deleteBiography } = useDeleteBiography();
 
   const { contributedToPublishers } = useLinkedPublishers({ id: activeContribution?.contributorId });
@@ -98,7 +106,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
 
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setContribution(contribution);
-  }, [work]);
+  }, [work, activeContribution?.id]);
 
   useEffect(() => {
     if (!activeContribution) return;
@@ -107,12 +115,11 @@ export const useEditContribution = (props: UseEditContributionProps) => {
     setContribution(activeContribution);
   }, [activeContribution]);
 
-  // eslint-disable-next-line react-hooks/preserve-manual-memoization
   const isContributedOnlyToCurrentPublisher = useMemo(() => {
     const contributions = Array.from(new Set(contributedToPublishers));
 
     return contributions.every((contribution) => linkedPublishers.includes(contribution));
-  }, [contributedToPublishers, workId]);
+  }, [contributedToPublishers, linkedPublishers]);
 
   const isOrchidEditionDisabled =
     !!activeContribution?.orcidId && !user.isSuperuser && !isContributedOnlyToCurrentPublisher;
@@ -173,28 +180,40 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       return;
     }
 
-    await Promise.all(contribution.biographies.map((biography) => deleteBiography(biography.id)));
-
-    const newBiographies = biographies
-      .map((biography, index) => ({
-        id: appConfig.defaultId,
-        canonical: index === 0,
-        content: biography.contributorBiography ?? '',
-        localeCode: biography.language.value,
+    const desiredBiographies = biographies
+      .map(({ biographyId, contributorBiography, language }) => ({
+        id: biographyId,
+        canonical: false,
+        content: contributorBiography ?? '',
+        localeCode: language.value,
         contributionId: contribution.id,
       }))
       .filter((biography) => biography.content.length > 0);
 
-    await Promise.all(
-      newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
+    const { biographiesToDelete, updatedBiographies, newBiographies } = computeBiographiesDiff(
+      desiredBiographies,
+      contribution.biographies,
     );
+
+    try {
+      // Deletions only remove content the user discarded, and must run first so a
+      // replacement canonical biography does not clash with the deleted one.
+      await Promise.all(biographiesToDelete.map(({ id }) => deleteBiography(id)));
+      await Promise.all(updatedBiographies.map((biography) => updateBiographyMutation({ data: biography })));
+      await Promise.all(
+        newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
+      );
+    } catch {
+      // The mutation hooks surface the error notification; the remaining phases are
+      // skipped so kept biographies are never deleted.
+    }
 
     queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
     queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
   };
 
   const updateOrcid = ({ orcid = '' }: OrcidForm) => {
-    if (!contribution || orcid.length === 0) return;
+    if (!contribution) return;
 
     if (onOrcidUpdate) {
       onOrcidUpdate({ orcid });
@@ -219,7 +238,7 @@ export const useEditContribution = (props: UseEditContributionProps) => {
   };
 
   const updateWebsiteUrl = ({ websiteUrl = '' }: WebsiteUrlForm) => {
-    if (!contribution || websiteUrl.length === 0) return;
+    if (!contribution) return;
 
     if (onWebsiteUrlUpdate) {
       onWebsiteUrlUpdate({ websiteUrl });

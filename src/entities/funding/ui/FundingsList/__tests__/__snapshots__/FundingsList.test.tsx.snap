@@ -1,0 +1,379 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`FundingsList > renders empty state > FundingsList - empty 1`] = `
+<div>
+  <ul
+    class="flex flex-col gap-1 relative"
+  >
+    <div
+      aria-hidden="true"
+      class="MuiBackdrop-root absolute h-full w-full bg-white/50 css-1rxxzfv-MuiBackdrop-root"
+      style="opacity: 0; visibility: hidden;"
+    >
+      <span
+        class="MuiCircularProgress-root MuiCircularProgress-indeterminate MuiCircularProgress-colorPrimary css-nbluux-MuiCircularProgress-root"
+        role="progressbar"
+        style="width: 40px; height: 40px;"
+      >
+        <svg
+          class="MuiCircularProgress-svg css-54pwck-MuiCircularProgress-svg"
+          viewBox="22 22 44 44"
+        >
+          <circle
+            class="MuiCircularProgress-circle MuiCircularProgress-circleIndeterminate css-19t5dcl-MuiCircularProgress-circle"
+            cx="44"
+            cy="44"
+            fill="none"
+            r="20.2"
+            stroke-width="3.6"
+          />
+        </svg>
+      </span>
+    </div>
+  </ul>
+</div>
+`;
+
+exports[`FundingsList > renders snapshot > FundingsList 1`] = `
+<div>
+  <ul
+    class="flex flex-col gap-1 relative"
+  >
+    <li
+      aria-describedby=""
+      aria-disabled="false"
+      aria-label="Edit funding"
+      aria-roledescription="sortable"
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root group border border-transparent bg-(--color-background-alt) cursor-pointer hover:border-(--color-hover-border) hover:bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      role="button"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12);"
+      tabindex="0"
+    >
+      <div
+        class="MuiCardContent-root p-4 css-1lt5qva-MuiCardContent-root"
+      >
+        <div
+          class="cardItem"
+        >
+          <div
+            class="flex flex-col gap-2"
+          >
+            <p
+              class="MuiTypography-root MuiTypography-body1 cardItem normal-case css-pucm0b-MuiTypography-root"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+                data-testid="AccountBalanceIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zm-5-9L2 6v2h20V6z"
+                />
+              </svg>
+              Uni A
+               
+            </p>
+          </div>
+          <div
+            class="MuiCardActions-root MuiCardActions-spacing ml-auto opacity-0 *:cursor-auto group-hover:opacity-100 css-1q4nm6f-MuiCardActions-root"
+          >
+            <button
+              class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+              tabindex="0"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                data-testid="DeleteOutlineIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root border border-(--color-hover-border) bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12); display: none !important;"
+    >
+      <div
+        class="MuiCardContent-root css-1lt5qva-MuiCardContent-root"
+      />
+    </div>
+    <li
+      aria-describedby=""
+      aria-disabled="false"
+      aria-label="Edit funding"
+      aria-roledescription="sortable"
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root group border border-transparent bg-(--color-background-alt) cursor-pointer hover:border-(--color-hover-border) hover:bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      role="button"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12);"
+      tabindex="0"
+    >
+      <div
+        class="MuiCardContent-root p-4 css-1lt5qva-MuiCardContent-root"
+      >
+        <div
+          class="cardItem"
+        >
+          <div
+            class="flex flex-col gap-2"
+          >
+            <p
+              class="MuiTypography-root MuiTypography-body1 cardItem normal-case css-pucm0b-MuiTypography-root"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+                data-testid="AccountBalanceIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zm-5-9L2 6v2h20V6z"
+                />
+              </svg>
+              Uni B
+               
+            </p>
+          </div>
+          <div
+            class="MuiCardActions-root MuiCardActions-spacing ml-auto opacity-0 *:cursor-auto group-hover:opacity-100 css-1q4nm6f-MuiCardActions-root"
+          >
+            <button
+              class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+              tabindex="0"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                data-testid="DeleteOutlineIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root border border-(--color-hover-border) bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12); display: none !important;"
+    >
+      <div
+        class="MuiCardContent-root css-1lt5qva-MuiCardContent-root"
+      />
+    </div>
+    <div
+      aria-hidden="true"
+      class="MuiBackdrop-root absolute h-full w-full bg-white/50 css-1rxxzfv-MuiBackdrop-root"
+      style="opacity: 0; visibility: hidden;"
+    >
+      <span
+        class="MuiCircularProgress-root MuiCircularProgress-indeterminate MuiCircularProgress-colorPrimary css-nbluux-MuiCircularProgress-root"
+        role="progressbar"
+        style="width: 40px; height: 40px;"
+      >
+        <svg
+          class="MuiCircularProgress-svg css-54pwck-MuiCircularProgress-svg"
+          viewBox="22 22 44 44"
+        >
+          <circle
+            class="MuiCircularProgress-circle MuiCircularProgress-circleIndeterminate css-19t5dcl-MuiCircularProgress-circle"
+            cx="44"
+            cy="44"
+            fill="none"
+            r="20.2"
+            stroke-width="3.6"
+          />
+        </svg>
+      </span>
+    </div>
+  </ul>
+</div>
+`;
+
+exports[`FundingsList > renders with onDelete and onEdit callbacks > FundingsList - with callbacks 1`] = `
+<div>
+  <ul
+    class="flex flex-col gap-1 relative"
+  >
+    <li
+      aria-describedby=""
+      aria-disabled="false"
+      aria-label="Edit funding"
+      aria-roledescription="sortable"
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root group border border-transparent bg-(--color-background-alt) cursor-pointer hover:border-(--color-hover-border) hover:bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      role="button"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12);"
+      tabindex="0"
+    >
+      <div
+        class="MuiCardContent-root p-4 css-1lt5qva-MuiCardContent-root"
+      >
+        <div
+          class="cardItem"
+        >
+          <div
+            class="flex flex-col gap-2"
+          >
+            <p
+              class="MuiTypography-root MuiTypography-body1 cardItem normal-case css-pucm0b-MuiTypography-root"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+                data-testid="AccountBalanceIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zm-5-9L2 6v2h20V6z"
+                />
+              </svg>
+              Uni A
+               
+            </p>
+          </div>
+          <div
+            class="MuiCardActions-root MuiCardActions-spacing ml-auto opacity-0 *:cursor-auto group-hover:opacity-100 css-1q4nm6f-MuiCardActions-root"
+          >
+            <button
+              class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+              tabindex="0"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                data-testid="DeleteOutlineIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root border border-(--color-hover-border) bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12); display: none !important;"
+    >
+      <div
+        class="MuiCardContent-root css-1lt5qva-MuiCardContent-root"
+      />
+    </div>
+    <li
+      aria-describedby=""
+      aria-disabled="false"
+      aria-label="Edit funding"
+      aria-roledescription="sortable"
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root group border border-transparent bg-(--color-background-alt) cursor-pointer hover:border-(--color-hover-border) hover:bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      role="button"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12);"
+      tabindex="0"
+    >
+      <div
+        class="MuiCardContent-root p-4 css-1lt5qva-MuiCardContent-root"
+      >
+        <div
+          class="cardItem"
+        >
+          <div
+            class="flex flex-col gap-2"
+          >
+            <p
+              class="MuiTypography-root MuiTypography-body1 cardItem normal-case css-pucm0b-MuiTypography-root"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+                data-testid="AccountBalanceIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M4 10h3v7H4zm6.5 0h3v7h-3zM2 19h20v3H2zm15-9h3v7h-3zm-5-9L2 6v2h20V6z"
+                />
+              </svg>
+              Uni B
+               
+            </p>
+          </div>
+          <div
+            class="MuiCardActions-root MuiCardActions-spacing ml-auto opacity-0 *:cursor-auto group-hover:opacity-100 css-1q4nm6f-MuiCardActions-root"
+          >
+            <button
+              class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+              tabindex="0"
+              type="button"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                data-testid="DeleteOutlineIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </li>
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root border border-(--color-hover-border) bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12); display: none !important;"
+    >
+      <div
+        class="MuiCardContent-root css-1lt5qva-MuiCardContent-root"
+      />
+    </div>
+    <div
+      aria-hidden="true"
+      class="MuiBackdrop-root absolute h-full w-full bg-white/50 css-1rxxzfv-MuiBackdrop-root"
+      style="opacity: 0; visibility: hidden;"
+    >
+      <span
+        class="MuiCircularProgress-root MuiCircularProgress-indeterminate MuiCircularProgress-colorPrimary css-nbluux-MuiCircularProgress-root"
+        role="progressbar"
+        style="width: 40px; height: 40px;"
+      >
+        <svg
+          class="MuiCircularProgress-svg css-54pwck-MuiCircularProgress-svg"
+          viewBox="22 22 44 44"
+        >
+          <circle
+            class="MuiCircularProgress-circle MuiCircularProgress-circleIndeterminate css-19t5dcl-MuiCircularProgress-circle"
+            cx="44"
+            cy="44"
+            fill="none"
+            r="20.2"
+            stroke-width="3.6"
+          />
+        </svg>
+      </span>
+    </div>
+  </ul>
+</div>
+`;

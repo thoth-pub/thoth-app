@@ -64,5 +64,5 @@ export const createEntityStateMachine = <T>(id: string) => {
     };
   };
 
-  return { useStateMachine, StateMachineContext };
+  return { useStateMachine, StateMachineContext, stateMachine };
 };

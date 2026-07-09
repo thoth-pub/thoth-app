@@ -1,0 +1,214 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`EditDoi > renders snapshot > EditDoi 1`] = `
+<div>
+  <div
+    class="group cursor-pointer border border-transparent hover:border-(--color-hover-border) duration-300 hover:bg-(--color-hover-alt) rounded-xl p-4"
+  >
+    <div
+      class="grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300"
+    >
+      <div
+        class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated flex items-center gap-3 css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+      >
+        doi.label
+         
+      </div>
+      <div
+        class="flex justify-between"
+      >
+        <div
+          class="flex items-center gap-1"
+        >
+          <p
+            class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+          >
+            10.1234/test
+          </p>
+          <span
+            class="shrink-0 shadow-2xl"
+            data-mui-internal-clone-element="true"
+          >
+            <img
+              alt="Doi"
+              height="24"
+              src="/doi.svg"
+              width="24"
+            />
+          </span>
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+            data-testid="LinkIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5"
+            />
+          </svg>
+        </div>
+        <button
+          class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"
+          tabindex="0"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="EditIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`EditDoi > renders snapshot for chapter > EditDoi - chapter 1`] = `
+<div>
+  <div
+    class="group cursor-pointer border border-transparent hover:border-(--color-hover-border) duration-300 hover:bg-(--color-hover-alt) rounded-xl p-4"
+  >
+    <div
+      class="grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300"
+    >
+      <div
+        class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated flex items-center gap-3 css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+      >
+        doi.label
+         
+      </div>
+      <div
+        class="flex justify-between"
+      >
+        <div
+          class="flex items-center gap-1"
+        >
+          <p
+            class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+          >
+            10.1234/test
+          </p>
+          <span
+            class="shrink-0 shadow-2xl"
+            data-mui-internal-clone-element="true"
+          >
+            <img
+              alt="Doi"
+              height="24"
+              src="/doi.svg"
+              width="24"
+            />
+          </span>
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+            data-testid="LinkIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5"
+            />
+          </svg>
+        </div>
+        <button
+          class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"
+          tabindex="0"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="EditIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+exports[`EditDoi > renders snapshot with recommended > EditDoi - recommended 1`] = `
+<div>
+  <div
+    class="group cursor-pointer border border-transparent hover:border-(--color-hover-border) duration-300 hover:bg-(--color-hover-alt) rounded-xl p-4"
+  >
+    <div
+      class="grid min-h-11 w-full grid-cols-1 items-start gap-y-2 duration-300"
+    >
+      <div
+        class="MuiFormLabel-root MuiInputLabel-root MuiInputLabel-animated MuiFormLabel-colorPrimary MuiInputLabel-root MuiInputLabel-animated flex items-center gap-3 css-1xlwe7e-MuiFormLabel-root-MuiInputLabel-root"
+      >
+        doi.label
+         
+      </div>
+      <div
+        class="flex justify-between"
+      >
+        <div
+          class="flex items-center gap-1"
+        >
+          <p
+            class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
+          >
+            10.1234/test
+          </p>
+          <span
+            class="shrink-0 shadow-2xl"
+            data-mui-internal-clone-element="true"
+          >
+            <img
+              alt="Doi"
+              height="24"
+              src="/doi.svg"
+              width="24"
+            />
+          </span>
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+            data-testid="LinkIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1M8 13h8v-2H8zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5"
+            />
+          </svg>
+        </div>
+        <button
+          class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"
+          tabindex="0"
+          type="button"
+        >
+          <svg
+            aria-hidden="true"
+            class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+            data-testid="EditIcon"
+            focusable="false"
+            viewBox="0 0 24 24"
+          >
+            <path
+              d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75z"
+            />
+          </svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+`;

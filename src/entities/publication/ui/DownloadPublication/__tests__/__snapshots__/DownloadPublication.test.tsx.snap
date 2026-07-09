@@ -1,0 +1,25 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`DownloadPublication > renders snapshot with fileUrl > DownloadPublication 1`] = `
+<div>
+  <a
+    class="m-auto"
+    download="https://example.com/book.pdf"
+    href="https://example.com/book.pdf"
+    rel="noopener noreferrer"
+    target="_blank"
+  >
+    <svg
+      aria-hidden="true"
+      class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+      data-testid="DownloadIcon"
+      focusable="false"
+      viewBox="0 0 24 24"
+    >
+      <path
+        d="M5 20h14v-2H5zM19 9h-4V3H9v6H5l7 7z"
+      />
+    </svg>
+  </a>
+</div>
+`;

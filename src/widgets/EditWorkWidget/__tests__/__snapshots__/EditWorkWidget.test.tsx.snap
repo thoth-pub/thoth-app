@@ -1,0 +1,47 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`EditWorkWidget > renders snapshot > EditWorkWidget 1`] = `
+<div>
+  <div
+    class="flex flex-col gap-(--default-gap)"
+  >
+    <div
+      data-testid="edit-work-header"
+    />
+    <div
+      data-testid="edit-basic-details"
+    >
+      <div
+        data-testid="edit-work-series"
+      />
+    </div>
+    <div
+      data-testid="edit-descriptions"
+    />
+    <div
+      data-testid="edit-contributors"
+    />
+    <div
+      data-testid="edit-work-chapters"
+    />
+    <div
+      data-testid="edit-publications"
+    />
+    <div
+      data-testid="edit-fundings"
+    />
+    <div
+      data-testid="edit-work-marketing"
+    />
+    <div
+      data-testid="edit-work-resources"
+    />
+    <div
+      data-testid="edit-references"
+    />
+    <div
+      data-testid="work-speed-dial"
+    />
+  </div>
+</div>
+`;

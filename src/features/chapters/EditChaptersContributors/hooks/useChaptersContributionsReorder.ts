@@ -24,7 +24,7 @@ export const useChaptersContributionsReorder = () => {
     }));
 
     const firstChangedContribution = reorderedContributions.find(
-      (contribution, index) => contribution.id !== uniqueContributors[index].id,
+      (contribution, index) => contribution.id !== uniqueContributors[index]?.id,
     );
 
     if (!firstChangedContribution) return;

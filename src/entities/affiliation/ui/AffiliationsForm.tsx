@@ -24,10 +24,12 @@ type AffiliationsFormProps = {
 
 const { AFFILIATIONS } = FORM_FIELDS;
 
-const AffiliationsForm = (props: AffiliationsFormProps) => {
-  const { defaultValue = [], showRecommendations = false, onDragEnd, onUpdate, onDelete } = props;
+const emptyAffiliations: NonNullable<AffiliationsFormProps['defaultValue']> = [];
 
-  const defaultValues = defaultValue
+const AffiliationsForm = (props: AffiliationsFormProps) => {
+  const { defaultValue = emptyAffiliations, showRecommendations = false, onDragEnd, onUpdate, onDelete } = props;
+
+  const defaultValues = [...defaultValue]
     .sort((a, b) => a.orderNumber - b.orderNumber)
     .map(({ id, institutionName, institutionId, position }) => ({
       id,

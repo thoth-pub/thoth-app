@@ -8,8 +8,8 @@ import {
   CurrencyCode,
   LanguageCode,
   LocaleCode,
-  LocationPlatform,
   LocationPlatform as GQLLocationPlatform,
+  LocationPlatform,
   WorkStatus as GQLWorkStatus,
   WorkType as GQLWorkType,
 } from '@/gql/graphql';
@@ -63,6 +63,16 @@ type Row = {
   [CSVKey in (typeof CSV_KEYS)[keyof typeof CSV_KEYS]]: CSVFieldType;
 };
 
+type CSVParseResult = {
+  status: 'success' | 'failed';
+  data: {
+    works: WorkEntity[];
+    series: SeriesForUpdateItems;
+    contributorsForSelection: ContributorsForSelection;
+  };
+  errors: string[];
+};
+
 export class CSVParser {
   private csv: File;
   private csvConfig: ValidatorConfig;
@@ -98,7 +108,7 @@ export class CSVParser {
     this.t = t;
   }
 
-  async parse() {
+  async parse(): Promise<CSVParseResult> {
     try {
       const csvParseResult = await CSVFileValidator(await this.normalizeFile(), this.csvConfig);
 

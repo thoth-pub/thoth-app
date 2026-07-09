@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import type {
   Control,
   DefaultValues,
@@ -60,17 +60,25 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
 
   const { activeFormId, edit, closeForm } = useFormStateMachine();
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
-  const [formData, setFormData] = useState(defaultValues);
+  // The just-submitted data overlays defaultValues until fresh defaultValues arrive, so
+  // the preview shows the new values before the parent's data refresh lands. Derived
+  // during render instead of synced by an effect:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [submittedData, setSubmittedData] = useState<DefaultValues<T> | null>(null);
+  const [prevDefaultValues, setPrevDefaultValues] = useState(defaultValues);
   const [showFaq, setShowFaq] = useState(false);
   const isActive = activeFormId === formId;
+
+  if (prevDefaultValues !== defaultValues) {
+    setPrevDefaultValues(defaultValues);
+    setSubmittedData(null);
+  }
+
+  const formData = submittedData ?? defaultValues;
 
   const showFaqButton = faq && faq.length > 0;
 
   useEscapeKey(() => setShowFaq(false), showFaq);
-
-  useEffect(() => {
-    setFormData(defaultValues);
-  }, [defaultValues]);
 
   const handleEdit = () => {
     if (isDisabled) return;
@@ -79,7 +87,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
   };
 
   const submit = async (data: FieldValues) => {
-    setFormData(data as DefaultValues<T>);
+    setSubmittedData(data as DefaultValues<T>);
 
     await onSubmit(data as T);
 

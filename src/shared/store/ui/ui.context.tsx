@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, ReactNode, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createContext, ReactNode, use, useCallback, useMemo, useState } from 'react';
 
 import useIsDesktop from '../../hooks/useIsDesktop';
 
@@ -17,17 +17,23 @@ export const UIContext = createContext<UIContextValue>({
 export const UIProvider = ({ children }: { children: Readonly<ReactNode> }) => {
   const isDesktop = useIsDesktop();
   const [isExpanded, setIsExpanded] = useState(isDesktop);
-  const isUpdatedByUser = useRef(false);
+  const [isUpdatedByUser, setIsUpdatedByUser] = useState(false);
+  // Follow the viewport until the user makes an explicit choice, adjusting during
+  // render instead of in an effect:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  const [prevIsDesktop, setPrevIsDesktop] = useState(isDesktop);
 
-  useEffect(() => {
-    if (isUpdatedByUser.current) return;
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsExpanded(isDesktop);
-  }, [isDesktop]);
+  if (prevIsDesktop !== isDesktop) {
+    setPrevIsDesktop(isDesktop);
+
+    if (!isUpdatedByUser) {
+      setIsExpanded(isDesktop);
+    }
+  }
 
   const updateIsExpanded = useCallback(() => {
     setIsExpanded((prev) => !prev);
-    isUpdatedByUser.current = true;
+    setIsUpdatedByUser(true);
   }, []);
 
   const contextValue: UIContextValue = useMemo(

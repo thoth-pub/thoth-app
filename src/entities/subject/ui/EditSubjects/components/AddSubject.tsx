@@ -1,7 +1,7 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Activity, useEffect, useState } from 'react';
+import { Activity, useEffect, useEffectEvent, useState } from 'react';
 import { useForm, useWatch } from 'react-hook-form';
 
 import { appConfig } from '@/src/shared/config';
@@ -57,10 +57,14 @@ export const AddSubject = (props: AddSubjectProps) => {
 
   const options = autocompleteOptions[typeField];
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  // The resolver above depends on optionsLength, so it must be state; keep it in sync
+  // during render instead of in an effect:
+  // https://react.dev/learn/you-might-not-need-an-effect#adjusting-some-state-when-a-prop-changes
+  if (optionsLength !== options.length) {
     setOptionsLength(options.length);
+  }
 
+  useEffect(() => {
     if (options.length > 0) {
       setValue(SUBJECT_CODE.name, {
         value: '',
@@ -70,9 +74,11 @@ export const AddSubject = (props: AddSubjectProps) => {
     }
 
     setValue(SUBJECT_CODE.name, '');
-  }, [typeField]);
+  }, [typeField, options.length, setValue]);
 
-  useEffect(() => {
+  // Auto-submit only when the debounced code changes; switching the subject type must
+  // not re-submit the previous code, so the latest type is read without triggering.
+  const autoSubmitSubject = useEffectEvent(() => {
     if (skipAutoSubmit) return;
 
     const isString = typeof debouncedValue === 'string';
@@ -86,6 +92,10 @@ export const AddSubject = (props: AddSubjectProps) => {
     }
 
     onAdd({ type: typeField, code: isString ? debouncedValue : debouncedValue?.value });
+  });
+
+  useEffect(() => {
+    autoSubmitSubject();
   }, [debouncedValue]);
 
   return (

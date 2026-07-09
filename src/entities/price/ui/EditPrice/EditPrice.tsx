@@ -23,8 +23,10 @@ type EditPriceProps = Partial<{
 
 const { CURRENCY, VALUE } = FORM_FIELDS;
 
+const emptyPrices: NonNullable<EditPriceProps['prices']> = [];
+
 const EditPrice = (props: EditPriceProps) => {
-  const { prices = [], defaultCurrencyOption, onUpdate, onDelete } = props;
+  const { prices = emptyPrices, defaultCurrencyOption, onUpdate, onDelete } = props;
 
   const defaultValues = prices.map(({ id, currencyCode, unitPrice }) => {
     const currencyOption = currencyOptions.find((option) => option.value.toLowerCase() === currencyCode.toLowerCase());

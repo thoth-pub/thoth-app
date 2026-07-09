@@ -45,7 +45,7 @@ const AddChapterModal = (props: BaseEditSectionProps) => {
       finishEditing();
       finishEditingContribution();
     };
-  }, []);
+  }, [finishEditing, finishEditingContribution]);
 
   const handleInheritedDataSubmit = (data: {
     chapterCount: number;

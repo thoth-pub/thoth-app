@@ -1,0 +1,9 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`UploadModal > renders snapshot when closed > UploadModal - closed 1`] = `<div />`;
+
+exports[`UploadModal > renders snapshot when open > UploadModal - open 1`] = `
+<div
+  aria-hidden="true"
+/>
+`;

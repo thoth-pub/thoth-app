@@ -118,13 +118,13 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
 
                 const contributions = Object.entries(data);
 
-                return contributions.map(([itemId, contributions], index) => {
+                return contributions.map(([itemId, contributions]) => {
                   const defaultContributor = contributions.find(({ contributorId }) => isDefaultId(contributorId));
 
                   if (contributions.length < 2) return null;
 
                   return (
-                    <TableRow key={`${workId}-${itemId}-${index}`} className="group">
+                    <TableRow key={`${workId}-${itemId}`} className="group">
                       <TableCell className="firstCell pl-4">{getMainTitle(work.titles).title}</TableCell>
                       <TableCell className="middleCell">{defaultContributor?.fullName ?? ''}</TableCell>
                       <TableCell className="lastCell">

@@ -1,0 +1,408 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`Dashboard > renders snapshot > Dashboard 1`] = `
+<div>
+  <div
+    class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation3 rounded-2xl bg-(--color-background-alt) p-4 lg:p-7 css-1gtchvp-MuiPaper-root"
+    style="--Paper-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,0.14),0px 1px 8px 0px rgba(0,0,0,0.12);"
+  >
+    <div
+      class="flex flex-col gap-5"
+    >
+      <div
+        class="flex justify-between"
+      >
+        <h1
+          class="MuiTypography-root MuiTypography-h1 -ml-1 lg:-ml-4 css-16unqe0-MuiTypography-root"
+        >
+          dashboard
+        </h1>
+        <a
+          href="/admin/works/new"
+        >
+          <span
+            class="MuiButtonBase-root MuiButton-root MuiButton-contained MuiButton-containedPrimary MuiButton-sizeMedium MuiButton-containedSizeMedium MuiButton-colorPrimary MuiButton-root MuiButton-contained MuiButton-containedPrimary MuiButton-sizeMedium MuiButton-containedSizeMedium MuiButton-colorPrimary capitalize css-u0lm9f-MuiButtonBase-root-MuiButton-root"
+            role="button"
+            tabindex="0"
+          >
+            <span
+              class="MuiButton-icon MuiButton-startIcon MuiButton-iconSizeMedium css-1v1j2p3-MuiButton-startIcon"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                data-testid="AddIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"
+                />
+              </svg>
+            </span>
+            actions.new
+          </span>
+        </a>
+      </div>
+    </div>
+  </div>
+  <div
+    class="MuiGrid-root MuiGrid-container MuiGrid-direction-xs-row MuiGrid-spacing-xs-1 MuiGrid-spacing-xl-2 css-p2kthq-MuiGrid-root"
+  >
+    <div
+      class="MuiGrid-root MuiGrid-direction-xs-row MuiGrid-grid-xs-4 css-1y1kq7m-MuiGrid-root"
+    >
+      <div
+        class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation3 h-30 max-h-30 rounded-xl bg-(--color-background-alt) p-3 xl:h-40 xl:max-h-40 css-1gtchvp-MuiPaper-root"
+        style="--Paper-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,0.14),0px 1px 8px 0px rgba(0,0,0,0.12);"
+      >
+        <div>
+          <div
+            class="flex flex-col justify-between"
+          >
+            <h2
+              class="MuiTypography-root MuiTypography-h2 mb-2 css-10p1e2f-MuiTypography-root"
+            >
+              widgets.catalogue summary
+            </h2>
+            <ul
+              class="flex list-disc flex-col gap-1 pl-4 xl:pl-8"
+            >
+              <li
+                class="MuiTypography-root MuiTypography-body1 list-item capitalize marker:text-(--color-success) css-pucm0b-MuiTypography-root"
+              >
+                60
+                 
+                active
+              </li>
+              <li
+                class="MuiTypography-root MuiTypography-body1 list-item capitalize marker:text-(--color-warning) css-pucm0b-MuiTypography-root"
+              >
+                30
+                 
+                forthcoming
+              </li>
+              <li
+                class="MuiTypography-root MuiTypography-body1 list-item capitalize marker:text-(--color-error) css-pucm0b-MuiTypography-root"
+              >
+                10
+                 
+                other
+              </li>
+            </ul>
+          </div>
+          <div
+            class="css-1rtol73-MuiChartsWrapper-root"
+          >
+            <svg
+              class="MuiChartsSurface-root css-1cszuza-MuiChartsSurface-root"
+              viewBox="0 0 130 130"
+            >
+              <g>
+                <g
+                  class="MuiPieChart-series"
+                  data-series="auto-generated-id-0"
+                  transform="translate(67.5, 65)"
+                >
+                  <g>
+                    <path
+                      class="MuiPieArc-root MuiPieArc-series-auto-generated-id-0 MuiPieArc-data-index-0 css-xsebbt-MuiPieArc-root"
+                      cursor="unset"
+                      d="M0,-60A60,60,0,1,1,-35.267,48.541L-23.511,32.361A40,40,0,1,0,0,-40Z"
+                      fill="var(--color-success)"
+                      filter="none"
+                      opacity="1"
+                      stroke="#fff"
+                      stroke-linejoin="round"
+                      stroke-width="1"
+                      visibility="visible"
+                    />
+                    <path
+                      class="MuiPieArc-root MuiPieArc-series-auto-generated-id-0 MuiPieArc-data-index-1 css-xsebbt-MuiPieArc-root"
+                      cursor="unset"
+                      d="M-35.267,48.541A60,60,0,0,1,-35.267,-48.541L-23.511,-32.361A40,40,0,0,0,-23.511,32.361Z"
+                      fill="var(--color-warning)"
+                      filter="none"
+                      opacity="1"
+                      stroke="#fff"
+                      stroke-linejoin="round"
+                      stroke-width="1"
+                      visibility="visible"
+                    />
+                    <path
+                      class="MuiPieArc-root MuiPieArc-series-auto-generated-id-0 MuiPieArc-data-index-2 css-xsebbt-MuiPieArc-root"
+                      cursor="unset"
+                      d="M-35.267,-48.541A60,60,0,0,1,0,-60L0,-40A40,40,0,0,0,-23.511,-32.361Z"
+                      fill="var(--color-error)"
+                      filter="none"
+                      opacity="1"
+                      stroke="#fff"
+                      stroke-linejoin="round"
+                      stroke-width="1"
+                      visibility="visible"
+                    />
+                  </g>
+                </g>
+                <g
+                  class="MuiPieChart-seriesLabels"
+                  data-series="auto-generated-id-0"
+                  transform="translate(67.5, 65)"
+                >
+                  <g>
+                    <text
+                      class="MuiPieArcLabel-root MuiPieArcLabel-series-auto-generated-id-0 css-1vffdx8-MuiPieArcLabel-root"
+                      x="47.552825814757675"
+                      y="15.450849718747381"
+                    />
+                    <text
+                      class="MuiPieArcLabel-root MuiPieArcLabel-series-auto-generated-id-0 css-1vffdx8-MuiPieArcLabel-root"
+                      x="-50"
+                      y="-3.828568698926949e-14"
+                    />
+                    <text
+                      class="MuiPieArcLabel-root MuiPieArcLabel-series-auto-generated-id-0 css-1vffdx8-MuiPieArcLabel-root"
+                      x="-15.450849718747337"
+                      y="-47.55282581475769"
+                    />
+                  </g>
+                </g>
+              </g>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div
+      class="MuiGrid-root MuiGrid-direction-xs-row MuiGrid-grid-xs-4 css-1y1kq7m-MuiGrid-root"
+    >
+      <div
+        class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation3 h-30 max-h-30 rounded-xl bg-(--color-background-alt) p-3 xl:h-40 xl:max-h-40 css-1gtchvp-MuiPaper-root"
+        style="--Paper-shadow: 0px 3px 3px -2px rgba(0,0,0,0.2),0px 3px 4px 0px rgba(0,0,0,0.14),0px 1px 8px 0px rgba(0,0,0,0.12);"
+      >
+        <div>
+          <div
+            class="flex flex-col justify-between"
+          >
+            <h2
+              class="MuiTypography-root MuiTypography-h2 mb-2 css-10p1e2f-MuiTypography-root"
+            >
+              widgets.published
+            </h2>
+            <ul
+              class="flex flex-col gap-1"
+            >
+              <li
+                class="MuiTypography-root MuiTypography-body1 capitalize css-pucm0b-MuiTypography-root"
+              >
+                widgets.last 12 months
+                : 
+                100
+                 
+              </li>
+              <li
+                class="MuiTypography-root MuiTypography-body1 capitalize css-pucm0b-MuiTypography-root"
+              >
+                widgets.previous 12 months
+                : 
+                0
+              </li>
+            </ul>
+          </div>
+          <div
+            class="css-i03wr6-MuiChartsWrapper-root"
+          >
+            <svg
+              class="MuiChartsSurface-root css-16nrolh-MuiChartsSurface-root"
+              viewBox="0 0 276 127"
+            >
+              <defs />
+              <g
+                class="MuiChartsGrid-root css-g2sgfh-MuiChartsGrid-root"
+              />
+              <g
+                clip-path="url(#_r_3_-clip-path)"
+              >
+                <g
+                  class="MuiBar-root css-1vlm9pl-MuiBarPlot-root"
+                >
+                  <g
+                    class="MuiBar-series"
+                    data-series="auto-generated-id-0"
+                  >
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="21.966666666666654"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="41.633333333333326"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="61.29999999999999"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="80.96666666666665"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="100.63333333333333"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="120.3"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="139.96666666666664"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="159.63333333333333"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="179.3"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="198.96666666666664"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="0"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="218.63333333333333"
+                      y="107"
+                    />
+                    <rect
+                      class="MuiBarElement-root MuiBarElement-series-auto-generated-id-0"
+                      color="var(--color-chart-4)"
+                      cursor="unset"
+                      fill="var(--color-chart-4)"
+                      height="87"
+                      layout="vertical"
+                      opacity="1"
+                      stroke="none"
+                      width="15.733333333333334"
+                      x="238.3"
+                      y="20"
+                    />
+                  </g>
+                </g>
+              </g>
+              <clippath
+                id="_r_3_-clip-path"
+              >
+                <rect
+                  height="87"
+                  width="236"
+                  x="20"
+                  y="20"
+                />
+              </clippath>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+`;

@@ -35,7 +35,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
     return () => {
       closeForm();
     };
-  }, []);
+  }, [closeForm]);
 
   useEffect(() => {
     if (userLoading || workLoading || userImprintsOptions.length === 0) return;
@@ -45,7 +45,7 @@ const EditWorkWidget = (props: EditWorkWidgetProps) => {
     if (!isUserImprint) {
       router.push(ROUTES.DASHBOARD);
     }
-  }, [userLoading, workLoading, userImprintsOptions, work.imprintId]);
+  }, [userLoading, workLoading, userImprintsOptions, work.imprintId, router]);
 
   return (
     <div className="flex flex-col gap-(--default-gap)">

@@ -127,12 +127,12 @@ const EditSubjects = (props: EditSubjectsProps) => {
           </Backdrop>
 
           <ul className="flex w-full flex-col gap-0">
-            {data.map(({ subjects }, index) => (
+            {data.map(({ text, subjects }) => (
               <PreviewList
                 workId={workId}
                 activeSubjectId={activeSubject?.id ?? ''}
                 isEditDisabled={editDisabled}
-                key={index}
+                key={text}
                 subjects={subjects}
                 deleteLoading={deleteLoading}
                 onDelete={deleteSubject}

@@ -37,7 +37,7 @@ export const PreviewList = ({
           {subjects.map((subject, index) => (
             <ListItem
               className={index === subjects.length - 1 ? 'mb-6' : ''}
-              key={`${subject.id}-${index}`}
+              key={subject.id}
               workId={workId}
               activeSubjectId={activeSubjectId}
               isEditDisabled={isEditDisabled}

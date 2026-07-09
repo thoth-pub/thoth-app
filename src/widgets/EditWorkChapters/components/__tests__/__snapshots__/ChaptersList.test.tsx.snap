@@ -1,0 +1,191 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`ChaptersList > renders empty chapters > ChaptersList - empty 1`] = `
+<div>
+  <ul
+    class="flex flex-col gap-1 relative"
+  >
+    <div
+      aria-hidden="true"
+      class="MuiBackdrop-root absolute h-full w-full bg-white/50 css-1rxxzfv-MuiBackdrop-root"
+      style="opacity: 0; visibility: hidden;"
+    >
+      <span
+        class="MuiCircularProgress-root MuiCircularProgress-indeterminate MuiCircularProgress-colorPrimary css-nbluux-MuiCircularProgress-root"
+        role="progressbar"
+        style="width: 40px; height: 40px;"
+      >
+        <svg
+          class="MuiCircularProgress-svg css-54pwck-MuiCircularProgress-svg"
+          viewBox="22 22 44 44"
+        >
+          <circle
+            class="MuiCircularProgress-circle MuiCircularProgress-circleIndeterminate css-19t5dcl-MuiCircularProgress-circle"
+            cx="44"
+            cy="44"
+            fill="none"
+            r="20.2"
+            stroke-width="3.6"
+          />
+        </svg>
+      </span>
+    </div>
+  </ul>
+</div>
+`;
+
+exports[`ChaptersList > renders snapshot > ChaptersList 1`] = `
+<div>
+  <ul
+    class="flex flex-col gap-1 relative"
+  >
+    <li
+      aria-describedby=""
+      aria-disabled="false"
+      aria-label="Edit chapter"
+      aria-roledescription="sortable"
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root group border border-transparent bg-(--color-background-alt) cursor-pointer hover:border-(--color-hover-border) hover:bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      role="button"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12);"
+      tabindex="0"
+    >
+      <div
+        class="MuiCardContent-root p-4 css-1lt5qva-MuiCardContent-root"
+      >
+        <div
+          class="cardItem"
+        >
+          <div
+            class="flex flex-col gap-2"
+          >
+            <h2
+              class="MuiTypography-root MuiTypography-h2 cardItem normal-case css-10p1e2f-MuiTypography-root"
+            >
+              <div
+                class="wmde-markdown wmde-markdown-color "
+                style="background-color: transparent; color: inherit; font-size: inherit; font-family: inherit; text-transform: inherit;"
+              >
+                <p>
+                  Chapter 1
+                </p>
+              </div>
+            </h2>
+            <p
+              class="MuiTypography-root MuiTypography-body1 cardItem css-pucm0b-MuiTypography-root"
+            >
+              <svg
+                aria-hidden="true"
+                class="MuiSvgIcon-root MuiSvgIcon-colorPrimary MuiSvgIcon-fontSizeSmall css-hxgng1-MuiSvgIcon-root"
+                data-testid="AutoStoriesIcon"
+                focusable="false"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  d="m19 1-5 5v11l5-4.5zM1 6v14.65c0 .25.25.5.5.5.1 0 .15-.05.25-.05C3.1 20.45 5.05 20 6.5 20c1.95 0 4.05.4 5.5 1.5V6c-1.45-1.1-3.55-1.5-5.5-1.5S2.45 4.9 1 6m22 13.5V6c-.6-.45-1.25-.75-2-1v13.5c-1.1-.35-2.3-.5-3.5-.5-1.7 0-4.15.65-5.5 1.5v2c1.35-.85 3.8-1.5 5.5-1.5 1.65 0 3.35.3 4.75 1.05.1.05.15.05.25.05.25 0 .5-.25.5-.5z"
+                />
+              </svg>
+              1–10 (10)
+            </p>
+          </div>
+          <div
+            class="MuiCardActions-root MuiCardActions-spacing ml-auto *:cursor-auto group-hover:opacity-100 opacity-100 css-1q4nm6f-MuiCardActions-root"
+          >
+            <div
+              class="MuiButtonGroup-root MuiButtonGroup-outlined MuiButtonGroup-horizontal MuiButtonGroup-colorPrimary css-zv9ro0-MuiButtonGroup-root"
+              role="group"
+            >
+              <span
+                class="MuiButtonBase-root MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeSmall PrivateSwitchBase-root MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeSmall MuiCheckbox-root MuiCheckbox-colorPrimary MuiCheckbox-sizeSmall pt-[6px] css-br4ud-MuiButtonBase-root-MuiSwitchBase-root-MuiCheckbox-root"
+              >
+                <input
+                  class="PrivateSwitchBase-input css-12xagqm-MuiSwitchBase-root"
+                  data-indeterminate="false"
+                  type="checkbox"
+                />
+                <svg
+                  aria-hidden="true"
+                  class="MuiSvgIcon-root MuiSvgIcon-fontSizeSmall css-120dh41-MuiSvgIcon-root"
+                  data-testid="CheckBoxOutlineBlankIcon"
+                  focusable="false"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M19 5v14H5V5h14m0-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"
+                  />
+                </svg>
+              </span>
+              <button
+                class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+                tabindex="0"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                  data-testid="ContentCopyIcon"
+                  focusable="false"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2m0 16H8V7h11z"
+                  />
+                </svg>
+              </button>
+              <button
+                class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1jvz5sr-MuiButtonBase-root-MuiIconButton-root"
+                tabindex="0"
+                type="button"
+              >
+                <svg
+                  aria-hidden="true"
+                  class="MuiSvgIcon-root MuiSvgIcon-fontSizeMedium css-1umw9bq-MuiSvgIcon-root"
+                  data-testid="DeleteOutlineIcon"
+                  focusable="false"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6zM8 9h8v10H8zm7.5-5-1-1h-5l-1 1H5v2h14V4z"
+                  />
+                </svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </li>
+    <div
+      class="MuiPaper-root MuiPaper-elevation MuiPaper-rounded MuiPaper-elevation1 MuiCard-root border border-(--color-hover-border) bg-(--color-hover-alt) css-1j74uew-MuiPaper-root-MuiCard-root"
+      style="--Paper-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12); display: none !important;"
+    >
+      <div
+        class="MuiCardContent-root css-1lt5qva-MuiCardContent-root"
+      />
+    </div>
+    <div
+      aria-hidden="true"
+      class="MuiBackdrop-root absolute h-full w-full bg-white/50 css-1rxxzfv-MuiBackdrop-root"
+      style="opacity: 0; visibility: hidden;"
+    >
+      <span
+        class="MuiCircularProgress-root MuiCircularProgress-indeterminate MuiCircularProgress-colorPrimary css-nbluux-MuiCircularProgress-root"
+        role="progressbar"
+        style="width: 40px; height: 40px;"
+      >
+        <svg
+          class="MuiCircularProgress-svg css-54pwck-MuiCircularProgress-svg"
+          viewBox="22 22 44 44"
+        >
+          <circle
+            class="MuiCircularProgress-circle MuiCircularProgress-circleIndeterminate css-19t5dcl-MuiCircularProgress-circle"
+            cx="44"
+            cy="44"
+            fill="none"
+            r="20.2"
+            stroke-width="3.6"
+          />
+        </svg>
+      </span>
+    </div>
+  </ul>
+</div>
+`;

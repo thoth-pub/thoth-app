@@ -28,8 +28,8 @@ export const LinksList = (props: LinksListProps) => {
 
   return (
     <ul className="flex w-full flex-wrap gap-x-2 gap-y-4">
-      {Object.entries(links).map(([key, { status, data }], index) => (
-        <li key={index}>
+      {Object.entries(links).map(([key, { status, data }]) => (
+        <li key={key}>
           <Activity mode={status === 'success' ? 'visible' : 'hidden'}>
             <Button
               className={itemStyles}

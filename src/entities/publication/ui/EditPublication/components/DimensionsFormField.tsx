@@ -2,7 +2,7 @@
 
 import InsertLinkIcon from '@mui/icons-material/InsertLink';
 import LinkOffIcon from '@mui/icons-material/LinkOff';
-import { Activity, useEffect } from 'react';
+import { Activity, useEffect, useEffectEvent } from 'react';
 import { Control, FieldValues, useWatch } from 'react-hook-form';
 
 import { LengthUnit, WeightUnit } from '@/src/shared/constants';
@@ -43,7 +43,9 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
   const debouncedMetricValue = useDebounceValue(metricValue, 500);
   const debouncedImperialValue = useDebounceValue(imperialValue, 500);
 
-  useEffect(() => {
+  // Each conversion must fire only on its own debounced value — re-firing on the other
+  // field's value would ping-pong the two conversions against each other.
+  const convertMetricToImperial = useEffectEvent(() => {
     if (!autoConvert) return;
 
     if (measurementUnit === LengthUnit.enum.Mm) {
@@ -61,9 +63,13 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
 
       onAutoConvert?.(imperialFieldName, converted);
     }
-  }, [debouncedMetricValue]);
+  });
 
   useEffect(() => {
+    convertMetricToImperial();
+  }, [debouncedMetricValue]);
+
+  const convertImperialToMetric = useEffectEvent(() => {
     if (!autoConvert) return;
 
     if (measurementUnit === LengthUnit.enum.Mm) {
@@ -81,6 +87,10 @@ export const DimensionsFormField = (props: DimensionsFormFieldProps) => {
 
       onAutoConvert?.(metricFieldName, converted);
     }
+  });
+
+  useEffect(() => {
+    convertImperialToMetric();
   }, [debouncedImperialValue]);
 
   return (

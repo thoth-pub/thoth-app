@@ -60,7 +60,7 @@ export const AddBookModal = ({ setId, totalBooks }: { setId: SetId; totalBooks: 
     if (debouncedValue.length > 0) return;
 
     reset();
-  }, [debouncedValue.length]);
+  }, [debouncedValue.length, reset]);
 
   const onSubmit = (data: SetWorkFormType) => {
     addToSet({ setId, bookId: data.work.value, ordinal: totalBooks + 1 });

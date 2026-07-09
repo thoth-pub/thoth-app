@@ -95,8 +95,8 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
               onInputChange={(_, value) => setSearchValue(value)}
               loading={isLoading}
               fullWidth
-              renderOption={(props, option) => (
-                <li {...props} key={option.value}>
+              renderOption={({ key: _key, ...optionProps }, option) => (
+                <li key={option.value} {...optionProps}>
                   <span>{option.label}</span>
                 </li>
               )}

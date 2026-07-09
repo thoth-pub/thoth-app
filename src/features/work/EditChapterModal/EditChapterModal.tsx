@@ -35,7 +35,7 @@ const EditChapterModal = (props: EditChapterModalProps) => {
       finishEditingContribution();
       finishEditingFunding();
     };
-  }, []);
+  }, [finishEditing, finishEditingContribution, finishEditingFunding]);
 
   if (!activeWorkChapters || activeWorkChapters.length === 0) return null;
 

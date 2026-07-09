@@ -42,7 +42,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
 
   useEscapeKey(() => setOpen(false), open);
 
-  const lastIssueOrdinal = series.issues.sort((a, b) => a.ordinal - b.ordinal).at(-1)?.ordinal ?? 1;
+  const lastIssueOrdinal = [...series.issues].sort((a, b) => a.ordinal - b.ordinal).at(-1)?.ordinal ?? 1;
 
   const { activePublisher } = usePublisherStateMachine();
   const {
@@ -75,7 +75,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
     if (debouncedValue.length > 0) return;
 
     reset();
-  }, [debouncedValue.length]);
+  }, [debouncedValue.length, reset]);
 
   const onSubmit = (data: IssueValidationSchema) => {
     createIssue({

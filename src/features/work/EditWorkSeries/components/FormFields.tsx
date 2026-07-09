@@ -48,13 +48,13 @@ export const FormFields = (props: FormFieldsProps) => {
   const { value: selectedSeries } = useWatch({ control, name: WORK_SERIES.name });
   const { series } = useSeries({ seriesId: selectedSeries });
 
-  const lastIssueOrdinal = series?.issues.sort((a, b) => a.ordinal - b.ordinal).at(-1)?.ordinal ?? 1;
+  const lastIssueOrdinal = [...(series?.issues ?? [])].sort((a, b) => a.ordinal - b.ordinal).at(-1)?.ordinal ?? 1;
 
   const defaultValue = lastIssueOrdinal > 1 ? lastIssueOrdinal + 1 : 1;
 
   useEffect(() => {
     setValue(ISSUE_ORDINAL.name, defaultValue);
-  }, [defaultValue]);
+  }, [defaultValue, setValue]);
 
   return (
     <MultipleContentWrapper>

@@ -1,0 +1,57 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`WorkStatusChip > applies custom className > WorkStatusChip - with custom className 1`] = `
+<div>
+  <div
+    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize custom-class css-3xlim2-MuiChip-root"
+  >
+    <span
+      class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
+    >
+      active
+    </span>
+  </div>
+</div>
+`;
+
+exports[`WorkStatusChip > renders snapshot for Active status > WorkStatusChip - Active 1`] = `
+<div>
+  <div
+    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-3xlim2-MuiChip-root"
+  >
+    <span
+      class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
+    >
+      active
+    </span>
+  </div>
+</div>
+`;
+
+exports[`WorkStatusChip > renders snapshot for Forthcoming status > WorkStatusChip - Forthcoming 1`] = `
+<div>
+  <div
+    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-4v7kzb-MuiChip-root"
+  >
+    <span
+      class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
+    >
+      forthcoming
+    </span>
+  </div>
+</div>
+`;
+
+exports[`WorkStatusChip > renders snapshot for Withdrawn status > WorkStatusChip - Withdrawn 1`] = `
+<div>
+  <div
+    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-1q0peui-MuiChip-root"
+  >
+    <span
+      class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
+    >
+      withdrawn
+    </span>
+  </div>
+</div>
+`;

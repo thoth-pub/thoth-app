@@ -50,7 +50,7 @@ export const useEditReferences = (workId: WorkId) => {
   const dragEnd = async (data: ReferenceEntity[]) => {
     const updatedData = data.map((reference, index) => ({ ...reference, orderNumber: index + 1 }));
 
-    const referencesToUpdate = updatedData.find((reference, index) => work.references[index].id !== reference.id);
+    const referencesToUpdate = updatedData.find((reference, index) => work.references[index]?.id !== reference.id);
 
     if (!referencesToUpdate) return;
 
@@ -58,20 +58,25 @@ export const useEditReferences = (workId: WorkId) => {
   };
 
   const deleteReference = async (id: string) => {
-    await deleteReferenceMutation(id);
+    try {
+      await deleteReferenceMutation(id);
 
-    const referencesWithUpdatedOrderNumbers = work.references
-      .filter((reference) => reference.id !== id)
-      .map((reference, index) => ({
-        ...reference,
-        orderNumber: index + 1,
-      }));
+      const remainingReferences = work.references.filter((reference) => reference.id !== id);
 
-    const promises = referencesWithUpdatedOrderNumbers.map((reference) => {
-      return updateReference({ ...reference, orderNumber: reference.orderNumber });
-    });
+      // Ordinals are unique per work, so only the shifted references are updated, one
+      // at a time in ascending order — each update moves into the slot freed by the
+      // deletion or by the previous update.
+      for (const [index, reference] of remainingReferences.entries()) {
+        const orderNumber = index + 1;
 
-    await Promise.all(promises);
+        if (reference.orderNumber === orderNumber) continue;
+
+        await updateReference({ ...reference, orderNumber });
+      }
+    } catch {
+      // The mutation hooks surface the error notification; remaining renumbering is
+      // skipped, which at worst leaves a gap in the ordinals.
+    }
   };
 
   return {

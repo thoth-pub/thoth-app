@@ -5,11 +5,14 @@ type TableHeaderProps = {
   cellStyles?: string[];
 };
 
-const TableHeader = ({ cells, cellStyles = [] }: TableHeaderProps) => {
+const emptyCellStyles: NonNullable<TableHeaderProps['cellStyles']> = [];
+
+const TableHeader = ({ cells, cellStyles = emptyCellStyles }: TableHeaderProps) => {
   return (
     <TableHead>
       <TableRow>
         {cells.map((cell, index) => (
+          // eslint-disable-next-line @eslint-react/no-array-index-key -- static header cells never reorder, and labels may repeat (e.g. empty action columns)
           <TableCell key={index} className={cellStyles[index]}>
             <>{typeof cell === 'string' ? <TranslatedContent content={cell} /> : cell}</>
           </TableCell>
