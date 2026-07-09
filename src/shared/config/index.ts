@@ -1,11 +1,11 @@
 import { CurrencyCode } from '../constants/currencies';
 import { LanguageTypeAlt } from '../constants/languages';
-import { DAY } from '../constants/time';
+import { MINUTE } from '../constants/time';
 
 export const appConfig = {
   query: {
-    staleTime: DAY,
-    cacheTime: DAY,
+    staleTime: 5 * MINUTE,
+    gcTime: 30 * MINUTE,
   },
   meta: {
     title: 'Thoth Metadata Management Platform',
