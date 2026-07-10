@@ -87,10 +87,9 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
   };
 
   const submit = async (data: FieldValues) => {
-    setSubmittedData(data as DefaultValues<T>);
-
     await onSubmit(data as T);
 
+    setSubmittedData(data as DefaultValues<T>);
     closeForm();
   };
 
