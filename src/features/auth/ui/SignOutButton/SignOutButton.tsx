@@ -2,28 +2,21 @@
 
 import LogoutIcon from '@mui/icons-material/Logout';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useEffectEvent } from 'react';
 
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { IconButton } from '@/src/shared/ui';
 
 const SignOutButton = () => {
-  const { resetLinkedPublishers, activePublisher } = usePublisherStateMachine();
+  const { resetLinkedPublishers } = usePublisherStateMachine();
   const client = useQueryClient();
 
-  const clearPublisherState = useEffectEvent(() => {
+  const handleSubmit = () => {
     resetLinkedPublishers();
     client.clear();
-  });
-
-  useEffect(() => {
-    return () => {
-      clearPublisherState();
-    };
-  }, []);
+  };
 
   return (
-    <form action="/api/auth/logout" method="POST">
+    <form action="/api/auth/logout" method="POST" onSubmit={handleSubmit}>
       <IconButton type="submit" className="m-auto">
         <LogoutIcon className="rotate-180" />
       </IconButton>
