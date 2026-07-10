@@ -3,12 +3,13 @@
 import { parse } from '@5stones/onix';
 import { getServerSession } from 'next-auth';
 
+import type { OnixData } from '@/src/shared/types';
 import { authOptions } from '@/src/shared/lib/auth/auth';
 
 export type ValidationResult =
   | {
       status: 'success';
-      data: unknown;
+      data: OnixData;
     }
   | {
       status: 'error';

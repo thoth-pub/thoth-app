@@ -4,7 +4,7 @@ import { getServerSession } from 'next-auth';
 import { ROUTES } from './src/shared/constants';
 import { authOptions } from './src/shared/lib/auth/auth';
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   if (request.nextUrl.pathname === ROUTES.ADMIN) {
     return NextResponse.redirect(new URL(ROUTES.ROOT, request.url));
   }
