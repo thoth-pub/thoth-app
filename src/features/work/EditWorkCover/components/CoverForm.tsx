@@ -80,8 +80,9 @@ export const CoverForm = (props: BaseEditSectionProps) => {
     setIsRemoveDialogOpen(false);
   };
 
-  const handleRemoveCoverConfirm = () => {
-    updateWork({ ...work, coverUrl: '' });
+  const handleRemoveCoverConfirm = async () => {
+    await updateWork({ ...work, coverUrl: '' });
+
     setIsRemoveDialogOpen(false);
     sendSuccessNotification(NOTIFICATIONS.COVER_REMOVE_SUCCESS);
   };
