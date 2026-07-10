@@ -17,7 +17,7 @@ import { SubjectTypes } from '@/src/shared/constants/subjects';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 import type { ErrorMessage } from '@/src/shared/interfaces';
 
-const { doiPrefix, rorPrefix, orcidPrefix } = appConfig.validations;
+const { orcidPrefix } = appConfig.validations;
 
 const doiPattern = /^https:\/\/doi\.org\/10\.\d{4,9}\/[-._;()\/:a-zA-Z0-9<>+[\]]+$/;
 const issnPattern = /^\d{4}-\d{3}[\dX]$/;
