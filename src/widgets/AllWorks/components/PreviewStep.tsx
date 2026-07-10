@@ -4,7 +4,7 @@ import { useBulkCreateWorks } from '@/src/entities/work';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import type { SeriesForUpdateItems } from '@/src/shared/types';
 import { Button, TableBody, TableCell, TableHeader, TableRow, TableWrapper, TranslatedContent } from '@/src/shared/ui';
-import { convertOptionToString, getMainTitle } from '@/src/shared/utils';
+import { convertOptionToString, getDisplayTitle } from '@/src/shared/utils';
 
 type PreviewStepProps = {
   works: WorkEntity[];
@@ -39,7 +39,7 @@ export const PreviewStep = (props: PreviewStepProps) => {
         />
         <TableBody>
           {works.map((work) => {
-            const title = getMainTitle(work.titles);
+            const title = getDisplayTitle(work.titles);
 
             return (
               <TableRow key={work.id}>
@@ -52,7 +52,7 @@ export const PreviewStep = (props: PreviewStepProps) => {
             );
           })}
           {chapters.map((chapter) => {
-            const title = getMainTitle(chapter.titles);
+            const title = getDisplayTitle(chapter.titles);
             return (
               <TableRow key={chapter.id}>
                 <TableCell>{title.title}</TableCell>

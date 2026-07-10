@@ -117,12 +117,16 @@ export const getMainTitle = (titles: TitleEntity[]) => {
   const defaultTitle = titles.length === 0 ? getDefaultTitle() : titles[0];
   const mainTitle = titles.find((title) => title.canonical);
 
-  const result = mainTitle ?? defaultTitle;
+  return mainTitle ?? defaultTitle;
+};
+
+export const getDisplayTitle = (titles: TitleEntity[]) => {
+  const result = getMainTitle(titles);
 
   return {
     ...result,
-    title: result.title || UNTITLED,
-    fullTitle: result.fullTitle || UNTITLED,
+    title: result.title || result.fullTitle || UNTITLED,
+    fullTitle: result.fullTitle || result.title || UNTITLED,
   };
 };
 

@@ -6,7 +6,7 @@ import type { BaseEditSectionProps } from '@/src/shared/types';
 import {
   getDateInFuture,
   getDateInFutureFromDate,
-  getMainTitle,
+  getDisplayTitle,
   isPublicationDateAvailable,
   isPublicationDateRequired,
   isPublicationDateShouldBeInFuture,
@@ -115,7 +115,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
   };
 
   return {
-    title: getMainTitle(work.titles).title,
+    title: getDisplayTitle(work.titles).title,
     publicationDate: work.publicationDate,
     withdrawnDate: work.withdrawnDate,
     status: work.status,

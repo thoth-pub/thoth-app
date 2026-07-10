@@ -13,7 +13,7 @@ import {
   MarkdownRenderer,
   Typography,
 } from '@/src/shared/ui';
-import { getMainTitle, getPagesPlaceholder } from '@/src/shared/utils';
+import { getDisplayTitle, getPagesPlaceholder } from '@/src/shared/utils';
 
 type ChaptersListItemProps = {
   chapter: WorkEntity;
@@ -79,7 +79,7 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
       }
     >
       <Typography variant="h2" className="cardItem normal-case">
-        <MarkdownRenderer markdown={getMainTitle(titles).title} />
+        <MarkdownRenderer markdown={getDisplayTitle(titles).title} />
       </Typography>
 
       <ContributorsChip contributors={contributorsNames} />

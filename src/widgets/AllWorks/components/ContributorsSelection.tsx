@@ -17,7 +17,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
-import { getMainTitle, isDefaultId } from '@/src/shared/utils';
+import { getDisplayTitle, isDefaultId } from '@/src/shared/utils';
 
 type ContributorsSelectionProps = {
   contributors: ContributorsForSelection;
@@ -125,7 +125,7 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
 
                   return (
                     <TableRow key={`${workId}-${itemId}`} className="group">
-                      <TableCell className="firstCell pl-4">{getMainTitle(work.titles).title}</TableCell>
+                      <TableCell className="firstCell pl-4">{getDisplayTitle(work.titles).title}</TableCell>
                       <TableCell className="middleCell">{defaultContributor?.fullName ?? ''}</TableCell>
                       <TableCell className="lastCell">
                         {contributions.map(({ id, fullName, orcidId, contributorId, lastContribution, selected }) => (

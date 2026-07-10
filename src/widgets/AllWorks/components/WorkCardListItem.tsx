@@ -14,7 +14,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
-import { convertOptionToString, convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared/utils';
+import { convertOptionToString, convertUpdatedAtToFormattedDate, getDisplayTitle } from '@/src/shared/utils';
 
 type WorkCardListItemProps = {
   work: WorkEntity;
@@ -54,7 +54,7 @@ export const WorkCardListItem = (props: WorkCardListItemProps) => {
 
         <Typography variant="h2" className="flex flex-col gap-1 normal-case">
           <WorkStatusChip status={status} className="w-fit" />
-          <MarkdownRenderer markdown={getMainTitle(titles).title} />
+          <MarkdownRenderer markdown={getDisplayTitle(titles).title} />
           <Typography component="span">{reference}</Typography>
           <Typography className="capitalize" component="span">
             {<TranslatedContent content={convertOptionToString(type).toLowerCase()} />}

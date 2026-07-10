@@ -24,7 +24,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
-import { getMainTitle } from '@/src/shared/utils';
+import { getDisplayTitle } from '@/src/shared/utils';
 
 const { SET_WORK } = FORM_FIELDS;
 
@@ -52,7 +52,7 @@ export const AddBookModal = ({ setId, totalBooks }: { setId: SetId; totalBooks: 
   const { books, isLoading } = useBooks({ publishersIds, filter: debouncedValue });
 
   const options = books.map((book) => ({
-    label: removeMd(getMainTitle(book.titles).fullTitle),
+    label: removeMd(getDisplayTitle(book.titles).fullTitle),
     value: book.id,
   }));
 

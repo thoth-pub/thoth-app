@@ -16,7 +16,7 @@ import {
   TableCell,
   TableRow,
 } from '@/src/shared/ui';
-import { getMainTitle, getPagesPlaceholder } from '@/src/shared/utils';
+import { getDisplayTitle, getPagesPlaceholder } from '@/src/shared/utils';
 
 type TableRowProps = {
   chapter: WorkEntity;
@@ -65,7 +65,7 @@ export const ChapterTableRow = (props: TableRowProps) => {
                 isDisabled={totalChaptersCount < appConfig.minItemsCountForDragAndDrop}
                 listeners={listeners}
               />
-              <MarkdownRenderer markdown={getMainTitle(titles).title} />
+              <MarkdownRenderer markdown={getDisplayTitle(titles).title} />
             </div>
           </TableCell>
           <TableCell className="middleCell">

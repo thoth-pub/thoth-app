@@ -27,7 +27,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
-import { getMainTitle } from '@/src/shared/utils';
+import { getDisplayTitle } from '@/src/shared/utils';
 
 type AddVolumeProps = {
   workId: WorkId;
@@ -186,7 +186,7 @@ export const AddVolume = (props: AddVolumeProps) => {
                     >
                       <button type="button">
                         <Typography variant="body1" component="span">
-                          {getMainTitle(set.titles).title}
+                          {getDisplayTitle(set.titles).title}
                         </Typography>
                       </button>
                     </li>

@@ -1,7 +1,11 @@
-import { render } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material';
-import { theme } from '@/src/shared/theme';
+import { render, screen } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+
+import { theme } from '@/src/shared/theme';
+
+import { WorkCardListItem } from '../components/WorkCardListItem';
+import { WorksCardList } from '../components/WorksCardList';
 
 vi.mock('@/src/shared/hooks', () => ({
   useNotifications: vi.fn(() => ({ sendError: vi.fn(), sendSuccess: vi.fn() })),
@@ -10,9 +14,6 @@ vi.mock('@/src/shared/hooks', () => ({
   useTypedTranslation: vi.fn(() => ({ t: (key: string) => key })),
   useEscapeKey: vi.fn(),
 }));
-
-import { WorksCardList } from '../components/WorksCardList';
-import { WorkCardListItem } from '../components/WorkCardListItem';
 
 const mockWork = {
   id: '1',
@@ -82,5 +83,20 @@ describe('WorkCardListItem', () => {
       </Wrapper>
     );
     expect(container).toMatchSnapshot('WorkCardListItem');
+  });
+
+  it('renders Untitled when work has no title', () => {
+    render(
+      <Wrapper>
+        <WorkCardListItem
+          work={{ ...mockWork, titles: [] }}
+          navigateToWork={vi.fn()}
+          createNewEdition={vi.fn()}
+          createTranslation={vi.fn()}
+        />
+      </Wrapper>
+    );
+
+    expect(screen.getByText('Untitled')).toBeInTheDocument();
   });
 });

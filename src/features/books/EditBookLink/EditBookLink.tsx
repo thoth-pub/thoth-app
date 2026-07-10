@@ -10,7 +10,7 @@ import { ROUTES } from '@/src/shared/constants';
 import { useIsDesktop } from '@/src/shared/hooks';
 import type { TitleEntity } from '@/src/shared/types';
 import { ImageWithFallback, TranslatedContent, Typography } from '@/src/shared/ui';
-import { convertOptionToString, getMainTitle } from '@/src/shared/utils';
+import { convertOptionToString, getDisplayTitle } from '@/src/shared/utils';
 
 type EditBookLinkProps = {
   titles: TitleEntity[];
@@ -45,7 +45,7 @@ const EditBookLink = ({ titles, id, status, type, image = '', contributions }: E
         <div className="flex grow flex-col justify-between pl-2">
           <div className="flex items-center justify-between">
             <Typography variant="h2" component="h3" className="max-w-[170px] grow truncate 2xl:max-w-[240px]">
-              {removeMd(getMainTitle(titles).title)}
+              {removeMd(getDisplayTitle(titles).title)}
             </Typography>
           </div>
           <div className="mt-auto flex flex-col gap-1">

@@ -23,6 +23,6 @@ export const sanitizeHtml = (html: string): string => {
       ALLOW_DATA_ATTR: false,
     });
   } catch {
-    return html;
+    return '';
   }
 };
