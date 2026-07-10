@@ -247,13 +247,12 @@ describe('useEditPublication updateLocations', () => {
   });
 
   it('does not delete the canonical location when promoting its replacement fails', async () => {
-    mocks.updateLocation.mockRejectedValueOnce(new Error('Canonical location error'));
+    const error = new Error('Canonical location error');
+    mocks.updateLocation.mockRejectedValueOnce(error);
 
     const { result } = renderEditPublication();
 
-    await act(async () => {
-      await result.current.deleteLocation('loc-1');
-    });
+    await expect(result.current.deleteLocation('loc-1')).rejects.toBe(error);
 
     expect(mocks.deleteLocationMutation).not.toHaveBeenCalled();
   });
@@ -361,17 +360,37 @@ describe('useEditPublication updatePrices', () => {
     expect(result.current.activePublication?.prices).toContainEqual(expect.objectContaining({ id: 'price-3' }));
   });
 
-  it('keeps local state on the persisted values when a mutation fails', async () => {
-    mocks.updatePrice.mockRejectedValueOnce(new Error('Update failed'));
+  it('rejects and keeps local state on the persisted values when a mutation fails', async () => {
+    const error = new Error('Update failed');
+    mocks.updatePrice.mockRejectedValueOnce(error);
 
     const { result } = renderEditPublication();
 
-    await act(async () => {
-      await result.current.updatePrices({
+    await expect(
+      result.current.updatePrices({
         prices: [priceRow('price-1', 'GBP', 99), priceRow('price-2', 'USD', 30)],
-      });
-    });
+      }),
+    ).rejects.toBe(error);
 
     expect(result.current.activePublication?.prices).toContainEqual(expect.objectContaining({ unitPrice: 25 }));
+  });
+
+  it('EditPublication_prices_doNotPreviewUnsavedValues_afterCreatePriceFailure', async () => {
+    const error = new Error('Create failed');
+    mocks.createPrice.mockRejectedValueOnce(error);
+
+    const { result } = renderEditPublication();
+
+    await expect(
+      result.current.updatePrices({
+        prices: [
+          priceRow('price-1', 'GBP', 25),
+          priceRow('price-2', 'USD', 30),
+          priceRow('0000-0000-0000-0000-3', 'EUR', 22),
+        ],
+      }),
+    ).rejects.toBe(error);
+
+    expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice, mocks.usdPrice]);
   });
 });

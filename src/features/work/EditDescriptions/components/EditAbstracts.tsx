@@ -97,16 +97,11 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
       work.abstracts,
     );
 
-    try {
-      // Deletions only remove content the user discarded, and must run first so a
-      // replacement canonical abstract does not clash with the deleted one.
-      await Promise.all(abstractsToDelete.map(({ id }) => deleteAbstract(id)));
-      await Promise.all(updatedAbstracts.map((abstract) => updateAbstract({ data: abstract })));
-      await Promise.all(newAbstracts.map((abstract) => createAbstract({ data: abstract })));
-    } catch {
-      // The mutation hooks surface the error notification; the remaining phases are
-      // skipped so kept abstracts are never deleted.
-    }
+    // Deletions only remove content the user discarded, and must run first so a
+    // replacement canonical abstract does not clash with the deleted one.
+    await Promise.all(abstractsToDelete.map(({ id }) => deleteAbstract(id)));
+    await Promise.all(updatedAbstracts.map((abstract) => updateAbstract({ data: abstract })));
+    await Promise.all(newAbstracts.map((abstract) => createAbstract({ data: abstract })));
   };
 
   const deleteAbstracts = async (shortAbstractId: AbstractId, longAbstractId: AbstractId) => {

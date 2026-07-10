@@ -208,23 +208,17 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     // classified as new again and created twice.
     const createdPrices: typeof prices = [];
 
-    try {
-      await Promise.all([
-        ...updatedPrices.map(({ id, currencyCode, unitPrice }) =>
-          updatePrice({ id, currencyCode, unitPrice, publicationId: publication.id }),
-        ),
-        ...newPrices.map(async (price) => {
-          const created = await createPrice({ ...price, publicationId: publication.id });
+    await Promise.all([
+      ...updatedPrices.map(({ id, currencyCode, unitPrice }) =>
+        updatePrice({ id, currencyCode, unitPrice, publicationId: publication.id }),
+      ),
+      ...newPrices.map(async (price) => {
+        const created = await createPrice({ ...price, publicationId: publication.id });
 
-          createdPrices.push({ ...price, id: created.id });
-        }),
-        ...deletedPrices.map(({ id }) => deletePrice(id)),
-      ]);
-    } catch {
-      // The mutation hooks surface the error notification; keep the local state on the
-      // persisted values instead of pretending the change saved.
-      return;
-    }
+        createdPrices.push({ ...price, id: created.id });
+      }),
+      ...deletedPrices.map(({ id }) => deletePrice(id)),
+    ]);
 
     setPublication({ ...publication, prices: [...existingPrices, ...createdPrices] });
   };
@@ -267,33 +261,27 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     // would be classified as new again and created twice.
     const createdLocations: LocationEntity[] = [];
 
-    try {
-      for (const location of promotedLocations) {
-        await updateLocation({ ...location, publicationId: publication.id });
+    for (const location of promotedLocations) {
+      await updateLocation({ ...location, publicationId: publication.id });
+    }
+
+    for (const location of newLocations) {
+      const isDeferredCanonical = location.canonical && hasPersistedCanonical;
+      const created = await createLocation({
+        ...location,
+        canonical: isDeferredCanonical ? false : location.canonical,
+        publicationId: publication.id,
+      });
+
+      if (isDeferredCanonical) {
+        await updateLocation({ ...location, id: created.id, publicationId: publication.id });
       }
 
-      for (const location of newLocations) {
-        const isDeferredCanonical = location.canonical && hasPersistedCanonical;
-        const created = await createLocation({
-          ...location,
-          canonical: isDeferredCanonical ? false : location.canonical,
-          publicationId: publication.id,
-        });
+      createdLocations.push({ ...location, id: created.id });
+    }
 
-        if (isDeferredCanonical) {
-          await updateLocation({ ...location, id: created.id, publicationId: publication.id });
-        }
-
-        createdLocations.push({ ...location, id: created.id });
-      }
-
-      for (const location of demotedLocations) {
-        await updateLocation({ ...location, publicationId: publication.id });
-      }
-    } catch {
-      // The mutation hooks surface the error notification; keep the local state on the
-      // persisted values instead of pretending the change saved.
-      return false;
+    for (const location of demotedLocations) {
+      await updateLocation({ ...location, publicationId: publication.id });
     }
 
     setPublication({ ...publication, locations: [...createdLocations, ...updatedLocations, ...notUpdatedLocations] });
@@ -317,12 +305,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
     if (!isCanonicalReassigned) return;
 
-    try {
-      await deleteLocationMutation(platformId);
-    } catch {
-      // The mutation hook surfaces the error notification; keep the location visible.
-      return;
-    }
+    await deleteLocationMutation(platformId);
 
     setPublication({ ...publication, locations: updatedLocationsWithCanonical });
   };

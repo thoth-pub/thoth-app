@@ -195,18 +195,13 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       contribution.biographies,
     );
 
-    try {
-      // Deletions only remove content the user discarded, and must run first so a
-      // replacement canonical biography does not clash with the deleted one.
-      await Promise.all(biographiesToDelete.map(({ id }) => deleteBiography(id)));
-      await Promise.all(updatedBiographies.map((biography) => updateBiographyMutation({ data: biography })));
-      await Promise.all(
-        newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
-      );
-    } catch {
-      // The mutation hooks surface the error notification; the remaining phases are
-      // skipped so kept biographies are never deleted.
-    }
+    // Deletions only remove content the user discarded, and must run first so a
+    // replacement canonical biography does not clash with the deleted one.
+    await Promise.all(biographiesToDelete.map(({ id }) => deleteBiography(id)));
+    await Promise.all(updatedBiographies.map((biography) => updateBiographyMutation({ data: biography })));
+    await Promise.all(
+      newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
+    );
 
     queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
     queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
