@@ -28,7 +28,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   const { persistentStorage } = useServices();
   const queryClient = useQueryClient();
 
-  const { activePublisher, linkedPublishers, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
+  const { activePublisher, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
 
   const authorizedPublishers = user.linkedPublishers
     .map((publisher) => ({
@@ -87,21 +87,38 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
     initializeActivePublisher();
   }, [loading]);
 
-  // After initialisation, sync the XState context whenever the user's linked publisher
-  // list changes (e.g. permissions updated on the backend).
-  useEffect(() => {
+  // Serialised snapshot of the last-synced publisher list, used to detect
+  // changes without depending on XState context (which would re-trigger).
+  const prevSyncSnapshot = useRef('');
+
+  const syncPublishers = useEffectEvent(() => {
     if (!hasInitialized.current) return;
     if (authorizedPublishers.length === 0) return;
 
-    const currentIds = new Set(authorizedPublishers.map((p) => p.id));
-    const stateIds = new Set(linkedPublishers.map((p) => p.id));
+    const snapshot = JSON.stringify(
+      authorizedPublishers.map(({ id, publisherAdmin, workLifecycle, cdnWrite, imprints }) => ({
+        id,
+        publisherAdmin,
+        workLifecycle,
+        cdnWrite,
+        imprints,
+      })),
+    );
 
-    if (
-      currentIds.size !== stateIds.size ||
-      ![...currentIds].every((id) => stateIds.has(id))
-    ) {
-      setLinkedPublishers(authorizedPublishers, user.isSuperuser);
+    if (snapshot === prevSyncSnapshot.current) return;
+    prevSyncSnapshot.current = snapshot;
+
+    setLinkedPublishers(authorizedPublishers, user.isSuperuser);
+
+    // Refresh active publisher so permission hooks see latest values.
+    if (activePublisher) {
+      const updated = authorizedPublishers.find((p) => p.id === activePublisher.id);
+      if (updated) changeActivePublisher(updated);
     }
+  });
+
+  useEffect(() => {
+    syncPublishers();
   }, [authorizedPublishers]);
 
   const hideSelector = publishersOptions.length <= 1 || isHidden;
