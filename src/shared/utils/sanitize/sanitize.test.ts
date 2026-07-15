@@ -6,24 +6,24 @@ import { sanitizeHtml } from './sanitize';
 
 describe('sanitizeHtml', () => {
   afterEach(() => {
-    vi.doUnmock('isomorphic-dompurify');
+    vi.doUnmock('sanitize-html');
     vi.restoreAllMocks();
   });
 
-  it('sanitizeHtml_returnsSafeFallbackWhenDOMPurifyThrows', async () => {
+  it('sanitizeHtml_returnsSafeFallbackWhenSanitizerThrows', async () => {
     const unsafeHtml = '<img src=x onerror="alert(1)"><script>alert(2)</script>';
 
     vi.resetModules();
-    vi.doMock('isomorphic-dompurify', () => {
+    vi.doMock('sanitize-html', () => {
       return {
-        sanitize: () => {
-          throw new Error('DOMPurify failed');
+        default: () => {
+          throw new Error('Sanitizer failed');
         },
       };
     });
 
-    const { sanitizeHtml: sanitizeHtmlWithThrowingDOMPurify } = await import('./sanitize');
-    const result = sanitizeHtmlWithThrowingDOMPurify(unsafeHtml);
+    const { sanitizeHtml: sanitizeHtmlWithThrowingSanitizer } = await import('./sanitize');
+    const result = sanitizeHtmlWithThrowingSanitizer(unsafeHtml);
 
     expect(result).toBe('');
     expect(result).not.toBe(unsafeHtml);

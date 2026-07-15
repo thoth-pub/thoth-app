@@ -1,4 +1,4 @@
-import { sanitize as sanitizeWithDOMPurify } from 'isomorphic-dompurify';
+import sanitize from 'sanitize-html';
 
 const ALLOWED_TAGS = [
   'p', 'br', 'b', 'i', 'em', 'strong', 'u', 'sub', 'sup',
@@ -17,10 +17,11 @@ const ALLOWED_ATTR = [
 
 export const sanitizeHtml = (html: string): string => {
   try {
-    return sanitizeWithDOMPurify(html, {
-      ALLOWED_TAGS,
-      ALLOWED_ATTR,
-      ALLOW_DATA_ATTR: false,
+    return sanitize(html, {
+      allowedTags: ALLOWED_TAGS,
+      allowedAttributes: {
+        '*': ALLOWED_ATTR,
+      },
     });
   } catch {
     return '';

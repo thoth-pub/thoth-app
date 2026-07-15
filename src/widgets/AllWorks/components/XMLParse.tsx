@@ -43,7 +43,7 @@ export const XMLParse = (props: XMLParseProps) => {
     const response = await validateXml(file);
 
     if (response.status === 'error') {
-      onValidationFailure?.([t(ERRORS.XML_PARSING_ERROR)]);
+      onValidationFailure?.([response.error]);
       setIsValidatingFile(false);
       return;
     }
