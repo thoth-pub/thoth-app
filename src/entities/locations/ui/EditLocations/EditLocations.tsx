@@ -34,7 +34,7 @@ type EditLocationsProps = {
   isFullTextUrlHidden: boolean;
   deleteLoading?: boolean;
   canDelete?: boolean;
-  onUpdate: (data: LocationEntity[]) => void;
+  onUpdate: (data: LocationEntity[]) => void | Promise<unknown>;
   onDelete?: (id: string) => void;
 };
 
@@ -69,16 +69,25 @@ const EditLocations = (props: EditLocationsProps) => {
     });
   };
 
-  const handleSubmitNewLocation = (location: LocationEntity) => {
-    onUpdate?.([...locations, location]);
+  const saveLocations = async (updatedLocations: LocationEntity[]) => {
+    try {
+      await onUpdate(updatedLocations);
+    } catch {
+      // Mutation hooks surface the error; keep the form open so the user can retry.
+      return;
+    }
+
     handleClose();
   };
 
-  const handleSubmitLocation = (location: LocationEntity) => {
+  const handleSubmitNewLocation = async (location: LocationEntity) => {
+    await saveLocations([...locations, location]);
+  };
+
+  const handleSubmitLocation = async (location: LocationEntity) => {
     const filteredLocations = locations.filter((loc) => loc.id !== location.id);
 
-    onUpdate?.([...filteredLocations, location]);
-    handleClose();
+    await saveLocations([...filteredLocations, location]);
   };
 
   const isThothLocationSelected = locations.some((location) => location.locationPlatform === LocationPlatform.Thoth);
