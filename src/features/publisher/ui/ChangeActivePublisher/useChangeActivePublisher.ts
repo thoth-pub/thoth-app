@@ -8,7 +8,7 @@ import { type PublisherId } from '@/src/entities/publisher';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
 import { useUser } from '@/src/entities/user';
 import { appConfig } from '@/src/shared/config';
-import { ROUTES } from '@/src/shared/constants';
+import { QueryKeys, ROUTES } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 import { convertEntityToSelectFieldOptions } from '@/src/shared/utils';
 import { isRouteIncludesUUID } from '@/src/shared/utils/routes';
@@ -18,6 +18,37 @@ type UseChangeActivePublisherProps = {
 };
 
 const { activePublisherIdKey } = appConfig.persistentStorage;
+
+const publisherScopedQueryKeys: ReadonlySet<string> = new Set([
+  QueryKeys.books,
+  QueryKeys.booksCount,
+  QueryKeys.forthcomingBooksCount,
+  QueryKeys.publishedBooksCount,
+  QueryKeys.latestUpdatedBooks,
+  QueryKeys.latestPublishedBooks,
+  QueryKeys.work,
+  QueryKeys.works,
+  QueryKeys.worksCount,
+  QueryKeys.workChapters,
+  QueryKeys.workEditions,
+  QueryKeys.workPrevEditions,
+  QueryKeys.translatedWorks,
+  QueryKeys.workTranslations,
+  QueryKeys.workSet,
+  QueryKeys.publisher,
+  QueryKeys.linkedPublishers,
+  QueryKeys.contribution,
+  QueryKeys.series,
+  QueryKeys.serieses,
+  QueryKeys.seriesesCount,
+  QueryKeys.allUserSerieses,
+  QueryKeys.sets,
+  QueryKeys.setsCount,
+  QueryKeys.set,
+  QueryKeys.bookSetWorks,
+  QueryKeys.metadata,
+  QueryKeys.publisherImprints,
+]);
 
 export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) => {
   const { isHidden = false } = props;
@@ -41,13 +72,23 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
   const publishersOptions = convertEntityToSelectFieldOptions(authorizedPublishers, 'name');
 
+  const clearPublisherScopedQueries = () => {
+    queryClient.removeQueries({
+      predicate: (query) => {
+        const rootQueryKey = query.queryKey[0];
+
+        return typeof rootQueryKey === 'string' && publisherScopedQueryKeys.has(rootQueryKey);
+      },
+    });
+  };
+
   const updateActivePublisher = async (publisherId: PublisherId, skipRedirect = false) => {
     const publisher = authorizedPublishers.find((publisher) => publisher.id === publisherId);
 
     if (!publisher) return;
 
     changeActivePublisher(publisher);
-    queryClient.clear();
+    clearPublisherScopedQueries();
 
     try {
       await persistentStorage.set(activePublisherIdKey, publisher.id);
@@ -107,6 +148,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
   const syncPublishers = useEffectEvent(() => {
     if (!hasInitialized.current) return;
+    if (loading) return;
 
     if (publisherSyncSnapshot === prevSyncSnapshot.current) return;
     prevSyncSnapshot.current = publisherSyncSnapshot;
