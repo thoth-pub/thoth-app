@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
+import { useQuery } from '@tanstack/react-query';
 
 const mockInvalidate = vi.fn();
 const mockSendError = vi.fn();
@@ -222,6 +223,16 @@ describe('useWorks', () => {
     const { works } = useWorks({ publishersIds: ['pub-1'] });
     expect(works).toEqual([]);
   });
+
+  it('disables the query when publishersIds is empty', () => {
+    setup();
+
+    useWorks({ publishersIds: [] });
+
+    expect(vi.mocked(useQuery)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: false }),
+    );
+  });
 });
 
 describe('useWorksCount', () => {
@@ -229,6 +240,16 @@ describe('useWorksCount', () => {
     setup();
     const { workCount } = useWorksCount({ publishersIds: ['pub-1'] });
     expect(workCount).toBe(0);
+  });
+
+  it('disables the query when publishersIds is empty', () => {
+    setup();
+
+    useWorksCount({ publishersIds: [] });
+
+    expect(vi.mocked(useQuery)).toHaveBeenLastCalledWith(
+      expect.objectContaining({ enabled: false }),
+    );
   });
 });
 

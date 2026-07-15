@@ -18,7 +18,7 @@ export const useAllWorks = () => {
   const { createWorkTranslation } = useCreateWorkTranslation();
 
   const { activePublisher } = usePublisherStateMachine();
-  const publisherId = activePublisher && activePublisher.id ? activePublisher.id : '';
+  const publishersIds = activePublisher?.id ? [activePublisher.id] : [];
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
@@ -58,7 +58,7 @@ export const useAllWorks = () => {
   const workType = extraState.workType as WorkType | 'All';
 
   const baseProps = {
-    publishersIds: [publisherId],
+    publishersIds,
     filter: debouncedValue,
     workStatus: workStatus === 'All' ? undefined : workStatus,
     workTypes:
