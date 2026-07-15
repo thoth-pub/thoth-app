@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
     loading: false,
     activePublisher: { id: 'pub-1', name: 'Publisher A' },
     changeActivePublisher: vi.fn(),
+    resetLinkedPublishers: vi.fn(),
     setLinkedPublishers: vi.fn(),
     persistentStorage: {
       set: vi.fn().mockResolvedValue(undefined),
@@ -50,6 +51,7 @@ vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => (
   default: () => ({
     activePublisher: mocks.activePublisher,
     changeActivePublisher: mocks.changeActivePublisher,
+    resetLinkedPublishers: mocks.resetLinkedPublishers,
     setLinkedPublishers: mocks.setLinkedPublishers,
   }),
 }));
@@ -77,6 +79,7 @@ describe('useChangeActivePublisher', () => {
     ];
     mocks.persistentStorage.get.mockResolvedValue('pub-1');
     mocks.changeActivePublisher.mockClear();
+    mocks.resetLinkedPublishers.mockClear();
     mocks.setLinkedPublishers.mockClear();
     mocks.persistentStorage.set.mockClear();
     mocks.persistentStorage.get.mockClear();
@@ -216,6 +219,62 @@ describe('useChangeActivePublisher', () => {
       );
     });
     expect(mocks.changeActivePublisher).toHaveBeenCalledWith(updatedPublisher);
+    expect(mocks.queryClient.clear).not.toHaveBeenCalled();
+  });
+
+  it('useChangeActivePublisher_switchesActivePublisherWhenCurrentAccessRevoked', async () => {
+    const { rerender } = renderHook(() => useChangeActivePublisher({}));
+
+    await waitFor(() => {
+      expect(mocks.setLinkedPublishers).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.setLinkedPublishers.mockClear();
+    mocks.changeActivePublisher.mockClear();
+    mocks.persistentStorage.set.mockClear();
+    mocks.queryClient.clear.mockClear();
+    mocks.user.linkedPublishers = [
+      mocks.createPublisher({ publisherId: 'pub-2', publisherName: 'Publisher B' }),
+    ];
+
+    rerender();
+
+    const publisherB = expect.objectContaining({ id: 'pub-2', name: 'Publisher B' });
+
+    await waitFor(() => {
+      expect(mocks.setLinkedPublishers).toHaveBeenCalledWith([publisherB], false);
+    });
+    expect(mocks.changeActivePublisher).toHaveBeenCalledWith(publisherB);
+    expect(mocks.changeActivePublisher).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'pub-1' }),
+    );
+    expect(mocks.persistentStorage.set).toHaveBeenCalledWith(
+      expect.any(String),
+      'pub-2',
+    );
+    expect(mocks.queryClient.clear).not.toHaveBeenCalled();
+  });
+
+  it('useChangeActivePublisher_clearsActivePublisherWhenNoPublishersRemain', async () => {
+    const { rerender } = renderHook(() => useChangeActivePublisher({}));
+
+    await waitFor(() => {
+      expect(mocks.setLinkedPublishers).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.resetLinkedPublishers.mockClear();
+    mocks.changeActivePublisher.mockClear();
+    mocks.persistentStorage.set.mockClear();
+    mocks.queryClient.clear.mockClear();
+    mocks.user.linkedPublishers = [];
+
+    rerender();
+
+    await waitFor(() => {
+      expect(mocks.resetLinkedPublishers).toHaveBeenCalledTimes(1);
+    });
+    expect(mocks.changeActivePublisher).not.toHaveBeenCalled();
+    expect(mocks.persistentStorage.set).toHaveBeenCalledWith(expect.any(String), null);
     expect(mocks.queryClient.clear).not.toHaveBeenCalled();
   });
 

@@ -28,7 +28,8 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   const { persistentStorage } = useServices();
   const queryClient = useQueryClient();
 
-  const { activePublisher, changeActivePublisher, setLinkedPublishers } = usePublisherStateMachine();
+  const { activePublisher, changeActivePublisher, resetLinkedPublishers, setLinkedPublishers } =
+    usePublisherStateMachine();
 
   const authorizedPublishers = user.linkedPublishers
     .map((publisher) => ({
@@ -77,7 +78,8 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   // Initialise the active publisher only when loading completes, reading the latest
   // user and store state without re-firing on them.
   const initializeActivePublisher = useEffectEvent(() => {
-    if (loading || user.linkedPublishers.length === 0 || hasInitialized.current) return;
+    if (loading || hasInitialized.current) return;
+    if (user.linkedPublishers.length === 0 && !activePublisher) return;
 
     hasInitialized.current = true;
 
@@ -96,7 +98,6 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
   const syncPublishers = useEffectEvent(() => {
     if (!hasInitialized.current) return;
-    if (authorizedPublishers.length === 0) return;
 
     const snapshot = JSON.stringify(
       authorizedPublishers.map(({ id, name, publisherAdmin, workLifecycle, cdnWrite, imprints }) => ({
@@ -112,12 +113,26 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
     if (snapshot === prevSyncSnapshot.current) return;
     prevSyncSnapshot.current = snapshot;
 
+    if (authorizedPublishers.length === 0) {
+      resetLinkedPublishers();
+      void persistentStorage.set(activePublisherIdKey, null);
+      return;
+    }
+
     setLinkedPublishers(authorizedPublishers, user.isSuperuser);
 
     // Refresh active publisher so permission hooks see latest values.
     if (activePublisher) {
       const updated = authorizedPublishers.find((p) => p.id === activePublisher.id);
-      if (updated) changeActivePublisher(updated);
+
+      if (updated) {
+        changeActivePublisher(updated);
+      } else {
+        const nextActivePublisher = authorizedPublishers[0];
+
+        changeActivePublisher(nextActivePublisher);
+        void persistentStorage.set(activePublisherIdKey, nextActivePublisher.id);
+      }
     }
   });
 
