@@ -64,16 +64,27 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
     setLinkedPublishers(authorizedPublishers, user.isSuperuser);
 
     const persistedPublisherId = await persistentStorage.get(activePublisherIdKey);
+    const initialPublisher = authorizedPublishers.find(
+      (publisher) => publisher.id === persistedPublisherId,
+    ) ?? authorizedPublishers[0];
 
-    if (!persistedPublisherId) {
-      updateActivePublisher(authorizedPublishers[0].id, true);
-    }
-
-    updateActivePublisher(persistedPublisherId as PublisherId, true);
+    await updateActivePublisher(initialPublisher.id, true);
   };
 
-  // Tracks whether the initial publisher setup has been performed.
+  // Tracks whether the initial publisher setup has been performed and the
+  // last-synced permissions without depending on XState context.
   const hasInitialized = useRef(false);
+  const prevSyncSnapshot = useRef('');
+  const publisherSyncSnapshot = JSON.stringify(
+    authorizedPublishers.map(({ id, name, publisherAdmin, workLifecycle, cdnWrite, imprints }) => ({
+      id,
+      name,
+      publisherAdmin,
+      workLifecycle,
+      cdnWrite,
+      imprints,
+    })),
+  );
 
   // Initialise the active publisher only when loading completes, reading the latest
   // user and store state without re-firing on them.
@@ -85,33 +96,20 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
     if (activePublisher) return;
 
-    setActivePublisher();
+    // Initial setup handles this snapshot, so sync must not select and persist it again.
+    prevSyncSnapshot.current = publisherSyncSnapshot;
+    void setActivePublisher();
   });
 
   useEffect(() => {
     initializeActivePublisher();
   }, [loading]);
 
-  // Serialised snapshot of the last-synced publisher list, used to detect
-  // changes without depending on XState context (which would re-trigger).
-  const prevSyncSnapshot = useRef('');
-
   const syncPublishers = useEffectEvent(() => {
     if (!hasInitialized.current) return;
 
-    const snapshot = JSON.stringify(
-      authorizedPublishers.map(({ id, name, publisherAdmin, workLifecycle, cdnWrite, imprints }) => ({
-        id,
-        name,
-        publisherAdmin,
-        workLifecycle,
-        cdnWrite,
-        imprints,
-      })),
-    );
-
-    if (snapshot === prevSyncSnapshot.current) return;
-    prevSyncSnapshot.current = snapshot;
+    if (publisherSyncSnapshot === prevSyncSnapshot.current) return;
+    prevSyncSnapshot.current = publisherSyncSnapshot;
 
     if (authorizedPublishers.length === 0) {
       resetLinkedPublishers();
@@ -130,9 +128,11 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
       } else {
         const nextActivePublisher = authorizedPublishers[0];
 
-        changeActivePublisher(nextActivePublisher);
-        void persistentStorage.set(activePublisherIdKey, nextActivePublisher.id);
+        void updateActivePublisher(nextActivePublisher.id);
       }
+    } else {
+      // Access may have returned after an empty permissions response reset the store.
+      void updateActivePublisher(authorizedPublishers[0].id);
     }
   });
 
