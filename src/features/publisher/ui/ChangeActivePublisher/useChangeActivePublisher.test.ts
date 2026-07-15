@@ -38,7 +38,10 @@ const mocks = vi.hoisted(() => {
     },
     pathname: '/dashboard',
     router: { push: vi.fn() },
-    queryClient: { removeQueries: vi.fn() },
+    queryClient: {
+      resetQueries: vi.fn().mockResolvedValue(undefined),
+      removeQueries: vi.fn(),
+    },
   };
 });
 
@@ -93,6 +96,7 @@ describe('useChangeActivePublisher', () => {
     mocks.persistentStorage.set.mockClear();
     mocks.persistentStorage.get.mockClear();
     mocks.router.push.mockClear();
+    mocks.queryClient.resetQueries.mockClear();
     mocks.queryClient.removeQueries.mockClear();
   });
 
@@ -360,6 +364,8 @@ describe('useChangeActivePublisher', () => {
 
     mocks.setLinkedPublishers.mockClear();
     mocks.changeActivePublisher.mockClear();
+    mocks.queryClient.resetQueries.mockClear();
+    mocks.queryClient.removeQueries.mockClear();
     mocks.user.linkedPublishers = [
       mocks.createPublisher({ publisherId: 'pub-1', publisherName: 'Publisher A updated' }),
       mocks.createPublisher({ publisherId: 'pub-2', publisherName: 'Publisher B' }),
@@ -378,6 +384,8 @@ describe('useChangeActivePublisher', () => {
     expect(mocks.changeActivePublisher).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'pub-1', name: 'Publisher A updated' }),
     );
+    expect(mocks.queryClient.resetQueries).not.toHaveBeenCalled();
+    expect(mocks.queryClient.removeQueries).not.toHaveBeenCalled();
     expect(mocks.persistentStorage.get).not.toHaveBeenCalled();
   });
 
@@ -390,6 +398,7 @@ describe('useChangeActivePublisher', () => {
 
     mocks.setLinkedPublishers.mockClear();
     mocks.changeActivePublisher.mockClear();
+    mocks.queryClient.resetQueries.mockClear();
     mocks.queryClient.removeQueries.mockClear();
     mocks.pathname = '/admin/works/550e8400-e29b-41d4-a716-446655440000';
 
@@ -424,6 +433,7 @@ describe('useChangeActivePublisher', () => {
       );
     });
     expect(mocks.changeActivePublisher).toHaveBeenCalledWith(updatedPublisher);
+    expect(mocks.queryClient.resetQueries).not.toHaveBeenCalled();
     expect(mocks.queryClient.removeQueries).not.toHaveBeenCalled();
     expect(mocks.persistentStorage.set).not.toHaveBeenCalled();
     expect(mocks.router.push).not.toHaveBeenCalled();
@@ -523,7 +533,7 @@ describe('useChangeActivePublisher', () => {
     expect(mocks.queryClient.removeQueries).toHaveBeenCalledTimes(1);
   });
 
-  it('useChangeActivePublisher_fullRevocationClearsPublisherScopedCacheAndRedirectsFromEditRoute', async () => {
+  it('useChangeActivePublisher_clearsActiveWorkQueryOnFullRevocation', async () => {
     mocks.pathname = '/admin/works/550e8400-e29b-41d4-a716-446655440000';
 
     const { rerender } = renderHook(() => useChangeActivePublisher({}));
@@ -534,6 +544,7 @@ describe('useChangeActivePublisher', () => {
 
     mocks.resetLinkedPublishers.mockClear();
     mocks.persistentStorage.set.mockClear();
+    mocks.queryClient.resetQueries.mockClear();
     mocks.queryClient.removeQueries.mockClear();
     mocks.router.push.mockClear();
     mocks.user.linkedPublishers = [];
@@ -543,12 +554,18 @@ describe('useChangeActivePublisher', () => {
       expect(mocks.resetLinkedPublishers).toHaveBeenCalledTimes(1);
     });
     expect(mocks.persistentStorage.set).toHaveBeenCalledWith(expect.any(String), null);
+    expect(mocks.queryClient.resetQueries).toHaveBeenCalledTimes(1);
     expect(mocks.queryClient.removeQueries).toHaveBeenCalledTimes(1);
 
-    const { predicate } = mocks.queryClient.removeQueries.mock.calls[0][0];
+    const activeQueryFilters = mocks.queryClient.resetQueries.mock.calls[0][0];
+    const inactiveQueryFilters = mocks.queryClient.removeQueries.mock.calls[0][0];
 
-    expect(predicate({ queryKey: [QueryKeys.userInfo, 'token'] })).toBe(false);
-    expect(predicate({ queryKey: [QueryKeys.work, 'work-id'] })).toBe(true);
+    expect(activeQueryFilters.type).toBe('active');
+    expect(activeQueryFilters.predicate({ queryKey: [QueryKeys.work, 'work-id'] })).toBe(true);
+    expect(activeQueryFilters.predicate({ queryKey: [QueryKeys.userInfo, 'token'] })).toBe(false);
+    expect(inactiveQueryFilters.type).toBe('inactive');
+    expect(inactiveQueryFilters.predicate({ queryKey: [QueryKeys.work, 'work-id'] })).toBe(true);
+    expect(inactiveQueryFilters.predicate({ queryKey: [QueryKeys.userInfo, 'token'] })).toBe(false);
     expect(mocks.router.push).toHaveBeenCalledWith('/admin/dashboard');
   });
 
@@ -569,6 +586,7 @@ describe('useChangeActivePublisher', () => {
 
     expect(mocks.resetLinkedPublishers).not.toHaveBeenCalled();
     expect(mocks.persistentStorage.set).not.toHaveBeenCalledWith(expect.any(String), null);
+    expect(mocks.queryClient.resetQueries).not.toHaveBeenCalled();
     expect(mocks.queryClient.removeQueries).not.toHaveBeenCalled();
     expect(mocks.router.push).not.toHaveBeenCalled();
   });
@@ -583,6 +601,7 @@ describe('useChangeActivePublisher', () => {
 
     mocks.resetLinkedPublishers.mockClear();
     mocks.persistentStorage.set.mockClear();
+    mocks.queryClient.resetQueries.mockClear();
     mocks.queryClient.removeQueries.mockClear();
     mocks.router.push.mockClear();
     mocks.pathname = '/admin/works/550e8400-e29b-41d4-a716-446655440000';
@@ -593,6 +612,7 @@ describe('useChangeActivePublisher', () => {
     await act(async () => {});
 
     expect(mocks.resetLinkedPublishers).not.toHaveBeenCalled();
+    expect(mocks.queryClient.resetQueries).not.toHaveBeenCalled();
     expect(mocks.queryClient.removeQueries).not.toHaveBeenCalled();
     expect(mocks.persistentStorage.set).not.toHaveBeenCalledWith(expect.any(String), null);
     expect(mocks.router.push).not.toHaveBeenCalled();
@@ -608,6 +628,7 @@ describe('useChangeActivePublisher', () => {
     mocks.setLinkedPublishers.mockClear();
     mocks.changeActivePublisher.mockClear();
     mocks.persistentStorage.set.mockClear();
+    mocks.queryClient.resetQueries.mockClear();
     mocks.queryClient.removeQueries.mockClear();
     mocks.isAuthoritative = false;
     mocks.user.linkedPublishers = [];
@@ -632,10 +653,27 @@ describe('useChangeActivePublisher', () => {
       expect.objectContaining({ id: 'pub-2' }),
     );
     expect(mocks.persistentStorage.set).not.toHaveBeenCalled();
+    expect(mocks.queryClient.resetQueries).not.toHaveBeenCalled();
     expect(mocks.queryClient.removeQueries).not.toHaveBeenCalled();
   });
 
   describe('updateActivePublisher', () => {
+    it('useChangeActivePublisher_clearsActiveWorkQueryOnPublisherSwitch', async () => {
+      const { result } = renderHook(() => useChangeActivePublisher({}));
+
+      await act(async () => {
+        await result.current.updateActivePublisher('pub-2');
+      });
+
+      expect(mocks.queryClient.resetQueries).toHaveBeenCalledTimes(1);
+
+      const { type, predicate } = mocks.queryClient.resetQueries.mock.calls[0][0];
+
+      expect(type).toBe('active');
+      expect(predicate({ queryKey: [QueryKeys.work, 'work-id'] })).toBe(true);
+      expect(predicate({ queryKey: [QueryKeys.userInfo, 'token'] })).toBe(false);
+    });
+
     it('useChangeActivePublisher_doesNotClearUserInfoQueryOnPublisherSwitch', async () => {
       const { result } = renderHook(() => useChangeActivePublisher({}));
 
@@ -645,8 +683,9 @@ describe('useChangeActivePublisher', () => {
 
       expect(mocks.queryClient.removeQueries).toHaveBeenCalledTimes(1);
 
-      const { predicate } = mocks.queryClient.removeQueries.mock.calls[0][0];
+      const { type, predicate } = mocks.queryClient.removeQueries.mock.calls[0][0];
 
+      expect(type).toBe('inactive');
       expect(predicate({ queryKey: [QueryKeys.userInfo, 'token'] })).toBe(false);
       expect(predicate({ queryKey: [QueryKeys.works, 'pub-2'] })).toBe(true);
     });

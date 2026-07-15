@@ -81,13 +81,15 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   const publishersOptions = convertEntityToSelectFieldOptions(authorizedPublishers, 'name');
 
   const clearPublisherScopedQueries = () => {
-    queryClient.removeQueries({
-      predicate: (query) => {
-        const rootQueryKey = query.queryKey[0];
+    const predicate = (query: { queryKey: readonly unknown[] }) => {
+      const rootQueryKey = query.queryKey[0];
 
-        return typeof rootQueryKey === 'string' && publisherScopedQueryKeys.has(rootQueryKey);
-      },
-    });
+      return typeof rootQueryKey === 'string' && publisherScopedQueryKeys.has(rootQueryKey);
+    };
+
+    // Observed queries cannot be removed, so reset them before purging inactive cache entries.
+    void queryClient.resetQueries({ type: 'active', predicate });
+    queryClient.removeQueries({ type: 'inactive', predicate });
   };
 
   const updateActivePublisher = async (publisherId: PublisherId, skipRedirect = false) => {
