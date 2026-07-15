@@ -53,7 +53,7 @@ const publisherScopedQueryKeys: ReadonlySet<string> = new Set([
 export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) => {
   const { isHidden = false } = props;
 
-  const { user, loading } = useUser();
+  const { user, loading, isAuthoritative } = useUser();
   const pathname = usePathname();
   const router = useRouter();
   const { persistentStorage } = useServices();
@@ -72,7 +72,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   const authorizedPublishersRef = useRef(authorizedPublishers);
   const activePublisherTransitionVersion = useRef(0);
   const hasInitialized = useRef(false);
-  const prevSyncSnapshot = useRef('');
+  const prevSyncSnapshot = useRef<string | null>(null);
   const loadingRef = useRef(loading);
 
   authorizedPublishersRef.current = authorizedPublishers;
@@ -154,7 +154,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   // Initialise the active publisher only when loading completes, reading the latest
   // user and store state without re-firing on them.
   const initializeActivePublisher = useEffectEvent(() => {
-    if (loading || hasInitialized.current) return;
+    if (loading || !isAuthoritative || hasInitialized.current) return;
     if (user.linkedPublishers.length === 0 && !activePublisher) return;
 
     hasInitialized.current = true;
@@ -168,11 +168,11 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
   useEffect(() => {
     initializeActivePublisher();
-  }, [loading, publisherSyncSnapshot]);
+  }, [loading, isAuthoritative, publisherSyncSnapshot]);
 
   const syncPublishers = useEffectEvent(() => {
     if (!hasInitialized.current) return;
-    if (loading) return;
+    if (loading || !isAuthoritative) return;
 
     if (publisherSyncSnapshot === prevSyncSnapshot.current) return;
     prevSyncSnapshot.current = publisherSyncSnapshot;

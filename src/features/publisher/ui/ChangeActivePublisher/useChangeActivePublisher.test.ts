@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
       isSuperuser: false,
     },
     loading: false,
+    isAuthoritative: true,
     activePublisher: { id: 'pub-1', name: 'Publisher A' },
     changeActivePublisher: vi.fn(),
     resetLinkedPublishers: vi.fn(),
@@ -46,7 +47,11 @@ vi.mock('@tanstack/react-query', () => ({
 }));
 
 vi.mock('@/src/entities/user', () => ({
-  useUser: () => ({ user: mocks.user, loading: mocks.loading }),
+  useUser: () => ({
+    user: mocks.user,
+    loading: mocks.loading,
+    isAuthoritative: mocks.isAuthoritative,
+  }),
 }));
 
 vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
@@ -75,6 +80,7 @@ describe('useChangeActivePublisher', () => {
   beforeEach(() => {
     mocks.activePublisher = { id: 'pub-1', name: 'Publisher A' };
     mocks.loading = false;
+    mocks.isAuthoritative = true;
     mocks.pathname = '/dashboard';
     mocks.user.linkedPublishers = [
       mocks.createPublisher(),
@@ -565,6 +571,68 @@ describe('useChangeActivePublisher', () => {
     expect(mocks.persistentStorage.set).not.toHaveBeenCalledWith(expect.any(String), null);
     expect(mocks.queryClient.removeQueries).not.toHaveBeenCalled();
     expect(mocks.router.push).not.toHaveBeenCalled();
+  });
+
+  it('useChangeActivePublisher_doesNotTreatDisabledUserQueryAsRevocation', async () => {
+    const { unmount } = renderHook(() => useChangeActivePublisher({}));
+
+    await waitFor(() => {
+      expect(mocks.setLinkedPublishers).toHaveBeenCalledTimes(1);
+    });
+    unmount();
+
+    mocks.resetLinkedPublishers.mockClear();
+    mocks.persistentStorage.set.mockClear();
+    mocks.queryClient.removeQueries.mockClear();
+    mocks.router.push.mockClear();
+    mocks.pathname = '/admin/works/550e8400-e29b-41d4-a716-446655440000';
+    mocks.isAuthoritative = false;
+    mocks.user.linkedPublishers = [];
+
+    renderHook(() => useChangeActivePublisher({}));
+    await act(async () => {});
+
+    expect(mocks.resetLinkedPublishers).not.toHaveBeenCalled();
+    expect(mocks.queryClient.removeQueries).not.toHaveBeenCalled();
+    expect(mocks.persistentStorage.set).not.toHaveBeenCalledWith(expect.any(String), null);
+    expect(mocks.router.push).not.toHaveBeenCalled();
+  });
+
+  it('useChangeActivePublisher_recoversSelectionAfterTokenGap', async () => {
+    const { rerender } = renderHook(() => useChangeActivePublisher({}));
+
+    await waitFor(() => {
+      expect(mocks.setLinkedPublishers).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.setLinkedPublishers.mockClear();
+    mocks.changeActivePublisher.mockClear();
+    mocks.persistentStorage.set.mockClear();
+    mocks.queryClient.removeQueries.mockClear();
+    mocks.isAuthoritative = false;
+    mocks.user.linkedPublishers = [];
+    rerender();
+
+    await act(async () => {});
+    expect(mocks.changeActivePublisher).not.toHaveBeenCalled();
+
+    mocks.isAuthoritative = true;
+    mocks.user.linkedPublishers = [
+      mocks.createPublisher({ publisherId: 'pub-1', publisherName: 'Publisher A refreshed' }),
+      mocks.createPublisher({ publisherId: 'pub-2', publisherName: 'Publisher B' }),
+    ];
+    rerender();
+
+    await waitFor(() => {
+      expect(mocks.changeActivePublisher).toHaveBeenCalledWith(
+        expect.objectContaining({ id: 'pub-1', name: 'Publisher A refreshed' }),
+      );
+    });
+    expect(mocks.changeActivePublisher).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'pub-2' }),
+    );
+    expect(mocks.persistentStorage.set).not.toHaveBeenCalled();
+    expect(mocks.queryClient.removeQueries).not.toHaveBeenCalled();
   });
 
   describe('updateActivePublisher', () => {

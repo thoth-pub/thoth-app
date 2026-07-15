@@ -26,7 +26,9 @@ const useUser = () => {
   const {
     data: user = defaultUser,
     error,
+    isFetching,
     isLoading,
+    isSuccess,
     refetch,
   } = useQuery({
     queryKey: [QueryKeys.userInfo, token],
@@ -53,7 +55,17 @@ const useUser = () => {
 
   const userImprintsOptions = convertEntityToSelectFieldOptions(userImprintsFieldValues, 'name');
 
-  return { user, userImprints, userImprintsOptions, error, loading: isLoading, refetch };
+  const isAuthoritative = token.length > 0 && isSuccess && !isFetching;
+
+  return {
+    user,
+    userImprints,
+    userImprintsOptions,
+    error,
+    loading: isLoading,
+    isAuthoritative,
+    refetch,
+  };
 };
 
 export default useUser;
