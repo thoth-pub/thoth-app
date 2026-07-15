@@ -1,13 +1,24 @@
-import { act, renderHook } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
+  const createPublisher = (overrides = {}) => ({
+    publisherId: 'pub-1',
+    publisherName: 'Publisher A',
+    publisherAdmin: false,
+    workLifecycle: false,
+    cdnWrite: false,
+    imprints: [],
+    ...overrides,
+  });
+
   const publishers = [
-    { publisherId: 'pub-1', publisherName: 'Publisher A' },
-    { publisherId: 'pub-2', publisherName: 'Publisher B' },
+    createPublisher(),
+    createPublisher({ publisherId: 'pub-2', publisherName: 'Publisher B' }),
   ];
 
   return {
+    createPublisher,
     publishers,
     user: {
       linkedPublishers: [...publishers],
@@ -61,8 +72,8 @@ describe('useChangeActivePublisher', () => {
     mocks.activePublisher = { id: 'pub-1', name: 'Publisher A' };
     mocks.pathname = '/dashboard';
     mocks.user.linkedPublishers = [
-      { publisherId: 'pub-1', publisherName: 'Publisher A' },
-      { publisherId: 'pub-2', publisherName: 'Publisher B' },
+      mocks.createPublisher(),
+      mocks.createPublisher({ publisherId: 'pub-2', publisherName: 'Publisher B' }),
     ];
     mocks.persistentStorage.get.mockResolvedValue('pub-1');
     mocks.changeActivePublisher.mockClear();
@@ -70,6 +81,7 @@ describe('useChangeActivePublisher', () => {
     mocks.persistentStorage.set.mockClear();
     mocks.persistentStorage.get.mockClear();
     mocks.router.push.mockClear();
+    mocks.queryClient.clear.mockClear();
   });
 
   it('should return active publisher', () => {
@@ -96,6 +108,115 @@ describe('useChangeActivePublisher', () => {
     const { result } = renderHook(() => useChangeActivePublisher({ isHidden: true }));
 
     expect(result.current.hideSelector).toBe(true);
+  });
+
+  it('should initialize active publisher when none exists', async () => {
+    mocks.activePublisher = null;
+    mocks.persistentStorage.get.mockResolvedValue(null);
+
+    renderHook(() => useChangeActivePublisher({}));
+
+    await waitFor(() => {
+      expect(mocks.setLinkedPublishers).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'pub-1', name: 'Publisher A' }),
+        ]),
+        false,
+      );
+    });
+
+    expect(mocks.changeActivePublisher).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'pub-1', name: 'Publisher A' }),
+    );
+    expect(mocks.persistentStorage.set).toHaveBeenCalledWith(expect.any(String), 'pub-1');
+  });
+
+  it('should not initialize when there are no linked publishers', async () => {
+    mocks.activePublisher = null;
+    mocks.user.linkedPublishers = [];
+
+    renderHook(() => useChangeActivePublisher({}));
+
+    await act(async () => {});
+
+    expect(mocks.setLinkedPublishers).not.toHaveBeenCalled();
+    expect(mocks.changeActivePublisher).not.toHaveBeenCalled();
+    expect(mocks.persistentStorage.get).not.toHaveBeenCalled();
+  });
+
+  it('useChangeActivePublisher_marksInitializedWhenActivePublisherAlreadyExists', async () => {
+    const { rerender } = renderHook(() => useChangeActivePublisher({}));
+
+    await waitFor(() => {
+      expect(mocks.setLinkedPublishers).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.setLinkedPublishers.mockClear();
+    mocks.changeActivePublisher.mockClear();
+    mocks.user.linkedPublishers = [
+      mocks.createPublisher({ publisherId: 'pub-1', publisherName: 'Publisher A updated' }),
+      mocks.createPublisher({ publisherId: 'pub-2', publisherName: 'Publisher B' }),
+    ];
+
+    rerender();
+
+    await waitFor(() => {
+      expect(mocks.setLinkedPublishers).toHaveBeenCalledWith(
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'pub-1', name: 'Publisher A updated' }),
+        ]),
+        false,
+      );
+    });
+    expect(mocks.changeActivePublisher).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'pub-1', name: 'Publisher A updated' }),
+    );
+    expect(mocks.persistentStorage.get).not.toHaveBeenCalled();
+  });
+
+  it('useChangeActivePublisher_syncsPermissionChangesAfterRemount', async () => {
+    const { rerender } = renderHook(() => useChangeActivePublisher({}));
+
+    await waitFor(() => {
+      expect(mocks.setLinkedPublishers).toHaveBeenCalledTimes(1);
+    });
+
+    mocks.setLinkedPublishers.mockClear();
+    mocks.changeActivePublisher.mockClear();
+    mocks.queryClient.clear.mockClear();
+
+    const updatedImprints = [{ id: 'imprint-1', name: 'Updated Imprint' }];
+    mocks.user.linkedPublishers = [
+      mocks.createPublisher({
+        publisherId: 'pub-1',
+        publisherName: 'Publisher A',
+        publisherAdmin: true,
+        workLifecycle: true,
+        cdnWrite: true,
+        imprints: updatedImprints,
+      }),
+      mocks.createPublisher({ publisherId: 'pub-2', publisherName: 'Publisher B' }),
+    ];
+
+    rerender();
+
+    const updatedPublisher = expect.objectContaining({
+      id: 'pub-1',
+      name: 'Publisher A',
+      publisherAdmin: true,
+      workLifecycle: true,
+      cdnWrite: true,
+      imprints: updatedImprints,
+    });
+
+    await waitFor(() => {
+      expect(mocks.setLinkedPublishers).toHaveBeenCalledWith(
+        expect.arrayContaining([updatedPublisher]),
+        false,
+      );
+    });
+    expect(mocks.changeActivePublisher).toHaveBeenCalledWith(updatedPublisher);
+    expect(mocks.queryClient.clear).not.toHaveBeenCalled();
   });
 
   describe('updateActivePublisher', () => {
@@ -139,6 +260,13 @@ describe('useChangeActivePublisher', () => {
 
     it('should do nothing when publisher is not found', async () => {
       const { result } = renderHook(() => useChangeActivePublisher({}));
+
+      await waitFor(() => {
+        expect(mocks.changeActivePublisher).toHaveBeenCalledWith(
+          expect.objectContaining({ id: 'pub-1' }),
+        );
+      });
+      mocks.changeActivePublisher.mockClear();
 
       await act(async () => {
         await result.current.updateActivePublisher('non-existent');

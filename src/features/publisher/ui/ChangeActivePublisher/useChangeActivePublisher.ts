@@ -77,9 +77,12 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   // Initialise the active publisher only when loading completes, reading the latest
   // user and store state without re-firing on them.
   const initializeActivePublisher = useEffectEvent(() => {
-    if (loading || user.linkedPublishers.length === 0 || activePublisher) return;
+    if (loading || user.linkedPublishers.length === 0 || hasInitialized.current) return;
 
     hasInitialized.current = true;
+
+    if (activePublisher) return;
+
     setActivePublisher();
   });
 
@@ -96,8 +99,9 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
     if (authorizedPublishers.length === 0) return;
 
     const snapshot = JSON.stringify(
-      authorizedPublishers.map(({ id, publisherAdmin, workLifecycle, cdnWrite, imprints }) => ({
+      authorizedPublishers.map(({ id, name, publisherAdmin, workLifecycle, cdnWrite, imprints }) => ({
         id,
+        name,
         publisherAdmin,
         workLifecycle,
         cdnWrite,
