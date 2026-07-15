@@ -69,6 +69,14 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
       id: publisher.publisherId,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  const authorizedPublishersRef = useRef(authorizedPublishers);
+  const activePublisherTransitionVersion = useRef(0);
+  const hasInitialized = useRef(false);
+  const prevSyncSnapshot = useRef('');
+  const loadingRef = useRef(loading);
+
+  authorizedPublishersRef.current = authorizedPublishers;
+  loadingRef.current = loading;
 
   const publishersOptions = convertEntityToSelectFieldOptions(authorizedPublishers, 'name');
 
@@ -83,10 +91,13 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   };
 
   const updateActivePublisher = async (publisherId: PublisherId, skipRedirect = false) => {
-    const publisher = authorizedPublishers.find((publisher) => publisher.id === publisherId);
+    const publisher = authorizedPublishersRef.current.find(
+      (publisher) => publisher.id === publisherId,
+    );
 
     if (!publisher) return;
 
+    activePublisherTransitionVersion.current += 1;
     changeActivePublisher(publisher);
     clearPublisherScopedQueries();
 
@@ -100,22 +111,35 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   };
 
   const setActivePublisher = async () => {
-    if (authorizedPublishers.length === 0) return;
+    const initialAuthorizedPublishers = authorizedPublishersRef.current;
 
-    setLinkedPublishers(authorizedPublishers, user.isSuperuser);
+    if (initialAuthorizedPublishers.length === 0) return;
+
+    const initializationVersion = activePublisherTransitionVersion.current + 1;
+
+    activePublisherTransitionVersion.current = initializationVersion;
+
+    setLinkedPublishers(initialAuthorizedPublishers, user.isSuperuser);
 
     const persistedPublisherId = await persistentStorage.get(activePublisherIdKey);
-    const initialPublisher = authorizedPublishers.find(
+
+    if (initializationVersion !== activePublisherTransitionVersion.current) return;
+
+    const latestAuthorizedPublishers = authorizedPublishersRef.current;
+    const initialPublisher = latestAuthorizedPublishers.find(
       (publisher) => publisher.id === persistedPublisherId,
-    ) ?? authorizedPublishers[0];
+    ) ?? latestAuthorizedPublishers[0];
+
+    if (!initialPublisher) {
+      if (loadingRef.current) hasInitialized.current = false;
+      return;
+    }
 
     await updateActivePublisher(initialPublisher.id, true);
   };
 
   // Tracks whether the initial publisher setup has been performed and the
   // last-synced permissions without depending on XState context.
-  const hasInitialized = useRef(false);
-  const prevSyncSnapshot = useRef('');
   const publisherSyncSnapshot = JSON.stringify(
     authorizedPublishers.map(({ id, name, publisherAdmin, workLifecycle, cdnWrite, imprints }) => ({
       id,
@@ -144,7 +168,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
   useEffect(() => {
     initializeActivePublisher();
-  }, [loading]);
+  }, [loading, publisherSyncSnapshot]);
 
   const syncPublishers = useEffectEvent(() => {
     if (!hasInitialized.current) return;
@@ -154,8 +178,12 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
     prevSyncSnapshot.current = publisherSyncSnapshot;
 
     if (authorizedPublishers.length === 0) {
+      activePublisherTransitionVersion.current += 1;
       resetLinkedPublishers();
+      clearPublisherScopedQueries();
       void persistentStorage.set(activePublisherIdKey, null);
+
+      if (isRouteIncludesUUID(pathname)) router.push(ROUTES.DASHBOARD);
       return;
     }
 
@@ -166,6 +194,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
       const updated = authorizedPublishers.find((p) => p.id === activePublisher.id);
 
       if (updated) {
+        activePublisherTransitionVersion.current += 1;
         changeActivePublisher(updated);
       } else {
         const nextActivePublisher = authorizedPublishers[0];
