@@ -1,24 +1,43 @@
-import DOMPurify from 'dompurify';
+// @vitest-environment node
+
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { sanitizeHtml } from './sanitize';
 
 describe('sanitizeHtml', () => {
   afterEach(() => {
+    vi.doUnmock('isomorphic-dompurify');
     vi.restoreAllMocks();
   });
 
-  it('sanitizeHtml_returnsSafeFallbackWhenDOMPurifyThrows', () => {
+  it('sanitizeHtml_returnsSafeFallbackWhenDOMPurifyThrows', async () => {
     const unsafeHtml = '<img src=x onerror="alert(1)"><script>alert(2)</script>';
 
-    vi.spyOn(DOMPurify, 'sanitize').mockImplementationOnce(() => {
-      throw new Error('DOMPurify failed');
+    vi.resetModules();
+    vi.doMock('isomorphic-dompurify', () => {
+      return {
+        sanitize: () => {
+          throw new Error('DOMPurify failed');
+        },
+      };
     });
 
-    const result = sanitizeHtml(unsafeHtml);
+    const { sanitizeHtml: sanitizeHtmlWithThrowingDOMPurify } = await import('./sanitize');
+    const result = sanitizeHtmlWithThrowingDOMPurify(unsafeHtml);
 
     expect(result).toBe('');
     expect(result).not.toBe(unsafeHtml);
+    expect(result).not.toContain('<script>');
+  });
+
+  it('sanitizeHtml_sanitizesInServerLikeEnvironment', () => {
+    expect(globalThis.window).toBeUndefined();
+
+    const result = sanitizeHtml('<p>Hello <strong>SSR</strong></p><script>alert(1)</script>');
+
+    expect(result).toBe('<p>Hello <strong>SSR</strong></p>');
+    expect(result).not.toBe('');
+    expect(result).not.toContain('<script>');
   });
 
   it('sanitizeHtml_removesUnsafeMarkup', () => {
