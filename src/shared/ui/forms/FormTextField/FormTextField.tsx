@@ -48,6 +48,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     isOrcidField = false,
     translateOptions = false,
     namespace,
+    helperText,
     children,
     ...restProps
   } = props;
@@ -145,6 +146,7 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
           }}
           options={options}
           translateOptions={translateOptions}
+          helperText={error?.message ?? helperText}
           {...restProps}
         >
           {children}
