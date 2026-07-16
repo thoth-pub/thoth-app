@@ -294,13 +294,48 @@ describe('useWorkSet', () => {
 });
 
 describe('useUpdateWorks', () => {
-  it('updates multiple works and invalidates', async () => {
+  it('useUpdateWorks_invalidatesAfterPartialSuccessAndRethrows', async () => {
     setup();
+    const error = new Error('Second update failed');
+    const firstWork = { ...mockData, id: 'work-1' };
+    const secondWork = { ...mockData, id: 'work-2' };
+    mockServices.workService.updateWork.mockResolvedValueOnce(undefined).mockRejectedValueOnce(error);
     const { updateWorks } = useUpdateWorks();
-    await updateWorks([mockData]);
-    expect(mockServices.workService.updateWork).toHaveBeenCalledWith(mockData);
+
+    await expect(updateWorks([firstWork, secondWork])).rejects.toBe(error);
+
     expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['work'] });
     expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['workChapters'] });
+    expect(mockInvalidate).toHaveBeenCalledTimes(2);
+  });
+
+  it('useUpdateWorks_invalidatesAfterAllSuccess', async () => {
+    setup();
+    const firstWork = { ...mockData, id: 'work-1' };
+    const secondWork = { ...mockData, id: 'work-2' };
+    const { updateWorks } = useUpdateWorks();
+
+    await updateWorks([firstWork, secondWork]);
+
+    expect(mockServices.workService.updateWork).toHaveBeenCalledWith(firstWork);
+    expect(mockServices.workService.updateWork).toHaveBeenCalledWith(secondWork);
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['work'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['workChapters'] });
+    expect(mockInvalidate).toHaveBeenCalledTimes(2);
+  });
+
+  it('useUpdateWorks_rejectsWhenAllFail', async () => {
+    setup();
+    const firstError = new Error('First update failed');
+    const secondError = new Error('Second update failed');
+    const firstWork = { ...mockData, id: 'work-1' };
+    const secondWork = { ...mockData, id: 'work-2' };
+    mockServices.workService.updateWork.mockRejectedValueOnce(firstError).mockRejectedValueOnce(secondError);
+    const { updateWorks } = useUpdateWorks();
+
+    await expect(updateWorks([firstWork, secondWork])).rejects.toBe(firstError);
+
+    expect(mockInvalidate).not.toHaveBeenCalled();
   });
 });
 
