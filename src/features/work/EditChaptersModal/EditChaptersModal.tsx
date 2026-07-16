@@ -5,15 +5,14 @@ import { useEffect, useEffectEvent, useState } from 'react';
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useFundingStateMachine } from '@/src/entities/funding';
 import { useUpdateWorks, useWorkChapters } from '@/src/entities/work';
-import { LicenseAndCopyrightHolderForm } from '@/src/entities/work/model/work.types';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
 import type { BaseEditSectionProps } from '@/src/shared/types';
 
-import EditChapterBasicDetails from '../../chapters/EditChapterBasicDetails/EditChapterBasicDetails';
 import EditChaptersContributors from '../../chapters/EditChaptersContributors/EditChaptersContributors';
 import EditChaptersFundings from '../../chapters/EditChaptersFundings/EditChaptersFundings';
 import FullScreenModal from '../../layout/FullScreenModal/FullScreenModal';
-import EditDescriptions from '../EditDescriptions/EditDescriptions';
+import BulkEditLanguages from './components/BulkEditLanguages';
+import BulkEditLicense from './components/BulkEditLicense';
 import { useChaptersLanguages } from './useChaptersLanguages';
 
 type EditChaptersModalProps = BaseEditSectionProps & {
@@ -82,33 +81,28 @@ const EditChaptersModal = (props: EditChaptersModalProps) => {
     finishEditingFunding();
   };
 
-  const onLicenseUpdate = async (data: LicenseAndCopyrightHolderForm) => {
+  // Persisted chapter data is left untouched here: the bulk controls hold the submitted
+  // value locally while saving, and the refetch triggered by `updateWorks` is what
+  // eventually updates the underlying list. We deliberately do not optimistically rewrite
+  // `chapters` as if the save had already succeeded.
+  const onLicenseUpdate = async (license: string, copyrightHolder: string) => {
     if (!chapters) return;
 
     const chaptersWithUpdatedLicense = chapters.map((chapter) => ({
       ...chapter,
-      license: data.license.value,
-      copyrightHolder: data.copyrightHolder,
+      license,
+      copyrightHolder,
     }));
 
     await updateWorks(chaptersWithUpdatedLicense);
-
-    setChapters(chaptersWithUpdatedLicense);
   };
 
   if (!chapters || !isMultipleChaptersSelected) return null;
 
-  const firstChapterId = activeWorkChapters?.[0].id ?? '';
-
   return (
     <FullScreenModal title={title} isOpen={isMultipleChaptersSelected} onClose={handleClose} onDone={handleDone}>
-      <EditChapterBasicDetails workId="" isMultipleChaptersEdit onLicenseUpdate={onLicenseUpdate} />
-      <EditDescriptions
-        workId={firstChapterId}
-        isMultipleChaptersEdit
-        onLanguagesUpdate={updateLanguages}
-        onLanguagesDelete={deleteLanguages}
-      />
+      <BulkEditLicense chapters={chapters} onSubmit={onLicenseUpdate} />
+      <BulkEditLanguages chapters={chapters} onSubmit={updateLanguages} onDelete={deleteLanguages} />
       <EditChaptersContributors chapters={chapters} />
       <EditChaptersFundings chapters={chapters} />
     </FullScreenModal>
