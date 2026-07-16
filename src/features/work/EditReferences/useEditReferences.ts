@@ -29,7 +29,7 @@ export const useEditReferences = (workId: WorkId) => {
   const { work, loading, fetching } = useWork(workId);
   const { activeEntity: activeReference, edit } = useReferenceStateMachine();
   const { activeFormId } = useFormStateMachine();
-  const { deleteReference: deleteReferenceMutation, loading: deleteLoading } = useDeleteReference();
+  const { deleteReference: deleteReferenceMutation, loading: deleteLoading } = useDeleteReference({ workId });
   const { updateReference } = useUpdateReference({ workId });
   const { moveReferences } = useMoveReferences({ workId });
 

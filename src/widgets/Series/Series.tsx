@@ -10,7 +10,7 @@ import { useSeriesList } from './useSeriesList';
 const Series = () => {
   const {
     loading,
-    isFetched,
+    isSettled,
     serieses,
     activePage,
     totalPagesCount,
@@ -39,7 +39,7 @@ const Series = () => {
       />
       <ContentSection>
         <SeriesList
-          loading={!isFetched || loading}
+          loading={!isSettled || loading}
           serieses={serieses}
           page={activePage}
           pagesCount={totalPagesCount}

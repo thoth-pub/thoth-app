@@ -9,7 +9,7 @@ import { useUser } from '@/src/entities/user';
 import { QueryKeys } from '@/src/shared/constants';
 import type { LocaleCodeType, TitleEntity } from '@/src/shared/types';
 import { CloseButton, MarkdownRenderer, MultipleContentWrapper, Typography } from '@/src/shared/ui';
-import { getMainTitle } from '@/src/shared/utils';
+import { getDisplayTitle } from '@/src/shared/utils';
 
 import { SetBooksList } from './components/SetBooksList';
 
@@ -118,7 +118,7 @@ const EditSet = (props: EditSetProps) => {
     <MultipleContentWrapper>
       <div className="flex justify-between">
         <Typography variant="h2" component="h3" className="text-(--color-typography) capitalize">
-          <MarkdownRenderer markdown={getMainTitle(set.titles).title} />
+          <MarkdownRenderer markdown={getDisplayTitle(set.titles).title} />
         </Typography>
         <div className="flex gap-2">
           <CloseButton onClose={finishEditing} />

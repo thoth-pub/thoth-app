@@ -436,7 +436,7 @@ exports[`EditFeaturedVideoForm > renders with all values > EditFeaturedVideoForm
           <p
             class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
           >
-            https:youtube.com/watch?v=test
+            youtube.com/watch?v=test
           </p>
           <button
             class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"

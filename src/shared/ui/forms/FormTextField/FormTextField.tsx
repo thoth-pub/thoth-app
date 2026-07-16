@@ -5,10 +5,11 @@ import VisibilityOff from '@mui/icons-material/VisibilityOff';
 import { IconButton, InputAdornment } from '@mui/material';
 import { useState } from 'react';
 import { Controller, type FieldValues, type Path } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 
 import { appConfig } from '@/src/shared/config';
 import { InputTypes } from '@/src/shared/constants';
-import { Namespace } from '@/src/shared/i18n/model/i18n.types';
+import { Namespace, NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { BaseFieldProps, FormFieldOption } from '@/src/shared/interfaces';
 import { removePrefix } from '@/src/shared/utils';
 
@@ -48,12 +49,14 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
     isOrcidField = false,
     translateOptions = false,
     namespace,
+    helperText,
     children,
     ...restProps
   } = props;
 
   const [protocolPrefix, setProtocolPrefix] = useState(predefinedPrefix);
   const [showPassword, setShowPassword] = useState(false);
+  const { t } = useTranslation(NAMESPACES.enum.common);
 
   const addPrefix = isDoiField || isUrlField || isRorField || isOrcidField;
 
@@ -145,6 +148,11 @@ const FormTextFieldComponentProps = <T extends FieldValues>(props: FormTextField
           }}
           options={options}
           translateOptions={translateOptions}
+          helperText={
+            typeof error?.message === 'string' && error.message.startsWith('errors.')
+              ? t(error.message)
+              : (error?.message ?? helperText)
+          }
           {...restProps}
         >
           {children}

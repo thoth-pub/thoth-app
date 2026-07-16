@@ -1,8 +1,8 @@
 'use client';
 
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-import { NOTIFICATIONS } from '@/src/shared/constants';
+import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
 
@@ -20,6 +20,7 @@ const useCreateContributor = (props: UseCreateContributorProps) => {
 
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
   const { contributorService } = useServices();
+  const queryClient = useQueryClient();
 
   const { mutate, isPending } = useMutation({
     mutationFn: async (data: ContributorEntity) => {
@@ -27,6 +28,7 @@ const useCreateContributor = (props: UseCreateContributorProps) => {
     },
     onSuccess: (data) => {
       sendSuccessNotification(CONTRIBUTOR_CREATION_SUCCESS);
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.contributors] });
       onCompleted?.(data);
     },
     onError: (error) => {

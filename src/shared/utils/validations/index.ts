@@ -17,15 +17,26 @@ import { SubjectTypes } from '@/src/shared/constants/subjects';
 import { WorkStatuses, WorkTypes } from '@/src/shared/constants/work';
 import type { ErrorMessage } from '@/src/shared/interfaces';
 
-const { doiPrefix, rorPrefix, orcidPrefix } = appConfig.validations;
+const { orcidPrefix } = appConfig.validations;
+
+const doiPattern = /^https:\/\/doi\.org\/10\.\d{4,9}\/[-._;()\/:a-zA-Z0-9<>+[\]]+$/;
+const issnPattern = /^\d{4}-\d{3}[\dX]$/;
+const rorPattern = /^https:\/\/ror\.org\/0[a-hjkmnp-z0-9]{6}\d{2}$/;
 
 const { INVALID_URL } = ERRORS;
 
 /* String Validations */
-export const getStringValidation = (errorMessage?: ErrorMessage) => z.string({ message: errorMessage });
+export const getStringValidation = (errorMessage?: ErrorMessage, maxLength?: number) => {
+  let schema = z.string({ message: errorMessage });
+  if (maxLength) schema = schema.max(maxLength, { message: errorMessage });
+  return schema;
+};
 
-export const getRequiredStringValidation = (errorMessage?: ErrorMessage) =>
-  getStringValidation(errorMessage).nonempty({ message: errorMessage });
+export const getRequiredStringValidation = (errorMessage?: ErrorMessage, maxLength?: number) => {
+  let schema = getStringValidation(errorMessage).nonempty({ message: errorMessage });
+  if (maxLength) schema = schema.max(maxLength, { message: errorMessage });
+  return schema;
+};
 
 export const optionalStringValidation = getStringValidation().optional();
 
@@ -78,11 +89,14 @@ export const getUrlValidation = (errorMessage?: ErrorMessage) => z.url({ message
 export const optionalUrlValidation = getUrlValidation().optional().or(z.literal(''));
 export const getRequiredUrlValidation = (errorMessage?: ErrorMessage) =>
   getUrlValidation(errorMessage ?? INVALID_URL).nonempty({ message: errorMessage ?? INVALID_URL });
-export const doiValidation = optionalUrlValidation.refine((doi) => {
-  if (!doi) return true;
+export const doiValidation = optionalUrlValidation.refine(
+  (doi) => {
+    if (!doi) return true;
 
-  return doi.startsWith(doiPrefix);
-});
+    return doiPattern.test(doi);
+  },
+  { message: 'Invalid DOI format (expected https://doi.org/10.xxxx/xxxxx)' },
+);
 
 /* External Identifiers Validations */
 export const idValidation = z.uuid();
@@ -100,29 +114,40 @@ export const orcidValidation = getStringValidation()
       message: 'Invalid ORCID ID (0000-0000-0000-0000 or 0000-0000-0000-000X)',
     },
   );
-export const rorValidation = getStringValidation().refine((ror) => ror.startsWith(rorPrefix));
+export const rorValidation = getStringValidation().refine(
+  (ror) => rorPattern.test(ror),
+  { message: 'Invalid ROR ID format (expected https://ror.org/0xxxxxxx)' },
+);
 
-export const issnValidation = optionalStringValidation.refine((issn) => {
-  if (!issn) return true;
+export const issnValidation = optionalStringValidation.refine(
+  (issn) => {
+    if (!issn) return true;
 
-  return issn
-    .replaceAll('-', '')
-    .split('')
-    .every((char) => Number.isInteger(Number(char)));
-});
+    return issnPattern.test(issn);
+  },
+  { message: 'Invalid ISSN format (expected XXXX-XXXX or XXXX-XXX X)' },
+);
 
 export const pageBreakdownValidation = optionalStringValidation;
 
-export const isbnValidation = optionalStringValidation.refine(
-  (isbn) => {
-    if (!isbn) return true;
+export const isbnValidation = optionalStringValidation
+  .refine(
+    (isbn) => {
+      if (!isbn) return true;
 
-    return isbn3.parse(isbn)?.isValid ?? false;
-  },
-  {
-    message: 'Invalid ISBN',
-  },
-);
+      return isbn3.parse(isbn)?.isValid ?? false;
+    },
+    {
+      message: 'Invalid ISBN',
+    },
+  )
+  .transform((isbn) => {
+    if (!isbn) return isbn;
+
+    const parsed = isbn3.parse(isbn);
+
+    return parsed?.isbn13h ?? isbn;
+  });
 
 export const isValidDate = (date: string) => dayjs(date).isValid();
 

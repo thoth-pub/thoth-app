@@ -6,7 +6,7 @@ import type { BaseEditSectionProps } from '@/src/shared/types';
 import {
   getDateInFuture,
   getDateInFutureFromDate,
-  getMainTitle,
+  getDisplayTitle,
   isPublicationDateAvailable,
   isPublicationDateRequired,
   isPublicationDateShouldBeInFuture,
@@ -56,7 +56,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
       withdrawnDate = getDateInFutureFromDate(publicationDate ?? getDateInFuture(1));
     }
 
-    updateWork({
+    await updateWork({
       ...work,
       status: pendingStatus,
       publicationDate,
@@ -81,7 +81,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
   };
 
   const changePublicationDate = async (publicationDate: string) => {
-    updateWork({
+    await updateWork({
       ...work,
       publicationDate,
     });
@@ -99,7 +99,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
   const changeWithdrawnDate = async (withdrawnDate: string) => {
     if (withdrawnDate.length === 0) return;
 
-    updateWork({
+    await updateWork({
       ...work,
       withdrawnDate,
     });
@@ -115,7 +115,7 @@ const useEditWorkHeader = ({ workId }: BaseEditSectionProps) => {
   };
 
   return {
-    title: getMainTitle(work.titles).title,
+    title: getDisplayTitle(work.titles).title,
     publicationDate: work.publicationDate,
     withdrawnDate: work.withdrawnDate,
     status: work.status,

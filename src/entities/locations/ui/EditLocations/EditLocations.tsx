@@ -34,8 +34,8 @@ type EditLocationsProps = {
   isFullTextUrlHidden: boolean;
   deleteLoading?: boolean;
   canDelete?: boolean;
-  onUpdate: (data: LocationEntity[]) => void;
-  onDelete?: (id: string) => void;
+  onUpdate: (data: LocationEntity[]) => void | Promise<unknown>;
+  onDelete?: (id: string) => void | Promise<unknown>;
 };
 
 const EditLocations = (props: EditLocationsProps) => {
@@ -58,6 +58,13 @@ const EditLocations = (props: EditLocationsProps) => {
     edit(location);
   };
 
+  const handleDeleteLocation = (id: string) => {
+    // onDelete is async: await/catch it here so a rejected deletion does not escape
+    // as an unhandled promise rejection. The mutation hooks surface the error
+    // notification, so the rejection is swallowed only after that path has run.
+    void Promise.resolve(onDelete?.(id)).catch(() => undefined);
+  };
+
   const handleAddNewLocation = () => {
     editForm(IDs.LOCATION_PLATFORM);
     edit({
@@ -69,16 +76,25 @@ const EditLocations = (props: EditLocationsProps) => {
     });
   };
 
-  const handleSubmitNewLocation = (location: LocationEntity) => {
-    onUpdate?.([...locations, location]);
+  const saveLocations = async (updatedLocations: LocationEntity[]) => {
+    try {
+      await onUpdate(updatedLocations);
+    } catch {
+      // Mutation hooks surface the error; keep the form open so the user can retry.
+      return;
+    }
+
     handleClose();
   };
 
-  const handleSubmitLocation = (location: LocationEntity) => {
+  const handleSubmitNewLocation = async (location: LocationEntity) => {
+    await saveLocations([...locations, location]);
+  };
+
+  const handleSubmitLocation = async (location: LocationEntity) => {
     const filteredLocations = locations.filter((loc) => loc.id !== location.id);
 
-    onUpdate?.([...filteredLocations, location]);
-    handleClose();
+    await saveLocations([...filteredLocations, location]);
   };
 
   const isThothLocationSelected = locations.some((location) => location.locationPlatform === LocationPlatform.Thoth);
@@ -143,7 +159,7 @@ const EditLocations = (props: EditLocationsProps) => {
                 {location.fullTextUrl && location.fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
                 {location.canonical && <StarIcon color="primary" />}
                 <ButtonGroup className="ml-auto">
-                  {canDelete && <DeleteButton onClick={() => onDelete?.(location.id)} disabled={deleteLoading} />}
+                  {canDelete && <DeleteButton onClick={() => handleDeleteLocation(location.id)} disabled={deleteLoading} />}
                   <EditButton onClick={() => handleEditLocation(location)} disabled={!!activeFormId} />
                 </ButtonGroup>
               </li>

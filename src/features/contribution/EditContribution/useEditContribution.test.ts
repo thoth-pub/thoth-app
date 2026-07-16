@@ -37,6 +37,7 @@ const mocks = vi.hoisted(() => {
     createBiography: vi.fn(),
     updateBiographyMutation: vi.fn(),
     deleteBiography: vi.fn(),
+    computeBiographiesDiff: vi.fn(),
     contributedToPublishers: [],
     sendErrorNotification: vi.fn(),
     queryClient: { invalidateQueries: vi.fn() },
@@ -105,12 +106,7 @@ vi.mock('@/src/shared/utils', async (importOriginal) => {
 });
 
 vi.mock('@/src/shared/utils/biographies', () => ({
-  computeBiographiesDiff: () => ({
-    biographiesToDelete: [],
-    updatedBiographies: [],
-    unchangedBiographies: [],
-    newBiographies: [],
-  }),
+  computeBiographiesDiff: mocks.computeBiographiesDiff,
 }));
 
 import { useEditContribution } from './useEditContribution';
@@ -125,6 +121,14 @@ describe('useEditContribution', () => {
     mocks.createBiography.mockClear();
     mocks.updateBiographyMutation.mockClear();
     mocks.deleteBiography.mockClear();
+    mocks.queryClient.invalidateQueries.mockClear();
+    mocks.computeBiographiesDiff.mockReset();
+    mocks.computeBiographiesDiff.mockReturnValue({
+      biographiesToDelete: [],
+      updatedBiographies: [],
+      unchangedBiographies: [],
+      newBiographies: [],
+    });
   });
 
   it('should return contribution from state', () => {
@@ -206,14 +210,94 @@ describe('useEditContribution', () => {
       expect(onBiographiesUpdate).toHaveBeenCalledWith({ biographies: [] });
     });
 
-    it('should handle biographies via direct mutations when no callback', async () => {
+    it('useEditContribution_invalidatesBiographyCachesAfterDeleteThenCreateFails', async () => {
+      const error = new Error('Biography creation failed');
+      const newBiography = {
+        id: 'bio-new',
+        canonical: false,
+        content: 'Replacement biography',
+        localeCode: 'EN',
+        contributionId: 'contrib-1',
+      };
+      mocks.computeBiographiesDiff.mockReturnValueOnce({
+        biographiesToDelete: [{ id: 'bio-old' }],
+        updatedBiographies: [],
+        unchangedBiographies: [],
+        newBiographies: [newBiography],
+      });
+      mocks.deleteBiography.mockResolvedValueOnce(undefined);
+      mocks.createBiography.mockRejectedValueOnce(error);
+      const { result } = renderHook(() => useEditContribution(defaultProps));
+
+      await expect(result.current.updateBiography({ biographies: [] })).rejects.toBe(error);
+
+      expect(mocks.deleteBiography).toHaveBeenCalledWith('bio-old');
+      expect(mocks.createBiography).toHaveBeenCalledWith({ data: newBiography, contributionId: 'contrib-1' });
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['work'] });
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['workChapters'] });
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
+    });
+
+    it('useEditContribution_invalidatesBiographyCachesAfterFullSuccess', async () => {
+      const newBiography = {
+        id: 'bio-new',
+        canonical: false,
+        content: 'Replacement biography',
+        localeCode: 'EN',
+        contributionId: 'contrib-1',
+      };
+      mocks.computeBiographiesDiff.mockReturnValueOnce({
+        biographiesToDelete: [{ id: 'bio-old' }],
+        updatedBiographies: [],
+        unchangedBiographies: [],
+        newBiographies: [newBiography],
+      });
+      mocks.deleteBiography.mockResolvedValueOnce(undefined);
+      mocks.createBiography.mockResolvedValueOnce(newBiography);
       const { result } = renderHook(() => useEditContribution(defaultProps));
 
       await act(async () => {
         await result.current.updateBiography({ biographies: [] });
       });
 
-      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled();
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['work'] });
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['workChapters'] });
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
+    });
+
+    it('rejects when a biography mutation fails', async () => {
+      const error = new Error('Biography update failed');
+      mocks.computeBiographiesDiff.mockReturnValueOnce({
+        biographiesToDelete: [],
+        updatedBiographies: [
+          {
+            id: 'bio-1',
+            canonical: true,
+            content: 'Updated biography',
+            localeCode: 'EN',
+            contributionId: 'contrib-1',
+          },
+        ],
+        unchangedBiographies: [],
+        newBiographies: [],
+      });
+      mocks.updateBiographyMutation.mockRejectedValueOnce(error);
+
+      const { result } = renderHook(() => useEditContribution(defaultProps));
+
+      await expect(
+        result.current.updateBiography({
+          biographies: [
+            {
+              biographyId: 'bio-1',
+              contributorBiography: 'Updated biography',
+              language: { value: 'EN', label: 'English' },
+            },
+          ],
+        }),
+      ).rejects.toBe(error);
+
+      expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled();
     });
   });
 

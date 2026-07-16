@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { AccessibilityStandard } from '@/gql/graphql';
 import { useCreateLocation, useDeleteLocation, useUpdateLocation } from '@/src/entities/locations';
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
+import { useLocationStateMachine } from '@/src/entities/locations/store/location.store';
 import { useCreatePrice, useDeletePrice, useUpdatePrice } from '@/src/entities/price';
 import type { PricesForm } from '@/src/entities/price/model/price.types';
 import {
@@ -34,6 +35,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
   const { activeEntity: activePublication, finishEditing } = usePublicationsStateMachine();
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
+  const [priceFormVersion, setPriceFormVersion] = useState(0);
   const { work } = useWork(workId);
   const defaultCurrencyOption = useDefaultCurrencyOption(work.imprintId);
   const { updatePublication, loading: isUpdatePublicationLoading } = useUpdatePublication({ workId });
@@ -43,6 +45,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { createLocation, loading: isCreateLocationLoading } = useCreateLocation({ workId });
   const { updateLocation, loading: isUpdateLocationLoading } = useUpdateLocation({ workId });
   const { deleteLocation: deleteLocationMutation, loading: isDeleteLocationLoading } = useDeleteLocation({ workId });
+  const { activeEntity: activeLocation, update: reconcileActiveLocation } = useLocationStateMachine();
   const { uploadPublicationFile, loading: isUploadPublicationFileLoading, progress: uploadProgress } =
     useUploadPublicationFile(workId);
 
@@ -72,7 +75,10 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     isUpdateLocationLoading ||
     isUploadPublicationFileLoading;
 
-  const updateSizes = (sizes: PublicationDimensionsForm) => {
+  // These paths must await the mutation before staging local state: EditableContent
+  // only keeps the editor open and skips previewing unsaved values when the promise it
+  // awaits rejects, so a discarded promise would let the preview show unsaved data.
+  const updateSizes = async (sizes: PublicationDimensionsForm) => {
     if (!publication) return;
 
     const mappedSizes = {
@@ -88,22 +94,22 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
     const updatedPublication = { ...publication, ...mappedSizes };
 
-    updatePublication(updatedPublication);
+    await updatePublication(updatedPublication);
 
     setPublication(updatedPublication);
   };
 
-  const updateIsbn = (isbn: string) => {
+  const updateIsbn = async (isbn: string) => {
     if (!publication) return;
 
     const updatedPublication = { ...publication, isbn };
 
-    updatePublication(updatedPublication);
+    await updatePublication(updatedPublication);
 
-    setPublication({ ...publication, isbn });
+    setPublication(updatedPublication);
   };
 
-  const updateType = (type: PublicationType) => {
+  const updateType = async (type: PublicationType) => {
     if (!publication) return;
 
     const isAccessibilityAvailable = isAccessibilityStandardAvailable(type);
@@ -126,7 +132,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
             : null,
       };
 
-      updatePublication(updatedPublication);
+      await updatePublication(updatedPublication);
       setPublication(updatedPublication);
 
       return;
@@ -141,11 +147,11 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       accessibilityReportUrl: '',
     };
 
-    updatePublication(updatedPublication);
+    await updatePublication(updatedPublication);
     setPublication(updatedPublication);
   };
 
-  const updateAccessibility = (data: PublicationAccessibilityForm) => {
+  const updateAccessibility = async (data: PublicationAccessibilityForm) => {
     if (!publication) return;
 
     const standards = data.accessibilityStandard ?? [];
@@ -161,11 +167,11 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       accessibilityReportUrl: data.accessibilityReportUrl ?? '',
     };
 
-    updatePublication(updatedPublication);
+    await updatePublication(updatedPublication);
     setPublication(updatedPublication);
   };
 
-  const deleteAccessibility = () => {
+  const deleteAccessibility = async () => {
     if (!publication) return;
 
     const updatedPublication = {
@@ -176,7 +182,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       accessibilityReportUrl: '',
     };
 
-    updatePublication(updatedPublication);
+    await updatePublication(updatedPublication);
     setPublication(updatedPublication);
   };
 
@@ -203,30 +209,56 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     const submittedIds = prices.map(({ id }) => id);
     const deletedPrices = publication.prices.filter(({ id }) => !submittedIds.includes(id));
 
-    // Local state must hold the server ids of created prices right away: until the work
-    // refetch lands, a re-edit of a price still stored with its temporary id would be
-    // classified as new again and created twice.
-    const createdPrices: typeof prices = [];
+    const priceMutations = [
+      ...updatedPrices.map((price) =>
+        updatePrice({ ...price, publicationId: publication.id }).then(() => ({ type: 'update' as const, price })),
+      ),
+      ...newPrices.map((price) =>
+        createPrice({ ...price, publicationId: publication.id }).then((created) => ({
+          type: 'create' as const,
+          price: { ...price, id: created.id },
+        })),
+      ),
+      ...deletedPrices.map((price) => deletePrice(price.id).then(() => ({ type: 'delete' as const, price }))),
+    ];
 
-    try {
-      await Promise.all([
-        ...updatedPrices.map(({ id, currencyCode, unitPrice }) =>
-          updatePrice({ id, currencyCode, unitPrice, publicationId: publication.id }),
-        ),
-        ...newPrices.map(async (price) => {
-          const created = await createPrice({ ...price, publicationId: publication.id });
+    const results = await Promise.allSettled(priceMutations);
+    const successfulMutations = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+    const failedMutation = results.find((result) => result.status === 'rejected');
 
-          createdPrices.push({ ...price, id: created.id });
-        }),
-        ...deletedPrices.map(({ id }) => deletePrice(id)),
-      ]);
-    } catch {
-      // The mutation hooks surface the error notification; keep the local state on the
-      // persisted values instead of pretending the change saved.
+    if (!failedMutation) {
+      const createdPrices = successfulMutations
+        .filter((result) => result.type === 'create')
+        .map(({ price }) => price);
+
+      setPublication({ ...publication, prices: [...existingPrices, ...createdPrices] });
       return;
     }
 
-    setPublication({ ...publication, prices: [...existingPrices, ...createdPrices] });
+    if (successfulMutations.length > 0) {
+      const reconciledPrices = successfulMutations.reduce<typeof prices>((currentPrices, mutation) => {
+        if (mutation.type === 'delete') {
+          return currentPrices.filter(({ id }) => id !== mutation.price.id);
+        }
+
+        const priceIndex = currentPrices.findIndex(({ id }) => id === mutation.price.id);
+
+        if (priceIndex === -1) return [...currentPrices, mutation.price];
+
+        return currentPrices.map((price, index) => (index === priceIndex ? mutation.price : price));
+      }, publication.prices);
+
+      setPublication({ ...publication, prices: reconciledPrices });
+
+      // React Hook Form keeps its submitted values after a rejection. Remounting the
+      // price form only when a create succeeded replaces its temporary id with the
+      // reconciled server id while leaving the form open for the caller-visible error.
+      if (successfulMutations.some(({ type }) => type === 'create')) {
+        setPriceFormVersion((version) => version + 1);
+      }
+    }
+
+    throw failedMutation.reason;
   };
 
   const updateLocations = async (data: LocationEntity[]) => {
@@ -280,25 +312,48 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
           publicationId: publication.id,
         });
 
-        if (isDeferredCanonical) {
-          await updateLocation({ ...location, id: created.id, publicationId: publication.id });
+        // Reconcile the created server id into local state *before* the fallible
+        // promotion below. The location persisted as non-canonical, so record that
+        // state: if the promotion rejects, a retry must classify this location as
+        // existing (server id) instead of recreating it with its temporary id.
+        createdLocations.push({ ...location, id: created.id, canonical: isDeferredCanonical ? false : location.canonical });
+
+        // The editor form may still be open on this location, holding its temporary id
+        // in the shared location state machine. Reconcile that active entity to the
+        // server id too, so retrying from the still-open form after a failed promotion
+        // re-submits an existing location instead of creating a duplicate.
+        if (activeLocation && activeLocation.id === location.id) {
+          reconcileActiveLocation({ ...activeLocation, id: created.id });
         }
 
-        createdLocations.push({ ...location, id: created.id });
+        if (isDeferredCanonical) {
+          await updateLocation({ ...location, id: created.id, publicationId: publication.id });
+          // Promotion succeeded: reflect the canonical state locally.
+          createdLocations[createdLocations.length - 1] = { ...location, id: created.id };
+        }
       }
 
       for (const location of demotedLocations) {
         await updateLocation({ ...location, publicationId: publication.id });
       }
-    } catch {
-      // The mutation hooks surface the error notification; keep the local state on the
-      // persisted values instead of pretending the change saved.
-      return false;
+
+      setPublication({ ...publication, locations: [...createdLocations, ...updatedLocations, ...notUpdatedLocations] });
+
+      return true;
+    } catch (error) {
+      // A create may have persisted before a later mutation rejected. Merge the
+      // reconciled server ids into local state so retrying does not recreate the
+      // already-persisted locations, then rethrow so the caller keeps the form open
+      // for the surfaced error.
+      if (createdLocations.length > 0) {
+        const persistedIds = new Set(publication.locations.map(({ id }) => id));
+        const newlyPersisted = createdLocations.filter(({ id }) => !persistedIds.has(id));
+
+        setPublication({ ...publication, locations: [...publication.locations, ...newlyPersisted] });
+      }
+
+      throw error;
     }
-
-    setPublication({ ...publication, locations: [...createdLocations, ...updatedLocations, ...notUpdatedLocations] });
-
-    return true;
   };
 
   const deleteLocation = async (platformId: string) => {
@@ -317,12 +372,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
     if (!isCanonicalReassigned) return;
 
-    try {
-      await deleteLocationMutation(platformId);
-    } catch {
-      // The mutation hook surfaces the error notification; keep the location visible.
-      return;
-    }
+    await deleteLocationMutation(platformId);
 
     setPublication({ ...publication, locations: updatedLocationsWithCanonical });
   };
@@ -337,6 +387,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
   return {
     activePublication: publication,
+    priceFormVersion,
     loading,
     uploadProgress,
     defaultCurrencyOption,

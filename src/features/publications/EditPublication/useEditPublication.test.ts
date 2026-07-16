@@ -49,6 +49,9 @@ const mocks = vi.hoisted(() => {
     updatePrice: vi.fn().mockResolvedValue({}),
     createPrice: vi.fn().mockResolvedValue({ id: 'price-3' }),
     deletePrice: vi.fn().mockResolvedValue({}),
+    updatePublication: vi.fn().mockResolvedValue({}),
+    activeLocation: null as LocationEntity | null,
+    reconcileActiveLocation: vi.fn(),
   };
 });
 
@@ -56,6 +59,10 @@ vi.mock('@/src/entities/locations', () => ({
   useCreateLocation: () => ({ createLocation: mocks.createLocation, loading: false }),
   useUpdateLocation: () => ({ updateLocation: mocks.updateLocation, loading: false }),
   useDeleteLocation: () => ({ deleteLocation: mocks.deleteLocationMutation, loading: false }),
+}));
+
+vi.mock('@/src/entities/locations/store/location.store', () => ({
+  useLocationStateMachine: () => ({ activeEntity: mocks.activeLocation, update: mocks.reconcileActiveLocation }),
 }));
 
 vi.mock('@/src/entities/price', () => ({
@@ -66,7 +73,7 @@ vi.mock('@/src/entities/price', () => ({
 
 vi.mock('@/src/entities/publication', () => ({
   usePublicationsStateMachine: () => ({ activeEntity: mocks.publication, finishEditing: vi.fn() }),
-  useUpdatePublication: () => ({ updatePublication: vi.fn(), loading: false }),
+  useUpdatePublication: () => ({ updatePublication: mocks.updatePublication, loading: false }),
   useUploadPublicationFile: () => ({ uploadPublicationFile: vi.fn(), loading: false, progress: 0 }),
 }));
 
@@ -86,6 +93,8 @@ describe('useEditPublication updateLocations', () => {
     mocks.updateLocation.mockClear();
     mocks.createLocation.mockClear();
     mocks.deleteLocationMutation.mockClear();
+    mocks.activeLocation = null;
+    mocks.reconcileActiveLocation.mockClear();
   });
 
   it('sends the new values of an edited location to the server', async () => {
@@ -246,16 +255,161 @@ describe('useEditPublication updateLocations', () => {
     expect(mocks.createLocation).not.toHaveBeenCalled();
   });
 
-  it('does not delete the canonical location when promoting its replacement fails', async () => {
-    mocks.updateLocation.mockRejectedValueOnce(new Error('Canonical location error'));
+  it('useEditPublication_preservesCreatedLocationIdWhenPromotionFails', async () => {
+    // A new location is created as non-canonical, then its canonical promotion fails.
+    const error = new Error('Canonical promotion failed');
+    const newLocation = {
+      id: '0000-0000-0000-0000-3',
+      locationPlatform: 'DOAB',
+      canonical: true,
+      landingPage: 'https://doabooks.org/book',
+      fullTextUrl: '',
+    } as LocationEntity;
+    // The editor form is open on the new location, holding its temporary id.
+    mocks.activeLocation = newLocation;
+    mocks.createLocation.mockResolvedValueOnce({ id: 'loc-3' });
+    mocks.updateLocation.mockRejectedValueOnce(error);
 
     const { result } = renderEditPublication();
 
     await act(async () => {
-      await result.current.deleteLocation('loc-1');
+      await expect(
+        result.current.updateLocations([
+          { ...mocks.canonicalLocation },
+          { ...mocks.otherLocation },
+          { ...newLocation },
+        ] as LocationEntity[]),
+      ).rejects.toBe(error);
     });
 
+    // The create persisted before the promotion rejected: local state must already
+    // hold the server id (non-canonical, matching what the server stored) so a retry
+    // does not resubmit the temporary id as a new location.
+    const storedLocations = result.current.activePublication?.locations ?? [];
+    expect(storedLocations).toContainEqual(expect.objectContaining({ id: 'loc-3', canonical: false }));
+    expect(storedLocations).not.toContainEqual(expect.objectContaining({ id: '0000-0000-0000-0000-3' }));
+
+    // The still-open form's active location must be reconciled to the server id so a
+    // retry through that form is not classified as a new location.
+    expect(mocks.reconcileActiveLocation).toHaveBeenCalledWith(expect.objectContaining({ id: 'loc-3' }));
+  });
+
+  it('useEditPublication_doesNotDuplicateCreatedLocationOnRetryAfterPromotionFailure', async () => {
+    mocks.createLocation.mockResolvedValueOnce({ id: 'loc-3' });
+    mocks.updateLocation.mockRejectedValueOnce(new Error('Canonical promotion failed'));
+
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await expect(
+        result.current.updateLocations([
+          { ...mocks.canonicalLocation },
+          { ...mocks.otherLocation },
+          {
+            id: '0000-0000-0000-0000-3',
+            locationPlatform: 'DOAB',
+            canonical: true,
+            landingPage: 'https://doabooks.org/book',
+            fullTextUrl: '',
+          },
+        ] as LocationEntity[]),
+      ).rejects.toThrow('Canonical promotion failed');
+    });
+
+    // Retry from reconciled local state, as the form does after a failed save.
+    const reconciledLocations = result.current.activePublication?.locations ?? [];
+
+    await act(async () => {
+      await result.current.updateLocations(reconciledLocations.map((location) => ({ ...location })) as LocationEntity[]);
+    });
+
+    // The already-persisted location was not created a second time.
+    expect(mocks.createLocation).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not delete the canonical location when promoting its replacement fails', async () => {
+    const error = new Error('Canonical location error');
+    mocks.updateLocation.mockRejectedValueOnce(error);
+
+    const { result } = renderEditPublication();
+
+    await expect(result.current.deleteLocation('loc-1')).rejects.toBe(error);
+
     expect(mocks.deleteLocationMutation).not.toHaveBeenCalled();
+  });
+});
+
+describe('useEditPublication field updates', () => {
+  beforeEach(() => {
+    mocks.publication.isbn = '978-3-16-148410-0';
+    mocks.publication.type = 'PAPERBACK';
+    mocks.publication.width = 100;
+    mocks.updatePublication.mockReset().mockResolvedValue({});
+  });
+
+  it('useEditPublication_doesNotStageIsbnAfterFailedUpdate', async () => {
+    const error = new Error('Update failed');
+    mocks.updatePublication.mockRejectedValueOnce(error);
+
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await expect(result.current.updateIsbn('978-1-4028-9462-6')).rejects.toBe(error);
+    });
+
+    // The mutation rejected, so the unsaved ISBN must not be staged into local state.
+    expect(result.current.activePublication?.isbn).toBe('978-3-16-148410-0');
+  });
+
+  it('useEditPublication_stagesIsbnAfterSuccessfulUpdate', async () => {
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await result.current.updateIsbn('978-1-4028-9462-6');
+    });
+
+    expect(mocks.updatePublication).toHaveBeenCalledWith(expect.objectContaining({ isbn: '978-1-4028-9462-6' }));
+    expect(result.current.activePublication?.isbn).toBe('978-1-4028-9462-6');
+  });
+
+  it('useEditPublication_doesNotStageDimensionsAfterFailedUpdate', async () => {
+    mocks.updatePublication.mockRejectedValueOnce(new Error('Update failed'));
+
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await expect(
+        result.current.updateSizes({ widthMm: 999 } as never),
+      ).rejects.toThrow('Update failed');
+    });
+
+    expect(result.current.activePublication?.width).toBe(100);
+  });
+
+  it('useEditPublication_doesNotStageTypeAfterFailedUpdate', async () => {
+    mocks.updatePublication.mockRejectedValueOnce(new Error('Update failed'));
+
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await expect(result.current.updateType('HARDBACK' as never)).rejects.toThrow('Update failed');
+    });
+
+    expect(result.current.activePublication?.type).toBe('PAPERBACK');
+  });
+
+  it('useEditPublication_doesNotStageAccessibilityAfterFailedUpdate', async () => {
+    mocks.updatePublication.mockRejectedValueOnce(new Error('Update failed'));
+
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await expect(
+        result.current.updateAccessibility({ accessibilityReportUrl: 'https://a11y.example.com' } as never),
+      ).rejects.toThrow('Update failed');
+    });
+
+    expect(result.current.activePublication?.accessibilityReportUrl).toBeUndefined();
   });
 });
 
@@ -268,9 +422,9 @@ const priceRow = (priceId: string, currency: string, priceValue: number) => ({
 describe('useEditPublication updatePrices', () => {
   beforeEach(() => {
     mocks.publication.prices = [mocks.gbpPrice, mocks.usdPrice];
-    mocks.updatePrice.mockClear();
-    mocks.createPrice.mockClear();
-    mocks.deletePrice.mockClear();
+    mocks.updatePrice.mockReset().mockResolvedValue({});
+    mocks.createPrice.mockReset().mockResolvedValue({ id: 'price-3' });
+    mocks.deletePrice.mockReset().mockResolvedValue({});
   });
 
   it('updates an edited price by its id', async () => {
@@ -345,33 +499,99 @@ describe('useEditPublication updatePrices', () => {
     });
   });
 
-  it('stores the server id of a created price so a re-edit before the refetch updates it', async () => {
+  it('useEditPublication_preservesSuccessfulPriceSaveBehaviour', async () => {
     const { result } = renderEditPublication();
 
     await act(async () => {
       await result.current.updatePrices({
         prices: [
-          priceRow('price-1', 'GBP', 25),
-          priceRow('price-2', 'USD', 30),
+          priceRow('price-1', 'GBP', 27.5),
           priceRow('0000-0000-0000-0000-3', 'EUR', 22),
         ],
       });
     });
 
-    expect(result.current.activePublication?.prices).toContainEqual(expect.objectContaining({ id: 'price-3' }));
+    expect(mocks.updatePrice).toHaveBeenCalledWith({
+      id: 'price-1',
+      currencyCode: 'GBP',
+      unitPrice: 27.5,
+      publicationId: 'pub-1',
+    });
+    expect(mocks.createPrice).toHaveBeenCalledWith({
+      id: '0000-0000-0000-0000-3',
+      currencyCode: 'EUR',
+      unitPrice: 22,
+      publicationId: 'pub-1',
+    });
+    expect(mocks.deletePrice).toHaveBeenCalledWith('price-2');
+    expect(result.current.activePublication?.prices).toEqual([
+      { id: 'price-1', currencyCode: 'GBP', unitPrice: 27.5 },
+      { id: 'price-3', currencyCode: 'EUR', unitPrice: 22 },
+    ]);
+    expect(result.current.priceFormVersion).toBe(0);
   });
 
-  it('keeps local state on the persisted values when a mutation fails', async () => {
-    mocks.updatePrice.mockRejectedValueOnce(new Error('Update failed'));
+  it('useEditPublication_preservesCreatedPriceIdsAfterPartialPriceSaveFailure', async () => {
+    const error = new Error('Delete failed');
+    mocks.deletePrice.mockRejectedValueOnce(error);
 
     const { result } = renderEditPublication();
 
     await act(async () => {
+      await expect(
+        result.current.updatePrices({
+          prices: [priceRow('price-1', 'GBP', 25), priceRow('0000-0000-0000-0000-3', 'EUR', 22)],
+        }),
+      ).rejects.toBe(error);
+    });
+
+    expect(result.current.activePublication?.prices).toEqual([
+      mocks.gbpPrice,
+      mocks.usdPrice,
+      { id: 'price-3', currencyCode: 'EUR', unitPrice: 22 },
+    ]);
+    expect(result.current.priceFormVersion).toBe(1);
+  });
+
+  it('useEditPublication_doesNotDuplicateCreatedPriceOnRetryAfterPartialFailure', async () => {
+    mocks.deletePrice.mockRejectedValueOnce(new Error('Delete failed'));
+
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await expect(
+        result.current.updatePrices({
+          prices: [priceRow('price-1', 'GBP', 25), priceRow('0000-0000-0000-0000-3', 'EUR', 22)],
+        }),
+      ).rejects.toThrow('Delete failed');
+    });
+
+    const reconciledPrices = result.current.activePublication?.prices ?? [];
+
+    await act(async () => {
       await result.current.updatePrices({
-        prices: [priceRow('price-1', 'GBP', 99), priceRow('price-2', 'USD', 30)],
+        prices: reconciledPrices.map(({ id, currencyCode, unitPrice }) => priceRow(id, currencyCode, unitPrice)),
       });
     });
 
-    expect(result.current.activePublication?.prices).toContainEqual(expect.objectContaining({ unitPrice: 25 }));
+    expect(mocks.createPrice).toHaveBeenCalledTimes(1);
+    expect(mocks.updatePrice).not.toHaveBeenCalled();
+    expect(mocks.deletePrice).toHaveBeenCalledTimes(1);
+  });
+
+  it('useEditPublication_rethrowsPriceMutationFailure', async () => {
+    const error = new Error('Update failed');
+    mocks.updatePrice.mockRejectedValueOnce(error);
+
+    const { result } = renderEditPublication();
+
+    await expect(
+      result.current.updatePrices({
+        prices: [priceRow('price-1', 'GBP', 99), priceRow('price-2', 'USD', 30)],
+      }),
+    ).rejects.toBe(error);
+
+    expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice, mocks.usdPrice]);
+    expect(result.current.priceFormVersion).toBe(0);
   });
 });

@@ -90,8 +90,8 @@ describe('isUrl', () => {
 });
 
 describe('prettifyUrlPreview', () => {
-  it('removes the first // pair from a URL', () => {
-    expect(prettifyUrlPreview('https://example.com')).toBe('https:example.com');
+  it('removes the protocol prefix from a URL', () => {
+    expect(prettifyUrlPreview('https://example.com')).toBe('example.com');
   });
 
   it('returns undefined when no URL provided', () => {

@@ -19,7 +19,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
-import { getMainTitle } from '@/src/shared/utils';
+import { getDisplayTitle } from '@/src/shared/utils';
 
 import EditInternalId from '../EditInternalId/EditInternalId';
 import EditPublicationDate from '../EditPublicationDate/EditPublicationDate';
@@ -143,7 +143,7 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
                   <li key={work.id}>
                     <NextLink href={`${ROUTES.WORK_PAGE(work.id)}`} passHref>
                       <Link className="font-normal no-underline" component="span">
-                        <MarkdownRenderer markdown={getMainTitle(work.titles).title} />
+                        <MarkdownRenderer markdown={getDisplayTitle(work.titles).title} />
                       </Link>
                     </NextLink>
                   </li>
@@ -163,7 +163,7 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
                   <li key={work.id}>
                     <NextLink href={`${ROUTES.WORK_PAGE(work.id)}`} passHref>
                       <Link className="font-normal no-underline" component="span">
-                        <MarkdownRenderer markdown={getMainTitle(work.titles).title} />
+                        <MarkdownRenderer markdown={getDisplayTitle(work.titles).title} />
                       </Link>
                     </NextLink>
                   </li>
@@ -180,7 +180,7 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
 
               <NextLink href={`${ROUTES.WORK_PAGE(previousEdition.id)}`} passHref>
                 <Link className="font-normal no-underline" component="span">
-                  <MarkdownRenderer markdown={getMainTitle(previousEdition.titles).title} />
+                  <MarkdownRenderer markdown={getDisplayTitle(previousEdition.titles).title} />
                 </Link>
               </NextLink>
             </div>
@@ -194,7 +194,7 @@ const EditWorkHeader = (props: EditWorkHeaderProps) => {
 
               <NextLink href={`${ROUTES.WORK_PAGE(latestEdition.id)}`} passHref>
                 <Link className="font-normal no-underline" component="span">
-                  <MarkdownRenderer markdown={getMainTitle(latestEdition.titles).title} />
+                  <MarkdownRenderer markdown={getDisplayTitle(latestEdition.titles).title} />
                 </Link>
               </NextLink>
             </div>

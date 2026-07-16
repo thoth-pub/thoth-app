@@ -7,6 +7,8 @@
   "withdrawn": "Alterar o estado para Retirada irá atualizar a data de publicação para a data atual.",
   "chaptersFundingsMismatch": "Esta secção não está disponível porque os financiamentos nos capítulos selecionados não são iguais. Por favor, verifique os financiamentos e tente novamente.",
   "chaptersContributorsMismatch": "Esta secção não está disponível porque os contribuidores nos capítulos selecionados não são iguais. Por favor, verifique os contribuidores e tente novamente.",
+  "chaptersLicenseMismatch": "Esta secção não está disponível porque as licenças ou os titulares dos direitos de autor nos capítulos selecionados não são iguais. Por favor, verifique as licenças e tente novamente.",
+  "chaptersLanguagesMismatch": "Esta secção não está disponível porque os idiomas nos capítulos selecionados não são iguais. Por favor, verifique os idiomas e tente novamente.",
   "deleteWorkWarning": "Isto irá apagar a obra permanentemente. Esta ação não pode ser desfeita.",
   "reissueWorkWarning": "Isto irá criar uma nova edição da obra. A obra atual será movida para o estado Substituída.",
   "translateWorkWarning": "Isto irá criar uma tradução da obra.",

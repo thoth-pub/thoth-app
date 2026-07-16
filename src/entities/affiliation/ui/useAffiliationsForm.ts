@@ -92,7 +92,7 @@ const useEditContributionAffiliations = (props: UseEditContributionAffiliationsP
 
     const promises = [
       deleteBulkAffiliations(activeIds),
-      contributionIds.map((contributionId) =>
+      ...contributionIds.map((contributionId) =>
         updateAffiliations({ affiliations: allAffiliationsAsNew }, contributionId),
       ),
     ];

@@ -58,8 +58,14 @@ export const CoverForm = (props: BaseEditSectionProps) => {
     setIsOpen(false);
   };
 
-  const onSubmit = (data: CoverUrlAltForm) => {
-    updateWork({ ...work, coverUrl: data.coverUrl ?? '' });
+  const onSubmit = async (data: CoverUrlAltForm) => {
+    try {
+      await updateWork({ ...work, coverUrl: data.coverUrl ?? '' });
+    } catch {
+      // The mutation hook surfaces the error; keep the modal open so the user can retry.
+      return;
+    }
+
     handleClose();
   };
 
@@ -80,8 +86,9 @@ export const CoverForm = (props: BaseEditSectionProps) => {
     setIsRemoveDialogOpen(false);
   };
 
-  const handleRemoveCoverConfirm = () => {
-    updateWork({ ...work, coverUrl: '' });
+  const handleRemoveCoverConfirm = async () => {
+    await updateWork({ ...work, coverUrl: '' });
+
     setIsRemoveDialogOpen(false);
     sendSuccessNotification(NOTIFICATIONS.COVER_REMOVE_SUCCESS);
   };

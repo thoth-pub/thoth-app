@@ -21,7 +21,7 @@ import {
   InputAdornment,
   SubmitButton,
 } from '@/src/shared/ui';
-import { getMainTitle } from '@/src/shared/utils';
+import { getDisplayTitle } from '@/src/shared/utils';
 
 type CreateWorkCopyProps = {
   isTranslation: boolean;
@@ -59,7 +59,7 @@ const CreateWorkCopy = ({ isTranslation }: CreateWorkCopyProps) => {
   const filteredBooks = books.filter((book) => book.issues.length === 0);
 
   const options = filteredBooks.map((book) => ({
-    label: `${getMainTitle(book.titles).title} (edition ${book.edition ?? 1})`,
+    label: `${getDisplayTitle(book.titles).title} (edition ${book.edition ?? 1})`,
     value: book.id,
   }));
 

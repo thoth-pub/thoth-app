@@ -1,4 +1,7 @@
+import { getServerSession } from 'next-auth';
 import { NextResponse } from 'next/server';
+
+import { authOptions } from '@/src/shared/lib/auth/auth';
 
 type Params = {
   params: Promise<{
@@ -8,6 +11,11 @@ type Params = {
 };
 
 export async function GET(_request: Request, { params }: Params) {
+  const session = await getServerSession(authOptions);
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const { specification, workId } = await params;
 

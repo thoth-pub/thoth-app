@@ -2,7 +2,7 @@ import UpdateIcon from '@mui/icons-material/Update';
 
 import BooksChip from '@/src/features/books/BooksChip/BooksChip';
 import { CardListItem, DeleteButton, LandingPagesGallery, MarkdownRenderer, Typography } from '@/src/shared/ui';
-import { convertUpdatedAtToFormattedDate, getMainTitle } from '@/src/shared/utils';
+import { convertUpdatedAtToFormattedDate, getDisplayTitle } from '@/src/shared/utils';
 
 import { SetEntity } from '../../..';
 
@@ -41,7 +41,7 @@ export const SetsListCardItem = (props: SetsListCardItemProps) => {
       <div className="cardWithImageWrapper">
         <LandingPagesGallery images={covers} />
         <Typography variant="h2" className="cardItem flex flex-col items-start gap-1 normal-case">
-          <MarkdownRenderer markdown={getMainTitle(titles).title} />
+          <MarkdownRenderer markdown={getDisplayTitle(titles).title} />
           <BooksChip booksCount={volumesCount} />
         </Typography>
       </div>

@@ -15,7 +15,7 @@ const useUpdateWorks = () => {
   const { workService } = useServices();
   const queryClient = useQueryClient();
 
-  const { mutate, isPending } = useMutation({
+  const { mutateAsync, isPending } = useMutation({
     mutationFn: async (data: WorkEntity) => {
       return workService.updateWork(data);
     },
@@ -25,12 +25,18 @@ const useUpdateWorks = () => {
   });
 
   const updateWorks = async (data: WorkEntity[]) => {
-    const promises = data.map((work) => mutate(work));
+    const promises = data.map((work) => mutateAsync(work));
+    const results = await Promise.allSettled(promises);
+    const hasSuccessfulUpdate = results.some(({ status }) => status === 'fulfilled');
 
-    await Promise.all(promises);
+    if (hasSuccessfulUpdate || data.length === 0) {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    }
 
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    const failedUpdate = results.find((result) => result.status === 'rejected');
+
+    if (failedUpdate) throw failedUpdate.reason;
   };
 
   return {

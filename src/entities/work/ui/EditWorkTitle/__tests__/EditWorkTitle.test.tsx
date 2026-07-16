@@ -1,8 +1,11 @@
-import { render } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material';
-import { theme } from '@/src/shared/theme';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { render } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
+
+import { theme } from '@/src/shared/theme';
+
+import EditWorkTitle from '../EditWorkTitle';
 
 const queryClient = new QueryClient();
 
@@ -33,8 +36,6 @@ vi.mock('@/src/shared/hooks', () => ({
   useDefaultLocaleOption: vi.fn(() => ({ value: 'en', label: 'English' })),
 }));
 
-import EditWorkTitle from '../EditWorkTitle';
-
 function Wrapper({ children }: { children: React.ReactNode }) {
   return <ThemeProvider theme={theme}><QueryClientProvider client={queryClient}>{children}</QueryClientProvider></ThemeProvider>;
 }
@@ -52,5 +53,13 @@ describe('EditWorkTitle', () => {
       <Wrapper><EditWorkTitle workId="test-work-id" isChapter /></Wrapper>
     );
     expect(container).toMatchSnapshot('EditWorkTitle - chapter');
+  });
+
+  it('EditWorkTitle_showsMissingTitleRecommendationForUntitledWork', () => {
+    const { container } = render(
+      <Wrapper><EditWorkTitle workId="test-work-id" recommended /></Wrapper>
+    );
+
+    expect(container.querySelector('.animate-ping')).toBeInTheDocument();
   });
 });

@@ -528,7 +528,7 @@ exports[`EditSeriesForm > renders with all values filled > EditSeriesForm - fill
           <p
             class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
           >
-            https:example.com
+            example.com
           </p>
           <button
             class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"
@@ -568,7 +568,7 @@ exports[`EditSeriesForm > renders with all values filled > EditSeriesForm - fill
           <p
             class="MuiTypography-root MuiTypography-body1 css-pucm0b-MuiTypography-root"
           >
-            https:example.com/cfp
+            example.com/cfp
           </p>
           <button
             class="MuiButtonBase-root MuiIconButton-root MuiIconButton-sizeMedium opacity-0 group-hover:opacity-100 css-1rio2pg-MuiButtonBase-root-MuiIconButton-root"

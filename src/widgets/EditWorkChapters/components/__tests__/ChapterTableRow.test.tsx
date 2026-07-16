@@ -11,7 +11,7 @@ vi.mock('@/src/shared/config', () => ({
     titles: { terminalPunctuation: ['.', '!', '?'] },
     data: { itemsPerRequestLimit: 100, maxImprintsPerRequestLimit: 500 },
     defaultId: 'new',
-    query: { staleTime: 60000, cacheTime: 300000 },
+    query: { staleTime: 60000, gcTime: 300000 },
   },
 }));
 

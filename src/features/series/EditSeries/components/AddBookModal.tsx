@@ -27,7 +27,7 @@ import {
   TranslatedContent,
   Typography,
 } from '@/src/shared/ui';
-import { getMainTitle } from '@/src/shared/utils';
+import { getDisplayTitle } from '@/src/shared/utils';
 
 const { WORK_SERIES, ISSUE_ORDINAL } = FORM_FIELDS;
 
@@ -67,7 +67,7 @@ export const AddBookModal = (props: AddBookModalProps) => {
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
 
   const options = books.map((book) => ({
-    label: removeMd(getMainTitle(book.titles).fullTitle),
+    label: removeMd(getDisplayTitle(book.titles).fullTitle),
     value: book.id,
   }));
 

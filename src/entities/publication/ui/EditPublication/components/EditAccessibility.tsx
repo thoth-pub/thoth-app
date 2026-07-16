@@ -33,8 +33,8 @@ type EditAccessibilityProps = {
   standards: AccessibilityStandardType[];
   exception: AccessibilityExceptionType | null;
   reportUrl: string;
-  onSubmit?: (data: PublicationAccessibilityForm) => void;
-  onDelete?: () => void;
+  onSubmit?: (data: PublicationAccessibilityForm) => void | Promise<void>;
+  onDelete?: () => void | Promise<void>;
 };
 
 const {
@@ -53,17 +53,23 @@ export const EditAccessibility = (props: EditAccessibilityProps) => {
 
   const { closeForm } = useFormStateMachine();
 
-  const handleDelete = () => {
-    onDelete?.();
+  const handleDelete = async () => {
+    try {
+      await onDelete?.();
+    } catch {
+      // The mutation hook surfaces the error; keep the form open so the user can retry.
+      return;
+    }
+
     closeForm();
   };
 
-  const handleSubmit = (data: PublicationAccessibilityForm) => {
+  // Return the mutation promise so EditableContent awaits it before staging/closing.
+  const handleSubmit = (data: PublicationAccessibilityForm) =>
     onSubmit?.({
       ...data,
       accessibilityException: data.accessibilityException || undefined,
     });
-  };
 
   const standardOptions = getAccessibilityStandardOptions(publicationType).filter(({ group }) => group === undefined);
   const additionalStandardOptions = getAccessibilityStandardOptions(publicationType).filter(
