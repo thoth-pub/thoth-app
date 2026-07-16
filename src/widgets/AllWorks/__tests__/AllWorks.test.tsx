@@ -1,19 +1,25 @@
-import { render } from '@testing-library/react';
+import { render, within } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material';
 import { theme } from '@/src/shared/theme';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+  activePublisher: { id: 'pub-1', name: 'Test Publisher' } as { id: string; name: string } | null,
+  useWorks: vi.fn(() => ({ works: [], loading: false, isFetched: true })),
+  useWorksCount: vi.fn(() => ({ workCount: 0 })),
+}));
 
 vi.mock('next/navigation', () => ({
   useRouter: vi.fn(() => ({ push: vi.fn() })),
 }));
 
 vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
-  default: vi.fn(() => ({ activePublisher: { id: 'pub-1', name: 'Test Publisher' } })),
+  default: vi.fn(() => ({ activePublisher: mocks.activePublisher })),
 }));
 
 vi.mock('@/src/entities/work', () => ({
-  useWorks: vi.fn(() => ({ works: [], loading: false, isFetched: true })),
-  useWorksCount: vi.fn(() => ({ workCount: 0 })),
+  useWorks: mocks.useWorks,
+  useWorksCount: mocks.useWorksCount,
   useCreateNewWorkEdition: vi.fn(() => ({ createNewWorkEdition: vi.fn() })),
   useCreateWorkTranslation: vi.fn(() => ({ createWorkTranslation: vi.fn() })),
 }));
@@ -48,10 +54,34 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe('AllWorks', () => {
+  beforeEach(() => {
+    mocks.activePublisher = { id: 'pub-1', name: 'Test Publisher' };
+    mocks.useWorks.mockReset().mockReturnValue({ works: [], loading: false, isFetched: true });
+    mocks.useWorksCount.mockReset().mockReturnValue({ workCount: 0 });
+  });
+
   it('renders snapshot', () => {
     const { container } = render(
       <Wrapper><AllWorks /></Wrapper>
     );
     expect(container).toMatchSnapshot('AllWorks');
+  });
+
+  it('AllWorks_doesNotShowInfiniteLoadingWhenNoActivePublisher', () => {
+    mocks.activePublisher = null;
+    mocks.useWorks.mockReturnValueOnce({ works: [], loading: true, isFetched: false });
+
+    const { container } = render(
+      <Wrapper><AllWorks /></Wrapper>
+    );
+
+    expect(within(container).getByText('emptyTable')).toBeInTheDocument();
+    const loadingBackdrop = container.querySelector('[role="progressbar"]')?.parentElement as HTMLElement;
+    expect(loadingBackdrop.getAttribute('aria-hidden')).toBe('true');
+    expect(loadingBackdrop.style.visibility).toBe('hidden');
+    expect(mocks.useWorks).toHaveBeenLastCalledWith(expect.objectContaining({ publishersIds: [] }));
+    expect(mocks.useWorks).not.toHaveBeenCalledWith(expect.objectContaining({ publishersIds: [''] }));
+    expect(mocks.useWorksCount).toHaveBeenLastCalledWith(expect.objectContaining({ publishersIds: [] }));
+    expect(mocks.useWorksCount).not.toHaveBeenCalledWith(expect.objectContaining({ publishersIds: [''] }));
   });
 });

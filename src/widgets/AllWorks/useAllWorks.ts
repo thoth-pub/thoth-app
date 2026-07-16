@@ -19,6 +19,7 @@ export const useAllWorks = () => {
 
   const { activePublisher } = usePublisherStateMachine();
   const publishersIds = activePublisher?.id ? [activePublisher.id] : [];
+  const isPublisherScopedQueryEnabled = publishersIds.length > 0;
 
   const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
 
@@ -77,7 +78,12 @@ export const useAllWorks = () => {
     ...baseProps,
   });
 
-  const totalPagesCount = getPagesCount(workCount);
+  const settledWorks = isPublisherScopedQueryEnabled ? works : [];
+  const settledWorkCount = isPublisherScopedQueryEnabled ? workCount : 0;
+  const isSettled = !isPublisherScopedQueryEnabled || isFetched;
+  const isLoading = isPublisherScopedQueryEnabled && loading;
+
+  const totalPagesCount = getPagesCount(settledWorkCount);
 
   const navigateToWork = (id: string) => {
     router.push(ROUTES.WORK_PAGE(id));
@@ -105,9 +111,11 @@ export const useAllWorks = () => {
 
   return {
     // Data
-    loading,
+    loading: isLoading,
     isFetched,
-    works,
+    isSettled,
+    works: settledWorks,
+    workCount: settledWorkCount,
 
     // Search
     searchValue,
