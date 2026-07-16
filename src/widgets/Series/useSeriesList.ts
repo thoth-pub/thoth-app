@@ -8,7 +8,8 @@ import { getPagesCount } from '@/src/shared/utils';
 
 export const useSeriesList = () => {
   const { activePublisher } = usePublisherStateMachine();
-  const publishersIds = activePublisher && activePublisher.id ? [activePublisher.id] : [];
+  const publishersIds = activePublisher?.id ? [activePublisher.id] : [];
+  const isPublisherScopedQueryEnabled = publishersIds.length > 0;
 
   const {
     activePage,
@@ -39,8 +40,6 @@ export const useSeriesList = () => {
 
   const { seriesCount } = useSeriesesCount({ publishersIds, filter: debouncedValue });
 
-  const totalPagesCount = getPagesCount(seriesCount);
-
   const { serieses, loading, isFetched } = useSerieses({
     publishersIds,
     offset,
@@ -51,15 +50,26 @@ export const useSeriesList = () => {
     field: orderBy as unknown as SeriesField,
   });
 
+  // With no active publisher the query is disabled and never fetches, so isFetched
+  // stays false. Treat that as a settled empty state instead of a perpetual load,
+  // mirroring useAllWorks, so the list does not spin forever after publisher revocation.
+  const settledSerieses = isPublisherScopedQueryEnabled ? serieses : [];
+  const settledSeriesCount = isPublisherScopedQueryEnabled ? seriesCount : 0;
+  const isSettled = !isPublisherScopedQueryEnabled || isFetched;
+  const isLoading = isPublisherScopedQueryEnabled && loading;
+
+  const totalPagesCount = getPagesCount(settledSeriesCount);
+
   const changeSeriesType = (value: SeriesType | 'All') => {
     changeExtra.seriesType(value);
   };
 
   return {
     // Data
-    loading,
+    loading: isLoading,
     isFetched,
-    serieses,
+    isSettled,
+    serieses: settledSerieses,
 
     // Search
     searchValue,

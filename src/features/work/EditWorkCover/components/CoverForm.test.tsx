@@ -163,4 +163,41 @@ describe('CoverForm', () => {
     });
     expect(mocks.sendSuccessNotification).not.toHaveBeenCalled();
   });
+
+  it('CoverForm_doesNotCloseAfterUpdateWorkRejects', async () => {
+    mocks.updateWork.mockRejectedValue(new Error('Update failed'));
+
+    const user = userEvent.setup();
+    const { container } = render(<CoverForm workId="work-1" />);
+
+    // Open the change-cover modal.
+    await user.click(container.querySelectorAll('button')[0]);
+    expect(screen.getByText('actions.changeCover')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'submit' }));
+
+    await waitFor(() => {
+      expect(mocks.updateWork).toHaveBeenCalledWith(expect.objectContaining({ coverUrl: 'https://example.com/cover.jpg' }));
+    });
+
+    // The modal stays open after the rejected update so the user can retry.
+    expect(screen.getByText('actions.changeCover')).toBeInTheDocument();
+  });
+
+  it('CoverForm_closesAfterUpdateWorkResolves', async () => {
+    mocks.updateWork.mockResolvedValue({});
+
+    const user = userEvent.setup();
+    const { container } = render(<CoverForm workId="work-1" />);
+
+    await user.click(container.querySelectorAll('button')[0]);
+    expect(screen.getByText('actions.changeCover')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'submit' }));
+
+    // The modal closes once the update resolves.
+    await waitFor(() => {
+      expect(screen.queryByText('actions.changeCover')).not.toBeInTheDocument();
+    });
+  });
 });

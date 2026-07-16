@@ -39,11 +39,11 @@ type EditPublicationProps = {
   children?: (isFullTextUrlHidden: boolean) => Readonly<React.ReactNode>;
   onDone?: () => void;
   onClose?: () => void;
-  onUpdateType?: (type: PublicationType) => void;
-  onUpdateIsbn?: (isbn: string) => void;
-  onUpdateDimensions?: (dimensions: PublicationDimensionsForm) => void;
-  onUpdateAccessibility?: (data: PublicationAccessibilityForm) => void;
-  onDeleteAccessibility?: () => void;
+  onUpdateType?: (type: PublicationType) => void | Promise<void>;
+  onUpdateIsbn?: (isbn: string) => void | Promise<void>;
+  onUpdateDimensions?: (dimensions: PublicationDimensionsForm) => void | Promise<void>;
+  onUpdateAccessibility?: (data: PublicationAccessibilityForm) => void | Promise<void>;
+  onDeleteAccessibility?: () => void | Promise<void>;
   onUpdateFile?: (file: File) => void;
 };
 

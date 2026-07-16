@@ -17,7 +17,7 @@ type EditSizesProps = {
   depthIn: number;
   weight: number;
   weightOz: number;
-  onSubmit?: (data: PublicationDimensionsForm) => void;
+  onSubmit?: (data: PublicationDimensionsForm) => void | Promise<void>;
 };
 
 const {
@@ -45,9 +45,8 @@ export const EditDimensions = (props: EditSizesProps) => {
     setAutoConvert((prev) => !prev);
   };
 
-  const handleSubmit = (data: PublicationDimensionsForm) => {
-    onSubmit?.(data);
-  };
+  // Return the mutation promise so EditableContent awaits it before staging/closing.
+  const handleSubmit = (data: PublicationDimensionsForm) => onSubmit?.(data);
 
   const placeholderValues = useMemo(() => {
     const geometryPlaceholderValues = [];

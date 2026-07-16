@@ -35,7 +35,7 @@ type EditLocationsProps = {
   deleteLoading?: boolean;
   canDelete?: boolean;
   onUpdate: (data: LocationEntity[]) => void | Promise<unknown>;
-  onDelete?: (id: string) => void;
+  onDelete?: (id: string) => void | Promise<unknown>;
 };
 
 const EditLocations = (props: EditLocationsProps) => {
@@ -56,6 +56,13 @@ const EditLocations = (props: EditLocationsProps) => {
   const handleEditLocation = (location: LocationEntity) => {
     editForm(IDs.LOCATION_PLATFORM);
     edit(location);
+  };
+
+  const handleDeleteLocation = (id: string) => {
+    // onDelete is async: await/catch it here so a rejected deletion does not escape
+    // as an unhandled promise rejection. The mutation hooks surface the error
+    // notification, so the rejection is swallowed only after that path has run.
+    void Promise.resolve(onDelete?.(id)).catch(() => undefined);
   };
 
   const handleAddNewLocation = () => {
@@ -152,7 +159,7 @@ const EditLocations = (props: EditLocationsProps) => {
                 {location.fullTextUrl && location.fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
                 {location.canonical && <StarIcon color="primary" />}
                 <ButtonGroup className="ml-auto">
-                  {canDelete && <DeleteButton onClick={() => onDelete?.(location.id)} disabled={deleteLoading} />}
+                  {canDelete && <DeleteButton onClick={() => handleDeleteLocation(location.id)} disabled={deleteLoading} />}
                   <EditButton onClick={() => handleEditLocation(location)} disabled={!!activeFormId} />
                 </ButtonGroup>
               </li>

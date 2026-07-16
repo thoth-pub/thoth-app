@@ -5,6 +5,7 @@ import { useEffect, useState } from 'react';
 import { AccessibilityStandard } from '@/gql/graphql';
 import { useCreateLocation, useDeleteLocation, useUpdateLocation } from '@/src/entities/locations';
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
+import { useLocationStateMachine } from '@/src/entities/locations/store/location.store';
 import { useCreatePrice, useDeletePrice, useUpdatePrice } from '@/src/entities/price';
 import type { PricesForm } from '@/src/entities/price/model/price.types';
 import {
@@ -44,6 +45,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { createLocation, loading: isCreateLocationLoading } = useCreateLocation({ workId });
   const { updateLocation, loading: isUpdateLocationLoading } = useUpdateLocation({ workId });
   const { deleteLocation: deleteLocationMutation, loading: isDeleteLocationLoading } = useDeleteLocation({ workId });
+  const { activeEntity: activeLocation, update: reconcileActiveLocation } = useLocationStateMachine();
   const { uploadPublicationFile, loading: isUploadPublicationFileLoading, progress: uploadProgress } =
     useUploadPublicationFile(workId);
 
@@ -73,7 +75,10 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     isUpdateLocationLoading ||
     isUploadPublicationFileLoading;
 
-  const updateSizes = (sizes: PublicationDimensionsForm) => {
+  // These paths must await the mutation before staging local state: EditableContent
+  // only keeps the editor open and skips previewing unsaved values when the promise it
+  // awaits rejects, so a discarded promise would let the preview show unsaved data.
+  const updateSizes = async (sizes: PublicationDimensionsForm) => {
     if (!publication) return;
 
     const mappedSizes = {
@@ -89,22 +94,22 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
     const updatedPublication = { ...publication, ...mappedSizes };
 
-    updatePublication(updatedPublication);
+    await updatePublication(updatedPublication);
 
     setPublication(updatedPublication);
   };
 
-  const updateIsbn = (isbn: string) => {
+  const updateIsbn = async (isbn: string) => {
     if (!publication) return;
 
     const updatedPublication = { ...publication, isbn };
 
-    updatePublication(updatedPublication);
+    await updatePublication(updatedPublication);
 
-    setPublication({ ...publication, isbn });
+    setPublication(updatedPublication);
   };
 
-  const updateType = (type: PublicationType) => {
+  const updateType = async (type: PublicationType) => {
     if (!publication) return;
 
     const isAccessibilityAvailable = isAccessibilityStandardAvailable(type);
@@ -127,7 +132,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
             : null,
       };
 
-      updatePublication(updatedPublication);
+      await updatePublication(updatedPublication);
       setPublication(updatedPublication);
 
       return;
@@ -142,11 +147,11 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       accessibilityReportUrl: '',
     };
 
-    updatePublication(updatedPublication);
+    await updatePublication(updatedPublication);
     setPublication(updatedPublication);
   };
 
-  const updateAccessibility = (data: PublicationAccessibilityForm) => {
+  const updateAccessibility = async (data: PublicationAccessibilityForm) => {
     if (!publication) return;
 
     const standards = data.accessibilityStandard ?? [];
@@ -162,11 +167,11 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       accessibilityReportUrl: data.accessibilityReportUrl ?? '',
     };
 
-    updatePublication(updatedPublication);
+    await updatePublication(updatedPublication);
     setPublication(updatedPublication);
   };
 
-  const deleteAccessibility = () => {
+  const deleteAccessibility = async () => {
     if (!publication) return;
 
     const updatedPublication = {
@@ -177,7 +182,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
       accessibilityReportUrl: '',
     };
 
-    updatePublication(updatedPublication);
+    await updatePublication(updatedPublication);
     setPublication(updatedPublication);
   };
 
@@ -294,32 +299,61 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     // would be classified as new again and created twice.
     const createdLocations: LocationEntity[] = [];
 
-    for (const location of promotedLocations) {
-      await updateLocation({ ...location, publicationId: publication.id });
-    }
-
-    for (const location of newLocations) {
-      const isDeferredCanonical = location.canonical && hasPersistedCanonical;
-      const created = await createLocation({
-        ...location,
-        canonical: isDeferredCanonical ? false : location.canonical,
-        publicationId: publication.id,
-      });
-
-      if (isDeferredCanonical) {
-        await updateLocation({ ...location, id: created.id, publicationId: publication.id });
+    try {
+      for (const location of promotedLocations) {
+        await updateLocation({ ...location, publicationId: publication.id });
       }
 
-      createdLocations.push({ ...location, id: created.id });
+      for (const location of newLocations) {
+        const isDeferredCanonical = location.canonical && hasPersistedCanonical;
+        const created = await createLocation({
+          ...location,
+          canonical: isDeferredCanonical ? false : location.canonical,
+          publicationId: publication.id,
+        });
+
+        // Reconcile the created server id into local state *before* the fallible
+        // promotion below. The location persisted as non-canonical, so record that
+        // state: if the promotion rejects, a retry must classify this location as
+        // existing (server id) instead of recreating it with its temporary id.
+        createdLocations.push({ ...location, id: created.id, canonical: isDeferredCanonical ? false : location.canonical });
+
+        // The editor form may still be open on this location, holding its temporary id
+        // in the shared location state machine. Reconcile that active entity to the
+        // server id too, so retrying from the still-open form after a failed promotion
+        // re-submits an existing location instead of creating a duplicate.
+        if (activeLocation && activeLocation.id === location.id) {
+          reconcileActiveLocation({ ...activeLocation, id: created.id });
+        }
+
+        if (isDeferredCanonical) {
+          await updateLocation({ ...location, id: created.id, publicationId: publication.id });
+          // Promotion succeeded: reflect the canonical state locally.
+          createdLocations[createdLocations.length - 1] = { ...location, id: created.id };
+        }
+      }
+
+      for (const location of demotedLocations) {
+        await updateLocation({ ...location, publicationId: publication.id });
+      }
+
+      setPublication({ ...publication, locations: [...createdLocations, ...updatedLocations, ...notUpdatedLocations] });
+
+      return true;
+    } catch (error) {
+      // A create may have persisted before a later mutation rejected. Merge the
+      // reconciled server ids into local state so retrying does not recreate the
+      // already-persisted locations, then rethrow so the caller keeps the form open
+      // for the surfaced error.
+      if (createdLocations.length > 0) {
+        const persistedIds = new Set(publication.locations.map(({ id }) => id));
+        const newlyPersisted = createdLocations.filter(({ id }) => !persistedIds.has(id));
+
+        setPublication({ ...publication, locations: [...publication.locations, ...newlyPersisted] });
+      }
+
+      throw error;
     }
-
-    for (const location of demotedLocations) {
-      await updateLocation({ ...location, publicationId: publication.id });
-    }
-
-    setPublication({ ...publication, locations: [...createdLocations, ...updatedLocations, ...notUpdatedLocations] });
-
-    return true;
   };
 
   const deleteLocation = async (platformId: string) => {

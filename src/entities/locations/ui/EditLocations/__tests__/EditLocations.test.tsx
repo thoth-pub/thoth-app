@@ -1,9 +1,9 @@
 import { ThemeProvider } from '@mui/material';
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
-import { theme } from '@/src/shared/theme';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
+import { theme } from '@/src/shared/theme';
 
 const mocks = vi.hoisted(() => ({
   activeLocation: null as LocationEntity | null,
@@ -104,6 +104,44 @@ describe('EditLocations', () => {
     expect(mocks.finishEditing).not.toHaveBeenCalled();
     expect(mocks.closeForm).not.toHaveBeenCalled();
     expect(container.querySelector('form')).toBeInTheDocument();
+  });
+
+  it('EditLocations_handlesRejectedDeleteWithoutUnhandledRejection', async () => {
+    const unhandledRejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => unhandledRejections.push(reason);
+    process.on('unhandledRejection', onUnhandledRejection);
+
+    try {
+      const onDelete = vi.fn().mockRejectedValue(new Error('Delete failed'));
+
+      const { container } = render(
+        <Wrapper>
+          <EditLocations
+            locations={mockLocations}
+            isFullTextUrlHidden={false}
+            onUpdate={vi.fn()}
+            onDelete={onDelete}
+          />
+        </Wrapper>,
+      );
+
+      const deleteButton = container.querySelector('ul [data-testid="DeleteOutlineIcon"]')!.closest('button')!;
+
+      await act(async () => {
+        fireEvent.click(deleteButton);
+        // Let the rejected onDelete promise settle inside the safe handler.
+        await Promise.resolve();
+        await Promise.resolve();
+      });
+
+      expect(onDelete).toHaveBeenCalledWith('1');
+      // The rejection must be caught by the component, never escaping the promise chain.
+      expect(unhandledRejections).toHaveLength(0);
+      // The component stays usable: the location list is still rendered.
+      expect(container.querySelector('ul')).toBeInTheDocument();
+    } finally {
+      process.off('unhandledRejection', onUnhandledRejection);
+    }
   });
 
   it('EditLocations_closesAfterLocationSaveResolves', async () => {

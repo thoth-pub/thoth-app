@@ -1,7 +1,15 @@
-import { render } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material';
+import { render } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { theme } from '@/src/shared/theme';
-import { describe, expect, it, vi } from 'vitest';
+
+const mocks = vi.hoisted(() => ({
+  activePublisher: { id: 'pub-1' } as { id: string } | null,
+  useSerieses: vi.fn(() => ({ serieses: [] as { id: string }[], loading: false, isFetched: true })),
+  useSeriesesCount: vi.fn(() => ({ seriesCount: 0 })),
+  SeriesList: vi.fn(() => <div data-testid="series-list" />),
+}));
 
 vi.mock('@/src/shared/hooks', () => ({
   useFilterSearchParams: vi.fn(() => ({
@@ -27,13 +35,13 @@ vi.mock('@/src/shared/hooks', () => ({
 }));
 
 vi.mock('@/src/entities/publisher', () => ({
-  usePublisherStateMachine: vi.fn(() => ({ activePublisher: { id: 'pub-1' } })),
+  usePublisherStateMachine: vi.fn(() => ({ activePublisher: mocks.activePublisher })),
 }));
 
 vi.mock('@/src/entities/series', () => ({
-  useSerieses: vi.fn(() => ({ serieses: [], loading: false, isFetched: true })),
-  useSeriesesCount: vi.fn(() => ({ seriesCount: 0 })),
-  SeriesList: vi.fn(() => <div data-testid="series-list" />),
+  useSerieses: mocks.useSerieses,
+  useSeriesesCount: mocks.useSeriesesCount,
+  SeriesList: mocks.SeriesList,
 }));
 
 vi.mock('@/src/features', () => ({
@@ -48,10 +56,46 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe('Series', () => {
+  beforeEach(() => {
+    mocks.activePublisher = { id: 'pub-1' };
+    mocks.useSerieses.mockReset().mockReturnValue({ serieses: [], loading: false, isFetched: true });
+    mocks.useSeriesesCount.mockReset().mockReturnValue({ seriesCount: 0 });
+    mocks.SeriesList.mockClear();
+  });
+
   it('renders snapshot', () => {
     const { container } = render(
       <Wrapper><Series /></Wrapper>
     );
     expect(container).toMatchSnapshot('Series');
+  });
+
+  it('Series_doesNotShowInfiniteLoadingWhenNoActivePublisher', () => {
+    mocks.activePublisher = null;
+    // The disabled query never fetches, so isFetched stays false and stale data may linger.
+    mocks.useSerieses.mockReturnValue({ serieses: [{ id: 'stale' }], loading: false, isFetched: false });
+
+    render(
+      <Wrapper><Series /></Wrapper>,
+    );
+
+    // The list must settle into an empty, non-loading state rather than spin forever.
+    const lastCall = mocks.SeriesList.mock.calls.at(-1)?.[0] as { loading: boolean; serieses: unknown[] };
+    expect(lastCall.loading).toBe(false);
+    expect(lastCall.serieses).toEqual([]);
+    // No invalid publisher-scoped query is issued.
+    expect(mocks.useSerieses).not.toHaveBeenCalledWith(expect.objectContaining({ publishersIds: [''] }));
+  });
+
+  it('Series_activePublisherKeepsExistingLoadingBehaviour', () => {
+    mocks.activePublisher = { id: 'pub-1' };
+    mocks.useSerieses.mockReturnValue({ serieses: [], loading: true, isFetched: false });
+
+    render(
+      <Wrapper><Series /></Wrapper>,
+    );
+
+    const lastCall = mocks.SeriesList.mock.calls.at(-1)?.[0] as { loading: boolean };
+    expect(lastCall.loading).toBe(true);
   });
 });

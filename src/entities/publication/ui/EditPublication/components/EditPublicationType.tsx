@@ -11,7 +11,7 @@ const { PUBLICATION_TYPE: PUBLICATION_TYPE_HELPER_TEXT } = HELPER_TEXT;
 
 type EditPublicationTypeProps = Partial<{
   publicationType: PublicationType;
-  onSubmit: (data: PublicationType) => void;
+  onSubmit: (data: PublicationType) => void | Promise<void>;
 }>;
 
 const EditPublicationType = (props: EditPublicationTypeProps) => {
@@ -20,9 +20,8 @@ const EditPublicationType = (props: EditPublicationTypeProps) => {
   const defaultValue =
     publicationTypeOptions.find((option) => option.value === publicationType) ?? publicationTypeOptions[0];
 
-  const handleSubmit = (data: PublicationTypeForm) => {
-    onSubmit?.(data.publicationType);
-  };
+  // Return the mutation promise so EditableContent awaits it before staging/closing.
+  const handleSubmit = (data: PublicationTypeForm) => onSubmit?.(data.publicationType);
 
   return (
     <EditableContent
