@@ -194,17 +194,38 @@ export const useEditContribution = (props: UseEditContributionProps) => {
       desiredBiographies,
       contribution.biographies,
     );
+    const hasBiographyMutations =
+      biographiesToDelete.length + updatedBiographies.length + newBiographies.length > 0;
+    let hasSuccessfulBiographyMutation = false;
+
+    const runBiographyMutations = async (mutations: Promise<unknown>[]) => {
+      const results = await Promise.allSettled(mutations);
+
+      if (results.some(({ status }) => status === 'fulfilled')) {
+        hasSuccessfulBiographyMutation = true;
+      }
+
+      const failedMutation = results.find((result) => result.status === 'rejected');
+
+      if (failedMutation) throw failedMutation.reason;
+    };
 
     // Deletions only remove content the user discarded, and must run first so a
     // replacement canonical biography does not clash with the deleted one.
-    await Promise.all(biographiesToDelete.map(({ id }) => deleteBiography(id)));
-    await Promise.all(updatedBiographies.map((biography) => updateBiographyMutation({ data: biography })));
-    await Promise.all(
-      newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
-    );
-
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    try {
+      await runBiographyMutations(biographiesToDelete.map(({ id }) => deleteBiography(id)));
+      await runBiographyMutations(
+        updatedBiographies.map((biography) => updateBiographyMutation({ data: biography })),
+      );
+      await runBiographyMutations(
+        newBiographies.map((biography) => createBiography({ data: biography, contributionId: contribution.id })),
+      );
+    } finally {
+      if (hasSuccessfulBiographyMutation || !hasBiographyMutations) {
+        queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+        queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+      }
+    }
   };
 
   const updateOrcid = ({ orcid = '' }: OrcidForm) => {

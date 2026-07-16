@@ -210,14 +210,59 @@ describe('useEditContribution', () => {
       expect(onBiographiesUpdate).toHaveBeenCalledWith({ biographies: [] });
     });
 
-    it('should handle biographies via direct mutations when no callback', async () => {
+    it('useEditContribution_invalidatesBiographyCachesAfterDeleteThenCreateFails', async () => {
+      const error = new Error('Biography creation failed');
+      const newBiography = {
+        id: 'bio-new',
+        canonical: false,
+        content: 'Replacement biography',
+        localeCode: 'EN',
+        contributionId: 'contrib-1',
+      };
+      mocks.computeBiographiesDiff.mockReturnValueOnce({
+        biographiesToDelete: [{ id: 'bio-old' }],
+        updatedBiographies: [],
+        unchangedBiographies: [],
+        newBiographies: [newBiography],
+      });
+      mocks.deleteBiography.mockResolvedValueOnce(undefined);
+      mocks.createBiography.mockRejectedValueOnce(error);
+      const { result } = renderHook(() => useEditContribution(defaultProps));
+
+      await expect(result.current.updateBiography({ biographies: [] })).rejects.toBe(error);
+
+      expect(mocks.deleteBiography).toHaveBeenCalledWith('bio-old');
+      expect(mocks.createBiography).toHaveBeenCalledWith({ data: newBiography, contributionId: 'contrib-1' });
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['work'] });
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['workChapters'] });
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
+    });
+
+    it('useEditContribution_invalidatesBiographyCachesAfterFullSuccess', async () => {
+      const newBiography = {
+        id: 'bio-new',
+        canonical: false,
+        content: 'Replacement biography',
+        localeCode: 'EN',
+        contributionId: 'contrib-1',
+      };
+      mocks.computeBiographiesDiff.mockReturnValueOnce({
+        biographiesToDelete: [{ id: 'bio-old' }],
+        updatedBiographies: [],
+        unchangedBiographies: [],
+        newBiographies: [newBiography],
+      });
+      mocks.deleteBiography.mockResolvedValueOnce(undefined);
+      mocks.createBiography.mockResolvedValueOnce(newBiography);
       const { result } = renderHook(() => useEditContribution(defaultProps));
 
       await act(async () => {
         await result.current.updateBiography({ biographies: [] });
       });
 
-      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalled();
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['work'] });
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ['workChapters'] });
+      expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledTimes(2);
     });
 
     it('rejects when a biography mutation fails', async () => {
