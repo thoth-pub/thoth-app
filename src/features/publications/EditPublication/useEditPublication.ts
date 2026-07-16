@@ -34,6 +34,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
   const { activeEntity: activePublication, finishEditing } = usePublicationsStateMachine();
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
+  const [priceFormVersion, setPriceFormVersion] = useState(0);
   const { work } = useWork(workId);
   const defaultCurrencyOption = useDefaultCurrencyOption(work.imprintId);
   const { updatePublication, loading: isUpdatePublicationLoading } = useUpdatePublication({ workId });
@@ -203,24 +204,56 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     const submittedIds = prices.map(({ id }) => id);
     const deletedPrices = publication.prices.filter(({ id }) => !submittedIds.includes(id));
 
-    // Local state must hold the server ids of created prices right away: until the work
-    // refetch lands, a re-edit of a price still stored with its temporary id would be
-    // classified as new again and created twice.
-    const createdPrices: typeof prices = [];
-
-    await Promise.all([
-      ...updatedPrices.map(({ id, currencyCode, unitPrice }) =>
-        updatePrice({ id, currencyCode, unitPrice, publicationId: publication.id }),
+    const priceMutations = [
+      ...updatedPrices.map((price) =>
+        updatePrice({ ...price, publicationId: publication.id }).then(() => ({ type: 'update' as const, price })),
       ),
-      ...newPrices.map(async (price) => {
-        const created = await createPrice({ ...price, publicationId: publication.id });
+      ...newPrices.map((price) =>
+        createPrice({ ...price, publicationId: publication.id }).then((created) => ({
+          type: 'create' as const,
+          price: { ...price, id: created.id },
+        })),
+      ),
+      ...deletedPrices.map((price) => deletePrice(price.id).then(() => ({ type: 'delete' as const, price }))),
+    ];
 
-        createdPrices.push({ ...price, id: created.id });
-      }),
-      ...deletedPrices.map(({ id }) => deletePrice(id)),
-    ]);
+    const results = await Promise.allSettled(priceMutations);
+    const successfulMutations = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+    const failedMutation = results.find((result) => result.status === 'rejected');
 
-    setPublication({ ...publication, prices: [...existingPrices, ...createdPrices] });
+    if (!failedMutation) {
+      const createdPrices = successfulMutations
+        .filter((result) => result.type === 'create')
+        .map(({ price }) => price);
+
+      setPublication({ ...publication, prices: [...existingPrices, ...createdPrices] });
+      return;
+    }
+
+    if (successfulMutations.length > 0) {
+      const reconciledPrices = successfulMutations.reduce<typeof prices>((currentPrices, mutation) => {
+        if (mutation.type === 'delete') {
+          return currentPrices.filter(({ id }) => id !== mutation.price.id);
+        }
+
+        const priceIndex = currentPrices.findIndex(({ id }) => id === mutation.price.id);
+
+        if (priceIndex === -1) return [...currentPrices, mutation.price];
+
+        return currentPrices.map((price, index) => (index === priceIndex ? mutation.price : price));
+      }, publication.prices);
+
+      setPublication({ ...publication, prices: reconciledPrices });
+
+      // React Hook Form keeps its submitted values after a rejection. Remounting the
+      // price form only when a create succeeded replaces its temporary id with the
+      // reconciled server id while leaving the form open for the caller-visible error.
+      if (successfulMutations.some(({ type }) => type === 'create')) {
+        setPriceFormVersion((version) => version + 1);
+      }
+    }
+
+    throw failedMutation.reason;
   };
 
   const updateLocations = async (data: LocationEntity[]) => {
@@ -320,6 +353,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
   return {
     activePublication: publication,
+    priceFormVersion,
     loading,
     uploadProgress,
     defaultCurrencyOption,

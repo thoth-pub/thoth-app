@@ -267,9 +267,9 @@ const priceRow = (priceId: string, currency: string, priceValue: number) => ({
 describe('useEditPublication updatePrices', () => {
   beforeEach(() => {
     mocks.publication.prices = [mocks.gbpPrice, mocks.usdPrice];
-    mocks.updatePrice.mockClear();
-    mocks.createPrice.mockClear();
-    mocks.deletePrice.mockClear();
+    mocks.updatePrice.mockReset().mockResolvedValue({});
+    mocks.createPrice.mockReset().mockResolvedValue({ id: 'price-3' });
+    mocks.deletePrice.mockReset().mockResolvedValue({});
   });
 
   it('updates an edited price by its id', async () => {
@@ -344,23 +344,87 @@ describe('useEditPublication updatePrices', () => {
     });
   });
 
-  it('stores the server id of a created price so a re-edit before the refetch updates it', async () => {
+  it('useEditPublication_preservesSuccessfulPriceSaveBehaviour', async () => {
     const { result } = renderEditPublication();
 
     await act(async () => {
       await result.current.updatePrices({
         prices: [
-          priceRow('price-1', 'GBP', 25),
-          priceRow('price-2', 'USD', 30),
+          priceRow('price-1', 'GBP', 27.5),
           priceRow('0000-0000-0000-0000-3', 'EUR', 22),
         ],
       });
     });
 
-    expect(result.current.activePublication?.prices).toContainEqual(expect.objectContaining({ id: 'price-3' }));
+    expect(mocks.updatePrice).toHaveBeenCalledWith({
+      id: 'price-1',
+      currencyCode: 'GBP',
+      unitPrice: 27.5,
+      publicationId: 'pub-1',
+    });
+    expect(mocks.createPrice).toHaveBeenCalledWith({
+      id: '0000-0000-0000-0000-3',
+      currencyCode: 'EUR',
+      unitPrice: 22,
+      publicationId: 'pub-1',
+    });
+    expect(mocks.deletePrice).toHaveBeenCalledWith('price-2');
+    expect(result.current.activePublication?.prices).toEqual([
+      { id: 'price-1', currencyCode: 'GBP', unitPrice: 27.5 },
+      { id: 'price-3', currencyCode: 'EUR', unitPrice: 22 },
+    ]);
+    expect(result.current.priceFormVersion).toBe(0);
   });
 
-  it('rejects and keeps local state on the persisted values when a mutation fails', async () => {
+  it('useEditPublication_preservesCreatedPriceIdsAfterPartialPriceSaveFailure', async () => {
+    const error = new Error('Delete failed');
+    mocks.deletePrice.mockRejectedValueOnce(error);
+
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await expect(
+        result.current.updatePrices({
+          prices: [priceRow('price-1', 'GBP', 25), priceRow('0000-0000-0000-0000-3', 'EUR', 22)],
+        }),
+      ).rejects.toBe(error);
+    });
+
+    expect(result.current.activePublication?.prices).toEqual([
+      mocks.gbpPrice,
+      mocks.usdPrice,
+      { id: 'price-3', currencyCode: 'EUR', unitPrice: 22 },
+    ]);
+    expect(result.current.priceFormVersion).toBe(1);
+  });
+
+  it('useEditPublication_doesNotDuplicateCreatedPriceOnRetryAfterPartialFailure', async () => {
+    mocks.deletePrice.mockRejectedValueOnce(new Error('Delete failed'));
+
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await expect(
+        result.current.updatePrices({
+          prices: [priceRow('price-1', 'GBP', 25), priceRow('0000-0000-0000-0000-3', 'EUR', 22)],
+        }),
+      ).rejects.toThrow('Delete failed');
+    });
+
+    const reconciledPrices = result.current.activePublication?.prices ?? [];
+
+    await act(async () => {
+      await result.current.updatePrices({
+        prices: reconciledPrices.map(({ id, currencyCode, unitPrice }) => priceRow(id, currencyCode, unitPrice)),
+      });
+    });
+
+    expect(mocks.createPrice).toHaveBeenCalledTimes(1);
+    expect(mocks.updatePrice).not.toHaveBeenCalled();
+    expect(mocks.deletePrice).toHaveBeenCalledTimes(1);
+  });
+
+  it('useEditPublication_rethrowsPriceMutationFailure', async () => {
     const error = new Error('Update failed');
     mocks.updatePrice.mockRejectedValueOnce(error);
 
@@ -372,25 +436,7 @@ describe('useEditPublication updatePrices', () => {
       }),
     ).rejects.toBe(error);
 
-    expect(result.current.activePublication?.prices).toContainEqual(expect.objectContaining({ unitPrice: 25 }));
-  });
-
-  it('EditPublication_prices_doNotPreviewUnsavedValues_afterCreatePriceFailure', async () => {
-    const error = new Error('Create failed');
-    mocks.createPrice.mockRejectedValueOnce(error);
-
-    const { result } = renderEditPublication();
-
-    await expect(
-      result.current.updatePrices({
-        prices: [
-          priceRow('price-1', 'GBP', 25),
-          priceRow('price-2', 'USD', 30),
-          priceRow('0000-0000-0000-0000-3', 'EUR', 22),
-        ],
-      }),
-    ).rejects.toBe(error);
-
     expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice, mocks.usdPrice]);
+    expect(result.current.priceFormVersion).toBe(0);
   });
 });

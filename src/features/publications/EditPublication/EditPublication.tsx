@@ -18,6 +18,7 @@ const EditPublication = (props: EditPublicationProps) => {
 
   const {
     activePublication,
+    priceFormVersion,
     loading,
     uploadProgress,
     defaultCurrencyOption,
@@ -77,6 +78,7 @@ const EditPublication = (props: EditPublicationProps) => {
       {(isFullTextUrlHidden) => (
         <>
           <EditPrice
+            key={priceFormVersion}
             defaultCurrencyOption={defaultCurrencyOption}
             prices={activePublication.prices}
             onUpdate={updatePrices}
