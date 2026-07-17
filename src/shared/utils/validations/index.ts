@@ -194,16 +194,19 @@ export const getFileValidation = (
     .refine((files) => files && files[0] && files[0].size <= maxFileSize, maxFileSizeErrMessage)
     .refine((files) => files && filesFormat.includes(files[0].type), formatErrMessage);
 
-export const isJpegCoverFile = (file: File) => {
+export const isJpegCoverFile = async (file: File): Promise<boolean> => {
   const name = file.name.toLowerCase();
   const hasJpegExtension = appConfig.supportedCoverImageExtensions.some((extension) => name.endsWith(extension));
 
   if (!hasJpegExtension) return false;
-  // Browsers may leave File.type empty; fall back to the (already validated)
-  // extension in that case. A non-empty type must be exactly image/jpeg.
-  if (file.type === '') return true;
+  // A non-empty browser MIME type must be exactly image/jpeg.
+  if (file.type !== '' && !appConfig.supportedCoverImageMimeTypes.includes(file.type)) return false;
 
-  return appConfig.supportedCoverImageMimeTypes.includes(file.type);
+  // Verify JPEG magic bytes (SOI marker FF D8 FF).
+  const buffer = await file.arrayBuffer();
+  const bytes = new Uint8Array(buffer, 0, 3);
+
+  return bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
 };
 
 /**
@@ -223,7 +226,7 @@ export const getCoverImageFileValidation = (
     .custom<FileList | undefined>()
     .refine((files) => files && files[0] && files[0].size >= minFileSize, minFileSizeErrMessage)
     .refine((files) => files && files[0] && files[0].size <= maxFileSize, maxFileSizeErrMessage)
-    .refine((files) => files && files[0] && isJpegCoverFile(files[0]), formatErrMessage);
+    .refine(async (files) => files && files[0] && (await isJpegCoverFile(files[0])), formatErrMessage);
 
 export const emailValidation = z.email();
 

@@ -79,8 +79,21 @@ vi.mock('@/src/shared/ui', () => ({
 const JPEG_MIME = 'image/jpeg';
 const VALID_SIZE = 7000; // between appConfig.minFileSize (6250) and maxFileSize
 
-const makeFile = (name: string, type: string, size = VALID_SIZE) =>
-  new File([new Uint8Array(size)], name, { type });
+const makeFile = (name: string, type: string, size = VALID_SIZE, jpegMagicBytes = true) => {
+  const buffer = new Uint8Array(size);
+  if (jpegMagicBytes) {
+    buffer[0] = 0xff;
+    buffer[1] = 0xd8;
+    buffer[2] = 0xff;
+  }
+  const file = new File([buffer], name, { type });
+  if (typeof file.arrayBuffer !== 'function') {
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: () => Promise.resolve(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)),
+    });
+  }
+  return file;
+};
 
 const getDropZone = (container: HTMLElement) => {
   const input = container.querySelector('input[type="file"]') as HTMLInputElement;

@@ -7,10 +7,23 @@ import { coverUrlValidationSchema } from './work.validation';
 const JPEG_MIME = 'image/jpeg';
 const VALID_SIZE = 7000; // between minFileSize (6250) and maxFileSize (50000000)
 
-const makeCoverFile = (name: string, type: string, size = VALID_SIZE) =>
-  new File([new Uint8Array(size)], name, { type });
+const makeCoverFile = (name: string, type: string, size = VALID_SIZE, jpegMagicBytes = true) => {
+  const buffer = new Uint8Array(size);
+  if (jpegMagicBytes) {
+    buffer[0] = 0xff;
+    buffer[1] = 0xd8;
+    buffer[2] = 0xff;
+  }
+  const file = new File([buffer], name, { type });
+  if (typeof file.arrayBuffer !== 'function') {
+    Object.defineProperty(file, 'arrayBuffer', {
+      value: () => Promise.resolve(buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength)),
+    });
+  }
+  return file;
+};
 
-const validateCover = (file: File) => coverUrlValidationSchema.safeParse({ coverUrl: [file] });
+const validateCover = (file: File) => coverUrlValidationSchema.safeParseAsync({ coverUrl: [file] });
 
 describe('cover image validation (JPEG only)', () => {
   it.each([
@@ -18,13 +31,13 @@ describe('cover image validation (JPEG only)', () => {
     ['cover.jpeg', JPEG_MIME],
     ['COVER.JPG', JPEG_MIME],
     ['Cover.JpEg', JPEG_MIME],
-  ])('accepts %s with MIME %s', (name, type) => {
-    expect(validateCover(makeCoverFile(name, type)).success).toBe(true);
+  ])('accepts %s with MIME %s', async (name, type) => {
+    expect((await validateCover(makeCoverFile(name, type))).success).toBe(true);
   });
 
-  it('accepts an empty browser MIME type when the extension is valid', () => {
-    expect(validateCover(makeCoverFile('cover.jpg', '')).success).toBe(true);
-    expect(validateCover(makeCoverFile('cover.jpeg', '')).success).toBe(true);
+  it('accepts an empty browser MIME type when the extension is valid', async () => {
+    expect((await validateCover(makeCoverFile('cover.jpg', ''))).success).toBe(true);
+    expect((await validateCover(makeCoverFile('cover.jpeg', ''))).success).toBe(true);
   });
 
   it.each([
@@ -32,30 +45,34 @@ describe('cover image validation (JPEG only)', () => {
     ['cover.webp', 'image/webp'],
     ['cover.gif', 'image/gif'],
     ['cover.png', ''],
-  ])('rejects non-JPEG file %s (%s)', (name, type) => {
-    expect(validateCover(makeCoverFile(name, type)).success).toBe(false);
+  ])('rejects non-JPEG file %s (%s)', async (name, type) => {
+    expect((await validateCover(makeCoverFile(name, type))).success).toBe(false);
   });
 
-  it('rejects a .jpg file reported by the browser as image/png', () => {
-    expect(validateCover(makeCoverFile('cover.jpg', 'image/png')).success).toBe(false);
+  it('rejects a .jpg file reported by the browser as image/png', async () => {
+    expect((await validateCover(makeCoverFile('cover.jpg', 'image/png'))).success).toBe(false);
   });
 
-  it('rejects a .png file reported by the browser as image/jpeg', () => {
-    expect(validateCover(makeCoverFile('cover.png', JPEG_MIME)).success).toBe(false);
+  it('rejects a .png file reported by the browser as image/jpeg', async () => {
+    expect((await validateCover(makeCoverFile('cover.png', JPEG_MIME))).success).toBe(false);
   });
 
-  it('rejects the non-standard image/jpg MIME type', () => {
-    expect(validateCover(makeCoverFile('cover.jpg', 'image/jpg')).success).toBe(false);
+  it('rejects the non-standard image/jpg MIME type', async () => {
+    expect((await validateCover(makeCoverFile('cover.jpg', 'image/jpg'))).success).toBe(false);
   });
 
-  it('still enforces the minimum cover size', () => {
-    expect(validateCover(makeCoverFile('cover.jpg', JPEG_MIME, appConfig.minFileSize - 1)).success).toBe(false);
-    expect(validateCover(makeCoverFile('cover.jpg', JPEG_MIME, appConfig.minFileSize)).success).toBe(true);
+  it('rejects a .jpg with empty MIME type but non-JPEG content', async () => {
+    expect((await validateCover(makeCoverFile('cover.jpg', '', VALID_SIZE, false))).success).toBe(false);
   });
 
-  it('rejects an empty file selection', () => {
-    expect(coverUrlValidationSchema.safeParse({ coverUrl: [] }).success).toBe(false);
-    expect(coverUrlValidationSchema.safeParse({ coverUrl: undefined }).success).toBe(false);
+  it('still enforces the minimum cover size', async () => {
+    expect((await validateCover(makeCoverFile('cover.jpg', JPEG_MIME, appConfig.minFileSize - 1))).success).toBe(false);
+    expect((await validateCover(makeCoverFile('cover.jpg', JPEG_MIME, appConfig.minFileSize))).success).toBe(true);
+  });
+
+  it('rejects an empty file selection', async () => {
+    expect((await coverUrlValidationSchema.safeParseAsync({ coverUrl: [] })).success).toBe(false);
+    expect((await coverUrlValidationSchema.safeParseAsync({ coverUrl: undefined })).success).toBe(false);
   });
 });
 

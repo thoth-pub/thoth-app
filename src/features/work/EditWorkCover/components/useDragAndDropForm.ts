@@ -62,7 +62,7 @@ export const useDragAndDropForm = (workId: WorkId) => {
       return;
     }
 
-    const validation = coverUrlValidationSchema.safeParse({ [COVER_URL.name]: [file] });
+    const validation = await coverUrlValidationSchema.safeParseAsync({ [COVER_URL.name]: [file] });
     if (!validation.success) {
       const message = validation.error.issues[0]?.message ?? ERRORS.FILE_FORMAT_INVALID;
       sendErrorNotification(message);
