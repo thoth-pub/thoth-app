@@ -151,11 +151,10 @@ export class FileStorage {
 
     await this.uploadFile(initResponse.uploadUrl, initResponse.uploadHeaders, file, onProgress);
 
-    await this.completeFileUpload(initResponse.fileUploadId);
-    // Delay to ensure the file is updated in the database
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-
-    return initResponse.uploadUrl;
+    // completeFileUpload resolves only after the backend has persisted the
+    // record, and returns the canonical CDN URL (ending in _frontcover.jpg).
+    // Return that rather than the temporary presigned upload URL.
+    return this.completeFileUpload(initResponse.fileUploadId);
   }
 
   async initFeaturedVideoUpload({

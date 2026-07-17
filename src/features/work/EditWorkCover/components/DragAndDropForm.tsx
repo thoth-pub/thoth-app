@@ -21,13 +21,15 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
   const { workId } = props;
 
   const {
-    isDragStarted,
-    defaultValue,
+    isDragActive,
+    displayedCoverUrl,
     loading,
-    fieldProps,
     isUrlCoverFilled,
     inputRef,
-    ref,
+    onFileInputChange,
+    onDragEnter,
+    onDragOver,
+    onDragLeave,
     dropFile,
     uploadFile,
     uploadFileClick,
@@ -40,16 +42,22 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
 
   return (
     <Wrapper>
-      <form onDrop={dropFile} className="relative flex h-full w-full flex-col items-center justify-center gap-1">
-        {(!isUrlCoverFilled || isDragStarted) && <PlaceholderLogo />}
+      <div
+        onDragEnter={onDragEnter}
+        onDragOver={onDragOver}
+        onDragLeave={onDragLeave}
+        onDrop={dropFile}
+        className="relative flex h-full w-full flex-col items-center justify-center gap-1"
+      >
+        {(!isUrlCoverFilled || isDragActive) && <PlaceholderLogo />}
 
-        <Typography className={`text-center font-semibold ${defaultValue ? 'opacity-0' : 'opacity-100'}`}>
+        <Typography className={`text-center font-semibold ${isUrlCoverFilled ? 'opacity-0' : 'opacity-100'}`}>
           <TranslatedContent content="actions.dropCover" />
         </Typography>
 
-        {!isDragStarted && (
+        {!isDragActive && (
           <Button
-            className={`${defaultValue ? 'opacity-0' : 'opacity-100'}`}
+            className={`${isUrlCoverFilled ? 'opacity-0' : 'opacity-100'}`}
             onClick={uploadFile}
             type="button"
             disabled={loading}
@@ -58,8 +66,14 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
           </Button>
         )}
 
-        {isUrlCoverFilled && !isDragStarted && !loading && (
-          <Image src={defaultValue} alt="Cover" className="absolute h-full w-full object-contain" fill unoptimized />
+        {isUrlCoverFilled && !isDragActive && !loading && (
+          <Image
+            src={displayedCoverUrl}
+            alt="Cover"
+            className="absolute h-full w-full object-contain"
+            fill
+            unoptimized
+          />
         )}
 
         {isUrlCoverFilled && (
@@ -77,17 +91,14 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
 
         <input
           type="file"
-          {...fieldProps}
-          ref={(e) => {
-            ref(e);
-            inputRef.current = e;
-          }}
+          ref={inputRef}
+          onChange={onFileInputChange}
           onClick={uploadFileClick}
           className="absolute z-10 h-full w-full opacity-0"
           accept={appConfig.supportedCoverImageAccept}
           disabled={loading}
         />
-      </form>
+      </div>
       <ConfirmDialog
         open={isRemoveDialogOpen}
         title={<TranslatedContent content="actions.removeCover" />}

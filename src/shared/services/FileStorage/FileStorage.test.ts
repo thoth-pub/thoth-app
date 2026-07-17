@@ -29,7 +29,6 @@ describe('FileStorage.uploadWorkCover', () => {
   let uploadFileSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    vi.useFakeTimers();
     mutation.mockReset();
     storage = new FileStorage('token', graphqlService);
     uploadFileSpy = vi.spyOn(storage, 'uploadFile').mockResolvedValue(undefined);
@@ -37,15 +36,12 @@ describe('FileStorage.uploadWorkCover', () => {
   });
 
   afterEach(() => {
-    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
   const runUploadWorkCover = async (file: File) => {
     mutation.mockResolvedValue({ initFrontcoverFileUpload: uploadResponse, completeFileUpload: { cdnUrl: 'x' } });
-    const promise = storage.uploadWorkCover('work-1', file);
-    await vi.runAllTimersAsync();
-    return promise;
+    return storage.uploadWorkCover('work-1', file);
   };
 
   it('always declares extension "jpg" and MIME "image/jpeg", even for .jpeg files', async () => {
@@ -85,6 +81,25 @@ describe('FileStorage.uploadWorkCover', () => {
       file,
       undefined,
     );
+  });
+
+  it('returns the canonical CDN URL from completeFileUpload, not the presigned upload URL', async () => {
+    const file = makeFile('cover.jpg', 'image/jpeg');
+
+    const returned = await runUploadWorkCover(file);
+
+    expect(returned).toBe('https://cdn.example.org/cover.jpg');
+    expect(returned).not.toBe(uploadResponse.uploadUrl);
+  });
+
+  it('does not retain an arbitrary multi-second sleep', async () => {
+    const setTimeoutSpy = vi.spyOn(globalThis, 'setTimeout');
+    const file = makeFile('cover.jpg', 'image/jpeg');
+
+    await runUploadWorkCover(file);
+
+    const longDelays = setTimeoutSpy.mock.calls.filter(([, delay]) => typeof delay === 'number' && delay >= 1000);
+    expect(longDelays).toHaveLength(0);
   });
 });
 

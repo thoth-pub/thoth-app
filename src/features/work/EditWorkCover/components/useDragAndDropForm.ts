@@ -1,98 +1,124 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { type FieldErrors, useForm } from 'react-hook-form';
+import { useMemo, useRef, useState } from 'react';
 import { useCopyToClipboard } from 'react-use';
 
 import { useUpdateWorkFrontCover, useWork } from '@/src/entities/work';
-import type { CoverUrlForm, WorkId } from '@/src/entities/work/model/work.types';
+import type { WorkId } from '@/src/entities/work/model/work.types';
 import { coverUrlValidationSchema } from '@/src/entities/work/model/work.validation';
-import { FORM_FIELDS, NOTIFICATIONS } from '@/src/shared/constants';
+import { ERRORS, FORM_FIELDS, NOTIFICATIONS } from '@/src/shared/constants';
 import { useNotifications } from '@/src/shared/hooks';
-import useIsDragStarted from '@/src/shared/hooks/useIsDragStarted';
 
 const { COVER_URL } = FORM_FIELDS;
 
 export const useDragAndDropForm = (workId: WorkId) => {
   const { work, loading: isWorkLoading, updateWork } = useWork(workId);
 
-  const time = Date.now().toString();
-  const defaultValue = work.coverUrl ? `${work.coverUrl}?${time}` : '';
-  const isUrlCoverFilled = defaultValue && defaultValue.length > 0;
-  const isDoiEmpty = !work.doi || work.doi.length === 0;
-
-  const isDragStarted = useIsDragStarted();
   const [, copyToClipboard] = useCopyToClipboard();
   const { updateWorkFrontCover, loading } = useUpdateWorkFrontCover(workId);
   const { sendErrorNotification, sendSuccessNotification } = useNotifications();
   const [isRemoveDialogOpen, setIsRemoveDialogOpen] = useState(false);
 
-  const { register, handleSubmit, setValue, reset, watch } = useForm({
-    reValidateMode: 'onSubmit',
-    resolver: zodResolver(coverUrlValidationSchema),
-  });
-
   const inputRef = useRef<HTMLInputElement>(null);
 
-  const { ref, ...fieldProps } = register(COVER_URL.name);
+  const isDoiEmpty = !work.doi || work.doi.length === 0;
+  const isUrlCoverFilled = Boolean(work.coverUrl);
+
+  // Stable cover URL: recompute only when the cover URL changes or the
+  // cache-buster is bumped (which happens only after a successful upload).
+  // Unrelated re-renders — e.g. drag-state changes — must not alter the URL,
+  // otherwise the <Image> would reload repeatedly.
+  const [cacheBuster, setCacheBuster] = useState(() => Date.now());
+  const displayedCoverUrl = useMemo(
+    () => (work.coverUrl ? `${work.coverUrl}?${cacheBuster}` : ''),
+    [work.coverUrl, cacheBuster],
+  );
+
+  // Component-scoped drag state with a depth counter, so moving the pointer
+  // across nested child elements does not flicker the highlight and we never
+  // set state on every `dragover`.
+  const [isDragActive, setIsDragActive] = useState(false);
+  const dragDepth = useRef(0);
+
+  const clearFileInput = () => {
+    if (inputRef.current) {
+      inputRef.current.value = '';
+    }
+  };
 
   const sendDoiRequiredError = () => {
     sendErrorNotification(NOTIFICATIONS.DOI_IS_REQUIRED);
   };
 
-  const onSubmit = async (data: CoverUrlForm) => {
-    if (!data.coverUrl || data.coverUrl.length === 0) return;
+  // Single, one-shot processor for a selected or dropped file. It validates
+  // exactly once, uploads at most once, always catches upload rejections, and
+  // always clears the native input so the same file can be selected again.
+  const processCoverFile = async (file?: File): Promise<void> => {
+    if (!file) return;
 
     if (isDoiEmpty) {
       sendDoiRequiredError();
+      clearFileInput();
       return;
     }
 
-    await updateWorkFrontCover(data.coverUrl[0]);
-
-    reset();
-  };
-
-  // Surface validation failures (e.g. non-JPEG covers) to the user, then
-  // clear the input so the same file can be re-selected after fixing it.
-  const onInvalid = (errors: FieldErrors<CoverUrlForm>) => {
-    const message = errors[COVER_URL.name]?.message;
-    if (typeof message === 'string') {
+    const validation = coverUrlValidationSchema.safeParse({ [COVER_URL.name]: [file] });
+    if (!validation.success) {
+      const message = validation.error.issues[0]?.message ?? ERRORS.FILE_FORMAT_INVALID;
       sendErrorNotification(message);
-    }
-    reset();
-  };
-
-  // Submit through the latest onSubmit closure without re-subscribing the watcher.
-  const submitOnChange = useEffectEvent(async () => {
-    await handleSubmit(onSubmit, onInvalid)();
-  });
-
-  useEffect(() => {
-    const subscription = watch(() => {
-      void submitOnChange();
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [watch]);
-
-  const dropFile = (event: React.DragEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (isDoiEmpty) {
-      sendDoiRequiredError();
+      clearFileInput();
       return;
     }
 
-    reset();
+    try {
+      await updateWorkFrontCover(file);
+      // Refresh the displayed cover only after a successful upload.
+      setCacheBuster(Date.now());
+    } catch {
+      // The API error is surfaced by useUpdateWorkFrontCover's mutation onError;
+      // swallow the rejection here to avoid an unhandled promise and a duplicate
+      // notification.
+    } finally {
+      clearFileInput();
+    }
+  };
 
-    setValue(COVER_URL.name, event.dataTransfer.files, {
-      shouldValidate: true,
-      shouldDirty: true,
-    });
+  const onFileInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.currentTarget.files?.[0];
+    void processCoverFile(file);
+  };
+
+  const dropFile = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    dragDepth.current = 0;
+    setIsDragActive(false);
+
+    const file = event.dataTransfer.files?.[0];
+    void processCoverFile(file);
+  };
+
+  const onDragEnter = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    dragDepth.current += 1;
+    if (dragDepth.current === 1) {
+      setIsDragActive(true);
+    }
+  };
+
+  const onDragOver = (event: React.DragEvent<HTMLElement>) => {
+    // Required so the browser fires `drop` rather than navigating to the file.
+    // Deliberately no state update here: the drag state is already correct.
+    event.preventDefault();
+  };
+
+  const onDragLeave = (event: React.DragEvent<HTMLElement>) => {
+    event.preventDefault();
+    dragDepth.current = Math.max(0, dragDepth.current - 1);
+    if (dragDepth.current === 0) {
+      setIsDragActive(false);
+    }
   };
 
   const uploadFile = () => {
@@ -104,10 +130,18 @@ export const useDragAndDropForm = (workId: WorkId) => {
     inputRef.current?.click();
   };
 
+  const uploadFileClick = (e: React.MouseEvent<HTMLInputElement>) => {
+    if (isDoiEmpty) {
+      e.preventDefault();
+      e.stopPropagation();
+      sendDoiRequiredError();
+    }
+  };
+
   const copyCoverUrlToClipboard = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
 
-    copyToClipboard(defaultValue);
+    copyToClipboard(work.coverUrl ?? '');
     sendSuccessNotification(NOTIFICATIONS.COVER_URL_COPY_SUCCESS);
   };
 
@@ -127,28 +161,21 @@ export const useDragAndDropForm = (workId: WorkId) => {
     sendSuccessNotification(NOTIFICATIONS.COVER_REMOVE_SUCCESS);
   };
 
-  const uploadFileClick = (e: React.MouseEvent<HTMLInputElement>) => {
-    if (isDoiEmpty) {
-      e.preventDefault();
-      e.stopPropagation();
-      sendDoiRequiredError();
-      return;
-    }
-  };
-
   return {
-    isDragStarted,
-    defaultValue,
+    isDragActive,
+    displayedCoverUrl,
     loading: isWorkLoading || loading,
-    fieldProps,
     isUrlCoverFilled,
     inputRef,
     isRemoveDialogOpen,
-    ref,
-    copyCoverUrlToClipboard,
+    onFileInputChange,
+    onDragEnter,
+    onDragOver,
+    onDragLeave,
     dropFile,
     uploadFile,
     uploadFileClick,
+    copyCoverUrlToClipboard,
     openRemoveDialog,
     closeRemoveDialog,
     confirmRemoveCover,
