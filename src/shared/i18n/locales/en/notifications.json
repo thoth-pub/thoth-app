@@ -109,6 +109,7 @@
   "uploadFileFailed": "Failed to upload file",
   "publicationUploadFileDisabled": "DOI and landing page are required to upload a file",
   "doiIsRequired": "DOI is required",
+  "coverImageMustBeJpeg": "Cover images must be JPEG files with a .jpg or .jpeg extension.",
   "workCoverUpdateFailed": "Failed to update work cover",
   "coverUrlCopySuccess": "Cover URL copied to clipboard",
   "coverRemoveSuccess": "Cover removed successfully"

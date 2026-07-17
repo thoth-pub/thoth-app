@@ -5,7 +5,7 @@ import { FORM_FIELDS } from '@/src/shared/constants';
 import { ERRORS } from '@/src/shared/constants/errors';
 import {
   doiValidation,
-  getFileValidation,
+  getCoverImageFileValidation,
   getRequiredStringValidation,
   getStringValidation,
   languageValidation,
@@ -185,11 +185,10 @@ export const pagesCountValidationSchema = z.object({
 });
 
 export const coverUrlValidationSchema = z.object({
-  [COVER_URL.name]: getFileValidation(
+  [COVER_URL.name]: getCoverImageFileValidation(
     appConfig.minFileSize,
     appConfig.maxFileSize,
-    appConfig.supportedImagesFileTypes,
-    ERRORS.FILE_FORMAT_INVALID,
+    ERRORS.COVER_IMAGE_MUST_BE_JPEG,
     ERRORS.MAX_FILE_SIZE_EXCEEDED,
     ERRORS.MIN_FILE_SIZE_NOT_MET,
   ),

@@ -109,6 +109,7 @@
   "uploadFileFailed": "Datei konnte nicht hochgeladen werden",
   "publicationUploadFileDisabled": "DOI und Landingpage sind erforderlich, um eine Datei hochzuladen",
   "doiIsRequired": "DOI ist erforderlich",
+  "coverImageMustBeJpeg": "Cover-Bilder müssen JPEG-Dateien mit der Endung .jpg oder .jpeg sein.",
   "workCoverUpdateFailed": "Cover des Werks konnte nicht aktualisiert werden",
   "coverUrlCopySuccess": "Cover-URL in die Zwischenablage kopiert",
   "coverRemoveSuccess": "Cover erfolgreich entfernt"
