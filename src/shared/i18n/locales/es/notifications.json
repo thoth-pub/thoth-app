@@ -109,6 +109,7 @@
   "uploadFileFailed": "Error al subir el archivo",
   "publicationUploadFileDisabled": "Se requieren el DOI y la página de destino para subir un archivo",
   "doiIsRequired": "El DOI es obligatorio",
+  "coverImageMustBeJpeg": "Las imágenes de cubierta deben ser archivos JPEG con extensión .jpg o .jpeg.",
   "workCoverUpdateFailed": "Error al actualizar la portada de la obra",
   "coverUrlCopySuccess": "URL de la portada copiada al portapapeles",
   "coverRemoveSuccess": "Cubierta eliminada correctamente"

@@ -109,6 +109,7 @@
   "uploadFileFailed": "Falha ao enviar o arquivo",
   "publicationUploadFileDisabled": "O DOI e a URL da página da obra são necessários para enviar um arquivo",
   "doiIsRequired": "O DOI é obrigatório",
+  "coverImageMustBeJpeg": "As imagens de capa devem ser arquivos JPEG com extensão .jpg ou .jpeg.",
   "workCoverUpdateFailed": "Falha ao atualizar a capa da obra",
   "coverUrlCopySuccess": "URL da capa copiada para a área de transferência",
   "coverRemoveSuccess": "Capa removida com sucesso"

@@ -13,6 +13,7 @@ export const ERRORS = {
   MAX_FILE_SIZE_EXCEEDED: 'Max file size exceeded',
   MIN_FILE_SIZE_NOT_MET: 'Min file size not met',
   FILE_FORMAT_INVALID: 'File format is invalid',
+  COVER_IMAGE_MUST_BE_JPEG: 'coverImageMustBeJpeg',
   TITLE_LANGUAGE_REQUIRED: 'Title Language is required',
   DOI_IS_REQUIRED: 'DOI is required',
   XML_PARSING_ERROR: 'errors.xmlParsingError',

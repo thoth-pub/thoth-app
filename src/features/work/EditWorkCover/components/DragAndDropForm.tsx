@@ -84,7 +84,7 @@ const DragAndDropForm = (props: DragAndDropFormProps) => {
           }}
           onClick={uploadFileClick}
           className="absolute z-10 h-full w-full opacity-0"
-          accept={appConfig.supportedImagesFileTypes.join(', ')}
+          accept={appConfig.supportedCoverImageAccept}
           disabled={loading}
         />
       </form>

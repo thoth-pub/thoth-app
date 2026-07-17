@@ -23,9 +23,14 @@ export class FileStorage {
     this.graphqlService = graphqlService;
   }
 
-  async generateFileMetadata(file: File) {
+  async generateFileChecksum(file: File) {
     const arrayBuffer = await file.arrayBuffer();
-    const hash = sha256(arrayBuffer);
+
+    return sha256(arrayBuffer);
+  }
+
+  async generateFileMetadata(file: File) {
+    const hash = await this.generateFileChecksum(file);
     const fileExtension = file.name.split('.').pop() ?? '';
     const fileMimeType = file.type;
 
@@ -131,12 +136,16 @@ export class FileStorage {
   }
 
   async uploadWorkCover(workId: WorkId, file: File, onProgress?: (progress: number) => void): Promise<string> {
-    const { hash, fileExtension, fileMimeType } = await this.generateFileMetadata(file);
+    // Work covers must be JPEG (validated before upload). The checksum is
+    // computed over the exact original bytes, which are uploaded without
+    // recompression; the canonical extension and MIME type are always declared
+    // regardless of whether the original filename ended in .jpg or .jpeg.
+    const hash = await this.generateFileChecksum(file);
 
     const initResponse = await this.initFrontCoverUpload({
       workId,
-      declaredExtension: fileExtension,
-      declaredMimeType: fileMimeType,
+      declaredExtension: 'jpg',
+      declaredMimeType: 'image/jpeg',
       declaredSha256: hash,
     });
 

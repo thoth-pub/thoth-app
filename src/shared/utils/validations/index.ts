@@ -194,6 +194,37 @@ export const getFileValidation = (
     .refine((files) => files && files[0] && files[0].size <= maxFileSize, maxFileSizeErrMessage)
     .refine((files) => files && filesFormat.includes(files[0].type), formatErrMessage);
 
+export const isJpegCoverFile = (file: File) => {
+  const name = file.name.toLowerCase();
+  const hasJpegExtension = appConfig.supportedCoverImageExtensions.some((extension) => name.endsWith(extension));
+
+  if (!hasJpegExtension) return false;
+  // Browsers may leave File.type empty; fall back to the (already validated)
+  // extension in that case. A non-empty type must be exactly image/jpeg.
+  if (file.type === '') return true;
+
+  return appConfig.supportedCoverImageMimeTypes.includes(file.type);
+};
+
+/**
+ * Work-cover-specific validation: JPEG only.
+ *
+ * Deliberately separate from getFileValidation so publication files and
+ * additional resources keep their existing MIME-list behaviour.
+ */
+export const getCoverImageFileValidation = (
+  minFileSize: number,
+  maxFileSize: number,
+  formatErrMessage?: ErrorMessage,
+  maxFileSizeErrMessage?: ErrorMessage,
+  minFileSizeErrMessage?: ErrorMessage,
+) =>
+  z
+    .custom<FileList | undefined>()
+    .refine((files) => files && files[0] && files[0].size >= minFileSize, minFileSizeErrMessage)
+    .refine((files) => files && files[0] && files[0].size <= maxFileSize, maxFileSizeErrMessage)
+    .refine((files) => files && files[0] && isJpegCoverFile(files[0]), formatErrMessage);
+
 export const emailValidation = z.email();
 
 export const getMarkupFormat = (markupFormat: unknown) => {

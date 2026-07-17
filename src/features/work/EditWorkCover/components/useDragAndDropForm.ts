@@ -2,7 +2,7 @@
 
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { type FieldErrors, useForm } from 'react-hook-form';
 import { useCopyToClipboard } from 'react-use';
 
 import { useUpdateWorkFrontCover, useWork } from '@/src/entities/work';
@@ -54,9 +54,19 @@ export const useDragAndDropForm = (workId: WorkId) => {
     reset();
   };
 
+  // Surface validation failures (e.g. non-JPEG covers) to the user, then
+  // clear the input so the same file can be re-selected after fixing it.
+  const onInvalid = (errors: FieldErrors<CoverUrlForm>) => {
+    const message = errors[COVER_URL.name]?.message;
+    if (typeof message === 'string') {
+      sendErrorNotification(message);
+    }
+    reset();
+  };
+
   // Submit through the latest onSubmit closure without re-subscribing the watcher.
   const submitOnChange = useEffectEvent(async () => {
-    await handleSubmit(onSubmit)();
+    await handleSubmit(onSubmit, onInvalid)();
   });
 
   useEffect(() => {

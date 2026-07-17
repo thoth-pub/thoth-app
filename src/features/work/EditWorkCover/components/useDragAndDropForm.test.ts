@@ -19,7 +19,7 @@ const mocks = vi.hoisted(() => {
     copyToClipboard: vi.fn(),
     reset: vi.fn(),
     setValue: vi.fn(),
-    handleSubmit: vi.fn(),
+    handleSubmit: vi.fn(() => vi.fn()),
     register: vi.fn(() => ({ ref: vi.fn() })),
     watch: vi.fn(() => ({ unsubscribe: vi.fn() })),
     ref: { current: null },
@@ -208,6 +208,35 @@ describe('useDragAndDropForm', () => {
 
       expect(event.preventDefault).toHaveBeenCalled();
       expect(mocks.sendErrorNotification).toHaveBeenCalled();
+    });
+  });
+
+  describe('validation errors', () => {
+    it('should notify the user when the selected cover fails validation', async () => {
+      let capturedOnInvalid: ((errors: Record<string, { message?: string }>) => void) | undefined;
+      mocks.handleSubmit.mockImplementation(((_onValid: unknown, onInvalid: never) => {
+        capturedOnInvalid = onInvalid;
+        return vi.fn();
+      }) as never);
+      let watchCallback: (() => void) | undefined;
+      mocks.watch.mockImplementation(((callback: () => void) => {
+        watchCallback = callback;
+        return { unsubscribe: vi.fn() };
+      }) as never);
+
+      renderHook(() => useDragAndDropForm('work-1'));
+
+      await act(async () => {
+        watchCallback?.();
+      });
+
+      expect(capturedOnInvalid).toBeDefined();
+      act(() => {
+        capturedOnInvalid?.({ coverUrl: { message: 'coverImageMustBeJpeg' } });
+      });
+
+      expect(mocks.sendErrorNotification).toHaveBeenCalledWith('coverImageMustBeJpeg');
+      expect(mocks.reset).toHaveBeenCalled();
     });
   });
 });
