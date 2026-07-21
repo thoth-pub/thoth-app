@@ -126,11 +126,19 @@ describe('useUpdateContributor', () => {
     expect(mockServices.contributorService.updateContributor).toHaveBeenCalledWith(mockData);
   });
 
-  it('calls onCompleted on success', async () => {
+  it('invalidates contributor, work, and book caches and calls onCompleted on success', async () => {
     setup();
     const { updateContributor } = useUpdateContributor({ onCompleted: mockOnCompleted, onError: mockOnError });
     updateContributor(mockData);
     await vi.waitFor(() => {
+      expect(mockInvalidate).toHaveBeenNthCalledWith(1, { queryKey: ['contributor', CONTRIBUTOR_ID] });
+      expect(mockInvalidate).toHaveBeenNthCalledWith(2, { queryKey: ['contributors'] });
+      expect(mockInvalidate).toHaveBeenNthCalledWith(3, { queryKey: ['work'] });
+      expect(mockInvalidate).toHaveBeenNthCalledWith(4, { queryKey: ['workChapters'] });
+      expect(mockInvalidate).toHaveBeenNthCalledWith(5, { queryKey: ['works'] });
+      expect(mockInvalidate).toHaveBeenNthCalledWith(6, { queryKey: ['books'] });
+      expect(mockInvalidate).toHaveBeenNthCalledWith(7, { queryKey: ['latestUpdatedBooks'] });
+      expect(mockInvalidate).toHaveBeenNthCalledWith(8, { queryKey: ['latestPublishedBooks'] });
       expect(mockOnCompleted).toHaveBeenCalledWith({ id: CONTRIBUTOR_ID });
     });
   });

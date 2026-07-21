@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import { appConfig } from '@/src/shared/config';
-import { ERRORS, FORM_FIELDS } from '@/src/shared/constants';
+import { accessibilityAdditionalStandards, accessibilityStandards, ERRORS, FORM_FIELDS } from '@/src/shared/constants';
 import {
   accessibilityExceptionValidation,
   accessibilityStandardValidation,
@@ -87,6 +87,19 @@ export const accessibilityValidationSchema = z
       return !(hasStandards && hasException);
     },
     { message: 'Cannot have both specification and exception' },
+  )
+  .refine(
+    (data) => {
+      const standards = data.accessibilityStandard ?? [];
+      const hasPrimaryStandard = standards.some((standard) => accessibilityStandards.includes(standard));
+      const hasAdditionalStandard = standards.some((standard) => accessibilityAdditionalStandards.includes(standard));
+
+      return !hasAdditionalStandard || hasPrimaryStandard;
+    },
+    {
+      message: ERRORS.ACCESSIBILITY_PRIMARY_STANDARD_REQUIRED,
+      path: [PUBLICATION_ACCESSIBILITY_STANDARD.name],
+    },
   );
 
 export const publicationFileValidationSchema = z.object({

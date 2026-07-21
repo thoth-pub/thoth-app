@@ -28,6 +28,10 @@ export const useUpdateContribution = (props: UseUpdateContributionProps & { rela
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.works] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.latestUpdatedBooks] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.latestPublishedBooks] });
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? WORK_CONTRIBUTION_UPDATE_FAILED);

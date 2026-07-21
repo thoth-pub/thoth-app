@@ -230,6 +230,7 @@
     "csvSeriesNotFound": "Series \"{{name}}\" not found",
     "unsupportedFileType": "Unsupported file type. Please upload a CSV or XML file.",
     "emptyFile": "The uploaded file is empty.",
-    "titleRequired": "Title is required"
+    "titleRequired": "Title is required",
+    "accessibilityPrimaryStandardRequired": "Select a WCAG standard before adding an additional standard."
   }
 }

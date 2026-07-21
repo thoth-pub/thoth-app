@@ -16,6 +16,7 @@ export const ERRORS = {
   COVER_IMAGE_MUST_BE_JPEG: 'coverImageMustBeJpeg',
   TITLE_LANGUAGE_REQUIRED: 'Title Language is required',
   DOI_IS_REQUIRED: 'DOI is required',
+  ACCESSIBILITY_PRIMARY_STANDARD_REQUIRED: 'errors.accessibilityPrimaryStandardRequired',
   XML_PARSING_ERROR: 'errors.xmlParsingError',
   CSV_PARSING_ERROR: 'errors.csvParsingError',
 } as const;
