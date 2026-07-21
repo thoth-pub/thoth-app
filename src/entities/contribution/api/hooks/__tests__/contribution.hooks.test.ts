@@ -223,6 +223,45 @@ describe('useContributionsBulkUpdate', () => {
     expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['latestUpdatedBooks'] });
     expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['latestPublishedBooks'] });
   });
+
+  it('invalidates caches and rejects after a partial-success update', async () => {
+    setup();
+    const error = new Error('second update failed');
+    mockServices.contributionService.updateContribution
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(error);
+    const { updateContributions } = useContributionsBulkUpdate();
+
+    await expect(
+      updateContributions([
+        { id: 'work-1', contribution: mockData },
+        { id: 'work-2', contribution: mockData },
+      ]),
+    ).rejects.toBe(error);
+
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['work'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['workChapters'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['works'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['books'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['latestUpdatedBooks'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['latestPublishedBooks'] });
+  });
+
+  it('rejects without invalidating when every update fails', async () => {
+    setup();
+    const error = new Error('all updates failed');
+    mockServices.contributionService.updateContribution.mockRejectedValue(error);
+    const { updateContributions } = useContributionsBulkUpdate();
+
+    await expect(
+      updateContributions([
+        { id: 'work-1', contribution: mockData },
+        { id: 'work-2', contribution: mockData },
+      ]),
+    ).rejects.toBe(error);
+
+    expect(mockInvalidate).not.toHaveBeenCalled();
+  });
 });
 
 describe('useContributionsBulkDelete', () => {

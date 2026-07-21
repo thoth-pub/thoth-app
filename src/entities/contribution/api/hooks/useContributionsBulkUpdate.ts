@@ -27,15 +27,21 @@ const useContributionsBulkUpdate = () => {
 
   const updateContributions = async (contributions: { id: WorkId; contribution: WorkContribution }[]) => {
     const promises = contributions.map(({ id, contribution }) => mutateAsync({ contribution, relatedWorkId: id }));
+    const results = await Promise.allSettled(promises);
+    const hasSuccessfulUpdate = results.some(({ status }) => status === 'fulfilled');
 
-    await Promise.all(promises);
+    if (hasSuccessfulUpdate || contributions.length === 0) {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.works] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.latestUpdatedBooks] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.latestPublishedBooks] });
+    }
 
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.works] });
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.latestUpdatedBooks] });
-    queryClient.invalidateQueries({ queryKey: [QueryKeys.latestPublishedBooks] });
+    const failedUpdate = results.find((result) => result.status === 'rejected');
+
+    if (failedUpdate) throw failedUpdate.reason;
   };
 
   return {
