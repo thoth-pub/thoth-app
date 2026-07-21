@@ -2,6 +2,7 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AccessibilityStandard } from '@/gql/graphql';
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
 import type { CurrencyCode } from '@/src/entities/price/model/price.types';
 
@@ -32,6 +33,8 @@ const mocks = vi.hoisted(() => {
     isbn: '978-3-16-148410-0',
     prices: [gbpPrice, usdPrice],
     locations: [canonicalLocation, otherLocation],
+    accessibilityStandard: null,
+    accessibilityAdditionalStandard: null,
   };
 
   return {
@@ -344,6 +347,8 @@ describe('useEditPublication field updates', () => {
     mocks.publication.isbn = '978-3-16-148410-0';
     mocks.publication.type = 'PAPERBACK';
     mocks.publication.width = 100;
+    mocks.publication.accessibilityStandard = null;
+    mocks.publication.accessibilityAdditionalStandard = null;
     mocks.updatePublication.mockReset().mockResolvedValue({});
   });
 
@@ -410,6 +415,27 @@ describe('useEditPublication field updates', () => {
     });
 
     expect(result.current.activePublication?.accessibilityReportUrl).toBeUndefined();
+  });
+
+  it('useEditPublication_stagesPrimaryAndAdditionalAccessibilityStandardsAfterSuccessfulUpdate', async () => {
+    mocks.publication.type = 'PDF';
+    const { result } = renderEditPublication();
+
+    await act(async () => {
+      await result.current.updateAccessibility({
+        accessibilityStandard: [AccessibilityStandard.Wcag21Aa, AccessibilityStandard.PdfUa1],
+        accessibilityReportUrl: '',
+      });
+    });
+
+    expect(mocks.updatePublication).toHaveBeenCalledWith(
+      expect.objectContaining({
+        accessibilityStandard: AccessibilityStandard.Wcag21Aa,
+        accessibilityAdditionalStandard: AccessibilityStandard.PdfUa1,
+      }),
+    );
+    expect(result.current.activePublication?.accessibilityStandard).toBe(AccessibilityStandard.Wcag21Aa);
+    expect(result.current.activePublication?.accessibilityAdditionalStandard).toBe(AccessibilityStandard.PdfUa1);
   });
 });
 

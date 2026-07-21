@@ -230,6 +230,7 @@
     "csvSeriesNotFound": "Série \"{{name}}\" não encontrada",
     "unsupportedFileType": "Tipo de arquivo não suportado. Envie um arquivo CSV ou XML.",
     "emptyFile": "O arquivo carregado está vazio.",
-    "titleRequired": "O título é obrigatório"
+    "titleRequired": "O título é obrigatório",
+    "accessibilityPrimaryStandardRequired": "Selecione um padrão WCAG antes de adicionar um padrão adicional."
   }
 }
