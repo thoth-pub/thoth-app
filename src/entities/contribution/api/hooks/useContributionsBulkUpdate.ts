@@ -32,6 +32,10 @@ const useContributionsBulkUpdate = () => {
 
     queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
     queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.works] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.latestUpdatedBooks] });
+    queryClient.invalidateQueries({ queryKey: [QueryKeys.latestPublishedBooks] });
   };
 
   return {

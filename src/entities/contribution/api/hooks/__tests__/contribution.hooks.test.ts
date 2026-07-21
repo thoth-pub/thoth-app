@@ -104,12 +104,16 @@ describe('useUpdateContribution', () => {
     expect(mockServices.contributionService.updateContribution).toHaveBeenCalledWith(mockData, RELATED_WORK_ID);
   });
 
-  it('invalidates work and workChapters', async () => {
+  it('invalidates work, chapter, and list caches', async () => {
     setup();
     const { updateContribution } = useUpdateContribution({ relatedWorkId: RELATED_WORK_ID });
     await updateContribution(mockData);
     expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['work'] });
     expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['workChapters'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['works'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['books'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['latestUpdatedBooks'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['latestPublishedBooks'] });
   });
 });
 
@@ -207,13 +211,17 @@ describe('useContribution', () => {
 });
 
 describe('useContributionsBulkUpdate', () => {
-  it('updates multiple contributions and invalidates', async () => {
+  it('updates multiple contributions and invalidates work, chapter, and list caches', async () => {
     setup();
     const { updateContributions } = useContributionsBulkUpdate();
     await updateContributions([{ id: RELATED_WORK_ID, contribution: mockData }]);
     expect(mockServices.contributionService.updateContribution).toHaveBeenCalledWith(mockData, RELATED_WORK_ID);
     expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['work'] });
     expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['workChapters'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['works'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['books'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['latestUpdatedBooks'] });
+    expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['latestPublishedBooks'] });
   });
 });
 

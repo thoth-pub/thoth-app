@@ -27,9 +27,14 @@ const useUpdateContributor = (props: UseUpdateContributorProps) => {
       return contributorService.updateContributor(data);
     },
     onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.contributor, data.id] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.contributors] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.works] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.latestUpdatedBooks] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.latestPublishedBooks] });
       onCompleted?.(data);
     },
     onError: (error) => {
