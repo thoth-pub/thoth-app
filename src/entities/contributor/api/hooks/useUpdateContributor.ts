@@ -28,6 +28,8 @@ const useUpdateContributor = (props: UseUpdateContributorProps) => {
     },
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.contributors] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.work] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.workChapters] });
       onCompleted?.(data);
     },
     onError: (error) => {

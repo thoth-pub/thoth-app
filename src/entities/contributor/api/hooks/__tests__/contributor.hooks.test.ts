@@ -126,11 +126,14 @@ describe('useUpdateContributor', () => {
     expect(mockServices.contributorService.updateContributor).toHaveBeenCalledWith(mockData);
   });
 
-  it('calls onCompleted on success', async () => {
+  it('invalidates contributor and work caches and calls onCompleted on success', async () => {
     setup();
     const { updateContributor } = useUpdateContributor({ onCompleted: mockOnCompleted, onError: mockOnError });
     updateContributor(mockData);
     await vi.waitFor(() => {
+      expect(mockInvalidate).toHaveBeenNthCalledWith(1, { queryKey: ['contributors'] });
+      expect(mockInvalidate).toHaveBeenNthCalledWith(2, { queryKey: ['work'] });
+      expect(mockInvalidate).toHaveBeenNthCalledWith(3, { queryKey: ['workChapters'] });
       expect(mockOnCompleted).toHaveBeenCalledWith({ id: CONTRIBUTOR_ID });
     });
   });
