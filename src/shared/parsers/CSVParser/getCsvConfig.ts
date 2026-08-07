@@ -2,7 +2,6 @@ import isbn3 from 'isbn3';
 import z from 'zod';
 
 import { LocationPlatform } from '@/gql/graphql';
-import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import {
   editionValidation,
   subtitleValidation,
@@ -242,12 +241,7 @@ const {
   SERIES_ISSUE_NUMBER,
 } = CSV_KEYS;
 
-export const getCsvConfig = (
-  imprints: FormFieldOption[],
-  licenseOptions: FormFieldOption[],
-  serieses: SeriesEntity[],
-  t: TranslateFunction,
-) => {
+export const getCsvConfig = (imprints: FormFieldOption[], licenseOptions: FormFieldOption[], t: TranslateFunction) => {
   const imprintLabels = imprints.map((imprint) => imprint.label);
 
   const csvConfig = {
@@ -1325,22 +1319,15 @@ export const getCsvConfig = (
           return z.enum(LocationPlatform).safeParse(data).success;
         },
       },
-      {
-        name: 'series_name',
-        inputName: SERIES_NAME,
-        required: false,
-        validate: (field: CSVFieldType) => {
-          const data = `${field}`.trim();
-
-          if (data.length === 0) return true;
-
-          return serieses.some((series) => series.name === data);
-        },
-        validateError: (headerName: string, rowNumber: number, columnNumber: number) => {
-          return t('errors.csvFieldNotValidOptions', { field: headerName, row: rowNumber, column: columnNumber, options: serieses.map((series) => series.name).join(', ') });
-        },
-      },
+      // Whether a series name exists in Thoth is not a property of the CSV file: it depends on
+      // the row's imprint and on what the import would create, so it is decided by CSVParser
+      // and the shared series planner. A name Thoth does not have is a series to create, not an
+      // invalid cell, and rejecting it here would have kept CSV from ever proposing one.
+      { name: 'series_name', inputName: SERIES_NAME, required: false },
+      // `series_issn` has no import semantics yet — see the follow-up note in CSVParser.
       { name: 'series_issn', inputName: SERIES_ISSN, required: false },
+      // Blank means "no explicit ordinal, allocate one"; CSVParser validates non-empty values,
+      // where the row number it can report is more useful than a column number.
       { name: 'series_issue_number', inputName: SERIES_ISSUE_NUMBER, required: false },
     ],
   };

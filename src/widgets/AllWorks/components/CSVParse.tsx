@@ -50,7 +50,7 @@ export const CSVParse = (props: CSVParseProps) => {
     setMultipleFoundedContributors({});
     setIsValidatingFile(true);
 
-    const csvConfig = getCsvConfig(imprints, licenseOptions, serieses, translate);
+    const csvConfig = getCsvConfig(imprints, licenseOptions, translate);
     const csvParser = new CSVParser(
       file,
       csvConfig,
