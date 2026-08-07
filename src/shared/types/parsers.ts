@@ -37,7 +37,11 @@ export type SeriesImportTarget =
   | { kind: 'proposed'; series: ProposedSeries };
 
 export type SeriesImportGroup = {
-  /** Series name as supplied by the import, for preview and error messages. */
+  /**
+   * Series name as supplied by the import, for preview and error messages. For a proposed
+   * series this is the name it will be created with, so the preview cannot show one spelling
+   * of a name and create another.
+   */
   name: string;
   target: SeriesImportTarget;
   works: SeriesForUpdateItem[];

@@ -4540,6 +4540,32 @@ describe('XMLParser', () => {
         expect(result.issues).toEqual([]);
       });
 
+      it.each([
+        ['the publisher collection comes second', ['11', '10']],
+        ['the publisher collection comes first', ['10', '11']],
+      ])("creates the series with the publisher collection's own spelling when %s", async (_label, types) => {
+        // Both spellings normalise to one identity, so this is one group. Only one spelling can
+        // be stored, and it must not be the one from the collection that could not have
+        // authorised the creation.
+        const spellings: Record<string, string> = { '10': 'Editorial Studies', '11': 'editorial   studies' };
+
+        const result = await runParser(
+          types.map((type, index) => member(`Work ${index + 1}`, collection(spellings[type], type))),
+          [],
+        );
+
+        expect(result.status).toBe('success');
+        expect(proposedGroups(result)).toHaveLength(1);
+        expect(proposedGroups(result)[0].target).toMatchObject({
+          kind: 'proposed',
+          series: { name: 'Editorial Studies', imprintId: imprints[0].value },
+        });
+        // The preview names the series the import will actually create.
+        expect(proposedGroups(result)[0].name).toBe('Editorial Studies');
+        expect(proposedGroups(result)[0].works).toHaveLength(2);
+        expect(result.issues).toEqual([]);
+      });
+
       it('still reports an ordinal collision inside a mixed-authority group', async () => {
         const result = await runParser(
           [

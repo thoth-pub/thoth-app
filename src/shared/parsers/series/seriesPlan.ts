@@ -257,12 +257,12 @@ const resolveSeriesTarget = (
   // Only when no record in the group carries that authority is the group dropped, and then one
   // issue is raised for the whole group rather than one per record. It is tagged with the
   // earliest record involved, and the message names them all.
-  const refusals = candidates
-    .map(({ creation }) => creation)
-    .filter((creation): creation is SeriesCreationRefusal => !creation.allowed);
+  const authorising = candidates.find(({ creation }) => creation.allowed);
 
-  if (refusals.length === candidates.length) {
-    const [refusal] = refusals;
+  if (!authorising) {
+    const [refusal] = candidates
+      .map(({ creation }) => creation)
+      .filter((creation): creation is SeriesCreationRefusal => !creation.allowed);
 
     issues.push({
       index: first.sourceIndex,
@@ -276,10 +276,17 @@ const resolveSeriesTarget = (
 
   return {
     kind: 'proposed',
+    // The series is created on the authorising record's say-so, so it is spelled the way that
+    // record spells it. Identity is normalised, which means a group can hold several spellings
+    // of one name; the one that gets stored should not be whichever record came first, since a
+    // record that could not have authorised the creation has no business naming it. Where more
+    // than one record could have, the earliest in source order wins, so the result does not
+    // depend on parse completion order.
+    //
     // Only the three fields an import genuinely supplies. Thoth's ISSNs, URLs and description
     // have no unambiguous equivalent in either source format, so they are left for the
     // publisher to fill in rather than fabricated here.
-    series: { name: first.name, imprintId: first.imprintId, type: SeriesType.enum.BookSeries },
+    series: { name: authorising.name, imprintId: authorising.imprintId, type: SeriesType.enum.BookSeries },
   };
 };
 
@@ -345,8 +352,9 @@ const hasOrdinalCollision = (
  * independent of the order in which rows or products finished parsing.
  *
  * A group is one series, so it resolves once: to the existing Thoth series its records matched,
- * or — if any record in it may create the series — to a single proposal every record joins. The
- * group is dropped only when nothing matched and no record could have created it.
+ * or — if any record in it may create the series — to a single proposal every record joins,
+ * spelled the way the earliest record that could authorise it spells it. The group is dropped
+ * only when nothing matched and no record could have created it.
  *
  * Ordinals behave identically for existing and newly proposed series; a proposed series simply
  * has no existing issues, so its numbering starts at 1.
@@ -396,7 +404,10 @@ export const buildSeriesPlan = (
     let next = Math.max(0, ...existingOrdinals, ...explicitOrdinals) + 1;
 
     plan.push({
-      name: candidates[0].name,
+      // For a proposal, the name shown in the preview is the name the series will be created
+      // with, so the user is never shown one spelling and given another. For an existing series
+      // it stays the first spelling the source used, which is what the preview has always shown.
+      name: target.kind === 'proposed' ? target.series.name : candidates[0].name,
       target,
       works: grouped.map(({ work, candidate }) => ({ ...work, orderNumber: candidate.ordinal ?? next++ })),
     });

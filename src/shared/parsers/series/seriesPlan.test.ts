@@ -344,6 +344,69 @@ describe('buildSeriesPlan', () => {
         );
       });
 
+      /**
+       * Identity is normalised, so one group can hold several spellings of the same name. Only
+       * one of them can be stored, and it should not be a spelling from a record that had no
+       * authority to create the series in the first place.
+       */
+      describe('the name the series is created with', () => {
+        const named = (sourceIndex: number, name: string, creation: SeriesCandidateInput['creation']) =>
+          candidateOf({ sourceIndex, sourceDescription: `record ${sourceIndex}`, name, creation });
+
+        const refused: SeriesCandidateInput['creation'] = {
+          allowed: false,
+          severity: 'warning',
+          code: 'onix.series.non_publisher_collection_skipped',
+          reason: ({ name, sources }) => `skipped|${name}|${sources}`,
+        };
+
+        it.each([
+          ['the authorising record comes second', 1],
+          ['the authorising record comes first', -1],
+        ])("takes the authorising record's spelling when %s", (_label, direction) => {
+          const records = [named(1, 'editorial   studies', refused), named(2, 'Editorial Studies', { allowed: true })];
+          const { plan, issues } = planFor(direction === 1 ? records : [records[1], records[0]]);
+
+          expect(plan).toHaveLength(1);
+          expect(plan[0].target).toEqual({
+            kind: 'proposed',
+            series: { name: 'Editorial Studies', imprintId: IMPRINT, type: 'BOOK_SERIES' },
+          });
+          // What the preview shows is what will be created.
+          expect(plan[0].name).toBe('Editorial Studies');
+          expect(plan[0].works).toHaveLength(2);
+          expect(issues).toEqual([]);
+        });
+
+        it('takes the earliest authorising record when several could have created it', () => {
+          const { plan } = planFor([
+            named(1, 'editorial   studies', refused),
+            named(2, 'Editorial Studies', { allowed: true }),
+            named(3, 'EDITORIAL STUDIES', { allowed: true }),
+          ]);
+
+          expect(plan[0].target).toMatchObject({ series: { name: 'Editorial Studies' } });
+          expect(plan[0].name).toBe('Editorial Studies');
+        });
+
+        it('leaves an existing series showing the first spelling the source used', () => {
+          const serieses = [makeSeries('a', 'Editorial Studies')];
+          const { plan } = buildSeriesPlan(
+            [
+              {
+                work: makeWork('w1'),
+                candidate: candidateOf({ name: 'editorial   studies', sourceIndex: 1 }, serieses),
+              },
+            ],
+            serieses,
+            messages,
+          );
+
+          expect(plan[0].target).toEqual({ kind: 'existing', seriesId: 'a' });
+          expect(plan[0].name).toBe('editorial   studies');
+        });
+      });
+
       it('drops the group only when no record at all may create it', () => {
         const { plan, issues } = planFor([skipped(1, 'record 1'), skipped(2, 'record 2'), skipped(3, 'record 3')]);
 
