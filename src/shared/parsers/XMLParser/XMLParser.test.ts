@@ -82,7 +82,7 @@ describe('XMLParser', () => {
         issnPrint: faker.string.uuid(),
         issnDigital: faker.string.uuid(),
         updatedAt: faker.date.recent().toISOString(),
-        imprintId: faker.string.uuid(),
+        imprintId: imprints[0].value,
         imprintName: faker.company.name(),
         url: faker.internet.url(),
         cfpUrl: faker.internet.url(),
@@ -3843,14 +3843,19 @@ describe('XMLParser', () => {
     const ARC_SERIES_ID = 'arc-companions-id';
     const ARC_SERIES_NAME = 'Arc Companions';
 
-    const buildSeries = (id: string, name: string, issueOrdinals: number[] = []): SeriesEntity => ({
+    const buildSeries = (
+      id: string,
+      name: string,
+      issueOrdinals: number[] = [],
+      imprintId = imprints[0].value,
+    ): SeriesEntity => ({
       id,
       name,
       type: SeriesType.enum.BookSeries,
       issnPrint: '',
       issnDigital: '',
       updatedAt: '',
-      imprintId: '',
+      imprintId,
       imprintName: '',
       url: '',
       cfpUrl: '',
@@ -4180,7 +4185,8 @@ describe('XMLParser', () => {
     });
 
     describe('series', () => {
-      const arcSerieses = [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)];
+      // Built lazily: `imprints` is only populated in beforeEach.
+      const arcSerieses = () => [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)];
 
       const collection = (title: string, collectionType = '10', sequenceNumber?: string): ExtendedCollection =>
         ({
@@ -4202,7 +4208,7 @@ describe('XMLParser', () => {
               Collection: collection(ARC_SERIES_NAME),
             }),
           ],
-          arcSerieses,
+          arcSerieses(),
         );
 
         expect(result.status).toBe('success');
@@ -4224,7 +4230,7 @@ describe('XMLParser', () => {
               '9781641891783',
             ),
           ],
-          arcSerieses,
+          arcSerieses(),
         );
 
         expect(result.status).toBe('failed');
@@ -4239,7 +4245,7 @@ describe('XMLParser', () => {
               Collection: collection('Borderlines'),
             }),
           ],
-          arcSerieses,
+          arcSerieses(),
         );
 
         expect(result.data.series).toEqual({});
@@ -4253,11 +4259,246 @@ describe('XMLParser', () => {
               Collection: [collection('Some Ascribed List', '20'), collection(ARC_SERIES_NAME, '10')],
             }),
           ],
-          arcSerieses,
+          arcSerieses(),
         );
 
         expect(result.status).toBe('success');
         expect((result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID]).toHaveLength(1);
+      });
+    });
+
+    describe('series identity', () => {
+      const collection = (title: string): ExtendedCollection =>
+        ({
+          CollectionType: '10',
+          TitleDetail: {
+            TitleType: TitleType._01,
+            TitleElement: { TitleElementLevel: TitleElementLevel._02, NoPrefix: '', TitleWithoutPrefix: title },
+          },
+        }) as unknown as ExtendedCollection;
+
+      const productForImprint = (imprintIndex: number, title: string, seriesName: string) =>
+        ({
+          ...buildProduct({
+            TitleDetail: { TitleElement: { TitleText: title } },
+            Collection: collection(seriesName),
+          }),
+          PublishingDetail: {
+            Imprint: { ImprintName: imprints[imprintIndex].label },
+            PublishingStatus: '04',
+          },
+        }) as ExtendedProduct;
+
+      it('does not attach a work to a series belonging to another imprint', async () => {
+        // "Arc Companions" exists, but under imprint A; the work belongs to imprint B.
+        const imprintASeries = buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME, [], imprints[0].value);
+
+        const result = await runParser([productForImprint(1, 'Imprint B book', ARC_SERIES_NAME)], [imprintASeries]);
+
+        expect(result.status).toBe('failed');
+        expect(result.errors[0]).toContain(`Series "${ARC_SERIES_NAME}" does not exist in Thoth`);
+        expect(result.data.series).toEqual({});
+      });
+
+      it('matches a series in the work’s own imprint', async () => {
+        const imprintBSeries = buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME, [], imprints[1].value);
+
+        const result = await runParser([productForImprint(1, 'Imprint B book', ARC_SERIES_NAME)], [imprintBSeries]);
+
+        expect(result.status).toBe('success');
+        expect((result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID]).toHaveLength(1);
+      });
+
+      it('keeps the same series name under two imprints as two separate series', async () => {
+        const imprintASeries = buildSeries('series-a', ARC_SERIES_NAME, [], imprints[0].value);
+        const imprintBSeries = buildSeries('series-b', ARC_SERIES_NAME, [], imprints[1].value);
+
+        const result = await runParser(
+          [
+            productForImprint(0, 'Imprint A book', ARC_SERIES_NAME),
+            productForImprint(1, 'Imprint B book', ARC_SERIES_NAME),
+          ],
+          [imprintASeries, imprintBSeries],
+        );
+
+        expect(result.status).toBe('success');
+        expect((result.data.series as SeriesForUpdateItems)['series-a']).toHaveLength(1);
+        expect((result.data.series as SeriesForUpdateItems)['series-b']).toHaveLength(1);
+      });
+
+      it('reports two identically named existing series in one imprint rather than picking one', async () => {
+        const result = await runParser(
+          [productForImprint(0, 'Ambiguous', ARC_SERIES_NAME)],
+          [buildSeries('series-a', ARC_SERIES_NAME), buildSeries('series-b', ARC_SERIES_NAME)],
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.errors[0]).toContain(`Series "${ARC_SERIES_NAME}" matches 2 existing Thoth series`);
+        expect(result.data.series).toEqual({});
+      });
+
+      it('reports existing series that only differ by case or whitespace', async () => {
+        const result = await runParser(
+          [productForImprint(0, 'Ambiguous', ARC_SERIES_NAME)],
+          [buildSeries('series-a', 'arc companions'), buildSeries('series-b', '  Arc   Companions ')],
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.errors[0]).toContain('matches 2 existing Thoth series');
+      });
+
+      it('prefers a single exact match over several normalised candidates', async () => {
+        const result = await runParser(
+          [productForImprint(0, 'Exact wins', ARC_SERIES_NAME)],
+          [
+            buildSeries('series-lower', 'arc companions'),
+            buildSeries('series-exact', ARC_SERIES_NAME),
+            buildSeries('series-spaced', '  Arc   Companions '),
+          ],
+        );
+
+        expect(result.status).toBe('success');
+        expect((result.data.series as SeriesForUpdateItems)['series-exact']).toHaveLength(1);
+      });
+
+      it('matches an existing series despite case and whitespace differences', async () => {
+        const result = await runParser(
+          [productForImprint(0, 'Casing', '  arc   companions ')],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
+        );
+
+        expect(result.status).toBe('success');
+        expect((result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID]).toHaveLength(1);
+      });
+
+      it('ignores an ascribed collection rather than treating it as a series', async () => {
+        const ascribed = {
+          CollectionType: '20',
+          TitleDetail: {
+            TitleType: TitleType._01,
+            TitleElement: {
+              TitleElementLevel: TitleElementLevel._02,
+              NoPrefix: '',
+              TitleWithoutPrefix: 'A Bookseller Grouping',
+            },
+          },
+        } as unknown as ExtendedCollection;
+
+        const result = await runParser(
+          [
+            buildProduct({
+              TitleDetail: { TitleElement: { TitleText: 'Ascribed only' } },
+              Collection: ascribed,
+            }),
+          ],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
+        );
+
+        // The work imports; it simply has no series. It is not an error, and it must not
+        // create a phantom lookup for a collection Thoth does not model.
+        expect(result.status).toBe('success');
+        expect(result.errors).toHaveLength(0);
+        expect(result.data.series).toEqual({});
+      });
+    });
+
+    describe('series ordinal collisions', () => {
+      const collection = (title: string, sequenceNumber?: string): ExtendedCollection =>
+        ({
+          CollectionType: '10',
+          ...(sequenceNumber
+            ? { CollectionSequence: { CollectionSequenceType: '03', CollectionSequenceNumber: sequenceNumber } }
+            : {}),
+          TitleDetail: {
+            TitleType: TitleType._01,
+            TitleElement: { TitleElementLevel: TitleElementLevel._02, NoPrefix: '', TitleWithoutPrefix: title },
+          },
+        }) as unknown as ExtendedCollection;
+
+      const memberProduct = (title: string, sequenceNumber?: string, recordReference?: string) =>
+        buildProduct(
+          {
+            TitleDetail: { TitleElement: { TitleText: title } },
+            Collection: collection(ARC_SERIES_NAME, sequenceNumber),
+          },
+          recordReference,
+        );
+
+      it('reports an explicit ordinal that an existing Thoth issue already uses', async () => {
+        // `issue` has UNIQUE (series_id, issue_ordinal), so this would fail at CreateIssue
+        // partway through an import that had already created works.
+        const result = await runParser(
+          [memberProduct('Clashing work', '2', '9780000000001')],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME, [1, 2])],
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.errors).toContain(
+          `Series "${ARC_SERIES_NAME}" already has issue number 2 in Thoth, supplied again by product 1 (9780000000001)`,
+        );
+        expect(result.data.series).toEqual({});
+      });
+
+      it('reports two imported works claiming the same explicit ordinal', async () => {
+        const result = await runParser(
+          [memberProduct('First', '4', '9780000000001'), memberProduct('Second', '4', '9780000000002')],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.errors).toContain(
+          `Series "${ARC_SERIES_NAME}" is given issue number 4 by more than one product: product 1 (9780000000001) and product 2 (9780000000002)`,
+        );
+        expect(result.data.series).toEqual({});
+      });
+
+      it('reports collisions deterministically when there are several', async () => {
+        const result = await runParser(
+          [
+            memberProduct('First', '5', '9780000000001'),
+            memberProduct('Second', '3', '9780000000002'),
+            memberProduct('Third', '3', '9780000000003'),
+          ],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME, [5])],
+        );
+
+        expect(result.status).toBe('failed');
+        // Ordered by the lowest product index involved, then by the order raised.
+        expect(result.errors).toEqual([
+          `Series "${ARC_SERIES_NAME}" already has issue number 5 in Thoth, supplied again by product 1 (9780000000001)`,
+          `Series "${ARC_SERIES_NAME}" is given issue number 3 by more than one product: product 2 (9780000000002) and product 3 (9780000000003)`,
+        ]);
+      });
+
+      it('preserves explicit ordinals when nothing collides', async () => {
+        const result = await runParser(
+          [memberProduct('First', '4'), memberProduct('Second', '7')],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME, [1, 2])],
+        );
+
+        expect(result.status).toBe('success');
+        expect(result.errors).toHaveLength(0);
+        expect(
+          (result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID].map(
+            (work: SeriesForUpdateItem) => work.orderNumber,
+          ),
+        ).toEqual([4, 7]);
+      });
+
+      it('appends unnumbered works safely around explicit ordinals', async () => {
+        const result = await runParser(
+          [memberProduct('Unnumbered A'), memberProduct('Numbered', '9'), memberProduct('Unnumbered B')],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME, [1, 2])],
+        );
+
+        expect(result.status).toBe('success');
+        expect(result.errors).toHaveLength(0);
+        // Automatic ordinals start above every known ordinal, existing and explicit alike.
+        expect(
+          (result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID].map(
+            (work: SeriesForUpdateItem) => work.orderNumber,
+          ),
+        ).toEqual([10, 9, 11]);
       });
     });
 

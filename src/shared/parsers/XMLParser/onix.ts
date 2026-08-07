@@ -138,27 +138,65 @@ export const extractOnixTitle = (
 };
 
 /**
+ * How an ONIX Collection relates to a Thoth series.
+ *
+ * Meanings are taken from the code list the library itself cites for CollectionType
+ * (ONIX List 148, https://ns.editeur.org/onix/en/148):
+ *
+ * - `10` Publisher collection — the publisher's own series structure, which is exactly what a
+ *   Thoth series models.
+ * - `11` Collection éditoriale — a French editorial-line concept, publisher-curated but not the
+ *   same thing as a book series — and `00` Unspecified, where the sender declined to say. Both
+ *   may legitimately name a series, so both are still resolved against Thoth. A missing
+ *   CollectionType (which ONIX makes mandatory) is treated the same way.
+ * - `20` Ascribed collection — assigned by somebody other than the publisher, so it is not the
+ *   publisher's series at all and is never a series candidate.
+ */
+export type CollectionSupport = 'supported' | 'ambiguous' | 'unsupported';
+
+export const classifyCollectionType = (collectionType: OnixText | undefined): CollectionSupport => {
+  const value = getOnixText(collectionType);
+
+  if (value === CollectionType._10) return 'supported';
+  if (value === CollectionType._20) return 'unsupported';
+
+  return 'ambiguous';
+};
+
+/**
+ * Normalises a series name for identity comparison only — never for storage or display.
+ *
+ * Deliberately conservative: surrounding whitespace is trimmed, runs of internal whitespace
+ * are collapsed, and case is folded. Punctuation is left alone, because stripping it would
+ * merge genuinely distinct series (`Foundations` vs `Foundations II`, or two series whose
+ * names differ only by a colon).
+ */
+export const normalizeSeriesName = (name: string): string => name.trim().replace(/\s+/g, ' ').toLowerCase();
+
+/**
  * Picks the Collection that represents the work's series.
  *
- * ONIX allows several Collection composites per product. CollectionType 10 is the
- * publisher collection, which is what a Thoth series models, so it is preferred over an
- * ascribed collection (20) or an unspecified one (00). Collections that yield no title are
- * skipped so a malformed one cannot mask a usable one.
+ * ONIX allows several Collection composites per product. Ascribed collections are excluded
+ * outright — they are somebody else's grouping, not the publisher's series — and a publisher
+ * collection is preferred over an ambiguous one. A collection that yields no title is only
+ * chosen as a last resort, so a malformed collection cannot mask a usable one; the caller
+ * reports the empty title.
  */
 export const selectSeriesCollection = <T extends OnixCollectionLike>(collections: T[]): T | undefined => {
-  const scoreCollection = (collection: T): number => {
-    const collectionType = getOnixText(collection.CollectionType);
+  const [best] = collections
+    .map((collection, order) => ({
+      collection,
+      support: classifyCollectionType(collection.CollectionType),
+      hasTitle: extractOnixTitle(collection.TitleDetail, TitleElementLevel._02).title.length > 0,
+      order,
+    }))
+    .filter(({ support }) => support !== 'unsupported')
+    .sort(
+      (a, b) =>
+        Number(b.hasTitle) - Number(a.hasTitle) ||
+        Number(a.support === 'ambiguous') - Number(b.support === 'ambiguous') ||
+        a.order - b.order,
+    );
 
-    if (collectionType === CollectionType._10) return 0;
-    if (collectionType.length === 0) return 1;
-    if (collectionType === CollectionType._00) return 2;
-
-    return 3;
-  };
-
-  return collections
-    .map((collection, order) => ({ collection, score: scoreCollection(collection), order }))
-    .sort((a, b) => a.score - b.score || a.order - b.order)
-    .map(({ collection }) => collection)
-    .find((collection) => extractOnixTitle(collection.TitleDetail, TitleElementLevel._02).title.length > 0);
+  return best?.collection;
 };

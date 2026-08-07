@@ -1,9 +1,16 @@
 import { parse } from '@5stones/onix';
-import { TitleElementLevel } from '@5stones/onix/dist/enums';
+import { CollectionType, TitleElementLevel } from '@5stones/onix/dist/enums';
 import { describe, expect, it } from 'vitest';
 
 import type { ExtendedCollection, ExtendedONIXMessageRoot, OnixTitleDetail } from './interfaces';
-import { extractOnixTitle, getOnixText, selectSeriesCollection, toOnixArray } from './onix';
+import {
+  classifyCollectionType,
+  extractOnixTitle,
+  getOnixText,
+  normalizeSeriesName,
+  selectSeriesCollection,
+  toOnixArray,
+} from './onix';
 
 /**
  * Several cases below go through the real `@5stones/onix` parser rather than hand-built
@@ -181,6 +188,36 @@ describe('extractOnixTitle', () => {
   });
 });
 
+describe('classifyCollectionType', () => {
+  it("treats a publisher collection as the publisher's own series", () => {
+    expect(classifyCollectionType(CollectionType._10)).toBe('supported');
+  });
+
+  it('treats an ascribed collection as not a publisher series at all', () => {
+    expect(classifyCollectionType(CollectionType._20)).toBe('unsupported');
+  });
+
+  it('treats unspecified, editorial-line and missing collection types as ambiguous', () => {
+    expect(classifyCollectionType(CollectionType._00)).toBe('ambiguous');
+    expect(classifyCollectionType(CollectionType._11)).toBe('ambiguous');
+    expect(classifyCollectionType(undefined)).toBe('ambiguous');
+  });
+});
+
+describe('normalizeSeriesName', () => {
+  it('folds case and collapses whitespace', () => {
+    expect(normalizeSeriesName('  Arc   Companions ')).toBe('arc companions');
+    expect(normalizeSeriesName('arc companions')).toBe('arc companions');
+  });
+
+  it('keeps punctuation, so distinct names stay distinct', () => {
+    expect(normalizeSeriesName('Collection Development, Cultural Heritage, and Digital Humanities')).not.toBe(
+      normalizeSeriesName('Collection Development: Cultural Heritage and Digital Humanities'),
+    );
+    expect(normalizeSeriesName('Foundations')).not.toBe(normalizeSeriesName('Foundations II'));
+  });
+});
+
 describe('selectSeriesCollection', () => {
   const collectionWithTitle = (title: string, collectionType?: string): ExtendedCollection =>
     ({
@@ -205,15 +242,33 @@ describe('selectSeriesCollection', () => {
     expect(selectSeriesCollection(collections)).toBe(collections[0]);
   });
 
-  it('skips collections that yield no title', () => {
-    const collections = [{ CollectionType: '10' } as ExtendedCollection, collectionWithTitle('Arc Companions', '20')];
+  it('prefers a collection that yields a title over one that does not', () => {
+    const collections = [{ CollectionType: '10' } as ExtendedCollection, collectionWithTitle('Arc Companions', '10')];
 
     expect(extractOnixTitle(selectSeriesCollection(collections)?.TitleDetail, TitleElementLevel._02).title).toBe(
       'Arc Companions',
     );
   });
 
-  it('returns undefined when nothing yields a title', () => {
-    expect(selectSeriesCollection([{ CollectionType: '10' } as ExtendedCollection])).toBeUndefined();
+  it('ignores ascribed collections entirely', () => {
+    // CollectionType 20 is assigned by somebody other than the publisher, so it is not a
+    // Thoth series even when it is the only collection on the product.
+    expect(selectSeriesCollection([collectionWithTitle('A Bookseller Grouping', '20')])).toBeUndefined();
+    expect(
+      selectSeriesCollection([
+        collectionWithTitle('A Bookseller Grouping', '20'),
+        collectionWithTitle('Arc Companions'),
+      ]),
+    ).toEqual(collectionWithTitle('Arc Companions'));
+  });
+
+  it('still returns a titleless candidate so the caller can report it', () => {
+    const collection = { CollectionType: '10' } as ExtendedCollection;
+
+    expect(selectSeriesCollection([collection])).toBe(collection);
+  });
+
+  it('returns undefined when there is nothing to consider', () => {
+    expect(selectSeriesCollection([])).toBeUndefined();
   });
 });
