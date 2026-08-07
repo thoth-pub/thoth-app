@@ -411,10 +411,16 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
         foundedChapters.map((chapter, index) => this.createChapter(chapter, createdWork.id, index + 1)),
       );
 
-      if (!foundedSeries || foundedSeries[1].length === 0) continue;
+      if (!foundedSeries) continue;
+
+      // Take this work's own ordinal, not the first ordinal in the series: a series can hold
+      // several works from the same import, each with its own issue ordinal.
+      const seriesItem = foundedSeries[1].find((seriesWork) => seriesWork.id === work.id);
+
+      if (!seriesItem) continue;
 
       await this.seriesService.createIssue({
-        orderNumber: foundedSeries[1][0].orderNumber,
+        orderNumber: seriesItem.orderNumber,
         seriesId: foundedSeries[0],
         workId: createdWork.id,
       });

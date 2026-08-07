@@ -3,7 +3,11 @@ import {
   CollectionSequenceType,
   CollectionType,
   CurrencyCodeBasedOnIso4217,
+  LanguageBasedOnIso6392b,
+  LanguageRole,
   PriceType,
+  TitleElementLevel,
+  TitleType,
 } from '@5stones/onix/dist/enums';
 import {
   Contributor,
@@ -16,9 +20,59 @@ import {
   PublishingDetail,
   Supplier,
   Text,
-  TitleDetail,
 } from '@5stones/onix/dist/interfaces';
 import { Collection } from '@5stones/onix/dist/interfaces/Collection';
+import { ONIXMessage } from '@5stones/onix/dist/interfaces/ONIXMessage';
+
+/**
+ * `@5stones/onix` parses with `fast-xml-parser` using `ignoreAttributes: false` and no
+ * `isArray` configuration. Upstream's interfaces do not describe either consequence, so the
+ * types below narrowly correct them where this parser reads the data:
+ *
+ * - repeatable composites are objects when they occur once and arrays when they repeat;
+ * - text-bearing elements carrying XML attributes are emitted as `{ '#text': … }` objects
+ *   rather than as strings.
+ *
+ * Where a correction is incompatible with the upstream declaration (an array is not
+ * assignable to upstream's singular type) the property is `Omit`ted from the base interface
+ * and redeclared, rather than cast away at every call site.
+ */
+
+/** A composite that `fast-xml-parser` emits as an object when single and an array when repeated. */
+export type OnixRepeatable<T> = T | T[];
+
+/**
+ * A text element. `ignoreAttributes: false` means an element carrying any XML attribute is
+ * emitted as an object holding the text under `#text`; the attributes themselves land on the
+ * same object under `@_<name>` keys, which this importer never reads.
+ */
+export type OnixText = string | number | { '#text'?: string | number };
+
+export interface OnixTitleElement {
+  TitleElementLevel?: TitleElementLevel;
+  TitleText?: OnixText;
+  TitlePrefix?: OnixText;
+  /** Empty marker element asserting the title has no prefix. */
+  NoPrefix?: OnixText;
+  TitleWithoutPrefix?: OnixText;
+  Subtitle?: OnixText;
+}
+
+export interface OnixTitleDetail {
+  TitleType?: TitleType;
+  TitleElement?: OnixRepeatable<OnixTitleElement>;
+}
+
+export interface OnixLanguage {
+  LanguageRole?: LanguageRole;
+  LanguageCode?: LanguageBasedOnIso6392b | string;
+}
+
+/** The subset of a Collection that {@link selectSeriesCollection} needs to rank candidates. */
+export interface OnixCollectionLike {
+  CollectionType?: CollectionType;
+  TitleDetail?: OnixRepeatable<OnixTitleDetail>;
+}
 
 export interface ExtendedContributor extends Contributor {
   ContributorRole?: string;
@@ -80,43 +134,33 @@ export interface ExtendedProductSupply extends ProductSupply {
   };
 }
 
-export interface ExtendedCollection extends Collection {
-  CollectionType: CollectionType;
+export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 'TitleDetail'>, OnixCollectionLike {
+  CollectionType?: CollectionType;
   CollectionFrequency?: CollectionFrequencyCode;
-  CollectionSequence?: {
+  CollectionSequence?: OnixRepeatable<{
     CollectionSequenceType?: CollectionSequenceType;
-    CollectionSequenceNumber?: string;
-  };
+    CollectionSequenceNumber?: OnixText;
+  }>;
   SourceName?: string;
-  TitleDetail?: TitleDetail;
-  LevelSequenceNumber?: number;
-  ContentItem?: {
-    TextItem?: {
-      TextItemIdentifier?: {
-        IDValue?: string;
-      };
-    };
-    TitleDetail?: {
-      TitleElement?: {
-        TitleText?: string;
-      };
-    };
-    Contributor?: ExtendedContributor;
-  };
+  TitleDetail?: OnixRepeatable<OnixTitleDetail>;
+  LevelSequenceNumber?: OnixText;
   PageRun?: {
-    FirstPageNumber?: string;
-    LastPageNumber?: string;
+    FirstPageNumber?: OnixText;
+    LastPageNumber?: OnixText;
   };
-  NumberOfPages?: number;
+  NumberOfPages?: OnixText;
   TextItem?: {
     TextItemIdentifier?: {
       IDValue?: string;
     };
   };
-  Contributor?: ExtendedContributor;
+  Contributor?: OnixRepeatable<ExtendedContributor>;
 }
 
-export interface ExtendedDescriptiveDetail extends ProductDescriptiveDetail {
+export interface ExtendedDescriptiveDetail
+  extends Omit<ProductDescriptiveDetail, 'Collection' | 'Contributor' | 'Language' | 'TitleDetail'> {
+  TitleDetail?: OnixRepeatable<OnixTitleDetail>;
+  Language?: OnixRepeatable<OnixLanguage>;
   AncillaryContent?: {
     AncillaryContentType?: string;
     Number?: number;
@@ -135,8 +179,8 @@ export interface ExtendedDescriptiveDetail extends ProductDescriptiveDetail {
   GeneralNote?: {
     GeneralNoteText?: string;
   };
-  Collection?: ExtendedCollection[];
-  Contributor?: ExtendedContributor;
+  Collection?: OnixRepeatable<ExtendedCollection>;
+  Contributor?: OnixRepeatable<ExtendedContributor>;
 }
 
 export interface ExtendedPublishingDetail extends PublishingDetail {
@@ -148,11 +192,23 @@ export interface ExtendedPublishingDetail extends PublishingDetail {
   Publisher?: ExtendedPublisher;
 }
 
-export interface ExtendedProduct extends Product {
+export interface ExtendedProduct extends Omit<Product, 'DescriptiveDetail' | 'ProductSupply' | 'PublishingDetail'> {
   DescriptiveDetail?: ExtendedDescriptiveDetail;
   PublishingDetail?: ExtendedPublishingDetail;
   ProductSupply?: ExtendedProductSupply;
   ContentDetail?: {
-    ContentItem?: ExtendedCollection[];
+    ContentItem?: OnixRepeatable<ExtendedCollection>;
   };
+}
+
+export interface ExtendedONIXMessage extends Omit<ONIXMessage, 'Product'> {
+  Product?: OnixRepeatable<ExtendedProduct>;
+}
+
+/**
+ * The root of a parsed ONIX message, described as `@5stones/onix` really emits it. Upstream's
+ * `ONIXMessageRoot` remains assignable to this, so callers holding one can keep passing it.
+ */
+export interface ExtendedONIXMessageRoot {
+  ONIXMessage: ExtendedONIXMessage;
 }

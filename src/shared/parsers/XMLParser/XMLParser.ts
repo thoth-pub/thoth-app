@@ -1,13 +1,14 @@
 import {
+  LanguageRole,
   MeasureType,
   MeasureUnit,
   ProductIdentifierType,
   PublishingDateRole,
   TextType,
+  TitleElementLevel,
   WebsiteRole,
   WorkIdentifierType,
 } from '@5stones/onix/dist/enums';
-import { ONIXMessageRoot, Product } from '@5stones/onix/dist/interfaces';
 import isbn3 from 'isbn3';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -50,11 +51,67 @@ import {
   getWorkStatusFromXml,
   isValidPublicationForm,
 } from '../../utils';
-import { ExtendedContributor, ExtendedProduct } from './interfaces';
+import { ExtendedContributor, ExtendedONIXMessageRoot, ExtendedProduct } from './interfaces';
+import { extractOnixTitle, getOnixText, normalizeSeriesName, selectSeriesCollection, toOnixArray } from './onix';
+
+/**
+ * How ONIX language roles (List 22) map onto Thoth's LanguageRelation.
+ *
+ * Thoth records the language a work's text is in as `Original`, and the source language of
+ * a translation as `TranslatedFrom` — see `useCreateWorkTranslation`, which re-tags an
+ * original work's `Original` languages as `TranslatedFrom` on the derived translation, and
+ * the CSV importer, which offers `Original`, `TranslatedFrom` and `TranslatedInto` as three
+ * independent columns on a single work.
+ *
+ * Roles that are absent from this table (rights languages, language of abstracts, audio and
+ * subtitle languages, …) describe something other than the language of the work's text and
+ * have no Thoth equivalent, so they are ignored rather than forced into a relation.
+ */
+const LANGUAGE_ROLE_RELATIONS: Partial<Record<LanguageRole, LanguageEntity['relation']>> = {
+  // Language of text.
+  [LanguageRole._01]: LanguageRelation.enum.Original,
+  // Original language of a translated text.
+  [LanguageRole._02]: LanguageRelation.enum.TranslatedFrom,
+  // Original language in a multilingual edition.
+  [LanguageRole._06]: LanguageRelation.enum.Original,
+  // Translated language in a multilingual edition.
+  [LanguageRole._07]: LanguageRelation.enum.TranslatedInto,
+};
+
+/** One product's resolved series membership, before ordinals are assigned. */
+type SeriesMembership = {
+  seriesId: string;
+  seriesName: string;
+  productIndex: number;
+  productDescription: string;
+  /** Set only when ONIX supplied a usable CollectionSequenceNumber. */
+  ordinal?: number;
+};
+
+/** What {@link XMLParser.parseWork} produces for one ONIX product. */
+type ParsedProduct = {
+  work: WorkEntity;
+  chapters: WorkEntity[];
+  seriesMembership?: SeriesMembership;
+};
+
+/** Names the products involved in a series-level conflict, capped so errors stay readable. */
+const describeProducts = (memberships: { productDescription: string }[]) => {
+  const descriptions = [...new Set(memberships.map(({ productDescription }) => productDescription))];
+
+  return descriptions.length > 3
+    ? `${descriptions.slice(0, 3).join(', ')} and ${descriptions.length - 3} more`
+    : descriptions.join(' and ');
+};
 
 class XMLParser {
-  private xml: ONIXMessageRoot;
-  private errors: string[] = [];
+  private xml: ExtendedONIXMessageRoot;
+  /**
+   * Errors are tagged with the product they came from because products are parsed
+   * concurrently: without the tag the order shown in the UI would depend on which product
+   * happened to finish first.
+   */
+  private errors: { index: number; message: string }[] = [];
   private parsedWorks: WorkEntity[] = [];
   private parsedSeries: SeriesForUpdateItems = {};
   private parsedChapters: WorkEntity[] = [];
@@ -70,7 +127,7 @@ class XMLParser {
   private institutionService: InstitutionService;
 
   constructor(
-    xml: ONIXMessageRoot,
+    xml: ExtendedONIXMessageRoot,
     imprints: FormFieldOption[],
     licenses: FormFieldOption[],
     serieses: SeriesEntity[],
@@ -91,9 +148,7 @@ class XMLParser {
 
   async parse() {
     try {
-      const products: ExtendedProduct[] = this.convertToArray(this.xml.ONIXMessage.Product).filter(
-        (product: Product | undefined): product is ExtendedProduct => !!product,
-      );
+      const products = this.convertToArray(this.xml.ONIXMessage.Product).filter((product) => !!product);
 
       if (products.length === 0) {
         return {
@@ -105,13 +160,20 @@ class XMLParser {
 
       const promises = products.map((product, index) => this.parseWork(product, index + 1, WorkTypes.enum.EditedBook));
 
-      await Promise.all(promises);
+      // `Promise.all` resolves in input order regardless of completion order, so collecting
+      // the results here — rather than letting each concurrent `parseWork` push into shared
+      // state — keeps works, chapters and series ordinals in ONIX product order.
+      const parsedProducts = await Promise.all(promises);
+
+      this.parsedWorks = parsedProducts.map(({ work }) => work);
+      this.parsedChapters = parsedProducts.flatMap(({ chapters }) => chapters);
+      this.assignSeriesOrdinals(parsedProducts);
 
       if (this.errors.length > 0) {
         return {
           status: 'failed',
           data: { works: [], series: {}, chapters: [], contributorsForSelection: {} },
-          errors: this.errors,
+          errors: this.sortedErrors(),
         };
       }
 
@@ -135,19 +197,55 @@ class XMLParser {
   }
 
   private convertToArray<T>(data: T | T[]): T[] {
-    if (!data) return [];
-
-    const result = Array.isArray(data) ? data : [data];
-
-    return result;
+    return toOnixArray(data);
   }
 
-  private async parseWork(product: ExtendedProduct, index: number, workType = WorkTypes.enum.EditedBook) {
+  private pushError(index: number, message: string) {
+    this.errors.push({ index, message });
+  }
+
+  /** Errors in ONIX product order, then in the order they were raised within a product. */
+  private sortedErrors(): string[] {
+    return this.errors
+      .map((error, order) => ({ ...error, order }))
+      .sort((a, b) => a.index - b.index || a.order - b.order)
+      .map(({ message }) => message);
+  }
+
+  /**
+   * ONIX composites that are repeatable are objects when they occur once, so `.find` is only
+   * safe after normalising. A product with a single ProductIdentifier used to throw and fail
+   * the whole import with an opaque parsing error.
+   */
+  private findProductIdentifier(product: ExtendedProduct, type: ProductIdentifierType): string {
+    const identifiers = this.convertToArray(product.ProductIdentifier).filter((identifier) => !!identifier);
+
+    return getOnixText(identifiers.find((identifier) => identifier.ProductIDType === type)?.IDValue);
+  }
+
+  /**
+   * A short, human-readable handle for a product, used to make import errors actionable.
+   * Prefers the publisher's own RecordReference and falls back to the ISBN-13.
+   */
+  private describeProduct(product: ExtendedProduct, index: number): string {
+    const recordReference = getOnixText(product.RecordReference);
+    const isbn = this.findProductIdentifier(product, ProductIdentifierType._15);
+    const reference = recordReference.length > 0 ? recordReference : isbn;
+
+    return reference.length > 0 ? `product ${index} (${reference})` : `product ${index}`;
+  }
+
+  private async parseWork(
+    product: ExtendedProduct,
+    index: number,
+    workType = WorkTypes.enum.EditedBook,
+  ): Promise<ParsedProduct> {
     const workId = this.generateId();
+    const imprintId = this.parseImprint(product, index);
 
     const { imageCount, tableCount, audioCount, videoCount } = this.parseMedia(product);
     const { publicationDate, withdrawnDate } = this.parseDates(product);
-    const languages = this.parseLanguages(product);
+    const languages = this.parseLanguages(product, index);
     const fundings = await this.parseFundings(product);
     const workContributors = product.DescriptiveDetail?.Contributor ?? [];
     const workContributions = await this.parseContributors(workContributors, workId);
@@ -156,7 +254,7 @@ class XMLParser {
       id: workId,
       status: this.parseWorkStatus(product),
       type: workType,
-      imprintId: this.parseImprint(product, index),
+      imprintId,
       doi: this.parseDoi(product),
       lccn: this.parseLccn(product),
       oclc: this.parseOclc(product),
@@ -178,15 +276,14 @@ class XMLParser {
       subjects: this.parseSubjects(product),
       fundings,
       languages,
-      publications: this.parsePublications(product),
+      publications: this.parsePublications(product, index),
       references: this.parseReferences(product),
       contributions: workContributions,
     });
 
-    await this.parseChapters(product, work);
+    const chapters = await this.parseChapters(product, work);
 
-    this.parsedWorks.push(work);
-    this.parseSeries(product, work);
+    return { work, chapters, seriesMembership: this.parseSeries(product, index, imprintId) };
   }
 
   private parseImprint(product: ExtendedProduct, index: number) {
@@ -194,7 +291,7 @@ class XMLParser {
     const imprint = this.imprints.find((imprint) => imprint.label === xmlImprint);
 
     if (!imprint) {
-      this.errors.push(`Imprint ${xmlImprint} not found for product ${index}`);
+      this.pushError(index, `Imprint ${xmlImprint} not found for product ${index}`);
       return '';
     }
 
@@ -202,33 +299,24 @@ class XMLParser {
   }
 
   private parseDoi(product: ExtendedProduct) {
-    const doi =
-      product.ProductIdentifier?.find((identifier) => identifier.ProductIDType === ProductIdentifierType._06)
-        ?.IDValue ?? '';
+    const doi = this.findProductIdentifier(product, ProductIdentifierType._06);
 
     return doi.length > 0 ? this.doiPrefix + doi : '';
   }
 
   private parseLccn(product: ExtendedProduct) {
-    const lccn =
-      product.ProductIdentifier?.find((identifier) => identifier.ProductIDType === ProductIdentifierType._13)
-        ?.IDValue ?? '';
-
-    return lccn;
+    return this.findProductIdentifier(product, ProductIdentifierType._13);
   }
 
   private parseOclc(product: ExtendedProduct) {
-    const oclc =
-      product.ProductIdentifier?.find((identifier) => identifier.ProductIDType === ProductIdentifierType._23)
-        ?.IDValue ?? '';
-
-    return oclc;
+    return this.findProductIdentifier(product, ProductIdentifierType._23);
   }
 
   private parseTitle(product: ExtendedProduct): TitleEntity[] {
-    const title = product.DescriptiveDetail?.TitleDetail?.TitleElement?.TitleText ?? '';
-    const subtitle = product.DescriptiveDetail?.TitleDetail?.TitleElement?.Subtitle ?? '';
-    const fullTitle = `${title} ${subtitle}`.trim();
+    const { title, subtitle, fullTitle } = extractOnixTitle(
+      product.DescriptiveDetail?.TitleDetail,
+      TitleElementLevel._01,
+    );
 
     return [getDefaultTitle({ canonical: true, title, subtitle, fullTitle, localeCode: LanguageTypeAlt.enum.En })];
   }
@@ -241,10 +329,10 @@ class XMLParser {
 
   private parseAbstracts(product: ExtendedProduct): AbstractEntity[] {
     const collateralDetailTextContent = this.convertToArray(product.CollateralDetail?.TextContent);
-    const longAbstract =
-      collateralDetailTextContent.find((text) => text?.TextType === TextType._03)?.Text?.['#text'] ?? '';
-    const shortAbstract =
-      collateralDetailTextContent.find((text) => text?.TextType === TextType._02)?.Text?.['#text'] ?? '';
+    const longAbstract = getOnixText(collateralDetailTextContent.find((text) => text?.TextType === TextType._03)?.Text);
+    const shortAbstract = getOnixText(
+      collateralDetailTextContent.find((text) => text?.TextType === TextType._02)?.Text,
+    );
     const abstracts: AbstractEntity[] = [];
 
     if (longAbstract.length > 0) {
@@ -278,7 +366,7 @@ class XMLParser {
     const license = this.licenses.find((option) => option.value.startsWith(enteredLicense));
 
     if (!license) {
-      this.errors.push(`License ${enteredLicense} not found for product ${index}`);
+      this.pushError(index, `License ${enteredLicense} not found for product ${index}`);
       return '';
     }
 
@@ -293,7 +381,7 @@ class XMLParser {
 
   private parseGeneralNote(product: ExtendedProduct): string {
     const collateralDetailTextContent = this.convertToArray(product.CollateralDetail?.TextContent);
-    const note = collateralDetailTextContent.find((text) => text?.TextType === TextType._13)?.Text?.['#text'] ?? '';
+    const note = getOnixText(collateralDetailTextContent.find((text) => text?.TextType === TextType._13)?.Text);
 
     return note;
   }
@@ -353,11 +441,13 @@ class XMLParser {
   private parseDates(product: ExtendedProduct) {
     const publicationDates = this.convertToArray(product.PublishingDetail?.PublishingDate).filter((date) => !!date);
 
-    const publicationDate =
-      publicationDates.find((date) => date?.PublishingDateRole === PublishingDateRole._01)?.Date?.['#text'] ?? '';
+    const publicationDate = getOnixText(
+      publicationDates.find((date) => date?.PublishingDateRole === PublishingDateRole._01)?.Date,
+    );
 
-    const withdrawnDate =
-      publicationDates.find((date) => date?.PublishingDateRole === PublishingDateRole._13)?.Date?.['#text'] ?? '';
+    const withdrawnDate = getOnixText(
+      publicationDates.find((date) => date?.PublishingDateRole === PublishingDateRole._13)?.Date,
+    );
 
     return {
       publicationDate,
@@ -373,19 +463,11 @@ class XMLParser {
 
   private parseLandingPage(product: ExtendedProduct): string {
     const publishers = this.convertToArray(product.PublishingDetail?.Publisher).filter((publisher) => !!publisher);
-    const publishersWithWebsites = publishers.filter(
-      (publisher) => publisher?.Website && publisher.Website?.length > 0,
-    );
+    const websites = publishers.flatMap((publisher) => this.convertToArray(publisher.Website).filter((w) => !!w));
 
-    const websites = publishersWithWebsites.map((publisher) => this.convertToArray(publisher.Website));
+    const websiteWithLandingPage = websites.find((website) => website.WebsiteRole === WebsiteRole._02);
 
-    const websiteWithLandingPage = websites
-      .flatMap((website) => website)
-      .find((website) => website?.WebsiteRole === WebsiteRole._02);
-
-    const landingPage = websiteWithLandingPage?.WebsiteLink ?? '';
-
-    return landingPage;
+    return getOnixText(websiteWithLandingPage?.WebsiteLink);
   }
 
   private parseSubjects(product: ExtendedProduct) {
@@ -458,27 +540,59 @@ class XMLParser {
     return filteredSubjects;
   }
 
-  private parseLanguages(product: ExtendedProduct) {
-    const enteredLanguageCode = product.DescriptiveDetail?.Language?.LanguageCode ?? '';
-    const language = this.languages.find(
-      (option) =>
-        option.label.toLowerCase() === enteredLanguageCode.toLowerCase() ||
-        option.value.toLowerCase() === enteredLanguageCode.toLowerCase(),
-    );
+  private parseLanguages(product: ExtendedProduct, index: number) {
+    // Language is repeatable in ONIX, so a product with an original language alongside its
+    // language of text arrives as an array rather than a single composite.
+    const xmlLanguages = this.convertToArray(product.DescriptiveDetail?.Language).filter((language) => !!language);
+    const productDescription = this.describeProduct(product, index);
     const workLanguages: LanguageEntity[] = [];
+    let hasUnknownCode = false;
 
-    if (!language) {
-      this.errors.push(
-        `Language ${enteredLanguageCode} not found, should be one of the following: ${this.languages.map((option) => option.label).join(', ')}`,
-      );
+    if (xmlLanguages.length === 0) {
+      this.pushError(index, `Language not provided for ${productDescription}`);
+
+      return workLanguages;
     }
 
-    if (language) {
-      workLanguages.push({
-        code: language.value as LanguageCode,
-        relation: LanguageRelation.enum.Original,
-        id: this.defaultId,
-      });
+    for (const xmlLanguage of xmlLanguages) {
+      const enteredLanguageCode = getOnixText(xmlLanguage.LanguageCode);
+      const role = getOnixText(xmlLanguage.LanguageRole) as LanguageRole;
+      const relation = LANGUAGE_ROLE_RELATIONS[role];
+
+      // ONIX makes LanguageRole mandatory; treat a missing one as the language of text so a
+      // sloppy but otherwise usable record still imports.
+      const resolvedRelation = role.length === 0 ? LanguageRelation.enum.Original : relation;
+
+      // A role we cannot express in Thoth (rights, abstracts, audio, subtitles, …) is not an
+      // error: the rest of the product is still importable.
+      if (!resolvedRelation) continue;
+
+      const language = this.languages.find(
+        (option) =>
+          option.label.toLowerCase() === enteredLanguageCode.toLowerCase() ||
+          option.value.toLowerCase() === enteredLanguageCode.toLowerCase(),
+      );
+
+      if (!language) {
+        this.pushError(index, `Language ${enteredLanguageCode} not found for ${productDescription}`);
+        hasUnknownCode = true;
+        continue;
+      }
+
+      const code = language.value as LanguageCode;
+      const isDuplicate = workLanguages.some(
+        (workLanguage) => workLanguage.code === code && workLanguage.relation === resolvedRelation,
+      );
+
+      if (isDuplicate) continue;
+
+      workLanguages.push({ code, relation: resolvedRelation, id: this.defaultId });
+    }
+
+    // Every language role in the product describes something Thoth cannot store (rights,
+    // abstracts, audio, …), so the work would silently end up with no language at all.
+    if (workLanguages.length === 0 && !hasUnknownCode) {
+      this.pushError(index, `No supported language role found for ${productDescription}`);
     }
 
     return workLanguages;
@@ -542,7 +656,7 @@ class XMLParser {
     return fundings;
   }
 
-  private parsePublications(product: ExtendedProduct) {
+  private parsePublications(product: ExtendedProduct, index: number) {
     const publications: PublicationEntity[] = [];
     const descriptiveDetail = product.DescriptiveDetail;
 
@@ -556,41 +670,33 @@ class XMLParser {
 
     if (!isValid) return publications;
 
+    const measures = this.convertToArray(descriptiveDetail.Measure).filter((measure) => !!measure);
+
     const height =
-      descriptiveDetail.Measure?.find(
-        (measure) => measure.MeasureType === MeasureType._01 && measure.MeasureUnitCode === MeasureUnit.mm,
-      )?.Measurement ?? 0;
+      measures.find((measure) => measure.MeasureType === MeasureType._01 && measure.MeasureUnitCode === MeasureUnit.mm)
+        ?.Measurement ?? 0;
     const heightIn =
-      descriptiveDetail.Measure?.find(
-        (measure) => measure.MeasureType === MeasureType._01 && measure.MeasureUnitCode === MeasureUnit.in,
-      )?.Measurement ?? 0;
+      measures.find((measure) => measure.MeasureType === MeasureType._01 && measure.MeasureUnitCode === MeasureUnit.in)
+        ?.Measurement ?? 0;
     const width =
-      descriptiveDetail.Measure?.find(
-        (measure) => measure.MeasureType === MeasureType._02 && measure.MeasureUnitCode === MeasureUnit.mm,
-      )?.Measurement ?? 0;
+      measures.find((measure) => measure.MeasureType === MeasureType._02 && measure.MeasureUnitCode === MeasureUnit.mm)
+        ?.Measurement ?? 0;
     const widthIn =
-      descriptiveDetail.Measure?.find(
-        (measure) => measure.MeasureType === MeasureType._02 && measure.MeasureUnitCode === MeasureUnit.in,
-      )?.Measurement ?? 0;
+      measures.find((measure) => measure.MeasureType === MeasureType._02 && measure.MeasureUnitCode === MeasureUnit.in)
+        ?.Measurement ?? 0;
     const depth =
-      descriptiveDetail.Measure?.find(
-        (measure) => measure.MeasureType === MeasureType._03 && measure.MeasureUnitCode === MeasureUnit.mm,
-      )?.Measurement ?? 0;
+      measures.find((measure) => measure.MeasureType === MeasureType._03 && measure.MeasureUnitCode === MeasureUnit.mm)
+        ?.Measurement ?? 0;
     const depthIn =
-      descriptiveDetail.Measure?.find(
-        (measure) => measure.MeasureType === MeasureType._03 && measure.MeasureUnitCode === MeasureUnit.in,
-      )?.Measurement ?? 0;
+      measures.find((measure) => measure.MeasureType === MeasureType._03 && measure.MeasureUnitCode === MeasureUnit.in)
+        ?.Measurement ?? 0;
     const weight =
-      descriptiveDetail.Measure?.find(
-        (measure) => measure.MeasureType === MeasureType._08 && measure.MeasureUnitCode === MeasureUnit.gr,
-      )?.Measurement ?? 0;
+      measures.find((measure) => measure.MeasureType === MeasureType._08 && measure.MeasureUnitCode === MeasureUnit.gr)
+        ?.Measurement ?? 0;
     const weightOz =
-      descriptiveDetail.Measure?.find(
-        (measure) => measure.MeasureType === MeasureType._08 && measure.MeasureUnitCode === MeasureUnit.oz,
-      )?.Measurement ?? 0;
-    const isbn =
-      product.ProductIdentifier?.find((identifier) => identifier.ProductIDType === ProductIdentifierType._15)
-        ?.IDValue ?? '';
+      measures.find((measure) => measure.MeasureType === MeasureType._08 && measure.MeasureUnitCode === MeasureUnit.oz)
+        ?.Measurement ?? 0;
+    const isbn = this.findProductIdentifier(product, ProductIdentifierType._15);
     const isValidIsbn = isbn3.parse(isbn)?.isValid ?? false;
 
     const publication = getDefaultPublication({
@@ -624,8 +730,9 @@ class XMLParser {
       )?.value;
 
       if (!currencyCode) {
-        this.errors.push(
-          `Currency code ${price?.CurrencyCode} not found, should be one of the following: ${this.currencyOptions.map((option) => option.label).join(', ')}`,
+        this.pushError(
+          index,
+          `Currency code ${price?.CurrencyCode} not found for ${this.describeProduct(product, index)}`,
         );
         return;
       }
@@ -643,10 +750,11 @@ class XMLParser {
     }
 
     // Locations
-    const landingPage =
-      productSupply.SupplyDetail.Supplier.Website?.find((website) => website.WebsiteRole === '02')?.WebsiteLink ?? '';
-    const fullTextUrl =
-      productSupply.SupplyDetail.Supplier.Website?.find((website) => website.WebsiteRole === '29')?.WebsiteLink ?? '';
+    const supplierWebsites = this.convertToArray(productSupply.SupplyDetail.Supplier.Website).filter(
+      (website) => !!website,
+    );
+    const landingPage = getOnixText(supplierWebsites.find((website) => website.WebsiteRole === '02')?.WebsiteLink);
+    const fullTextUrl = getOnixText(supplierWebsites.find((website) => website.WebsiteRole === '29')?.WebsiteLink);
     const locationPlatform =
       LocationPlatforms.options.find(
         (option) => option.toLowerCase() === productSupply.Market?.Territory?.RegionsIncluded?.toLowerCase(),
@@ -665,28 +773,185 @@ class XMLParser {
     return publications;
   }
 
-  private parseSeries(product: ExtendedProduct, work: WorkEntity) {
+  /**
+   * Resolves the ONIX Collection for one product to an existing Thoth series.
+   *
+   * Series are never created by an import, so an unknown collection is reported and the work
+   * imports without a series relation. Thoth's bulk import supports a single series membership
+   * per work, so exactly one Collection is selected — see {@link selectSeriesCollection}.
+   */
+  private parseSeries(product: ExtendedProduct, index: number, imprintId: string): SeriesMembership | undefined {
     const seriesCollections = this.convertToArray(product.DescriptiveDetail?.Collection).filter(
       (collection) => !!collection,
     );
-    const seriesCollection = seriesCollections[0];
 
-    if (!seriesCollection) return;
+    if (seriesCollections.length === 0) return undefined;
 
-    const seriesName = seriesCollection?.TitleDetail?.TitleElement?.TitleText ?? '';
-    const existingSeries = this.serieses.find((series) => series.name === seriesName);
+    // An ascribed collection is somebody else's grouping, not the publisher's series, so
+    // selectSeriesCollection ignores it and the work simply imports without a series.
+    const seriesCollection = selectSeriesCollection(seriesCollections);
 
-    if (!existingSeries) {
-      this.errors.push(`Series ${seriesName} not found`);
+    if (!seriesCollection) return undefined;
 
-      return;
+    const productDescription = this.describeProduct(product, index);
+    const seriesName = extractOnixTitle(seriesCollection.TitleDetail, TitleElementLevel._02).title;
+
+    if (seriesName.length === 0) {
+      this.pushError(index, `Collection has no usable series title for ${productDescription}`);
+
+      return undefined;
     }
 
-    const collectionSequence = seriesCollection?.CollectionSequence?.CollectionSequenceNumber ?? 1;
-    const orderNumber = this.parseNumber(collectionSequence.toString());
+    // Without a resolved imprint the series cannot be scoped. parseImprint has already
+    // reported the unresolved imprint, so stay quiet here.
+    if (imprintId.length === 0) return undefined;
 
-    const existingData = this.parsedSeries[existingSeries.id] ?? [];
-    this.parsedSeries[existingSeries.id] = [...existingData, { ...work, orderNumber }];
+    const match = this.findExistingSeries(seriesName, imprintId);
+
+    if (match.status === 'ambiguous') {
+      this.pushError(
+        index,
+        `Series "${seriesName}" matches ${match.count} existing Thoth series in the same imprint for ${productDescription}`,
+      );
+
+      return undefined;
+    }
+
+    if (match.status === 'missing') {
+      this.pushError(index, `Series "${seriesName}" does not exist in Thoth for ${productDescription}`);
+
+      return undefined;
+    }
+
+    const collectionSequence = this.convertToArray(seriesCollection.CollectionSequence).filter(
+      (sequence) => !!sequence,
+    )[0];
+    const sequenceNumber = this.parseNumber(getOnixText(collectionSequence?.CollectionSequenceNumber));
+
+    return {
+      seriesId: match.series.id,
+      seriesName,
+      productIndex: index,
+      productDescription,
+      // A sequence of 0 means ONIX supplied nothing usable; Thoth issue ordinals start at 1.
+      ordinal: sequenceNumber > 0 ? sequenceNumber : undefined,
+    };
+  }
+
+  /**
+   * Finds the Thoth series an ONIX collection names, within the work's own imprint.
+   *
+   * A Thoth series belongs to exactly one imprint, and the importer's series list spans every
+   * imprint of every linked publisher, so matching has to be imprint-scoped: two imprints may
+   * each run a series of the same name and they are not the same series.
+   *
+   * Thoth does not enforce uniqueness on series name or on (imprint, series name), so more
+   * than one existing series really can match. That is reported rather than resolved by
+   * picking one, which would make the outcome depend on the order the API returned them in.
+   * Matching is exact first, then on the normalised name.
+   */
+  private findExistingSeries(
+    seriesName: string,
+    imprintId: string,
+  ): { status: 'found'; series: SeriesEntity } | { status: 'missing' } | { status: 'ambiguous'; count: number } {
+    const candidates = this.serieses.filter((series) => series.imprintId === imprintId);
+    const exact = candidates.filter((series) => series.name === seriesName);
+
+    if (exact.length === 1) return { status: 'found', series: exact[0] };
+    if (exact.length > 1) return { status: 'ambiguous', count: exact.length };
+
+    const normalizedName = normalizeSeriesName(seriesName);
+    const normalized = candidates.filter((series) => normalizeSeriesName(series.name) === normalizedName);
+
+    if (normalized.length === 1) return { status: 'found', series: normalized[0] };
+    if (normalized.length > 1) return { status: 'ambiguous', count: normalized.length };
+
+    return { status: 'missing' };
+  }
+
+  /**
+   * Turns per-product series memberships into Thoth issue ordinals.
+   *
+   * - A CollectionSequenceNumber supplied by the publisher is preserved verbatim. It is never
+   *   silently rewritten; a collision is reported instead, because `issue` carries
+   *   `UNIQUE (series_id, issue_ordinal)` and would otherwise fail at CreateIssue, halfway
+   *   through a bulk import that has already created works.
+   * - A work with no sequence number is appended after everything already known for that
+   *   series: the highest ordinal among the series' existing Thoth issues and among the
+   *   explicit ordinals in this same import. Unnumbered works are numbered upwards in ONIX
+   *   product order, so they can never collide with an explicit ordinal either.
+   *
+   * This runs once, after `Promise.all`, over results held in product order, so the outcome
+   * does not depend on which product finished parsing first.
+   */
+  private assignSeriesOrdinals(parsedProducts: ParsedProduct[]) {
+    const memberships = parsedProducts
+      .map(({ work, seriesMembership }) => (seriesMembership ? { work, ...seriesMembership } : undefined))
+      .filter((membership) => !!membership);
+
+    for (const seriesId of new Set(memberships.map((membership) => membership.seriesId))) {
+      const seriesMemberships = memberships.filter((membership) => membership.seriesId === seriesId);
+      const existingOrdinals =
+        this.serieses.find((series) => series.id === seriesId)?.issues.map(({ ordinal }) => ordinal) ?? [];
+
+      if (this.hasOrdinalCollision(seriesMemberships, existingOrdinals)) continue;
+
+      const explicitOrdinals = seriesMemberships
+        .map(({ ordinal }) => ordinal)
+        .filter((ordinal) => ordinal !== undefined);
+
+      let next = Math.max(0, ...existingOrdinals, ...explicitOrdinals) + 1;
+
+      for (const { work, ordinal } of seriesMemberships) {
+        const orderNumber = ordinal ?? next++;
+
+        this.parsedSeries[seriesId] = [...(this.parsedSeries[seriesId] ?? []), { ...work, orderNumber }];
+      }
+    }
+  }
+
+  /**
+   * Reports publisher-supplied issue ordinals that Thoth could not store, without rewriting
+   * them: `issue` has `UNIQUE (series_id, issue_ordinal)`, so a duplicate would only surface
+   * as a failed CreateIssue partway through the import.
+   *
+   * Errors are tagged with the lowest product index involved, so the parser's product-ordered
+   * error sort makes the output deterministic.
+   */
+  private hasOrdinalCollision(memberships: SeriesMembership[], existingOrdinals: number[]): boolean {
+    const seriesName = memberships[0].seriesName;
+    const byOrdinal = new Map<number, SeriesMembership[]>();
+
+    for (const membership of memberships) {
+      if (membership.ordinal === undefined) continue;
+
+      byOrdinal.set(membership.ordinal, [...(byOrdinal.get(membership.ordinal) ?? []), membership]);
+    }
+
+    let collided = false;
+
+    for (const ordinal of [...byOrdinal.keys()].sort((a, b) => a - b)) {
+      const products = byOrdinal.get(ordinal) ?? [];
+      const lowestIndex = Math.min(...products.map(({ productIndex }) => productIndex));
+
+      if (products.length > 1) {
+        this.pushError(
+          lowestIndex,
+          `Series "${seriesName}" is given issue number ${ordinal} by more than one product: ${describeProducts(products)}`,
+        );
+        collided = true;
+      }
+
+      if (existingOrdinals.includes(ordinal)) {
+        this.pushError(
+          lowestIndex,
+          `Series "${seriesName}" already has issue number ${ordinal} in Thoth, supplied again by ${describeProducts(products)}`,
+        );
+        collided = true;
+      }
+    }
+
+    return collided;
   }
 
   private parseReferences(product: ExtendedProduct) {
@@ -883,18 +1148,18 @@ class XMLParser {
       (collection) => !!collection,
     );
 
-    const newChapters: Record<WorkId, WorkEntity[]> = {
-      [workId]: [],
-    };
+    const newChapters: WorkEntity[] = [];
 
     const sortedChapters = chapterCollections.sort(
-      (chapterA, chapterB) => (chapterA.LevelSequenceNumber ?? 0) - (chapterB.LevelSequenceNumber ?? 0),
+      (chapterA, chapterB) =>
+        this.parseNumber(getOnixText(chapterA.LevelSequenceNumber)) -
+        this.parseNumber(getOnixText(chapterB.LevelSequenceNumber)),
     );
 
     for (const chapter of sortedChapters) {
       const chapterId = this.generateId();
       const chapterDoi = chapter?.TextItem?.TextItemIdentifier?.IDValue ?? '';
-      const chapterTitleContent = chapter?.TitleDetail?.TitleElement?.TitleText ?? '';
+      const { title: chapterTitleContent } = extractOnixTitle(chapter?.TitleDetail, TitleElementLevel._04);
 
       const newChapter = getDefaultChapter({
         id: chapterId,
@@ -914,9 +1179,9 @@ class XMLParser {
         publicationDate,
         withdrawnDate,
         relationId: workId,
-        pageCount: this.parseNumber(chapter?.NumberOfPages?.toString() ?? '0'),
-        firstPage: chapter?.PageRun?.FirstPageNumber ?? '',
-        lastPage: chapter?.PageRun?.LastPageNumber ?? '',
+        pageCount: this.parseNumber(getOnixText(chapter?.NumberOfPages)),
+        firstPage: getOnixText(chapter?.PageRun?.FirstPageNumber),
+        lastPage: getOnixText(chapter?.PageRun?.LastPageNumber),
         contributions: [],
       });
 
@@ -926,10 +1191,10 @@ class XMLParser {
 
       newChapter.contributions = workContributions;
 
-      newChapters[workId].push(newChapter);
+      newChapters.push(newChapter);
     }
 
-    this.parsedChapters = [...this.parsedChapters, ...newChapters[workId]];
+    return newChapters;
   }
 
   private generateId() {
