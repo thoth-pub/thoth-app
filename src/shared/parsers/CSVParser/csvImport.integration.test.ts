@@ -177,7 +177,7 @@ describe('CSV bulk import, end to end', () => {
 
     // --- upload + preview -------------------------------------------------
     expect(result.status).toBe('success');
-    expect(result.errors).toEqual([]);
+    expect(result.issues).toEqual([]);
     expect(result.data.works.map((work) => work.titles[0].title)).toEqual(ROWS.map(({ title }) => title));
 
     const plan = result.data.series;

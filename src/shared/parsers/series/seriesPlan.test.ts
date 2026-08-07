@@ -28,6 +28,7 @@ const OTHER_IMPRINT = 'imprint-2';
 
 /** Message stubs that echo their inputs, so assertions read as data rather than as prose. */
 const messages: SeriesPlanMessages = {
+  validationCode: 'csv.validation',
   ambiguousMatch: ({ name, count, source }) => `ambiguous|${name}|${count}|${source}`,
   conflictingMatches: ({ name, sources }) => `conflicting|${name}|${sources}`,
   duplicateOrdinal: ({ name, ordinal, sources }) => `duplicate|${name}|${ordinal}|${sources}`,
@@ -71,7 +72,7 @@ const candidateInput = (overrides: Partial<SeriesCandidateInput> = {}): SeriesCa
 const candidateOf = (input: Partial<SeriesCandidateInput>, serieses: SeriesEntity[] = []): SeriesCandidate => {
   const resolved = resolveSeriesCandidate(candidateInput(input), serieses, messages);
 
-  if ('error' in resolved) throw new Error(`unexpected error: ${resolved.error.message}`);
+  if ('issue' in resolved) throw new Error(`unexpected issue: ${resolved.issue.message}`);
 
   return resolved.candidate;
 };
@@ -158,7 +159,9 @@ describe('resolveSeriesCandidate', () => {
     const serieses = [makeSeries('a', 'Foundations'), makeSeries('b', 'Foundations')];
     const resolved = resolveSeriesCandidate(candidateInput({ sourceIndex: 4 }), serieses, messages);
 
-    expect(resolved).toEqual({ error: { index: 4, message: 'ambiguous|Foundations|2|record 1' } });
+    expect(resolved).toEqual({
+      issue: { index: 4, severity: 'error', code: 'csv.validation', message: 'ambiguous|Foundations|2|record 1' },
+    });
   });
 });
 
@@ -177,10 +180,10 @@ describe('describeSources', () => {
 
 describe('buildSeriesPlan', () => {
   it('ignores members with no series at all', () => {
-    const { plan, errors } = buildSeriesPlan([{ work: makeWork('w1') }], [], messages);
+    const { plan, issues } = buildSeriesPlan([{ work: makeWork('w1') }], [], messages);
 
     expect(plan).toEqual([]);
-    expect(errors).toEqual([]);
+    expect(issues).toEqual([]);
   });
 
   it('groups records that share an identity into one entry, in first-appearance order', () => {
@@ -219,11 +222,19 @@ describe('buildSeriesPlan', () => {
   });
 
   it('refuses to create a series no record is allowed to create', () => {
-    const { plan, errors } = buildSeriesPlan(
+    const { plan, issues } = buildSeriesPlan(
       [
         {
           work: makeWork('w1'),
-          candidate: candidateOf({ sourceIndex: 7, creation: { allowed: false, reason: 'not allowed here' } }),
+          candidate: candidateOf({
+            sourceIndex: 7,
+            creation: {
+              allowed: false,
+              severity: 'error',
+              code: 'onix.validation',
+              reason: ({ name, sources }) => `not allowed for ${name} in ${sources}`,
+            },
+          }),
         },
       ],
       [],
@@ -231,13 +242,214 @@ describe('buildSeriesPlan', () => {
     );
 
     expect(plan).toEqual([]);
-    expect(errors).toEqual([{ index: 7, message: 'not allowed here' }]);
+    expect(issues).toEqual([
+      { index: 7, severity: 'error', code: 'onix.validation', message: 'not allowed for Foundations in record 1' },
+    ]);
+  });
+
+  describe('a refusal the adapter treats as a warning', () => {
+    const skipped = (sourceIndex: number, sourceDescription: string) =>
+      candidateOf({
+        sourceIndex,
+        sourceDescription,
+        creation: {
+          allowed: false,
+          severity: 'warning',
+          code: 'onix.series.non_publisher_collection_skipped',
+          reason: ({ name, sources }) => `skipped|${name}|${sources}`,
+        },
+      });
+
+    it('drops the group without failing, and reports it once for the whole group', () => {
+      const { plan, issues } = buildSeriesPlan(
+        [
+          { work: makeWork('w1'), candidate: skipped(2, 'record 2') },
+          { work: makeWork('w2'), candidate: skipped(4, 'record 4') },
+          { work: makeWork('w3'), candidate: skipped(7, 'record 7') },
+        ],
+        [],
+        messages,
+      );
+
+      // No series group, but nothing here says the works cannot be imported.
+      expect(plan).toEqual([]);
+      // Tagged with the earliest record involved, and naming all of them.
+      expect(issues).toEqual([
+        {
+          index: 2,
+          severity: 'warning',
+          code: 'onix.series.non_publisher_collection_skipped',
+          message: 'skipped|Foundations|record 2 and record 4 and record 7',
+        },
+      ]);
+    });
+
+    it('still attaches the group to a series Thoth already has', () => {
+      const serieses = [makeSeries('a', 'Foundations')];
+      const { plan, issues } = buildSeriesPlan(
+        [
+          {
+            work: makeWork('w1'),
+            candidate: { ...skipped(2, 'record 2'), existingSeriesId: 'a' },
+          },
+        ],
+        serieses,
+        messages,
+      );
+
+      // A refusal is only about creating a series, never about using one that exists.
+      expect(plan[0].target).toEqual({ kind: 'existing', seriesId: 'a' });
+      expect(issues).toEqual([]);
+    });
+
+    /**
+     * A group is one series, so the authority to create it belongs to the group. One record that
+     * may create this identity is enough for all of them: the rest are not authorising a second
+     * series, they are joining the one this import will create — which is exactly what they do
+     * when the series already exists.
+     */
+    describe('mixed authority within one group', () => {
+      const allowed = (sourceIndex: number, sourceDescription: string) =>
+        candidateOf({ sourceIndex, sourceDescription, creation: { allowed: true } });
+
+      const planFor = (candidates: SeriesCandidate[]) =>
+        buildSeriesPlan(
+          candidates.map((candidate, index) => ({ work: makeWork(`w${index + 1}`), candidate })),
+          [],
+          messages,
+        );
+
+      it('proposes the series once and keeps every record when only one may create it', () => {
+        const { plan, issues } = planFor([allowed(1, 'record 1'), skipped(2, 'record 2')]);
+
+        expect(plan).toHaveLength(1);
+        expect(plan[0].target).toEqual({
+          kind: 'proposed',
+          series: { name: 'Foundations', imprintId: IMPRINT, type: 'BOOK_SERIES' },
+        });
+        expect(plan[0].works.map((work) => work.id)).toEqual(['w1', 'w2']);
+        // Nothing was left behind, so there is nothing to warn about.
+        expect(issues).toEqual([]);
+      });
+
+      it('does not depend on which record came first', () => {
+        const authorityFirst = planFor([allowed(1, 'record 1'), skipped(2, 'record 2')]);
+        const refusalFirst = planFor([skipped(1, 'record 1'), allowed(2, 'record 2')]);
+
+        expect(refusalFirst.issues).toEqual([]);
+        expect(refusalFirst.plan).toHaveLength(1);
+        expect(refusalFirst.plan[0].target).toEqual(authorityFirst.plan[0].target);
+        expect(refusalFirst.plan[0].works.map((work) => work.orderNumber)).toEqual(
+          authorityFirst.plan[0].works.map((work) => work.orderNumber),
+        );
+      });
+
+      /**
+       * Identity is normalised, so one group can hold several spellings of the same name. Only
+       * one of them can be stored, and it should not be a spelling from a record that had no
+       * authority to create the series in the first place.
+       */
+      describe('the name the series is created with', () => {
+        const named = (sourceIndex: number, name: string, creation: SeriesCandidateInput['creation']) =>
+          candidateOf({ sourceIndex, sourceDescription: `record ${sourceIndex}`, name, creation });
+
+        const refused: SeriesCandidateInput['creation'] = {
+          allowed: false,
+          severity: 'warning',
+          code: 'onix.series.non_publisher_collection_skipped',
+          reason: ({ name, sources }) => `skipped|${name}|${sources}`,
+        };
+
+        it.each([
+          ['the authorising record comes second', 1],
+          ['the authorising record comes first', -1],
+        ])("takes the authorising record's spelling when %s", (_label, direction) => {
+          const records = [named(1, 'editorial   studies', refused), named(2, 'Editorial Studies', { allowed: true })];
+          const { plan, issues } = planFor(direction === 1 ? records : [records[1], records[0]]);
+
+          expect(plan).toHaveLength(1);
+          expect(plan[0].target).toEqual({
+            kind: 'proposed',
+            series: { name: 'Editorial Studies', imprintId: IMPRINT, type: 'BOOK_SERIES' },
+          });
+          // What the preview shows is what will be created.
+          expect(plan[0].name).toBe('Editorial Studies');
+          expect(plan[0].works).toHaveLength(2);
+          expect(issues).toEqual([]);
+        });
+
+        it('takes the earliest authorising record when several could have created it', () => {
+          const { plan } = planFor([
+            named(1, 'editorial   studies', refused),
+            named(2, 'Editorial Studies', { allowed: true }),
+            named(3, 'EDITORIAL STUDIES', { allowed: true }),
+          ]);
+
+          expect(plan[0].target).toMatchObject({ series: { name: 'Editorial Studies' } });
+          expect(plan[0].name).toBe('Editorial Studies');
+        });
+
+        it('leaves an existing series showing the first spelling the source used', () => {
+          const serieses = [makeSeries('a', 'Editorial Studies')];
+          const { plan } = buildSeriesPlan(
+            [
+              {
+                work: makeWork('w1'),
+                candidate: candidateOf({ name: 'editorial   studies', sourceIndex: 1 }, serieses),
+              },
+            ],
+            serieses,
+            messages,
+          );
+
+          expect(plan[0].target).toEqual({ kind: 'existing', seriesId: 'a' });
+          expect(plan[0].name).toBe('editorial   studies');
+        });
+      });
+
+      it('drops the group only when no record at all may create it', () => {
+        const { plan, issues } = planFor([skipped(1, 'record 1'), skipped(2, 'record 2'), skipped(3, 'record 3')]);
+
+        expect(plan).toEqual([]);
+        expect(issues).toHaveLength(1);
+        expect(issues[0].severity).toBe('warning');
+      });
+
+      it("applies the ordinal rules to a group created on one record's authority", () => {
+        const { plan, issues } = planFor([
+          { ...allowed(1, 'record 1'), ordinal: 4 },
+          { ...skipped(2, 'record 2') },
+          { ...skipped(3, 'record 3'), ordinal: 9 },
+        ]);
+
+        // Explicit ordinals are preserved, and the unnumbered record is appended above them all.
+        expect(plan[0].works.map((work) => work.orderNumber)).toEqual([4, 10, 9]);
+        expect(issues).toEqual([]);
+      });
+
+      it("still reports an ordinal collision in a group created on one record's authority", () => {
+        const { plan, issues } = planFor([
+          { ...allowed(1, 'record 1'), ordinal: 4 },
+          { ...skipped(2, 'record 2'), ordinal: 4 },
+        ]);
+
+        expect(plan).toEqual([]);
+        expect(issues).toEqual([
+          {
+            index: 1,
+            severity: 'error',
+            code: 'csv.validation',
+            message: 'duplicate|Foundations|4|record 1 and record 2',
+          },
+        ]);
+      });
+    });
   });
 
   it('reports a group whose records matched different existing series', () => {
     // Same identity, different matched ids: only reachable when the series list changes shape
     // between records, but it must never be resolved by silently picking one.
-    const { plan, errors } = buildSeriesPlan(
+    const { plan, issues } = buildSeriesPlan(
       [
         {
           work: makeWork('w1'),
@@ -253,7 +465,14 @@ describe('buildSeriesPlan', () => {
     );
 
     expect(plan).toEqual([]);
-    expect(errors).toEqual([{ index: 1, message: 'conflicting|Foundations|record 1 and record 2' }]);
+    expect(issues).toEqual([
+      {
+        index: 1,
+        severity: 'error',
+        code: 'csv.validation',
+        message: 'conflicting|Foundations|record 1 and record 2',
+      },
+    ]);
   });
 
   describe('ordinals', () => {
@@ -295,42 +514,51 @@ describe('buildSeriesPlan', () => {
     });
 
     it('reports two records claiming the same explicit ordinal, and drops the group', () => {
-      const { plan, errors } = ordinalsFor([
+      const { plan, issues } = ordinalsFor([
         candidateOf({ sourceIndex: 1, ordinal: 4, sourceDescription: 'record 1' }),
         candidateOf({ sourceIndex: 2, ordinal: 4, sourceDescription: 'record 2' }),
       ]);
 
       expect(plan).toEqual([]);
-      expect(errors).toEqual([{ index: 1, message: 'duplicate|Foundations|4|record 1 and record 2' }]);
+      expect(issues).toEqual([
+        {
+          index: 1,
+          severity: 'error',
+          code: 'csv.validation',
+          message: 'duplicate|Foundations|4|record 1 and record 2',
+        },
+      ]);
     });
 
     it('reports an explicit ordinal an existing Thoth issue already uses', () => {
       const serieses = [makeSeries('a', 'Foundations', IMPRINT, [1, 2])];
-      const { plan, errors } = ordinalsFor([candidateOf({ sourceIndex: 3, ordinal: 2 }, serieses)], serieses);
+      const { plan, issues } = ordinalsFor([candidateOf({ sourceIndex: 3, ordinal: 2 }, serieses)], serieses);
 
       expect(plan).toEqual([]);
-      expect(errors).toEqual([{ index: 3, message: 'taken|Foundations|2|record 1' }]);
+      expect(issues).toEqual([
+        { index: 3, severity: 'error', code: 'csv.validation', message: 'taken|Foundations|2|record 1' },
+      ]);
     });
 
     it('applies the same collision rules to a series the import would create', () => {
-      const { plan, errors } = ordinalsFor([
+      const { plan, issues } = ordinalsFor([
         candidateOf({ sourceIndex: 1, ordinal: 1, sourceDescription: 'record 1' }),
         candidateOf({ sourceIndex: 2, ordinal: 1, sourceDescription: 'record 2' }),
       ]);
 
       expect(plan).toEqual([]);
-      expect(errors).toHaveLength(1);
+      expect(issues).toHaveLength(1);
     });
 
     it('orders several collisions by ordinal, tagged with the lowest source index', () => {
-      const { errors } = ordinalsFor([
+      const { issues } = ordinalsFor([
         candidateOf({ sourceIndex: 1, ordinal: 9, sourceDescription: 'record 1' }),
         candidateOf({ sourceIndex: 2, ordinal: 3, sourceDescription: 'record 2' }),
         candidateOf({ sourceIndex: 3, ordinal: 3, sourceDescription: 'record 3' }),
         candidateOf({ sourceIndex: 4, ordinal: 9, sourceDescription: 'record 4' }),
       ]);
 
-      expect(errors).toEqual([
+      expect(issues.map(({ index, message }) => ({ index, message }))).toEqual([
         { index: 2, message: 'duplicate|Foundations|3|record 2 and record 3' },
         { index: 1, message: 'duplicate|Foundations|9|record 1 and record 4' },
       ]);

@@ -10,7 +10,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { CSVParser, TranslateFunction } from '@/src/shared/parsers';
-import { ContributorsForSelection, SeriesImportPlan } from '@/src/shared/types';
+import { ContributorsForSelection, ImportIssue, SeriesImportPlan } from '@/src/shared/types';
 import { CircularProgress } from '@/src/shared/ui';
 import { isCsv } from '@/src/shared/utils';
 
@@ -21,8 +21,13 @@ type CSVParseProps = {
   file: File;
   imprints: FormFieldOption[];
   serieses: SeriesEntity[];
-  onPreview?: (works: WorkEntity[], chapters: WorkEntity[], serieses: SeriesImportPlan) => void;
-  onValidationFailure?: (errors: string[]) => void;
+  onPreview?: (
+    works: WorkEntity[],
+    chapters: WorkEntity[],
+    serieses: SeriesImportPlan,
+    warnings: ImportIssue[],
+  ) => void;
+  onValidationFailure?: (issues: ImportIssue[]) => void;
 };
 
 export type CSVFieldType = string | number | boolean;
@@ -38,6 +43,9 @@ export const CSVParse = (props: CSVParseProps) => {
   const [works, setWorks] = useState<WorkEntity[]>([]);
   const [seriesForUpdate, setSeriesForUpdate] = useState<SeriesImportPlan>([]);
   const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<ContributorsForSelection>({});
+  // Held here rather than routed through contributor selection, which has no business reading
+  // diagnostics: they are handed on unchanged when the user asks for the preview.
+  const [warnings, setWarnings] = useState<ImportIssue[]>([]);
 
   const isFileUploaded = file && file.size > 0;
   const isCsvFile = isCsv(file);
@@ -48,6 +56,7 @@ export const CSVParse = (props: CSVParseProps) => {
     setWorks([]);
     setSeriesForUpdate([]);
     setMultipleFoundedContributors({});
+    setWarnings([]);
     setIsValidatingFile(true);
 
     const csvConfig = getCsvConfig(imprints, licenseOptions, translate);
@@ -65,7 +74,7 @@ export const CSVParse = (props: CSVParseProps) => {
     const result = await csvParser.parse();
 
     if (result.status === 'failed') {
-      onValidationFailure?.(result.errors);
+      onValidationFailure?.(result.issues);
       setIsValidatingFile(false);
       return;
     }
@@ -73,6 +82,9 @@ export const CSVParse = (props: CSVParseProps) => {
     setWorks(result.data.works);
     setSeriesForUpdate(result.data.series);
     setMultipleFoundedContributors(result.data.contributorsForSelection);
+    // A successful parse only ever carries warnings, and they are not a validation failure:
+    // they travel with the data to the preview, where the user decides whether to go ahead.
+    setWarnings(result.issues);
     setIsValidatingFile(false);
   });
 
@@ -83,7 +95,7 @@ export const CSVParse = (props: CSVParseProps) => {
   }, [file, isFileUploaded, isCsvFile]);
 
   const handleSubmit = async (works: WorkEntity[]) => {
-    onPreview?.(works, [], seriesForUpdate);
+    onPreview?.(works, [], seriesForUpdate, warnings);
   };
 
   return (

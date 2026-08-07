@@ -2,7 +2,7 @@ import { useState, useTransition } from 'react';
 
 import { useBulkCreateWorks } from '@/src/entities/work';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
-import type { SeriesImportPlan } from '@/src/shared/types';
+import type { ImportIssue, SeriesImportPlan } from '@/src/shared/types';
 import {
   Button,
   TableBody,
@@ -15,15 +15,24 @@ import {
 } from '@/src/shared/ui';
 import { convertOptionToString, getDisplayTitle } from '@/src/shared/utils';
 
+/** Stable identity, so a preview with nothing to warn about does not re-render on every pass. */
+const NO_WARNINGS: ImportIssue[] = [];
+
 type PreviewStepProps = {
   works: WorkEntity[];
   chapters: WorkEntity[];
   serieses: SeriesImportPlan;
+  /**
+   * What the source file said that this import will not represent. Never fatal, and never part
+   * of the payload: the preview is where they are shown, because it is the last point at which
+   * the user can decide not to go ahead.
+   */
+  warnings?: ImportIssue[];
   onSubmit: () => void;
 };
 
 export const PreviewStep = (props: PreviewStepProps) => {
-  const { works, chapters, serieses, onSubmit } = props;
+  const { works, chapters, serieses, warnings = NO_WARNINGS, onSubmit } = props;
 
   const { bulkCreateWorks } = useBulkCreateWorks();
   const [isPending, startTransition] = useTransition();
@@ -67,6 +76,28 @@ export const PreviewStep = (props: PreviewStepProps) => {
 
   return (
     <>
+      {/*
+        Shown above the works so they are read before the list is scanned, and kept out of the
+        `hasFailed` channel below: nothing here stops the import, and the Create button stays
+        enabled. Order is the parser's, which is source-file order.
+      */}
+      {warnings.length > 0 && (
+        <section className="rounded border border-amber-300 bg-amber-50 p-4 text-amber-900">
+          <Typography component="h2" fontWeight="bold" color="inherit" className="capitalize">
+            <TranslatedContent content="warnings" />
+          </Typography>
+          <ul className="list-disc pl-5">
+            {warnings.map((warning, index) => (
+              // eslint-disable-next-line @eslint-react/no-array-index-key -- static warning list, regenerated wholesale on each parse; messages may repeat
+              <li key={index}>
+                <Typography component="span" color="inherit">
+                  {warning.message}
+                </Typography>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <TableWrapper>
         <TableHeader
           cells={['title', 'status', 'type', 'contributors', 'doi', 'series']}

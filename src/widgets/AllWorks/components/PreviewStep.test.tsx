@@ -33,12 +33,20 @@ vi.mock('@/src/shared/ui', () => ({
 }));
 
 import { SeriesType } from '@/src/shared/constants/series';
+import type { ImportIssue } from '@/src/shared/types';
 import { getDefaultWork } from '@/src/shared/utils/work';
 
 import { PreviewStep } from './PreviewStep';
 
 describe('PreviewStep', () => {
   const works = [getDefaultWork({ id: 'work-1' })];
+
+  const warning = (message: string, productIndex: number): ImportIssue => ({
+    severity: 'warning',
+    code: 'onix.series.non_publisher_collection_skipped',
+    message,
+    source: { kind: 'onix', productIndex },
+  });
 
   beforeEach(() => {
     mockBulkCreateWorks.mockReset();
@@ -151,5 +159,68 @@ describe('PreviewStep', () => {
 
     expect(screen.getByText('Arc Companions')).toBeInTheDocument();
     expect(screen.getByText('will be created')).toBeInTheDocument();
+  });
+
+  describe('warnings', () => {
+    const serieses = [
+      {
+        name: 'Arc Companions',
+        target: {
+          kind: 'proposed' as const,
+          series: { name: 'Arc Companions', imprintId: 'imprint-1', type: SeriesType.enum.BookSeries },
+        },
+        works: [{ ...works[0], orderNumber: 1 }],
+      },
+    ];
+
+    it('shows a warning without standing in the way of confirming', async () => {
+      mockBulkCreateWorks.mockResolvedValue(undefined);
+
+      const onSubmit = vi.fn();
+      render(
+        <PreviewStep
+          works={works}
+          chapters={[]}
+          serieses={serieses}
+          warnings={[warning('Series "Editorial Studies" will not be created', 2)]}
+          onSubmit={onSubmit}
+        />,
+      );
+
+      expect(screen.getByText('warnings')).toBeInTheDocument();
+      expect(screen.getByText('Series "Editorial Studies" will not be created')).toBeInTheDocument();
+      // The preview is the acknowledgement: nothing to tick, nothing to dismiss.
+      expect(screen.getByRole('button', { name: 'actions.create' })).not.toBeDisabled();
+
+      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+      // A warning is not part of the payload, and changes nothing about it.
+      await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledWith({ works, serieses, chapters: [] }));
+      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    });
+
+    it('shows several warnings in the order they were given', () => {
+      render(
+        <PreviewStep
+          works={works}
+          chapters={[]}
+          serieses={[]}
+          warnings={[warning('second product', 2), warning('fourth product', 4)]}
+          onSubmit={vi.fn()}
+        />,
+      );
+
+      const rendered = screen.getAllByRole('listitem').map((item) => item.textContent);
+
+      expect(rendered).toEqual(['second product', 'fourth product']);
+    });
+
+    it('renders nothing extra when there is nothing to warn about', () => {
+      render(<PreviewStep works={works} chapters={[]} serieses={[]} warnings={[]} onSubmit={vi.fn()} />);
+
+      expect(screen.queryByText('warnings')).not.toBeInTheDocument();
+      expect(screen.queryAllByRole('listitem')).toHaveLength(0);
+      expect(screen.getByRole('button', { name: 'actions.create' })).not.toBeDisabled();
+    });
   });
 });
