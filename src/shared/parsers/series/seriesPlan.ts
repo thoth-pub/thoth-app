@@ -2,7 +2,7 @@ import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 
 import { SeriesType } from '../../constants/series';
-import type { SeriesImportPlan, SeriesImportTarget } from '../../types';
+import type { ImportIssueCode, ImportIssueSeverity, SeriesImportPlan, SeriesImportTarget } from '../../types';
 
 /**
  * Format-neutral series planning, shared by the ONIX and CSV importers.
@@ -14,8 +14,9 @@ import type { SeriesImportPlan, SeriesImportTarget } from '../../types';
  * rather than one per file format.
  *
  * What stays in the adapters is only what the source format genuinely supplies: how to find a
- * series name, which records are allowed to create a missing series, what an explicit ordinal
- * looks like, and how to phrase an error (ONIX errors are English, CSV errors are translated).
+ * series name, which records are allowed to create a missing series and how bad it is when they
+ * are not, what an explicit ordinal looks like, and how to phrase a diagnostic (ONIX messages
+ * are English, CSV messages are translated).
  *
  * Everything here is pure. Planning never creates a series; it only decides what confirmation
  * would create.
@@ -44,10 +45,24 @@ export const seriesIdentity = (imprintId: string, name: string): string => `${im
  *
  * CSV always may: a publisher typing a series name into their own upload is asking for that
  * series. ONIX may not always: a Collection that is not the publisher's own collection may
- * still name a real series, but is not a safe basis for creating one, and the adapter supplies
- * the explanation it wants the user to read.
+ * still name a real series, but is not a safe basis for creating one.
+ *
+ * A refusal is not automatically fatal. The adapter decides both how bad it is and how to say
+ * it: whether the group simply cannot be represented (a warning, and the works import without
+ * the series) or the import must stop (an error). The planner only decides that the group
+ * produces no {@link SeriesImportGroup}.
+ *
+ * `reason` is given the whole group rather than one record, so a series several records share
+ * yields one issue naming all of them instead of the same sentence once per record.
  */
-export type SeriesCreationPolicy = { allowed: true } | { allowed: false; reason: string };
+export type SeriesCreationPolicy =
+  | { allowed: true }
+  | {
+      allowed: false;
+      severity: ImportIssueSeverity;
+      code: ImportIssueCode;
+      reason: (context: { name: string; sources: string }) => string;
+    };
 
 /**
  * One source record's resolved series, before grouping. Holds everything the plan builder needs
@@ -69,8 +84,19 @@ export type SeriesCandidate = {
   creation: SeriesCreationPolicy;
 };
 
-/** An error tagged with the source record it came from, so callers can sort by source order. */
-export type SeriesPlanError = { index: number; message: string };
+/**
+ * A planning diagnostic, tagged with the source record it came from.
+ *
+ * Deliberately not an `ImportIssue`: the planner knows a source *index*, not whether that index
+ * is a CSV row or an ONIX product, and it should not have to. The adapter that supplied the
+ * index is the one that turns this into an `ImportIssue` with real source context.
+ */
+export type SeriesPlanIssue = {
+  index: number;
+  severity: ImportIssueSeverity;
+  code: ImportIssueCode;
+  message: string;
+};
 
 /**
  * The wording of every series-planning error, supplied by the adapter.
@@ -79,6 +105,11 @@ export type SeriesPlanError = { index: number; message: string };
  * from ONIX vocabulary, while CSV errors go through i18n and talk about rows.
  */
 export type SeriesPlanMessages = {
+  /**
+   * The issue code the planner's own validation failures carry for this source format. Every
+   * one of them blocks the import, so they need no severity of their own.
+   */
+  validationCode: ImportIssueCode;
   /** More than one existing Thoth series in the imprint answers to this name. */
   ambiguousMatch: (context: { name: string; count: number; source: string }) => string;
   /** Records grouped as one series matched different existing Thoth series. */
@@ -156,14 +187,16 @@ export const resolveSeriesCandidate = (
   input: SeriesCandidateInput,
   serieses: SeriesEntity[],
   messages: SeriesPlanMessages,
-): { candidate: SeriesCandidate } | { error: SeriesPlanError } => {
+): { candidate: SeriesCandidate } | { issue: SeriesPlanIssue } => {
   const { name, imprintId, ordinal, sourceIndex, sourceDescription, creation } = input;
   const match = findExistingSeries(serieses, name, imprintId);
 
   if (match.status === 'ambiguous') {
     return {
-      error: {
+      issue: {
         index: sourceIndex,
+        severity: 'error',
+        code: messages.validationCode,
         message: messages.ambiguousMatch({ name, count: match.count, source: sourceDescription }),
       },
     };
@@ -192,14 +225,16 @@ export type SeriesPlanMember = { work: WorkEntity; candidate?: SeriesCandidate }
 const resolveSeriesTarget = (
   candidates: SeriesCandidate[],
   messages: SeriesPlanMessages,
-  errors: SeriesPlanError[],
+  issues: SeriesPlanIssue[],
 ): SeriesImportTarget | undefined => {
   const first = candidates[0];
   const matchedIds = [...new Set(candidates.map(({ existingSeriesId }) => existingSeriesId).filter((id) => !!id))];
 
   if (matchedIds.length > 1) {
-    errors.push({
+    issues.push({
       index: first.sourceIndex,
+      severity: 'error',
+      code: messages.validationCode,
       message: messages.conflictingMatches({ name: first.name, sources: describeSources(candidates) }),
     });
 
@@ -212,10 +247,18 @@ const resolveSeriesTarget = (
 
   // The first record that is not allowed to create the series blocks the whole group: a series
   // is created once, so it cannot be created on some members' authority but not others'.
-  for (const candidate of candidates) {
-    if (candidate.creation.allowed) continue;
+  //
+  // One issue is raised for the group, not one per record, and it is tagged with the earliest
+  // record involved — every record in the group is affected, and the message names them all.
+  const blocked = candidates.find(({ creation }) => !creation.allowed)?.creation;
 
-    errors.push({ index: candidate.sourceIndex, message: candidate.creation.reason });
+  if (blocked && !blocked.allowed) {
+    issues.push({
+      index: first.sourceIndex,
+      severity: blocked.severity,
+      code: blocked.code,
+      message: blocked.reason({ name: first.name, sources: describeSources(candidates) }),
+    });
 
     return undefined;
   }
@@ -235,14 +278,14 @@ const resolveSeriesTarget = (
  * CreateIssue partway through the import — after works, and possibly the series itself, had
  * already been created.
  *
- * Errors are tagged with the lowest source index involved, so a caller that sorts errors by
+ * Issues are tagged with the lowest source index involved, so a caller that sorts them by
  * source order gets deterministic output.
  */
 const hasOrdinalCollision = (
   candidates: SeriesCandidate[],
   existingOrdinals: number[],
   messages: SeriesPlanMessages,
-  errors: SeriesPlanError[],
+  issues: SeriesPlanIssue[],
 ): boolean => {
   const name = candidates[0].name;
   const byOrdinal = new Map<number, SeriesCandidate[]>();
@@ -260,16 +303,20 @@ const hasOrdinalCollision = (
     const lowestIndex = Math.min(...sources.map(({ sourceIndex }) => sourceIndex));
 
     if (sources.length > 1) {
-      errors.push({
+      issues.push({
         index: lowestIndex,
+        severity: 'error',
+        code: messages.validationCode,
         message: messages.duplicateOrdinal({ name, ordinal, sources: describeSources(sources) }),
       });
       collided = true;
     }
 
     if (existingOrdinals.includes(ordinal)) {
-      errors.push({
+      issues.push({
         index: lowestIndex,
+        severity: 'error',
+        code: messages.validationCode,
         message: messages.ordinalAlreadyInThoth({ name, ordinal, sources: describeSources(sources) }),
       });
       collided = true;
@@ -300,9 +347,9 @@ export const buildSeriesPlan = (
   members: SeriesPlanMember[],
   serieses: SeriesEntity[],
   messages: SeriesPlanMessages,
-): { plan: SeriesImportPlan; errors: SeriesPlanError[] } => {
+): { plan: SeriesImportPlan; issues: SeriesPlanIssue[] } => {
   const groups = new Map<string, { work: WorkEntity; candidate: SeriesCandidate }[]>();
-  const errors: SeriesPlanError[] = [];
+  const issues: SeriesPlanIssue[] = [];
 
   for (const { work, candidate } of members) {
     if (!candidate) continue;
@@ -317,7 +364,7 @@ export const buildSeriesPlan = (
 
   for (const grouped of groups.values()) {
     const candidates = grouped.map(({ candidate }) => candidate);
-    const target = resolveSeriesTarget(candidates, messages, errors);
+    const target = resolveSeriesTarget(candidates, messages, issues);
 
     if (!target) continue;
 
@@ -327,7 +374,7 @@ export const buildSeriesPlan = (
         ? (serieses.find((series) => series.id === target.seriesId)?.issues.map(({ ordinal }) => ordinal) ?? [])
         : [];
 
-    if (hasOrdinalCollision(candidates, existingOrdinals, messages, errors)) continue;
+    if (hasOrdinalCollision(candidates, existingOrdinals, messages, issues)) continue;
 
     const explicitOrdinals = candidates.map(({ ordinal }) => ordinal).filter((ordinal) => ordinal !== undefined);
 
@@ -340,5 +387,5 @@ export const buildSeriesPlan = (
     });
   }
 
-  return { plan, errors };
+  return { plan, issues };
 };

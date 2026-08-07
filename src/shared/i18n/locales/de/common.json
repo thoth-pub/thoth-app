@@ -240,5 +240,6 @@
     "accessibilityPrimaryStandardRequired": "Wählen Sie einen WCAG-Standard aus, bevor Sie einen zusätzlichen Standard hinzufügen."
   },
   "will be created": "Wird erstellt",
+  "warnings": "Warnungen",
   "bulk import did not finish": "Dieser Import wurde nicht abgeschlossen. Einige Werke wurden möglicherweise bereits erstellt. Schließen Sie diesen Upload und prüfen Sie die Werkliste, bevor Sie es erneut versuchen – ein erneuter Upload ohne Bereinigung des unvollständigen Imports kann doppelte Werke erzeugen."
 }

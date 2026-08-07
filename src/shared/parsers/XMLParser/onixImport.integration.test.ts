@@ -40,14 +40,14 @@ const FOUNDATIONS_ID = '22222222-2222-2222-2222-222222222222';
 const CREATED_SERIES_ID = '33333333-3333-3333-3333-333333333333';
 
 /** Three products in a series Thoth does not have, one in a series it does. */
-const product = (isbn: string, title: string, seriesName: string) => `
+const product = (isbn: string, title: string, seriesName: string, collectionType = '10') => `
   <Product>
     <RecordReference>${isbn}</RecordReference>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <Collection>
-        <CollectionType>10</CollectionType>
+        <CollectionType>${collectionType}</CollectionType>
         <TitleDetail>
           <TitleType>01</TitleType>
           <TitleElement>
@@ -87,6 +87,15 @@ const ONIX = `<?xml version="1.0" encoding="UTF-8"?>
   ${product('9781641893763', 'The Medieval Womb', 'Arc Companions')}
   ${product('9781802704488', 'Beowulf by All', 'Foundations')}
   ${product('9781802703306', 'Trans Histories of the Medieval Book', 'Arc Companions')}
+</ONIXMessage>`;
+
+/**
+ * The one case a warning exists for: a collection éditoriale (CollectionType 11) naming a series
+ * Thoth does not have. It cannot create the series, but the work is perfectly importable.
+ */
+const AMBIGUOUS_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  ${product('9781641891783', 'A Companion to the Cavendishes', 'Editorial Studies', '11')}
 </ONIXMessage>`;
 
 const foundations: SeriesEntity = {
@@ -187,9 +196,9 @@ describe('ONIX bulk import, end to end', () => {
     });
   });
 
-  const parseUpload = async (serieses: SeriesEntity[]) => {
+  const parseUpload = async (serieses: SeriesEntity[], onix = ONIX) => {
     // Step 1: what app/actions/validateXml.ts does.
-    const xml = (await parse(ONIX)) as ExtendedONIXMessageRoot;
+    const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -213,7 +222,7 @@ describe('ONIX bulk import, end to end', () => {
 
     // --- upload + preview -------------------------------------------------
     expect(result.status).toBe('success');
-    expect(result.errors).toEqual([]);
+    expect(result.issues).toEqual([]);
     expect(result.data.works).toHaveLength(4);
     expect(result.data.works.map((work) => work.titles[0].title)).toEqual([
       'A Companion to the Cavendishes',
@@ -271,6 +280,35 @@ describe('ONIX bulk import, end to end', () => {
       { seriesId: FOUNDATIONS_ID, workId: 'work-3', issueOrdinal: 3 },
       { seriesId: CREATED_SERIES_ID, workId: 'work-4', issueOrdinal: 3 },
     ]);
+  });
+
+  it('imports the work but no series when an ambiguous collection names one Thoth lacks', async () => {
+    const result = await parseUpload([foundations], AMBIGUOUS_ONIX);
+
+    // --- upload + preview -------------------------------------------------
+    // The file is accepted: a warning is not a validation failure.
+    expect(result.status).toBe('success');
+    expect(result.data.works.map((work) => work.titles[0].title)).toEqual(['A Companion to the Cavendishes']);
+
+    const plan = result.data.series as SeriesImportPlan;
+
+    // Nothing to create and nothing to attach to: the association is simply absent.
+    expect(plan).toEqual([]);
+    expect(result.issues).toEqual([
+      {
+        severity: 'warning',
+        code: 'onix.series.non_publisher_collection_skipped',
+        message: expect.stringContaining('"Editorial Studies" does not exist in Thoth and will not be created'),
+        source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+      },
+    ]);
+
+    // --- confirmation: warnings change nothing about what is sent ---------
+    await workService.bulkCreateWorks(result.data.works, plan, result.data.chapters);
+
+    expect(mutationsNamed('CreateWork')).toHaveLength(1);
+    expect(mutationsNamed('CreateSeries')).toHaveLength(0);
+    expect(mutationsNamed('CreateIssue')).toHaveLength(0);
   });
 
   it('a fresh parse reuses a series created by an earlier run', async () => {

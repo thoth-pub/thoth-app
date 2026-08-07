@@ -38,7 +38,15 @@ import {
 import { AbstractTypes } from '../../constants/abstracts';
 import { ERRORS } from '../../constants/errors';
 import { FormFieldOption } from '../../interfaces';
-import type { AbstractEntity, ContributorsForSelection, SeriesImportPlan, TitleEntity } from '../../types';
+import type {
+  AbstractEntity,
+  ContributorsForSelection,
+  ImportIssue,
+  ImportIssueSource,
+  ImportParseResult,
+  SeriesImportPlan,
+  TitleEntity,
+} from '../../types';
 import {
   getContributorRoleFromXml,
   getDefaultAbstract,
@@ -51,6 +59,7 @@ import {
   getWorkStatusFromXml,
   isValidPublicationForm,
 } from '../../utils';
+import { importStatus, sortIssues } from '../issues/importIssues';
 import {
   buildSeriesPlan,
   resolveSeriesCandidate,
@@ -91,8 +100,17 @@ type ParsedProduct = {
   seriesCandidate?: SeriesCandidate;
 };
 
+/** What {@link XMLParser.parse} produces for a whole ONIX message. */
+type XMLParseResult = ImportParseResult<{
+  works: WorkEntity[];
+  series: SeriesImportPlan;
+  chapters: WorkEntity[];
+  contributorsForSelection: ContributorsForSelection;
+}>;
+
 /** How the shared series planner phrases its errors for an ONIX import. */
 const ONIX_SERIES_MESSAGES: SeriesPlanMessages = {
+  validationCode: 'onix.validation',
   ambiguousMatch: ({ name, count, source }) =>
     `Series "${name}" matches ${count} existing Thoth series in the same imprint for ${source}`,
   conflictingMatches: ({ name, sources }) =>
@@ -106,11 +124,10 @@ const ONIX_SERIES_MESSAGES: SeriesPlanMessages = {
 class XMLParser {
   private xml: ExtendedONIXMessageRoot;
   /**
-   * Errors are tagged with the product they came from because products are parsed
-   * concurrently: without the tag the order shown in the UI would depend on which product
-   * happened to finish first.
+   * Issues carry the product they came from because products are parsed concurrently: without
+   * it the order shown in the UI would depend on which product happened to finish first.
    */
-  private errors: { index: number; message: string }[] = [];
+  private issues: ImportIssue[] = [];
   private parsedWorks: WorkEntity[] = [];
   private parsedSeries: SeriesImportPlan = [];
   private parsedChapters: WorkEntity[] = [];
@@ -145,7 +162,7 @@ class XMLParser {
     this.institutionService = institutionService;
   }
 
-  async parse() {
+  async parse(): Promise<XMLParseResult> {
     try {
       const products = this.convertToArray(this.xml.ONIXMessage.Product).filter((product) => !!product);
 
@@ -153,7 +170,14 @@ class XMLParser {
         return {
           status: 'failed',
           data: { works: [], series: [], chapters: [], contributorsForSelection: {} },
-          errors: ['No products found in XML file'],
+          issues: [
+            {
+              severity: 'error',
+              code: 'onix.no_products',
+              message: 'No products found in XML file',
+              source: { kind: 'file' },
+            },
+          ],
         };
       }
 
@@ -167,23 +191,36 @@ class XMLParser {
       this.parsedWorks = parsedProducts.map(({ work }) => work);
       this.parsedChapters = parsedProducts.flatMap(({ chapters }) => chapters);
 
-      const { plan, errors } = buildSeriesPlan(
+      const { plan, issues } = buildSeriesPlan(
         parsedProducts.map(({ work, seriesCandidate }) => ({ work, candidate: seriesCandidate })),
         this.serieses,
         ONIX_SERIES_MESSAGES,
       );
 
       this.parsedSeries = plan;
-      this.errors.push(...errors);
 
-      if (this.errors.length > 0) {
+      // The planner tags its issues with a source index, which for ONIX is the product
+      // position; the product itself supplies the RecordReference that makes it identifiable.
+      const sourceByIndex = new Map(
+        products.map((product, index) => [index + 1, this.productSource(product, index + 1)] as const),
+      );
+
+      issues.forEach(({ index, severity, code, message }) =>
+        this.issues.push({ severity, code, message, source: sourceByIndex.get(index) ?? { kind: 'file' } }),
+      );
+
+      const sortedIssues = sortIssues(this.issues);
+
+      if (importStatus(sortedIssues) === 'failed') {
         return {
           status: 'failed',
           data: { works: [], series: [], chapters: [], contributorsForSelection: {} },
-          errors: this.sortedErrors(),
+          issues: sortedIssues,
         };
       }
 
+      // Warnings do not withhold data: the works a warning describes are imported, minus
+      // whatever the warning says will not be represented.
       return {
         status: 'success',
         data: {
@@ -192,13 +229,20 @@ class XMLParser {
           chapters: this.parsedChapters,
           contributorsForSelection: this.contributorsForSelection,
         },
-        errors: [],
+        issues: sortedIssues,
       };
     } catch (_error) {
       return {
         status: 'failed',
         data: { works: [], series: [], chapters: [], contributorsForSelection: {} },
-        errors: [ERRORS.XML_PARSING_ERROR],
+        issues: [
+          {
+            severity: 'error',
+            code: 'onix.parsing_failed',
+            message: ERRORS.XML_PARSING_ERROR,
+            source: { kind: 'file' },
+          },
+        ],
       };
     }
   }
@@ -207,16 +251,32 @@ class XMLParser {
     return toOnixArray(data);
   }
 
-  private pushError(index: number, message: string) {
-    this.errors.push({ index, message });
+  /**
+   * Where a product-level issue came from: its position in the message, plus the publisher's own
+   * RecordReference when the record carries one.
+   */
+  private productSource(product: ExtendedProduct, index: number): ImportIssueSource {
+    const recordReference = getOnixText(product.RecordReference);
+
+    return {
+      kind: 'onix',
+      productIndex: index,
+      ...(recordReference.length > 0 ? { recordReference } : {}),
+    };
   }
 
-  /** Errors in ONIX product order, then in the order they were raised within a product. */
-  private sortedErrors(): string[] {
-    return this.errors
-      .map((error, order) => ({ ...error, order }))
-      .sort((a, b) => a.index - b.index || a.order - b.order)
-      .map(({ message }) => message);
+  /**
+   * Every ONIX issue raised while parsing belongs to one product, and every one of them blocks
+   * the import: the only warning this parser raises comes from the shared series planner, which
+   * has the whole group in hand and phrases it once.
+   */
+  private pushError(product: ExtendedProduct, index: number, message: string) {
+    this.issues.push({
+      severity: 'error',
+      code: 'onix.validation',
+      message,
+      source: this.productSource(product, index),
+    });
   }
 
   /**
@@ -298,7 +358,7 @@ class XMLParser {
     const imprint = this.imprints.find((imprint) => imprint.label === xmlImprint);
 
     if (!imprint) {
-      this.pushError(index, `Imprint ${xmlImprint} not found for product ${index}`);
+      this.pushError(product, index, `Imprint ${xmlImprint} not found for product ${index}`);
       return '';
     }
 
@@ -373,7 +433,7 @@ class XMLParser {
     const license = this.licenses.find((option) => option.value.startsWith(enteredLicense));
 
     if (!license) {
-      this.pushError(index, `License ${enteredLicense} not found for product ${index}`);
+      this.pushError(product, index, `License ${enteredLicense} not found for product ${index}`);
       return '';
     }
 
@@ -556,7 +616,7 @@ class XMLParser {
     let hasUnknownCode = false;
 
     if (xmlLanguages.length === 0) {
-      this.pushError(index, `Language not provided for ${productDescription}`);
+      this.pushError(product, index, `Language not provided for ${productDescription}`);
 
       return workLanguages;
     }
@@ -581,7 +641,7 @@ class XMLParser {
       );
 
       if (!language) {
-        this.pushError(index, `Language ${enteredLanguageCode} not found for ${productDescription}`);
+        this.pushError(product, index, `Language ${enteredLanguageCode} not found for ${productDescription}`);
         hasUnknownCode = true;
         continue;
       }
@@ -599,7 +659,7 @@ class XMLParser {
     // Every language role in the product describes something Thoth cannot store (rights,
     // abstracts, audio, …), so the work would silently end up with no language at all.
     if (workLanguages.length === 0 && !hasUnknownCode) {
-      this.pushError(index, `No supported language role found for ${productDescription}`);
+      this.pushError(product, index, `No supported language role found for ${productDescription}`);
     }
 
     return workLanguages;
@@ -738,6 +798,7 @@ class XMLParser {
 
       if (!currencyCode) {
         this.pushError(
+          product,
           index,
           `Currency code ${price?.CurrencyCode} not found for ${this.describeProduct(product, index)}`,
         );
@@ -813,7 +874,7 @@ class XMLParser {
     const seriesName = extractOnixTitle(seriesCollection.TitleDetail, TitleElementLevel._02).title;
 
     if (seriesName.length === 0) {
-      this.pushError(index, `Collection has no usable series title for ${productDescription}`);
+      this.pushError(product, index, `Collection has no usable series title for ${productDescription}`);
 
       return undefined;
     }
@@ -845,15 +906,25 @@ class XMLParser {
             ? { allowed: true }
             : {
                 allowed: false,
-                reason: `Series "${seriesName}" does not exist in Thoth and cannot be created automatically because its ONIX CollectionType is not a publisher collection (10), for ${productDescription}`,
+                // Not knowing whether a collection is the publisher's own series is a reason not
+                // to create one, not a reason to refuse the work. The collection is still real
+                // ONIX metadata — CollectionType 11 in particular is a genuine editorial line —
+                // so the work imports and the user is told what was left behind, rather than
+                // having a whole upload blocked by a code list value they may not control.
+                severity: 'warning',
+                code: 'onix.series.non_publisher_collection_skipped',
+                reason: ({ name, sources }) =>
+                  `Series "${name}" does not exist in Thoth and will not be created, because its ONIX CollectionType is not a publisher collection (10). ${sources} will be imported without this series association`,
               },
       },
       this.serieses,
       ONIX_SERIES_MESSAGES,
     );
 
-    if ('error' in resolved) {
-      this.errors.push(resolved.error);
+    if ('issue' in resolved) {
+      const { severity, code, message } = resolved.issue;
+
+      this.issues.push({ severity, code, message, source: this.productSource(product, index) });
 
       return undefined;
     }

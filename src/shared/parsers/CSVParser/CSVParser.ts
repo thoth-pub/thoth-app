@@ -34,7 +34,14 @@ import {
 import { AbstractTypes } from '../../constants/abstracts';
 import { ERRORS } from '../../constants/errors';
 import { FormFieldOption } from '../../interfaces';
-import type { AbstractEntity, ContributorsForSelection, SeriesImportPlan, TitleEntity } from '../../types';
+import type {
+  AbstractEntity,
+  ContributorsForSelection,
+  ImportIssue,
+  ImportParseResult,
+  SeriesImportPlan,
+  TitleEntity,
+} from '../../types';
 import {
   convertRomanToArabic,
   getDefaultAbstract,
@@ -43,6 +50,7 @@ import {
   getDefaultWork,
 } from '../../utils';
 import { compileFullTitle } from '../../utils/titles';
+import { importStatus, sortIssues } from '../issues/importIssues';
 import {
   buildSeriesPlan,
   resolveSeriesCandidate,
@@ -70,15 +78,11 @@ type Row = {
   [CSVKey in (typeof CSV_KEYS)[keyof typeof CSV_KEYS]]: CSVFieldType;
 };
 
-type CSVParseResult = {
-  status: 'success' | 'failed';
-  data: {
-    works: WorkEntity[];
-    series: SeriesImportPlan;
-    contributorsForSelection: ContributorsForSelection;
-  };
-  errors: string[];
-};
+type CSVParseResult = ImportParseResult<{
+  works: WorkEntity[];
+  series: SeriesImportPlan;
+  contributorsForSelection: ContributorsForSelection;
+}>;
 
 /**
  * The largest issue ordinal Thoth can store: `issueOrdinal` is a GraphQL `Int`, which the
@@ -97,12 +101,11 @@ export class CSVParser {
   private csv: File;
   private csvConfig: ValidatorConfig;
   /**
-   * Errors are tagged with the row they came from because rows are parsed concurrently:
-   * without the tag the order shown in the UI would depend on which row's contributor and
-   * institution lookups happened to finish first. The row is not optional — see
-   * {@link CSVParser.pushError}.
+   * Issues carry the row they came from because rows are parsed concurrently: without it the
+   * order shown in the UI would depend on which row's contributor and institution lookups
+   * happened to finish first. The row is not optional — see {@link CSVParser.pushIssue}.
    */
-  private errors: { row: number; message: string }[] = [];
+  private issues: ImportIssue[] = [];
   private parsedWorks: WorkEntity[] = [];
   private parsedSeries: SeriesImportPlan = [];
   private contributorsForSelection: ContributorsForSelection = {};
@@ -141,9 +144,21 @@ export class CSVParser {
       const isErrors = csvParseResult.inValidData.length > 0;
 
       if (isErrors) {
-        const errors = csvParseResult.inValidData.map((error) => error.message);
+        // `csv-file-validator` findings are about the shape of the uploaded file — a missing
+        // header, a short row, a cell that fails its column's rule — and are raised before any
+        // row is parsed, so they are file-level. Their own row indices are not reused: the
+        // library counts the header as a row for cell errors but not for row-length errors, and
+        // a header error belongs to no data row at all. Each message already names its row.
+        const issues = csvParseResult.inValidData.map(
+          ({ message }): ImportIssue => ({
+            severity: 'error',
+            code: 'csv.validation',
+            message,
+            source: { kind: 'file' },
+          }),
+        );
 
-        return { status: 'failed', data: { works: [], series: [], contributorsForSelection: {} }, errors };
+        return { status: 'failed', data: { works: [], series: [], contributorsForSelection: {} }, issues };
       }
 
       const data: Row[] = csvParseResult.data;
@@ -157,21 +172,25 @@ export class CSVParser {
       // Every row owns a freshly generated work id, so merging the per-row maps cannot collide.
       this.contributorsForSelection = Object.assign({}, ...parsedRows.map((parsed) => parsed.contributorsForSelection));
 
-      const { plan, errors } = buildSeriesPlan(
+      const { plan, issues } = buildSeriesPlan(
         parsedRows.map(({ work, seriesCandidate }) => ({ work, candidate: seriesCandidate })),
         this.serieses,
         this.seriesMessages,
       );
 
       this.parsedSeries = plan;
-      // The shared planner tags errors with a source index, which for CSV is the row number.
-      errors.forEach(({ index, message }) => this.pushError(index, message));
+      // The shared planner tags issues with a source index, which for CSV is the row number.
+      issues.forEach(({ index, severity, code, message }) =>
+        this.issues.push({ severity, code, message, source: { kind: 'csv', row: index } }),
+      );
 
-      if (this.errors.length > 0) {
+      const sortedIssues = sortIssues(this.issues);
+
+      if (importStatus(sortedIssues) === 'failed') {
         return {
           status: 'failed',
           data: { works: [], series: [], contributorsForSelection: {} },
-          errors: this.sortedErrors(),
+          issues: sortedIssues,
         };
       }
 
@@ -182,41 +201,44 @@ export class CSVParser {
           series: this.parsedSeries,
           contributorsForSelection: this.contributorsForSelection,
         },
-        errors: [],
+        issues: sortedIssues,
       };
     } catch (_error) {
       return {
         status: 'failed',
         data: { works: [], series: [], contributorsForSelection: {} },
-        errors: [this.t(ERRORS.CSV_PARSING_ERROR)],
+        issues: [
+          {
+            severity: 'error',
+            code: 'csv.parsing_failed',
+            message: this.t(ERRORS.CSV_PARSING_ERROR),
+            source: { kind: 'file' },
+          },
+        ],
       };
     }
   }
 
   /**
-   * Every error this parser raises comes from one CSV data row, so the row number is required
-   * rather than optional. There is no synthetic bucket for errors that "have no row": a helper
+   * Every issue this parser raises comes from one CSV data row, so the row number is required
+   * rather than optional. There is no synthetic bucket for issues that "have no row": a helper
    * that cannot name its row would be a helper whose output order depends on which row's
    * lookups finished first.
    *
    * File-level problems never reach here — `csv-file-validator` findings and the catch-all
    * parsing failure are returned straight from `parse`, ahead of any row parsing.
+   *
+   * CSV has no warnings yet: every row-level rule it applies is one the import cannot proceed
+   * without, so the severity is fixed rather than passed in.
    */
-  private pushError(row: number, message: string) {
-    this.errors.push({ row, message });
-  }
-
-  /** Errors in CSV row order, then in the order they were raised within a row. */
-  private sortedErrors(): string[] {
-    return this.errors
-      .map((error, order) => ({ ...error, order }))
-      .sort((a, b) => a.row - b.row || a.order - b.order)
-      .map(({ message }) => message);
+  private pushIssue(row: number, message: string) {
+    this.issues.push({ severity: 'error', code: 'csv.validation', message, source: { kind: 'csv', row } });
   }
 
   /** How the shared series planner phrases its errors for a CSV import. */
   private get seriesMessages(): SeriesPlanMessages {
     return {
+      validationCode: 'csv.validation',
       ambiguousMatch: ({ name, count, source }) => this.t('errors.csvSeriesAmbiguous', { name, count, source }),
       conflictingMatches: ({ name, sources }) => this.t('errors.csvSeriesConflictingMatches', { name, sources }),
       duplicateOrdinal: ({ name, ordinal, sources }) =>
@@ -290,7 +312,7 @@ export class CSVParser {
     if (value === undefined) return '';
 
     if (typeof value !== 'string') {
-      this.pushError(rowNumber, this.t('errors.csvFieldNotString', { field, row: rowNumber }));
+      this.pushIssue(rowNumber, this.t('errors.csvFieldNotString', { field, row: rowNumber }));
 
       return '';
     }
@@ -308,7 +330,7 @@ export class CSVParser {
     const numberValue = parseInt(value);
 
     if (isNaN(numberValue)) {
-      this.pushError(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber }));
+      this.pushIssue(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber }));
 
       return 1;
     }
@@ -326,7 +348,7 @@ export class CSVParser {
     const numberValue = parseFloat(value);
 
     if (isNaN(numberValue)) {
-      this.pushError(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber }));
+      this.pushIssue(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber }));
 
       return 0;
     }
@@ -340,7 +362,7 @@ export class CSVParser {
     const imprint = this.imprints.find((imprint) => imprint.label === imprintName);
 
     if (!imprint) {
-      this.pushError(rowNumber, this.t('errors.csvImprintNotFound', { name: imprintName, row: rowNumber }));
+      this.pushIssue(rowNumber, this.t('errors.csvImprintNotFound', { name: imprintName, row: rowNumber }));
       return '';
     }
 
@@ -393,7 +415,7 @@ export class CSVParser {
     const license = this.licenses.find((option) => option.value.startsWith(`${value}`));
 
     if (!license) {
-      this.pushError(rowNumber, this.t('errors.csvLicenseNotFound', { value, row: rowNumber }));
+      this.pushIssue(rowNumber, this.t('errors.csvLicenseNotFound', { value, row: rowNumber }));
 
       return '';
     }
@@ -658,7 +680,7 @@ export class CSVParser {
       // nothing for it to be an ordinal of. Silently dropping it would lose data the publisher
       // meant to supply — most likely they forgot the series name, or misaligned a column.
       if (issueNumber.length > 0) {
-        this.pushError(
+        this.pushIssue(
           rowNumber,
           this.t('errors.csvSeriesIssueNumberWithoutSeries', { value: issueNumber, row: rowNumber }),
         );
@@ -691,8 +713,10 @@ export class CSVParser {
       this.seriesMessages,
     );
 
-    if ('error' in resolved) {
-      this.pushError(resolved.error.index, resolved.error.message);
+    if ('issue' in resolved) {
+      const { index, severity, code, message } = resolved.issue;
+
+      this.issues.push({ severity, code, message, source: { kind: 'csv', row: index } });
 
       return undefined;
     }
@@ -727,7 +751,7 @@ export class CSVParser {
     const ordinal = Number(value);
 
     if (!/^\d+$/.test(value) || ordinal < 1 || ordinal > MAX_ISSUE_ORDINAL) {
-      this.pushError(rowNumber, this.t('errors.csvSeriesIssueNumberNotValid', { value, row: rowNumber }));
+      this.pushIssue(rowNumber, this.t('errors.csvSeriesIssueNumberNotValid', { value, row: rowNumber }));
 
       return undefined;
     }
@@ -891,9 +915,7 @@ export class CSVParser {
 
         const [headerRow, ...dataRows] = parsed.data;
 
-        const normalizedHeaders = headerRow.map((h) =>
-          h.trim().toLowerCase() === 'publisher' ? 'imprint' : h.trim(),
-        );
+        const normalizedHeaders = headerRow.map((h) => (h.trim().toLowerCase() === 'publisher' ? 'imprint' : h.trim()));
 
         const headerIndex = new Map<string, number>(normalizedHeaders.map((h, i) => [h, i]));
 

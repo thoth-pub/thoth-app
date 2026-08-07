@@ -9,7 +9,7 @@ import { Activity, useState } from 'react';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
 import { ROUTES } from '@/src/shared/constants';
-import type { SeriesImportPlan } from '@/src/shared/types';
+import type { ImportIssue, SeriesImportPlan } from '@/src/shared/types';
 import { ContentSection, Step, StepLabel, Stepper, TranslatedContent } from '@/src/shared/ui';
 
 import { PreviewStep } from './PreviewStep';
@@ -44,19 +44,29 @@ export const UploadModal = (props: UploadModalProps) => {
   const [works, setWorks] = useState<WorkEntity[]>([]);
   const [chapters, setChapters] = useState<WorkEntity[]>([]);
   const [updatedSerieses, setUpdatedSerieses] = useState<SeriesImportPlan>([]);
+  // Non-blocking findings from the parse: source metadata the import cannot represent. They
+  // belong with the parsed data because the preview is where the user decides to go ahead.
+  const [warnings, setWarnings] = useState<ImportIssue[]>([]);
 
   const isDataEmpty = works.length === 0 && chapters.length === 0;
 
-  const handlePreview = (works: WorkEntity[], chapters: WorkEntity[], updatedSerieses: SeriesImportPlan) => {
+  const handlePreview = (
+    works: WorkEntity[],
+    chapters: WorkEntity[],
+    updatedSerieses: SeriesImportPlan,
+    warnings: ImportIssue[],
+  ) => {
     setWorks(works);
     setChapters(chapters);
     setUpdatedSerieses(updatedSerieses);
+    setWarnings(warnings);
   };
 
   const resetData = () => {
     setWorks([]);
     setChapters([]);
     setUpdatedSerieses([]);
+    setWarnings([]);
   };
 
   const handleSubmit = () => {
@@ -96,7 +106,13 @@ export const UploadModal = (props: UploadModalProps) => {
           <UploadStep onPreview={handlePreview} />
         </Activity>
         <Activity mode={!isDataEmpty ? 'visible' : 'hidden'}>
-          <PreviewStep works={works} chapters={chapters} serieses={updatedSerieses} onSubmit={handleSubmit} />
+          <PreviewStep
+            works={works}
+            chapters={chapters}
+            serieses={updatedSerieses}
+            warnings={warnings}
+            onSubmit={handleSubmit}
+          />
         </Activity>
       </ContentSection>
     </FullScreenModal>

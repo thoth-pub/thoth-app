@@ -1,8 +1,11 @@
-import { render, waitFor } from '@testing-library/react';
 import type { ONIXMessageRoot } from '@5stones/onix/dist/interfaces';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ERRORS } from '@/src/shared/constants';
+import type { ImportIssue } from '@/src/shared/types';
+import { getDefaultWork } from '@/src/shared/utils/work';
 
 const { mockValidateXml, mockParse, mockXMLParser } = vi.hoisted(() => ({
   mockValidateXml: vi.fn(),
@@ -35,6 +38,9 @@ const parsedOnixData: ONIXMessageRoot = {
 };
 
 describe('XMLParse', () => {
+  // The project does not enable vitest globals, so RTL's auto-cleanup does not run.
+  afterEach(cleanup);
+
   beforeEach(() => {
     vi.clearAllMocks();
     mockParse.mockResolvedValue({
@@ -45,6 +51,7 @@ describe('XMLParse', () => {
         series: {},
         contributorsForSelection: {},
       },
+      issues: [],
     });
     mockXMLParser.mockImplementation(function () {
       return {
@@ -57,20 +64,14 @@ describe('XMLParse', () => {
     const onValidationFailure = vi.fn();
     mockValidateXml.mockResolvedValue({ status: 'error', error: 'Unauthorized' });
 
-    render(
-      <XMLParse
-        file={createMockFile()}
-        imprints={[]}
-        serieses={[]}
-        onValidationFailure={onValidationFailure}
-      />,
-    );
+    render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
 
     await waitFor(() => {
-      expect(onValidationFailure).toHaveBeenCalledWith(['Unauthorized']);
+      expect(onValidationFailure).toHaveBeenCalledWith([
+        { severity: 'error', code: 'file.validation', message: 'Unauthorized', source: { kind: 'file' } },
+      ]);
     });
 
-    expect(onValidationFailure).not.toHaveBeenCalledWith([ERRORS.XML_PARSING_ERROR]);
     expect(mockXMLParser).not.toHaveBeenCalled();
   });
 
@@ -78,17 +79,12 @@ describe('XMLParse', () => {
     const onValidationFailure = vi.fn();
     mockValidateXml.mockResolvedValue({ status: 'success' });
 
-    render(
-      <XMLParse
-        file={createMockFile()}
-        imprints={[]}
-        serieses={[]}
-        onValidationFailure={onValidationFailure}
-      />,
-    );
+    render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
 
     await waitFor(() => {
-      expect(onValidationFailure).toHaveBeenCalledWith([ERRORS.XML_PARSING_ERROR]);
+      expect(onValidationFailure).toHaveBeenCalledWith([
+        { severity: 'error', code: 'file.validation', message: ERRORS.XML_PARSING_ERROR, source: { kind: 'file' } },
+      ]);
     });
 
     expect(mockXMLParser).not.toHaveBeenCalled();
@@ -98,14 +94,7 @@ describe('XMLParse', () => {
     const onValidationFailure = vi.fn();
     mockValidateXml.mockResolvedValue({ status: 'success', data: parsedOnixData });
 
-    render(
-      <XMLParse
-        file={createMockFile()}
-        imprints={[]}
-        serieses={[]}
-        onValidationFailure={onValidationFailure}
-      />,
-    );
+    render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
 
     await waitFor(() => {
       expect(mockXMLParser).toHaveBeenCalledWith(
@@ -122,5 +111,74 @@ describe('XMLParse', () => {
 
     expect(mockParse).toHaveBeenCalled();
     expect(onValidationFailure).not.toHaveBeenCalled();
+  });
+
+  describe('issues from the parser', () => {
+    const work = getDefaultWork({ id: 'work-1' });
+
+    const warning: ImportIssue = {
+      severity: 'warning',
+      code: 'onix.series.non_publisher_collection_skipped',
+      message: 'Series "Editorial Studies" will not be created',
+      source: { kind: 'onix', productIndex: 1 },
+    };
+
+    const renderParse = (onPreview: () => void, onValidationFailure: () => void) => {
+      mockValidateXml.mockResolvedValue({ status: 'success', data: parsedOnixData });
+
+      return render(
+        <XMLParse
+          file={createMockFile()}
+          imprints={[]}
+          serieses={[]}
+          onValidationFailure={onValidationFailure}
+          onPreview={onPreview}
+        />,
+      );
+    };
+
+    it('carries warnings through to the preview without treating them as a failure', async () => {
+      mockParse.mockResolvedValue({
+        status: 'success',
+        data: { works: [work], chapters: [], series: [], contributorsForSelection: {} },
+        issues: [warning],
+      });
+
+      const onPreview = vi.fn();
+      const onValidationFailure = vi.fn();
+      renderParse(onPreview, onValidationFailure);
+
+      const preview = await screen.findByRole('button', { name: 'preview' });
+
+      await userEvent.click(preview);
+
+      expect(onPreview).toHaveBeenCalledWith([work], [], [], [warning]);
+      // A warning is not a validation failure, so the upload step never hears about it.
+      expect(onValidationFailure).not.toHaveBeenCalled();
+    });
+
+    it('stops at the upload step when the parser reports an error', async () => {
+      const error: ImportIssue = {
+        severity: 'error',
+        code: 'onix.validation',
+        message: 'Imprint Unknown not found for product 1',
+        source: { kind: 'onix', productIndex: 1 },
+      };
+
+      mockParse.mockResolvedValue({
+        status: 'failed',
+        data: { works: [], chapters: [], series: [], contributorsForSelection: {} },
+        issues: [warning, error],
+      });
+
+      const onPreview = vi.fn();
+      const onValidationFailure = vi.fn();
+      renderParse(onPreview, onValidationFailure);
+
+      // Warnings raised alongside the error are handed on too, in the parser's order.
+      await waitFor(() => expect(onValidationFailure).toHaveBeenCalledWith([warning, error]));
+      expect(onPreview).not.toHaveBeenCalled();
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+    });
   });
 });

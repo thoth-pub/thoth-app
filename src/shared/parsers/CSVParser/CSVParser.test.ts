@@ -53,8 +53,7 @@ const makeIssues = (ordinals: number[]) =>
 
 const testSeries: SeriesEntity[] = [makeSeries({ id: SERIES_ID, name: SERIES_NAME, issnPrint: SERIES_ISSN })];
 
-const t = (key: string, opts?: Record<string, unknown>) =>
-  opts ? `${key}:${JSON.stringify(opts)}` : key;
+const t = (key: string, opts?: Record<string, unknown>) => (opts ? `${key}:${JSON.stringify(opts)}` : key);
 
 const makeFile = (content: string) => new File([content], 'test.csv', { type: 'text/csv' });
 
@@ -82,6 +81,14 @@ const makeParser = (
     t,
   );
 };
+
+/**
+ * The messages of a result's error issues, in the order the parser reported them. Structured
+ * issues are asserted directly where the structure is the point; elsewhere the wording and the
+ * order are what these tests are about.
+ */
+const errorMessages = (result: Awaited<ReturnType<CSVParser['parse']>>) =>
+  result.issues.filter(({ severity }) => severity === 'error').map(({ message }) => message);
 
 const escapeCell = (value: string) =>
   value.includes(',') || value.includes('"') ? `"${value.replace(/"/g, '""')}"` : value;
@@ -162,14 +169,14 @@ describe('CSVParser', () => {
       const header = TEMPLATE_HEADER.replace(/^publisher/, 'imprint');
       const csv = makeFile(`${header}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
       const result = await makeParser(csv).parse();
-      expect(result.errors).toEqual([]);
+      expect(errorMessages(result)).toEqual([]);
       expect(result.status).toBe('success');
     });
 
     it('accepts "publisher" as an alias for "imprint"', async () => {
       const csv = makeFile(`${TEMPLATE_HEADER}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
       const result = await makeParser(csv).parse();
-      expect(result.errors).toEqual([]);
+      expect(errorMessages(result)).toEqual([]);
       expect(result.status).toBe('success');
     });
   });
@@ -181,7 +188,7 @@ describe('CSVParser', () => {
     it('does not error when contribution columns 6-20 are absent', async () => {
       const csv = makeFile(`${TEMPLATE_HEADER}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
       const result = await makeParser(csv).parse();
-      const headerErrors = result.errors.filter(
+      const headerErrors = errorMessages(result).filter(
         (e) => e.includes('contribution_6') || e.includes('contribution_7'),
       );
       expect(headerErrors).toEqual([]);
@@ -190,13 +197,13 @@ describe('CSVParser', () => {
     it('does not error when lcc_subjects column is absent', async () => {
       const csv = makeFile(`${TEMPLATE_HEADER}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
       const result = await makeParser(csv).parse();
-      expect(result.errors.filter((e) => e.includes('lcc_subjects'))).toEqual([]);
+      expect(errorMessages(result).filter((e) => e.includes('lcc_subjects'))).toEqual([]);
     });
 
     it('does not error when extra epub and price_2 columns are present', async () => {
       const csv = makeFile(`${TEMPLATE_HEADER}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
       const result = await makeParser(csv).parse();
-      expect(result.errors).toEqual([]);
+      expect(errorMessages(result)).toEqual([]);
     });
   });
 
@@ -209,7 +216,7 @@ describe('CSVParser', () => {
       const content = readFileSync(templatePath, 'utf-8');
       const file = makeFile(content);
       const result = await makeParser(file).parse();
-      expect(result.errors).toEqual([]);
+      expect(errorMessages(result)).toEqual([]);
       expect(result.status).toBe('success');
       expect(result.data.works).toHaveLength(1);
     });
@@ -316,7 +323,7 @@ describe('CSVParser', () => {
       const csv = buildCsv({ ...BASE, imprint: 'Unknown Publisher' });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('failed');
-      expect(result.errors.some((e) => e.includes('csvFieldNotValidOptions'))).toBe(true);
+      expect(errorMessages(result).some((e) => e.includes('csvFieldNotValidOptions'))).toBe(true);
     });
   });
 
@@ -336,7 +343,7 @@ describe('CSVParser', () => {
       const csv = buildCsv({ ...BASE, license: 'https://unknown-license.example/' });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('failed');
-      expect(result.errors.some((e) => e.includes('csvFieldNotValid'))).toBe(true);
+      expect(errorMessages(result).some((e) => e.includes('csvFieldNotValid'))).toBe(true);
     });
 
     it('allows an empty license field without error', async () => {
@@ -588,7 +595,7 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toEqual([]);
+      expect(errorMessages(result)).toEqual([]);
       expect(result.data.series).toEqual([
         {
           name: 'Arc Companions',
@@ -624,10 +631,10 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv), { series: duplicates }).parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]).toContain('csvSeriesAmbiguous');
-      expect(result.errors[0]).toContain('"count":2');
-      expect(result.errors[0]).toContain('csvRow');
+      expect(errorMessages(result)).toHaveLength(1);
+      expect(errorMessages(result)[0]).toContain('csvSeriesAmbiguous');
+      expect(errorMessages(result)[0]).toContain('"count":2');
+      expect(errorMessages(result)[0]).toContain('csvRow');
       expect(result.data.series).toEqual([]);
     });
 
@@ -640,7 +647,7 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv), { series: duplicates }).parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors[0]).toContain('csvSeriesAmbiguous');
+      expect(errorMessages(result)[0]).toContain('csvSeriesAmbiguous');
     });
 
     it('prefers a single exact match over several normalised candidates', async () => {
@@ -728,9 +735,9 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]).toContain('csvSeriesDuplicateIssueNumber');
-      expect(result.errors[0]).toContain('"ordinal":4');
+      expect(errorMessages(result)).toHaveLength(1);
+      expect(errorMessages(result)[0]).toContain('csvSeriesDuplicateIssueNumber');
+      expect(errorMessages(result)[0]).toContain('"ordinal":4');
       expect(result.data.series).toEqual([]);
     });
 
@@ -740,9 +747,9 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv), { series: existing }).parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]).toContain('csvSeriesIssueNumberTaken');
-      expect(result.errors[0]).toContain('"ordinal":2');
+      expect(errorMessages(result)).toHaveLength(1);
+      expect(errorMessages(result)[0]).toContain('csvSeriesIssueNumberTaken');
+      expect(errorMessages(result)[0]).toContain('"ordinal":2');
       expect(result.data.series).toEqual([]);
     });
 
@@ -760,8 +767,8 @@ describe('CSVParser', () => {
         }
 
         expect(result.status).toBe('failed');
-        expect(result.errors.some((error) => error.includes('csvSeriesIssueNumberNotValid'))).toBe(true);
-        expect(result.errors.some((error) => error.includes(`"row":1`))).toBe(true);
+        expect(errorMessages(result).some((error) => error.includes('csvSeriesIssueNumberNotValid'))).toBe(true);
+        expect(errorMessages(result).some((error) => error.includes(`"row":1`))).toBe(true);
       },
     );
 
@@ -780,7 +787,7 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors.some((error) => error.includes('csvSeriesIssueNumberNotValid'))).toBe(true);
+      expect(errorMessages(result).some((error) => error.includes('csvSeriesIssueNumberNotValid'))).toBe(true);
     });
   });
 
@@ -793,7 +800,7 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toEqual([]);
+      expect(errorMessages(result)).toEqual([]);
       expect(result.data.series).toEqual([]);
     });
 
@@ -802,10 +809,10 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors).toHaveLength(1);
-      expect(result.errors[0]).toContain('csvSeriesIssueNumberWithoutSeries');
-      expect(result.errors[0]).toContain('"value":"4"');
-      expect(result.errors[0]).toContain('"row":1');
+      expect(errorMessages(result)).toHaveLength(1);
+      expect(errorMessages(result)[0]).toContain('csvSeriesIssueNumberWithoutSeries');
+      expect(errorMessages(result)[0]).toContain('"value":"4"');
+      expect(errorMessages(result)[0]).toContain('"row":1');
     });
 
     it('rejects an invalid issue number that has no series to belong to', async () => {
@@ -815,9 +822,155 @@ describe('CSVParser', () => {
       expect(result.status).toBe('failed');
       // The missing series is the actionable problem, so it is reported once rather than
       // alongside a complaint about the value's shape.
-      expect(result.errors).toEqual([expect.stringContaining('csvSeriesIssueNumberWithoutSeries')]);
+      expect(errorMessages(result)).toEqual([expect.stringContaining('csvSeriesIssueNumberWithoutSeries')]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Structured issues
+  // -------------------------------------------------------------------------
+  describe('issues', () => {
+    it('reports nothing at all for a valid file', async () => {
+      const csv = buildCsv({ ...BASE });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.issues).toEqual([]);
     });
 
+    it('tags a row-level failure with its severity, code and CSV row', async () => {
+      // `page_count` is not validated by the CSV config, so this is raised by the parser itself
+      // rather than up front by the file validator.
+      const csv = buildCsvRows([
+        { ...BASE, title: 'One' },
+        { ...BASE, title: 'Two', page_count: 'not a number' },
+      ]);
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.issues).toEqual([
+        {
+          severity: 'error',
+          code: 'csv.validation',
+          message: expect.stringContaining('csvFieldNotNumber'),
+          source: { kind: 'csv', row: 2 },
+        },
+      ]);
+    });
+
+    it('reports a series-planning failure against the row that caused it', async () => {
+      const duplicates = [
+        makeSeries({ id: 'series-a', name: 'Foundations' }),
+        makeSeries({ id: 'series-b', name: 'Foundations' }),
+      ];
+      const csv = buildCsvRows([
+        { ...BASE, title: 'One' },
+        { ...BASE, title: 'Two', series_name: 'Foundations' },
+      ]);
+      const result = await makeParser(makeFile(csv), { series: duplicates }).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.issues).toEqual([
+        {
+          severity: 'error',
+          code: 'csv.validation',
+          message: expect.stringContaining('csvSeriesAmbiguous'),
+          source: { kind: 'csv', row: 2 },
+        },
+      ]);
+    });
+
+    it('files a file-shape failure against the file rather than inventing a row for it', async () => {
+      // `work_status` has a real enum validator, so `csv-file-validator` rejects the file before
+      // any row is parsed. Its own row numbering counts the header, so it is not reused as a
+      // structured CSV row; the message still names the row it came from.
+      const csv = buildCsv({ ...BASE, work_status: 'Published' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.issues.length).toBeGreaterThan(0);
+      expect(result.issues.every(({ source }) => source.kind === 'file')).toBe(true);
+      expect(result.issues.every(({ severity, code }) => severity === 'error' && code === 'csv.validation')).toBe(true);
+    });
+
+    it('orders issues by CSV row even when a later row finishes parsing first', async () => {
+      const getContributors = async (fullName: string) => {
+        await new Promise((resolve) => setTimeout(resolve, fullName === 'First Author' ? 30 : 0));
+
+        return [];
+      };
+
+      const csv = buildCsvRows([
+        {
+          ...BASE,
+          title: 'First',
+          page_count: 'not a number',
+          contribution_1_first_name: 'First',
+          contribution_1_surname: 'Author',
+          contribution_1_role: 'AUTHOR',
+        },
+        {
+          ...BASE,
+          title: 'Second',
+          page_count: 'also not a number',
+          contribution_1_first_name: 'Second',
+          contribution_1_surname: 'Author',
+          contribution_1_role: 'AUTHOR',
+        },
+      ]);
+
+      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+      expect(result.issues.map(({ source }) => source)).toEqual([
+        { kind: 'csv', row: 1 },
+        { kind: 'csv', row: 2 },
+      ]);
+    });
+
+    it('raises no warning of any kind: CSV has no non-blocking rules yet', async () => {
+      const csv = buildCsvRows([
+        // Every shape of CSV series row: existing, proposed, and one carrying a series_issn.
+        { ...BASE, title: 'Existing', series_name: SERIES_NAME },
+        { ...BASE, title: 'Proposed', series_name: 'Arc Companions' },
+        { ...BASE, title: 'With ISSN', series_name: SERIES_NAME, series_issn: SERIES_ISSN },
+      ]);
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.issues.filter(({ severity }) => severity === 'warning')).toEqual([]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // series_issn is accepted and ignored, and says nothing at all
+  // -------------------------------------------------------------------------
+  describe('series_issn', () => {
+    it('does not match on ISSN, and does not warn about ignoring it', async () => {
+      // The ISSN belongs to the existing series, but the name does not: matching is by name
+      // alone, so this is still a proposed series, silently.
+      const csv = buildCsv({ ...BASE, series_name: 'Unrelated Name', series_issn: SERIES_ISSN });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.issues).toEqual([]);
+      expect(result.data.series[0].target).toEqual({
+        kind: 'proposed',
+        series: { name: 'Unrelated Name', imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' },
+      });
+    });
+
+    it('changes nothing about a row that matches an existing series by name', async () => {
+      const withIssn = buildCsv({ ...BASE, series_name: SERIES_NAME, series_issn: SERIES_ISSN });
+      const withoutIssn = buildCsv({ ...BASE, series_name: SERIES_NAME });
+
+      const withResult = await makeParser(makeFile(withIssn)).parse();
+      const withoutResult = await makeParser(makeFile(withoutIssn)).parse();
+
+      expect(withResult.issues).toEqual(withoutResult.issues);
+      expect(withResult.data.series.map(({ target }) => target)).toEqual(
+        withoutResult.data.series.map(({ target }) => target),
+      );
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -911,7 +1064,7 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv), { getContributors }).parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors.map((error) => error.match(/"row":(\d+)/)?.[1])).toEqual(['1', '2']);
+      expect(errorMessages(result).map((error) => error.match(/"row":(\d+)/)?.[1])).toEqual(['1', '2']);
     });
 
     it('orders publication errors by row even though they are raised after the awaited lookup', async () => {
@@ -951,12 +1104,12 @@ describe('CSVParser', () => {
       expect(completions).toEqual(['Second Author', 'First Author']);
 
       expect(result.status).toBe('failed');
-      expect(result.errors).toHaveLength(2);
-      expect(result.errors.map((error) => error.match(/"row":(\d+)/)?.[1])).toEqual(['1', '2']);
+      expect(errorMessages(result)).toHaveLength(2);
+      expect(errorMessages(result).map((error) => error.match(/"row":(\d+)/)?.[1])).toEqual(['1', '2']);
       // Each message names its own row, rather than the synthetic row 0 or an empty string.
-      expect(result.errors[0]).toContain('csvFieldNotNumber');
-      expect(result.errors[0]).toContain('"row":1');
-      expect(result.errors[1]).toContain('"row":2');
+      expect(errorMessages(result)[0]).toContain('csvFieldNotNumber');
+      expect(errorMessages(result)[0]).toContain('"row":1');
+      expect(errorMessages(result)[1]).toContain('"row":2');
     });
   });
 
@@ -1129,7 +1282,7 @@ describe('CSVParser', () => {
       const csv = buildCsv({ ...BASE, work_status: 'Published' });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('failed');
-      expect(result.errors.length).toBeGreaterThan(0);
+      expect(errorMessages(result).length).toBeGreaterThan(0);
     });
 
     it('returns failed status when required title is blank', async () => {

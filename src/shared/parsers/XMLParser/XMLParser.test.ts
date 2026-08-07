@@ -48,6 +48,14 @@ import {
 } from './interfaces';
 import XMLParser from './XMLParser';
 
+/**
+ * The messages of a result's error issues, in the order the parser reported them. Structured
+ * issues are asserted directly where the structure is the point; elsewhere the wording and the
+ * order are what these tests are about.
+ */
+const errorMessages = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
+  result.issues.filter(({ severity }) => severity === 'error').map(({ message }) => message);
+
 describe('XMLParser', () => {
   let mockContributorService: ContributorService;
   let mockInstitutionService: InstitutionService;
@@ -114,7 +122,15 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors).toContain('No products found in XML file');
+      // A message with no product to blame: the problem is the file itself.
+      expect(result.issues).toEqual([
+        {
+          severity: 'error',
+          code: 'onix.no_products',
+          message: 'No products found in XML file',
+          source: { kind: 'file' },
+        },
+      ]);
       expect(result.data.works).toHaveLength(0);
       expect(result.data.chapters).toHaveLength(0);
       expect(result.data.series).toEqual([]);
@@ -140,7 +156,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors).toContain('No products found in XML file');
+      expect(errorMessages(result)).toContain('No products found in XML file');
       expect(result.data.works).toHaveLength(0);
       expect(result.data.chapters).toHaveLength(0);
       expect(result.data.series).toEqual([]);
@@ -206,7 +222,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works).toHaveLength(1);
       const work = result.data.works[0];
       expect(work.titles[0].title).toBe(title);
@@ -314,7 +330,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors).toContain(`Imprint ${imprint} not found for product 1`);
+      expect(errorMessages(result)).toContain(`Imprint ${imprint} not found for product 1`);
     });
 
     it('should fail when language is not found', async () => {
@@ -350,7 +366,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors.some((e) => e.includes(`Language ${language} not found`))).toBe(true);
+      expect(errorMessages(result).some((e) => e.includes(`Language ${language} not found`))).toBe(true);
     });
   });
 
@@ -847,7 +863,7 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('failed');
       expect(result.data.works).toHaveLength(0);
-      expect(result.errors).toContain(`License ${license} not found for product 1`);
+      expect(errorMessages(result)).toContain(`License ${license} not found for product 1`);
     });
 
     it('should parse bibliography note', async () => {
@@ -2097,7 +2113,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors.some((e) => e.includes('Language'))).toBe(true);
+      expect(errorMessages(result).some((e) => e.includes('Language'))).toBe(true);
       expect(result.data.works).toHaveLength(0);
     });
 
@@ -2136,7 +2152,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('failed');
-      expect(result.errors.some((e) => e.includes('Language'))).toBe(true);
+      expect(errorMessages(result).some((e) => e.includes('Language'))).toBe(true);
       expect(result.data.works).toHaveLength(0);
     });
 
@@ -2175,11 +2191,11 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].languages).toHaveLength(1);
       expect(result.data.works[0].languages[0].code).toBe(language);
       expect(result.data.works[0].languages[0].relation).toBe(LanguageRelation.enum.Original);
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
     });
 
     it('should return empty fundings if ror of institution is not found', async () => {
@@ -2217,7 +2233,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].fundings).toHaveLength(0);
     });
 
@@ -2305,7 +2321,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].fundings).toHaveLength(1);
       expect(result.data.works[0].fundings[0].institutionId).toBe(mockInstitution.id);
       expect(result.data.works[0].fundings[0].institutionName).toBe(mockInstitution.name);
@@ -2314,7 +2330,7 @@ describe('XMLParser', () => {
       expect(result.data.works[0].fundings[0].projectName).toBe(projectName);
       expect(result.data.works[0].fundings[0].projectShortname).toBe(projectShortname);
       expect(result.data.works[0].fundings[0].grantNumber).toBe(grantNumber);
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
     });
 
     it('should parse publication', async () => {
@@ -2400,7 +2416,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].publications).toHaveLength(1);
       expect(result.data.works[0].publications[0].height.toString()).toBe(height);
       expect(result.data.works[0].publications[0].heightIn.toString()).toBe(heightIn);
@@ -2457,7 +2473,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].publications).toHaveLength(1);
       expect(result.data.works[0].publications[0].isbn).toBe('');
     });
@@ -2543,7 +2559,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].publications).toHaveLength(1);
       expect(result.data.works[0].publications[0].height.toString()).toBe(height);
       expect(result.data.works[0].publications[0].heightIn.toString()).toBe(heightIn);
@@ -2597,7 +2613,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].publications).toHaveLength(1);
       expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Mp3);
     });
@@ -2637,7 +2653,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].publications).toHaveLength(1);
       expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Hardback);
     });
@@ -2677,7 +2693,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].publications).toHaveLength(1);
       expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Paperback);
     });
@@ -2717,7 +2733,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].publications).toHaveLength(1);
       expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Pdf);
     });
@@ -2757,7 +2773,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].publications).toHaveLength(0);
     });
 
@@ -2802,7 +2818,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       const plan = result.data.series as SeriesImportPlan;
       expect(plan).toHaveLength(1);
       expect(plan[0].target).toEqual({ kind: 'existing', seriesId: serieses[0].id });
@@ -2867,7 +2883,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].references).toHaveLength(2);
       expect(result.data.works[0].references[0].doi).toContain(relatedWorkDoi);
       expect(result.data.works[0].references[1].doi).toContain(relatedProductDoi);
@@ -2929,7 +2945,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].lastName).toBe(contributorLastName);
       expect(result.data.works[0].contributions[0].firstName).toBe(contributorFirstName);
@@ -2981,7 +2997,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.AfterwordBy);
@@ -3029,7 +3045,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Author);
@@ -3077,7 +3093,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.ContributionsBy);
@@ -3125,7 +3141,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Editor);
@@ -3173,7 +3189,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.ForewordBy);
@@ -3221,7 +3237,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Illustrator);
@@ -3269,7 +3285,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Indexer);
@@ -3317,7 +3333,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.IntroductionBy);
@@ -3365,7 +3381,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.MusicEditor);
@@ -3413,7 +3429,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Photographer);
@@ -3461,7 +3477,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.PrefaceBy);
@@ -3509,7 +3525,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.ResearchBy);
@@ -3557,7 +3573,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.SoftwareBy);
@@ -3620,7 +3636,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(1);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Author);
@@ -3701,7 +3717,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works[0].contributions).toHaveLength(2);
       expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.works[0].contributions[1].fullName).toBe(mockContributor.fullName);
@@ -3772,7 +3788,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works).toHaveLength(1);
       expect(result.data.chapters).toHaveLength(1);
       expect(result.data.chapters[0].titles[0].title).toBe(chapterTitle);
@@ -3833,7 +3849,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.errors).toHaveLength(0);
+      expect(errorMessages(result)).toHaveLength(0);
       expect(result.data.works).toHaveLength(1);
       expect(result.data.chapters).toHaveLength(1);
       expect(result.data.chapters[0].titles[0].title).toBe(chapterTitle);
@@ -3943,7 +3959,7 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('success');
-        expect(result.errors).toHaveLength(0);
+        expect(errorMessages(result)).toHaveLength(0);
         expect(result.data.works[0].languages).toHaveLength(2);
       });
 
@@ -3999,9 +4015,9 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('failed');
-        expect(result.errors).toContain('Language xyz not found for product 1 (9781641891783)');
+        expect(errorMessages(result)).toContain('Language xyz not found for product 1 (9781641891783)');
         // The old message pasted every supported language into the UI.
-        expect(result.errors[0].length).toBeLessThan(120);
+        expect(errorMessages(result)[0].length).toBeLessThan(120);
       });
 
       it('ignores language roles Thoth cannot express but keeps the usable one', async () => {
@@ -4034,7 +4050,7 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('failed');
-        expect(result.errors).toContain('No supported language role found for product 1 (9781641891783)');
+        expect(errorMessages(result)).toContain('No supported language role found for product 1 (9781641891783)');
       });
 
       it('reports a product with no Language composite at all', async () => {
@@ -4046,7 +4062,7 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('failed');
-        expect(result.errors).toContain('Language not provided for product 1 (9781641891783)');
+        expect(errorMessages(result)).toContain('Language not provided for product 1 (9781641891783)');
       });
     });
 
@@ -4067,10 +4083,35 @@ describe('XMLParser', () => {
         badProduct('9780000000004'),
       ]);
 
-      expect(result.errors).toEqual([
+      expect(errorMessages(result)).toEqual([
         'Language xyz not found for product 2 (9780000000002)',
         'Language xyz not found for product 4 (9780000000004)',
       ]);
+      // The product each one came from is carried, not only spelled out in the message.
+      expect(result.issues.map(({ severity, code, source }) => ({ severity, code, source }))).toEqual([
+        {
+          severity: 'error',
+          code: 'onix.validation',
+          source: { kind: 'onix', productIndex: 2, recordReference: '9780000000002' },
+        },
+        {
+          severity: 'error',
+          code: 'onix.validation',
+          source: { kind: 'onix', productIndex: 4, recordReference: '9780000000004' },
+        },
+      ]);
+    });
+
+    it('carries a product position even when the record has no RecordReference to name it by', async () => {
+      const result = await runParser([
+        buildProduct({
+          TitleDetail: { TitleElement: { TitleText: 'Bad language' } },
+          Language: { LanguageRole: LanguageRole._01, LanguageCode: 'xyz' },
+        }),
+      ]);
+
+      expect(result.status).toBe('failed');
+      expect(result.issues.map(({ source }) => source)).toEqual([{ kind: 'onix', productIndex: 1 }]);
     });
 
     describe('other repeatable composites', () => {
@@ -4223,7 +4264,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('success');
-        expect(result.errors).toHaveLength(0);
+        expect(errorMessages(result)).toHaveLength(0);
         expect(existingGroup(result, ARC_SERIES_ID)?.works).toHaveLength(1);
         expect(existingGroup(result, ARC_SERIES_ID)?.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
       });
@@ -4240,7 +4281,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('success');
-        expect(result.errors).toHaveLength(0);
+        expect(errorMessages(result)).toHaveLength(0);
       });
 
       it('represents a missing supported series as a proposed series', async () => {
@@ -4322,26 +4363,6 @@ describe('XMLParser', () => {
         expect(seriesPlan(result)).toHaveLength(0);
       });
 
-      it('does not create a series from an ambiguous CollectionType', async () => {
-        const result = await runParser(
-          [
-            buildProduct(
-              {
-                TitleDetail: { TitleElement: { TitleText: 'Unspecified collection' } },
-                Collection: collection('Foundations', '00'),
-              },
-              '9781641891783',
-            ),
-          ],
-          arcSerieses(),
-        );
-
-        expect(result.status).toBe('failed');
-        expect(result.errors[0]).toContain('"Foundations" does not exist in Thoth and cannot be created automatically');
-        expect(result.errors[0]).toContain('9781641891783');
-        expect(seriesPlan(result)).toHaveLength(0);
-      });
-
       it('still matches an existing series through an ambiguous CollectionType', async () => {
         const result = await runParser(
           [
@@ -4372,7 +4393,204 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('failed');
-        expect(result.errors).toContain('Collection has no usable series title for product 1 (9781641891783)');
+        expect(errorMessages(result)).toContain('Collection has no usable series title for product 1 (9781641891783)');
+        expect(result.issues).toEqual([
+          {
+            severity: 'error',
+            code: 'onix.validation',
+            message: 'Collection has no usable series title for product 1 (9781641891783)',
+            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+          },
+        ]);
+      });
+    });
+
+    /**
+     * A Collection that is not a publisher collection (CollectionType 10) may still name a real
+     * series, so it is matched against Thoth. What it cannot do is authorise creating one. When
+     * there is nothing to match, the association is dropped and the user is told — the work
+     * itself is perfectly importable, and refusing the whole upload over a code list value the
+     * publisher may not control was never proportionate.
+     */
+    describe('a missing series behind a non-publisher collection', () => {
+      // Built lazily: `imprints` is only populated in beforeEach.
+      const arcSerieses = () => [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)];
+
+      /** ONIX makes CollectionType mandatory, but real files omit it; it reads as unspecified. */
+      const untypedCollection = (title: string): ExtendedCollection =>
+        ({
+          TitleDetail: {
+            TitleType: TitleType._01,
+            TitleElement: { TitleElementLevel: TitleElementLevel._02, NoPrefix: '', TitleWithoutPrefix: title },
+          },
+        }) as unknown as ExtendedCollection;
+
+      const member = (title: string, seriesCollection: ExtendedCollection, recordReference?: string) =>
+        buildProduct(
+          { TitleDetail: { TitleElement: { TitleText: title } }, Collection: seriesCollection },
+          recordReference,
+        );
+
+      it('creates the series and says nothing when the collection is a publisher collection', async () => {
+        const result = await runParser([member('Borderlines member', collection('Borderlines', '10'))], []);
+
+        expect(result.status).toBe('success');
+        expect(proposedGroups(result)).toHaveLength(1);
+        expect(result.issues).toEqual([]);
+      });
+
+      it.each([
+        ['unspecified (00)', () => collection('Editorial Studies', '00')],
+        ['a collection éditoriale (11)', () => collection('Editorial Studies', '11')],
+        ['absent', () => untypedCollection('Editorial Studies')],
+      ])('imports the work without the series when the CollectionType is %s', async (_label, build) => {
+        const result = await runParser([member('Ambiguous collection', build(), '9781641891783')], arcSerieses());
+
+        // The work is kept, and nothing about it blocks the import.
+        expect(result.status).toBe('success');
+        expect(result.data.works.map((work) => work.titles[0].title)).toEqual(['Ambiguous collection']);
+        // No series is invented for it.
+        expect(seriesPlan(result)).toHaveLength(0);
+        expect(result.issues).toEqual([
+          {
+            severity: 'warning',
+            code: 'onix.series.non_publisher_collection_skipped',
+            message:
+              'Series "Editorial Studies" does not exist in Thoth and will not be created, because its ONIX ' +
+              'CollectionType is not a publisher collection (10). product 1 (9781641891783) will be imported ' +
+              'without this series association',
+            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+          },
+        ]);
+      });
+
+      it('says nothing when the ambiguous collection does name a series Thoth has', async () => {
+        const result = await runParser([member('Known series', collection(ARC_SERIES_NAME, '11'))], arcSerieses());
+
+        expect(result.status).toBe('success');
+        expect(existingGroup(result, ARC_SERIES_ID)?.works).toHaveLength(1);
+        expect(result.issues).toEqual([]);
+      });
+
+      it('keeps ignoring an ascribed collection silently', async () => {
+        // CollectionType 20 is somebody else's grouping, not a series the publisher failed to
+        // register, so there is nothing to tell the user about.
+        const result = await runParser([member('Ascribed only', collection('A Bookseller Grouping', '20'))], []);
+
+        expect(result.status).toBe('success');
+        expect(seriesPlan(result)).toHaveLength(0);
+        expect(result.issues).toEqual([]);
+      });
+
+      it('warns once for a whole group rather than once per product', async () => {
+        const result = await runParser(
+          [
+            member('First', collection('Editorial Studies', '11'), '9780000000001'),
+            buildProduct({ TitleDetail: { TitleElement: { TitleText: 'Unrelated' } } }, '9780000000002'),
+            member('Second', collection('editorial  studies', '11'), '9780000000003'),
+            buildProduct({ TitleDetail: { TitleElement: { TitleText: 'Also unrelated' } } }, '9780000000004'),
+            member('Third', collection('Editorial Studies', '11'), '9780000000005'),
+          ],
+          [],
+        );
+
+        expect(result.status).toBe('success');
+        // Every work survives, in ONIX product order.
+        expect(result.data.works.map((work) => work.titles[0].title)).toEqual([
+          'First',
+          'Unrelated',
+          'Second',
+          'Also unrelated',
+          'Third',
+        ]);
+        expect(seriesPlan(result)).toHaveLength(0);
+        expect(result.issues).toHaveLength(1);
+        // Tagged with the earliest affected product, and naming the affected products.
+        expect(result.issues[0].source).toEqual({
+          kind: 'onix',
+          productIndex: 1,
+          recordReference: '9780000000001',
+        });
+        expect(result.issues[0].message).toContain(
+          'product 1 (9780000000001) and product 3 (9780000000003) and product 5 (9780000000005)',
+        );
+      });
+
+      it('keeps the works of an unrelated product alongside a warned-about one', async () => {
+        const result = await runParser(
+          [
+            buildProduct({
+              TitleDetail: { TitleElement: { TitleText: 'Normal' } },
+              Collection: collection(ARC_SERIES_NAME, '10'),
+            }),
+            member('Warned about', collection('Editorial Studies', '00')),
+          ],
+          arcSerieses(),
+        );
+
+        expect(result.status).toBe('success');
+        expect(result.data.works.map((work) => work.titles[0].title)).toEqual(['Normal', 'Warned about']);
+        expect(existingGroup(result, ARC_SERIES_ID)?.works).toHaveLength(1);
+        expect(result.issues.map(({ severity }) => severity)).toEqual(['warning']);
+      });
+
+      it('orders warnings by product even when products finish parsing out of order', async () => {
+        // The first product's contributor lookup is much the slowest, so without ordering by
+        // source the second product's warning would be reported first.
+        let call = 0;
+        mockContributorService.getContributors = vi.fn().mockImplementation(async () => {
+          call += 1;
+          await new Promise((resolve) => setTimeout(resolve, call === 1 ? 20 : 0));
+
+          return [];
+        });
+
+        const withContributor = (title: string, seriesName: string, recordReference: string) =>
+          buildProduct(
+            {
+              TitleDetail: { TitleElement: { TitleText: title } },
+              Collection: collection(seriesName, '11'),
+              Contributor: [{ ContributorRole: 'A01', PersonName: `Author of ${title}` }],
+            } as unknown as Partial<ExtendedDescriptiveDetail>,
+            recordReference,
+          );
+
+        const result = await runParser(
+          [
+            withContributor('Slow', 'Alpha Studies', '9780000000001'),
+            withContributor('Fast', 'Beta Studies', '9780000000002'),
+          ],
+          [],
+        );
+
+        expect(result.status).toBe('success');
+        expect(result.issues.map(({ source }) => source)).toEqual([
+          { kind: 'onix', productIndex: 1, recordReference: '9780000000001' },
+          { kind: 'onix', productIndex: 2, recordReference: '9780000000002' },
+        ]);
+      });
+
+      it('does not let severity reorder issues: a row 1 warning still precedes a row 2 error', async () => {
+        const result = await runParser(
+          [
+            member('Warned about', collection('Editorial Studies', '00'), '9780000000001'),
+            buildProduct(
+              {
+                TitleDetail: { TitleElement: { TitleText: 'Bad language' } },
+                Language: { LanguageRole: LanguageRole._01, LanguageCode: 'xyz' },
+              },
+              '9780000000002',
+            ),
+          ],
+          [],
+        );
+
+        // One error anywhere still fails the parse.
+        expect(result.status).toBe('failed');
+        expect(result.issues.map(({ severity, source }) => [severity, source])).toEqual([
+          ['warning', { kind: 'onix', productIndex: 1, recordReference: '9780000000001' }],
+          ['error', { kind: 'onix', productIndex: 2, recordReference: '9780000000002' }],
+        ]);
       });
     });
 
@@ -4521,7 +4739,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('failed');
-        expect(result.errors[0]).toContain(`Series "${ARC_SERIES_NAME}" matches 2 existing Thoth series`);
+        expect(errorMessages(result)[0]).toContain(`Series "${ARC_SERIES_NAME}" matches 2 existing Thoth series`);
         expect(seriesPlan(result)).toHaveLength(0);
       });
 
@@ -4532,7 +4750,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('failed');
-        expect(result.errors[0]).toContain('matches 2 existing Thoth series');
+        expect(errorMessages(result)[0]).toContain('matches 2 existing Thoth series');
         expect(seriesPlan(result)).toHaveLength(0);
       });
 
@@ -4589,7 +4807,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('failed');
-        expect(result.errors).toContain(
+        expect(errorMessages(result)).toContain(
           `Series "${ARC_SERIES_NAME}" already has issue number 2 in Thoth, supplied again by product 1 (9780000000001)`,
         );
         expect(seriesPlan(result)).toHaveLength(0);
@@ -4602,7 +4820,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('failed');
-        expect(result.errors).toContain(
+        expect(errorMessages(result)).toContain(
           `Series "${ARC_SERIES_NAME}" is given issue number 4 by more than one product: product 1 (9780000000001) and product 2 (9780000000002)`,
         );
         expect(seriesPlan(result)).toHaveLength(0);
@@ -4617,7 +4835,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('failed');
-        expect(result.errors[0]).toContain('is given issue number 4 by more than one product');
+        expect(errorMessages(result)[0]).toContain('is given issue number 4 by more than one product');
         expect(proposedGroups(result)).toHaveLength(0);
       });
 
@@ -4633,7 +4851,7 @@ describe('XMLParser', () => {
 
         expect(result.status).toBe('failed');
         // Ordered by the lowest product index involved, then by the order raised.
-        expect(result.errors).toEqual([
+        expect(errorMessages(result)).toEqual([
           `Series "${ARC_SERIES_NAME}" already has issue number 5 in Thoth, supplied again by product 1 (9780000000001)`,
           `Series "${ARC_SERIES_NAME}" is given issue number 3 by more than one product: product 2 (9780000000002) and product 3 (9780000000003)`,
         ]);
@@ -4646,7 +4864,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('success');
-        expect(result.errors).toHaveLength(0);
+        expect(errorMessages(result)).toHaveLength(0);
         expect(existingGroup(result, ARC_SERIES_ID)?.works.map((work) => work.orderNumber)).toEqual([4, 7]);
       });
 
@@ -4657,7 +4875,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('success');
-        expect(result.errors).toHaveLength(0);
+        expect(errorMessages(result)).toHaveLength(0);
         // Automatic ordinals start above every known ordinal, existing and explicit alike.
         expect(existingGroup(result, ARC_SERIES_ID)?.works.map((work) => work.orderNumber)).toEqual([10, 9, 11]);
       });
@@ -4941,7 +5159,7 @@ describe('XMLParser', () => {
 
         const result = await parser.parse();
 
-        expect(result.errors).toEqual([]);
+        expect(errorMessages(result)).toEqual([]);
         expect(result.status).toBe('success');
         expect(result.data.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
         expect(result.data.works[0].languages).toEqual([
