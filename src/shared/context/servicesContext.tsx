@@ -27,6 +27,7 @@ import { SetService } from '@/src/entities/sets/api/set.service';
 import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { TitleService } from '@/src/entities/title/api/title.service';
 import { UserService } from '@/src/entities/user';
+import { ImportPreflightService } from '@/src/entities/work/api/importPreflight.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
 
 import { GraphqlService } from '../api/graphqlService';
@@ -39,6 +40,7 @@ type ServicesMap = {
   imprintService: ImprintService;
   bookService: BookService;
   workService: WorkService;
+  importPreflightService: ImportPreflightService;
   affiliationService: AffiliationService;
   contributorService: ContributorService;
   contributionService: ContributionService;
@@ -117,6 +119,7 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
     titleService,
     abstractService,
   });
+  const importPreflightService = new ImportPreflightService(graphqlService);
   const setService = new SetService({
     graphqlService,
     titleService,
@@ -126,6 +129,7 @@ const getDefaultServices = (token: QueryToken): ServicesMap => {
     imprintService,
     bookService,
     workService,
+    importPreflightService,
     affiliationService,
     contributorService,
     contributionService,

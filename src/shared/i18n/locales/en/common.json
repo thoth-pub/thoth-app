@@ -241,5 +241,32 @@
   },
   "will be created": "Will be created",
   "warnings": "Warnings",
-  "bulk import did not finish": "This import did not finish. Some works may already have been created. Close this upload and check the Works list before trying again — re-uploading without resolving the partial import may create duplicate works."
+  "bulk import did not finish": "This import did not finish. Some works may already have been created. Close this upload and check the Works list before trying again — re-uploading without resolving the partial import may create duplicate works.",
+  "importPreflight": {
+    "summary": "Import summary",
+    "worksToCreate": "Works to create",
+    "chaptersToCreate": "Chapters to create",
+    "existingSeriesJoined": "Existing series joined",
+    "seriesToCreate": "Series to create",
+    "warningCount": "Warnings from the file",
+    "affectedWorks": "Works with a potential duplicate",
+    "findingCount": "Potential duplicate signals",
+    "coverage": "{{checked}} of {{total}} works had a DOI or ISBN that could be checked ({{withDoi}} with a DOI, {{withIsbn}} with an ISBN). {{unchecked}} had neither.",
+    "noFindings": "No matching DOI or ISBN was found by this check.",
+    "scope": "This check compares DOIs and ISBNs within the active publisher, before anything is created. It does not decide that two records are the same work, and another import could add a matching work after it ran.",
+    "checking": "Checking for potential duplicates…",
+    "failedTitle": "Duplicate check did not complete",
+    "failed": "This upload has not been checked against works already in Thoth. Nothing is wrong with the file, and checking again is safe — it only reads.",
+    "retry": "Check again",
+    "potentialDuplicates": "Potential duplicates",
+    "findingsAreAdvisory": "These records share an identifier. Thoth has not decided that they are the same work — review them and choose whether to create this import anyway.",
+    "sameDoi": "Same DOI",
+    "sameIsbn": "Same ISBN",
+    "doiRepeatedInUpload": "This DOI appears more than once in this upload",
+    "isbnRepeatedInUpload": "This ISBN appears more than once in this upload",
+    "doiAlsoInThoth": "This DOI also appears on an existing Thoth work",
+    "isbnAlsoInThoth": "This ISBN also appears on an existing Thoth work",
+    "inThisUpload": "In this upload",
+    "alreadyInThoth": "Already in Thoth"
+  }
 }

@@ -4,9 +4,32 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { mockBulkCreateWorks } = vi.hoisted(() => ({ mockBulkCreateWorks: vi.fn() }));
 
+/**
+ * A finished preflight that found nothing, so these tests exercise the confirmation behaviour
+ * they were written for. The preflight's own states — checking, failed, retried, and what a
+ * finding looks like — are covered against the real hook in `__tests__/preview-step-preflight`.
+ */
+const emptyReport = {
+  summary: {
+    works: 1,
+    chapters: 0,
+    existingSeries: 0,
+    proposedSeries: 0,
+    worksWithDoi: 0,
+    worksWithIsbn: 0,
+    worksWithAnyCheckedIdentifier: 0,
+    worksWithoutCheckedIdentifier: 1,
+    affectedWorks: 0,
+    duplicateFindings: 0,
+  },
+  duplicateFindings: [],
+};
+
 vi.mock('@/src/entities/work', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
   useBulkCreateWorks: () => ({ bulkCreateWorks: mockBulkCreateWorks, loading: false }),
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
+  useImportPreflight: () => ({ report: emptyReport, isChecking: false, hasFailed: false, retry: vi.fn() }),
 }));
 
 vi.mock('@/src/shared/ui', () => ({

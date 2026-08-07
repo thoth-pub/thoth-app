@@ -241,5 +241,32 @@
   },
   "will be created": "Wird erstellt",
   "warnings": "Warnungen",
-  "bulk import did not finish": "Dieser Import wurde nicht abgeschlossen. Einige Werke wurden möglicherweise bereits erstellt. Schließen Sie diesen Upload und prüfen Sie die Werkliste, bevor Sie es erneut versuchen – ein erneuter Upload ohne Bereinigung des unvollständigen Imports kann doppelte Werke erzeugen."
+  "bulk import did not finish": "Dieser Import wurde nicht abgeschlossen. Einige Werke wurden möglicherweise bereits erstellt. Schließen Sie diesen Upload und prüfen Sie die Werkliste, bevor Sie es erneut versuchen – ein erneuter Upload ohne Bereinigung des unvollständigen Imports kann doppelte Werke erzeugen.",
+  "importPreflight": {
+    "summary": "Import-Zusammenfassung",
+    "worksToCreate": "Zu erstellende Werke",
+    "chaptersToCreate": "Zu erstellende Kapitel",
+    "existingSeriesJoined": "Bestehende Reihen, denen beigetreten wird",
+    "seriesToCreate": "Zu erstellende Reihen",
+    "warningCount": "Warnungen aus der Datei",
+    "affectedWorks": "Werke mit einem möglichen Duplikat",
+    "findingCount": "Hinweise auf mögliche Duplikate",
+    "coverage": "{{checked}} von {{total}} Werken hatten eine DOI oder ISBN, die geprüft werden konnte ({{withDoi}} mit DOI, {{withIsbn}} mit ISBN). {{unchecked}} hatten weder das eine noch das andere.",
+    "noFindings": "Diese Prüfung hat keine übereinstimmende DOI oder ISBN gefunden.",
+    "scope": "Diese Prüfung vergleicht DOIs und ISBNs innerhalb des aktiven Verlags, bevor etwas erstellt wird. Sie entscheidet nicht, dass zwei Datensätze dasselbe Werk sind, und ein anderer Import könnte danach ein übereinstimmendes Werk anlegen.",
+    "checking": "Prüfung auf mögliche Duplikate …",
+    "failedTitle": "Duplikatprüfung nicht abgeschlossen",
+    "failed": "Dieser Upload wurde nicht mit den bereits in Thoth vorhandenen Werken abgeglichen. Mit der Datei ist nichts verkehrt, und eine erneute Prüfung ist unbedenklich – sie liest nur.",
+    "retry": "Erneut prüfen",
+    "potentialDuplicates": "Mögliche Duplikate",
+    "findingsAreAdvisory": "Diese Datensätze teilen sich eine Kennung. Thoth hat nicht entschieden, dass sie dasselbe Werk sind – prüfen Sie sie und entscheiden Sie, ob dieser Import trotzdem erstellt werden soll.",
+    "sameDoi": "Gleiche DOI",
+    "sameIsbn": "Gleiche ISBN",
+    "doiRepeatedInUpload": "Diese DOI kommt in diesem Upload mehrfach vor",
+    "isbnRepeatedInUpload": "Diese ISBN kommt in diesem Upload mehrfach vor",
+    "doiAlsoInThoth": "Diese DOI steht auch auf einem vorhandenen Thoth-Werk",
+    "isbnAlsoInThoth": "Diese ISBN steht auch auf einem vorhandenen Thoth-Werk",
+    "inThisUpload": "In diesem Upload",
+    "alreadyInThoth": "Bereits in Thoth"
+  }
 }

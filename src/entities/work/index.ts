@@ -6,6 +6,7 @@ export { default as useCreateWorkChapter } from './api/hooks/useCreateWorkChapte
 export { default as useCreateWorkTranslation } from './api/hooks/useCreateWorkTranslation';
 export { default as useDeleteChapter } from './api/hooks/useDeleteChapter';
 export { default as useGetWork } from './api/hooks/useGetWork';
+export { default as useImportPreflight } from './api/hooks/useImportPreflight';
 export { default as useTranslatedWorks } from './api/hooks/useTranslatedWorks';
 export { default as useUpdateWorkFrontCover } from './api/hooks/useUpdateWorkFrontCover';
 export { default as useUpdateWorks } from './api/hooks/useUpdateWorks';

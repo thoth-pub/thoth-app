@@ -1,6 +1,6 @@
 import { useState, useTransition } from 'react';
 
-import { useBulkCreateWorks } from '@/src/entities/work';
+import { useBulkCreateWorks, useImportPreflight } from '@/src/entities/work';
 import type { ImportIssue, ImportPlan } from '@/src/shared/types';
 import {
   Button,
@@ -13,6 +13,8 @@ import {
   Typography,
 } from '@/src/shared/ui';
 import { convertOptionToString, getDisplayTitle } from '@/src/shared/utils';
+
+import { ImportPreflightReport } from './ImportPreflightReport';
 
 /** Stable identity, so a preview with nothing to warn about does not re-render on every pass. */
 const NO_WARNINGS: ImportIssue[] = [];
@@ -39,6 +41,16 @@ export const PreviewStep = (props: PreviewStepProps) => {
   const { bulkCreateWorks } = useBulkCreateWorks();
   const [isPending, startTransition] = useTransition();
   const [hasFailed, setHasFailed] = useState(false);
+
+  // The preflight runs against the plan as it now stands, so the report describes exactly what
+  // the button below would create. It reads Thoth and changes nothing; its findings are shown,
+  // never applied, and the plan is untouched by it either way.
+  const {
+    report: preflightReport,
+    isChecking: isCheckingDuplicates,
+    hasFailed: preflightFailed,
+    retry: retryPreflight,
+  } = useImportPreflight(plan);
 
   // The import is awaited so the preview stays on screen while it runs, and stays on screen if
   // it fails: a bulk import is not atomic, so navigating away on failure would leave the user
@@ -82,6 +94,19 @@ export const PreviewStep = (props: PreviewStepProps) => {
 
   return (
     <>
+      {/*
+        The report of what this plan would create, and what about it looks like it might already
+        exist. Kept separate from the warnings below: a warning is something the file said that
+        the import cannot represent, a duplicate signal is a comparison against other records,
+        and reading one as the other would misdescribe both.
+      */}
+      <ImportPreflightReport
+        report={preflightReport}
+        isChecking={isCheckingDuplicates}
+        hasFailed={preflightFailed}
+        warningCount={warnings.length}
+        onRetry={retryPreflight}
+      />
       {/*
         Shown above the works so they are read before the list is scanned, and kept out of the
         `hasFailed` channel below: nothing here stops the import, and the Create button stays
@@ -156,12 +181,21 @@ export const PreviewStep = (props: PreviewStepProps) => {
           <TranslatedContent content="bulk import did not finish" />
         </Typography>
       )}
+      {/*
+        Confirmation waits for the preflight, and for nothing else it found. Creating before the
+        check has answered would show the user a report about an import they had already run, and
+        creating when the check could not run at all would let a claim of "nothing found" stand
+        for a question that was never asked.
+        Duplicate findings themselves never disable this. They are signals, and whether they mean
+        two records are the same work is the user's call — there is deliberately no acknowledgement
+        to tick and no row to remove first.
+      */}
       <Button
         variant="contained"
         color="primary"
         className="m-auto max-w-max capitalize"
         onClick={handleSubmit}
-        disabled={isPending || hasFailed}
+        disabled={isPending || hasFailed || isCheckingDuplicates || preflightFailed}
       >
         <TranslatedContent content="actions.create" />
       </Button>
