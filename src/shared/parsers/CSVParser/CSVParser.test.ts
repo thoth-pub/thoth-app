@@ -16,28 +16,42 @@ import { getCsvConfig } from './getCsvConfig';
 
 const IMPRINT_LABEL = 'My Publisher';
 const IMPRINT_VALUE = 'pub-id';
+const OTHER_IMPRINT_LABEL = 'Other Publisher';
+const OTHER_IMPRINT_VALUE = 'pub-id-2';
 const SERIES_NAME = 'My Series Name';
 const SERIES_ISSN = '1122-1122';
 const SERIES_ID = 'series-id-1';
 
-const imprints = [{ label: IMPRINT_LABEL, value: IMPRINT_VALUE }];
-
-const testSeries: SeriesEntity[] = [
-  {
-    id: SERIES_ID,
-    name: SERIES_NAME,
-    type: 'BOOK_SERIES' as SeriesEntity['type'],
-    issnPrint: SERIES_ISSN,
-    issnDigital: '',
-    updatedAt: '',
-    imprintId: IMPRINT_VALUE,
-    imprintName: IMPRINT_LABEL,
-    url: '',
-    cfpUrl: '',
-    description: '',
-    issues: [],
-  },
+const imprints = [
+  { label: IMPRINT_LABEL, value: IMPRINT_VALUE },
+  { label: OTHER_IMPRINT_LABEL, value: OTHER_IMPRINT_VALUE },
 ];
+
+const makeSeries = (series: Partial<SeriesEntity> & Pick<SeriesEntity, 'id' | 'name'>): SeriesEntity => ({
+  type: 'BOOK_SERIES' as SeriesEntity['type'],
+  issnPrint: '',
+  issnDigital: '',
+  updatedAt: '',
+  imprintId: IMPRINT_VALUE,
+  imprintName: IMPRINT_LABEL,
+  url: '',
+  cfpUrl: '',
+  description: '',
+  issues: [],
+  ...series,
+});
+
+const makeIssues = (ordinals: number[]) =>
+  ordinals.map((ordinal) => ({
+    id: `issue-${ordinal}`,
+    ordinal,
+    workId: `work-${ordinal}`,
+    title: 'Existing',
+    seriesId: SERIES_ID,
+    coverUrl: '',
+  }));
+
+const testSeries: SeriesEntity[] = [makeSeries({ id: SERIES_ID, name: SERIES_NAME, issnPrint: SERIES_ISSN })];
 
 const t = (key: string, opts?: Record<string, unknown>) =>
   opts ? `${key}:${JSON.stringify(opts)}` : key;
@@ -50,35 +64,40 @@ const makeParser = (
     series?: SeriesEntity[];
     contributorResults?: object[];
     institutionResults?: object[];
+    getContributors?: (fullName: string) => Promise<object[]>;
   } = {},
 ) => {
   const series = opts.series ?? testSeries;
-  const config = getCsvConfig(imprints, licenseOptions, series, t);
+  const config = getCsvConfig(imprints, licenseOptions, t);
+  const getContributors = opts.getContributors ?? vi.fn().mockResolvedValue(opts.contributorResults ?? []);
+
   return new CSVParser(
     file,
     config,
     imprints,
     licenseOptions,
     series,
-    { getContributors: vi.fn().mockResolvedValue(opts.contributorResults ?? []) } as unknown as ContributorService,
+    { getContributors } as unknown as ContributorService,
     { getInstitutions: vi.fn().mockResolvedValue(opts.institutionResults ?? []) } as unknown as InstitutionService,
     t,
   );
 };
 
+const escapeCell = (value: string) =>
+  value.includes(',') || value.includes('"') ? `"${value.replace(/"/g, '""')}"` : value;
+
 // Builds a full 223-column CSV in getCsvConfig header order.
 // Supply only the columns you want; the rest are filled with empty strings.
-const buildCsv = (values: Record<string, string>) => {
-  const headers = getCsvConfig(imprints, licenseOptions, testSeries, t).headers.map((h) => h.name);
-  const headerRow = headers.join(',');
-  const dataRow = headers
-    .map((name) => {
-      const v = values[name] ?? '';
-      return v.includes(',') || v.includes('"') ? `"${v.replace(/"/g, '""')}"` : v;
-    })
-    .join(',');
-  return `${headerRow}\n${dataRow}`;
+const buildCsvRows = (rows: Record<string, string>[]) => {
+  const headers = getCsvConfig(imprints, licenseOptions, t).headers.map((h) => h.name);
+
+  return [
+    headers.join(','),
+    ...rows.map((values) => headers.map((name) => escapeCell(values[name] ?? '')).join(',')),
+  ].join('\n');
 };
+
+const buildCsv = (values: Record<string, string>) => buildCsvRows([values]);
 
 // Minimum required fields for a valid row
 const BASE: Record<string, string> = {
@@ -501,18 +520,334 @@ describe('CSVParser', () => {
       expect(group?.works[0].orderNumber).toBe(3);
     });
 
-    it('returns failed status when the series name is not found', async () => {
-      const csv = buildCsv({ ...BASE, series_name: 'Unknown Series' });
-      const result = await makeParser(makeFile(csv), { series: testSeries }).parse();
-      expect(result.status).toBe('failed');
-      expect(result.errors.some((e) => e.includes('csvFieldNotValidOptions'))).toBe(true);
-    });
-
     it('produces no series entries when series_name is empty', async () => {
       const csv = buildCsv({ ...BASE, series_name: '' });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
       expect(Object.keys(result.data.series)).toHaveLength(0);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Series matching — the same identity rules the ONIX importer uses
+  // -------------------------------------------------------------------------
+  describe('series matching', () => {
+    it('matches an existing series exactly within the row imprint', async () => {
+      const csv = buildCsv({ ...BASE, series_name: SERIES_NAME });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.series).toHaveLength(1);
+      expect(result.data.series[0].target).toEqual({ kind: 'existing', seriesId: SERIES_ID });
+    });
+
+    it('matches an existing series despite case and whitespace differences', async () => {
+      const csv = buildCsv({ ...BASE, series_name: '  my   SERIES   name ' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.series[0].target).toEqual({ kind: 'existing', seriesId: SERIES_ID });
+    });
+
+    it('does not bind a row to an identically named series in another imprint', async () => {
+      const elsewhere = [
+        makeSeries({
+          id: 'series-elsewhere',
+          name: SERIES_NAME,
+          imprintId: OTHER_IMPRINT_VALUE,
+          imprintName: OTHER_IMPRINT_LABEL,
+        }),
+      ];
+      const csv = buildCsv({ ...BASE, series_name: SERIES_NAME });
+      const result = await makeParser(makeFile(csv), { series: elsewhere }).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.series[0].target).toEqual({
+        kind: 'proposed',
+        series: { name: SERIES_NAME, imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' },
+      });
+    });
+
+    it('treats the same series name under two row imprints as two separate series', async () => {
+      const csv = buildCsvRows([
+        { ...BASE, series_name: 'Shared Name' },
+        { ...BASE, imprint: OTHER_IMPRINT_LABEL, series_name: 'Shared Name' },
+      ]);
+      const result = await makeParser(makeFile(csv), { series: [] }).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.series).toHaveLength(2);
+      expect(result.data.series.map((group) => group.target)).toEqual([
+        { kind: 'proposed', series: { name: 'Shared Name', imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' } },
+        { kind: 'proposed', series: { name: 'Shared Name', imprintId: OTHER_IMPRINT_VALUE, type: 'BOOK_SERIES' } },
+      ]);
+    });
+
+    it('proposes a BookSeries when Thoth has no such series', async () => {
+      const csv = buildCsv({ ...BASE, series_name: 'Arc Companions' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toEqual([]);
+      expect(result.data.series).toEqual([
+        {
+          name: 'Arc Companions',
+          target: {
+            kind: 'proposed',
+            series: { name: 'Arc Companions', imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' },
+          },
+          works: [expect.objectContaining({ orderNumber: 1 })],
+        },
+      ]);
+    });
+
+    it('creates one proposed group for three rows naming the same missing series', async () => {
+      const csv = buildCsvRows([
+        { ...BASE, title: 'One', series_name: 'Arc Companions' },
+        { ...BASE, title: 'Two', series_name: 'arc  companions' },
+        { ...BASE, title: 'Three', series_name: 'Arc Companions' },
+      ]);
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.series).toHaveLength(1);
+      expect(result.data.series[0].target.kind).toBe('proposed');
+      expect(result.data.series[0].works).toHaveLength(3);
+    });
+
+    it('reports two identically named existing series in one imprint rather than picking one', async () => {
+      const duplicates = [
+        makeSeries({ id: 'series-a', name: 'Foundations' }),
+        makeSeries({ id: 'series-b', name: 'Foundations' }),
+      ];
+      const csv = buildCsv({ ...BASE, series_name: 'Foundations' });
+      const result = await makeParser(makeFile(csv), { series: duplicates }).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('csvSeriesAmbiguous');
+      expect(result.errors[0]).toContain('"count":2');
+      expect(result.errors[0]).toContain('csvRow');
+      expect(result.data.series).toEqual([]);
+    });
+
+    it('reports existing series that only differ by case or whitespace', async () => {
+      const duplicates = [
+        makeSeries({ id: 'series-a', name: 'Foundations' }),
+        makeSeries({ id: 'series-b', name: 'foundations' }),
+      ];
+      const csv = buildCsv({ ...BASE, series_name: 'FOUNDATIONS' });
+      const result = await makeParser(makeFile(csv), { series: duplicates }).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.errors[0]).toContain('csvSeriesAmbiguous');
+    });
+
+    it('prefers a single exact match over several normalised candidates', async () => {
+      const duplicates = [
+        makeSeries({ id: 'series-exact', name: 'Foundations' }),
+        makeSeries({ id: 'series-lower', name: 'foundations' }),
+        makeSeries({ id: 'series-spaced', name: 'Foundations ' }),
+      ];
+      const csv = buildCsv({ ...BASE, series_name: 'Foundations' });
+      const result = await makeParser(makeFile(csv), { series: duplicates }).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.series[0].target).toEqual({ kind: 'existing', seriesId: 'series-exact' });
+    });
+
+    it('does not over-normalise punctuation', async () => {
+      const existing = [makeSeries({ id: 'series-comma', name: 'Foundations, Old and New' })];
+      const csv = buildCsv({ ...BASE, series_name: 'Foundations: Old and New' });
+      const result = await makeParser(makeFile(csv), { series: existing }).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.series[0].target).toEqual({
+        kind: 'proposed',
+        series: { name: 'Foundations: Old and New', imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' },
+      });
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Series issue ordinals
+  // -------------------------------------------------------------------------
+  describe('series issue numbers', () => {
+    const ordinalsOf = (result: Awaited<ReturnType<CSVParser['parse']>>) =>
+      result.data.series.flatMap((group) => group.works.map((work) => work.orderNumber));
+
+    it('numbers blank issue numbers on a new series from 1', async () => {
+      const csv = buildCsvRows([
+        { ...BASE, title: 'One', series_name: 'New Series' },
+        { ...BASE, title: 'Two', series_name: 'New Series' },
+        { ...BASE, title: 'Three', series_name: 'New Series' },
+      ]);
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(ordinalsOf(result)).toEqual([1, 2, 3]);
+    });
+
+    it('appends blank issue numbers after the issues the series already has', async () => {
+      const existing = [makeSeries({ id: SERIES_ID, name: SERIES_NAME, issues: makeIssues([1, 2, 5]) })];
+      const csv = buildCsvRows([
+        { ...BASE, title: 'One', series_name: SERIES_NAME },
+        { ...BASE, title: 'Two', series_name: SERIES_NAME },
+      ]);
+      const result = await makeParser(makeFile(csv), { series: existing }).parse();
+
+      expect(result.status).toBe('success');
+      expect(ordinalsOf(result)).toEqual([6, 7]);
+    });
+
+    it('preserves an explicit issue number verbatim', async () => {
+      const csv = buildCsv({ ...BASE, series_name: 'New Series', series_issue_number: '42' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(ordinalsOf(result)).toEqual([42]);
+    });
+
+    it('reserves an explicit issue number supplied by a later row before numbering automatically', async () => {
+      const csv = buildCsvRows([
+        { ...BASE, title: 'One', series_name: 'New Series' },
+        { ...BASE, title: 'Two', series_name: 'New Series', series_issue_number: '10' },
+        { ...BASE, title: 'Three', series_name: 'New Series' },
+      ]);
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(ordinalsOf(result)).toEqual([11, 10, 12]);
+    });
+
+    it('reports two rows claiming the same explicit issue number', async () => {
+      const csv = buildCsvRows([
+        { ...BASE, title: 'One', series_name: 'New Series', series_issue_number: '4' },
+        { ...BASE, title: 'Two', series_name: 'New Series', series_issue_number: '4' },
+      ]);
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('csvSeriesDuplicateIssueNumber');
+      expect(result.errors[0]).toContain('"ordinal":4');
+      expect(result.data.series).toEqual([]);
+    });
+
+    it('reports an explicit issue number an existing Thoth issue already uses', async () => {
+      const existing = [makeSeries({ id: SERIES_ID, name: SERIES_NAME, issues: makeIssues([1, 2]) })];
+      const csv = buildCsv({ ...BASE, series_name: SERIES_NAME, series_issue_number: '2' });
+      const result = await makeParser(makeFile(csv), { series: existing }).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('csvSeriesIssueNumberTaken');
+      expect(result.errors[0]).toContain('"ordinal":2');
+      expect(result.data.series).toEqual([]);
+    });
+
+    it.each(['0', '-1', '1.5', 'two'])('rejects the non-empty issue number %s', async (value) => {
+      const csv = buildCsv({ ...BASE, series_name: 'New Series', series_issue_number: value });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.errors.some((error) => error.includes('csvSeriesIssueNumberNotValid'))).toBe(true);
+      expect(result.errors.some((error) => error.includes(`"row":1`))).toBe(true);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // Deterministic row assembly
+  // -------------------------------------------------------------------------
+  describe('deterministic row order', () => {
+    it('keeps works and series members in CSV row order when a later row finishes first', async () => {
+      const completions: string[] = [];
+      // Row 1's contributor lookup is deliberately the slowest, so without ordered assembly the
+      // rows would land in the reverse of their CSV order.
+      const delays: Record<string, number> = { 'First Author': 30, 'Second Author': 15, 'Third Author': 0 };
+
+      const getContributors = async (fullName: string) => {
+        await new Promise((resolve) => setTimeout(resolve, delays[fullName] ?? 0));
+        completions.push(fullName);
+
+        return [];
+      };
+
+      const csv = buildCsvRows([
+        {
+          ...BASE,
+          title: 'First',
+          series_name: 'New Series',
+          contribution_1_first_name: 'First',
+          contribution_1_surname: 'Author',
+          contribution_1_role: 'AUTHOR',
+        },
+        {
+          ...BASE,
+          title: 'Second',
+          series_name: 'New Series',
+          contribution_1_first_name: 'Second',
+          contribution_1_surname: 'Author',
+          contribution_1_role: 'AUTHOR',
+        },
+        {
+          ...BASE,
+          title: 'Third',
+          series_name: 'New Series',
+          contribution_1_first_name: 'Third',
+          contribution_1_surname: 'Author',
+          contribution_1_role: 'AUTHOR',
+        },
+      ]);
+
+      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+      // The lookups really did finish in the reverse of CSV row order.
+      expect(completions).toEqual(['Third Author', 'Second Author', 'First Author']);
+
+      expect(result.status).toBe('success');
+      expect(result.data.works.map((work) => work.titles[0].title)).toEqual(['First', 'Second', 'Third']);
+
+      const [group] = result.data.series;
+
+      expect(group.works.map((work) => work.orderNumber)).toEqual([1, 2, 3]);
+      expect(group.works.map((work) => work.titles[0].title)).toEqual(['First', 'Second', 'Third']);
+      // Each work still owns its own contributor selection options.
+      expect(result.data.works.every((work) => !!result.data.contributorsForSelection[work.id])).toBe(true);
+    });
+
+    it('reports row-tagged errors in CSV row order regardless of completion order', async () => {
+      const getContributors = async (fullName: string) => {
+        await new Promise((resolve) => setTimeout(resolve, fullName === 'First Author' ? 30 : 0));
+
+        return [];
+      };
+
+      // `page_count` is not validated by the CSV config, so the error is raised inside the
+      // concurrent row parsing rather than up front by the file validator.
+      const csv = buildCsvRows([
+        {
+          ...BASE,
+          title: 'First',
+          page_count: 'not a number',
+          contribution_1_first_name: 'First',
+          contribution_1_surname: 'Author',
+          contribution_1_role: 'AUTHOR',
+        },
+        {
+          ...BASE,
+          title: 'Second',
+          page_count: 'also not a number',
+          contribution_1_first_name: 'Second',
+          contribution_1_surname: 'Author',
+          contribution_1_role: 'AUTHOR',
+        },
+      ]);
+
+      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.errors.map((error) => error.match(/"row":(\d+)/)?.[1])).toEqual(['1', '2']);
     });
   });
 

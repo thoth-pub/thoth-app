@@ -34,7 +34,6 @@ import {
 import { AbstractTypes } from '../../constants/abstracts';
 import { ERRORS } from '../../constants/errors';
 import { FormFieldOption } from '../../interfaces';
-import { compileFullTitle } from '../../utils/titles';
 import type { AbstractEntity, ContributorsForSelection, SeriesImportPlan, TitleEntity } from '../../types';
 import {
   convertRomanToArabic,
@@ -43,6 +42,13 @@ import {
   getDefaultTitle,
   getDefaultWork,
 } from '../../utils';
+import { compileFullTitle } from '../../utils/titles';
+import {
+  buildSeriesPlan,
+  resolveSeriesCandidate,
+  type SeriesCandidate,
+  type SeriesPlanMessages,
+} from '../series/seriesPlan';
 
 export type CSVFieldType = string | number | boolean;
 
@@ -74,10 +80,22 @@ type CSVParseResult = {
   errors: string[];
 };
 
+/** What {@link CSVParser.parseRow} produces for one CSV row. */
+type ParsedRow = {
+  work: WorkEntity;
+  contributorsForSelection: ContributorsForSelection;
+  seriesCandidate?: SeriesCandidate;
+};
+
 export class CSVParser {
   private csv: File;
   private csvConfig: ValidatorConfig;
-  private errors: string[] = [];
+  /**
+   * Errors are tagged with the row they came from because rows are parsed concurrently:
+   * without the tag the order shown in the UI would depend on which row's contributor and
+   * institution lookups happened to finish first.
+   */
+  private errors: { index: number; message: string }[] = [];
   private parsedWorks: WorkEntity[] = [];
   private parsedSeries: SeriesImportPlan = [];
   private contributorsForSelection: ContributorsForSelection = {};
@@ -117,17 +135,36 @@ export class CSVParser {
 
       if (isErrors) {
         const errors = csvParseResult.inValidData.map((error) => error.message);
-        this.errors = errors;
 
         return { status: 'failed', data: { works: [], series: [], contributorsForSelection: {} }, errors };
       }
 
       const data: Row[] = csvParseResult.data;
 
-      await Promise.all(data.map((row, index) => this.parseRow(row, index + 1)));
+      // `Promise.all` resolves in input order regardless of completion order, so collecting the
+      // results here — rather than letting each concurrent `parseRow` push into shared state —
+      // keeps works, contributor selections and series ordinals in CSV source-row order.
+      const parsedRows = await Promise.all(data.map((row, index) => this.parseRow(row, index + 1)));
+
+      this.parsedWorks = parsedRows.map(({ work }) => work);
+      // Every row owns a freshly generated work id, so merging the per-row maps cannot collide.
+      this.contributorsForSelection = Object.assign({}, ...parsedRows.map((parsed) => parsed.contributorsForSelection));
+
+      const { plan, errors } = buildSeriesPlan(
+        parsedRows.map(({ work, seriesCandidate }) => ({ work, candidate: seriesCandidate })),
+        this.serieses,
+        this.seriesMessages,
+      );
+
+      this.parsedSeries = plan;
+      this.errors.push(...errors);
 
       if (this.errors.length > 0) {
-        return { status: 'failed', data: { works: [], series: [], contributorsForSelection: {} }, errors: this.errors };
+        return {
+          status: 'failed',
+          data: { works: [], series: [], contributorsForSelection: {} },
+          errors: this.sortedErrors(),
+        };
       }
 
       return {
@@ -148,12 +185,42 @@ export class CSVParser {
     }
   }
 
-  private async parseRow(row: Row, rowNumber: number) {
+  /**
+   * Fields parsed outside a row context (`parseSubjects`, `parsePublication`) have no row
+   * number of their own; tagging them with 0 keeps them ahead of row-tagged errors and, more
+   * importantly, keeps them in a fixed place.
+   */
+  private pushError(rowNumber: number | undefined, message: string) {
+    this.errors.push({ index: rowNumber ?? 0, message });
+  }
+
+  /** Errors in CSV row order, then in the order they were raised within a row. */
+  private sortedErrors(): string[] {
+    return this.errors
+      .map((error, order) => ({ ...error, order }))
+      .sort((a, b) => a.index - b.index || a.order - b.order)
+      .map(({ message }) => message);
+  }
+
+  /** How the shared series planner phrases its errors for a CSV import. */
+  private get seriesMessages(): SeriesPlanMessages {
+    return {
+      ambiguousMatch: ({ name, count, source }) => this.t('errors.csvSeriesAmbiguous', { name, count, source }),
+      conflictingMatches: ({ name, sources }) => this.t('errors.csvSeriesConflictingMatches', { name, sources }),
+      duplicateOrdinal: ({ name, ordinal, sources }) =>
+        this.t('errors.csvSeriesDuplicateIssueNumber', { name, ordinal, sources }),
+      ordinalAlreadyInThoth: ({ name, ordinal, sources }) =>
+        this.t('errors.csvSeriesIssueNumberTaken', { name, ordinal, sources }),
+    };
+  }
+
+  private async parseRow(row: Row, rowNumber: number): Promise<ParsedRow> {
     const workId = this.generateId();
 
     const breakdown = this.parsePageBreakdownField(row, CSV_KEYS.PAGE_BREAKDOWN, rowNumber);
-    const contributions = await this.parseContributors(row, workId);
+    const { contributions, contributorsForSelection } = await this.parseContributors(row, workId);
     const explicitPageCount = this.parseNumberField(row, CSV_KEYS.PAGE_COUNT, rowNumber);
+    const imprintId = this.parseImprint(row, rowNumber);
 
     const parsedWork = getDefaultWork({
       id: workId,
@@ -162,7 +229,7 @@ export class CSVParser {
       type: this.parseStringField(row, CSV_KEYS.WORK_TYPE, rowNumber) as WorkType,
       doi: this.parseStringField(row, CSV_KEYS.DOI, rowNumber),
       publisherName: this.parseStringField(row, CSV_KEYS.IMPRINT, rowNumber),
-      imprintId: this.parseImprint(row, rowNumber),
+      imprintId,
       status: this.parseStringField(row, CSV_KEYS.WORK_STATUS, rowNumber) as WorkStatus,
       edition: this.parseNumberField(row, CSV_KEYS.EDITION, rowNumber),
       license: this.parseLicenseField(row, CSV_KEYS.LICENSE, rowNumber),
@@ -197,8 +264,11 @@ export class CSVParser {
       contributions,
     });
 
-    this.parsedWorks.push(parsedWork);
-    this.parseSeries(row, parsedWork);
+    return {
+      work: parsedWork,
+      contributorsForSelection,
+      seriesCandidate: this.parseSeries(row, rowNumber, imprintId),
+    };
   }
 
   private parseStringField(row: Row, field: keyof Row, rowNumber?: number) {
@@ -207,7 +277,7 @@ export class CSVParser {
     if (value === undefined) return '';
 
     if (typeof value !== 'string') {
-      this.errors.push(this.t('errors.csvFieldNotString', { field, row: rowNumber ?? '' }));
+      this.pushError(rowNumber, this.t('errors.csvFieldNotString', { field, row: rowNumber ?? '' }));
 
       return '';
     }
@@ -225,7 +295,7 @@ export class CSVParser {
     const numberValue = parseInt(value);
 
     if (isNaN(numberValue)) {
-      this.errors.push(this.t('errors.csvFieldNotNumber', { field, row: rowNumber ?? '' }));
+      this.pushError(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber ?? '' }));
 
       return 1;
     }
@@ -243,7 +313,7 @@ export class CSVParser {
     const numberValue = parseFloat(value);
 
     if (isNaN(numberValue)) {
-      this.errors.push(this.t('errors.csvFieldNotNumber', { field, row: rowNumber ?? '' }));
+      this.pushError(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber ?? '' }));
 
       return 0;
     }
@@ -257,7 +327,7 @@ export class CSVParser {
     const imprint = this.imprints.find((imprint) => imprint.label === imprintName);
 
     if (!imprint) {
-      this.errors.push(this.t('errors.csvImprintNotFound', { name: imprintName, row: rowNumber }));
+      this.pushError(rowNumber, this.t('errors.csvImprintNotFound', { name: imprintName, row: rowNumber }));
       return '';
     }
 
@@ -310,7 +380,7 @@ export class CSVParser {
     const license = this.licenses.find((option) => option.value.startsWith(`${value}`));
 
     if (!license) {
-      this.errors.push(this.t('errors.csvLicenseNotFound', { value, row: rowNumber }));
+      this.pushError(rowNumber, this.t('errors.csvLicenseNotFound', { value, row: rowNumber }));
 
       return '';
     }
@@ -523,39 +593,84 @@ export class CSVParser {
     return publications;
   }
 
-  private parseSeries(row: Row, work: WorkEntity) {
-    const seriesName = this.parseStringField(row, CSV_KEYS.SERIES_NAME);
+  /**
+   * Resolves one row's `series_name` into a series candidate.
+   *
+   * This is the CSV adapter over the shared series planner, so a CSV import and an ONIX import
+   * agree on what a series is: identity is the row's imprint plus the normalised name, matching
+   * is exact-then-normalised within that imprint, and a name Thoth does not have becomes a
+   * proposed series rather than an error. It is pure — nothing is created here, and grouping
+   * and ordinal assignment happen later, once every row has been parsed.
+   *
+   * FOLLOW-UP: `series_issn` is deliberately not consulted, here or anywhere else. The column
+   * exists in the template and has never had import semantics, and giving it some would be a
+   * CSV schema decision rather than a parsing one — a single `series_issn` cannot say whether
+   * it is the print or the digital ISSN, which are separate fields on a Thoth series, and using
+   * it for matching would introduce a second identity rule alongside the name. We need to
+   * decide separately whether to remove/deprecate the column, or replace it with explicit
+   * `series_issn_print` and `series_issn_digital` columns with real mappings. Until then it is
+   * accepted and ignored, so existing files keep importing.
+   */
+  private parseSeries(row: Row, rowNumber: number, imprintId: string): SeriesCandidate | undefined {
+    const seriesName = this.parseStringField(row, CSV_KEYS.SERIES_NAME, rowNumber).trim();
 
-    if (seriesName.length === 0) {
-      return;
-    }
+    if (seriesName.length === 0) return undefined;
 
-    const existingSeries = this.serieses.find((series) => series.name === seriesName);
+    // Without a resolved imprint we can neither scope the identity nor create a series. The
+    // unresolved imprint is already reported by parseImprint, so stay quiet here.
+    if (imprintId.length === 0) return undefined;
 
-    if (!existingSeries) {
-      this.errors.push(this.t('errors.csvSeriesNotFound', { name: seriesName }));
-
-      return;
-    }
-
-    const orderNumber = this.parseNumberField(row, CSV_KEYS.SERIES_ISSUE_NUMBER);
-    // The CSV importer still requires the series to exist; it only ever produces `existing`
-    // targets. Automatic creation is currently an ONIX-import behaviour.
-    const group = this.parsedSeries.find(
-      ({ target }) => target.kind === 'existing' && target.seriesId === existingSeries.id,
+    const resolved = resolveSeriesCandidate(
+      {
+        name: seriesName,
+        imprintId,
+        sourceIndex: rowNumber,
+        sourceDescription: this.describeRow(rowNumber),
+        ordinal: this.parseIssueNumber(row, rowNumber),
+        // A publisher naming a series in their own upload is asking for that series, so CSV is
+        // always allowed to create one. ONIX has to be more careful, because a Collection may
+        // be somebody else's grouping rather than the publisher's series.
+        creation: { allowed: true },
+      },
+      this.serieses,
+      this.seriesMessages,
     );
 
-    if (group) {
-      group.works.push({ ...work, orderNumber });
+    if ('error' in resolved) {
+      this.errors.push(resolved.error);
 
-      return;
+      return undefined;
     }
 
-    this.parsedSeries.push({
-      name: existingSeries.name,
-      target: { kind: 'existing', seriesId: existingSeries.id },
-      works: [{ ...work, orderNumber }],
-    });
+    return resolved.candidate;
+  }
+
+  /** A short handle for a row, used to make series errors actionable. */
+  private describeRow(rowNumber: number): string {
+    return this.t('errors.csvRow', { row: rowNumber });
+  }
+
+  /**
+   * Reads `series_issue_number`, which is optional and means two different things.
+   *
+   * Blank means the publisher supplied no ordinal at all, and the planner should allocate one
+   * safely — not that the work is issue 0, which is what feeding a blank through the ordinary
+   * number parser used to produce. Anything else must be a positive whole number, because that
+   * is what a Thoth issue ordinal is; a non-empty value that is not one is a mistake worth
+   * reporting rather than rounding away.
+   */
+  private parseIssueNumber(row: Row, rowNumber: number): number | undefined {
+    const value = this.parseStringField(row, CSV_KEYS.SERIES_ISSUE_NUMBER, rowNumber).trim();
+
+    if (value.length === 0) return undefined;
+
+    if (!/^\d+$/.test(value) || Number(value) < 1) {
+      this.pushError(rowNumber, this.t('errors.csvSeriesIssueNumberNotValid', { value, row: rowNumber }));
+
+      return undefined;
+    }
+
+    return Number(value);
   }
 
   private async parseContributors(row: Row, workId: WorkId) {
@@ -691,9 +806,9 @@ export class CSVParser {
       workContributions.push(contributionWithNewContributor);
     }
 
-    this.contributorsForSelection = { ...this.contributorsForSelection, ...contributorsForSelection };
-
-    return workContributions;
+    // Returned rather than merged into parser-wide state: rows are parsed concurrently, and a
+    // row's selection options belong to that row's work, not to whichever row finished last.
+    return { contributions: workContributions, contributorsForSelection };
   }
 
   private normalizeFile(): Promise<File> {
