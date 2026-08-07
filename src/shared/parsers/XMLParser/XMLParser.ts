@@ -919,18 +919,19 @@ class XMLParser {
    * error sort makes the output deterministic.
    */
   private hasOrdinalCollision(memberships: SeriesMembership[], existingOrdinals: number[]): boolean {
-    const [{ seriesName }] = memberships;
-    const explicit = memberships.filter((membership) => membership.ordinal !== undefined);
+    const seriesName = memberships[0].seriesName;
     const byOrdinal = new Map<number, SeriesMembership[]>();
 
-    for (const membership of explicit) {
-      byOrdinal.set(membership.ordinal!, [...(byOrdinal.get(membership.ordinal!) ?? []), membership]);
+    for (const membership of memberships) {
+      if (membership.ordinal === undefined) continue;
+
+      byOrdinal.set(membership.ordinal, [...(byOrdinal.get(membership.ordinal) ?? []), membership]);
     }
 
     let collided = false;
 
     for (const ordinal of [...byOrdinal.keys()].sort((a, b) => a - b)) {
-      const products = byOrdinal.get(ordinal)!;
+      const products = byOrdinal.get(ordinal) ?? [];
       const lowestIndex = Math.min(...products.map(({ productIndex }) => productIndex));
 
       if (products.length > 1) {
