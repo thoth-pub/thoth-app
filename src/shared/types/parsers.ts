@@ -68,10 +68,16 @@ export type SeriesImportPlan = SeriesImportGroup[];
 /**
  * Everything a confirmed bulk import will create, and nothing else.
  *
- * One format-neutral value, produced by the CSV and ONIX adapters alike and handed unchanged
- * from the parser through the preview to the mutation. That it is the same value the whole way
- * is the point: the works the user confirms are the works that get created, rather than a set
- * of parallel arrays that each stage takes apart and puts back together.
+ * One format-neutral value, produced by the CSV and ONIX adapters alike and carried from the
+ * parser to the mutation as a single value rather than a set of parallel arrays that each stage
+ * takes apart and puts back together.
+ *
+ * Exactly one stage refines it: `ContributorsSelection` applies the user's contributor choices
+ * to `works` and `chapters`, preserving work ids, source order, which entries are works and
+ * which are chapters, the series groups and their ordinals. From that resolved plan onwards —
+ * `UploadModal` -> `PreviewStep` -> `useBulkCreateWorks` -> `WorkService.bulkCreateWorks` —
+ * nothing alters it. That is the point: the works the user confirms in the preview are the
+ * works that get created.
  *
  * It holds creation intent only. Diagnostics live beside it, not in it — an `ImportIssue`
  * describes the *source file*, and a plan that carried its own warnings would invite sending

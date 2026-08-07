@@ -41,9 +41,10 @@ export const UploadModal = (props: UploadModalProps) => {
 
   const router = useRouter();
 
-  // One plan, held whole: it arrives from the parse step already assembled and is handed to the
-  // preview and then to the mutation unchanged. A fresh empty plan on every reset, never a
-  // shared one, so a closed upload cannot leave anything behind for the next.
+  // One plan, held whole: it arrives already assembled from the parse and contributor-resolution
+  // flow — the parser's plan with the user's contributor choices applied — and is handed to the
+  // preview and then to the mutation unchanged from there on. A fresh empty plan on every reset,
+  // never a shared one, so a closed upload cannot leave anything behind for the next.
   const [plan, setPlan] = useState<ImportPlan>(createEmptyImportPlan);
   // Non-blocking findings from the parse: source metadata the import cannot represent. Kept
   // beside the plan rather than in it — they describe the file, not what will be created.

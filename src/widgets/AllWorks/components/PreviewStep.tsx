@@ -18,7 +18,10 @@ import { convertOptionToString, getDisplayTitle } from '@/src/shared/utils';
 const NO_WARNINGS: ImportIssue[] = [];
 
 type PreviewStepProps = {
-  /** Exactly what confirming will create, unchanged since the parse resolved it. */
+  /**
+   * The final resolved plan — the parser's, with any contributor choices the user made already
+   * applied — and exactly what confirming will create.
+   */
   plan: ImportPlan;
   /**
    * What the source file said that this import will not represent. Never fatal, and never part
