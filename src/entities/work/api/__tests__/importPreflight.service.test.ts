@@ -97,6 +97,27 @@ describe('ImportPreflightService', () => {
     expect(result.size).toBe(0);
   });
 
+  /**
+   * Offset pagination only means anything over a total order. `PublicationOrderBy::default()`
+   * sorts by publication type, which is not unique and gets no id tiebreaker from the backend's
+   * single-field ordering, so rows tied on it could sit either side of a page boundary from one
+   * request to the next — and a real ISBN match could fall through the gap. Both documents name a
+   * unique sort key of their own rather than trusting any default.
+   */
+  it('orders the work lookup by work id, explicitly', () => {
+    const document = JSON.stringify(GET_WORKS_BY_IDENTIFIER_FILTER);
+
+    expect(document).toContain('WORK_ID');
+    expect(document).toContain('ASC');
+  });
+
+  it('orders the publication lookup by publication id, explicitly', () => {
+    const document = JSON.stringify(GET_PUBLICATIONS_BY_ISBN_FILTER);
+
+    expect(document).toContain('PUBLICATION_ID');
+    expect(document).toContain('ASC');
+  });
+
   it('reads further pages until one comes back short', async () => {
     const firstPage = Array.from({ length: 100 }, (_, index) =>
       existingWorkDto(`w${index}`, { doi: 'https://doi.org/10.1234/other' }),
@@ -157,6 +178,60 @@ describe('ImportPreflightService', () => {
     const matches = result.get(importIdentifierKey({ basis: 'isbn', value: '9781234567897' })) ?? [];
 
     expect(matches.map(({ workId }) => workId)).toEqual(['exact']);
+  });
+
+  /**
+   * The page boundary is where an unordered query would lose a match, so the exact case the
+   * ordering exists to make safe is covered directly: a match that only appears on the second
+   * page still reaches the report, and the substring results around it are still rejected.
+   */
+  it('keeps an exact ISBN match that only appears on a later page', async () => {
+    const firstPage = Array.from({ length: 100 }, (_, index) => ({
+      publicationId: `p${index}`,
+      // Substring hits from the backend's hyphen-stripped `LIKE`, none of them the exact ISBN.
+      isbn: `97801985266361${index}`,
+      work: existingWorkDto(`w${index}`),
+    }));
+    const secondPage = [
+      { publicationId: 'p-last', isbn: '978-0-19-852663-6', work: existingWorkDto('exact-on-second-page') },
+    ];
+
+    query.mockResolvedValueOnce({ publications: firstPage }).mockResolvedValueOnce({ publications: secondPage });
+
+    const result = await service.findExistingIdentifierMatches({
+      publisherId: PUBLISHER_ID,
+      identifiers: [{ basis: 'isbn', value: '9780198526636' }],
+    });
+
+    expect(isbnCalls().map(([, variables]) => variables.offset)).toEqual([0, 100]);
+    expect(isbnCalls().map(([, variables]) => variables.limit)).toEqual([100, 100]);
+
+    const matches = result.get(importIdentifierKey({ basis: 'isbn', value: '9780198526636' })) ?? [];
+
+    expect(matches.map(({ workId }) => workId)).toEqual(['exact-on-second-page']);
+  });
+
+  /**
+   * The plan's identifiers are normalised before the service sees them, so an ISBN-10 in a source
+   * file is asked about as the ISBN-13 Thoth actually stores — which is also the only form the
+   * backend's ISBN filter could match.
+   */
+  it('searches for an imported ISBN-10 using its canonical ISBN-13', async () => {
+    const identifiers = collectImportIdentifiers(plan([planWork('w1', { isbns: ['0-19-852663-6'] })]));
+
+    expect(identifiers).toEqual([{ basis: 'isbn', value: '9780198526636' }]);
+
+    query.mockResolvedValueOnce({
+      publications: [{ publicationId: 'p1', isbn: '978-0-19-852663-6', work: existingWorkDto('existing-thirteen') }],
+    });
+
+    const result = await service.findExistingIdentifierMatches({ publisherId: PUBLISHER_ID, identifiers });
+
+    expect(isbnCalls()[0][1].filter).toBe('9780198526636');
+
+    const matches = result.get(importIdentifierKey({ basis: 'isbn', value: '9780198526636' })) ?? [];
+
+    expect(matches.map(({ workId }) => workId)).toEqual(['existing-thirteen']);
   });
 
   it('keeps every existing work that exactly carries the identifier', async () => {
