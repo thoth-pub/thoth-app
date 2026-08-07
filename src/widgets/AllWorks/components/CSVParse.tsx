@@ -10,7 +10,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { CSVParser, TranslateFunction } from '@/src/shared/parsers';
-import { ContributorsForSelection, SeriesForUpdateItems } from '@/src/shared/types';
+import { ContributorsForSelection, SeriesImportPlan } from '@/src/shared/types';
 import { CircularProgress } from '@/src/shared/ui';
 import { isCsv } from '@/src/shared/utils';
 
@@ -21,7 +21,7 @@ type CSVParseProps = {
   file: File;
   imprints: FormFieldOption[];
   serieses: SeriesEntity[];
-  onPreview?: (works: WorkEntity[], chapters: WorkEntity[], serieses: SeriesForUpdateItems) => void;
+  onPreview?: (works: WorkEntity[], chapters: WorkEntity[], serieses: SeriesImportPlan) => void;
   onValidationFailure?: (errors: string[]) => void;
 };
 
@@ -36,7 +36,7 @@ export const CSVParse = (props: CSVParseProps) => {
 
   const [isValidatingFile, setIsValidatingFile] = useState(false);
   const [works, setWorks] = useState<WorkEntity[]>([]);
-  const [seriesForUpdate, setSeriesForUpdate] = useState<SeriesForUpdateItems>({});
+  const [seriesForUpdate, setSeriesForUpdate] = useState<SeriesImportPlan>([]);
   const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<ContributorsForSelection>({});
 
   const isFileUploaded = file && file.size > 0;
@@ -46,7 +46,7 @@ export const CSVParse = (props: CSVParseProps) => {
 
   const parseFile = useEffectEvent(async () => {
     setWorks([]);
-    setSeriesForUpdate({});
+    setSeriesForUpdate([]);
     setMultipleFoundedContributors({});
     setIsValidatingFile(true);
 

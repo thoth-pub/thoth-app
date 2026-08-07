@@ -35,7 +35,7 @@ import { AbstractTypes } from '../../constants/abstracts';
 import { ERRORS } from '../../constants/errors';
 import { FormFieldOption } from '../../interfaces';
 import { compileFullTitle } from '../../utils/titles';
-import type { AbstractEntity, ContributorsForSelection, SeriesForUpdateItems, TitleEntity } from '../../types';
+import type { AbstractEntity, ContributorsForSelection, SeriesImportPlan, TitleEntity } from '../../types';
 import {
   convertRomanToArabic,
   getDefaultAbstract,
@@ -68,7 +68,7 @@ type CSVParseResult = {
   status: 'success' | 'failed';
   data: {
     works: WorkEntity[];
-    series: SeriesForUpdateItems;
+    series: SeriesImportPlan;
     contributorsForSelection: ContributorsForSelection;
   };
   errors: string[];
@@ -79,7 +79,7 @@ export class CSVParser {
   private csvConfig: ValidatorConfig;
   private errors: string[] = [];
   private parsedWorks: WorkEntity[] = [];
-  private parsedSeries: SeriesForUpdateItems = {};
+  private parsedSeries: SeriesImportPlan = [];
   private contributorsForSelection: ContributorsForSelection = {};
   private imprints: FormFieldOption[] = [];
   private licenses: FormFieldOption[] = [];
@@ -119,7 +119,7 @@ export class CSVParser {
         const errors = csvParseResult.inValidData.map((error) => error.message);
         this.errors = errors;
 
-        return { status: 'failed', data: { works: [], series: {}, contributorsForSelection: {} }, errors };
+        return { status: 'failed', data: { works: [], series: [], contributorsForSelection: {} }, errors };
       }
 
       const data: Row[] = csvParseResult.data;
@@ -127,7 +127,7 @@ export class CSVParser {
       await Promise.all(data.map((row, index) => this.parseRow(row, index + 1)));
 
       if (this.errors.length > 0) {
-        return { status: 'failed', data: { works: [], series: {}, contributorsForSelection: {} }, errors: this.errors };
+        return { status: 'failed', data: { works: [], series: [], contributorsForSelection: {} }, errors: this.errors };
       }
 
       return {
@@ -142,7 +142,7 @@ export class CSVParser {
     } catch (_error) {
       return {
         status: 'failed',
-        data: { works: [], series: {}, contributorsForSelection: {} },
+        data: { works: [], series: [], contributorsForSelection: {} },
         errors: [this.t(ERRORS.CSV_PARSING_ERROR)],
       };
     }
@@ -538,10 +538,24 @@ export class CSVParser {
       return;
     }
 
-    const existingData = this.parsedSeries[existingSeries.id] ?? [];
     const orderNumber = this.parseNumberField(row, CSV_KEYS.SERIES_ISSUE_NUMBER);
+    // The CSV importer still requires the series to exist; it only ever produces `existing`
+    // targets. Automatic creation is currently an ONIX-import behaviour.
+    const group = this.parsedSeries.find(
+      ({ target }) => target.kind === 'existing' && target.seriesId === existingSeries.id,
+    );
 
-    this.parsedSeries[existingSeries.id] = [...existingData, { ...work, orderNumber }];
+    if (group) {
+      group.works.push({ ...work, orderNumber });
+
+      return;
+    }
+
+    this.parsedSeries.push({
+      name: existingSeries.name,
+      target: { kind: 'existing', seriesId: existingSeries.id },
+      works: [{ ...work, orderNumber }],
+    });
   }
 
   private async parseContributors(row: Row, workId: WorkId) {

@@ -5,7 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
-import type { SeriesForUpdateItems } from '@/src/shared/types';
+import type { SeriesImportPlan } from '@/src/shared/types';
 
 import { WorkEntity } from '../../model/work.types';
 
@@ -23,7 +23,7 @@ const useBulkCreateWorks = () => {
       chapters,
     }: {
       works: WorkEntity[];
-      serieses: SeriesForUpdateItems;
+      serieses: SeriesImportPlan;
       chapters: WorkEntity[];
     }) => {
       return workService.bulkCreateWorks(works, serieses, chapters);
@@ -41,6 +41,18 @@ const useBulkCreateWorks = () => {
     },
     onError: (error) => {
       sendErrorNotification(error?.message ?? WORK_BULK_CREATION_FAILED);
+    },
+    // A bulk import can create series, and a failed one can create some of them before it
+    // stops. Refreshing the series list either way is what lets a retry of the same file match
+    // the series this run already created instead of proposing them a second time.
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
+      // The importer reads its series list from useAllUserSerieses, which is keyed separately
+      // from the admin list. Missing this key is what would let a retry propose a series the
+      // failed run had already created.
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.allUserSerieses] });
     },
   });
 

@@ -9,7 +9,7 @@ import { Activity, useState } from 'react';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
 import { ROUTES } from '@/src/shared/constants';
-import type { SeriesForUpdateItems } from '@/src/shared/types';
+import type { SeriesImportPlan } from '@/src/shared/types';
 import { ContentSection, Step, StepLabel, Stepper, TranslatedContent } from '@/src/shared/ui';
 
 import { PreviewStep } from './PreviewStep';
@@ -43,11 +43,11 @@ export const UploadModal = (props: UploadModalProps) => {
 
   const [works, setWorks] = useState<WorkEntity[]>([]);
   const [chapters, setChapters] = useState<WorkEntity[]>([]);
-  const [updatedSerieses, setUpdatedSerieses] = useState<SeriesForUpdateItems>({});
+  const [updatedSerieses, setUpdatedSerieses] = useState<SeriesImportPlan>([]);
 
   const isDataEmpty = works.length === 0 && chapters.length === 0;
 
-  const handlePreview = (works: WorkEntity[], chapters: WorkEntity[], updatedSerieses: SeriesForUpdateItems) => {
+  const handlePreview = (works: WorkEntity[], chapters: WorkEntity[], updatedSerieses: SeriesImportPlan) => {
     setWorks(works);
     setChapters(chapters);
     setUpdatedSerieses(updatedSerieses);
@@ -56,7 +56,7 @@ export const UploadModal = (props: UploadModalProps) => {
   const resetData = () => {
     setWorks([]);
     setChapters([]);
-    setUpdatedSerieses({});
+    setUpdatedSerieses([]);
   };
 
   const handleSubmit = () => {

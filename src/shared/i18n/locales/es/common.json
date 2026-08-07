@@ -232,5 +232,7 @@
     "emptyFile": "El archivo cargado está vacío.",
     "titleRequired": "El título es obligatorio",
     "accessibilityPrimaryStandardRequired": "Seleccione un estándar WCAG antes de añadir un estándar adicional."
-  }
+  },
+  "will be created": "Se creará",
+  "bulk import did not finish": "Esta importación no finalizó. Es posible que algunas obras ya se hayan creado. Cierre esta carga y revise la lista de obras antes de volver a intentarlo: volver a subirla sin resolver la importación parcial puede crear obras duplicadas."
 }
