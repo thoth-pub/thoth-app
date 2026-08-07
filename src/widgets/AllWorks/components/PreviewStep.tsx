@@ -1,9 +1,18 @@
-import { useTransition } from 'react';
+import { useState, useTransition } from 'react';
 
 import { useBulkCreateWorks } from '@/src/entities/work';
 import { WorkEntity } from '@/src/entities/work/model/work.types';
 import type { SeriesImportPlan } from '@/src/shared/types';
-import { Button, TableBody, TableCell, TableHeader, TableRow, TableWrapper, TranslatedContent } from '@/src/shared/ui';
+import {
+  Button,
+  TableBody,
+  TableCell,
+  TableHeader,
+  TableRow,
+  TableWrapper,
+  TranslatedContent,
+  Typography,
+} from '@/src/shared/ui';
 import { convertOptionToString, getDisplayTitle } from '@/src/shared/utils';
 
 type PreviewStepProps = {
@@ -18,16 +27,24 @@ export const PreviewStep = (props: PreviewStepProps) => {
 
   const { bulkCreateWorks } = useBulkCreateWorks();
   const [isPending, startTransition] = useTransition();
+  const [hasFailed, setHasFailed] = useState(false);
 
   // The import is awaited so the preview stays on screen while it runs, and stays on screen if
   // it fails: a bulk import is not atomic, so navigating away on failure would leave the user
   // with no idea what was created. The error notification is raised by useBulkCreateWorks;
   // rethrowing here would surface as an unhandled rejection.
+  //
+  // A failed import cannot be retried from this screen. The plan was built against the series
+  // Thoth had before the attempt, so a group still marked `proposed` may name a series the
+  // failed run already created — confirming again would create it a second time. The file has
+  // to be parsed again against the refreshed series list, which useBulkCreateWorks invalidates.
   const handleSubmit = () => {
     startTransition(async () => {
       try {
         await bulkCreateWorks({ works, serieses, chapters });
       } catch {
+        setHasFailed(true);
+
         return;
       }
 
@@ -92,12 +109,17 @@ export const PreviewStep = (props: PreviewStepProps) => {
           })}
         </TableBody>
       </TableWrapper>
+      {hasFailed && (
+        <Typography color="error" className="text-center">
+          <TranslatedContent content="bulk import failed reupload" />
+        </Typography>
+      )}
       <Button
         variant="contained"
         color="primary"
         className="m-auto max-w-max capitalize"
         onClick={handleSubmit}
-        disabled={isPending}
+        disabled={isPending || hasFailed}
       >
         <TranslatedContent content="actions.create" />
       </Button>

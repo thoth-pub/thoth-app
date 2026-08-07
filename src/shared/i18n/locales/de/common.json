@@ -232,5 +232,7 @@
     "emptyFile": "Die hochgeladene Datei ist leer.",
     "titleRequired": "Titel ist erforderlich",
     "accessibilityPrimaryStandardRequired": "Wählen Sie einen WCAG-Standard aus, bevor Sie einen zusätzlichen Standard hinzufügen."
-  }
+  },
+  "will be created": "Wird erstellt",
+  "bulk import failed reupload": "Dieser Import wurde nicht abgeschlossen. Einige Werke wurden möglicherweise bereits erstellt. Laden Sie die Datei erneut hoch, um den aktuellen Stand zu sehen, bevor Sie es erneut versuchen."
 }

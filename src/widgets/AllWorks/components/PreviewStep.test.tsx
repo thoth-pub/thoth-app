@@ -29,6 +29,7 @@ vi.mock('@/src/shared/ui', () => ({
   TableRow: ({ children }: { children: React.ReactNode }) => <tr>{children}</tr>,
   TableCell: ({ children }: { children: React.ReactNode }) => <td>{children}</td>,
   TranslatedContent: ({ content }: { content: string }) => <span>{content}</span>,
+  Typography: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
 }));
 
 import { SeriesType } from '@/src/shared/constants/series';
@@ -81,6 +82,28 @@ describe('PreviewStep', () => {
     await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
 
     await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+  });
+
+  it('cannot invoke the import a second time against the same plan after a failure', async () => {
+    mockBulkCreateWorks.mockRejectedValue(new Error('work creation failed'));
+
+    const onSubmit = vi.fn();
+    renderStep(onSubmit);
+
+    const create = screen.getByRole('button', { name: 'actions.create' });
+
+    await userEvent.click(create);
+    await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledTimes(1));
+
+    // The plan was built against the series Thoth had before the attempt, so a group still
+    // marked `proposed` may name a series the failed run already created. Re-confirming would
+    // create it twice; the file has to be parsed again instead.
+    await waitFor(() => expect(create).toBeDisabled());
+    expect(screen.getByText('bulk import failed reupload')).toBeInTheDocument();
+
+    await userEvent.click(create);
+    expect(mockBulkCreateWorks).toHaveBeenCalledTimes(1);
+    expect(onSubmit).not.toHaveBeenCalled();
   });
 
   it('keeps the preview open when the import fails, without an unhandled rejection', async () => {
