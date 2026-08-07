@@ -56,14 +56,7 @@ export type ImportIssue = {
 };
 
 /**
- * What a parser returns.
- *
- * `status` is derived from the issues rather than tracked alongside them: it is `failed` exactly
- * when some issue is an error. A file that produces only warnings parses successfully, and its
- * data is the data the import will use.
+ * Whether a parse produced anything the import can run. Derived from the issues rather than
+ * tracked alongside them — see `importStatus` — and carried by `ImportParseResult`.
  */
-export type ImportParseResult<TData> = {
-  status: 'success' | 'failed';
-  data: TData;
-  issues: ImportIssue[];
-};
+export type ImportStatus = 'success' | 'failed';

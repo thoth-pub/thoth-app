@@ -49,6 +49,7 @@ import {
   getDefaultTitle,
   getDefaultWork,
 } from '../../utils';
+import { createEmptyImportPlan } from '../../utils/importPlan';
 import { compileFullTitle } from '../../utils/titles';
 import { importStatus, sortIssues } from '../issues/importIssues';
 import {
@@ -78,12 +79,6 @@ function buildEnumAliasMap(enumObj: Record<string, string>): Map<string, string>
 type Row = {
   [CSVKey in (typeof CSV_KEYS)[keyof typeof CSV_KEYS]]: CSVFieldType;
 };
-
-type CSVParseResult = ImportParseResult<{
-  works: WorkEntity[];
-  series: SeriesImportPlan;
-  contributorsForSelection: ContributorsForSelection;
-}>;
 
 /**
  * The largest issue ordinal Thoth can store: `issueOrdinal` is a GraphQL `Int`, which the
@@ -138,7 +133,11 @@ export class CSVParser {
     this.t = t;
   }
 
-  async parse(): Promise<CSVParseResult> {
+  /**
+   * A CSV import has no chapters: the template describes one work per row, with no equivalent
+   * of an ONIX ContentItem, so the plan's chapters are always empty rather than optional.
+   */
+  async parse(): Promise<ImportParseResult> {
     try {
       const csvParseResult = await CSVFileValidator(await this.normalizeFile(), this.csvConfig);
 
@@ -151,7 +150,7 @@ export class CSVParser {
         // they were raised within one row.
         const issues = sortIssues(toValidatorIssues(csvParseResult.inValidData, this.csvConfig));
 
-        return { status: 'failed', data: { works: [], series: [], contributorsForSelection: {} }, issues };
+        return { status: 'failed', data: this.emptyData(), issues };
       }
 
       const data: Row[] = csvParseResult.data;
@@ -180,18 +179,13 @@ export class CSVParser {
       const sortedIssues = sortIssues(this.issues);
 
       if (importStatus(sortedIssues) === 'failed') {
-        return {
-          status: 'failed',
-          data: { works: [], series: [], contributorsForSelection: {} },
-          issues: sortedIssues,
-        };
+        return { status: 'failed', data: this.emptyData(), issues: sortedIssues };
       }
 
       return {
         status: 'success',
         data: {
-          works: this.parsedWorks,
-          series: this.parsedSeries,
+          plan: { works: this.parsedWorks, chapters: [], series: this.parsedSeries },
           contributorsForSelection: this.contributorsForSelection,
         },
         issues: sortedIssues,
@@ -199,7 +193,7 @@ export class CSVParser {
     } catch (_error) {
       return {
         status: 'failed',
-        data: { works: [], series: [], contributorsForSelection: {} },
+        data: this.emptyData(),
         issues: [
           {
             severity: 'error',
@@ -210,6 +204,11 @@ export class CSVParser {
         ],
       };
     }
+  }
+
+  /** A failed parse creates nothing, so it carries a plan that would create nothing. */
+  private emptyData() {
+    return { plan: createEmptyImportPlan(), contributorsForSelection: {} };
   }
 
   /**

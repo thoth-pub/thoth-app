@@ -59,6 +59,7 @@ import {
   getWorkStatusFromXml,
   isValidPublicationForm,
 } from '../../utils';
+import { createEmptyImportPlan } from '../../utils/importPlan';
 import { importStatus, sortIssues } from '../issues/importIssues';
 import {
   buildSeriesPlan,
@@ -99,14 +100,6 @@ type ParsedProduct = {
   chapters: WorkEntity[];
   seriesCandidate?: SeriesCandidate;
 };
-
-/** What {@link XMLParser.parse} produces for a whole ONIX message. */
-type XMLParseResult = ImportParseResult<{
-  works: WorkEntity[];
-  series: SeriesImportPlan;
-  chapters: WorkEntity[];
-  contributorsForSelection: ContributorsForSelection;
-}>;
 
 /** How the shared series planner phrases its errors for an ONIX import. */
 const ONIX_SERIES_MESSAGES: SeriesPlanMessages = {
@@ -162,14 +155,14 @@ class XMLParser {
     this.institutionService = institutionService;
   }
 
-  async parse(): Promise<XMLParseResult> {
+  async parse(): Promise<ImportParseResult> {
     try {
       const products = this.convertToArray(this.xml.ONIXMessage.Product).filter((product) => !!product);
 
       if (products.length === 0) {
         return {
           status: 'failed',
-          data: { works: [], series: [], chapters: [], contributorsForSelection: {} },
+          data: this.emptyData(),
           issues: [
             {
               severity: 'error',
@@ -212,21 +205,15 @@ class XMLParser {
       const sortedIssues = sortIssues(this.issues);
 
       if (importStatus(sortedIssues) === 'failed') {
-        return {
-          status: 'failed',
-          data: { works: [], series: [], chapters: [], contributorsForSelection: {} },
-          issues: sortedIssues,
-        };
+        return { status: 'failed', data: this.emptyData(), issues: sortedIssues };
       }
 
-      // Warnings do not withhold data: the works a warning describes are imported, minus
+      // Warnings do not withhold a plan: the works a warning describes are imported, minus
       // whatever the warning says will not be represented.
       return {
         status: 'success',
         data: {
-          works: this.parsedWorks,
-          series: this.parsedSeries,
-          chapters: this.parsedChapters,
+          plan: { works: this.parsedWorks, chapters: this.parsedChapters, series: this.parsedSeries },
           contributorsForSelection: this.contributorsForSelection,
         },
         issues: sortedIssues,
@@ -234,7 +221,7 @@ class XMLParser {
     } catch (_error) {
       return {
         status: 'failed',
-        data: { works: [], series: [], chapters: [], contributorsForSelection: {} },
+        data: this.emptyData(),
         issues: [
           {
             severity: 'error',
@@ -245,6 +232,11 @@ class XMLParser {
         ],
       };
     }
+  }
+
+  /** A failed parse creates nothing, so it carries a plan that would create nothing. */
+  private emptyData() {
+    return { plan: createEmptyImportPlan(), contributorsForSelection: {} };
   }
 
   private convertToArray<T>(data: T | T[]): T[] {

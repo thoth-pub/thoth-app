@@ -409,7 +409,13 @@ export const buildSeriesPlan = (
       // it stays the first spelling the source used, which is what the preview has always shown.
       name: target.kind === 'proposed' ? target.series.name : candidates[0].name,
       target,
-      works: grouped.map(({ work, candidate }) => ({ ...work, orderNumber: candidate.ordinal ?? next++ })),
+      // References, not copies: the work itself belongs to the plan's own `works`, and a second
+      // copy here would be a second version of it — one that contributor resolution would not
+      // update, and that the import would then attach to the series.
+      members: grouped.map(({ work, candidate }) => ({
+        workId: work.id,
+        orderNumber: candidate.ordinal ?? next++,
+      })),
     });
   }
 

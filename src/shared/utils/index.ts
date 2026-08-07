@@ -17,6 +17,7 @@ export * from './fieldsOption/workTypeOptions';
 export * from './files';
 export * from './fundings';
 export * from './helpers/composeProviders';
+export * from './importPlan';
 export * from './helpers/getSameDayAndMonthDateInPast';
 export * from './helpers/isDefaultId';
 export * from './helpers/isDragAndDropDisabled';

@@ -218,7 +218,7 @@ describe('CSVParser', () => {
       const result = await makeParser(file).parse();
       expect(errorMessages(result)).toEqual([]);
       expect(result.status).toBe('success');
-      expect(result.data.works).toHaveLength(1);
+      expect(result.data.plan.works).toHaveLength(1);
     });
   });
 
@@ -230,7 +230,7 @@ describe('CSVParser', () => {
       const csv = buildCsv({ ...BASE, title: 'Only Title' });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      const work = result.data.works[0];
+      const work = result.data.plan.works[0];
       expect(work.titles).toHaveLength(1);
       expect(work.titles[0]).toMatchObject({ canonical: true, title: 'Only Title', subtitle: '' });
     });
@@ -239,7 +239,7 @@ describe('CSVParser', () => {
       const csv = buildCsv({ ...BASE, title: 'Main Title', subtitle: 'The Subtitle' });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      const title = result.data.works[0].titles[0];
+      const title = result.data.plan.works[0].titles[0];
       expect(title.title).toBe('Main Title');
       expect(title.subtitle).toBe('The Subtitle');
       expect(title.fullTitle).toBe('Main Title: The Subtitle');
@@ -254,7 +254,7 @@ describe('CSVParser', () => {
       const csv = buildCsv({ ...BASE, long_abstract: 'The long text.' });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      const abstracts = result.data.works[0].abstracts;
+      const abstracts = result.data.plan.works[0].abstracts;
       expect(abstracts).toHaveLength(1);
       expect(abstracts[0]).toMatchObject({ content: 'The long text.', type: 'LONG' });
     });
@@ -262,7 +262,7 @@ describe('CSVParser', () => {
     it('parses a short abstract', async () => {
       const csv = buildCsv({ ...BASE, short_abstract: 'The short text.' });
       const result = await makeParser(makeFile(csv)).parse();
-      const abstracts = result.data.works[0].abstracts;
+      const abstracts = result.data.plan.works[0].abstracts;
       expect(abstracts).toHaveLength(1);
       expect(abstracts[0]).toMatchObject({ content: 'The short text.', type: 'SHORT' });
     });
@@ -270,7 +270,7 @@ describe('CSVParser', () => {
     it('parses both long and short abstracts', async () => {
       const csv = buildCsv({ ...BASE, long_abstract: 'Long.', short_abstract: 'Short.' });
       const result = await makeParser(makeFile(csv)).parse();
-      const abstracts = result.data.works[0].abstracts;
+      const abstracts = result.data.plan.works[0].abstracts;
       expect(abstracts).toHaveLength(2);
       expect(abstracts.find((a) => a.type === 'LONG')).toBeTruthy();
       expect(abstracts.find((a) => a.type === 'SHORT')).toBeTruthy();
@@ -279,7 +279,7 @@ describe('CSVParser', () => {
     it('produces no abstracts when both fields are empty', async () => {
       const csv = buildCsv({ ...BASE });
       const result = await makeParser(makeFile(csv)).parse();
-      expect(result.data.works[0].abstracts).toHaveLength(0);
+      expect(result.data.plan.works[0].abstracts).toHaveLength(0);
     });
   });
 
@@ -290,7 +290,7 @@ describe('CSVParser', () => {
     it('parses Roman-numeral frontmatter from page_breakdown', async () => {
       const csv = buildCsv({ ...BASE, page_breakdown: 'xxiv+278' });
       const result = await makeParser(makeFile(csv)).parse();
-      const work = result.data.works[0];
+      const work = result.data.plan.works[0];
       expect(work.pageCount).toBe(278);
       expect(work.frontmatterCount).toBe(24);
     });
@@ -298,13 +298,13 @@ describe('CSVParser', () => {
     it('falls back to page_count when page_breakdown is empty', async () => {
       const csv = buildCsv({ ...BASE, page_count: '150' });
       const result = await makeParser(makeFile(csv)).parse();
-      expect(result.data.works[0].pageCount).toBe(150);
+      expect(result.data.plan.works[0].pageCount).toBe(150);
     });
 
     it('uses page_breakdown pageCount over explicit page_count', async () => {
       const csv = buildCsv({ ...BASE, page_breakdown: 'iv+100', page_count: '999' });
       const result = await makeParser(makeFile(csv)).parse();
-      expect(result.data.works[0].pageCount).toBe(100);
+      expect(result.data.plan.works[0].pageCount).toBe(100);
     });
   });
 
@@ -316,7 +316,7 @@ describe('CSVParser', () => {
       const csv = buildCsv({ ...BASE });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      expect(result.data.works[0].imprintId).toBe(IMPRINT_VALUE);
+      expect(result.data.plan.works[0].imprintId).toBe(IMPRINT_VALUE);
     });
 
     it('returns failed status when the imprint label is not found', async () => {
@@ -336,7 +336,7 @@ describe('CSVParser', () => {
       const csv = buildCsv({ ...BASE, license: licenseUrl });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      expect(result.data.works[0].license).toBe(licenseUrl);
+      expect(result.data.plan.works[0].license).toBe(licenseUrl);
     });
 
     it('returns failed status for an unknown license URL', async () => {
@@ -350,7 +350,7 @@ describe('CSVParser', () => {
       const csv = buildCsv({ ...BASE, license: '' });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      expect(result.data.works[0].license).toBe('');
+      expect(result.data.plan.works[0].license).toBe('');
     });
   });
 
@@ -361,21 +361,21 @@ describe('CSVParser', () => {
     it('adds an ORIGINAL language relation', async () => {
       const csv = buildCsv({ ...BASE, original_language: 'ENG' });
       const result = await makeParser(makeFile(csv)).parse();
-      const langs = result.data.works[0].languages;
+      const langs = result.data.plan.works[0].languages;
       expect(langs.find((l) => l.relation === 'ORIGINAL')?.code).toBe('ENG');
     });
 
     it('adds a TRANSLATED_FROM language relation', async () => {
       const csv = buildCsv({ ...BASE, translated_from_language: 'GER' });
       const result = await makeParser(makeFile(csv)).parse();
-      const langs = result.data.works[0].languages;
+      const langs = result.data.plan.works[0].languages;
       expect(langs.find((l) => l.relation === 'TRANSLATED_FROM')?.code).toBe('GER');
     });
 
     it('adds a TRANSLATED_INTO language relation', async () => {
       const csv = buildCsv({ ...BASE, translated_into_language: 'SPA' });
       const result = await makeParser(makeFile(csv)).parse();
-      const langs = result.data.works[0].languages;
+      const langs = result.data.plan.works[0].languages;
       expect(langs.find((l) => l.relation === 'TRANSLATED_INTO')?.code).toBe('SPA');
     });
 
@@ -387,7 +387,7 @@ describe('CSVParser', () => {
         translated_into_language: 'SPA',
       });
       const result = await makeParser(makeFile(csv)).parse();
-      expect(result.data.works[0].languages).toHaveLength(3);
+      expect(result.data.plan.works[0].languages).toHaveLength(3);
     });
   });
 
@@ -398,7 +398,7 @@ describe('CSVParser', () => {
     it('parses comma-separated thema subjects', async () => {
       const csv = buildCsv({ ...BASE, thema_subjects: 'FYM,QDTK' });
       const result = await makeParser(makeFile(csv)).parse();
-      const subjects = result.data.works[0].subjects;
+      const subjects = result.data.plan.works[0].subjects;
       const thema = subjects.filter((s) => s.type === 'THEMA');
       expect(thema.map((s) => s.code)).toEqual(['FYM', 'QDTK']);
     });
@@ -406,7 +406,7 @@ describe('CSVParser', () => {
     it('parses BIC subjects', async () => {
       const csv = buildCsv({ ...BASE, bic_subjects: 'HPK' });
       const result = await makeParser(makeFile(csv)).parse();
-      const bic = result.data.works[0].subjects.filter((s) => s.type === 'BIC');
+      const bic = result.data.plan.works[0].subjects.filter((s) => s.type === 'BIC');
       expect(bic).toHaveLength(1);
       expect(bic[0].code).toBe('HPK');
     });
@@ -414,14 +414,14 @@ describe('CSVParser', () => {
     it('parses BISAC subjects', async () => {
       const csv = buildCsv({ ...BASE, bisac_subjects: 'FIC057000,PHI014000' });
       const result = await makeParser(makeFile(csv)).parse();
-      const bisac = result.data.works[0].subjects.filter((s) => s.type === 'BISAC');
+      const bisac = result.data.plan.works[0].subjects.filter((s) => s.type === 'BISAC');
       expect(bisac.map((s) => s.code)).toEqual(['FIC057000', 'PHI014000']);
     });
 
     it('parses LCC subjects', async () => {
       const csv = buildCsv({ ...BASE, lcc_subjects: 'PN1650' });
       const result = await makeParser(makeFile(csv)).parse();
-      const lcc = result.data.works[0].subjects.filter((s) => s.type === 'LCC');
+      const lcc = result.data.plan.works[0].subjects.filter((s) => s.type === 'LCC');
       expect(lcc).toHaveLength(1);
       expect(lcc[0].code).toBe('PN1650');
     });
@@ -429,14 +429,14 @@ describe('CSVParser', () => {
     it('parses keyword subjects', async () => {
       const csv = buildCsv({ ...BASE, keywords: 'embodiment,philosophy' });
       const result = await makeParser(makeFile(csv)).parse();
-      const keywords = result.data.works[0].subjects.filter((s) => s.type === 'KEYWORD');
+      const keywords = result.data.plan.works[0].subjects.filter((s) => s.type === 'KEYWORD');
       expect(keywords.map((s) => s.code)).toEqual(['embodiment', 'philosophy']);
     });
 
     it('assigns sequential ordinals across all subject types', async () => {
       const csv = buildCsv({ ...BASE, thema_subjects: 'A', bic_subjects: 'B', keywords: 'C' });
       const result = await makeParser(makeFile(csv)).parse();
-      const ordinals = result.data.works[0].subjects.map((s) => s.ordinal);
+      const ordinals = result.data.plan.works[0].subjects.map((s) => s.ordinal);
       expect(ordinals).toEqual([1, 2, 3]);
     });
   });
@@ -449,7 +449,7 @@ describe('CSVParser', () => {
     it('creates a paperback publication from ISBN alone', async () => {
       const csv = buildCsv({ ...BASE, publication_paperback_isbn: '9789800000007' });
       const result = await makeParser(makeFile(csv)).parse();
-      const pubs = result.data.works[0].publications;
+      const pubs = result.data.plan.works[0].publications;
       expect(pubs).toHaveLength(1);
       expect(pubs[0]).toMatchObject({ isbn: '9789800000007', type: 'PAPERBACK' });
     });
@@ -462,7 +462,7 @@ describe('CSVParser', () => {
         publication_hardback_price_1_unit_price: '29.99',
       });
       const result = await makeParser(makeFile(csv)).parse();
-      const hardback = result.data.works[0].publications.find((p) => p.type === 'HARDBACK');
+      const hardback = result.data.plan.works[0].publications.find((p) => p.type === 'HARDBACK');
       expect(hardback).toBeDefined();
       expect(hardback!.prices).toHaveLength(1);
       expect(hardback!.prices[0]).toMatchObject({ currencyCode: 'USD', unitPrice: 29.99 });
@@ -477,7 +477,7 @@ describe('CSVParser', () => {
         publication_pdf_location_platform: 'PUBLISHER_WEBSITE',
       });
       const result = await makeParser(makeFile(csv)).parse();
-      const pdf = result.data.works[0].publications.find((p) => p.type === 'PDF');
+      const pdf = result.data.plan.works[0].publications.find((p) => p.type === 'PDF');
       expect(pdf).toBeDefined();
       expect(pdf!.locations).toHaveLength(1);
       expect(pdf!.locations[0]).toMatchObject({
@@ -490,7 +490,7 @@ describe('CSVParser', () => {
     it('skips a publication when the ISBN field is empty', async () => {
       const csv = buildCsv({ ...BASE, publication_paperback_isbn: '' });
       const result = await makeParser(makeFile(csv)).parse();
-      expect(result.data.works[0].publications).toHaveLength(0);
+      expect(result.data.plan.works[0].publications).toHaveLength(0);
     });
 
     it('creates three publications when all ISBNs are present', async () => {
@@ -501,7 +501,7 @@ describe('CSVParser', () => {
         publication_pdf_isbn: '9789800000021',
       });
       const result = await makeParser(makeFile(csv)).parse();
-      const types = result.data.works[0].publications.map((p) => p.type);
+      const types = result.data.plan.works[0].publications.map((p) => p.type);
       expect(types).toContain('PAPERBACK');
       expect(types).toContain('HARDBACK');
       expect(types).toContain('PDF');
@@ -520,18 +520,18 @@ describe('CSVParser', () => {
       });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      const group = result.data.series.find(
+      const group = result.data.plan.series.find(
         ({ target }) => target.kind === 'existing' && target.seriesId === SERIES_ID,
       );
-      expect(group?.works).toHaveLength(1);
-      expect(group?.works[0].orderNumber).toBe(3);
+      expect(group?.members).toHaveLength(1);
+      expect(group?.members[0]).toEqual({ workId: result.data.plan.works[0].id, orderNumber: 3 });
     });
 
     it('produces no series entries when series_name is empty', async () => {
       const csv = buildCsv({ ...BASE, series_name: '' });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      expect(Object.keys(result.data.series)).toHaveLength(0);
+      expect(Object.keys(result.data.plan.series)).toHaveLength(0);
     });
   });
 
@@ -544,8 +544,8 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.series).toHaveLength(1);
-      expect(result.data.series[0].target).toEqual({ kind: 'existing', seriesId: SERIES_ID });
+      expect(result.data.plan.series).toHaveLength(1);
+      expect(result.data.plan.series[0].target).toEqual({ kind: 'existing', seriesId: SERIES_ID });
     });
 
     it('matches an existing series despite case and whitespace differences', async () => {
@@ -553,7 +553,7 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.series[0].target).toEqual({ kind: 'existing', seriesId: SERIES_ID });
+      expect(result.data.plan.series[0].target).toEqual({ kind: 'existing', seriesId: SERIES_ID });
     });
 
     it('does not bind a row to an identically named series in another imprint', async () => {
@@ -569,7 +569,7 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv), { series: elsewhere }).parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.series[0].target).toEqual({
+      expect(result.data.plan.series[0].target).toEqual({
         kind: 'proposed',
         series: { name: SERIES_NAME, imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' },
       });
@@ -583,8 +583,8 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv), { series: [] }).parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.series).toHaveLength(2);
-      expect(result.data.series.map((group) => group.target)).toEqual([
+      expect(result.data.plan.series).toHaveLength(2);
+      expect(result.data.plan.series.map((group) => group.target)).toEqual([
         { kind: 'proposed', series: { name: 'Shared Name', imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' } },
         { kind: 'proposed', series: { name: 'Shared Name', imprintId: OTHER_IMPRINT_VALUE, type: 'BOOK_SERIES' } },
       ]);
@@ -596,14 +596,14 @@ describe('CSVParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toEqual([]);
-      expect(result.data.series).toEqual([
+      expect(result.data.plan.series).toEqual([
         {
           name: 'Arc Companions',
           target: {
             kind: 'proposed',
             series: { name: 'Arc Companions', imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' },
           },
-          works: [expect.objectContaining({ orderNumber: 1 })],
+          members: [{ workId: expect.any(String), orderNumber: 1 }],
         },
       ]);
     });
@@ -617,9 +617,9 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.series).toHaveLength(1);
-      expect(result.data.series[0].target.kind).toBe('proposed');
-      expect(result.data.series[0].works).toHaveLength(3);
+      expect(result.data.plan.series).toHaveLength(1);
+      expect(result.data.plan.series[0].target.kind).toBe('proposed');
+      expect(result.data.plan.series[0].members).toHaveLength(3);
     });
 
     it('reports two identically named existing series in one imprint rather than picking one', async () => {
@@ -635,7 +635,7 @@ describe('CSVParser', () => {
       expect(errorMessages(result)[0]).toContain('csvSeriesAmbiguous');
       expect(errorMessages(result)[0]).toContain('"count":2');
       expect(errorMessages(result)[0]).toContain('csvRow');
-      expect(result.data.series).toEqual([]);
+      expect(result.data.plan.series).toEqual([]);
     });
 
     it('reports existing series that only differ by case or whitespace', async () => {
@@ -660,7 +660,7 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv), { series: duplicates }).parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.series[0].target).toEqual({ kind: 'existing', seriesId: 'series-exact' });
+      expect(result.data.plan.series[0].target).toEqual({ kind: 'existing', seriesId: 'series-exact' });
     });
 
     it('does not over-normalise punctuation', async () => {
@@ -669,7 +669,7 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv), { series: existing }).parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.series[0].target).toEqual({
+      expect(result.data.plan.series[0].target).toEqual({
         kind: 'proposed',
         series: { name: 'Foundations: Old and New', imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' },
       });
@@ -681,7 +681,7 @@ describe('CSVParser', () => {
   // -------------------------------------------------------------------------
   describe('series issue numbers', () => {
     const ordinalsOf = (result: Awaited<ReturnType<CSVParser['parse']>>) =>
-      result.data.series.flatMap((group) => group.works.map((work) => work.orderNumber));
+      result.data.plan.series.flatMap((group) => group.members.map((member) => member.orderNumber));
 
     it('numbers blank issue numbers on a new series from 1', async () => {
       const csv = buildCsvRows([
@@ -738,7 +738,7 @@ describe('CSVParser', () => {
       expect(errorMessages(result)).toHaveLength(1);
       expect(errorMessages(result)[0]).toContain('csvSeriesDuplicateIssueNumber');
       expect(errorMessages(result)[0]).toContain('"ordinal":4');
-      expect(result.data.series).toEqual([]);
+      expect(result.data.plan.series).toEqual([]);
     });
 
     it('reports an explicit issue number an existing Thoth issue already uses', async () => {
@@ -750,7 +750,7 @@ describe('CSVParser', () => {
       expect(errorMessages(result)).toHaveLength(1);
       expect(errorMessages(result)[0]).toContain('csvSeriesIssueNumberTaken');
       expect(errorMessages(result)[0]).toContain('"ordinal":2');
-      expect(result.data.series).toEqual([]);
+      expect(result.data.plan.series).toEqual([]);
     });
 
     it.each(['0', '-1', '1.5', 'two', ' ', '1e3', 'Infinity'])(
@@ -801,7 +801,7 @@ describe('CSVParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toEqual([]);
-      expect(result.data.series).toEqual([]);
+      expect(result.data.plan.series).toEqual([]);
     });
 
     it('rejects a valid issue number that has no series to belong to', async () => {
@@ -823,6 +823,85 @@ describe('CSVParser', () => {
       // The missing series is the actionable problem, so it is reported once rather than
       // alongside a complaint about the value's shape.
       expect(errorMessages(result)).toEqual([expect.stringContaining('csvSeriesIssueNumberWithoutSeries')]);
+    });
+  });
+
+  // -------------------------------------------------------------------------
+  // The shared import plan
+  // -------------------------------------------------------------------------
+  describe('import plan', () => {
+    it('produces a plan with the parsed works, no chapters, and the planned series', async () => {
+      const csv = buildCsvRows([
+        { ...BASE, title: 'One', series_name: SERIES_NAME },
+        { ...BASE, title: 'Two', series_name: SERIES_NAME },
+      ]);
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+
+      const { works, chapters, series } = result.data.plan;
+
+      expect(works.map((work) => work.titles[0].title)).toEqual(['One', 'Two']);
+      // A CSV row is one work; the template has no equivalent of an ONIX ContentItem.
+      expect(chapters).toEqual([]);
+      expect(series).toEqual([
+        {
+          name: SERIES_NAME,
+          target: { kind: 'existing', seriesId: SERIES_ID },
+          members: [
+            { workId: works[0].id, orderNumber: 1 },
+            { workId: works[1].id, orderNumber: 2 },
+          ],
+        },
+      ]);
+    });
+
+    it('refers to a proposed series by member id as well', async () => {
+      const csv = buildCsv({ ...BASE, series_name: 'Arc Companions', series_issue_number: '7' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      const { works, series } = result.data.plan;
+
+      expect(series[0].target).toEqual({
+        kind: 'proposed',
+        series: { name: 'Arc Companions', imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' },
+      });
+      expect(series[0].members).toEqual([{ workId: works[0].id, orderNumber: 7 }]);
+    });
+
+    it('keeps every series member pointing at a work the plan actually holds', async () => {
+      const csv = buildCsvRows([
+        { ...BASE, title: 'One', series_name: SERIES_NAME },
+        { ...BASE, title: 'Two', series_name: 'Arc Companions' },
+        { ...BASE, title: 'Three', series_name: SERIES_NAME },
+      ]);
+      const result = await makeParser(makeFile(csv)).parse();
+
+      const { works, series } = result.data.plan;
+      const workIds = new Set(works.map((work) => work.id));
+
+      expect(series.flatMap((group) => group.members).every(({ workId }) => workIds.has(workId))).toBe(true);
+    });
+
+    it('returns an empty plan and no contributor options when the parse fails', async () => {
+      const csv = buildCsv({ ...BASE, work_status: 'Published' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.data.plan).toEqual({ works: [], chapters: [], series: [] });
+      expect(result.data.contributorsForSelection).toEqual({});
+      // Nothing partially executable, but the diagnostics are all there.
+      expect(result.issues.length).toBeGreaterThan(0);
+    });
+
+    it('gives each failed parse its own empty plan', async () => {
+      const csv = buildCsv({ ...BASE, work_status: 'Published' });
+      const first = await makeParser(makeFile(csv)).parse();
+      const second = await makeParser(makeFile(csv)).parse();
+
+      // Not one shared value that a caller could append to and leak into the next import.
+      expect(first.data.plan).not.toBe(second.data.plan);
+      expect(first.data.plan.works).not.toBe(second.data.plan.works);
     });
   });
 
@@ -1020,7 +1099,7 @@ describe('CSVParser', () => {
 
       expect(result.status).toBe('success');
       expect(result.issues).toEqual([]);
-      expect(result.data.series[0].target).toEqual({
+      expect(result.data.plan.series[0].target).toEqual({
         kind: 'proposed',
         series: { name: 'Unrelated Name', imprintId: IMPRINT_VALUE, type: 'BOOK_SERIES' },
       });
@@ -1034,8 +1113,8 @@ describe('CSVParser', () => {
       const withoutResult = await makeParser(makeFile(withoutIssn)).parse();
 
       expect(withResult.issues).toEqual(withoutResult.issues);
-      expect(withResult.data.series.map(({ target }) => target)).toEqual(
-        withoutResult.data.series.map(({ target }) => target),
+      expect(withResult.data.plan.series.map(({ target }) => target)).toEqual(
+        withoutResult.data.plan.series.map(({ target }) => target),
       );
     });
   });
@@ -1090,14 +1169,15 @@ describe('CSVParser', () => {
       expect(completions).toEqual(['Third Author', 'Second Author', 'First Author']);
 
       expect(result.status).toBe('success');
-      expect(result.data.works.map((work) => work.titles[0].title)).toEqual(['First', 'Second', 'Third']);
+      expect(result.data.plan.works.map((work) => work.titles[0].title)).toEqual(['First', 'Second', 'Third']);
 
-      const [group] = result.data.series;
+      const [group] = result.data.plan.series;
 
-      expect(group.works.map((work) => work.orderNumber)).toEqual([1, 2, 3]);
-      expect(group.works.map((work) => work.titles[0].title)).toEqual(['First', 'Second', 'Third']);
+      expect(group.members.map((member) => member.orderNumber)).toEqual([1, 2, 3]);
+      // Membership is by id, and those ids are the plan's own works, in source order.
+      expect(group.members.map((member) => member.workId)).toEqual(result.data.plan.works.map((work) => work.id));
       // Each work still owns its own contributor selection options.
-      expect(result.data.works.every((work) => !!result.data.contributorsForSelection[work.id])).toBe(true);
+      expect(result.data.plan.works.every((work) => !!result.data.contributorsForSelection[work.id])).toBe(true);
     });
 
     it('reports row-tagged errors in CSV row order regardless of completion order', async () => {
@@ -1193,7 +1273,7 @@ describe('CSVParser', () => {
       });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      const contributions = result.data.works[0].contributions;
+      const contributions = result.data.plan.works[0].contributions;
       expect(contributions).toHaveLength(1);
       expect(contributions[0]).toMatchObject({
         firstName: 'Jane',
@@ -1213,7 +1293,7 @@ describe('CSVParser', () => {
         contribution_2_role: 'EDITOR',
       });
       const result = await makeParser(makeFile(csv)).parse();
-      const contributions = result.data.works[0].contributions;
+      const contributions = result.data.plan.works[0].contributions;
       expect(contributions).toHaveLength(2);
       expect(contributions[0].firstName).toBe('Alice');
       expect(contributions[1].firstName).toBe('Bob');
@@ -1228,7 +1308,7 @@ describe('CSVParser', () => {
         contribution_1_orcid: '0000-0001-6365-5189',
       });
       const result = await makeParser(makeFile(csv)).parse();
-      const contribution = result.data.works[0].contributions[0];
+      const contribution = result.data.plan.works[0].contributions[0];
       expect(contribution.orcidId).toBe('0000-0001-6365-5189');
     });
 
@@ -1243,7 +1323,7 @@ describe('CSVParser', () => {
         contribution_2_role: '',
       });
       const result = await makeParser(makeFile(csv)).parse();
-      expect(result.data.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
     });
 
     it('includes found contributors from ContributorService in selection options', async () => {
@@ -1265,7 +1345,7 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv), {
         contributorResults: [existingContributor],
       }).parse();
-      const workId = result.data.works[0].id;
+      const workId = result.data.plan.works[0].id;
       const selectionOptions = Object.values(result.data.contributorsForSelection[workId]);
       expect(selectionOptions[0]).toHaveLength(2);
       expect(selectionOptions[0][0].selected).toBe(true);
@@ -1298,7 +1378,7 @@ describe('CSVParser', () => {
       });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      expect(result.data.works[0].contributions[0].type).toBe('AUTHOR');
+      expect(result.data.plan.works[0].contributions[0].type).toBe('AUTHOR');
     });
 
     it('accepts "Introduction By" as contribution role (normalises to INTRODUCTION_BY)', async () => {
@@ -1310,7 +1390,7 @@ describe('CSVParser', () => {
       });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      expect(result.data.works[0].contributions[0].type).toBe('INTRODUCTION_BY');
+      expect(result.data.plan.works[0].contributions[0].type).toBe('INTRODUCTION_BY');
     });
 
     it('accepts "Publisher Website" as pdf_location_platform (normalises to PUBLISHER_WEBSITE)', async () => {
@@ -1321,7 +1401,7 @@ describe('CSVParser', () => {
       });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      const pdf = result.data.works[0].publications.find((p) => p.type === 'PDF');
+      const pdf = result.data.plan.works[0].publications.find((p) => p.type === 'PDF');
       expect(pdf!.locations[0].locationPlatform).toBe('PUBLISHER_WEBSITE');
     });
 
@@ -1336,7 +1416,7 @@ describe('CSVParser', () => {
       });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      expect(result.data.works[0].contributions[0].type).toBe('AUTHOR');
+      expect(result.data.plan.works[0].contributions[0].type).toBe('AUTHOR');
     });
   });
 
