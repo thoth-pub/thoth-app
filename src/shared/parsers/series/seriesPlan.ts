@@ -50,7 +50,8 @@ export const seriesIdentity = (imprintId: string, name: string): string => `${im
  * A refusal is not automatically fatal. The adapter decides both how bad it is and how to say
  * it: whether the group simply cannot be represented (a warning, and the works import without
  * the series) or the import must stop (an error). The planner only decides that the group
- * produces no {@link SeriesImportGroup}.
+ * produces no {@link SeriesImportGroup}, and only when *no* record in the group may create it —
+ * see {@link buildSeriesPlan}.
  *
  * `reason` is given the whole group rather than one record, so a series several records share
  * yields one issue naming all of them instead of the same sentence once per record.
@@ -63,6 +64,8 @@ export type SeriesCreationPolicy =
       code: ImportIssueCode;
       reason: (context: { name: string; sources: string }) => string;
     };
+
+type SeriesCreationRefusal = Extract<SeriesCreationPolicy, { allowed: false }>;
 
 /**
  * One source record's resolved series, before grouping. Holds everything the plan builder needs
@@ -245,19 +248,27 @@ const resolveSeriesTarget = (
 
   if (matchedId) return { kind: 'existing', seriesId: matchedId };
 
-  // The first record that is not allowed to create the series blocks the whole group: a series
-  // is created once, so it cannot be created on some members' authority but not others'.
+  // Authority to create belongs to the group, not to whichever record happens to come first.
+  // A series is created once, so one record that may create this identity is enough for all of
+  // them: the records that could not have authorised it are not creating a second series, they
+  // are attaching to the one this import will create — exactly what they would have done had it
+  // already existed, which is the case above.
   //
-  // One issue is raised for the group, not one per record, and it is tagged with the earliest
-  // record involved — every record in the group is affected, and the message names them all.
-  const blocked = candidates.find(({ creation }) => !creation.allowed)?.creation;
+  // Only when no record in the group carries that authority is the group dropped, and then one
+  // issue is raised for the whole group rather than one per record. It is tagged with the
+  // earliest record involved, and the message names them all.
+  const refusals = candidates
+    .map(({ creation }) => creation)
+    .filter((creation): creation is SeriesCreationRefusal => !creation.allowed);
 
-  if (blocked && !blocked.allowed) {
+  if (refusals.length === candidates.length) {
+    const [refusal] = refusals;
+
     issues.push({
       index: first.sourceIndex,
-      severity: blocked.severity,
-      code: blocked.code,
-      message: blocked.reason({ name: first.name, sources: describeSources(candidates) }),
+      severity: refusal.severity,
+      code: refusal.code,
+      message: refusal.reason({ name: first.name, sources: describeSources(candidates) }),
     });
 
     return undefined;
@@ -332,6 +343,10 @@ const hasOrdinalCollision = (
  *
  * Runs once, over members held in source order, so both the grouping and the ordinals are
  * independent of the order in which rows or products finished parsing.
+ *
+ * A group is one series, so it resolves once: to the existing Thoth series its records matched,
+ * or — if any record in it may create the series — to a single proposal every record joins. The
+ * group is dropped only when nothing matched and no record could have created it.
  *
  * Ordinals behave identically for existing and newly proposed series; a proposed series simply
  * has no existing issues, so its numbering starts at 1.

@@ -57,6 +57,7 @@ import {
   type SeriesCandidate,
   type SeriesPlanMessages,
 } from '../series/seriesPlan';
+import { toValidatorIssues } from './validatorIssues';
 
 export type CSVFieldType = string | number | boolean;
 
@@ -144,19 +145,11 @@ export class CSVParser {
       const isErrors = csvParseResult.inValidData.length > 0;
 
       if (isErrors) {
-        // `csv-file-validator` findings are about the shape of the uploaded file — a missing
-        // header, a short row, a cell that fails its column's rule — and are raised before any
-        // row is parsed, so they are file-level. Their own row indices are not reused: the
-        // library counts the header as a row for cell errors but not for row-length errors, and
-        // a header error belongs to no data row at all. Each message already names its row.
-        const issues = csvParseResult.inValidData.map(
-          ({ message }): ImportIssue => ({
-            severity: 'error',
-            code: 'csv.validation',
-            message,
-            source: { kind: 'file' },
-          }),
-        );
+        // The file validator numbers its rows in more than one way and reports header problems
+        // that belong to no data row; `toValidatorIssues` normalises both onto this parser's own
+        // row numbering. Sorted for the same reason row issues are: source order, then the order
+        // they were raised within one row.
+        const issues = sortIssues(toValidatorIssues(csvParseResult.inValidData, this.csvConfig));
 
         return { status: 'failed', data: { works: [], series: [], contributorsForSelection: {} }, issues };
       }

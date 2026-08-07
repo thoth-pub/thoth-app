@@ -301,6 +301,86 @@ describe('buildSeriesPlan', () => {
       expect(plan[0].target).toEqual({ kind: 'existing', seriesId: 'a' });
       expect(issues).toEqual([]);
     });
+
+    /**
+     * A group is one series, so the authority to create it belongs to the group. One record that
+     * may create this identity is enough for all of them: the rest are not authorising a second
+     * series, they are joining the one this import will create — which is exactly what they do
+     * when the series already exists.
+     */
+    describe('mixed authority within one group', () => {
+      const allowed = (sourceIndex: number, sourceDescription: string) =>
+        candidateOf({ sourceIndex, sourceDescription, creation: { allowed: true } });
+
+      const planFor = (candidates: SeriesCandidate[]) =>
+        buildSeriesPlan(
+          candidates.map((candidate, index) => ({ work: makeWork(`w${index + 1}`), candidate })),
+          [],
+          messages,
+        );
+
+      it('proposes the series once and keeps every record when only one may create it', () => {
+        const { plan, issues } = planFor([allowed(1, 'record 1'), skipped(2, 'record 2')]);
+
+        expect(plan).toHaveLength(1);
+        expect(plan[0].target).toEqual({
+          kind: 'proposed',
+          series: { name: 'Foundations', imprintId: IMPRINT, type: 'BOOK_SERIES' },
+        });
+        expect(plan[0].works.map((work) => work.id)).toEqual(['w1', 'w2']);
+        // Nothing was left behind, so there is nothing to warn about.
+        expect(issues).toEqual([]);
+      });
+
+      it('does not depend on which record came first', () => {
+        const authorityFirst = planFor([allowed(1, 'record 1'), skipped(2, 'record 2')]);
+        const refusalFirst = planFor([skipped(1, 'record 1'), allowed(2, 'record 2')]);
+
+        expect(refusalFirst.issues).toEqual([]);
+        expect(refusalFirst.plan).toHaveLength(1);
+        expect(refusalFirst.plan[0].target).toEqual(authorityFirst.plan[0].target);
+        expect(refusalFirst.plan[0].works.map((work) => work.orderNumber)).toEqual(
+          authorityFirst.plan[0].works.map((work) => work.orderNumber),
+        );
+      });
+
+      it('drops the group only when no record at all may create it', () => {
+        const { plan, issues } = planFor([skipped(1, 'record 1'), skipped(2, 'record 2'), skipped(3, 'record 3')]);
+
+        expect(plan).toEqual([]);
+        expect(issues).toHaveLength(1);
+        expect(issues[0].severity).toBe('warning');
+      });
+
+      it("applies the ordinal rules to a group created on one record's authority", () => {
+        const { plan, issues } = planFor([
+          { ...allowed(1, 'record 1'), ordinal: 4 },
+          { ...skipped(2, 'record 2') },
+          { ...skipped(3, 'record 3'), ordinal: 9 },
+        ]);
+
+        // Explicit ordinals are preserved, and the unnumbered record is appended above them all.
+        expect(plan[0].works.map((work) => work.orderNumber)).toEqual([4, 10, 9]);
+        expect(issues).toEqual([]);
+      });
+
+      it("still reports an ordinal collision in a group created on one record's authority", () => {
+        const { plan, issues } = planFor([
+          { ...allowed(1, 'record 1'), ordinal: 4 },
+          { ...skipped(2, 'record 2'), ordinal: 4 },
+        ]);
+
+        expect(plan).toEqual([]);
+        expect(issues).toEqual([
+          {
+            index: 1,
+            severity: 'error',
+            code: 'csv.validation',
+            message: 'duplicate|Foundations|4|record 1 and record 2',
+          },
+        ]);
+      });
+    });
   });
 
   it('reports a group whose records matched different existing series', () => {

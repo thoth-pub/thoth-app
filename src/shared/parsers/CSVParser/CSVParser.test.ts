@@ -880,17 +880,84 @@ describe('CSVParser', () => {
       ]);
     });
 
-    it('files a file-shape failure against the file rather than inventing a row for it', async () => {
-      // `work_status` has a real enum validator, so `csv-file-validator` rejects the file before
-      // any row is parsed. Its own row numbering counts the header, so it is not reused as a
-      // structured CSV row; the message still names the row it came from.
-      const csv = buildCsv({ ...BASE, work_status: 'Published' });
-      const result = await makeParser(makeFile(csv)).parse();
+    /**
+     * `csv-file-validator` findings arrive before any row is parsed and are numbered by the
+     * library's own conventions; `toValidatorIssues` normalises them onto this parser's rows.
+     * These cases pin that mapping against the real library rather than a stub.
+     */
+    describe('findings from the file validator', () => {
+      it('files an invalid cell against the data row it is in', async () => {
+        // `work_status` has a real enum validator, so this is rejected by the file validator.
+        const csv = buildCsvRows([{ ...BASE, work_status: 'Published' }]);
+        const result = await makeParser(makeFile(csv)).parse();
 
-      expect(result.status).toBe('failed');
-      expect(result.issues.length).toBeGreaterThan(0);
-      expect(result.issues.every(({ source }) => source.kind === 'file')).toBe(true);
-      expect(result.issues.every(({ severity, code }) => severity === 'error' && code === 'csv.validation')).toBe(true);
+        expect(result.status).toBe('failed');
+        expect(result.issues).toEqual([
+          {
+            severity: 'error',
+            code: 'csv.validation',
+            message: expect.stringContaining('csvFieldNotValidOptions'),
+            source: { kind: 'csv', row: 1 },
+          },
+        ]);
+      });
+
+      it('files the same failure on a later row against that row', async () => {
+        const csv = buildCsvRows([{ ...BASE }, { ...BASE }, { ...BASE, work_status: 'Published' }]);
+        const result = await makeParser(makeFile(csv)).parse();
+
+        expect(result.issues.map(({ source }) => source)).toEqual([{ kind: 'csv', row: 3 }]);
+      });
+
+      it('files a missing required cell against its row', async () => {
+        const csv = buildCsvRows([{ ...BASE }, { ...BASE, title: '' }]);
+        const result = await makeParser(makeFile(csv)).parse();
+
+        // The message keeps the library's own row numbering, which counts the header as row 1.
+        // That wording is not ours to change here; the structured source is what is now right.
+        expect(result.issues).toEqual([
+          {
+            severity: 'error',
+            code: 'csv.validation',
+            message: 'title is required in the 3 row / 4 column',
+            source: { kind: 'csv', row: 2 },
+          },
+        ]);
+      });
+
+      it('files a header problem against the file, not against data row 1', async () => {
+        // An unterminated quote defeats the header normaliser, which hands the original file to
+        // the validator — the one path on which real header findings reach us.
+        const result = await makeParser(makeFile('publisher,title\n"unclosed,Book')).parse();
+
+        expect(result.status).toBe('failed');
+
+        const sourceOf = (fragment: string) => result.issues.find(({ message }) => message.includes(fragment))?.source;
+
+        // Both header categories are file-level: the one that names no row at all, and the one
+        // the library numbers as row 1 with a column — which is the header, not data row 1.
+        expect(sourceOf('Header name imprint is not correct or missing')).toEqual({ kind: 'file' });
+        expect(sourceOf('is not correct or missing in the 1 row')).toEqual({ kind: 'file' });
+        // The malformed data row is a row, and keeps its own row despite the library numbering
+        // this category from the first data row instead of from the header.
+        expect(sourceOf('Number of fields mismatch')).toEqual({ kind: 'csv', row: 1 });
+      });
+
+      it('orders normalised findings by row, with file-level problems first', async () => {
+        const csv = buildCsvRows([
+          { ...BASE, work_status: 'Published' },
+          { ...BASE },
+          { ...BASE, title: '' },
+          { ...BASE, license: 'not a licence' },
+        ]);
+        const result = await makeParser(makeFile(csv)).parse();
+
+        expect(result.issues.map(({ source }) => source)).toEqual([
+          { kind: 'csv', row: 1 },
+          { kind: 'csv', row: 3 },
+          { kind: 'csv', row: 4 },
+        ]);
+      });
     });
 
     it('orders issues by CSV row even when a later row finishes parsing first', async () => {

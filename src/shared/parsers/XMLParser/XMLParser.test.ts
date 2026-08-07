@@ -4516,6 +4516,44 @@ describe('XMLParser', () => {
         );
       });
 
+      it.each([
+        ['the publisher collection comes first', ['10', '11']],
+        ['the ambiguous collection comes first', ['11', '10']],
+      ])('creates the series once when only one product authorises it, whichever %s', async (_label, types) => {
+        // The two products name the same series in the same imprint, so they are one group. A
+        // publisher collection anywhere in it is the authority to create; the other product is
+        // not authorising a second series, it is joining the one this import will create.
+        const result = await runParser(
+          types.map((type, index) => member(`Work ${index + 1}`, collection('Studies in Things', type))),
+          [],
+        );
+
+        expect(result.status).toBe('success');
+        expect(proposedGroups(result)).toHaveLength(1);
+        expect(proposedGroups(result)[0].target).toMatchObject({
+          kind: 'proposed',
+          series: { name: 'Studies in Things', imprintId: imprints[0].value },
+        });
+        // Both works belong to it, in product order, and nothing was left behind to warn about.
+        expect(proposedGroups(result)[0].works.map((work) => work.titles[0].title)).toEqual(['Work 1', 'Work 2']);
+        expect(proposedGroups(result)[0].works.map((work) => work.orderNumber)).toEqual([1, 2]);
+        expect(result.issues).toEqual([]);
+      });
+
+      it('still reports an ordinal collision inside a mixed-authority group', async () => {
+        const result = await runParser(
+          [
+            member('First', collection('Studies in Things', '10', '4'), '9780000000001'),
+            member('Second', collection('Studies in Things', '11', '4'), '9780000000002'),
+          ],
+          [],
+        );
+
+        expect(result.status).toBe('failed');
+        expect(errorMessages(result)[0]).toContain('is given issue number 4 by more than one product');
+        expect(seriesPlan(result)).toHaveLength(0);
+      });
+
       it('keeps the works of an unrelated product alongside a warned-about one', async () => {
         const result = await runParser(
           [
