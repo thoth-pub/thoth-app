@@ -1,5 +1,6 @@
 import {
   CollectionFrequencyCode,
+  CollectionIdentifierType,
   CollectionSequenceType,
   CollectionType,
   CurrencyCodeBasedOnIso4217,
@@ -68,9 +69,17 @@ export interface OnixLanguage {
   LanguageCode?: LanguageBasedOnIso6392b | string;
 }
 
-/** The subset of a Collection that {@link selectSeriesCollection} needs to rank candidates. */
+export interface OnixCollectionIdentifier {
+  CollectionIDType?: CollectionIdentifierType;
+  IDTypeName?: OnixText;
+  IDValue?: OnixText;
+}
+
+/** The subset of a Collection that the series helpers need to identify and rank candidates. */
 export interface OnixCollectionLike {
   CollectionType?: CollectionType;
+  /** Not declared upstream at all, though ONIX allows it on every Collection. */
+  CollectionIdentifier?: OnixRepeatable<OnixCollectionIdentifier>;
   TitleDetail?: OnixRepeatable<OnixTitleDetail>;
 }
 
@@ -141,6 +150,7 @@ export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 
     CollectionSequenceType?: CollectionSequenceType;
     CollectionSequenceNumber?: OnixText;
   }>;
+  CollectionIdentifier?: OnixRepeatable<OnixCollectionIdentifier>;
   SourceName?: string;
   TitleDetail?: OnixRepeatable<OnixTitleDetail>;
   LevelSequenceNumber?: OnixText;

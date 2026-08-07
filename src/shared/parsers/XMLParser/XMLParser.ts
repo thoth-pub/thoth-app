@@ -37,8 +37,15 @@ import {
 } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
 import { ERRORS } from '../../constants/errors';
+import { SeriesType } from '../../constants/series';
 import { FormFieldOption } from '../../interfaces';
-import type { AbstractEntity, ContributorsForSelection, SeriesForUpdateItems, TitleEntity } from '../../types';
+import type {
+  AbstractEntity,
+  ContributorsForSelection,
+  SeriesImportPlan,
+  SeriesImportTarget,
+  TitleEntity,
+} from '../../types';
 import {
   getContributorRoleFromXml,
   getDefaultAbstract,
@@ -52,7 +59,16 @@ import {
   isValidPublicationForm,
 } from '../../utils';
 import { ExtendedContributor, ExtendedONIXMessageRoot, ExtendedProduct } from './interfaces';
-import { extractOnixTitle, getOnixText, selectSeriesCollection, toOnixArray } from './onix';
+import {
+  classifyCollectionType,
+  type CollectionSupport,
+  extractOnixTitle,
+  getCollectionIssn,
+  getOnixText,
+  normalizeSeriesName,
+  selectSeriesCollection,
+  toOnixArray,
+} from './onix';
 
 /**
  * How ONIX language roles (List 22) map onto Thoth's LanguageRelation.
@@ -78,15 +94,44 @@ const LANGUAGE_ROLE_RELATIONS: Partial<Record<LanguageRole, LanguageEntity['rela
   [LanguageRole._07]: LanguageRelation.enum.TranslatedInto,
 };
 
+/**
+ * One product's resolved ONIX Collection, before grouping. Holds everything the plan builder
+ * needs to deduplicate, detect conflicts and report errors with product context, and
+ * deliberately no series id of its own: `existingSeriesId` is set only when a real Thoth
+ * series was matched.
+ */
+type SeriesCandidate = {
+  /** Imprint-scoped grouping key. Local to parsing; never reaches the API or the plan. */
+  identity: string;
+  name: string;
+  imprintId: string;
+  issn: string;
+  support: CollectionSupport;
+  existingSeriesId?: string;
+  productIndex: number;
+  productDescription: string;
+  /** Set only when ONIX supplied a usable CollectionSequenceNumber. */
+  ordinal?: number;
+};
+
 /** What {@link XMLParser.parseWork} produces for one ONIX product. */
 type ParsedProduct = {
   work: WorkEntity;
   chapters: WorkEntity[];
-  seriesMembership?: {
-    seriesId: string;
-    /** Set only when ONIX supplied a usable CollectionSequenceNumber. */
-    ordinal?: number;
-  };
+  seriesCandidate?: SeriesCandidate;
+};
+
+/** ONIX writes ISSNs unhyphenated, Thoth stores them hyphenated. Compare on digits alone. */
+const isSameIssn = (a: string, b: string) =>
+  a.replace(/-/g, '').toUpperCase() === b.replace(/-/g, '').toUpperCase() && b.length > 0;
+
+/** Names the products involved in a series-level conflict, capped so errors stay readable. */
+const describeProducts = (candidates: { productDescription: string }[]) => {
+  const descriptions = [...new Set(candidates.map(({ productDescription }) => productDescription))];
+
+  return descriptions.length > 3
+    ? `${descriptions.slice(0, 3).join(', ')} and ${descriptions.length - 3} more`
+    : descriptions.join(' and ');
 };
 
 class XMLParser {
@@ -98,7 +143,7 @@ class XMLParser {
    */
   private errors: { index: number; message: string }[] = [];
   private parsedWorks: WorkEntity[] = [];
-  private parsedSeries: SeriesForUpdateItems = {};
+  private parsedSeries: SeriesImportPlan = [];
   private parsedChapters: WorkEntity[] = [];
   private contributorsForSelection: ContributorsForSelection = {};
   private imprints: FormFieldOption[] = [];
@@ -138,7 +183,7 @@ class XMLParser {
       if (products.length === 0) {
         return {
           status: 'failed',
-          data: { works: [], series: {}, chapters: [], contributorsForSelection: {} },
+          data: { works: [], series: [], chapters: [], contributorsForSelection: {} },
           errors: ['No products found in XML file'],
         };
       }
@@ -152,12 +197,12 @@ class XMLParser {
 
       this.parsedWorks = parsedProducts.map(({ work }) => work);
       this.parsedChapters = parsedProducts.flatMap(({ chapters }) => chapters);
-      this.assignSeriesOrdinals(parsedProducts);
+      this.parsedSeries = this.buildSeriesPlan(parsedProducts);
 
       if (this.errors.length > 0) {
         return {
           status: 'failed',
-          data: { works: [], series: {}, chapters: [], contributorsForSelection: {} },
+          data: { works: [], series: [], chapters: [], contributorsForSelection: {} },
           errors: this.sortedErrors(),
         };
       }
@@ -175,7 +220,7 @@ class XMLParser {
     } catch (_error) {
       return {
         status: 'failed',
-        data: { works: [], series: {}, chapters: [], contributorsForSelection: {} },
+        data: { works: [], series: [], chapters: [], contributorsForSelection: {} },
         errors: [ERRORS.XML_PARSING_ERROR],
       };
     }
@@ -226,6 +271,7 @@ class XMLParser {
     workType = WorkTypes.enum.EditedBook,
   ): Promise<ParsedProduct> {
     const workId = this.generateId();
+    const imprintId = this.parseImprint(product, index);
 
     const { imageCount, tableCount, audioCount, videoCount } = this.parseMedia(product);
     const { publicationDate, withdrawnDate } = this.parseDates(product);
@@ -238,7 +284,7 @@ class XMLParser {
       id: workId,
       status: this.parseWorkStatus(product),
       type: workType,
-      imprintId: this.parseImprint(product, index),
+      imprintId,
       doi: this.parseDoi(product),
       lccn: this.parseLccn(product),
       oclc: this.parseOclc(product),
@@ -267,7 +313,7 @@ class XMLParser {
 
     const chapters = await this.parseChapters(product, work);
 
-    return { work, chapters, seriesMembership: this.parseSeries(product, index) };
+    return { work, chapters, seriesCandidate: this.parseSeries(product, index, imprintId) };
   }
 
   private parseImprint(product: ExtendedProduct, index: number) {
@@ -758,92 +804,209 @@ class XMLParser {
   }
 
   /**
-   * Resolves the ONIX Collection to an existing Thoth series.
+   * Resolves the ONIX Collection for one product into a series candidate.
    *
-   * Series are never created by an import: ONIX collection metadata is not rich enough to
-   * populate a Thoth series (imprint, type, ISSNs), so an unknown collection is reported and
-   * the work imports without a series relation. Thoth's bulk import supports a single series
-   * membership per work, so exactly one Collection is selected — see
-   * {@link selectSeriesCollection} for the rule.
+   * This is pure: it decides whether the collection names an existing Thoth series or one the
+   * import will have to create, but it writes nothing. Grouping, conflict detection and
+   * ordinal assignment all happen later in {@link buildSeriesPlan}, once every product has
+   * been parsed, so none of it depends on which product finished first.
+   *
+   * Thoth's bulk import supports a single series membership per work, so exactly one
+   * Collection is selected — see {@link selectSeriesCollection} for the rule.
    */
-  private parseSeries(product: ExtendedProduct, index: number): ParsedProduct['seriesMembership'] {
+  private parseSeries(product: ExtendedProduct, index: number, imprintId: string): SeriesCandidate | undefined {
     const seriesCollections = this.convertToArray(product.DescriptiveDetail?.Collection).filter(
       (collection) => !!collection,
     );
 
     if (seriesCollections.length === 0) return undefined;
 
-    const productDescription = this.describeProduct(product, index);
+    // An ascribed collection is somebody else's grouping, not the publisher's series, so
+    // selectSeriesCollection ignores it and the work simply imports without a series.
     const seriesCollection = selectSeriesCollection(seriesCollections);
 
-    if (!seriesCollection) {
+    if (!seriesCollection) return undefined;
+
+    const productDescription = this.describeProduct(product, index);
+    const seriesName = extractOnixTitle(seriesCollection.TitleDetail, TitleElementLevel._02).title;
+
+    if (seriesName.length === 0) {
       this.pushError(index, `Collection has no usable series title for ${productDescription}`);
 
       return undefined;
     }
 
-    const seriesName = extractOnixTitle(seriesCollection.TitleDetail, TitleElementLevel._02).title;
-    const existingSeries =
-      this.serieses.find((series) => series.name === seriesName) ??
-      this.serieses.find((series) => series.name.toLowerCase() === seriesName.toLowerCase());
+    // Without a resolved imprint we can neither scope the identity nor create a series. The
+    // unresolved imprint is already reported by parseImprint, so stay quiet here.
+    if (imprintId.length === 0) return undefined;
 
-    if (!existingSeries) {
-      this.pushError(index, `Series "${seriesName}" does not exist in Thoth for ${productDescription}`);
-
-      return undefined;
-    }
-
+    const issn = getCollectionIssn(seriesCollection);
+    const existingSeries = this.findExistingSeries(seriesName, imprintId, issn);
     const collectionSequence = this.convertToArray(seriesCollection.CollectionSequence).filter(
       (sequence) => !!sequence,
     )[0];
     const sequenceNumber = this.parseNumber(getOnixText(collectionSequence?.CollectionSequenceNumber));
 
     return {
-      seriesId: existingSeries.id,
+      // Identity is scoped by imprint: two imprints may each run a series of the same name,
+      // and they are not the same series.
+      identity: `${imprintId}::${normalizeSeriesName(seriesName)}`,
+      name: seriesName,
+      imprintId,
+      issn,
+      support: classifyCollectionType(seriesCollection.CollectionType),
+      existingSeriesId: existingSeries?.id,
+      productIndex: index,
+      productDescription,
       // A sequence of 0 means ONIX supplied nothing usable; Thoth issue ordinals start at 1.
       ordinal: sequenceNumber > 0 ? sequenceNumber : undefined,
     };
   }
 
   /**
-   * Turns per-product series memberships into Thoth issue ordinals.
+   * Finds the Thoth series an ONIX collection refers to, within the work's own imprint.
    *
-   * - A CollectionSequenceNumber supplied by the publisher is always preserved verbatim.
-   * - A work with no sequence number is appended after everything already known for that
-   *   series: the highest ordinal among the series' existing Thoth issues and among the
-   *   explicit ordinals in this same import. Unnumbered works are then numbered upwards in
-   *   ONIX product order.
+   * Matching is conservative and tried in a fixed order, so the result never depends on the
+   * order Thoth happened to return series in:
    *
-   * This runs once, after `Promise.all`, over results held in product order, so the outcome
-   * does not depend on which product finished parsing first.
+   * 1. exact name;
+   * 2. normalised name (trimmed, whitespace collapsed, case folded);
+   * 3. ISSN, against either of Thoth's print and digital ISSN fields.
+   *
+   * ISSN is tried last because it is the rarest signal, but it is the strongest one: it
+   * survives a series being renamed.
    */
-  private assignSeriesOrdinals(parsedProducts: ParsedProduct[]) {
-    const memberships = parsedProducts
-      .map(({ work, seriesMembership }) => (seriesMembership ? { work, ...seriesMembership } : undefined))
-      .filter((membership) => !!membership);
+  private findExistingSeries(seriesName: string, imprintId: string, issn: string) {
+    const candidates = this.serieses.filter((series) => series.imprintId === imprintId);
+    const normalizedName = normalizeSeriesName(seriesName);
 
-    const nextOrdinals = new Map<string, number>();
+    return (
+      candidates.find((series) => series.name === seriesName) ??
+      candidates.find((series) => normalizeSeriesName(series.name) === normalizedName) ??
+      (issn.length > 0
+        ? candidates.find((series) => [series.issnPrint, series.issnDigital].some((value) => isSameIssn(value, issn)))
+        : undefined)
+    );
+  }
 
-    for (const seriesId of new Set(memberships.map((membership) => membership.seriesId))) {
+  /**
+   * Groups series candidates into the deduplicated plan the bulk import consumes, and assigns
+   * every work its issue ordinal.
+   *
+   * Runs once, after `Promise.all`, over results held in ONIX product order, so both the
+   * grouping and the ordinals are independent of parsing completion order.
+   *
+   * Ordinals behave identically for existing and newly proposed series; a proposed series
+   * simply has no existing issues, so its numbering starts at 1.
+   *
+   * - A CollectionSequenceNumber supplied by the publisher is preserved verbatim.
+   * - Everything else is appended after the highest ordinal already known for the series,
+   *   counting both its existing Thoth issues and every explicit ordinal in this import, so a
+   *   sequence number appearing later in the file cannot collide with an ordinal already
+   *   handed out. Unnumbered works are numbered upwards in ONIX product order.
+   */
+  private buildSeriesPlan(parsedProducts: ParsedProduct[]): SeriesImportPlan {
+    const groups = new Map<string, { work: WorkEntity; candidate: SeriesCandidate }[]>();
+
+    for (const { work, seriesCandidate } of parsedProducts) {
+      if (!seriesCandidate) continue;
+
+      const members = groups.get(seriesCandidate.identity) ?? [];
+
+      members.push({ work, candidate: seriesCandidate });
+      groups.set(seriesCandidate.identity, members);
+    }
+
+    const plan: SeriesImportPlan = [];
+
+    for (const members of groups.values()) {
+      const candidates = members.map(({ candidate }) => candidate);
+      const target = this.resolveSeriesTarget(candidates);
+
+      if (!target) continue;
+
       const existingOrdinals =
-        this.serieses.find((series) => series.id === seriesId)?.issues.map(({ ordinal }) => ordinal) ?? [];
-      const importedOrdinals = memberships
-        .filter((membership) => membership.seriesId === seriesId)
-        .map(({ ordinal }) => ordinal)
-        .filter((ordinal) => ordinal !== undefined);
+        target.kind === 'existing'
+          ? (this.serieses.find((series) => series.id === target.seriesId)?.issues.map(({ ordinal }) => ordinal) ?? [])
+          : [];
+      const explicitOrdinals = candidates.map(({ ordinal }) => ordinal).filter((ordinal) => ordinal !== undefined);
 
-      nextOrdinals.set(seriesId, Math.max(0, ...existingOrdinals, ...importedOrdinals) + 1);
+      let next = Math.max(0, ...existingOrdinals, ...explicitOrdinals) + 1;
+
+      plan.push({
+        name: candidates[0].name,
+        target,
+        works: members.map(({ work, candidate }) => ({ ...work, orderNumber: candidate.ordinal ?? next++ })),
+      });
     }
 
-    for (const { work, seriesId, ordinal } of memberships) {
-      const orderNumber = ordinal ?? nextOrdinals.get(seriesId) ?? 1;
+    return plan;
+  }
 
-      if (ordinal === undefined) {
-        nextOrdinals.set(seriesId, orderNumber + 1);
-      }
+  /**
+   * Decides whether a group of candidates points at an existing series or proposes a new one,
+   * reporting genuine ambiguity rather than picking whichever product happened to parse first.
+   */
+  private resolveSeriesTarget(candidates: SeriesCandidate[]): SeriesImportTarget | undefined {
+    const first = candidates[0];
+    const matchedIds = [...new Set(candidates.map(({ existingSeriesId }) => existingSeriesId).filter((id) => !!id))];
 
-      this.parsedSeries[seriesId] = [...(this.parsedSeries[seriesId] ?? []), { ...work, orderNumber }];
+    if (matchedIds.length > 1) {
+      this.pushError(
+        first.productIndex,
+        `Series "${first.name}" matches more than one existing Thoth series for ${describeProducts(candidates)}`,
+      );
+
+      return undefined;
     }
+
+    const issns = [...new Set(candidates.map(({ issn }) => issn).filter((issn) => issn.length > 0))];
+
+    // Products naming the same series but declaring different ISSNs describe something we
+    // cannot reconcile: either an ISSN is wrong, or these are not one series.
+    if (issns.length > 1) {
+      this.pushError(
+        first.productIndex,
+        `Series "${first.name}" is declared with conflicting ISSNs (${issns.join(', ')}) for ${describeProducts(candidates)}`,
+      );
+
+      return undefined;
+    }
+
+    const [matchedId] = matchedIds;
+
+    if (matchedId) return { kind: 'existing', seriesId: matchedId };
+
+    // Only a publisher collection is a safe basis for creating a Thoth series. An unspecified
+    // or editorial-line collection may well be one, so it is still matched above, but we will
+    // not invent a series from it.
+    const unsupported = candidates.find(({ support }) => support !== 'supported');
+
+    if (unsupported) {
+      this.pushError(
+        unsupported.productIndex,
+        `Series "${unsupported.name}" does not exist in Thoth and cannot be created automatically because its ONIX CollectionType is not a publisher collection (10), for ${unsupported.productDescription}`,
+      );
+
+      return undefined;
+    }
+
+    return {
+      kind: 'proposed',
+      series: {
+        name: first.name,
+        imprintId: first.imprintId,
+        type: SeriesType.enum.BookSeries,
+        // ONIX supplies an unqualified ISSN with no print/digital distinction, so neither Thoth
+        // field can be filled without inventing the answer. The remaining Thoth fields have no
+        // ONIX equivalent on a Collection at all. Left empty rather than fabricated.
+        issnPrint: '',
+        issnDigital: '',
+        url: '',
+        cfpUrl: '',
+        description: '',
+      },
+    };
   }
 
   private parseReferences(product: ExtendedProduct) {

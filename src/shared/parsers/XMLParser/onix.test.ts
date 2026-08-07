@@ -1,9 +1,17 @@
 import { parse } from '@5stones/onix';
-import { TitleElementLevel } from '@5stones/onix/dist/enums';
+import { CollectionIdentifierType, CollectionType, TitleElementLevel } from '@5stones/onix/dist/enums';
 import { describe, expect, it } from 'vitest';
 
 import type { ExtendedCollection, ExtendedONIXMessageRoot, OnixTitleDetail } from './interfaces';
-import { extractOnixTitle, getOnixText, selectSeriesCollection, toOnixArray } from './onix';
+import {
+  classifyCollectionType,
+  extractOnixTitle,
+  getCollectionIssn,
+  getOnixText,
+  normalizeSeriesName,
+  selectSeriesCollection,
+  toOnixArray,
+} from './onix';
 
 /**
  * Several cases below go through the real `@5stones/onix` parser rather than hand-built
@@ -181,6 +189,66 @@ describe('extractOnixTitle', () => {
   });
 });
 
+describe('classifyCollectionType', () => {
+  it('treats a publisher collection as safe to create a series from', () => {
+    expect(classifyCollectionType(CollectionType._10)).toBe('supported');
+  });
+
+  it('treats an ascribed collection as not a publisher series at all', () => {
+    expect(classifyCollectionType(CollectionType._20)).toBe('unsupported');
+  });
+
+  it('treats unspecified, editorial-line and missing collection types as ambiguous', () => {
+    expect(classifyCollectionType(CollectionType._00)).toBe('ambiguous');
+    expect(classifyCollectionType(CollectionType._11)).toBe('ambiguous');
+    expect(classifyCollectionType(undefined)).toBe('ambiguous');
+  });
+});
+
+describe('normalizeSeriesName', () => {
+  it('folds case and collapses whitespace', () => {
+    expect(normalizeSeriesName('  Arc   Companions ')).toBe('arc companions');
+    expect(normalizeSeriesName('arc companions')).toBe('arc companions');
+  });
+
+  it('keeps punctuation, so distinct names stay distinct', () => {
+    expect(normalizeSeriesName('Collection Development, Cultural Heritage, and Digital Humanities')).not.toBe(
+      normalizeSeriesName('Collection Development: Cultural Heritage and Digital Humanities'),
+    );
+    expect(normalizeSeriesName('Foundations')).not.toBe(normalizeSeriesName('Foundations II'));
+  });
+});
+
+describe('getCollectionIssn', () => {
+  it('reads an ISSN identifier and strips hyphens', () => {
+    const collection = {
+      CollectionIdentifier: { CollectionIDType: CollectionIdentifierType._02, IDValue: '1234-5678' },
+    } as ExtendedCollection;
+
+    expect(getCollectionIssn(collection)).toBe('12345678');
+  });
+
+  it('ignores non-ISSN identifiers', () => {
+    const collection = {
+      CollectionIdentifier: [
+        { CollectionIDType: CollectionIdentifierType._01, IDValue: 'ARC-COMP' },
+        { CollectionIDType: CollectionIdentifierType._02, IDValue: '12345678' },
+      ],
+    } as ExtendedCollection;
+
+    expect(getCollectionIssn(collection)).toBe('12345678');
+  });
+
+  it('returns an empty string when the collection carries no identifier', () => {
+    expect(getCollectionIssn({} as ExtendedCollection)).toBe('');
+    expect(
+      getCollectionIssn({
+        CollectionIdentifier: { CollectionIDType: CollectionIdentifierType._01, IDValue: 'ARC-COMP' },
+      } as ExtendedCollection),
+    ).toBe('');
+  });
+});
+
 describe('selectSeriesCollection', () => {
   const collectionWithTitle = (title: string, collectionType?: string): ExtendedCollection =>
     ({
@@ -188,9 +256,9 @@ describe('selectSeriesCollection', () => {
       TitleDetail: { TitleElement: { TitleElementLevel: TitleElementLevel._02, TitleWithoutPrefix: title } },
     }) as ExtendedCollection;
 
-  it('prefers the publisher collection (CollectionType 10)', () => {
+  it('prefers the publisher collection over an ambiguous one', () => {
     const collections = [
-      collectionWithTitle('Ascribed Reading List', '20'),
+      collectionWithTitle('Unspecified Grouping', '00'),
       collectionWithTitle('Arc Companions', '10'),
     ];
 
@@ -205,15 +273,25 @@ describe('selectSeriesCollection', () => {
     expect(selectSeriesCollection(collections)).toBe(collections[0]);
   });
 
-  it('skips collections that yield no title', () => {
-    const collections = [{ CollectionType: '10' } as ExtendedCollection, collectionWithTitle('Arc Companions', '20')];
+  it('ignores ascribed collections entirely', () => {
+    expect(selectSeriesCollection([collectionWithTitle('A Bookseller Grouping', '20')])).toBeUndefined();
+  });
+
+  it('prefers a collection that yields a title over one that does not', () => {
+    const collections = [{ CollectionType: '10' } as ExtendedCollection, collectionWithTitle('Arc Companions', '10')];
 
     expect(extractOnixTitle(selectSeriesCollection(collections)?.TitleDetail, TitleElementLevel._02).title).toBe(
       'Arc Companions',
     );
   });
 
-  it('returns undefined when nothing yields a title', () => {
-    expect(selectSeriesCollection([{ CollectionType: '10' } as ExtendedCollection])).toBeUndefined();
+  it('still returns a titleless candidate so the caller can report it', () => {
+    const collection = { CollectionType: '10' } as ExtendedCollection;
+
+    expect(selectSeriesCollection([collection])).toBe(collection);
+  });
+
+  it('returns undefined when there is nothing to consider', () => {
+    expect(selectSeriesCollection([])).toBeUndefined();
   });
 });

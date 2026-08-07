@@ -5,7 +5,7 @@ import { WorkStatuses } from '@/src/shared/constants';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { BaseService } from '@/src/shared/interfaces/services';
 import { TransactionContext } from '@/src/shared/services';
-import type { SeriesForUpdateItems, TitleDto, TitleEntity } from '@/src/shared/types';
+import type { SeriesImportGroup, SeriesImportPlan, TitleDto, TitleEntity } from '@/src/shared/types';
 import { getDateInFuture } from '@/src/shared/utils';
 
 import { AbstractService } from '../../abstract/api/abstract.service';
@@ -16,6 +16,7 @@ import { PublicationService } from '../../publication/api/publication.service';
 import { PublisherId } from '../../publisher/model/publisher.types';
 import { ReferenceService } from '../../reference/api/reference.service';
 import { SeriesService } from '../../series';
+import type { SeriesId } from '../../series/model/series.types';
 import { SubjectService } from '../../subject/api/subject.service';
 import { TitleService } from '../../title/api/title.service';
 import { TitleDtoMapper } from '../../title/model/title.mapper';
@@ -398,30 +399,78 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return createdEdition;
   }
 
-  async bulkCreateWorks(works: WorkEntity[], serieses: SeriesForUpdateItems, chapters: WorkEntity[]) {
+  /**
+   * Resolves a planned series group to a real Thoth series id, creating the series the first
+   * time it is needed and reusing that id for every later work in the same group.
+   *
+   * Creation is lazy on purpose. Creating every proposed series up front would leave orphan
+   * series behind whenever work creation later failed; doing it on first use means a series is
+   * only ever created once a work that belongs to it has actually been created.
+   */
+  private async resolveSeriesId(group: SeriesImportGroup, resolved: Map<SeriesImportGroup, SeriesId>) {
+    const alreadyResolved = resolved.get(group);
+
+    if (alreadyResolved) return alreadyResolved;
+
+    if (group.target.kind === 'existing') {
+      resolved.set(group, group.target.seriesId);
+
+      return group.target.seriesId;
+    }
+
+    const { name, type, imprintId, issnPrint, issnDigital, url, cfpUrl, description } = group.target.series;
+
+    const created = await this.seriesService.createSeries({
+      // createSeries strips id, issues and updatedAt before building the mutation input; the
+      // placeholder id below is never sent and never treated as a real series id.
+      id: appConfig.defaultId,
+      issues: [],
+      updatedAt: '',
+      imprintName: '',
+      name,
+      type,
+      imprintId,
+      issnPrint,
+      issnDigital,
+      url,
+      cfpUrl,
+      description,
+    });
+
+    resolved.set(group, created.id);
+
+    return created.id;
+  }
+
+  async bulkCreateWorks(works: WorkEntity[], seriesPlan: SeriesImportPlan, chapters: WorkEntity[]) {
+    const resolvedSeriesIds = new Map<SeriesImportGroup, SeriesId>();
+
     for (const work of works) {
       const initialId = work.id;
 
       const createdWork = await this.createWork(work);
 
-      const foundedSeries = Object.entries(serieses).find(([_seriedId, works]) => works.some((w) => w.id === work.id));
       const foundedChapters = chapters.filter((chapter) => chapter.relationId === initialId);
 
       await Promise.all(
         foundedChapters.map((chapter, index) => this.createChapter(chapter, createdWork.id, index + 1)),
       );
 
-      if (!foundedSeries) continue;
+      const group = seriesPlan.find(({ works: seriesWorks }) => seriesWorks.some(({ id }) => id === initialId));
+
+      if (!group) continue;
 
       // Take this work's own ordinal, not the first ordinal in the series: a series can hold
       // several works from the same import, each with its own issue ordinal.
-      const seriesItem = foundedSeries[1].find((seriesWork) => seriesWork.id === work.id);
+      const seriesItem = group.works.find((seriesWork) => seriesWork.id === initialId);
 
       if (!seriesItem) continue;
 
+      const seriesId = await this.resolveSeriesId(group, resolvedSeriesIds);
+
       await this.seriesService.createIssue({
         orderNumber: seriesItem.orderNumber,
-        seriesId: foundedSeries[0],
+        seriesId,
         workId: createdWork.id,
       });
     }

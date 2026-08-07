@@ -4,6 +4,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { SubjectTypes } from '@/src/shared/constants';
 import { getDefaultContribution } from '@/src/shared/constants/contributions';
+import { SeriesType as SeriesTypes } from '@/src/shared/constants/series';
+import type { ProposedSeries, SeriesImportPlan } from '@/src/shared/types';
 import { getDefaultFunding } from '@/src/shared/utils/fundings';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultAbstract, getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
@@ -413,5 +415,193 @@ describe('createWork', () => {
 
     await expect(promise).rejects.toThrow(subjectErrorMessage);
     expect(callOrder).toEqual([abstractErrorMessage, deleteWorkErrorMessage]);
+  });
+});
+
+describe('bulkCreateWorks', () => {
+  const ARC_COMPANIONS = 'Arc Companions';
+  const IMPRINT_ID = 'imprint-a';
+  const EXISTING_SERIES_ID = 'existing-series-id';
+  const CREATED_SERIES_ID = 'created-series-id';
+
+  let workService: WorkService;
+  let mockSeriesService: SeriesService;
+  let createWorkSpy: ReturnType<typeof vi.spyOn>;
+
+  const proposedSeries = (name = ARC_COMPANIONS): ProposedSeries => ({
+    name,
+    imprintId: IMPRINT_ID,
+    type: SeriesTypes.enum.BookSeries,
+    issnPrint: '',
+    issnDigital: '',
+    url: '',
+    cfpUrl: '',
+    description: '',
+  });
+
+  const workWithOrdinal = (id: string, orderNumber: number) => ({ ...getDefaultWork({ id }), orderNumber });
+
+  beforeEach(() => {
+    mockSeriesService = {
+      createSeries: vi.fn().mockImplementation(async (data) => ({ ...data, id: CREATED_SERIES_ID })),
+      createIssue: vi.fn().mockResolvedValue({}),
+    } as unknown as SeriesService;
+
+    workService = new WorkService({
+      graphqlService: {} as unknown as GraphqlService,
+      fundingService: {} as unknown as FundingService,
+      subjectService: {} as unknown as SubjectService,
+      contributionService: {} as unknown as ContributionService,
+      publicationService: {} as unknown as PublicationService,
+      languageService: {} as unknown as LanguageService,
+      seriesService: mockSeriesService,
+      referenceService: {} as unknown as ReferenceService,
+      titleService: {} as unknown as TitleService,
+      abstractService: {} as unknown as AbstractService,
+    });
+
+    // bulkCreateWorks orchestrates; creating a work end to end is covered elsewhere.
+    createWorkSpy = vi
+      .spyOn(workService, 'createWork')
+      .mockImplementation(async (work: WorkEntity) => ({ ...work, id: `created-${work.id}` }));
+    vi.spyOn(workService, 'createChapter').mockResolvedValue(getDefaultWork({ id: 'chapter' }));
+  });
+
+  it('creates a missing series exactly once for every work that shares it', async () => {
+    const works = [getDefaultWork({ id: 'w1' }), getDefaultWork({ id: 'w2' }), getDefaultWork({ id: 'w3' })];
+    const plan: SeriesImportPlan = [
+      {
+        name: ARC_COMPANIONS,
+        target: { kind: 'proposed', series: proposedSeries() },
+        works: [workWithOrdinal('w1', 1), workWithOrdinal('w2', 2), workWithOrdinal('w3', 3)],
+      },
+    ];
+
+    await workService.bulkCreateWorks(works, plan, []);
+
+    expect(mockSeriesService.createSeries).toHaveBeenCalledTimes(1);
+    expect(mockSeriesService.createSeries).toHaveBeenCalledWith(
+      expect.objectContaining({ name: ARC_COMPANIONS, imprintId: IMPRINT_ID, type: SeriesTypes.enum.BookSeries }),
+    );
+  });
+
+  it('attaches every work to the series id the API returned', async () => {
+    const works = [getDefaultWork({ id: 'w1' }), getDefaultWork({ id: 'w2' }), getDefaultWork({ id: 'w3' })];
+    const plan: SeriesImportPlan = [
+      {
+        name: ARC_COMPANIONS,
+        target: { kind: 'proposed', series: proposedSeries() },
+        works: [workWithOrdinal('w1', 1), workWithOrdinal('w2', 2), workWithOrdinal('w3', 3)],
+      },
+    ];
+
+    await workService.bulkCreateWorks(works, plan, []);
+
+    expect(mockSeriesService.createIssue).toHaveBeenCalledTimes(3);
+    expect((mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mock.calls.map(([call]) => call)).toEqual([
+      { seriesId: CREATED_SERIES_ID, workId: 'created-w1', orderNumber: 1 },
+      { seriesId: CREATED_SERIES_ID, workId: 'created-w2', orderNumber: 2 },
+      { seriesId: CREATED_SERIES_ID, workId: 'created-w3', orderNumber: 3 },
+    ]);
+  });
+
+  it('reuses an existing series without creating one', async () => {
+    const works = [getDefaultWork({ id: 'w1' }), getDefaultWork({ id: 'w2' })];
+    const plan: SeriesImportPlan = [
+      {
+        name: ARC_COMPANIONS,
+        target: { kind: 'existing', seriesId: EXISTING_SERIES_ID },
+        works: [workWithOrdinal('w1', 4), workWithOrdinal('w2', 5)],
+      },
+    ];
+
+    await workService.bulkCreateWorks(works, plan, []);
+
+    expect(mockSeriesService.createSeries).not.toHaveBeenCalled();
+    expect((mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mock.calls.map(([call]) => call)).toEqual([
+      { seriesId: EXISTING_SERIES_ID, workId: 'created-w1', orderNumber: 4 },
+      { seriesId: EXISTING_SERIES_ID, workId: 'created-w2', orderNumber: 5 },
+    ]);
+  });
+
+  it('creates each planned series separately', async () => {
+    (mockSeriesService.createSeries as ReturnType<typeof vi.fn>).mockImplementation(async (data) => ({
+      ...data,
+      id: `created-${data.name}`,
+    }));
+
+    const works = [getDefaultWork({ id: 'w1' }), getDefaultWork({ id: 'w2' })];
+    const plan: SeriesImportPlan = [
+      {
+        name: ARC_COMPANIONS,
+        target: { kind: 'proposed', series: proposedSeries() },
+        works: [workWithOrdinal('w1', 1)],
+      },
+      {
+        name: 'Borderlines',
+        target: { kind: 'proposed', series: proposedSeries('Borderlines') },
+        works: [workWithOrdinal('w2', 1)],
+      },
+    ];
+
+    await workService.bulkCreateWorks(works, plan, []);
+
+    expect(mockSeriesService.createSeries).toHaveBeenCalledTimes(2);
+    expect(
+      (mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mock.calls.map(([call]) => call.seriesId),
+    ).toEqual([`created-${ARC_COMPANIONS}`, 'created-Borderlines']);
+  });
+
+  it('does not create a series when no work that needs it was created', async () => {
+    // Series creation is lazy, so a run that fails before reaching the series leaves no
+    // orphan series behind.
+    createWorkSpy.mockRejectedValue(new Error('work creation failed'));
+
+    const plan: SeriesImportPlan = [
+      {
+        name: ARC_COMPANIONS,
+        target: { kind: 'proposed', series: proposedSeries() },
+        works: [workWithOrdinal('w1', 1)],
+      },
+    ];
+
+    await expect(workService.bulkCreateWorks([getDefaultWork({ id: 'w1' })], plan, [])).rejects.toThrow(
+      'work creation failed',
+    );
+
+    expect(mockSeriesService.createSeries).not.toHaveBeenCalled();
+    expect(mockSeriesService.createIssue).not.toHaveBeenCalled();
+  });
+
+  it('keeps a series it already created when a later work fails', async () => {
+    createWorkSpy
+      .mockImplementationOnce(async (work: WorkEntity) => ({ ...work, id: `created-${work.id}` }))
+      .mockRejectedValueOnce(new Error('second work failed'));
+
+    const works = [getDefaultWork({ id: 'w1' }), getDefaultWork({ id: 'w2' })];
+    const plan: SeriesImportPlan = [
+      {
+        name: ARC_COMPANIONS,
+        target: { kind: 'proposed', series: proposedSeries() },
+        works: [workWithOrdinal('w1', 1), workWithOrdinal('w2', 2)],
+      },
+    ];
+
+    await expect(workService.bulkCreateWorks(works, plan, [])).rejects.toThrow('second work failed');
+
+    // The first work was created and its issue points at the new series, so the series must
+    // survive; deleting it would orphan a successfully imported work.
+    expect(mockSeriesService.createSeries).toHaveBeenCalledTimes(1);
+    expect(mockSeriesService.createIssue).toHaveBeenCalledTimes(1);
+    expect((mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mock.calls[0][0].seriesId).toBe(
+      CREATED_SERIES_ID,
+    );
+  });
+
+  it('leaves works with no planned series untouched', async () => {
+    await workService.bulkCreateWorks([getDefaultWork({ id: 'w1' })], [], []);
+
+    expect(mockSeriesService.createSeries).not.toHaveBeenCalled();
+    expect(mockSeriesService.createIssue).not.toHaveBeenCalled();
   });
 });
