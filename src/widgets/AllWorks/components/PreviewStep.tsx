@@ -1,8 +1,7 @@
 import { useState, useTransition } from 'react';
 
 import { useBulkCreateWorks } from '@/src/entities/work';
-import { WorkEntity } from '@/src/entities/work/model/work.types';
-import type { ImportIssue, SeriesImportPlan } from '@/src/shared/types';
+import type { ImportIssue, ImportPlan } from '@/src/shared/types';
 import {
   Button,
   TableBody,
@@ -19,9 +18,8 @@ import { convertOptionToString, getDisplayTitle } from '@/src/shared/utils';
 const NO_WARNINGS: ImportIssue[] = [];
 
 type PreviewStepProps = {
-  works: WorkEntity[];
-  chapters: WorkEntity[];
-  serieses: SeriesImportPlan;
+  /** Exactly what confirming will create, unchanged since the parse resolved it. */
+  plan: ImportPlan;
   /**
    * What the source file said that this import will not represent. Never fatal, and never part
    * of the payload: the preview is where they are shown, because it is the last point at which
@@ -32,7 +30,8 @@ type PreviewStepProps = {
 };
 
 export const PreviewStep = (props: PreviewStepProps) => {
-  const { works, chapters, serieses, warnings = NO_WARNINGS, onSubmit } = props;
+  const { plan, warnings = NO_WARNINGS, onSubmit } = props;
+  const { works, chapters, series } = plan;
 
   const { bulkCreateWorks } = useBulkCreateWorks();
   const [isPending, startTransition] = useTransition();
@@ -55,7 +54,7 @@ export const PreviewStep = (props: PreviewStepProps) => {
   const handleSubmit = () => {
     startTransition(async () => {
       try {
-        await bulkCreateWorks({ works, serieses, chapters });
+        await bulkCreateWorks(plan);
       } catch {
         setHasFailed(true);
 
@@ -66,11 +65,15 @@ export const PreviewStep = (props: PreviewStepProps) => {
     });
   };
 
-  // A work belongs to at most one planned series, so a flat lookup is enough. Works headed for
-  // a series the import will have to create are labelled, so confirming is an informed choice.
+  // A work belongs to at most one planned series, so a flat lookup is enough. Membership is by
+  // work id, so this reads the plan's own works rather than a copy the series kept. Works headed
+  // for a series the import will have to create are labelled, so confirming is an informed
+  // choice.
   const seriesByWorkId = new Map(
-    serieses.flatMap((group) =>
-      group.works.map((work) => [work.id, { name: group.name, isNew: group.target.kind === 'proposed' }] as const),
+    series.flatMap((group) =>
+      group.members.map(
+        ({ workId }) => [workId, { name: group.name, isNew: group.target.kind === 'proposed' }] as const,
+      ),
     ),
   );
 

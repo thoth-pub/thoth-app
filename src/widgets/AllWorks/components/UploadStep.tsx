@@ -5,11 +5,10 @@ import { Activity, useState } from 'react';
 
 import { useAllUserSerieses } from '@/src/entities/series';
 import { useUser } from '@/src/entities/user';
-import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { FORM_FIELDS } from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import type { ImportIssue, ImportIssueCode, SeriesImportPlan } from '@/src/shared/types';
+import type { ImportIssue, ImportIssueCode, ImportPlan } from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 import { isCsv as isCsvFile, isXml as isXmlFile } from '@/src/shared/utils';
 
@@ -19,12 +18,7 @@ import { XMLParse } from './XMLParse';
 const { BULK_UPLOAD } = FORM_FIELDS;
 
 type UploadStepProps = {
-  onPreview?: (
-    works: WorkEntity[],
-    chapters: WorkEntity[],
-    serieses: SeriesImportPlan,
-    warnings: ImportIssue[],
-  ) => void;
+  onPreview?: (plan: ImportPlan, warnings: ImportIssue[]) => void;
 };
 
 export const UploadStep = (props: UploadStepProps) => {

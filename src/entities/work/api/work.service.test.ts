@@ -5,7 +5,7 @@ import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { SubjectTypes } from '@/src/shared/constants';
 import { getDefaultContribution } from '@/src/shared/constants/contributions';
 import { SeriesType as SeriesTypes } from '@/src/shared/constants/series';
-import type { ProposedSeries, SeriesImportPlan } from '@/src/shared/types';
+import type { ImportPlan, ProposedSeries, SeriesImportPlan } from '@/src/shared/types';
 import { getDefaultFunding } from '@/src/shared/utils/fundings';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultAbstract, getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
@@ -434,7 +434,15 @@ describe('bulkCreateWorks', () => {
     type: SeriesTypes.enum.BookSeries,
   });
 
-  const workWithOrdinal = (id: string, orderNumber: number) => ({ ...getDefaultWork({ id }), orderNumber });
+  /** A series membership: which planned work, and its issue ordinal. */
+  const member = (workId: string, orderNumber: number) => ({ workId, orderNumber });
+
+  /** The plan a confirmed import runs, assembled the way a parser produces it. */
+  const planOf = (works: WorkEntity[], series: SeriesImportPlan = [], chapters: WorkEntity[] = []): ImportPlan => ({
+    works,
+    chapters,
+    series,
+  });
 
   beforeEach(() => {
     mockSeriesService = {
@@ -468,11 +476,11 @@ describe('bulkCreateWorks', () => {
       {
         name: ARC_COMPANIONS,
         target: { kind: 'proposed', series: proposedSeries() },
-        works: [workWithOrdinal('w1', 1), workWithOrdinal('w2', 2), workWithOrdinal('w3', 3)],
+        members: [member('w1', 1), member('w2', 2), member('w3', 3)],
       },
     ];
 
-    await workService.bulkCreateWorks(works, plan, []);
+    await workService.bulkCreateWorks(planOf(works, plan));
 
     expect(mockSeriesService.createSeries).toHaveBeenCalledTimes(1);
     expect(mockSeriesService.createSeries).toHaveBeenCalledWith(
@@ -486,11 +494,11 @@ describe('bulkCreateWorks', () => {
       {
         name: ARC_COMPANIONS,
         target: { kind: 'proposed', series: proposedSeries() },
-        works: [workWithOrdinal('w1', 1), workWithOrdinal('w2', 2), workWithOrdinal('w3', 3)],
+        members: [member('w1', 1), member('w2', 2), member('w3', 3)],
       },
     ];
 
-    await workService.bulkCreateWorks(works, plan, []);
+    await workService.bulkCreateWorks(planOf(works, plan));
 
     expect(mockSeriesService.createIssue).toHaveBeenCalledTimes(3);
     expect((mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mock.calls.map(([call]) => call)).toEqual([
@@ -506,11 +514,11 @@ describe('bulkCreateWorks', () => {
       {
         name: ARC_COMPANIONS,
         target: { kind: 'existing', seriesId: EXISTING_SERIES_ID },
-        works: [workWithOrdinal('w1', 4), workWithOrdinal('w2', 5)],
+        members: [member('w1', 4), member('w2', 5)],
       },
     ];
 
-    await workService.bulkCreateWorks(works, plan, []);
+    await workService.bulkCreateWorks(planOf(works, plan));
 
     expect(mockSeriesService.createSeries).not.toHaveBeenCalled();
     expect((mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mock.calls.map(([call]) => call)).toEqual([
@@ -530,16 +538,16 @@ describe('bulkCreateWorks', () => {
       {
         name: ARC_COMPANIONS,
         target: { kind: 'proposed', series: proposedSeries() },
-        works: [workWithOrdinal('w1', 1)],
+        members: [member('w1', 1)],
       },
       {
         name: 'Borderlines',
         target: { kind: 'proposed', series: proposedSeries('Borderlines') },
-        works: [workWithOrdinal('w2', 1)],
+        members: [member('w2', 1)],
       },
     ];
 
-    await workService.bulkCreateWorks(works, plan, []);
+    await workService.bulkCreateWorks(planOf(works, plan));
 
     expect(mockSeriesService.createSeries).toHaveBeenCalledTimes(2);
     expect(
@@ -556,11 +564,11 @@ describe('bulkCreateWorks', () => {
       {
         name: ARC_COMPANIONS,
         target: { kind: 'proposed', series: proposedSeries() },
-        works: [workWithOrdinal('w1', 1)],
+        members: [member('w1', 1)],
       },
     ];
 
-    await expect(workService.bulkCreateWorks([getDefaultWork({ id: 'w1' })], plan, [])).rejects.toThrow(
+    await expect(workService.bulkCreateWorks(planOf([getDefaultWork({ id: 'w1' })], plan))).rejects.toThrow(
       'work creation failed',
     );
 
@@ -578,11 +586,11 @@ describe('bulkCreateWorks', () => {
       {
         name: ARC_COMPANIONS,
         target: { kind: 'proposed', series: proposedSeries() },
-        works: [workWithOrdinal('w1', 1), workWithOrdinal('w2', 2)],
+        members: [member('w1', 1), member('w2', 2)],
       },
     ];
 
-    await expect(workService.bulkCreateWorks(works, plan, [])).rejects.toThrow('second work failed');
+    await expect(workService.bulkCreateWorks(planOf(works, plan))).rejects.toThrow('second work failed');
 
     // The first work was created and its issue points at the new series, so the series must
     // survive; deleting it would orphan a successfully imported work.
@@ -594,7 +602,7 @@ describe('bulkCreateWorks', () => {
   });
 
   it('leaves works with no planned series untouched', async () => {
-    await workService.bulkCreateWorks([getDefaultWork({ id: 'w1' })], [], []);
+    await workService.bulkCreateWorks(planOf([getDefaultWork({ id: 'w1' })]));
 
     expect(mockSeriesService.createSeries).not.toHaveBeenCalled();
     expect(mockSeriesService.createIssue).not.toHaveBeenCalled();

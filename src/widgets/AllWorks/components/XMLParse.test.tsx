@@ -46,9 +46,7 @@ describe('XMLParse', () => {
     mockParse.mockResolvedValue({
       status: 'success',
       data: {
-        works: [],
-        chapters: [],
-        series: {},
+        plan: { works: [], chapters: [], series: [] },
         contributorsForSelection: {},
       },
       issues: [],
@@ -137,10 +135,20 @@ describe('XMLParse', () => {
       );
     };
 
-    it('carries warnings through to the preview without treating them as a failure', async () => {
+    it('carries the plan, its chapters and its warnings through to the preview', async () => {
+      const chapter = { ...getDefaultWork({ id: 'chapter-1' }), relationId: work.id };
+      const series = [
+        {
+          name: 'Arc Companions',
+          target: { kind: 'existing' as const, seriesId: 'series-1' },
+          members: [{ workId: work.id, orderNumber: 3 }],
+        },
+      ];
+      const plan = { works: [work], chapters: [chapter], series };
+
       mockParse.mockResolvedValue({
         status: 'success',
-        data: { works: [work], chapters: [], series: [], contributorsForSelection: {} },
+        data: { plan, contributorsForSelection: {} },
         issues: [warning],
       });
 
@@ -152,7 +160,8 @@ describe('XMLParse', () => {
 
       await userEvent.click(preview);
 
-      expect(onPreview).toHaveBeenCalledWith([work], [], [], [warning]);
+      // One plan, chapters and series membership intact, warnings beside it rather than in it.
+      expect(onPreview).toHaveBeenCalledWith(plan, [warning]);
       // A warning is not a validation failure, so the upload step never hears about it.
       expect(onValidationFailure).not.toHaveBeenCalled();
     });
@@ -167,7 +176,7 @@ describe('XMLParse', () => {
 
       mockParse.mockResolvedValue({
         status: 'failed',
-        data: { works: [], chapters: [], series: [], contributorsForSelection: {} },
+        data: { plan: { works: [], chapters: [], series: [] }, contributorsForSelection: {} },
         issues: [warning, error],
       });
 

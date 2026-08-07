@@ -5,7 +5,7 @@ import { WorkStatuses } from '@/src/shared/constants';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { BaseService } from '@/src/shared/interfaces/services';
 import { TransactionContext } from '@/src/shared/services';
-import type { SeriesImportGroup, SeriesImportPlan, TitleDto, TitleEntity } from '@/src/shared/types';
+import type { ImportPlan, SeriesImportGroup, TitleDto, TitleEntity } from '@/src/shared/types';
 import { getDateInFuture } from '@/src/shared/utils';
 
 import { AbstractService } from '../../abstract/api/abstract.service';
@@ -443,8 +443,31 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return created.id;
   }
 
-  async bulkCreateWorks(works: WorkEntity[], seriesPlan: SeriesImportPlan, chapters: WorkEntity[]) {
+  /**
+   * Runs a planned bulk import: every work, its chapters, and its place in a series.
+   *
+   * The plan is the unit that crosses this boundary, rather than three arrays that have to be
+   * kept in step by whoever calls it. Works are created in plan order, and a work is attached to
+   * its series only after it exists, so a run that stops partway leaves no issue pointing at a
+   * work that was never created.
+   */
+  async bulkCreateWorks(plan: ImportPlan) {
+    const { works, chapters, series } = plan;
     const resolvedSeriesIds = new Map<SeriesImportGroup, SeriesId>();
+
+    // Built once, before any work is created: the plan says which series each work belongs to
+    // and with which ordinal, and looking that up per work used to mean scanning every group's
+    // membership twice. A work belongs to at most one group, so the first one to claim it wins,
+    // exactly as a search over the groups in order would.
+    const membershipByWorkId = new Map<WorkId, { group: SeriesImportGroup; orderNumber: number }>();
+
+    for (const group of series) {
+      for (const { workId, orderNumber } of group.members) {
+        if (membershipByWorkId.has(workId)) continue;
+
+        membershipByWorkId.set(workId, { group, orderNumber });
+      }
+    }
 
     for (const work of works) {
       const initialId = work.id;
@@ -457,20 +480,16 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
         foundedChapters.map((chapter, index) => this.createChapter(chapter, createdWork.id, index + 1)),
       );
 
-      const group = seriesPlan.find(({ works: seriesWorks }) => seriesWorks.some(({ id }) => id === initialId));
+      // The work's own ordinal, not the first ordinal in the series: a series can hold several
+      // works from the same import, each with its own issue ordinal.
+      const membership = membershipByWorkId.get(initialId);
 
-      if (!group) continue;
+      if (!membership) continue;
 
-      // Take this work's own ordinal, not the first ordinal in the series: a series can hold
-      // several works from the same import, each with its own issue ordinal.
-      const seriesItem = group.works.find((seriesWork) => seriesWork.id === initialId);
-
-      if (!seriesItem) continue;
-
-      const seriesId = await this.resolveSeriesId(group, resolvedSeriesIds);
+      const seriesId = await this.resolveSeriesId(membership.group, resolvedSeriesIds);
 
       await this.seriesService.createIssue({
-        orderNumber: seriesItem.orderNumber,
+        orderNumber: membership.orderNumber,
         seriesId,
         workId: createdWork.id,
       });

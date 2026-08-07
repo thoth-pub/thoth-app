@@ -33,13 +33,15 @@ vi.mock('@/src/shared/ui', () => ({
 }));
 
 import { SeriesType } from '@/src/shared/constants/series';
-import type { ImportIssue } from '@/src/shared/types';
+import type { ImportIssue, ImportPlan, SeriesImportPlan } from '@/src/shared/types';
 import { getDefaultWork } from '@/src/shared/utils/work';
 
 import { PreviewStep } from './PreviewStep';
 
 describe('PreviewStep', () => {
   const works = [getDefaultWork({ id: 'work-1' })];
+
+  const planOf = (series: SeriesImportPlan = [], chapters = []): ImportPlan => ({ works, chapters, series });
 
   const warning = (message: string, productIndex: number): ImportIssue => ({
     severity: 'warning',
@@ -55,8 +57,7 @@ describe('PreviewStep', () => {
   // The project does not enable vitest globals, so RTL's auto-cleanup does not run.
   afterEach(cleanup);
 
-  const renderStep = (onSubmit: () => void) =>
-    render(<PreviewStep works={works} chapters={[]} serieses={[]} onSubmit={onSubmit} />);
+  const renderStep = (onSubmit: () => void) => render(<PreviewStep plan={planOf()} onSubmit={onSubmit} />);
 
   it('does not close or navigate before the import resolves', async () => {
     let resolveImport: () => void = () => {};
@@ -141,18 +142,17 @@ describe('PreviewStep', () => {
   it('marks works headed for a series the import will create', () => {
     render(
       <PreviewStep
-        works={works}
-        chapters={[]}
-        serieses={[
+        plan={planOf([
           {
             name: 'Arc Companions',
             target: {
               kind: 'proposed',
               series: { name: 'Arc Companions', imprintId: 'imprint-1', type: SeriesType.enum.BookSeries },
             },
-            works: [{ ...works[0], orderNumber: 1 }],
+            // Membership is a reference to the plan's own work.
+            members: [{ workId: works[0].id, orderNumber: 1 }],
           },
-        ]}
+        ])}
         onSubmit={vi.fn()}
       />,
     );
@@ -161,15 +161,23 @@ describe('PreviewStep', () => {
     expect(screen.getByText('will be created')).toBeInTheDocument();
   });
 
+  it("lists the plan's chapters alongside its works", () => {
+    const chapter = { ...getDefaultWork({ id: 'chapter-1' }), relationId: 'work-1' };
+
+    render(<PreviewStep plan={{ works, chapters: [chapter], series: [] }} onSubmit={vi.fn()} />);
+
+    expect(screen.getAllByRole('row')).toHaveLength(3);
+  });
+
   describe('warnings', () => {
-    const serieses = [
+    const series: SeriesImportPlan = [
       {
         name: 'Arc Companions',
         target: {
-          kind: 'proposed' as const,
+          kind: 'proposed',
           series: { name: 'Arc Companions', imprintId: 'imprint-1', type: SeriesType.enum.BookSeries },
         },
-        works: [{ ...works[0], orderNumber: 1 }],
+        members: [{ workId: works[0].id, orderNumber: 1 }],
       },
     ];
 
@@ -177,11 +185,11 @@ describe('PreviewStep', () => {
       mockBulkCreateWorks.mockResolvedValue(undefined);
 
       const onSubmit = vi.fn();
+      const plan = planOf(series);
+
       render(
         <PreviewStep
-          works={works}
-          chapters={[]}
-          serieses={serieses}
+          plan={plan}
           warnings={[warning('Series "Editorial Studies" will not be created', 2)]}
           onSubmit={onSubmit}
         />,
@@ -194,17 +202,15 @@ describe('PreviewStep', () => {
 
       await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
 
-      // A warning is not part of the payload, and changes nothing about it.
-      await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledWith({ works, serieses, chapters: [] }));
+      // The plan is the payload, exactly as the preview received it — and a warning is not in it.
+      await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledWith(plan));
       await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     });
 
     it('shows several warnings in the order they were given', () => {
       render(
         <PreviewStep
-          works={works}
-          chapters={[]}
-          serieses={[]}
+          plan={planOf()}
           warnings={[warning('second product', 2), warning('fourth product', 4)]}
           onSubmit={vi.fn()}
         />,
@@ -216,7 +222,7 @@ describe('PreviewStep', () => {
     });
 
     it('renders nothing extra when there is nothing to warn about', () => {
-      render(<PreviewStep works={works} chapters={[]} serieses={[]} warnings={[]} onSubmit={vi.fn()} />);
+      render(<PreviewStep plan={planOf()} warnings={[]} onSubmit={vi.fn()} />);
 
       expect(screen.queryByText('warnings')).not.toBeInTheDocument();
       expect(screen.queryAllByRole('listitem')).toHaveLength(0);

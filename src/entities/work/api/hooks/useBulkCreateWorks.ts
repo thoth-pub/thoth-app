@@ -5,9 +5,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { NOTIFICATIONS, QueryKeys } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 import { useNotifications } from '@/src/shared/hooks';
-import type { SeriesImportPlan } from '@/src/shared/types';
-
-import { WorkEntity } from '../../model/work.types';
+import type { ImportPlan } from '@/src/shared/types';
 
 const { WORK_BULK_CREATION_SUCCESS, WORK_BULK_CREATION_FAILED } = NOTIFICATIONS;
 
@@ -17,17 +15,10 @@ const useBulkCreateWorks = () => {
   const queryClient = useQueryClient();
 
   const { mutateAsync, isPending } = useMutation({
-    mutationFn: async ({
-      works,
-      serieses,
-      chapters,
-    }: {
-      works: WorkEntity[];
-      serieses: SeriesImportPlan;
-      chapters: WorkEntity[];
-    }) => {
-      return workService.bulkCreateWorks(works, serieses, chapters);
-    },
+    // The plan is the whole payload: what the user confirmed in the preview is what gets
+    // created, with nothing reassembled on the way. Diagnostics are deliberately not part of
+    // it — a warning describes the source file and has no business reaching the API.
+    mutationFn: async (plan: ImportPlan) => workService.bulkCreateWorks(plan),
     onSuccess: () => {
       sendSuccessNotification(WORK_BULK_CREATION_SUCCESS);
       queryClient.invalidateQueries({ queryKey: [QueryKeys.books] });

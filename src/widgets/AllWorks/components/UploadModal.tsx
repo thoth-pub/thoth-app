@@ -6,11 +6,11 @@ import UploadIcon from '@mui/icons-material/Upload';
 import { useRouter } from 'next/navigation';
 import { Activity, useState } from 'react';
 
-import { WorkEntity } from '@/src/entities/work/model/work.types';
 import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
 import { ROUTES } from '@/src/shared/constants';
-import type { ImportIssue, SeriesImportPlan } from '@/src/shared/types';
+import type { ImportIssue, ImportPlan } from '@/src/shared/types';
 import { ContentSection, Step, StepLabel, Stepper, TranslatedContent } from '@/src/shared/ui';
+import { createEmptyImportPlan } from '@/src/shared/utils';
 
 import { PreviewStep } from './PreviewStep';
 import { TemplateStep } from './TemplateStep';
@@ -41,31 +41,23 @@ export const UploadModal = (props: UploadModalProps) => {
 
   const router = useRouter();
 
-  const [works, setWorks] = useState<WorkEntity[]>([]);
-  const [chapters, setChapters] = useState<WorkEntity[]>([]);
-  const [updatedSerieses, setUpdatedSerieses] = useState<SeriesImportPlan>([]);
-  // Non-blocking findings from the parse: source metadata the import cannot represent. They
-  // belong with the parsed data because the preview is where the user decides to go ahead.
+  // One plan, held whole: it arrives from the parse step already assembled and is handed to the
+  // preview and then to the mutation unchanged. A fresh empty plan on every reset, never a
+  // shared one, so a closed upload cannot leave anything behind for the next.
+  const [plan, setPlan] = useState<ImportPlan>(createEmptyImportPlan);
+  // Non-blocking findings from the parse: source metadata the import cannot represent. Kept
+  // beside the plan rather than in it — they describe the file, not what will be created.
   const [warnings, setWarnings] = useState<ImportIssue[]>([]);
 
-  const isDataEmpty = works.length === 0 && chapters.length === 0;
+  const isDataEmpty = plan.works.length === 0 && plan.chapters.length === 0;
 
-  const handlePreview = (
-    works: WorkEntity[],
-    chapters: WorkEntity[],
-    updatedSerieses: SeriesImportPlan,
-    warnings: ImportIssue[],
-  ) => {
-    setWorks(works);
-    setChapters(chapters);
-    setUpdatedSerieses(updatedSerieses);
+  const handlePreview = (plan: ImportPlan, warnings: ImportIssue[]) => {
+    setPlan(plan);
     setWarnings(warnings);
   };
 
   const resetData = () => {
-    setWorks([]);
-    setChapters([]);
-    setUpdatedSerieses([]);
+    setPlan(createEmptyImportPlan());
     setWarnings([]);
   };
 
@@ -106,13 +98,7 @@ export const UploadModal = (props: UploadModalProps) => {
           <UploadStep onPreview={handlePreview} />
         </Activity>
         <Activity mode={!isDataEmpty ? 'visible' : 'hidden'}>
-          <PreviewStep
-            works={works}
-            chapters={chapters}
-            serieses={updatedSerieses}
-            warnings={warnings}
-            onSubmit={handleSubmit}
-          />
+          <PreviewStep plan={plan} warnings={warnings} onSubmit={handleSubmit} />
         </Activity>
       </ContentSection>
     </FullScreenModal>
