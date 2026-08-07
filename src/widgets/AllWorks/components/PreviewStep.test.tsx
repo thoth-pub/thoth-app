@@ -99,7 +99,7 @@ describe('PreviewStep', () => {
     // marked `proposed` may name a series the failed run already created. Re-confirming would
     // create it twice; the file has to be parsed again instead.
     await waitFor(() => expect(create).toBeDisabled());
-    expect(screen.getByText('bulk import failed reupload')).toBeInTheDocument();
+    expect(screen.getByText('bulk import did not finish')).toBeInTheDocument();
 
     await userEvent.click(create);
     expect(mockBulkCreateWorks).toHaveBeenCalledTimes(1);

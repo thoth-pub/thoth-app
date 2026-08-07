@@ -273,8 +273,14 @@ describe('ONIX bulk import, end to end', () => {
     ]);
   });
 
-  it('reuses the series a previous partial run created instead of creating a second one', async () => {
-    // The retry sees the series list refreshed by useBulkCreateWorks' onSettled invalidation.
+  it('a fresh parse reuses a series created by an earlier run', async () => {
+    // Scope: this covers SERIES resolution only. It does not show that a repeated import is
+    // idempotent — bulkCreateWorks calls createWork unconditionally and Thoth does not
+    // deduplicate works, so re-running this file would create every work again. Work identity
+    // is deliberately out of scope here.
+    //
+    // The fresh parse sees the series list refreshed by useBulkCreateWorks' onSettled
+    // invalidation, including the allUserSerieses key the importer actually reads.
     const arcCompanions: SeriesEntity = {
       ...foundations,
       id: CREATED_SERIES_ID,
@@ -290,6 +296,8 @@ describe('ONIX bulk import, end to end', () => {
     await workService.bulkCreateWorks(result.data.works, plan, result.data.chapters);
 
     expect(mutationsNamed('CreateSeries')).toHaveLength(0);
+    // Works are still created unconditionally: series reuse is not work idempotence.
+    expect(mutationsNamed('CreateWork')).toHaveLength(4);
     expect(mutationsNamed('CreateIssue').map((call) => call.variables.data)).toEqual([
       { seriesId: CREATED_SERIES_ID, workId: 'work-1', issueOrdinal: 1 },
       { seriesId: CREATED_SERIES_ID, workId: 'work-2', issueOrdinal: 2 },

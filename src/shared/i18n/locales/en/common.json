@@ -234,5 +234,5 @@
     "accessibilityPrimaryStandardRequired": "Select a WCAG standard before adding an additional standard."
   },
   "will be created": "Will be created",
-  "bulk import failed reupload": "This import did not finish. Some works may already have been created. Re-upload the file to see the current state before trying again."
+  "bulk import did not finish": "This import did not finish. Some works may already have been created. Close this upload and check the Works list before trying again — re-uploading without resolving the partial import may create duplicate works."
 }

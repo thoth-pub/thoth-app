@@ -36,8 +36,13 @@ export const PreviewStep = (props: PreviewStepProps) => {
   //
   // A failed import cannot be retried from this screen. The plan was built against the series
   // Thoth had before the attempt, so a group still marked `proposed` may name a series the
-  // failed run already created — confirming again would create it a second time. The file has
-  // to be parsed again against the refreshed series list, which useBulkCreateWorks invalidates.
+  // failed run already created — confirming again would create it a second time.
+  //
+  // Re-uploading is not a safe retry either, and the message deliberately does not offer it as
+  // one. A fresh parse does resolve an already-created series to `existing`, but bulkCreateWorks
+  // calls createWork unconditionally and Thoth does not deduplicate works, so every work the
+  // failed run managed to create would be created again. The user has to inspect the Works list
+  // and resolve the partial import themselves.
   const handleSubmit = () => {
     startTransition(async () => {
       try {
@@ -111,7 +116,7 @@ export const PreviewStep = (props: PreviewStepProps) => {
       </TableWrapper>
       {hasFailed && (
         <Typography color="error" className="text-center">
-          <TranslatedContent content="bulk import failed reupload" />
+          <TranslatedContent content="bulk import did not finish" />
         </Typography>
       )}
       <Button
