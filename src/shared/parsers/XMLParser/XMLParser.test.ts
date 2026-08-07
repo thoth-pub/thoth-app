@@ -1,14 +1,17 @@
 /* eslint-disable simple-import-sort/imports */
+import { parse } from '@5stones/onix';
 import {
+  LanguageRole,
   MeasureType,
   MeasureUnit,
   ProductForm,
   ProductIdentifierType,
   PublishingDateRole,
   TextType,
+  TitleElementLevel,
+  TitleType,
   WebsiteRole,
 } from '@5stones/onix/dist/enums';
-import { ONIXMessageRoot } from '@5stones/onix/dist/interfaces';
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -33,10 +36,11 @@ import {
 } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
 import { SeriesType } from '../../constants/series';
-import { ContributorsForSelection, SeriesForUpdateItems } from '../../types';
+import { ContributorsForSelection, SeriesForUpdateItem, SeriesForUpdateItems } from '../../types';
 import {
   ExtendedCollection,
   ExtendedDescriptiveDetail,
+  ExtendedONIXMessageRoot,
   ExtendedProduct,
   ExtendedProductSupply,
   ExtendedPublishingDetail,
@@ -90,7 +94,7 @@ describe('XMLParser', () => {
 
   describe('parse', () => {
     it('should return failed status if products are empty in XML', async () => {
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [],
         },
@@ -116,7 +120,7 @@ describe('XMLParser', () => {
     });
 
     it('should return failed status if products not found in XML', async () => {
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: undefined,
         },
@@ -152,7 +156,7 @@ describe('XMLParser', () => {
       const edition = faker.number.int(10);
       const imprint = imprints[0];
 
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -245,7 +249,7 @@ describe('XMLParser', () => {
           PublishingStatus: '04',
         },
       };
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [product1, product2],
         },
@@ -278,7 +282,7 @@ describe('XMLParser', () => {
     it('should fail when imprint is not found', async () => {
       const language = languages[0];
       const imprint = faker.company.name();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -314,7 +318,7 @@ describe('XMLParser', () => {
 
     it('should fail when language is not found', async () => {
       const language = faker.string.sample();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -356,7 +360,7 @@ describe('XMLParser', () => {
       const language = languages[0];
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -395,7 +399,7 @@ describe('XMLParser', () => {
       const language = languages[0];
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -434,7 +438,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const lccn = '2017123456';
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -474,7 +478,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const oclc = '1086123456';
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -512,7 +516,7 @@ describe('XMLParser', () => {
     it('should parse title and subtitle', async () => {
       const title = faker.lorem.sentence();
       const subtitle = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -551,7 +555,7 @@ describe('XMLParser', () => {
 
     it('should parse title if subtitle is not provided', async () => {
       const title = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -593,7 +597,7 @@ describe('XMLParser', () => {
       const imprint = imprints[0];
       const longAbstract = faker.lorem.sentence();
       const shortAbstract = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -644,7 +648,7 @@ describe('XMLParser', () => {
       const language = languages[0];
       const imprint = imprints[0];
       const longAbstract = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -688,7 +692,7 @@ describe('XMLParser', () => {
       const language = languages[0];
       const imprint = imprints[0];
       const shortAbstract = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -731,7 +735,7 @@ describe('XMLParser', () => {
     it('abstracts should be empty if not provided', async () => {
       const language = languages[0];
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -769,7 +773,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const license = licenses[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -809,7 +813,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const license = faker.string.sample();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -849,7 +853,7 @@ describe('XMLParser', () => {
       const language = languages[0];
       const imprint = imprints[0];
       const bibliographyNote = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -886,7 +890,7 @@ describe('XMLParser', () => {
     it('should return empty bibliography note if not provided', async () => {
       const language = languages[0];
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -923,7 +927,7 @@ describe('XMLParser', () => {
       const language = languages[0];
       const imprint = imprints[0];
       const generalNote = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -962,7 +966,7 @@ describe('XMLParser', () => {
     it('should return empty general note if not provided', async () => {
       const language = languages[0];
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1000,7 +1004,7 @@ describe('XMLParser', () => {
       const edition = faker.number.int(10);
       const imprint = imprints[0];
       const title = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1039,7 +1043,7 @@ describe('XMLParser', () => {
       const language = languages[0];
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1078,7 +1082,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const pageCount = faker.number.int(1000);
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1121,7 +1125,7 @@ describe('XMLParser', () => {
       const tableCount = faker.number.int(2);
       const audioCount = faker.number.int(3);
       const videoCount = faker.number.int(4);
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1169,7 +1173,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const workStatus = '02';
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1208,7 +1212,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const workStatus = '01';
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1247,7 +1251,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const workStatus = '04';
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1286,7 +1290,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const workStatus = '16';
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1325,7 +1329,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const workStatus = '21';
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1364,7 +1368,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const workStatus = '000000';
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1402,7 +1406,7 @@ describe('XMLParser', () => {
       const language = languages[0];
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1440,7 +1444,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const publicationDate = '20240101';
       const withdrawnDate = '20250101';
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1482,7 +1486,7 @@ describe('XMLParser', () => {
     it('should return empty publication and withdrawn dates if not provided', async () => {
       const language = languages[0];
       const title = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1522,7 +1526,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const copyrightHolder = faker.person.fullName();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1560,7 +1564,7 @@ describe('XMLParser', () => {
       const language = languages[0];
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1598,7 +1602,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const landingPage = faker.internet.url();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1644,7 +1648,7 @@ describe('XMLParser', () => {
       const language = languages[0];
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1681,7 +1685,7 @@ describe('XMLParser', () => {
     it('should return empty subjects if not provided', async () => {
       const language = languages[0];
       const title = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1720,7 +1724,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const subjectText = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1768,7 +1772,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const subjectText = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1816,7 +1820,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const subjectText = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1864,7 +1868,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const subjectText = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1912,7 +1916,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const subjectText = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -1960,7 +1964,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
       const subjectText = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2009,7 +2013,7 @@ describe('XMLParser', () => {
       const imprint = imprints[0];
       const subjectText1 = faker.lorem.sentence();
       const subjectText2 = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2062,7 +2066,7 @@ describe('XMLParser', () => {
     it('should return error if language is not provided', async () => {
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2100,7 +2104,7 @@ describe('XMLParser', () => {
       const language = faker.string.sample();
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2139,7 +2143,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2181,7 +2185,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2234,7 +2238,7 @@ describe('XMLParser', () => {
       const projectName = faker.lorem.sentence();
       const projectShortname = faker.lorem.sentence();
       const grantNumber = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2340,7 +2344,7 @@ describe('XMLParser', () => {
       const locationPlatform = LocationPlatforms.options[0];
       const currencyCode = currencyOptions[0].value;
       const priceAmount = faker.number.int(1000).toString();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2420,7 +2424,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const isbn = faker.string.sample();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2484,7 +2488,7 @@ describe('XMLParser', () => {
       const locationPlatform = LocationPlatforms.options[0];
       const currencyCode = currencyOptions[0].value;
       const priceAmount = faker.number.float({ min: 0, max: 1000, fractionDigits: 2 }).toString();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2561,7 +2565,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2601,7 +2605,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2641,7 +2645,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2681,7 +2685,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2721,7 +2725,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2761,7 +2765,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2811,7 +2815,7 @@ describe('XMLParser', () => {
       const imprint = imprints[0];
       const relatedWorkDoi = faker.string.sample();
       const relatedProductDoi = faker.string.sample();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2876,7 +2880,7 @@ describe('XMLParser', () => {
       const contributorOrcid = faker.string.sample();
       const contributorWebsite = faker.internet.url();
       const biography = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2937,7 +2941,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -2985,7 +2989,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3033,7 +3037,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3081,7 +3085,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3129,7 +3133,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3177,7 +3181,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3225,7 +3229,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3273,7 +3277,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3321,7 +3325,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3369,7 +3373,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3417,7 +3421,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3465,7 +3469,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3513,7 +3517,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3572,7 +3576,7 @@ describe('XMLParser', () => {
         updatedAt: faker.date.recent().toISOString(),
       };
       vi.mocked(mockInstitutionService.getInstitutions).mockResolvedValue([mockInstitution]);
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3648,7 +3652,7 @@ describe('XMLParser', () => {
       const contributorOrcid = faker.string.sample();
       const contributorWebsite = faker.internet.url();
       const biography = faker.lorem.sentence();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3716,7 +3720,7 @@ describe('XMLParser', () => {
       const chapterFirstPage = faker.number.int(100);
       const chapterLastPage = faker.number.int(100);
 
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3781,7 +3785,7 @@ describe('XMLParser', () => {
       const language = languages[0].value;
       const imprint = imprints[0];
       const contributorFullName = faker.person.fullName();
-      const xml: ONIXMessageRoot = {
+      const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
@@ -3833,6 +3837,648 @@ describe('XMLParser', () => {
       expect(result.data.chapters[0].contributions).toHaveLength(1);
       expect(result.data.chapters[0].contributions[0].fullName).toBe(contributorFullName);
       expect(result.data.chapters[0].contributions[0].type).toBe(ContributorTypes.enum.AfterwordBy);
+    });
+  });
+  describe('repeatable and alternative ONIX structures', () => {
+    const ARC_SERIES_ID = 'arc-companions-id';
+    const ARC_SERIES_NAME = 'Arc Companions';
+
+    const buildSeries = (id: string, name: string, issueOrdinals: number[] = []): SeriesEntity => ({
+      id,
+      name,
+      type: SeriesType.enum.BookSeries,
+      issnPrint: '',
+      issnDigital: '',
+      updatedAt: '',
+      imprintId: '',
+      imprintName: '',
+      url: '',
+      cfpUrl: '',
+      description: '',
+      issues: issueOrdinals.map((ordinal) => ({
+        id: `issue-${ordinal}`,
+        ordinal,
+        workId: `work-${ordinal}`,
+        title: 'Existing member',
+        seriesId: id,
+        coverUrl: '',
+      })),
+    });
+
+    const buildProduct = (descriptiveDetail: Partial<ExtendedDescriptiveDetail>, recordReference?: string) =>
+      ({
+        ...(recordReference ? { RecordReference: recordReference } : {}),
+        DescriptiveDetail: {
+          ProductForm: ProductForm._BC,
+          Language: { LanguageRole: LanguageRole._01, LanguageCode: 'eng' },
+          ...descriptiveDetail,
+        } as ExtendedDescriptiveDetail,
+        PublishingDetail: {
+          Imprint: { ImprintName: imprints[0].label },
+          PublishingStatus: '04',
+        } as ExtendedPublishingDetail,
+      }) as ExtendedProduct;
+
+    const runParser = (products: ExtendedProduct[], parserSerieses: SeriesEntity[] = serieses) =>
+      new XMLParser(
+        { ONIXMessage: { Product: products } },
+        imprints,
+        licenses,
+        parserSerieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      ).parse();
+
+    describe('languages', () => {
+      it('parses a single Language composite emitted as an object', async () => {
+        const result = await runParser([
+          buildProduct({ TitleDetail: { TitleElement: { TitleText: 'Single language work' } } }),
+        ]);
+
+        expect(result.status).toBe('success');
+        expect(result.data.works[0].languages).toEqual([
+          { code: 'ENG', relation: LanguageRelation.enum.Original, id: appConfig.defaultId },
+        ]);
+      });
+
+      it('parses repeated Language composites emitted as an array', async () => {
+        const result = await runParser([
+          buildProduct({
+            TitleDetail: { TitleElement: { TitleText: 'Repeated languages' } },
+            Language: [
+              { LanguageRole: LanguageRole._01, LanguageCode: 'eng' },
+              { LanguageRole: LanguageRole._02, LanguageCode: 'fao' },
+            ],
+          }),
+        ]);
+
+        expect(result.status).toBe('success');
+        expect(result.errors).toHaveLength(0);
+        expect(result.data.works[0].languages).toHaveLength(2);
+      });
+
+      it('maps English role 01 and Faroese role 02 to Original and TranslatedFrom', async () => {
+        const result = await runParser([
+          buildProduct({
+            TitleDetail: {
+              TitleElement: { TitleWithoutPrefix: 'Völsung Ballads from the Faroe Islands in English Translation' },
+            },
+            Language: [
+              { LanguageRole: LanguageRole._01, LanguageCode: 'eng' },
+              { LanguageRole: LanguageRole._02, LanguageCode: 'fao' },
+            ],
+          }),
+        ]);
+
+        expect(result.status).toBe('success');
+        expect(result.data.works[0].languages).toEqual([
+          { code: 'ENG', relation: LanguageRelation.enum.Original, id: appConfig.defaultId },
+          { code: 'FAO', relation: LanguageRelation.enum.TranslatedFrom, id: appConfig.defaultId },
+        ]);
+      });
+
+      it('maps English role 01 and French role 02 to Original and TranslatedFrom', async () => {
+        const result = await runParser([
+          buildProduct({
+            TitleDetail: {
+              TitleElement: { TitleWithoutPrefix: 'Women Religious Crossing between Cloister and the World' },
+            },
+            Language: [
+              { LanguageRole: LanguageRole._01, LanguageCode: 'eng' },
+              { LanguageRole: LanguageRole._02, LanguageCode: 'fre' },
+            ],
+          }),
+        ]);
+
+        expect(result.status).toBe('success');
+        expect(result.data.works[0].languages).toEqual([
+          { code: 'ENG', relation: LanguageRelation.enum.Original, id: appConfig.defaultId },
+          { code: 'FRE', relation: LanguageRelation.enum.TranslatedFrom, id: appConfig.defaultId },
+        ]);
+      });
+
+      it('reports the offending code and product for an unsupported language code', async () => {
+        const result = await runParser([
+          buildProduct(
+            {
+              TitleDetail: { TitleElement: { TitleText: 'Bad language' } },
+              Language: { LanguageRole: LanguageRole._01, LanguageCode: 'xyz' },
+            },
+            '9781641891783',
+          ),
+        ]);
+
+        expect(result.status).toBe('failed');
+        expect(result.errors).toContain('Language xyz not found for product 1 (9781641891783)');
+        // The old message pasted every supported language into the UI.
+        expect(result.errors[0].length).toBeLessThan(120);
+      });
+
+      it('ignores language roles Thoth cannot express but keeps the usable one', async () => {
+        const result = await runParser([
+          buildProduct({
+            TitleDetail: { TitleElement: { TitleText: 'Rights language work' } },
+            Language: [
+              { LanguageRole: LanguageRole._01, LanguageCode: 'eng' },
+              // Role 03 is the language of abstracts, which Thoth does not model.
+              { LanguageRole: LanguageRole._03, LanguageCode: 'ger' },
+            ],
+          }),
+        ]);
+
+        expect(result.status).toBe('success');
+        expect(result.data.works[0].languages).toEqual([
+          { code: 'ENG', relation: LanguageRelation.enum.Original, id: appConfig.defaultId },
+        ]);
+      });
+
+      it('reports a product whose every language role is unsupported', async () => {
+        const result = await runParser([
+          buildProduct(
+            {
+              TitleDetail: { TitleElement: { TitleText: 'No usable language' } },
+              Language: { LanguageRole: LanguageRole._03, LanguageCode: 'eng' },
+            },
+            '9781641891783',
+          ),
+        ]);
+
+        expect(result.status).toBe('failed');
+        expect(result.errors).toContain('No supported language role found for product 1 (9781641891783)');
+      });
+
+      it('reports a product with no Language composite at all', async () => {
+        const result = await runParser([
+          buildProduct(
+            { TitleDetail: { TitleElement: { TitleText: 'No language' } }, Language: undefined },
+            '9781641891783',
+          ),
+        ]);
+
+        expect(result.status).toBe('failed');
+        expect(result.errors).toContain('Language not provided for product 1 (9781641891783)');
+      });
+    });
+
+    it('reports errors in ONIX product order even though products parse concurrently', async () => {
+      const badProduct = (recordReference: string) =>
+        buildProduct(
+          {
+            TitleDetail: { TitleElement: { TitleText: 'Bad language' } },
+            Language: { LanguageRole: LanguageRole._01, LanguageCode: 'xyz' },
+          },
+          recordReference,
+        );
+
+      const result = await runParser([
+        buildProduct({ TitleDetail: { TitleElement: { TitleText: 'Fine' } } }),
+        badProduct('9780000000002'),
+        buildProduct({ TitleDetail: { TitleElement: { TitleText: 'Fine' } } }),
+        badProduct('9780000000004'),
+      ]);
+
+      expect(result.errors).toEqual([
+        'Language xyz not found for product 2 (9780000000002)',
+        'Language xyz not found for product 4 (9780000000004)',
+      ]);
+    });
+
+    describe('other repeatable composites', () => {
+      it('reads a single ProductIdentifier emitted as an object', async () => {
+        // A lone ProductIdentifier is not an array, so calling `.find` on it used to throw and
+        // fail the entire upload with an opaque parsing error.
+        const product = {
+          ProductIdentifier: { ProductIDType: ProductIdentifierType._06, IDValue: '10.12345/single' },
+          ...buildProduct({ TitleDetail: { TitleElement: { TitleText: 'Single identifier work' } } }),
+        } as unknown as ExtendedProduct;
+
+        const result = await runParser([product]);
+
+        expect(result.status).toBe('success');
+        expect(result.data.works[0].doi).toBe(appConfig.validations.doiPrefix + '10.12345/single');
+      });
+
+      it('reads a single Measure emitted as an object', async () => {
+        const product = {
+          ...buildProduct({
+            TitleDetail: { TitleElement: { TitleText: 'Single measure work' } },
+            Measure: { MeasureType: MeasureType._01, MeasureUnitCode: MeasureUnit.mm, Measurement: 234 },
+          } as unknown as Partial<ExtendedDescriptiveDetail>),
+        } as ExtendedProduct;
+
+        const result = await runParser([product]);
+
+        expect(result.status).toBe('success');
+        expect(result.data.works[0].publications[0].height).toBe(234);
+      });
+    });
+
+    describe('titles', () => {
+      it('parses a product title supplied as TitleWithoutPrefix', async () => {
+        const result = await runParser([
+          buildProduct({
+            TitleDetail: {
+              TitleType: TitleType._01,
+              TitleElement: {
+                TitleElementLevel: TitleElementLevel._01,
+                NoPrefix: '',
+                TitleWithoutPrefix: 'Antiracist Medievalisms',
+              },
+            },
+          }),
+        ]);
+
+        expect(result.status).toBe('success');
+        expect(result.data.works[0].titles[0].title).toBe('Antiracist Medievalisms');
+      });
+
+      it('builds a complete title from TitlePrefix and TitleWithoutPrefix', async () => {
+        const result = await runParser([
+          buildProduct({
+            TitleDetail: {
+              TitleType: TitleType._01,
+              TitleElement: {
+                TitleElementLevel: TitleElementLevel._01,
+                TitlePrefix: { '#text': 'A' },
+                TitleWithoutPrefix: { '#text': 'Companion to the Cavendishes' },
+              },
+            },
+          }),
+        ]);
+
+        expect(result.status).toBe('success');
+        expect(result.data.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
+        expect(result.data.works[0].titles[0].fullTitle).toBe('A Companion to the Cavendishes');
+      });
+
+      it('keeps the subtitle separate from a prefixed title', async () => {
+        const result = await runParser([
+          buildProduct({
+            TitleDetail: {
+              TitleType: TitleType._01,
+              TitleElement: {
+                TitleElementLevel: TitleElementLevel._01,
+                TitlePrefix: 'The',
+                TitleWithoutPrefix: 'Medieval Womb',
+                Subtitle: 'Gender and Power in the Premodern World',
+              },
+            },
+          }),
+        ]);
+
+        expect(result.data.works[0].titles[0].title).toBe('The Medieval Womb');
+        expect(result.data.works[0].titles[0].subtitle).toBe('Gender and Power in the Premodern World');
+        expect(result.data.works[0].titles[0].fullTitle).toBe(
+          'The Medieval Womb Gender and Power in the Premodern World',
+        );
+      });
+
+      it('picks the distinctive title when TitleDetail is emitted as an array', async () => {
+        const result = await runParser([
+          buildProduct({
+            TitleDetail: [
+              {
+                TitleType: TitleType._01,
+                TitleElement: {
+                  TitleElementLevel: TitleElementLevel._01,
+                  TitlePrefix: 'A',
+                  TitleWithoutPrefix: 'Companion to the Cavendishes',
+                },
+              },
+              {
+                TitleType: TitleType._05,
+                TitleElement: {
+                  TitleElementLevel: TitleElementLevel._01,
+                  NoPrefix: '',
+                  TitleWithoutPrefix: 'COMP_Hopkins-Cavendishes',
+                },
+              },
+            ],
+          }),
+        ]);
+
+        expect(result.data.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
+      });
+
+      it('picks the product-level element when TitleElement is emitted as an array', async () => {
+        const result = await runParser([
+          buildProduct({
+            TitleDetail: {
+              TitleType: TitleType._01,
+              TitleElement: [
+                { TitleElementLevel: TitleElementLevel._02, TitleWithoutPrefix: 'Arc Companions' },
+                { TitleElementLevel: TitleElementLevel._01, TitleWithoutPrefix: 'Companion to the Cavendishes' },
+              ],
+            },
+          }),
+        ]);
+
+        expect(result.data.works[0].titles[0].title).toBe('Companion to the Cavendishes');
+      });
+    });
+
+    describe('series', () => {
+      const arcSerieses = [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)];
+
+      const collection = (title: string, collectionType = '10', sequenceNumber?: string): ExtendedCollection =>
+        ({
+          CollectionType: collectionType,
+          ...(sequenceNumber
+            ? { CollectionSequence: { CollectionSequenceType: '03', CollectionSequenceNumber: sequenceNumber } }
+            : {}),
+          TitleDetail: {
+            TitleType: TitleType._01,
+            TitleElement: { TitleElementLevel: TitleElementLevel._02, NoPrefix: '', TitleWithoutPrefix: title },
+          },
+        }) as unknown as ExtendedCollection;
+
+      it('matches an existing series whose collection title uses TitleWithoutPrefix', async () => {
+        const result = await runParser(
+          [
+            buildProduct({
+              TitleDetail: { TitleElement: { TitleText: 'A Companion to the Cavendishes' } },
+              Collection: collection(ARC_SERIES_NAME),
+            }),
+          ],
+          arcSerieses,
+        );
+
+        expect(result.status).toBe('success');
+        expect(result.errors).toHaveLength(0);
+        expect((result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID]).toHaveLength(1);
+        expect((result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID][0].titles[0].title).toBe(
+          'A Companion to the Cavendishes',
+        );
+      });
+
+      it('names the missing series and the product when the series is not in Thoth', async () => {
+        const result = await runParser(
+          [
+            buildProduct(
+              {
+                TitleDetail: { TitleElement: { TitleText: 'Borderlines member' } },
+                Collection: collection('Borderlines'),
+              },
+              '9781641891783',
+            ),
+          ],
+          arcSerieses,
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.errors).toContain('Series "Borderlines" does not exist in Thoth for product 1 (9781641891783)');
+      });
+
+      it('never creates a series that does not already exist in Thoth', async () => {
+        const result = await runParser(
+          [
+            buildProduct({
+              TitleDetail: { TitleElement: { TitleText: 'Borderlines member' } },
+              Collection: collection('Borderlines'),
+            }),
+          ],
+          arcSerieses,
+        );
+
+        expect(result.data.series).toEqual({});
+      });
+
+      it('prefers the publisher collection when several Collection composites exist', async () => {
+        const result = await runParser(
+          [
+            buildProduct({
+              TitleDetail: { TitleElement: { TitleText: 'Multi collection work' } },
+              Collection: [collection('Some Ascribed List', '20'), collection(ARC_SERIES_NAME, '10')],
+            }),
+          ],
+          arcSerieses,
+        );
+
+        expect(result.status).toBe('success');
+        expect((result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID]).toHaveLength(1);
+      });
+    });
+
+    describe('series ordering', () => {
+      const collection = (title: string, sequenceNumber?: string): ExtendedCollection =>
+        ({
+          CollectionType: '10',
+          ...(sequenceNumber
+            ? { CollectionSequence: { CollectionSequenceType: '03', CollectionSequenceNumber: sequenceNumber } }
+            : {}),
+          TitleDetail: {
+            TitleType: TitleType._01,
+            TitleElement: { TitleElementLevel: TitleElementLevel._02, NoPrefix: '', TitleWithoutPrefix: title },
+          },
+        }) as unknown as ExtendedCollection;
+
+      const memberProduct = (title: string, sequenceNumber?: string) =>
+        buildProduct({
+          TitleDetail: { TitleElement: { TitleText: title } },
+          Collection: collection(ARC_SERIES_NAME, sequenceNumber),
+        });
+
+      it('preserves a CollectionSequenceNumber supplied by the publisher', async () => {
+        const result = await runParser(
+          [memberProduct('Numbered work', '7')],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
+        );
+
+        expect((result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID][0].orderNumber).toBe(7);
+      });
+
+      it('does not give every unnumbered work in a series the ordinal 1', async () => {
+        const result = await runParser(
+          [memberProduct('First work'), memberProduct('Second work'), memberProduct('Third work')],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
+        );
+
+        expect(
+          (result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID].map(
+            (work: SeriesForUpdateItem) => work.orderNumber,
+          ),
+        ).toEqual([1, 2, 3]);
+      });
+
+      it('appends unnumbered works in ONIX product order', async () => {
+        const result = await runParser(
+          [memberProduct('First work'), memberProduct('Second work'), memberProduct('Third work')],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
+        );
+
+        expect(
+          (result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID].map(
+            (work: SeriesForUpdateItem) => work.titles[0].title,
+          ),
+        ).toEqual(['First work', 'Second work', 'Third work']);
+      });
+
+      it('appends after the issues the series already has in Thoth', async () => {
+        const result = await runParser(
+          [memberProduct('First work'), memberProduct('Second work')],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME, [1, 2, 5])],
+        );
+
+        expect(
+          (result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID].map(
+            (work: SeriesForUpdateItem) => work.orderNumber,
+          ),
+        ).toEqual([6, 7]);
+      });
+
+      it('does not collide with an explicit ordinal supplied later in the same import', async () => {
+        const result = await runParser(
+          [memberProduct('Unnumbered work'), memberProduct('Numbered work', '4')],
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
+        );
+
+        expect(
+          (result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID].map(
+            (work: SeriesForUpdateItem) => work.orderNumber,
+          ),
+        ).toEqual([5, 4]);
+      });
+    });
+
+    describe('chapters', () => {
+      it('parses a content item title supplied as TitleWithoutPrefix', async () => {
+        const result = await runParser([
+          {
+            ...buildProduct({ TitleDetail: { TitleElement: { TitleText: 'Chaptered work' } } }),
+            ContentDetail: {
+              ContentItem: [
+                {
+                  LevelSequenceNumber: '2',
+                  TitleDetail: {
+                    TitleType: TitleType._01,
+                    TitleElement: {
+                      TitleElementLevel: TitleElementLevel._04,
+                      NoPrefix: '',
+                      TitleWithoutPrefix: 'List of Illustrations',
+                    },
+                  },
+                },
+                {
+                  LevelSequenceNumber: '1',
+                  TitleDetail: {
+                    TitleType: TitleType._01,
+                    TitleElement: {
+                      TitleElementLevel: TitleElementLevel._04,
+                      NoPrefix: '',
+                      TitleWithoutPrefix: 'Table of Contents',
+                    },
+                  },
+                },
+              ],
+            },
+          } as unknown as ExtendedProduct,
+        ]);
+
+        expect(result.status).toBe('success');
+        expect(result.data.chapters.map((chapter) => chapter.titles[0].title)).toEqual([
+          'Table of Contents',
+          'List of Illustrations',
+        ]);
+      });
+    });
+
+    describe('end to end with @5stones/onix', () => {
+      const ARC_LIKE_XML = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>9781641891783</RecordReference>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781641891783</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix>Arc Companions</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <TitlePrefix language="eng">A</TitlePrefix>
+          <TitleWithoutPrefix language="eng">Companion to the Cavendishes</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <TitleDetail>
+        <TitleType>05</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">COMP_Hopkins-Cavendishes</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+      <Language>
+        <LanguageRole>02</LanguageRole>
+        <LanguageCode>fre</LanguageCode>
+      </Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>IMPRINT_NAME</ImprintName>
+      </Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+    <ContentDetail>
+      <ContentItem>
+        <LevelSequenceNumber>1</LevelSequenceNumber>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix>Table of Contents</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </ContentItem>
+    </ContentDetail>
+  </Product>
+</ONIXMessage>`;
+
+      it('imports an Arc-shaped record parsed by the real library', async () => {
+        const xml = (await parse(ARC_LIKE_XML.replace('IMPRINT_NAME', imprints[0].label))) as ExtendedONIXMessageRoot;
+
+        const parser = new XMLParser(
+          xml,
+          imprints,
+          licenses,
+          [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME, [1, 2])],
+          mockContributorService,
+          mockInstitutionService,
+          languages,
+          currencyOptions,
+        );
+
+        const result = await parser.parse();
+
+        expect(result.errors).toEqual([]);
+        expect(result.status).toBe('success');
+        expect(result.data.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
+        expect(result.data.works[0].languages).toEqual([
+          { code: 'ENG', relation: LanguageRelation.enum.Original, id: appConfig.defaultId },
+          { code: 'FRE', relation: LanguageRelation.enum.TranslatedFrom, id: appConfig.defaultId },
+        ]);
+        expect(result.data.chapters[0].titles[0].title).toBe('Table of Contents');
+        expect((result.data.series as SeriesForUpdateItems)[ARC_SERIES_ID][0].orderNumber).toBe(3);
+      });
     });
   });
 });
