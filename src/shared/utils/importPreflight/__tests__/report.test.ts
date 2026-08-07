@@ -217,6 +217,31 @@ describe('buildImportPreflightReport', () => {
     expect(report.duplicateFindings[0].value).toBe('9781234567897');
   });
 
+  it('treats an imported ISBN-10 and its ISBN-13 as one signal', () => {
+    const report = buildImportPreflightReport(
+      plan([
+        work('w1', { title: 'First', isbns: ['0198526636'] }),
+        work('w2', { title: 'Second', isbns: ['978-0-19-852663-6'] }),
+      ]),
+      NO_MATCHES,
+    );
+
+    expect(report.duplicateFindings).toHaveLength(1);
+    // ISBN-13 is how Thoth writes an ISBN, so it is the value the finding is reported under.
+    expect(report.duplicateFindings[0].value).toBe('9780198526636');
+    expect(report.duplicateFindings[0].importedWorks.map(({ workId }) => workId)).toEqual(['w1', 'w2']);
+  });
+
+  it('matches an imported ISBN-10 against an existing work stored with the ISBN-13', () => {
+    const report = buildImportPreflightReport(
+      plan([work('w1', { title: 'Imported', isbns: ['0198526636'] })]),
+      matches([[isbnKey('9780198526636'), [existing('existing-1', { isbns: ['978-0-19-852663-6'] })]]]),
+    );
+
+    expect(report.duplicateFindings).toHaveLength(1);
+    expect(report.duplicateFindings[0].existingWorks.map(({ workId }) => workId)).toEqual(['existing-1']);
+  });
+
   it('treats DOIs differing only in case as one signal, following the application rule', () => {
     const report = buildImportPreflightReport(
       plan([

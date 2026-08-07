@@ -1,14 +1,15 @@
+import isbn3 from 'isbn3';
+
 import type { ImportIdentifier, ImportPlan } from '@/src/shared/types';
 
 /**
  * How DOIs and ISBNs are compared during a duplicate preflight.
  *
  * Comparison normalisation, not identity normalisation. The question these answer is only "are
- * these two strings the same identifier written differently?", and they are deliberately timid
- * about it: a form this stage does not already know to be equivalent stays a separate value, and
- * two works that write the same identifier differently enough get no finding rather than a wrong
- * one. Nothing here repairs an invalid identifier — validity is the parsers' job, and a value
- * that failed validation is not made to match anything by being tidied up here.
+ * these two strings the same identifier written differently?", and the answer follows Thoth's own
+ * idea of how each identifier is written rather than inventing a broader one. Nothing here repairs
+ * an invalid identifier — validity is the parsers' job, and a value that failed validation is
+ * never turned into one that looks valid.
  */
 
 /**
@@ -29,18 +30,33 @@ export const normaliseDoi = (doi: string): string | null => {
 };
 
 /**
- * Hyphens and whitespace removed, uppercased.
+ * The canonical hyphenless ISBN-13, via the same `isbn3` parser the app validates with.
  *
- * ISBNs are written both hyphenated and bare, and Thoth stores the hyphenated ISBN-13 while an
- * ONIX ProductIdentifier or a CSV cell usually carries the bare digits. Those are the same
- * identifier, and the API agrees: its publications filter compares `replace(isbn, '-', '')`.
- * Uppercasing is for the ISBN-10 check digit `X`.
+ * ISBN-13 is how Thoth writes an ISBN, on both sides of its boundary: `isbnValidation` parses
+ * whatever the user types and stores `parsed.isbn13h`, and the API's `Isbn` type parses through
+ * `Isbn13` and holds the hyphenated thirteen-digit form. So an ISBN-10 and its ISBN-13 are not
+ * two identifiers Thoth might one day decide are related — they are one identifier, and Thoth has
+ * already picked which way round to write it. Reading them as the same comparison value is
+ * representation normalisation, not a claim about works.
  *
- * An ISBN-10 and the ISBN-13 it converts to stay *different* values. The conversion is a real
- * one, but performing it here would be this stage deciding that two differently-identified
- * publications are the same thing, which is the identity question being left open.
+ * That also settles hyphenation, internal spacing and the ISBN-10 check digit's letter case: the
+ * parser accepts all of those and returns the same canonical value, which is what the API's own
+ * `replace(isbn, '-', '')` comparison does more crudely.
+ *
+ * `isbn3.parse` returns `null` for anything it cannot validate — a bad check digit, a wrong
+ * length, letters — so an invalid value can never be converted into a valid-looking one here. It
+ * falls back to the stripped, uppercased characters instead: two works carrying the same
+ * malformed ISBN still signal to each other, which is worth knowing, and CSV rows do reach the
+ * plan without ISBN validation. A fallback value cannot collide with a canonical one, because
+ * anything equal to a real ISBN-13 would have parsed.
+ *
+ * Blank is not an identifier and returns `null`.
  */
 export const normaliseIsbn = (isbn: string): string | null => {
+  const parsed = isbn3.parse(isbn);
+
+  if (parsed?.isValid && parsed.isbn13) return parsed.isbn13;
+
   const stripped = isbn.replace(/[\s-]/g, '').toUpperCase();
 
   return stripped.length > 0 ? stripped : null;
