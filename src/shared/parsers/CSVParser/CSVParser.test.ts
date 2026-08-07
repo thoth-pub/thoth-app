@@ -494,8 +494,11 @@ describe('CSVParser', () => {
       });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
-      expect(result.data.series[SERIES_ID]).toHaveLength(1);
-      expect(result.data.series[SERIES_ID][0].orderNumber).toBe(3);
+      const group = result.data.series.find(
+        ({ target }) => target.kind === 'existing' && target.seriesId === SERIES_ID,
+      );
+      expect(group?.works).toHaveLength(1);
+      expect(group?.works[0].orderNumber).toBe(3);
     });
 
     it('returns failed status when the series name is not found', async () => {

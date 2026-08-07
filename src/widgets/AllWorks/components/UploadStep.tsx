@@ -9,7 +9,7 @@ import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { FORM_FIELDS } from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
-import type { SeriesForUpdateItems } from '@/src/shared/types';
+import type { SeriesImportPlan } from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 import { isCsv as isCsvFile, isXml as isXmlFile } from '@/src/shared/utils';
 
@@ -19,7 +19,7 @@ import { XMLParse } from './XMLParse';
 const { BULK_UPLOAD } = FORM_FIELDS;
 
 type UploadStepProps = {
-  onPreview?: (works: WorkEntity[], chapters: WorkEntity[], serieses: SeriesForUpdateItems) => void;
+  onPreview?: (works: WorkEntity[], chapters: WorkEntity[], serieses: SeriesImportPlan) => void;
 };
 
 export const UploadStep = (props: UploadStepProps) => {

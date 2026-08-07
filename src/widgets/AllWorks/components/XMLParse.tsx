@@ -11,7 +11,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { XMLParser } from '@/src/shared/parsers';
-import { ContributorsForSelection, SeriesForUpdateItems } from '@/src/shared/types';
+import { ContributorsForSelection, SeriesImportPlan } from '@/src/shared/types';
 import { CircularProgress } from '@/src/shared/ui';
 
 import { ContributorsSelection } from './ContributorsSelection';
@@ -21,7 +21,7 @@ type XMLParseProps = {
   imprints: FormFieldOption[];
   serieses: SeriesEntity[];
   onValidationFailure?: (errors: string[]) => void;
-  onPreview?: (works: WorkEntity[], chapters: WorkEntity[], serieses: SeriesForUpdateItems) => void;
+  onPreview?: (works: WorkEntity[], chapters: WorkEntity[], serieses: SeriesImportPlan) => void;
 };
 
 export const XMLParse = (props: XMLParseProps) => {
@@ -33,7 +33,7 @@ export const XMLParse = (props: XMLParseProps) => {
   const [isValidatingFile, setIsValidatingFile] = useState(false);
   const [works, setWorks] = useState<WorkEntity[]>([]);
   const [chapters, setChapters] = useState<WorkEntity[]>([]);
-  const [seriesForUpdate, setSeriesForUpdate] = useState<SeriesForUpdateItems>({});
+  const [seriesForUpdate, setSeriesForUpdate] = useState<SeriesImportPlan>([]);
   const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<ContributorsForSelection>({});
 
   const isDataEmpty = works.length === 0;
