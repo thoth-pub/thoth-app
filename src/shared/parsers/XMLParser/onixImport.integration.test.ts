@@ -21,7 +21,6 @@ import { WorkService } from '@/src/entities/work/api/work.service';
 
 import { currencyOptions, languageOptions, licenseOptions } from '../../constants';
 import { SeriesType } from '../../constants/series';
-import { SeriesImportPlan } from '../../types';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import XMLParser from './XMLParser';
 
@@ -223,22 +222,23 @@ describe('ONIX bulk import, end to end', () => {
     // --- upload + preview -------------------------------------------------
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
-    expect(result.data.works).toHaveLength(4);
-    expect(result.data.works.map((work) => work.titles[0].title)).toEqual([
+    // The plan the parser produced is the plan the import runs: nothing is reassembled here.
+    const plan = result.data.plan;
+
+    expect(plan.works).toHaveLength(4);
+    expect(plan.works.map((work) => work.titles[0].title)).toEqual([
       'A Companion to the Cavendishes',
       'The Medieval Womb',
       'Beowulf by All',
       'Trans Histories of the Medieval Book',
     ]);
 
-    const plan = result.data.series as SeriesImportPlan;
-
     // The preview shows one series to be created and one existing series reused.
     expect(
-      plan.map((group) => ({
+      plan.series.map((group) => ({
         name: group.name,
         willBeCreated: group.target.kind === 'proposed',
-        ordinals: group.works.map((work) => work.orderNumber),
+        ordinals: group.members.map((member) => member.orderNumber),
       })),
     ).toEqual([
       { name: 'Arc Companions', willBeCreated: true, ordinals: [1, 2, 3] },
@@ -250,7 +250,7 @@ describe('ONIX bulk import, end to end', () => {
     expect(mutations).toEqual([]);
 
     // --- confirmation: exactly what PreviewStep hands to the mutation -----
-    await workService.bulkCreateWorks(result.data.works, plan, result.data.chapters);
+    await workService.bulkCreateWorks(plan);
 
     // --- created series ---------------------------------------------------
     const createSeriesCalls = mutationsNamed('CreateSeries');
@@ -288,12 +288,12 @@ describe('ONIX bulk import, end to end', () => {
     // --- upload + preview -------------------------------------------------
     // The file is accepted: a warning is not a validation failure.
     expect(result.status).toBe('success');
-    expect(result.data.works.map((work) => work.titles[0].title)).toEqual(['A Companion to the Cavendishes']);
+    const plan = result.data.plan;
 
-    const plan = result.data.series as SeriesImportPlan;
+    expect(plan.works.map((work) => work.titles[0].title)).toEqual(['A Companion to the Cavendishes']);
 
     // Nothing to create and nothing to attach to: the association is simply absent.
-    expect(plan).toEqual([]);
+    expect(plan.series).toEqual([]);
     expect(result.issues).toEqual([
       {
         severity: 'warning',
@@ -303,8 +303,8 @@ describe('ONIX bulk import, end to end', () => {
       },
     ]);
 
-    // --- confirmation: warnings change nothing about what is sent ---------
-    await workService.bulkCreateWorks(result.data.works, plan, result.data.chapters);
+    // --- confirmation: the plan is the payload, and warnings are not in it ---
+    await workService.bulkCreateWorks(plan);
 
     expect(mutationsNamed('CreateWork')).toHaveLength(1);
     expect(mutationsNamed('CreateSeries')).toHaveLength(0);
@@ -327,11 +327,11 @@ describe('ONIX bulk import, end to end', () => {
     };
 
     const result = await parseUpload([foundations, arcCompanions]);
-    const plan = result.data.series as SeriesImportPlan;
+    const plan = result.data.plan;
 
-    expect(plan.map((group) => group.target.kind)).toEqual(['existing', 'existing']);
+    expect(plan.series.map((group) => group.target.kind)).toEqual(['existing', 'existing']);
 
-    await workService.bulkCreateWorks(result.data.works, plan, result.data.chapters);
+    await workService.bulkCreateWorks(plan);
 
     expect(mutationsNamed('CreateSeries')).toHaveLength(0);
     // Works are still created unconditionally: series reuse is not work idempotence.

@@ -1,4 +1,4 @@
-import type { ImportIssue, ImportIssueSource, ImportParseResult } from '../../types';
+import type { ImportIssue, ImportIssueSource, ImportStatus } from '../../types';
 
 /**
  * The rules that turn a pile of issues into an ordered, actionable list and into a parse status.
@@ -50,5 +50,5 @@ export const warningIssues = (issues: ImportIssue[]): ImportIssue[] =>
  * A parse failed exactly when something in it was an error. Warnings never fail a parse — that
  * is the whole point of having them.
  */
-export const importStatus = (issues: ImportIssue[]): ImportParseResult<unknown>['status'] =>
+export const importStatus = (issues: ImportIssue[]): ImportStatus =>
   issues.some(({ severity }) => severity === 'error') ? 'failed' : 'success';

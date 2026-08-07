@@ -8,11 +8,23 @@ const mockRouterReplace = vi.fn();
 const mockRouterPush = vi.fn();
 const mockServices = {
   workService: {
-    getWork: vi.fn(), getWorks: vi.fn(), getWorksCount: vi.fn(), getWorkChapters: vi.fn(),
-    getWorkEditions: vi.fn(), getWorkPrevEditions: vi.fn(), getTranslatedWorks: vi.fn(),
-    getWorkTranslations: vi.fn(), getWorkSet: vi.fn(), createWork: vi.fn(), updateWork: vi.fn(),
-    deleteWork: vi.fn(), bulkCreateWorks: vi.fn(), createChapter: vi.fn(),
-    createNewWorkEdition: vi.fn(), createWorkTranslation: vi.fn(), moveWorkRelation: vi.fn(),
+    getWork: vi.fn(),
+    getWorks: vi.fn(),
+    getWorksCount: vi.fn(),
+    getWorkChapters: vi.fn(),
+    getWorkEditions: vi.fn(),
+    getWorkPrevEditions: vi.fn(),
+    getTranslatedWorks: vi.fn(),
+    getWorkTranslations: vi.fn(),
+    getWorkSet: vi.fn(),
+    createWork: vi.fn(),
+    updateWork: vi.fn(),
+    deleteWork: vi.fn(),
+    bulkCreateWorks: vi.fn(),
+    createChapter: vi.fn(),
+    createNewWorkEdition: vi.fn(),
+    createWorkTranslation: vi.fn(),
+    moveWorkRelation: vi.fn(),
   },
   fileStorage: { uploadWorkCover: vi.fn() },
 };
@@ -89,11 +101,38 @@ const WORK_ID = 'work-1';
 const mockData = { title: 'My Book' } as any;
 const mockFile = new File([''], 'cover.jpg');
 const mockOnCompleted = vi.fn();
-const mockWorkEntity = { id: WORK_ID, titles: [], languages: [], subjects: [], fundings: [], contributions: [], edition: 1, doi: '', landingPage: '', coverUrl: '', pageCount: 0, imprintId: '', license: '', abstracts: [] } as any;
+const mockWorkEntity = {
+  id: WORK_ID,
+  titles: [],
+  languages: [],
+  subjects: [],
+  fundings: [],
+  contributions: [],
+  edition: 1,
+  doi: '',
+  landingPage: '',
+  coverUrl: '',
+  pageCount: 0,
+  imprintId: '',
+  license: '',
+  abstracts: [],
+} as any;
 
 function setup() {
   vi.clearAllMocks();
-  mockServices.workService.getWork.mockResolvedValue({ id: WORK_ID, titles: [], languages: [], subjects: [], fundings: [], contributions: [], edition: 1, doi: '', landingPage: '', coverUrl: '', pageCount: 0 });
+  mockServices.workService.getWork.mockResolvedValue({
+    id: WORK_ID,
+    titles: [],
+    languages: [],
+    subjects: [],
+    fundings: [],
+    contributions: [],
+    edition: 1,
+    doi: '',
+    landingPage: '',
+    coverUrl: '',
+    pageCount: 0,
+  });
   mockServices.workService.getWorks.mockResolvedValue([]);
   mockServices.workService.getWorksCount.mockResolvedValue(0);
   mockServices.workService.getWorkChapters.mockResolvedValue([]);
@@ -229,9 +268,7 @@ describe('useWorks', () => {
 
     useWorks({ publishersIds: [] });
 
-    expect(vi.mocked(useQuery)).toHaveBeenLastCalledWith(
-      expect.objectContaining({ enabled: false }),
-    );
+    expect(vi.mocked(useQuery)).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: false }));
   });
 });
 
@@ -247,9 +284,7 @@ describe('useWorksCount', () => {
 
     useWorksCount({ publishersIds: [] });
 
-    expect(vi.mocked(useQuery)).toHaveBeenLastCalledWith(
-      expect.objectContaining({ enabled: false }),
-    );
+    expect(vi.mocked(useQuery)).toHaveBeenLastCalledWith(expect.objectContaining({ enabled: false }));
   });
 });
 
@@ -340,11 +375,15 @@ describe('useUpdateWorks', () => {
 });
 
 describe('useBulkCreateWorks', () => {
-  it('bulk creates works via service', async () => {
+  it('hands the plan to the service unchanged', async () => {
     setup();
     const { bulkCreateWorks } = useBulkCreateWorks();
-    await bulkCreateWorks({ works: [mockData], serieses: [], chapters: [] });
-    expect(mockServices.workService.bulkCreateWorks).toHaveBeenCalledWith([mockData], [], []);
+    const plan = { works: [mockData], chapters: [], series: [] };
+
+    await bulkCreateWorks(plan);
+
+    // One value crosses the boundary: no unpacking into arrays on the way.
+    expect(mockServices.workService.bulkCreateWorks).toHaveBeenCalledWith(plan);
   });
 });
 
@@ -357,8 +396,6 @@ describe('useCreateWorkChapter', () => {
     expect(mockInvalidate).toHaveBeenCalledWith({ queryKey: ['workChapters'] });
   });
 });
-
-
 
 describe('useDeleteChapter', () => {
   it('deletes chapter and invalidates workChapters', async () => {

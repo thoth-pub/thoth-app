@@ -3,8 +3,7 @@ import { useState } from 'react';
 import { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { ContributorId } from '@/src/entities/contributor/model/contributor.types';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
-import { WorkTypes } from '@/src/shared/constants';
-import type { ContributorsForSelection } from '@/src/shared/types';
+import type { ContributorsForSelection, ImportPlan } from '@/src/shared/types';
 import {
   Button,
   OrcidLink,
@@ -21,13 +20,21 @@ import { getDisplayTitle, isDefaultId } from '@/src/shared/utils';
 
 type ContributorsSelectionProps = {
   contributors: ContributorsForSelection;
-  works: WorkEntity[];
-  chapters: WorkEntity[];
-  onPreview?: (works: WorkEntity[], chapters: WorkEntity[]) => void;
+  plan: ImportPlan;
+  onPreview?: (plan: ImportPlan) => void;
 };
 
+/**
+ * Resolves the contributors an import found several candidates for, and hands on the same plan
+ * with those choices applied.
+ *
+ * It knows nothing about diagnostics: warnings travel around it, not through it. What it does
+ * own is that resolving a contributor changes a work's contributions and nothing else — not its
+ * id, not its position in the import, and not its series membership.
+ */
 export const ContributorsSelection = (props: ContributorsSelectionProps) => {
-  const { contributors, works, chapters, onPreview } = props;
+  const { contributors, plan, onPreview } = props;
+  const { works, chapters } = plan;
 
   const [multipleFoundedContributors, setMultipleFoundedContributors] =
     useState<ContributorsForSelection>(contributors);
@@ -60,42 +67,44 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
     }));
   };
 
-  const handleSubmit = () => {
-    const updatedWorks: WorkEntity[] = [];
+  /**
+   * Applies this work's resolved contributors, if it had any to resolve.
+   *
+   * A work with no selection options, or with options none of which were chosen, keeps the
+   * contributions the parser gave it.
+   */
+  const applySelections = (work: WorkEntity): WorkEntity => {
+    const selections = multipleFoundedContributors[work.id];
 
-    Object.entries(multipleFoundedContributors).forEach(([workId, data]) => {
-      const work = [...works, ...chapters].find((work) => work.id === workId);
+    if (!selections) return work;
 
-      if (!work) return;
+    const appliedContributions: WorkContribution[] = [];
 
-      const appliedContributions: WorkContribution[] = [];
+    Object.values(selections).forEach((contributions) => {
+      const contribution = contributions.find(({ selected }) => selected);
 
-      Object.entries(data).forEach(([_itemId, contributions]) => {
-        const contribution = contributions.find(({ selected }) => selected);
+      if (!contribution) return;
 
-        if (!contribution) return;
+      const { selected, lastContribution, ...contributionData } = contribution;
 
-        const { selected, lastContribution, ...contributionData } = contribution;
-
-        appliedContributions.push(contributionData);
-      });
-
-      const updatedWork = {
-        ...work,
-        contributions: appliedContributions.length > 0 ? appliedContributions : work.contributions,
-      };
-      updatedWorks.push(updatedWork);
+      appliedContributions.push(contributionData);
     });
 
-    const updatedChapters = updatedWorks.filter((work) => work.type === WorkTypes.enum.BookChapter);
-    const updatedChaptersIds = updatedChapters.map((chapter) => chapter.id);
-    const notUpdatedChapters = chapters.filter((chapter) => !updatedChaptersIds.includes(chapter.id));
+    if (appliedContributions.length === 0) return work;
 
-    const filteredWorks = updatedWorks.filter((work) => work.type !== WorkTypes.enum.BookChapter);
-    const updatedWorksIds = filteredWorks.map((work) => work.id);
-    const notUpdatedWorks = works.filter((work) => !updatedWorksIds.includes(work.id));
+    return { ...work, contributions: appliedContributions };
+  };
 
-    onPreview?.([...notUpdatedWorks, ...filteredWorks], [...notUpdatedChapters, ...updatedChapters]);
+  const handleSubmit = () => {
+    // Mapped over the plan's own arrays, so every work keeps its place. Rebuilding them from the
+    // contributor map instead — resolved works first, untouched ones after — is what used to
+    // send a middle work to the end of the import, and source order is now the plan's to keep.
+    // `series` is passed through untouched: membership is by work id, which nothing here alters.
+    onPreview?.({
+      ...plan,
+      works: works.map(applySelections),
+      chapters: chapters.map(applySelections),
+    });
   };
 
   return (
@@ -145,9 +154,7 @@ export const ContributorsSelection = (props: ContributorsSelectionProps) => {
                                 <>
                                   <Typography className="flex items-center gap-1" fontWeight="bold" component="span">
                                     {fullName}
-                                    {orcidId && (
-                                      <OrcidLink orcidId={orcidId} />
-                                    )}
+                                    {orcidId && <OrcidLink orcidId={orcidId} />}
                                   </Typography>
                                   {lastContribution && lastContribution.length > 0 && (
                                     <Typography component="span">

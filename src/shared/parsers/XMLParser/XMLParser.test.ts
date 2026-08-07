@@ -21,7 +21,7 @@ import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 
 import { LanguageCode } from '@/gql/graphql';
-import { WorkId } from '@/src/entities/work/model/work.types';
+import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig } from '../../config';
 import {
   ContributorTypes,
@@ -37,7 +37,7 @@ import {
 } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
 import { SeriesType } from '../../constants/series';
-import { ContributorsForSelection, SeriesImportPlan } from '../../types';
+import { ContributorsForSelection, SeriesImportGroup, SeriesImportPlan } from '../../types';
 import {
   ExtendedCollection,
   ExtendedDescriptiveDetail,
@@ -131,9 +131,9 @@ describe('XMLParser', () => {
           source: { kind: 'file' },
         },
       ]);
-      expect(result.data.works).toHaveLength(0);
-      expect(result.data.chapters).toHaveLength(0);
-      expect(result.data.series).toEqual([]);
+      expect(result.data.plan.works).toHaveLength(0);
+      expect(result.data.plan.chapters).toHaveLength(0);
+      expect(result.data.plan.series).toEqual([]);
     });
 
     it('should return failed status if products not found in XML', async () => {
@@ -157,9 +157,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('failed');
       expect(errorMessages(result)).toContain('No products found in XML file');
-      expect(result.data.works).toHaveLength(0);
-      expect(result.data.chapters).toHaveLength(0);
-      expect(result.data.series).toEqual([]);
+      expect(result.data.plan.works).toHaveLength(0);
+      expect(result.data.plan.chapters).toHaveLength(0);
+      expect(result.data.plan.series).toEqual([]);
     });
 
     it('should successfully parse valid XML with a single product', async () => {
@@ -223,8 +223,8 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works).toHaveLength(1);
-      const work = result.data.works[0];
+      expect(result.data.plan.works).toHaveLength(1);
+      const work = result.data.plan.works[0];
       expect(work.titles[0].title).toBe(title);
       expect(work.titles[0].subtitle).toBe(subtitle);
       expect(work.doi).toContain(doi);
@@ -285,15 +285,15 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works).toHaveLength(2);
-      expect(result.data.works[0].titles[0].title).toBe(title1);
-      expect(result.data.works[1].titles[0].title).toBe(title2);
-      expect(result.data.works[0].doi).toContain(doi1);
-      expect(result.data.works[1].doi).toContain(doi2);
-      expect(result.data.works[0].languages).toHaveLength(1);
-      expect(result.data.works[0].languages[0].code).toBe(language1.value as LanguageCode);
-      expect(result.data.works[1].languages).toHaveLength(1);
-      expect(result.data.works[1].languages[0].code).toBe(language2.value as LanguageCode);
+      expect(result.data.plan.works).toHaveLength(2);
+      expect(result.data.plan.works[0].titles[0].title).toBe(title1);
+      expect(result.data.plan.works[1].titles[0].title).toBe(title2);
+      expect(result.data.plan.works[0].doi).toContain(doi1);
+      expect(result.data.plan.works[1].doi).toContain(doi2);
+      expect(result.data.plan.works[0].languages).toHaveLength(1);
+      expect(result.data.plan.works[0].languages[0].code).toBe(language1.value as LanguageCode);
+      expect(result.data.plan.works[1].languages).toHaveLength(1);
+      expect(result.data.plan.works[1].languages[0].code).toBe(language2.value as LanguageCode);
     });
 
     it('should fail when imprint is not found', async () => {
@@ -409,7 +409,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].doi).toContain(`${prefix}${doi}`);
+      expect(result.data.plan.works[0].doi).toContain(`${prefix}${doi}`);
     });
 
     it('doi should be empty if not provided', async () => {
@@ -447,7 +447,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].doi).toEqual('');
+      expect(result.data.plan.works[0].doi).toEqual('');
     });
 
     it('should parse lccn', async () => {
@@ -487,7 +487,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].lccn).toEqual(lccn);
+      expect(result.data.plan.works[0].lccn).toEqual(lccn);
     });
 
     it('should parse oclc', async () => {
@@ -527,7 +527,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].oclc).toEqual(oclc);
+      expect(result.data.plan.works[0].oclc).toEqual(oclc);
     });
 
     it('should parse title and subtitle', async () => {
@@ -564,10 +564,10 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].titles[0].title).toBe(title);
-      expect(result.data.works[0].titles[0].subtitle).toBe(subtitle);
-      expect(result.data.works[0].titles[0].fullTitle).toBe(`${title} ${subtitle}`);
-      expect(result.data.works[0].titles[0].localeCode).toBe(LanguageTypeAlt.enum.En);
+      expect(result.data.plan.works[0].titles[0].title).toBe(title);
+      expect(result.data.plan.works[0].titles[0].subtitle).toBe(subtitle);
+      expect(result.data.plan.works[0].titles[0].fullTitle).toBe(`${title} ${subtitle}`);
+      expect(result.data.plan.works[0].titles[0].localeCode).toBe(LanguageTypeAlt.enum.En);
     });
 
     it('should parse title if subtitle is not provided', async () => {
@@ -603,10 +603,10 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].titles[0].title).toBe(title);
-      expect(result.data.works[0].titles[0].subtitle).toEqual('');
-      expect(result.data.works[0].titles[0].fullTitle).toBe(title);
-      expect(result.data.works[0].titles[0].localeCode).toBe(LanguageTypeAlt.enum.En);
+      expect(result.data.plan.works[0].titles[0].title).toBe(title);
+      expect(result.data.plan.works[0].titles[0].subtitle).toEqual('');
+      expect(result.data.plan.works[0].titles[0].fullTitle).toBe(title);
+      expect(result.data.plan.works[0].titles[0].localeCode).toBe(LanguageTypeAlt.enum.En);
     });
 
     it('should parse abstracts', async () => {
@@ -650,15 +650,15 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].abstracts).toHaveLength(2);
-      expect(result.data.works[0].abstracts[0].content).toBe(longAbstract);
-      expect(result.data.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Long);
-      expect(result.data.works[0].abstracts[0].canonical).toBe(true);
-      expect(result.data.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
-      expect(result.data.works[0].abstracts[1].content).toBe(shortAbstract);
-      expect(result.data.works[0].abstracts[1].type).toBe(AbstractTypes.enum.Short);
-      expect(result.data.works[0].abstracts[1].canonical).toBe(false);
-      expect(result.data.works[0].abstracts[1].localeCode).toBe(LanguageTypeAlt.enum.En);
+      expect(result.data.plan.works[0].abstracts).toHaveLength(2);
+      expect(result.data.plan.works[0].abstracts[0].content).toBe(longAbstract);
+      expect(result.data.plan.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Long);
+      expect(result.data.plan.works[0].abstracts[0].canonical).toBe(true);
+      expect(result.data.plan.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
+      expect(result.data.plan.works[0].abstracts[1].content).toBe(shortAbstract);
+      expect(result.data.plan.works[0].abstracts[1].type).toBe(AbstractTypes.enum.Short);
+      expect(result.data.plan.works[0].abstracts[1].canonical).toBe(false);
+      expect(result.data.plan.works[0].abstracts[1].localeCode).toBe(LanguageTypeAlt.enum.En);
     });
 
     it('should parse long abstract if short abstract is not provided', async () => {
@@ -698,11 +698,11 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].abstracts).toHaveLength(1);
-      expect(result.data.works[0].abstracts[0].content).toBe(longAbstract);
-      expect(result.data.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Long);
-      expect(result.data.works[0].abstracts[0].canonical).toBe(true);
-      expect(result.data.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
+      expect(result.data.plan.works[0].abstracts).toHaveLength(1);
+      expect(result.data.plan.works[0].abstracts[0].content).toBe(longAbstract);
+      expect(result.data.plan.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Long);
+      expect(result.data.plan.works[0].abstracts[0].canonical).toBe(true);
+      expect(result.data.plan.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
     });
 
     it('should parse short abstract if long abstract is not provided', async () => {
@@ -742,11 +742,11 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].abstracts).toHaveLength(1);
-      expect(result.data.works[0].abstracts[0].content).toBe(shortAbstract);
-      expect(result.data.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Short);
-      expect(result.data.works[0].abstracts[0].canonical).toBe(false);
-      expect(result.data.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
+      expect(result.data.plan.works[0].abstracts).toHaveLength(1);
+      expect(result.data.plan.works[0].abstracts[0].content).toBe(shortAbstract);
+      expect(result.data.plan.works[0].abstracts[0].type).toBe(AbstractTypes.enum.Short);
+      expect(result.data.plan.works[0].abstracts[0].canonical).toBe(false);
+      expect(result.data.plan.works[0].abstracts[0].localeCode).toBe(LanguageTypeAlt.enum.En);
     });
 
     it('abstracts should be empty if not provided', async () => {
@@ -782,7 +782,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].abstracts).toHaveLength(0);
+      expect(result.data.plan.works[0].abstracts).toHaveLength(0);
     });
 
     it('should parse license', async () => {
@@ -822,7 +822,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].license).toBe(license.value);
+      expect(result.data.plan.works[0].license).toBe(license.value);
     });
 
     it('should return error if license is not found', async () => {
@@ -862,7 +862,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('failed');
-      expect(result.data.works).toHaveLength(0);
+      expect(result.data.plan.works).toHaveLength(0);
       expect(errorMessages(result)).toContain(`License ${license} not found for product 1`);
     });
 
@@ -901,7 +901,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].bibliographyNote).toBe(bibliographyNote);
+      expect(result.data.plan.works[0].bibliographyNote).toBe(bibliographyNote);
     });
 
     it('should return empty bibliography note if not provided', async () => {
@@ -937,7 +937,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].bibliographyNote).toEqual('');
+      expect(result.data.plan.works[0].bibliographyNote).toEqual('');
     });
 
     it('should parse general note', async () => {
@@ -977,7 +977,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].generalNote).toBe(generalNote);
+      expect(result.data.plan.works[0].generalNote).toBe(generalNote);
     });
 
     it('should return empty general note if not provided', async () => {
@@ -1013,7 +1013,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].bibliographyNote).toEqual('');
+      expect(result.data.plan.works[0].bibliographyNote).toEqual('');
     });
 
     it('should parse edition number', async () => {
@@ -1053,7 +1053,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].edition).toBe(edition);
+      expect(result.data.plan.works[0].edition).toBe(edition);
     });
 
     it('should default edition to 1 when not provided', async () => {
@@ -1091,7 +1091,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].edition).toBe(1);
+      expect(result.data.plan.works[0].edition).toBe(1);
     });
 
     it('should parse page count', async () => {
@@ -1131,7 +1131,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].pageCount).toBe(pageCount);
+      expect(result.data.plan.works[0].pageCount).toBe(pageCount);
     });
 
     it('should parse media counts', async () => {
@@ -1179,10 +1179,10 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].imageCount).toBe(imageCount);
-      expect(result.data.works[0].tableCount).toBe(tableCount);
-      expect(result.data.works[0].audioCount).toBe(audioCount);
-      expect(result.data.works[0].videoCount).toBe(videoCount);
+      expect(result.data.plan.works[0].imageCount).toBe(imageCount);
+      expect(result.data.plan.works[0].tableCount).toBe(tableCount);
+      expect(result.data.plan.works[0].audioCount).toBe(audioCount);
+      expect(result.data.plan.works[0].videoCount).toBe(videoCount);
     });
 
     it('should parse forthcoming work status', async () => {
@@ -1221,7 +1221,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].status).toBe(WorkStatuses.enum.Forthcoming);
+      expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Forthcoming);
     });
 
     it('should parse cancelled work status', async () => {
@@ -1260,7 +1260,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].status).toBe(WorkStatuses.enum.Cancelled);
+      expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Cancelled);
     });
 
     it('should parse active work status', async () => {
@@ -1299,7 +1299,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].status).toBe(WorkStatuses.enum.Active);
+      expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Active);
     });
 
     it('should parse withdrawn work status', async () => {
@@ -1338,7 +1338,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].status).toBe(WorkStatuses.enum.Withdrawn);
+      expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Withdrawn);
     });
 
     it('should parse superseded work status', async () => {
@@ -1377,7 +1377,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].status).toBe(WorkStatuses.enum.Superseded);
+      expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Superseded);
     });
 
     it('should set work status to forthcoming if invalid work status is provided', async () => {
@@ -1416,7 +1416,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].status).toBe(WorkStatuses.enum.Forthcoming);
+      expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Forthcoming);
     });
 
     it('should set work status to forthcoming if not provided', async () => {
@@ -1453,7 +1453,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].status).toBe(WorkStatuses.enum.Forthcoming);
+      expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Forthcoming);
     });
 
     it('should parse publication and withdrawn dates', async () => {
@@ -1496,8 +1496,8 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].publicationDate).toBe(publicationDate);
-      expect(result.data.works[0].withdrawnDate).toBe(withdrawnDate);
+      expect(result.data.plan.works[0].publicationDate).toBe(publicationDate);
+      expect(result.data.plan.works[0].withdrawnDate).toBe(withdrawnDate);
     });
 
     it('should return empty publication and withdrawn dates if not provided', async () => {
@@ -1534,8 +1534,8 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].publicationDate).toEqual('');
-      expect(result.data.works[0].withdrawnDate).toEqual('');
+      expect(result.data.plan.works[0].publicationDate).toEqual('');
+      expect(result.data.plan.works[0].withdrawnDate).toEqual('');
     });
 
     it('should parse copyright holder', async () => {
@@ -1574,7 +1574,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].copyrightHolder).toBe(copyrightHolder);
+      expect(result.data.plan.works[0].copyrightHolder).toBe(copyrightHolder);
     });
 
     it('should return empty copyright holder if not provided', async () => {
@@ -1611,7 +1611,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].copyrightHolder).toEqual('');
+      expect(result.data.plan.works[0].copyrightHolder).toEqual('');
     });
 
     it('should parse landing page', async () => {
@@ -1658,7 +1658,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].landingPage).toBe(landingPage);
+      expect(result.data.plan.works[0].landingPage).toBe(landingPage);
     });
 
     it('should return empty landing page if not provided', async () => {
@@ -1696,7 +1696,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].landingPage).toEqual('');
+      expect(result.data.plan.works[0].landingPage).toEqual('');
     });
 
     it('should return empty subjects if not provided', async () => {
@@ -1733,7 +1733,7 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].subjects).toEqual([]);
+      expect(result.data.plan.works[0].subjects).toEqual([]);
     });
 
     it('should parse llc subjects', async () => {
@@ -1778,10 +1778,10 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].subjects).toHaveLength(1);
-      expect(result.data.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.works[0].subjects[0].type).toBe(SubjectTypes.enum.Lcc);
-      expect(result.data.works[0].subjects[0].ordinal).toBe(1);
+      expect(result.data.plan.works[0].subjects).toHaveLength(1);
+      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
+      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Lcc);
+      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
     });
 
     it('should parse bisac subjects', async () => {
@@ -1826,10 +1826,10 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].subjects).toHaveLength(1);
-      expect(result.data.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.works[0].subjects[0].type).toBe(SubjectTypes.enum.Bisac);
-      expect(result.data.works[0].subjects[0].ordinal).toBe(1);
+      expect(result.data.plan.works[0].subjects).toHaveLength(1);
+      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
+      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Bisac);
+      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
     });
 
     it('should parse bic subjects', async () => {
@@ -1874,10 +1874,10 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].subjects).toHaveLength(1);
-      expect(result.data.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.works[0].subjects[0].type).toBe(SubjectTypes.enum.Bic);
-      expect(result.data.works[0].subjects[0].ordinal).toBe(1);
+      expect(result.data.plan.works[0].subjects).toHaveLength(1);
+      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
+      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Bic);
+      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
     });
 
     it('should parse keyword subjects', async () => {
@@ -1922,10 +1922,10 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].subjects).toHaveLength(1);
-      expect(result.data.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.works[0].subjects[0].type).toBe(SubjectTypes.enum.Keyword);
-      expect(result.data.works[0].subjects[0].ordinal).toBe(1);
+      expect(result.data.plan.works[0].subjects).toHaveLength(1);
+      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
+      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Keyword);
+      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
     });
 
     it('should parse thema subjects', async () => {
@@ -1970,10 +1970,10 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].subjects).toHaveLength(1);
-      expect(result.data.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.works[0].subjects[0].type).toBe(SubjectTypes.enum.Thema);
-      expect(result.data.works[0].subjects[0].ordinal).toBe(1);
+      expect(result.data.plan.works[0].subjects).toHaveLength(1);
+      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
+      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Thema);
+      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
     });
 
     it('should parse custom subjects', async () => {
@@ -2018,10 +2018,10 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].subjects).toHaveLength(1);
-      expect(result.data.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.works[0].subjects[0].type).toBe(SubjectTypes.enum.Custom);
-      expect(result.data.works[0].subjects[0].ordinal).toBe(1);
+      expect(result.data.plan.works[0].subjects).toHaveLength(1);
+      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
+      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Custom);
+      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
     });
 
     it('should parse multiple subjects', async () => {
@@ -2071,13 +2071,13 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.works[0].subjects).toHaveLength(2);
-      expect(result.data.works[0].subjects[0].code).toBe(subjectText2);
-      expect(result.data.works[0].subjects[0].type).toBe(SubjectTypes.enum.Lcc);
-      expect(result.data.works[0].subjects[0].ordinal).toBe(1);
-      expect(result.data.works[0].subjects[1].code).toBe(subjectText1);
-      expect(result.data.works[0].subjects[1].type).toBe(SubjectTypes.enum.Custom);
-      expect(result.data.works[0].subjects[1].ordinal).toBe(2);
+      expect(result.data.plan.works[0].subjects).toHaveLength(2);
+      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText2);
+      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Lcc);
+      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
+      expect(result.data.plan.works[0].subjects[1].code).toBe(subjectText1);
+      expect(result.data.plan.works[0].subjects[1].type).toBe(SubjectTypes.enum.Custom);
+      expect(result.data.plan.works[0].subjects[1].ordinal).toBe(2);
     });
 
     it('should return error if language is not provided', async () => {
@@ -2114,7 +2114,7 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('failed');
       expect(errorMessages(result).some((e) => e.includes('Language'))).toBe(true);
-      expect(result.data.works).toHaveLength(0);
+      expect(result.data.plan.works).toHaveLength(0);
     });
 
     it('should return error if language is not found', async () => {
@@ -2153,7 +2153,7 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('failed');
       expect(errorMessages(result).some((e) => e.includes('Language'))).toBe(true);
-      expect(result.data.works).toHaveLength(0);
+      expect(result.data.plan.works).toHaveLength(0);
     });
 
     it('should parse language if language is valid', async () => {
@@ -2192,9 +2192,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].languages).toHaveLength(1);
-      expect(result.data.works[0].languages[0].code).toBe(language);
-      expect(result.data.works[0].languages[0].relation).toBe(LanguageRelation.enum.Original);
+      expect(result.data.plan.works[0].languages).toHaveLength(1);
+      expect(result.data.plan.works[0].languages[0].code).toBe(language);
+      expect(result.data.plan.works[0].languages[0].relation).toBe(LanguageRelation.enum.Original);
       expect(errorMessages(result)).toHaveLength(0);
     });
 
@@ -2234,7 +2234,7 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].fundings).toHaveLength(0);
+      expect(result.data.plan.works[0].fundings).toHaveLength(0);
     });
 
     it('should parse funding if institution is found by ror', async () => {
@@ -2322,14 +2322,14 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].fundings).toHaveLength(1);
-      expect(result.data.works[0].fundings[0].institutionId).toBe(mockInstitution.id);
-      expect(result.data.works[0].fundings[0].institutionName).toBe(mockInstitution.name);
-      expect(result.data.works[0].fundings[0].institutionRor).toBe(mockInstitution.ror);
-      expect(result.data.works[0].fundings[0].program).toBe(program);
-      expect(result.data.works[0].fundings[0].projectName).toBe(projectName);
-      expect(result.data.works[0].fundings[0].projectShortname).toBe(projectShortname);
-      expect(result.data.works[0].fundings[0].grantNumber).toBe(grantNumber);
+      expect(result.data.plan.works[0].fundings).toHaveLength(1);
+      expect(result.data.plan.works[0].fundings[0].institutionId).toBe(mockInstitution.id);
+      expect(result.data.plan.works[0].fundings[0].institutionName).toBe(mockInstitution.name);
+      expect(result.data.plan.works[0].fundings[0].institutionRor).toBe(mockInstitution.ror);
+      expect(result.data.plan.works[0].fundings[0].program).toBe(program);
+      expect(result.data.plan.works[0].fundings[0].projectName).toBe(projectName);
+      expect(result.data.plan.works[0].fundings[0].projectShortname).toBe(projectShortname);
+      expect(result.data.plan.works[0].fundings[0].grantNumber).toBe(grantNumber);
       expect(errorMessages(result)).toHaveLength(0);
     });
 
@@ -2417,23 +2417,23 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].publications).toHaveLength(1);
-      expect(result.data.works[0].publications[0].height.toString()).toBe(height);
-      expect(result.data.works[0].publications[0].heightIn.toString()).toBe(heightIn);
-      expect(result.data.works[0].publications[0].width.toString()).toBe(width);
-      expect(result.data.works[0].publications[0].widthIn.toString()).toBe(widthIn);
-      expect(result.data.works[0].publications[0].depth.toString()).toBe(depth);
-      expect(result.data.works[0].publications[0].depthIn.toString()).toBe(depthIn);
-      expect(result.data.works[0].publications[0].weight.toString()).toBe(weight);
-      expect(result.data.works[0].publications[0].weightOz.toString()).toBe(weightOz);
-      expect(result.data.works[0].publications[0].isbn).toBe(isbn);
-      expect(result.data.works[0].publications[0].prices).toHaveLength(1);
-      expect(result.data.works[0].publications[0].prices[0].currencyCode).toBe(currencyCode);
-      expect(result.data.works[0].publications[0].prices[0].unitPrice.toString()).toBe(priceAmount);
-      expect(result.data.works[0].publications[0].locations).toHaveLength(1);
-      expect(result.data.works[0].publications[0].locations[0].landingPage).toBe(landingPage);
-      expect(result.data.works[0].publications[0].locations[0].fullTextUrl).toBe(fullTextUrl);
-      expect(result.data.works[0].publications[0].locations[0].locationPlatform).toBe(locationPlatform);
+      expect(result.data.plan.works[0].publications).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].height.toString()).toBe(height);
+      expect(result.data.plan.works[0].publications[0].heightIn.toString()).toBe(heightIn);
+      expect(result.data.plan.works[0].publications[0].width.toString()).toBe(width);
+      expect(result.data.plan.works[0].publications[0].widthIn.toString()).toBe(widthIn);
+      expect(result.data.plan.works[0].publications[0].depth.toString()).toBe(depth);
+      expect(result.data.plan.works[0].publications[0].depthIn.toString()).toBe(depthIn);
+      expect(result.data.plan.works[0].publications[0].weight.toString()).toBe(weight);
+      expect(result.data.plan.works[0].publications[0].weightOz.toString()).toBe(weightOz);
+      expect(result.data.plan.works[0].publications[0].isbn).toBe(isbn);
+      expect(result.data.plan.works[0].publications[0].prices).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].prices[0].currencyCode).toBe(currencyCode);
+      expect(result.data.plan.works[0].publications[0].prices[0].unitPrice.toString()).toBe(priceAmount);
+      expect(result.data.plan.works[0].publications[0].locations).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].locations[0].landingPage).toBe(landingPage);
+      expect(result.data.plan.works[0].publications[0].locations[0].fullTextUrl).toBe(fullTextUrl);
+      expect(result.data.plan.works[0].publications[0].locations[0].locationPlatform).toBe(locationPlatform);
     });
 
     it('should exclude isbn if it is not valid', async () => {
@@ -2474,8 +2474,8 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].publications).toHaveLength(1);
-      expect(result.data.works[0].publications[0].isbn).toBe('');
+      expect(result.data.plan.works[0].publications).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].isbn).toBe('');
     });
 
     it('should parse float numbers', async () => {
@@ -2560,22 +2560,22 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].publications).toHaveLength(1);
-      expect(result.data.works[0].publications[0].height.toString()).toBe(height);
-      expect(result.data.works[0].publications[0].heightIn.toString()).toBe(heightIn);
-      expect(result.data.works[0].publications[0].width.toString()).toBe(width);
-      expect(result.data.works[0].publications[0].widthIn.toString()).toBe(widthIn);
-      expect(result.data.works[0].publications[0].depth.toString()).toBe(depth);
-      expect(result.data.works[0].publications[0].depthIn.toString()).toBe(depthIn);
-      expect(result.data.works[0].publications[0].weight.toString()).toBe(weight);
-      expect(result.data.works[0].publications[0].weightOz.toString()).toBe(weightOz);
-      expect(result.data.works[0].publications[0].prices).toHaveLength(1);
-      expect(result.data.works[0].publications[0].prices[0].currencyCode).toBe(currencyCode);
-      expect(result.data.works[0].publications[0].prices[0].unitPrice.toString()).toBe(priceAmount);
-      expect(result.data.works[0].publications[0].locations).toHaveLength(1);
-      expect(result.data.works[0].publications[0].locations[0].landingPage).toBe(landingPage);
-      expect(result.data.works[0].publications[0].locations[0].fullTextUrl).toBe(fullTextUrl);
-      expect(result.data.works[0].publications[0].locations[0].locationPlatform).toBe(locationPlatform);
+      expect(result.data.plan.works[0].publications).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].height.toString()).toBe(height);
+      expect(result.data.plan.works[0].publications[0].heightIn.toString()).toBe(heightIn);
+      expect(result.data.plan.works[0].publications[0].width.toString()).toBe(width);
+      expect(result.data.plan.works[0].publications[0].widthIn.toString()).toBe(widthIn);
+      expect(result.data.plan.works[0].publications[0].depth.toString()).toBe(depth);
+      expect(result.data.plan.works[0].publications[0].depthIn.toString()).toBe(depthIn);
+      expect(result.data.plan.works[0].publications[0].weight.toString()).toBe(weight);
+      expect(result.data.plan.works[0].publications[0].weightOz.toString()).toBe(weightOz);
+      expect(result.data.plan.works[0].publications[0].prices).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].prices[0].currencyCode).toBe(currencyCode);
+      expect(result.data.plan.works[0].publications[0].prices[0].unitPrice.toString()).toBe(priceAmount);
+      expect(result.data.plan.works[0].publications[0].locations).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].locations[0].landingPage).toBe(landingPage);
+      expect(result.data.plan.works[0].publications[0].locations[0].fullTextUrl).toBe(fullTextUrl);
+      expect(result.data.plan.works[0].publications[0].locations[0].locationPlatform).toBe(locationPlatform);
     });
 
     it('should parse AJ publication', async () => {
@@ -2614,8 +2614,8 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].publications).toHaveLength(1);
-      expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Mp3);
+      expect(result.data.plan.works[0].publications).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].type).toBe(PublicationType.enum.Mp3);
     });
 
     it('should parse BB publication', async () => {
@@ -2654,8 +2654,8 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].publications).toHaveLength(1);
-      expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Hardback);
+      expect(result.data.plan.works[0].publications).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].type).toBe(PublicationType.enum.Hardback);
     });
 
     it('should parse BC publication', async () => {
@@ -2694,8 +2694,8 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].publications).toHaveLength(1);
-      expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Paperback);
+      expect(result.data.plan.works[0].publications).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].type).toBe(PublicationType.enum.Paperback);
     });
 
     it('should parse ED publication', async () => {
@@ -2734,8 +2734,8 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].publications).toHaveLength(1);
-      expect(result.data.works[0].publications[0].type).toBe(PublicationType.enum.Pdf);
+      expect(result.data.plan.works[0].publications).toHaveLength(1);
+      expect(result.data.plan.works[0].publications[0].type).toBe(PublicationType.enum.Pdf);
     });
 
     it('should return empty publications if product form is not valid', async () => {
@@ -2774,7 +2774,7 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].publications).toHaveLength(0);
+      expect(result.data.plan.works[0].publications).toHaveLength(0);
     });
 
     it('should parse series', async () => {
@@ -2819,13 +2819,12 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      const plan = result.data.series as SeriesImportPlan;
+      const plan = result.data.plan.series as SeriesImportPlan;
       expect(plan).toHaveLength(1);
       expect(plan[0].target).toEqual({ kind: 'existing', seriesId: serieses[0].id });
-      expect(plan[0].works).toHaveLength(1);
-      expect(plan[0].works[0].orderNumber).toBe(1);
-      expect(plan[0].works[0].id).toBe(result.data.works[0].id);
-      expect(plan[0].works[0].titles[0].title).toBe(title);
+      // Membership is a reference to the plan's own work, not a copy of it.
+      expect(plan[0].members).toEqual([{ workId: result.data.plan.works[0].id, orderNumber: 1 }]);
+      expect(result.data.plan.works[0].titles[0].title).toBe(title);
     });
 
     it('should parser references', async () => {
@@ -2884,9 +2883,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].references).toHaveLength(2);
-      expect(result.data.works[0].references[0].doi).toContain(relatedWorkDoi);
-      expect(result.data.works[0].references[1].doi).toContain(relatedProductDoi);
+      expect(result.data.plan.works[0].references).toHaveLength(2);
+      expect(result.data.plan.works[0].references[0].doi).toContain(relatedWorkDoi);
+      expect(result.data.plan.works[0].references[1].doi).toContain(relatedProductDoi);
     });
 
     it('should parse contributors', async () => {
@@ -2946,13 +2945,13 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].lastName).toBe(contributorLastName);
-      expect(result.data.works[0].contributions[0].firstName).toBe(contributorFirstName);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].orcidId).toBe(contributorOrcid);
-      expect(result.data.works[0].contributions[0].website).toBe(contributorWebsite);
-      expect(result.data.works[0].contributions[0].biographies[0].content).toBe(biography);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].lastName).toBe(contributorLastName);
+      expect(result.data.plan.works[0].contributions[0].firstName).toBe(contributorFirstName);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].orcidId).toBe(contributorOrcid);
+      expect(result.data.plan.works[0].contributions[0].website).toBe(contributorWebsite);
+      expect(result.data.plan.works[0].contributions[0].biographies[0].content).toBe(biography);
     });
 
     it('should parse A19 contributor role', async () => {
@@ -2998,9 +2997,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.AfterwordBy);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.AfterwordBy);
     });
 
     it('should parse A01 contributor role', async () => {
@@ -3046,9 +3045,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Author);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.Author);
     });
 
     it('should parse A32 contributor role', async () => {
@@ -3094,9 +3093,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.ContributionsBy);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.ContributionsBy);
     });
 
     it('should parse B01 contributor role', async () => {
@@ -3142,9 +3141,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Editor);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.Editor);
     });
 
     it('should parse A23 contributor role', async () => {
@@ -3190,9 +3189,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.ForewordBy);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.ForewordBy);
     });
 
     it('should parse A12 contributor role', async () => {
@@ -3238,9 +3237,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Illustrator);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.Illustrator);
     });
 
     it('should parse A34 contributor role', async () => {
@@ -3286,9 +3285,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Indexer);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.Indexer);
     });
 
     it('should parse A24 contributor role', async () => {
@@ -3334,9 +3333,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.IntroductionBy);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.IntroductionBy);
     });
 
     it('should parse A06 contributor role', async () => {
@@ -3382,9 +3381,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.MusicEditor);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.MusicEditor);
     });
 
     it('should parse A08 contributor role', async () => {
@@ -3430,9 +3429,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Photographer);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.Photographer);
     });
 
     it('should parse A15 contributor role', async () => {
@@ -3478,9 +3477,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.PrefaceBy);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.PrefaceBy);
     });
 
     it('should parse A51 contributor role', async () => {
@@ -3526,9 +3525,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.ResearchBy);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.ResearchBy);
     });
 
     it('should parse A30 contributor role', async () => {
@@ -3574,9 +3573,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.SoftwareBy);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.SoftwareBy);
     });
 
     it('should parse affiliation if institution is found by ror id', async () => {
@@ -3637,13 +3636,13 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[0].type).toBe(ContributorTypes.enum.Author);
-      expect(result.data.works[0].contributions[0].affiliations).toHaveLength(1);
-      expect(result.data.works[0].contributions[0].affiliations[0].position).toBe(affiliationPosition);
-      expect(result.data.works[0].contributions[0].affiliations[0].institutionName).toBe(mockInstitution.name);
-      expect(result.data.works[0].contributions[0].affiliations[0].rorId).toBe(contributorAffiliationRor);
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[0].type).toBe(ContributorTypes.enum.Author);
+      expect(result.data.plan.works[0].contributions[0].affiliations).toHaveLength(1);
+      expect(result.data.plan.works[0].contributions[0].affiliations[0].position).toBe(affiliationPosition);
+      expect(result.data.plan.works[0].contributions[0].affiliations[0].institutionName).toBe(mockInstitution.name);
+      expect(result.data.plan.works[0].contributions[0].affiliations[0].rorId).toBe(contributorAffiliationRor);
     });
 
     it('should parse multiple contributors', async () => {
@@ -3718,11 +3717,11 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works[0].contributions).toHaveLength(2);
-      expect(result.data.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.works[0].contributions[1].fullName).toBe(mockContributor.fullName);
+      expect(result.data.plan.works[0].contributions).toHaveLength(2);
+      expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.works[0].contributions[1].fullName).toBe(mockContributor.fullName);
 
-      const workId = result.data.works[0].id as WorkId;
+      const workId = result.data.plan.works[0].id as WorkId;
       const contributorsForSelection = result.data.contributorsForSelection as ContributorsForSelection;
       const workContributorsForSelection = contributorsForSelection[workId];
 
@@ -3789,13 +3788,13 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works).toHaveLength(1);
-      expect(result.data.chapters).toHaveLength(1);
-      expect(result.data.chapters[0].titles[0].title).toBe(chapterTitle);
-      expect(result.data.chapters[0].doi).toBe(appConfig.validations.doiPrefix + chapterDoi);
-      expect(result.data.chapters[0].pageCount).toBe(chapterPageCount);
-      expect(result.data.chapters[0].firstPage).toBe(chapterFirstPage.toString());
-      expect(result.data.chapters[0].lastPage).toBe(chapterLastPage.toString());
+      expect(result.data.plan.works).toHaveLength(1);
+      expect(result.data.plan.chapters).toHaveLength(1);
+      expect(result.data.plan.chapters[0].titles[0].title).toBe(chapterTitle);
+      expect(result.data.plan.chapters[0].doi).toBe(appConfig.validations.doiPrefix + chapterDoi);
+      expect(result.data.plan.chapters[0].pageCount).toBe(chapterPageCount);
+      expect(result.data.plan.chapters[0].firstPage).toBe(chapterFirstPage.toString());
+      expect(result.data.plan.chapters[0].lastPage).toBe(chapterLastPage.toString());
     });
 
     it('should parse chapters with contributors', async () => {
@@ -3850,19 +3849,33 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.works).toHaveLength(1);
-      expect(result.data.chapters).toHaveLength(1);
-      expect(result.data.chapters[0].titles[0].title).toBe(chapterTitle);
-      expect(result.data.chapters[0].contributions).toHaveLength(1);
-      expect(result.data.chapters[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.chapters[0].contributions[0].type).toBe(ContributorTypes.enum.AfterwordBy);
+      expect(result.data.plan.works).toHaveLength(1);
+      expect(result.data.plan.chapters).toHaveLength(1);
+      expect(result.data.plan.chapters[0].titles[0].title).toBe(chapterTitle);
+      expect(result.data.plan.chapters[0].contributions).toHaveLength(1);
+      expect(result.data.plan.chapters[0].contributions[0].fullName).toBe(contributorFullName);
+      expect(result.data.plan.chapters[0].contributions[0].type).toBe(ContributorTypes.enum.AfterwordBy);
     });
   });
   describe('repeatable and alternative ONIX structures', () => {
     const ARC_SERIES_ID = 'arc-companions-id';
     const ARC_SERIES_NAME = 'Arc Companions';
 
-    const seriesPlan = (result: Awaited<ReturnType<XMLParser['parse']>>) => result.data.series as SeriesImportPlan;
+    const seriesPlan = (result: Awaited<ReturnType<XMLParser['parse']>>) => result.data.plan.series as SeriesImportPlan;
+
+    /**
+     * A group's works, resolved through the plan the way the importer does: membership is a work
+     * id, and the work itself lives once, in `plan.works`.
+     */
+    const memberWorks = (result: Awaited<ReturnType<XMLParser['parse']>>, group?: SeriesImportGroup) =>
+      (group?.members ?? []).map(
+        ({ workId }) => result.data.plan.works.find((work) => work.id === workId) as WorkEntity,
+      );
+
+    const memberTitles = (result: Awaited<ReturnType<XMLParser['parse']>>, group?: SeriesImportGroup) =>
+      memberWorks(result, group).map((work) => work.titles[0].title);
+
+    const memberOrdinals = (group?: SeriesImportGroup) => (group?.members ?? []).map(({ orderNumber }) => orderNumber);
 
     const existingGroup = (result: Awaited<ReturnType<XMLParser['parse']>>, seriesId: string) =>
       seriesPlan(result).find(({ target }) => target.kind === 'existing' && target.seriesId === seriesId);
@@ -3942,7 +3955,7 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('success');
-        expect(result.data.works[0].languages).toEqual([
+        expect(result.data.plan.works[0].languages).toEqual([
           { code: 'ENG', relation: LanguageRelation.enum.Original, id: appConfig.defaultId },
         ]);
       });
@@ -3960,7 +3973,7 @@ describe('XMLParser', () => {
 
         expect(result.status).toBe('success');
         expect(errorMessages(result)).toHaveLength(0);
-        expect(result.data.works[0].languages).toHaveLength(2);
+        expect(result.data.plan.works[0].languages).toHaveLength(2);
       });
 
       it('maps English role 01 and Faroese role 02 to Original and TranslatedFrom', async () => {
@@ -3977,7 +3990,7 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('success');
-        expect(result.data.works[0].languages).toEqual([
+        expect(result.data.plan.works[0].languages).toEqual([
           { code: 'ENG', relation: LanguageRelation.enum.Original, id: appConfig.defaultId },
           { code: 'FAO', relation: LanguageRelation.enum.TranslatedFrom, id: appConfig.defaultId },
         ]);
@@ -3997,7 +4010,7 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('success');
-        expect(result.data.works[0].languages).toEqual([
+        expect(result.data.plan.works[0].languages).toEqual([
           { code: 'ENG', relation: LanguageRelation.enum.Original, id: appConfig.defaultId },
           { code: 'FRE', relation: LanguageRelation.enum.TranslatedFrom, id: appConfig.defaultId },
         ]);
@@ -4033,7 +4046,7 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('success');
-        expect(result.data.works[0].languages).toEqual([
+        expect(result.data.plan.works[0].languages).toEqual([
           { code: 'ENG', relation: LanguageRelation.enum.Original, id: appConfig.defaultId },
         ]);
       });
@@ -4126,7 +4139,7 @@ describe('XMLParser', () => {
         const result = await runParser([product]);
 
         expect(result.status).toBe('success');
-        expect(result.data.works[0].doi).toBe(appConfig.validations.doiPrefix + '10.12345/single');
+        expect(result.data.plan.works[0].doi).toBe(appConfig.validations.doiPrefix + '10.12345/single');
       });
 
       it('reads a single Measure emitted as an object', async () => {
@@ -4140,7 +4153,7 @@ describe('XMLParser', () => {
         const result = await runParser([product]);
 
         expect(result.status).toBe('success');
-        expect(result.data.works[0].publications[0].height).toBe(234);
+        expect(result.data.plan.works[0].publications[0].height).toBe(234);
       });
     });
 
@@ -4160,7 +4173,7 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('success');
-        expect(result.data.works[0].titles[0].title).toBe('Antiracist Medievalisms');
+        expect(result.data.plan.works[0].titles[0].title).toBe('Antiracist Medievalisms');
       });
 
       it('builds a complete title from TitlePrefix and TitleWithoutPrefix', async () => {
@@ -4178,8 +4191,8 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('success');
-        expect(result.data.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
-        expect(result.data.works[0].titles[0].fullTitle).toBe('A Companion to the Cavendishes');
+        expect(result.data.plan.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
+        expect(result.data.plan.works[0].titles[0].fullTitle).toBe('A Companion to the Cavendishes');
       });
 
       it('keeps the subtitle separate from a prefixed title', async () => {
@@ -4197,9 +4210,9 @@ describe('XMLParser', () => {
           }),
         ]);
 
-        expect(result.data.works[0].titles[0].title).toBe('The Medieval Womb');
-        expect(result.data.works[0].titles[0].subtitle).toBe('Gender and Power in the Premodern World');
-        expect(result.data.works[0].titles[0].fullTitle).toBe(
+        expect(result.data.plan.works[0].titles[0].title).toBe('The Medieval Womb');
+        expect(result.data.plan.works[0].titles[0].subtitle).toBe('Gender and Power in the Premodern World');
+        expect(result.data.plan.works[0].titles[0].fullTitle).toBe(
           'The Medieval Womb Gender and Power in the Premodern World',
         );
       });
@@ -4228,7 +4241,7 @@ describe('XMLParser', () => {
           }),
         ]);
 
-        expect(result.data.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
+        expect(result.data.plan.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
       });
 
       it('picks the product-level element when TitleElement is emitted as an array', async () => {
@@ -4244,7 +4257,119 @@ describe('XMLParser', () => {
           }),
         ]);
 
-        expect(result.data.works[0].titles[0].title).toBe('Companion to the Cavendishes');
+        expect(result.data.plan.works[0].titles[0].title).toBe('Companion to the Cavendishes');
+      });
+    });
+
+    describe('the shared import plan', () => {
+      const arcSerieses = () => [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)];
+
+      const chapteredProduct = (title: string, chapterTitle: string, seriesName?: string) =>
+        ({
+          ...buildProduct({
+            TitleDetail: { TitleElement: { TitleText: title } },
+            ...(seriesName ? { Collection: collection(seriesName) } : {}),
+          }),
+          ContentDetail: {
+            ContentItem: [
+              {
+                LevelSequenceNumber: '1',
+                TitleDetail: {
+                  TitleType: TitleType._01,
+                  TitleElement: { TitleElementLevel: TitleElementLevel._04, TitleWithoutPrefix: chapterTitle },
+                },
+              },
+            ],
+          },
+        }) as unknown as ExtendedProduct;
+
+      it('carries works, chapters and series in one plan', async () => {
+        const result = await runParser(
+          [chapteredProduct('First', 'Chapter one', ARC_SERIES_NAME), chapteredProduct('Second', 'Chapter two')],
+          arcSerieses(),
+        );
+
+        const { works, chapters, series } = result.data.plan;
+
+        expect(works.map((work) => work.titles[0].title)).toEqual(['First', 'Second']);
+        expect(chapters.map((chapter) => chapter.titles[0].title)).toEqual(['Chapter one', 'Chapter two']);
+        // Chapters point at the work they belong to, which is the work the plan holds.
+        expect(chapters.map((chapter) => chapter.relationId)).toEqual([works[0].id, works[1].id]);
+        expect(series).toEqual([
+          {
+            name: ARC_SERIES_NAME,
+            target: { kind: 'existing', seriesId: ARC_SERIES_ID },
+            members: [{ workId: works[0].id, orderNumber: 1 }],
+          },
+        ]);
+      });
+
+      it('keeps every series member pointing at a work the plan actually holds', async () => {
+        const result = await runParser(
+          [
+            buildProduct({
+              TitleDetail: { TitleElement: { TitleText: 'First' } },
+              Collection: collection(ARC_SERIES_NAME),
+            }),
+            buildProduct({ TitleDetail: { TitleElement: { TitleText: 'Second' } } }),
+            buildProduct({
+              TitleDetail: { TitleElement: { TitleText: 'Third' } },
+              Collection: collection('Borderlines'),
+            }),
+          ],
+          arcSerieses(),
+        );
+
+        const { works, series } = result.data.plan;
+        const workIds = new Set(works.map((work) => work.id));
+
+        expect(series.flatMap((group) => group.members).every(({ workId }) => workIds.has(workId))).toBe(true);
+      });
+
+      it('returns an empty plan and no contributor options when the parse fails', async () => {
+        const result = await runParser([
+          buildProduct(
+            {
+              TitleDetail: { TitleElement: { TitleText: 'Bad language' } },
+              Language: { LanguageRole: LanguageRole._01, LanguageCode: 'xyz' },
+            },
+            '9781641891783',
+          ),
+        ]);
+
+        expect(result.status).toBe('failed');
+        expect(result.data.plan).toEqual({ works: [], chapters: [], series: [] });
+        expect(result.data.contributorsForSelection).toEqual({});
+        expect(result.issues).toHaveLength(1);
+      });
+
+      it('returns a complete, runnable plan when the only findings are warnings', async () => {
+        const result = await runParser(
+          [
+            chapteredProduct('Kept', 'Chapter one', ARC_SERIES_NAME),
+            buildProduct({
+              TitleDetail: { TitleElement: { TitleText: 'Warned about' } },
+              Collection: collection('Editorial Studies', '11'),
+            }),
+          ],
+          arcSerieses(),
+        );
+
+        expect(result.status).toBe('success');
+        // A warning withholds nothing: both works, the chapter and the series group are all here.
+        expect(result.data.plan.works).toHaveLength(2);
+        expect(result.data.plan.chapters).toHaveLength(1);
+        expect(result.data.plan.series).toHaveLength(1);
+        expect(result.issues.map(({ severity }) => severity)).toEqual(['warning']);
+      });
+
+      it('gives each failed parse its own empty plan', async () => {
+        const failing = () => runParser([]);
+
+        const [first, second] = [await failing(), await failing()];
+
+        expect(first.data.plan).not.toBe(second.data.plan);
+        expect(first.data.plan.works).not.toBe(second.data.plan.works);
       });
     });
 
@@ -4265,8 +4390,8 @@ describe('XMLParser', () => {
 
         expect(result.status).toBe('success');
         expect(errorMessages(result)).toHaveLength(0);
-        expect(existingGroup(result, ARC_SERIES_ID)?.works).toHaveLength(1);
-        expect(existingGroup(result, ARC_SERIES_ID)?.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
+        expect(existingGroup(result, ARC_SERIES_ID)?.members).toHaveLength(1);
+        expect(memberTitles(result, existingGroup(result, ARC_SERIES_ID))[0]).toBe('A Companion to the Cavendishes');
       });
 
       it('no longer reports "Series not found" for a missing supported series', async () => {
@@ -4307,7 +4432,7 @@ describe('XMLParser', () => {
             type: SeriesType.enum.BookSeries,
           },
         });
-        expect(group.works).toHaveLength(1);
+        expect(group.members).toHaveLength(1);
       });
 
       it('is side-effect free: parsing twice yields the same plan and does not touch the series list', async () => {
@@ -4345,7 +4470,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('success');
-        expect(existingGroup(result, ARC_SERIES_ID)?.works).toHaveLength(1);
+        expect(existingGroup(result, ARC_SERIES_ID)?.members).toHaveLength(1);
       });
 
       it('ignores an ascribed collection rather than turning it into a series', async () => {
@@ -4375,7 +4500,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('success');
-        expect(existingGroup(result, ARC_SERIES_ID)?.works).toHaveLength(1);
+        expect(existingGroup(result, ARC_SERIES_ID)?.members).toHaveLength(1);
       });
 
       it('reports a collection whose title cannot be extracted', async () => {
@@ -4448,7 +4573,7 @@ describe('XMLParser', () => {
 
         // The work is kept, and nothing about it blocks the import.
         expect(result.status).toBe('success');
-        expect(result.data.works.map((work) => work.titles[0].title)).toEqual(['Ambiguous collection']);
+        expect(result.data.plan.works.map((work) => work.titles[0].title)).toEqual(['Ambiguous collection']);
         // No series is invented for it.
         expect(seriesPlan(result)).toHaveLength(0);
         expect(result.issues).toEqual([
@@ -4468,7 +4593,7 @@ describe('XMLParser', () => {
         const result = await runParser([member('Known series', collection(ARC_SERIES_NAME, '11'))], arcSerieses());
 
         expect(result.status).toBe('success');
-        expect(existingGroup(result, ARC_SERIES_ID)?.works).toHaveLength(1);
+        expect(existingGroup(result, ARC_SERIES_ID)?.members).toHaveLength(1);
         expect(result.issues).toEqual([]);
       });
 
@@ -4496,7 +4621,7 @@ describe('XMLParser', () => {
 
         expect(result.status).toBe('success');
         // Every work survives, in ONIX product order.
-        expect(result.data.works.map((work) => work.titles[0].title)).toEqual([
+        expect(result.data.plan.works.map((work) => work.titles[0].title)).toEqual([
           'First',
           'Unrelated',
           'Second',
@@ -4535,8 +4660,8 @@ describe('XMLParser', () => {
           series: { name: 'Studies in Things', imprintId: imprints[0].value },
         });
         // Both works belong to it, in product order, and nothing was left behind to warn about.
-        expect(proposedGroups(result)[0].works.map((work) => work.titles[0].title)).toEqual(['Work 1', 'Work 2']);
-        expect(proposedGroups(result)[0].works.map((work) => work.orderNumber)).toEqual([1, 2]);
+        expect(memberTitles(result, proposedGroups(result)[0])).toEqual(['Work 1', 'Work 2']);
+        expect(memberOrdinals(proposedGroups(result)[0])).toEqual([1, 2]);
         expect(result.issues).toEqual([]);
       });
 
@@ -4562,7 +4687,7 @@ describe('XMLParser', () => {
         });
         // The preview names the series the import will actually create.
         expect(proposedGroups(result)[0].name).toBe('Editorial Studies');
-        expect(proposedGroups(result)[0].works).toHaveLength(2);
+        expect(proposedGroups(result)[0].members).toHaveLength(2);
         expect(result.issues).toEqual([]);
       });
 
@@ -4593,8 +4718,8 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('success');
-        expect(result.data.works.map((work) => work.titles[0].title)).toEqual(['Normal', 'Warned about']);
-        expect(existingGroup(result, ARC_SERIES_ID)?.works).toHaveLength(1);
+        expect(result.data.plan.works.map((work) => work.titles[0].title)).toEqual(['Normal', 'Warned about']);
+        expect(existingGroup(result, ARC_SERIES_ID)?.members).toHaveLength(1);
         expect(result.issues.map(({ severity }) => severity)).toEqual(['warning']);
       });
 
@@ -4733,7 +4858,7 @@ describe('XMLParser', () => {
 
         expect(result.status).toBe('success');
         expect(proposedGroups(result)).toHaveLength(1);
-        expect(proposedGroups(result)[0].works).toHaveLength(3);
+        expect(proposedGroups(result)[0].members).toHaveLength(3);
         // The first spelling seen is the one stored, not a normalised one.
         expect(proposedGroups(result)[0].name).toBe('Arc Companions');
       });
@@ -4750,7 +4875,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('success');
-        expect(existingGroup(result, ARC_SERIES_ID)?.works).toHaveLength(1);
+        expect(existingGroup(result, ARC_SERIES_ID)?.members).toHaveLength(1);
         expect(proposedGroups(result)).toHaveLength(0);
       });
 
@@ -4829,7 +4954,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('success');
-        expect(existingGroup(result, 'series-exact')?.works).toHaveLength(1);
+        expect(existingGroup(result, 'series-exact')?.members).toHaveLength(1);
       });
 
       it('keeps the same name under different imprints valid and unambiguous', async () => {
@@ -4839,7 +4964,7 @@ describe('XMLParser', () => {
         );
 
         expect(result.status).toBe('success');
-        expect(existingGroup(result, 'series-a')?.works).toHaveLength(1);
+        expect(existingGroup(result, 'series-a')?.members).toHaveLength(1);
       });
 
       it('does not propose a new series when the existing match is merely ambiguous', async () => {
@@ -4929,7 +5054,7 @@ describe('XMLParser', () => {
 
         expect(result.status).toBe('success');
         expect(errorMessages(result)).toHaveLength(0);
-        expect(existingGroup(result, ARC_SERIES_ID)?.works.map((work) => work.orderNumber)).toEqual([4, 7]);
+        expect(memberOrdinals(existingGroup(result, ARC_SERIES_ID))).toEqual([4, 7]);
       });
 
       it('appends unnumbered works safely around explicit ordinals', async () => {
@@ -4941,7 +5066,7 @@ describe('XMLParser', () => {
         expect(result.status).toBe('success');
         expect(errorMessages(result)).toHaveLength(0);
         // Automatic ordinals start above every known ordinal, existing and explicit alike.
-        expect(existingGroup(result, ARC_SERIES_ID)?.works.map((work) => work.orderNumber)).toEqual([10, 9, 11]);
+        expect(memberOrdinals(existingGroup(result, ARC_SERIES_ID))).toEqual([10, 9, 11]);
       });
     });
 
@@ -4967,7 +5092,7 @@ describe('XMLParser', () => {
 
         expect(result.status).toBe('success');
         expect(seriesPlan(result)).toHaveLength(1);
-        expect(seriesPlan(result)[0].works.map((work) => work.titles[0].title)).toEqual(['Work 1', 'Work 2', 'Work 3']);
+        expect(memberTitles(result, seriesPlan(result)[0])).toEqual(['Work 1', 'Work 2', 'Work 3']);
       });
 
       it('deduplicates deterministically regardless of parse completion order', async () => {
@@ -4992,8 +5117,8 @@ describe('XMLParser', () => {
 
         expect(result.status).toBe('success');
         expect(seriesPlan(result)).toHaveLength(1);
-        expect(seriesPlan(result)[0].works.map((work) => work.titles[0].title)).toEqual(['Slow', 'Fast']);
-        expect(seriesPlan(result)[0].works.map((work) => work.orderNumber)).toEqual([1, 2]);
+        expect(memberTitles(result, seriesPlan(result)[0])).toEqual(['Slow', 'Fast']);
+        expect(memberOrdinals(seriesPlan(result)[0])).toEqual([1, 2]);
       });
 
       it('reuses an existing series rather than proposing a duplicate on a retried import', async () => {
@@ -5015,7 +5140,7 @@ describe('XMLParser', () => {
 
         expect(result.status).toBe('success');
         expect(proposedGroups(result)).toHaveLength(0);
-        expect(existingGroup(result, ARC_SERIES_ID)?.works.map((work) => work.orderNumber)).toEqual([2, 3]);
+        expect(memberOrdinals(existingGroup(result, ARC_SERIES_ID))).toEqual([2, 3]);
       });
     });
 
@@ -5032,13 +5157,13 @@ describe('XMLParser', () => {
           [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
         );
 
-        expect(existingGroup(result, ARC_SERIES_ID)?.works[0].orderNumber).toBe(7);
+        expect(memberOrdinals(existingGroup(result, ARC_SERIES_ID))[0]).toBe(7);
       });
 
       it('preserves a CollectionSequenceNumber for a newly proposed series', async () => {
         const result = await runParser([memberProduct('Numbered work', '7')], []);
 
-        expect(proposedGroups(result)[0].works[0].orderNumber).toBe(7);
+        expect(memberOrdinals(proposedGroups(result)[0])[0]).toBe(7);
       });
 
       it('does not give every unnumbered work in a series the ordinal 1', async () => {
@@ -5047,7 +5172,7 @@ describe('XMLParser', () => {
           [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
         );
 
-        expect(existingGroup(result, ARC_SERIES_ID)?.works.map((work) => work.orderNumber)).toEqual([1, 2, 3]);
+        expect(memberOrdinals(existingGroup(result, ARC_SERIES_ID))).toEqual([1, 2, 3]);
       });
 
       it('starts a newly proposed empty series at ordinal 1 and appends deterministically', async () => {
@@ -5056,12 +5181,8 @@ describe('XMLParser', () => {
           [],
         );
 
-        expect(proposedGroups(result)[0].works.map((work) => work.orderNumber)).toEqual([1, 2, 3]);
-        expect(proposedGroups(result)[0].works.map((work) => work.titles[0].title)).toEqual([
-          'First work',
-          'Second work',
-          'Third work',
-        ]);
+        expect(memberOrdinals(proposedGroups(result)[0])).toEqual([1, 2, 3]);
+        expect(memberTitles(result, proposedGroups(result)[0])).toEqual(['First work', 'Second work', 'Third work']);
       });
 
       it('appends unnumbered works in ONIX product order', async () => {
@@ -5070,7 +5191,7 @@ describe('XMLParser', () => {
           [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
         );
 
-        expect(existingGroup(result, ARC_SERIES_ID)?.works.map((work) => work.titles[0].title)).toEqual([
+        expect(memberTitles(result, existingGroup(result, ARC_SERIES_ID))).toEqual([
           'First work',
           'Second work',
           'Third work',
@@ -5083,7 +5204,7 @@ describe('XMLParser', () => {
           [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME, [1, 2, 5])],
         );
 
-        expect(existingGroup(result, ARC_SERIES_ID)?.works.map((work) => work.orderNumber)).toEqual([6, 7]);
+        expect(memberOrdinals(existingGroup(result, ARC_SERIES_ID))).toEqual([6, 7]);
       });
 
       it('does not collide with an explicit ordinal supplied later in the same import', async () => {
@@ -5092,7 +5213,7 @@ describe('XMLParser', () => {
           [buildSeries(ARC_SERIES_ID, ARC_SERIES_NAME)],
         );
 
-        expect(existingGroup(result, ARC_SERIES_ID)?.works.map((work) => work.orderNumber)).toEqual([5, 4]);
+        expect(memberOrdinals(existingGroup(result, ARC_SERIES_ID))).toEqual([5, 4]);
       });
     });
 
@@ -5131,7 +5252,7 @@ describe('XMLParser', () => {
         ]);
 
         expect(result.status).toBe('success');
-        expect(result.data.chapters.map((chapter) => chapter.titles[0].title)).toEqual([
+        expect(result.data.plan.chapters.map((chapter) => chapter.titles[0].title)).toEqual([
           'Table of Contents',
           'List of Illustrations',
         ]);
@@ -5225,13 +5346,13 @@ describe('XMLParser', () => {
 
         expect(errorMessages(result)).toEqual([]);
         expect(result.status).toBe('success');
-        expect(result.data.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
-        expect(result.data.works[0].languages).toEqual([
+        expect(result.data.plan.works[0].titles[0].title).toBe('A Companion to the Cavendishes');
+        expect(result.data.plan.works[0].languages).toEqual([
           { code: 'ENG', relation: LanguageRelation.enum.Original, id: appConfig.defaultId },
           { code: 'FRE', relation: LanguageRelation.enum.TranslatedFrom, id: appConfig.defaultId },
         ]);
-        expect(result.data.chapters[0].titles[0].title).toBe('Table of Contents');
-        expect(existingGroup(result, ARC_SERIES_ID)?.works[0].orderNumber).toBe(3);
+        expect(result.data.plan.chapters[0].titles[0].title).toBe('Table of Contents');
+        expect(memberOrdinals(existingGroup(result, ARC_SERIES_ID))[0]).toBe(3);
       });
     });
   });

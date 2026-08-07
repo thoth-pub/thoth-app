@@ -178,16 +178,19 @@ describe('CSV bulk import, end to end', () => {
     // --- upload + preview -------------------------------------------------
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
-    expect(result.data.works.map((work) => work.titles[0].title)).toEqual(ROWS.map(({ title }) => title));
+    // The plan the parser produced is the plan the import runs: nothing is reassembled here.
+    const plan = result.data.plan;
 
-    const plan = result.data.series;
+    expect(plan.works.map((work) => work.titles[0].title)).toEqual(ROWS.map(({ title }) => title));
+    // A CSV import has no chapters.
+    expect(plan.chapters).toEqual([]);
 
     // The preview shows one series to be created and one existing series reused.
     expect(
-      plan.map((group) => ({
+      plan.series.map((group) => ({
         name: group.name,
         willBeCreated: group.target.kind === 'proposed',
-        ordinals: group.works.map((work) => work.orderNumber),
+        ordinals: group.members.map((member) => member.orderNumber),
       })),
     ).toEqual([
       // Neither row supplied an issue number, so the new series is numbered from 1.
@@ -200,7 +203,7 @@ describe('CSV bulk import, end to end', () => {
     expect(mutations).toEqual([]);
 
     // --- confirmation: exactly what PreviewStep hands to the mutation -----
-    await workService.bulkCreateWorks(result.data.works, plan, []);
+    await workService.bulkCreateWorks(plan);
 
     // --- created series ---------------------------------------------------
     const createSeriesCalls = mutationsNamed('CreateSeries');
@@ -235,11 +238,11 @@ describe('CSV bulk import, end to end', () => {
     const arcCompanions: SeriesEntity = { ...foundations, id: CREATED_SERIES_ID, name: 'Arc Companions', issues: [] };
 
     const result = await parseUpload([foundations, arcCompanions]);
-    const plan = result.data.series;
+    const plan = result.data.plan;
 
-    expect(plan.map((group) => group.target.kind)).toEqual(['existing', 'existing']);
+    expect(plan.series.map((group) => group.target.kind)).toEqual(['existing', 'existing']);
 
-    await workService.bulkCreateWorks(result.data.works, plan, []);
+    await workService.bulkCreateWorks(plan);
 
     expect(mutationsNamed('CreateSeries')).toHaveLength(0);
     expect(mutationsNamed('CreateIssue').map((call) => call.variables.data)).toEqual([

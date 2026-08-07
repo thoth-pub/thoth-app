@@ -25,7 +25,7 @@ vi.mock('@/src/shared/context', () => ({
   useServices: () => ({ contributorService: {}, institutionService: {} }),
 }));
 
-import type { ImportIssue } from '@/src/shared/types';
+import type { ImportIssue, ImportPlan } from '@/src/shared/types';
 import { getDefaultWork } from '@/src/shared/utils/work';
 
 import { CSVParse } from './CSVParse';
@@ -67,10 +67,20 @@ describe('CSVParse', () => {
       />,
     );
 
-  it('carries warnings through to the preview without treating them as a failure', async () => {
+  const planWith = (series: ImportPlan['series'] = []): ImportPlan => ({ works: [work], chapters: [], series });
+
+  it('carries the plan and its warnings through to the preview', async () => {
+    const series = [
+      {
+        name: 'Arc Companions',
+        target: { kind: 'existing' as const, seriesId: 'series-1' },
+        members: [{ workId: work.id, orderNumber: 2 }],
+      },
+    ];
+
     mockParse.mockResolvedValue({
       status: 'success',
-      data: { works: [work], series: [], contributorsForSelection: {} },
+      data: { plan: planWith(series), contributorsForSelection: {} },
       issues: [warning],
     });
 
@@ -80,8 +90,8 @@ describe('CSVParse', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
-    // CSV has no chapters, and the warnings ride alongside the works and the series plan.
-    expect(onPreview).toHaveBeenCalledWith([work], [], [], [warning]);
+    // One plan, with the series membership intact, and the warnings beside it rather than in it.
+    expect(onPreview).toHaveBeenCalledWith({ works: [work], chapters: [], series }, [warning]);
     expect(onValidationFailure).not.toHaveBeenCalled();
   });
 
@@ -95,7 +105,7 @@ describe('CSVParse', () => {
 
     mockParse.mockResolvedValue({
       status: 'failed',
-      data: { works: [], series: [], contributorsForSelection: {} },
+      data: { plan: { works: [], chapters: [], series: [] }, contributorsForSelection: {} },
       issues: [error],
     });
 
@@ -111,7 +121,7 @@ describe('CSVParse', () => {
   it('reports nothing when a clean file parses', async () => {
     mockParse.mockResolvedValue({
       status: 'success',
-      data: { works: [work], series: [], contributorsForSelection: {} },
+      data: { plan: planWith(), contributorsForSelection: {} },
       issues: [],
     });
 
@@ -121,7 +131,8 @@ describe('CSVParse', () => {
 
     await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
-    expect(onPreview).toHaveBeenCalledWith([work], [], [], []);
+    // A CSV import never has chapters.
+    expect(onPreview).toHaveBeenCalledWith({ works: [work], chapters: [], series: [] }, []);
     expect(onValidationFailure).not.toHaveBeenCalled();
   });
 });

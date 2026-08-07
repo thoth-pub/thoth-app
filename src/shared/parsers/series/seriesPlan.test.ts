@@ -198,7 +198,31 @@ describe('buildSeriesPlan', () => {
     );
 
     expect(plan.map((group) => group.name)).toEqual(['Beta', 'Alpha']);
-    expect(plan[0].works.map((work) => work.id)).toEqual(['w1', 'w3']);
+    expect(plan[0].members.map((member) => member.workId)).toEqual(['w1', 'w3']);
+  });
+
+  it('records membership as a reference, never as a copy of the work', () => {
+    const { plan } = buildSeriesPlan(
+      [
+        { work: makeWork('w1'), candidate: candidateOf({ sourceIndex: 1, ordinal: 4 }) },
+        { work: makeWork('w2'), candidate: candidateOf({ sourceIndex: 2 }) },
+      ],
+      [],
+      messages,
+    );
+
+    // Exactly two fields: which work, and its ordinal. A work's title, contributions and the
+    // rest live once, in the plan's own `works`, so there is no second copy to go stale.
+    expect(plan[0].members).toEqual([
+      { workId: 'w1', orderNumber: 4 },
+      { workId: 'w2', orderNumber: 5 },
+    ]);
+    expect(plan[0].members.flatMap((member) => Object.keys(member))).toEqual([
+      'workId',
+      'orderNumber',
+      'workId',
+      'orderNumber',
+    ]);
   });
 
   it('proposes a BookSeries for a name Thoth does not have', () => {
@@ -327,7 +351,7 @@ describe('buildSeriesPlan', () => {
           kind: 'proposed',
           series: { name: 'Foundations', imprintId: IMPRINT, type: 'BOOK_SERIES' },
         });
-        expect(plan[0].works.map((work) => work.id)).toEqual(['w1', 'w2']);
+        expect(plan[0].members.map((member) => member.workId)).toEqual(['w1', 'w2']);
         // Nothing was left behind, so there is nothing to warn about.
         expect(issues).toEqual([]);
       });
@@ -339,8 +363,8 @@ describe('buildSeriesPlan', () => {
         expect(refusalFirst.issues).toEqual([]);
         expect(refusalFirst.plan).toHaveLength(1);
         expect(refusalFirst.plan[0].target).toEqual(authorityFirst.plan[0].target);
-        expect(refusalFirst.plan[0].works.map((work) => work.orderNumber)).toEqual(
-          authorityFirst.plan[0].works.map((work) => work.orderNumber),
+        expect(refusalFirst.plan[0].members.map((member) => member.orderNumber)).toEqual(
+          authorityFirst.plan[0].members.map((member) => member.orderNumber),
         );
       });
 
@@ -374,7 +398,7 @@ describe('buildSeriesPlan', () => {
           });
           // What the preview shows is what will be created.
           expect(plan[0].name).toBe('Editorial Studies');
-          expect(plan[0].works).toHaveLength(2);
+          expect(plan[0].members).toHaveLength(2);
           expect(issues).toEqual([]);
         });
 
@@ -423,7 +447,7 @@ describe('buildSeriesPlan', () => {
         ]);
 
         // Explicit ordinals are preserved, and the unnumbered record is appended above them all.
-        expect(plan[0].works.map((work) => work.orderNumber)).toEqual([4, 10, 9]);
+        expect(plan[0].members.map((member) => member.orderNumber)).toEqual([4, 10, 9]);
         expect(issues).toEqual([]);
       });
 
@@ -490,7 +514,7 @@ describe('buildSeriesPlan', () => {
         candidateOf({ sourceIndex: 3 }),
       ]);
 
-      expect(plan[0].works.map((work) => work.orderNumber)).toEqual([1, 2, 3]);
+      expect(plan[0].members.map((member) => member.orderNumber)).toEqual([1, 2, 3]);
     });
 
     it('appends after the issues the series already has in Thoth', () => {
@@ -500,7 +524,7 @@ describe('buildSeriesPlan', () => {
         serieses,
       );
 
-      expect(plan[0].works.map((work) => work.orderNumber)).toEqual([6, 7]);
+      expect(plan[0].members.map((member) => member.orderNumber)).toEqual([6, 7]);
     });
 
     it('preserves explicit ordinals and reserves them before numbering automatically', () => {
@@ -510,7 +534,7 @@ describe('buildSeriesPlan', () => {
         candidateOf({ sourceIndex: 3 }),
       ]);
 
-      expect(plan[0].works.map((work) => work.orderNumber)).toEqual([11, 10, 12]);
+      expect(plan[0].members.map((member) => member.orderNumber)).toEqual([11, 10, 12]);
     });
 
     it('reports two records claiming the same explicit ordinal, and drops the group', () => {
@@ -575,7 +599,7 @@ describe('buildSeriesPlan', () => {
       const second = buildSeriesPlan(members, [], messages);
 
       expect(first.plan).toEqual(second.plan);
-      expect(first.plan.map((group) => group.works.map((work) => [work.id, work.orderNumber]))).toEqual([
+      expect(first.plan.map((group) => group.members.map((member) => [member.workId, member.orderNumber]))).toEqual([
         [
           ['w1', 1],
           ['w3', 2],

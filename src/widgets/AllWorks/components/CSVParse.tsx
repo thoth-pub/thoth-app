@@ -3,16 +3,15 @@
 import { Activity, useEffect, useEffectEvent, useState } from 'react';
 
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
-import { WorkEntity } from '@/src/entities/work/model/work.types';
 import { licenseOptions } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { CSVParser, TranslateFunction } from '@/src/shared/parsers';
-import { ContributorsForSelection, ImportIssue, SeriesImportPlan } from '@/src/shared/types';
+import { ContributorsForSelection, ImportIssue, ImportPlan } from '@/src/shared/types';
 import { CircularProgress } from '@/src/shared/ui';
-import { isCsv } from '@/src/shared/utils';
+import { createEmptyImportPlan, isCsv } from '@/src/shared/utils';
 
 import { getCsvConfig } from '../../../shared/parsers/CSVParser/getCsvConfig';
 import { ContributorsSelection } from './ContributorsSelection';
@@ -21,12 +20,7 @@ type CSVParseProps = {
   file: File;
   imprints: FormFieldOption[];
   serieses: SeriesEntity[];
-  onPreview?: (
-    works: WorkEntity[],
-    chapters: WorkEntity[],
-    serieses: SeriesImportPlan,
-    warnings: ImportIssue[],
-  ) => void;
+  onPreview?: (plan: ImportPlan, warnings: ImportIssue[]) => void;
   onValidationFailure?: (issues: ImportIssue[]) => void;
 };
 
@@ -40,8 +34,7 @@ export const CSVParse = (props: CSVParseProps) => {
   const translate = t as TranslateFunction;
 
   const [isValidatingFile, setIsValidatingFile] = useState(false);
-  const [works, setWorks] = useState<WorkEntity[]>([]);
-  const [seriesForUpdate, setSeriesForUpdate] = useState<SeriesImportPlan>([]);
+  const [plan, setPlan] = useState<ImportPlan>(createEmptyImportPlan);
   const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<ContributorsForSelection>({});
   // Held here rather than routed through contributor selection, which has no business reading
   // diagnostics: they are handed on unchanged when the user asks for the preview.
@@ -50,11 +43,10 @@ export const CSVParse = (props: CSVParseProps) => {
   const isFileUploaded = file && file.size > 0;
   const isCsvFile = isCsv(file);
 
-  const isDataEmpty = works.length === 0;
+  const isDataEmpty = plan.works.length === 0;
 
   const parseFile = useEffectEvent(async () => {
-    setWorks([]);
-    setSeriesForUpdate([]);
+    setPlan(createEmptyImportPlan());
     setMultipleFoundedContributors({});
     setWarnings([]);
     setIsValidatingFile(true);
@@ -79,8 +71,7 @@ export const CSVParse = (props: CSVParseProps) => {
       return;
     }
 
-    setWorks(result.data.works);
-    setSeriesForUpdate(result.data.series);
+    setPlan(result.data.plan);
     setMultipleFoundedContributors(result.data.contributorsForSelection);
     // A successful parse only ever carries warnings, and they are not a validation failure:
     // they travel with the data to the preview, where the user decides whether to go ahead.
@@ -94,8 +85,8 @@ export const CSVParse = (props: CSVParseProps) => {
     parseFile();
   }, [file, isFileUploaded, isCsvFile]);
 
-  const handleSubmit = async (works: WorkEntity[]) => {
-    onPreview?.(works, [], seriesForUpdate, warnings);
+  const handleSubmit = (resolvedPlan: ImportPlan) => {
+    onPreview?.(resolvedPlan, warnings);
   };
 
   return (
@@ -105,12 +96,7 @@ export const CSVParse = (props: CSVParseProps) => {
       </Activity>
 
       {!isDataEmpty && (
-        <ContributorsSelection
-          contributors={multipleFoundedContributors}
-          works={works}
-          chapters={[]}
-          onPreview={handleSubmit}
-        />
+        <ContributorsSelection contributors={multipleFoundedContributors} plan={plan} onPreview={handleSubmit} />
       )}
     </>
   );
