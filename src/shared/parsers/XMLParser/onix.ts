@@ -164,16 +164,6 @@ export const classifyCollectionType = (collectionType: OnixText | undefined): Co
 };
 
 /**
- * Normalises a series name for identity comparison only — never for storage or display.
- *
- * Deliberately conservative: surrounding whitespace is trimmed, runs of internal whitespace
- * are collapsed, and case is folded. Punctuation is left alone, because stripping it would
- * merge genuinely distinct series (`Foundations` vs `Foundations II`, or two series whose
- * names differ only by a colon).
- */
-export const normalizeSeriesName = (name: string): string => name.trim().replace(/\s+/g, ' ').toLowerCase();
-
-/**
  * Picks the Collection that represents the work's series.
  *
  * ONIX allows several Collection composites per product. Ascribed collections are excluded

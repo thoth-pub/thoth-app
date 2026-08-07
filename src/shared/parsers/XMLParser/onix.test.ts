@@ -3,14 +3,7 @@ import { CollectionType, TitleElementLevel } from '@5stones/onix/dist/enums';
 import { describe, expect, it } from 'vitest';
 
 import type { ExtendedCollection, ExtendedONIXMessageRoot, OnixTitleDetail } from './interfaces';
-import {
-  classifyCollectionType,
-  extractOnixTitle,
-  getOnixText,
-  normalizeSeriesName,
-  selectSeriesCollection,
-  toOnixArray,
-} from './onix';
+import { classifyCollectionType, extractOnixTitle, getOnixText, selectSeriesCollection, toOnixArray } from './onix';
 
 /**
  * Several cases below go through the real `@5stones/onix` parser rather than hand-built
@@ -201,20 +194,6 @@ describe('classifyCollectionType', () => {
     expect(classifyCollectionType(CollectionType._00)).toBe('ambiguous');
     expect(classifyCollectionType(CollectionType._11)).toBe('ambiguous');
     expect(classifyCollectionType(undefined)).toBe('ambiguous');
-  });
-});
-
-describe('normalizeSeriesName', () => {
-  it('folds case and collapses whitespace', () => {
-    expect(normalizeSeriesName('  Arc   Companions ')).toBe('arc companions');
-    expect(normalizeSeriesName('arc companions')).toBe('arc companions');
-  });
-
-  it('keeps punctuation, so distinct names stay distinct', () => {
-    expect(normalizeSeriesName('Collection Development, Cultural Heritage, and Digital Humanities')).not.toBe(
-      normalizeSeriesName('Collection Development: Cultural Heritage and Digital Humanities'),
-    );
-    expect(normalizeSeriesName('Foundations')).not.toBe(normalizeSeriesName('Foundations II'));
   });
 });
 
