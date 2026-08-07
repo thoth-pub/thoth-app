@@ -746,14 +746,78 @@ describe('CSVParser', () => {
       expect(result.data.series).toEqual([]);
     });
 
-    it.each(['0', '-1', '1.5', 'two'])('rejects the non-empty issue number %s', async (value) => {
-      const csv = buildCsv({ ...BASE, series_name: 'New Series', series_issue_number: value });
+    it.each(['0', '-1', '1.5', 'two', ' ', '1e3', 'Infinity'])(
+      'rejects the non-empty issue number %s',
+      async (value) => {
+        const csv = buildCsv({ ...BASE, series_name: 'New Series', series_issue_number: value });
+        const result = await makeParser(makeFile(csv)).parse();
+
+        // A whitespace-only cell is blank once trimmed, so it means "no explicit ordinal".
+        if (value.trim().length === 0) {
+          expect(result.status).toBe('success');
+
+          return;
+        }
+
+        expect(result.status).toBe('failed');
+        expect(result.errors.some((error) => error.includes('csvSeriesIssueNumberNotValid'))).toBe(true);
+        expect(result.errors.some((error) => error.includes(`"row":1`))).toBe(true);
+      },
+    );
+
+    // `issueOrdinal` is a GraphQL Int, so the boundary is the signed 32-bit maximum. Above it the
+    // API would reject the CreateIssue partway through an otherwise-successful import.
+    it('accepts the largest issue number the API can store', async () => {
+      const csv = buildCsv({ ...BASE, series_name: 'New Series', series_issue_number: '2147483647' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(ordinalsOf(result)).toEqual([2147483647]);
+    });
+
+    it('rejects an issue number one above what the API can store', async () => {
+      const csv = buildCsv({ ...BASE, series_name: 'New Series', series_issue_number: '2147483648' });
       const result = await makeParser(makeFile(csv)).parse();
 
       expect(result.status).toBe('failed');
       expect(result.errors.some((error) => error.includes('csvSeriesIssueNumberNotValid'))).toBe(true);
-      expect(result.errors.some((error) => error.includes(`"row":1`))).toBe(true);
     });
+  });
+
+  // -------------------------------------------------------------------------
+  // series_issue_number depends on series_name
+  // -------------------------------------------------------------------------
+  describe('series issue number without a series name', () => {
+    it('imports with no series when both fields are blank', async () => {
+      const csv = buildCsv({ ...BASE, series_name: '', series_issue_number: '' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.errors).toEqual([]);
+      expect(result.data.series).toEqual([]);
+    });
+
+    it('rejects a valid issue number that has no series to belong to', async () => {
+      const csv = buildCsv({ ...BASE, series_name: '', series_issue_number: '4' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('failed');
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('csvSeriesIssueNumberWithoutSeries');
+      expect(result.errors[0]).toContain('"value":"4"');
+      expect(result.errors[0]).toContain('"row":1');
+    });
+
+    it('rejects an invalid issue number that has no series to belong to', async () => {
+      const csv = buildCsv({ ...BASE, series_name: '', series_issue_number: 'two' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('failed');
+      // The missing series is the actionable problem, so it is reported once rather than
+      // alongside a complaint about the value's shape.
+      expect(result.errors).toEqual([expect.stringContaining('csvSeriesIssueNumberWithoutSeries')]);
+    });
+
   });
 
   // -------------------------------------------------------------------------
@@ -848,6 +912,51 @@ describe('CSVParser', () => {
 
       expect(result.status).toBe('failed');
       expect(result.errors.map((error) => error.match(/"row":(\d+)/)?.[1])).toEqual(['1', '2']);
+    });
+
+    it('orders publication errors by row even though they are raised after the awaited lookup', async () => {
+      // parsePublication runs after `await parseContributors`, so with row 1's lookup delayed
+      // row 2 reaches parsePublication first and pushes its error first. Both errors used to be
+      // filed under the synthetic row 0 and tie-broken by insertion order, which made the output
+      // depend on lookup completion order and left the messages with no row number at all.
+      const completions: string[] = [];
+
+      const getContributors = async (fullName: string) => {
+        await new Promise((resolve) => setTimeout(resolve, fullName === 'First Author' ? 30 : 0));
+        completions.push(fullName);
+
+        return [];
+      };
+
+      // Unit price is not numerically validated by getCsvConfig, so this is a parser-level error.
+      const priceRow = (title: string, firstName: string, unitPrice: string) => ({
+        ...BASE,
+        title,
+        publication_paperback_isbn: '9789800000007',
+        publication_paperback_price_1_currency_code: 'USD',
+        publication_paperback_price_1_unit_price: unitPrice,
+        contribution_1_first_name: firstName,
+        contribution_1_surname: 'Author',
+        contribution_1_role: 'AUTHOR',
+      });
+
+      const csv = buildCsvRows([
+        priceRow('First', 'First', 'not a price'),
+        priceRow('Second', 'Second', 'also not a price'),
+      ]);
+
+      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+      // Row 2 really did finish its lookup — and therefore its publication parsing — first.
+      expect(completions).toEqual(['Second Author', 'First Author']);
+
+      expect(result.status).toBe('failed');
+      expect(result.errors).toHaveLength(2);
+      expect(result.errors.map((error) => error.match(/"row":(\d+)/)?.[1])).toEqual(['1', '2']);
+      // Each message names its own row, rather than the synthetic row 0 or an empty string.
+      expect(result.errors[0]).toContain('csvFieldNotNumber');
+      expect(result.errors[0]).toContain('"row":1');
+      expect(result.errors[1]).toContain('"row":2');
     });
   });
 

@@ -233,6 +233,7 @@
     "csvSeriesDuplicateIssueNumber": "Der Reihe \"{{name}}\" wird die Ausgabennummer {{ordinal}} von mehr als einer Zeile zugewiesen: {{sources}}",
     "csvSeriesIssueNumberTaken": "Die Reihe \"{{name}}\" hat die Ausgabennummer {{ordinal}} bereits in Thoth, erneut angegeben von {{sources}}",
     "csvSeriesIssueNumberNotValid": "series_issue_number \"{{value}}\" ist keine ganze Zahl ab 1 in Zeile {{row}}",
+    "csvSeriesIssueNumberWithoutSeries": "series_issue_number \"{{value}}\" in Zeile {{row}} hat keinen series_name, zu dem sie gehören kann",
     "unsupportedFileType": "Nicht unterstütztes Dateiformat. Bitte laden Sie eine CSV- oder XML-Datei hoch.",
     "emptyFile": "Die hochgeladene Datei ist leer.",
     "titleRequired": "Titel ist erforderlich",

@@ -80,6 +80,12 @@ type CSVParseResult = {
   errors: string[];
 };
 
+/**
+ * The largest issue ordinal Thoth can store: `issueOrdinal` is a GraphQL `Int`, which the
+ * specification fixes at a signed 32-bit integer.
+ */
+const MAX_ISSUE_ORDINAL = 2147483647;
+
 /** What {@link CSVParser.parseRow} produces for one CSV row. */
 type ParsedRow = {
   work: WorkEntity;
@@ -93,9 +99,10 @@ export class CSVParser {
   /**
    * Errors are tagged with the row they came from because rows are parsed concurrently:
    * without the tag the order shown in the UI would depend on which row's contributor and
-   * institution lookups happened to finish first.
+   * institution lookups happened to finish first. The row is not optional — see
+   * {@link CSVParser.pushError}.
    */
-  private errors: { index: number; message: string }[] = [];
+  private errors: { row: number; message: string }[] = [];
   private parsedWorks: WorkEntity[] = [];
   private parsedSeries: SeriesImportPlan = [];
   private contributorsForSelection: ContributorsForSelection = {};
@@ -157,7 +164,8 @@ export class CSVParser {
       );
 
       this.parsedSeries = plan;
-      this.errors.push(...errors);
+      // The shared planner tags errors with a source index, which for CSV is the row number.
+      errors.forEach(({ index, message }) => this.pushError(index, message));
 
       if (this.errors.length > 0) {
         return {
@@ -186,19 +194,23 @@ export class CSVParser {
   }
 
   /**
-   * Fields parsed outside a row context (`parseSubjects`, `parsePublication`) have no row
-   * number of their own; tagging them with 0 keeps them ahead of row-tagged errors and, more
-   * importantly, keeps them in a fixed place.
+   * Every error this parser raises comes from one CSV data row, so the row number is required
+   * rather than optional. There is no synthetic bucket for errors that "have no row": a helper
+   * that cannot name its row would be a helper whose output order depends on which row's
+   * lookups finished first.
+   *
+   * File-level problems never reach here — `csv-file-validator` findings and the catch-all
+   * parsing failure are returned straight from `parse`, ahead of any row parsing.
    */
-  private pushError(rowNumber: number | undefined, message: string) {
-    this.errors.push({ index: rowNumber ?? 0, message });
+  private pushError(row: number, message: string) {
+    this.errors.push({ row, message });
   }
 
   /** Errors in CSV row order, then in the order they were raised within a row. */
   private sortedErrors(): string[] {
     return this.errors
       .map((error, order) => ({ ...error, order }))
-      .sort((a, b) => a.index - b.index || a.order - b.order)
+      .sort((a, b) => a.row - b.row || a.order - b.order)
       .map(({ message }) => message);
   }
 
@@ -218,7 +230,7 @@ export class CSVParser {
     const workId = this.generateId();
 
     const breakdown = this.parsePageBreakdownField(row, CSV_KEYS.PAGE_BREAKDOWN, rowNumber);
-    const { contributions, contributorsForSelection } = await this.parseContributors(row, workId);
+    const { contributions, contributorsForSelection } = await this.parseContributors(row, workId, rowNumber);
     const explicitPageCount = this.parseNumberField(row, CSV_KEYS.PAGE_COUNT, rowNumber);
     const imprintId = this.parseImprint(row, rowNumber);
 
@@ -259,8 +271,9 @@ export class CSVParser {
         CSV_KEYS.BISAC_SUBJECTS,
         CSV_KEYS.LCC_SUBJECTS,
         CSV_KEYS.KEYWORDS,
+        rowNumber,
       ),
-      publications: this.parsePublication(row),
+      publications: this.parsePublication(row, rowNumber),
       contributions,
     });
 
@@ -271,13 +284,13 @@ export class CSVParser {
     };
   }
 
-  private parseStringField(row: Row, field: keyof Row, rowNumber?: number) {
+  private parseStringField(row: Row, field: keyof Row, rowNumber: number) {
     const value = row[field];
 
     if (value === undefined) return '';
 
     if (typeof value !== 'string') {
-      this.pushError(rowNumber, this.t('errors.csvFieldNotString', { field, row: rowNumber ?? '' }));
+      this.pushError(rowNumber, this.t('errors.csvFieldNotString', { field, row: rowNumber }));
 
       return '';
     }
@@ -285,7 +298,7 @@ export class CSVParser {
     return value;
   }
 
-  private parseNumberField(row: Row, field: keyof Row, rowNumber?: number) {
+  private parseNumberField(row: Row, field: keyof Row, rowNumber: number) {
     const value = this.parseStringField(row, field, rowNumber);
 
     if (value.length === 0) {
@@ -295,7 +308,7 @@ export class CSVParser {
     const numberValue = parseInt(value);
 
     if (isNaN(numberValue)) {
-      this.pushError(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber ?? '' }));
+      this.pushError(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber }));
 
       return 1;
     }
@@ -303,7 +316,7 @@ export class CSVParser {
     return numberValue;
   }
 
-  private parseFloatNumberField(row: Row, field: keyof Row, rowNumber?: number) {
+  private parseFloatNumberField(row: Row, field: keyof Row, rowNumber: number) {
     const value = this.parseStringField(row, field, rowNumber);
 
     if (value.length === 0) {
@@ -313,7 +326,7 @@ export class CSVParser {
     const numberValue = parseFloat(value);
 
     if (isNaN(numberValue)) {
-      this.pushError(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber ?? '' }));
+      this.pushError(rowNumber, this.t('errors.csvFieldNotNumber', { field, row: rowNumber }));
 
       return 0;
     }
@@ -437,21 +450,22 @@ export class CSVParser {
     bisacSubjects: keyof Row,
     lccSubjects: keyof Row,
     keywordSubjects: keyof Row,
+    rowNumber: number,
   ) {
     const subjects: SubjectEntity[] = [];
-    const themeSubjectsValue = this.parseStringField(row, themeSubjects)
+    const themeSubjectsValue = this.parseStringField(row, themeSubjects, rowNumber)
       .split(',')
       .map((subject) => subject.trim());
-    const bicSubjectsValue = this.parseStringField(row, bicSubjects)
+    const bicSubjectsValue = this.parseStringField(row, bicSubjects, rowNumber)
       .split(',')
       .map((subject) => subject.trim());
-    const bisacSubjectsValue = this.parseStringField(row, bisacSubjects)
+    const bisacSubjectsValue = this.parseStringField(row, bisacSubjects, rowNumber)
       .split(',')
       .map((subject) => subject.trim());
-    const lccSubjectsValue = this.parseStringField(row, lccSubjects)
+    const lccSubjectsValue = this.parseStringField(row, lccSubjects, rowNumber)
       .split(',')
       .map((subject) => subject.trim());
-    const keywordSubjectsValue = this.parseStringField(row, keywordSubjects)
+    const keywordSubjectsValue = this.parseStringField(row, keywordSubjects, rowNumber)
       .split(',')
       .map((subject) => subject.trim());
 
@@ -513,21 +527,45 @@ export class CSVParser {
     return subjects;
   }
 
-  private parsePublication(row: Row) {
+  private parsePublication(row: Row, rowNumber: number) {
     const publications: PublicationEntity[] = [];
 
-    const paperbackIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_PAPERBACK_ISBN);
-    const paperbackCurrencyCode = this.parseStringField(row, CSV_KEYS.PUBLICATION_PAPERBACK_PRICE_1_CURRENCY_CODE);
-    const paperbackUnitPrice = this.parseFloatNumberField(row, CSV_KEYS.PUBLICATION_PAPERBACK_PRICE_1_UNIT_PRICE);
+    const paperbackIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_PAPERBACK_ISBN, rowNumber);
+    const paperbackCurrencyCode = this.parseStringField(
+      row,
+      CSV_KEYS.PUBLICATION_PAPERBACK_PRICE_1_CURRENCY_CODE,
+      rowNumber,
+    );
+    const paperbackUnitPrice = this.parseFloatNumberField(
+      row,
+      CSV_KEYS.PUBLICATION_PAPERBACK_PRICE_1_UNIT_PRICE,
+      rowNumber,
+    );
     const isPaperbackPriceFilled = paperbackCurrencyCode.length !== 0 && paperbackUnitPrice !== 0;
-    const hardbackIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_HARDBACK_ISBN);
-    const hardbackCurrencyCode = this.parseStringField(row, CSV_KEYS.PUBLICATION_HARDBACK_PRICE_1_CURRENCY_CODE);
-    const hardbackUnitPrice = this.parseFloatNumberField(row, CSV_KEYS.PUBLICATION_HARDBACK_PRICE_1_UNIT_PRICE);
+    const hardbackIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_HARDBACK_ISBN, rowNumber);
+    const hardbackCurrencyCode = this.parseStringField(
+      row,
+      CSV_KEYS.PUBLICATION_HARDBACK_PRICE_1_CURRENCY_CODE,
+      rowNumber,
+    );
+    const hardbackUnitPrice = this.parseFloatNumberField(
+      row,
+      CSV_KEYS.PUBLICATION_HARDBACK_PRICE_1_UNIT_PRICE,
+      rowNumber,
+    );
     const isHardbackPriceFilled = hardbackCurrencyCode.length !== 0 && hardbackUnitPrice !== 0;
-    const pdfIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_PDF_ISBN);
-    const pdfLocationLandingPage = this.parseStringField(row, CSV_KEYS.PUBLICATION_PDF_LOCATION_LANDING_PAGE);
-    const pdfLocationFullTextUrl = this.parseStringField(row, CSV_KEYS.PUBLICATION_PDF_LOCATION_FULL_TEXT_URL);
-    const pdfLocationPlatform = this.parseStringField(row, CSV_KEYS.PUBLICATION_PDF_LOCATION_PLATFORM);
+    const pdfIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_PDF_ISBN, rowNumber);
+    const pdfLocationLandingPage = this.parseStringField(
+      row,
+      CSV_KEYS.PUBLICATION_PDF_LOCATION_LANDING_PAGE,
+      rowNumber,
+    );
+    const pdfLocationFullTextUrl = this.parseStringField(
+      row,
+      CSV_KEYS.PUBLICATION_PDF_LOCATION_FULL_TEXT_URL,
+      rowNumber,
+    );
+    const pdfLocationPlatform = this.parseStringField(row, CSV_KEYS.PUBLICATION_PDF_LOCATION_PLATFORM, rowNumber);
     const isPdfLocationFilled =
       pdfLocationLandingPage.length !== 0 || pdfLocationFullTextUrl.length !== 0 || pdfLocationPlatform.length !== 0;
 
@@ -613,8 +651,25 @@ export class CSVParser {
    */
   private parseSeries(row: Row, rowNumber: number, imprintId: string): SeriesCandidate | undefined {
     const seriesName = this.parseStringField(row, CSV_KEYS.SERIES_NAME, rowNumber).trim();
+    const issueNumber = this.parseStringField(row, CSV_KEYS.SERIES_ISSUE_NUMBER, rowNumber).trim();
 
-    if (seriesName.length === 0) return undefined;
+    if (seriesName.length === 0) {
+      // An issue ordinal names a work's position within a series, so without a series there is
+      // nothing for it to be an ordinal of. Silently dropping it would lose data the publisher
+      // meant to supply — most likely they forgot the series name, or misaligned a column.
+      if (issueNumber.length > 0) {
+        this.pushError(
+          rowNumber,
+          this.t('errors.csvSeriesIssueNumberWithoutSeries', { value: issueNumber, row: rowNumber }),
+        );
+      }
+
+      return undefined;
+    }
+
+    // Validated even when the imprint is unresolved, so a row never fails for the imprint alone
+    // and then fails again for the issue number on the next upload.
+    const ordinal = this.parseIssueNumber(issueNumber, rowNumber);
 
     // Without a resolved imprint we can neither scope the identity nor create a series. The
     // unresolved imprint is already reported by parseImprint, so stay quiet here.
@@ -626,7 +681,7 @@ export class CSVParser {
         imprintId,
         sourceIndex: rowNumber,
         sourceDescription: this.describeRow(rowNumber),
-        ordinal: this.parseIssueNumber(row, rowNumber),
+        ordinal,
         // A publisher naming a series in their own upload is asking for that series, so CSV is
         // always allowed to create one. ONIX has to be more careful, because a Collection may
         // be somebody else's grouping rather than the publisher's series.
@@ -637,7 +692,7 @@ export class CSVParser {
     );
 
     if ('error' in resolved) {
-      this.errors.push(resolved.error);
+      this.pushError(resolved.error.index, resolved.error.message);
 
       return undefined;
     }
@@ -651,29 +706,36 @@ export class CSVParser {
   }
 
   /**
-   * Reads `series_issue_number`, which is optional and means two different things.
+   * Reads an already-trimmed `series_issue_number`, which is optional and means two different
+   * things.
    *
    * Blank means the publisher supplied no ordinal at all, and the planner should allocate one
    * safely — not that the work is issue 0, which is what feeding a blank through the ordinary
-   * number parser used to produce. Anything else must be a positive whole number, because that
-   * is what a Thoth issue ordinal is; a non-empty value that is not one is a mistake worth
-   * reporting rather than rounding away.
+   * number parser used to produce.
+   *
+   * Anything else must be an ordinal Thoth can actually store. The digits-only pattern rules out
+   * signs, decimals, exponents and `Infinity` in one go, leaving magnitude as the only thing to
+   * bound. The bound comes from the schema rather than from taste: `issueOrdinal` is a GraphQL
+   * `Int`, which the specification defines as a signed 32-bit integer, so anything above
+   * {@link MAX_ISSUE_ORDINAL} would be rejected by the API partway through an import. (Thoth's
+   * own `positiveIntValidation` is not reused here: it is a form-field rule built on
+   * `z.coerce.number()`, so it accepts `1.5` and has no upper bound.)
    */
-  private parseIssueNumber(row: Row, rowNumber: number): number | undefined {
-    const value = this.parseStringField(row, CSV_KEYS.SERIES_ISSUE_NUMBER, rowNumber).trim();
-
+  private parseIssueNumber(value: string, rowNumber: number): number | undefined {
     if (value.length === 0) return undefined;
 
-    if (!/^\d+$/.test(value) || Number(value) < 1) {
+    const ordinal = Number(value);
+
+    if (!/^\d+$/.test(value) || ordinal < 1 || ordinal > MAX_ISSUE_ORDINAL) {
       this.pushError(rowNumber, this.t('errors.csvSeriesIssueNumberNotValid', { value, row: rowNumber }));
 
       return undefined;
     }
 
-    return Number(value);
+    return ordinal;
   }
 
-  private async parseContributors(row: Row, workId: WorkId) {
+  private async parseContributors(row: Row, workId: WorkId, rowNumber: number) {
     const contributors = new Array(appConfig.maxCsvContributorsCount).fill(null).map((_, index) => {
       const {
         FIRST_NAME,
@@ -686,14 +748,18 @@ export class CSVParser {
         AFFILIATION_INSTITUTION_ROR,
       } = getContributorFieldsByIndex(index + 1);
 
-      const contributorFirstName = this.parseStringField(row, FIRST_NAME as keyof Row);
-      const contributorLastName = this.parseStringField(row, LAST_NAME as keyof Row);
-      const contributorRole = this.parseStringField(row, ROLE as keyof Row);
-      const contributorBiography = this.parseStringField(row, BIOGRAPHY as keyof Row);
-      const contributorOrcid = this.parseStringField(row, ORCID as keyof Row);
-      const contributorWebsite = this.parseStringField(row, WEBSITE as keyof Row);
-      const contributorAffiliationPosition = this.parseStringField(row, AFFILIATION_POSITION as keyof Row);
-      const contributorAffiliationInstitutionRor = this.parseStringField(row, AFFILIATION_INSTITUTION_ROR as keyof Row);
+      const contributorFirstName = this.parseStringField(row, FIRST_NAME as keyof Row, rowNumber);
+      const contributorLastName = this.parseStringField(row, LAST_NAME as keyof Row, rowNumber);
+      const contributorRole = this.parseStringField(row, ROLE as keyof Row, rowNumber);
+      const contributorBiography = this.parseStringField(row, BIOGRAPHY as keyof Row, rowNumber);
+      const contributorOrcid = this.parseStringField(row, ORCID as keyof Row, rowNumber);
+      const contributorWebsite = this.parseStringField(row, WEBSITE as keyof Row, rowNumber);
+      const contributorAffiliationPosition = this.parseStringField(row, AFFILIATION_POSITION as keyof Row, rowNumber);
+      const contributorAffiliationInstitutionRor = this.parseStringField(
+        row,
+        AFFILIATION_INSTITUTION_ROR as keyof Row,
+        rowNumber,
+      );
 
       return {
         fullName: contributorFirstName + ' ' + contributorLastName,

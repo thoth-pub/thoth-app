@@ -233,6 +233,7 @@
     "csvSeriesDuplicateIssueNumber": "Series \"{{name}}\" is given issue number {{ordinal}} by more than one row: {{sources}}",
     "csvSeriesIssueNumberTaken": "Series \"{{name}}\" already has issue number {{ordinal}} in Thoth, supplied again by {{sources}}",
     "csvSeriesIssueNumberNotValid": "series_issue_number \"{{value}}\" is not a whole number of 1 or more in row {{row}}",
+    "csvSeriesIssueNumberWithoutSeries": "series_issue_number \"{{value}}\" in row {{row}} has no series_name to belong to",
     "unsupportedFileType": "Unsupported file type. Please upload a CSV or XML file.",
     "emptyFile": "The uploaded file is empty.",
     "titleRequired": "Title is required",

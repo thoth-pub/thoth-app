@@ -7,6 +7,7 @@ import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.s
 import { ContributionService } from '@/src/entities/contribution/api/contribution.service';
 import { ContributorService } from '@/src/entities/contributor';
 import { FundingService } from '@/src/entities/funding/api/funding.service';
+import { InstitutionService } from '@/src/entities/institution';
 import { LanguageService } from '@/src/entities/language/api/language.service';
 import { LocationService } from '@/src/entities/locations/api/location.service';
 import { PriceService } from '@/src/entities/price/api/price.service';
@@ -84,6 +85,8 @@ type MutationCall = { operation: string; variables: Record<string, unknown> };
 describe('CSV bulk import, end to end', () => {
   let graphqlService: GraphqlService;
   let workService: WorkService;
+  let contributorService: ContributorService;
+  let institutionService: InstitutionService;
   let mutations: MutationCall[];
   let createdWorkCount: number;
 
@@ -119,7 +122,12 @@ describe('CSV bulk import, end to end', () => {
       }),
     } as unknown as GraphqlService;
 
-    const contributorService = new ContributorService(graphqlService);
+    // Real services over the same stubbed transport: the GraphQL boundary is the only thing
+    // mocked for parser and service behaviour. `getContributors` and `getInstitutions` read
+    // their result off the query response, so the stub's empty payload gives them empty lists
+    // through their real mapping code rather than through a hand-written fake.
+    contributorService = new ContributorService(graphqlService);
+    institutionService = new InstitutionService(graphqlService);
 
     workService = new WorkService({
       graphqlService,
@@ -154,8 +162,8 @@ describe('CSV bulk import, end to end', () => {
       imprints,
       licenseOptions,
       serieses,
-      { getContributors: async () => [] } as never,
-      { getInstitutions: async () => [] } as never,
+      contributorService,
+      institutionService,
       t,
     );
 

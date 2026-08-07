@@ -233,6 +233,7 @@
     "csvSeriesDuplicateIssueNumber": "A série \"{{name}}\" recebe o número {{ordinal}} em mais de uma linha: {{sources}}",
     "csvSeriesIssueNumberTaken": "A série \"{{name}}\" já tem o número {{ordinal}} no Thoth, indicado novamente por {{sources}}",
     "csvSeriesIssueNumberNotValid": "series_issue_number \"{{value}}\" não é um número inteiro igual ou superior a 1 na linha {{row}}",
+    "csvSeriesIssueNumberWithoutSeries": "series_issue_number \"{{value}}\" na linha {{row}} não tem nenhum series_name a que pertencer",
     "unsupportedFileType": "Tipo de arquivo não suportado. Envie um arquivo CSV ou XML.",
     "emptyFile": "O arquivo carregado está vazio.",
     "titleRequired": "O título é obrigatório",
