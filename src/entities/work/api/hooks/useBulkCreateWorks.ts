@@ -49,6 +49,10 @@ const useBulkCreateWorks = () => {
       queryClient.invalidateQueries({ queryKey: [QueryKeys.series] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.serieses] });
       queryClient.invalidateQueries({ queryKey: [QueryKeys.seriesesCount] });
+      // The importer reads its series list from useAllUserSerieses, which is keyed separately
+      // from the admin list. Missing this key is what would let a retry propose a series the
+      // failed run had already created.
+      queryClient.invalidateQueries({ queryKey: [QueryKeys.allUserSerieses] });
     },
   });
 
