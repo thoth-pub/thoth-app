@@ -102,7 +102,8 @@ const AMBIGUOUS_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
  * One product in the shapes Thoth's own ONIX 3 exporter writes: the canonical title tagged with
  * the language its locale converts to, a second title as TitleType 06, the issue ordinal as
  * CollectionSequenceType 03 behind a sequence of another type, the work's other ISBN as relation
- * 06, and a citation as relation 34.
+ * 06, and a citation as relation 34 carrying the bare DOI — `Doi`'s Display strips the resolver,
+ * so a DOI leaves Thoth as `10.…` and never as a URL.
  */
 const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
@@ -172,11 +173,11 @@ const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
       </RelatedProduct>
       <RelatedProduct>
         <ProductRelationCode>34</ProductRelationCode>
-        <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>https://doi.org/10.1234/cited</IDValue></ProductIdentifier>
+        <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/cited</IDValue></ProductIdentifier>
       </RelatedProduct>
       <RelatedWork>
         <WorkRelationCode>29</WorkRelationCode>
-        <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>https://doi.org/10.1234/original</IDValue></WorkIdentifier>
+        <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/original</IDValue></WorkIdentifier>
       </RelatedWork>
     </RelatedMaterial>
   </Product>

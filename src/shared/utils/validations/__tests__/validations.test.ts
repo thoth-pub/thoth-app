@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 
-import { doiValidation, issnValidation, rorValidation, getRequiredStringValidation } from '../index';
+import { canonicaliseDoi, doiValidation, issnValidation, rorValidation, getRequiredStringValidation } from '../index';
 
 describe('doiValidation', () => {
   it('accepts a valid DOI', () => {
@@ -26,6 +26,58 @@ describe('doiValidation', () => {
   it('accepts empty/undefined values', () => {
     expect(doiValidation.safeParse(undefined).success).toBe(true);
     expect(doiValidation.safeParse('').success).toBe(true);
+  });
+});
+
+/**
+ * The accepted input forms come from `Doi::from_str` in `thoth-api/src/model/mod.rs`, which
+ * matches `[[http[s]://][www.][dx.]doi.org/]10.XXXX/XXX` case-insensitively and stores the
+ * identifier behind the canonical resolver. Anything the API rejects must not survive here either.
+ */
+describe('canonicaliseDoi', () => {
+  it('canonicalises a bare DOI', () => {
+    expect(canonicaliseDoi('10.1234/abc.def')).toBe('https://doi.org/10.1234/abc.def');
+  });
+
+  it('leaves a canonical DOI alone', () => {
+    expect(canonicaliseDoi('https://doi.org/10.1234/abc.def')).toBe('https://doi.org/10.1234/abc.def');
+  });
+
+  it('canonicalises the other resolver forms the API accepts', () => {
+    expect(canonicaliseDoi('http://doi.org/10.1234/abc')).toBe('https://doi.org/10.1234/abc');
+    expect(canonicaliseDoi('https://dx.doi.org/10.1234/abc')).toBe('https://doi.org/10.1234/abc');
+    expect(canonicaliseDoi('http://dx.doi.org/10.1234/abc')).toBe('https://doi.org/10.1234/abc');
+    expect(canonicaliseDoi('www.doi.org/10.1234/abc')).toBe('https://doi.org/10.1234/abc');
+    expect(canonicaliseDoi('doi.org/10.1234/abc')).toBe('https://doi.org/10.1234/abc');
+    // The API matches the resolver case-insensitively.
+    expect(canonicaliseDoi('HTTPS://DOI.ORG/10.1234/abc')).toBe('https://doi.org/10.1234/abc');
+  });
+
+  it('tolerates surrounding whitespace', () => {
+    expect(canonicaliseDoi('  10.1234/abc  ')).toBe('https://doi.org/10.1234/abc');
+  });
+
+  it('returns nothing for a value that is not a DOI', () => {
+    // The bug this exists to prevent: a prefix concatenated onto anything at all.
+    expect(canonicaliseDoi('not-a-doi')).toBe('');
+    expect(canonicaliseDoi('PROD-1234')).toBe('');
+    expect(canonicaliseDoi('9781641891783')).toBe('');
+    // A registrant code that is too short for the API's `10.\d{4,9}`.
+    expect(canonicaliseDoi('10.12/abc')).toBe('');
+    // A directory indicator with no suffix.
+    expect(canonicaliseDoi('10.1234/')).toBe('');
+    expect(canonicaliseDoi('https://example.org/10.1234/abc')).toBe('');
+  });
+
+  it('returns nothing for an empty value', () => {
+    expect(canonicaliseDoi('')).toBe('');
+    expect(canonicaliseDoi('   ')).toBe('');
+  });
+
+  it('only ever returns something the app already considers a valid DOI', () => {
+    ['10.1234/abc', 'https://dx.doi.org/10.1234/abc-def_ghi;1', 'doi.org/10.123456789/x'].forEach((input) => {
+      expect(doiValidation.safeParse(canonicaliseDoi(input)).success).toBe(true);
+    });
   });
 });
 

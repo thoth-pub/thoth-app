@@ -50,6 +50,7 @@ import type {
   TitleEntity,
 } from '../../types';
 import {
+  canonicaliseDoi,
   getContributorRoleFromXml,
   getDefaultAbstract,
   getDefaultChapter,
@@ -70,7 +71,13 @@ import {
   type SeriesCandidate,
   type SeriesPlanMessages,
 } from '../series/seriesPlan';
-import { ExtendedContributor, ExtendedONIXMessageRoot, ExtendedProduct, OnixRelatedProduct } from './interfaces';
+import {
+  ExtendedContributor,
+  ExtendedONIXMessageRoot,
+  ExtendedProduct,
+  OnixRelatedIdentifier,
+  OnixRelatedProduct,
+} from './interfaces';
 import {
   classifyCollectionType,
   extractOnixTitle,
@@ -78,9 +85,16 @@ import {
   getOnixLanguage,
   getOnixText,
   selectPublicationOrderSequence,
+  selectRelatedIdentifier,
   selectSeriesCollection,
   toOnixArray,
 } from './onix';
+
+/**
+ * The `IDTypeName` Thoth's ONIX exporter gives the proprietary identifier that holds a reference's
+ * unstructured citation. Compared lower-cased, so a sender's capitalisation does not matter.
+ */
+const UNSTRUCTURED_CITATION_NAME = 'unstructured citation';
 
 /**
  * How ONIX language roles (List 22) map onto Thoth's LanguageRelation.
@@ -270,9 +284,12 @@ class XMLParser {
   }
 
   /**
-   * Every ONIX issue raised while parsing belongs to one product, and every one of them blocks
-   * the import: the only warning this parser raises comes from the shared series planner, which
-   * has the whole group in hand and phrases it once.
+   * A product-scoped validation error, which blocks the import.
+   *
+   * This is the blocking path only. Warnings — which let the import proceed while saying what
+   * will not be represented — are pushed onto the same list from wherever the loss is noticed:
+   * `parseReferences` for a citation Thoth cannot store, and the shared series planner, which has
+   * the whole group in hand and phrases its own once.
    */
   private pushError(product: ExtendedProduct, index: number, message: string) {
     this.issues.push({
@@ -393,22 +410,38 @@ class XMLParser {
    * it anyway. A translated-from or rights language says nothing about what language the title is
    * written in. The answer has to be unambiguous — a multilingual edition declaring two languages
    * of text gives no basis for choosing one, so it gives nothing.
+   *
+   * Ambiguity is decided from what the file declared, not from what could be mapped. A product
+   * declaring `fre` and `nor` is a bilingual product whichever way Thoth models Norwegian, so it
+   * must not resolve to French merely because `nor` has no Thoth locale to collide with.
+   *
+   * Declarations are keyed by their locale where they have one, so duplicates collapse on what
+   * they mean rather than on how they are spelled — two spellings of one language would count
+   * once, out of the existing canonicalisation rather than a table of aliases. In practice Thoth's
+   * own language list is ISO 639-2/B only, so a product carrying both `fre` and `fra` fails
+   * `parseLanguages` before this matters; the keying is what keeps the rule principled rather
+   * than a behaviour to rely on. A declaration with no locale keeps its own code as its key, which
+   * is what keeps it in the count.
    */
   private parseTextLocale(product: ExtendedProduct): LocaleCodeType | undefined {
     const xmlLanguages = this.convertToArray(product.DescriptiveDetail?.Language).filter((language) => !!language);
+    const declarations = new Map<string, LocaleCodeType | undefined>();
 
-    const locales = new Set(
-      xmlLanguages
-        .filter((language) => {
-          const role = getOnixText(language.LanguageRole);
+    xmlLanguages
+      .filter((language) => {
+        const role = getOnixText(language.LanguageRole);
 
-          return role.length === 0 || role === LanguageRole._01;
-        })
-        .map((language) => localeFromLanguageCode(getOnixText(language.LanguageCode)))
-        .filter((locale) => locale !== undefined),
-    );
+        return role.length === 0 || role === LanguageRole._01;
+      })
+      .map((language) => getOnixText(language.LanguageCode).trim().toLowerCase())
+      .filter((code) => code.length > 0)
+      .forEach((code) => {
+        const locale = localeFromLanguageCode(code);
 
-    return locales.size === 1 ? [...locales][0] : undefined;
+        declarations.set(locale ?? code, locale);
+      });
+
+    return declarations.size === 1 ? [...declarations.values()][0] : undefined;
   }
 
   /**
@@ -1037,31 +1070,110 @@ class XMLParser {
   }
 
   /**
-   * The value of one identifier inside a RelatedProduct, found by type.
+   * The identifiers of one RelatedProduct, normalised.
    *
    * ProductIdentifier is repeatable, and Thoth's own exporter repeats it: an alternative-format
    * RelatedProduct carries the ISBN-13 and the GTIN-13 of the same book. Reading `.ProductIDType`
-   * off the composite without normalising would see an array and match nothing, and taking the
-   * first identifier would let an unrelated one hide the DOI behind it.
+   * off the composite without normalising would see an array and match nothing.
    */
-  private findRelatedIdentifier(relatedProduct: OnixRelatedProduct, type: ProductIdentifierType): string {
-    const identifiers = this.convertToArray(relatedProduct.ProductIdentifier).filter((identifier) => !!identifier);
-
-    return getOnixText(identifiers.find((identifier) => getOnixText(identifier.ProductIDType) === type)?.IDValue);
+  private relatedIdentifiers(relatedProduct: OnixRelatedProduct) {
+    return this.convertToArray(relatedProduct.ProductIdentifier).filter((identifier) => !!identifier);
   }
 
   /**
-   * A DOI as Thoth stores it: the resolver URL followed by the DOI itself.
+   * Whether a proprietary identifier is the one Thoth means as a citation.
    *
-   * ONIX may carry either form — Thoth's exporter writes the full URL, other senders write the
-   * bare `10.…` string — so the prefix is added only when there is a DOI and it does not already
-   * carry a resolver of its own. Nothing is prefixed onto an empty value: `https://doi.org/` is
-   * not a DOI, and a reference that has none must simply have none.
+   * ProductIDType 01 is "proprietary", which is a container for whatever the sender wants: a
+   * publisher's product code, an internal SKU, a distributor's key. Thoth's exporter narrows it
+   * with `IDTypeName` "Unstructured citation", and that name is the only thing distinguishing a
+   * citation from a stock number, so reading any proprietary identifier as citation text would
+   * put a SKU in a bibliography. The comparison tolerates case and surrounding whitespace and
+   * nothing else — an identifier with no name at all is not a citation.
    */
-  private normaliseReferenceDoi(doi: string): string {
-    if (doi.length === 0) return '';
+  private isUnstructuredCitation(identifier: OnixRelatedIdentifier): boolean {
+    return (
+      getOnixText(identifier.ProductIDType) === ProductIdentifierType._01 &&
+      getOnixText(identifier.IDTypeName).trim().toLowerCase() === UNSTRUCTURED_CITATION_NAME
+    );
+  }
 
-    return /^https?:\/\//i.test(doi) ? doi : this.doiPrefix + doi;
+  /** Says what one cited product lost, without failing the work over it. */
+  private warnAboutCitation(
+    product: ExtendedProduct,
+    index: number,
+    kind: 'unrepresentable' | 'unusable_identifier',
+    detail: string,
+  ) {
+    this.issues.push({
+      severity: 'warning',
+      code:
+        kind === 'unrepresentable' ? 'onix.reference.unrepresentable_citation' : 'onix.reference.unusable_identifier',
+      message: `A cited work in ${this.describeProduct(product, index)} ${detail}`,
+      source: this.productSource(product, index),
+    });
+  }
+
+  /**
+   * The DOI of one cited product, in the form Thoth stores, or nothing.
+   *
+   * A malformed value is dropped rather than dressed up: prefixing a resolver onto whatever
+   * arrived used to turn `not-a-doi` into `https://doi.org/not-a-doi`, which survives the import
+   * and fails at the API, where the Doi scalar parses it. The work is still importable without
+   * one cited work's DOI, so this warns and carries on.
+   */
+  private resolveReferenceDoi(identifiers: OnixRelatedIdentifier[], product: ExtendedProduct, index: number): string {
+    const selection = selectRelatedIdentifier(
+      identifiers,
+      (identifier) => getOnixText(identifier.ProductIDType) === ProductIdentifierType._06,
+    );
+
+    if (selection.kind === 'none') return '';
+
+    if (selection.kind === 'conflict') {
+      this.warnAboutCitation(
+        product,
+        index,
+        'unusable_identifier',
+        `supplies more than one DOI (${selection.values.join(', ')}), so the reference was imported without one`,
+      );
+
+      return '';
+    }
+
+    const doi = canonicaliseDoi(selection.value);
+
+    if (doi.length === 0) {
+      this.warnAboutCitation(
+        product,
+        index,
+        'unusable_identifier',
+        `supplies "${selection.value}" as a DOI, which Thoth cannot read as one, so the reference was imported without it`,
+      );
+    }
+
+    return doi;
+  }
+
+  /** The unstructured citation of one cited product, or nothing. */
+  private resolveReferenceCitation(
+    identifiers: OnixRelatedIdentifier[],
+    product: ExtendedProduct,
+    index: number,
+  ): string {
+    const selection = selectRelatedIdentifier(identifiers, (identifier) => this.isUnstructuredCitation(identifier));
+
+    if (selection.kind === 'value') return selection.value;
+
+    if (selection.kind === 'conflict') {
+      this.warnAboutCitation(
+        product,
+        index,
+        'unusable_identifier',
+        'supplies more than one unstructured citation, so the reference was imported without one',
+      );
+    }
+
+    return '';
   }
 
   /**
@@ -1084,19 +1196,17 @@ class XMLParser {
       .filter((relatedProduct) => getOnixText(relatedProduct.ProductRelationCode) === ProductRelation._34);
 
     citations.forEach((citation) => {
-      const doi = this.normaliseReferenceDoi(this.findRelatedIdentifier(citation, ProductIdentifierType._06));
-      // Thoth writes a reference that has no DOI as a proprietary identifier holding the
-      // unstructured citation, and a citation relation is the one context where a proprietary
-      // identifier can be read that way.
-      const unstructuredCitation = this.findRelatedIdentifier(citation, ProductIdentifierType._01);
+      const identifiers = this.relatedIdentifiers(citation);
+      const doi = this.resolveReferenceDoi(identifiers, product, index);
+      const unstructuredCitation = this.resolveReferenceCitation(identifiers, product, index);
 
       if (doi.length === 0 && unstructuredCitation.length === 0) {
-        this.issues.push({
-          severity: 'warning',
-          code: 'onix.reference.unrepresentable_citation',
-          message: `A cited work in ${this.describeProduct(product, index)} carries no DOI or citation text, so its citation metadata could not be represented and the reference was skipped`,
-          source: this.productSource(product, index),
-        });
+        this.warnAboutCitation(
+          product,
+          index,
+          'unrepresentable',
+          'carries no citation metadata Thoth can represent, so the reference was skipped',
+        );
 
         return;
       }

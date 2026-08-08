@@ -2,7 +2,7 @@ import { parse } from '@5stones/onix';
 import { CollectionSequenceType, CollectionType, TitleElementLevel, TitleType } from '@5stones/onix/dist/enums';
 import { describe, expect, it } from 'vitest';
 
-import type { ExtendedCollection, ExtendedONIXMessageRoot, OnixTitleDetail } from './interfaces';
+import type { ExtendedCollection, ExtendedONIXMessageRoot, OnixRelatedIdentifier, OnixTitleDetail } from './interfaces';
 import {
   classifyCollectionType,
   extractOnixTitle,
@@ -10,6 +10,7 @@ import {
   getOnixLanguage,
   getOnixText,
   selectPublicationOrderSequence,
+  selectRelatedIdentifier,
   selectSeriesCollection,
   toOnixArray,
 } from './onix';
@@ -427,9 +428,17 @@ describe('selectPublicationOrderSequence', () => {
     });
   });
 
+  it('reads a whole positive ordinal', () => {
+    expect(selectPublicationOrderSequence([sequence('11', '03')])).toEqual({ kind: 'ordinal', ordinal: 11 });
+    // Leading zeros are a formatting choice, not a different number.
+    expect(selectPublicationOrderSequence([sequence('0011', '03')])).toEqual({ kind: 'ordinal', ordinal: 11 });
+  });
+
   it('ignores numbers Thoth cannot use as an ordinal', () => {
-    expect(selectPublicationOrderSequence([sequence('0', '03'), sequence('', '03'), sequence('N/A', '03')])).toEqual({
-      kind: 'none',
+    // `parseInt` would read `11abc` as 11 and `1.5` as 1, inventing a confident issue ordinal out
+    // of a value the file got wrong.
+    ['0', '-1', '1.5', '11abc', 'N/A', '', ' '].forEach((number) => {
+      expect(selectPublicationOrderSequence([sequence(number, '03')])).toEqual({ kind: 'none' });
     });
   });
 
@@ -457,6 +466,87 @@ describe('selectPublicationOrderSequence', () => {
 
   it('returns nothing when the collection has no sequence', () => {
     expect(selectPublicationOrderSequence([])).toEqual({ kind: 'none' });
+  });
+});
+
+describe('selectRelatedIdentifier', () => {
+  const isDoi = (identifier: OnixRelatedIdentifier) => identifier.ProductIDType === '06';
+
+  it('reads the one matching identifier', () => {
+    const identifiers: OnixRelatedIdentifier[] = [
+      { ProductIDType: '15', IDValue: '9781641891783' },
+      { ProductIDType: '06', IDValue: '10.1234/abc' },
+    ];
+
+    expect(selectRelatedIdentifier(identifiers, isDoi)).toEqual({ kind: 'value', value: '10.1234/abc' });
+  });
+
+  it('does not depend on the order the file lists identifiers in', () => {
+    const identifiers: OnixRelatedIdentifier[] = [
+      { ProductIDType: '06', IDValue: '10.1234/abc' },
+      { ProductIDType: '15', IDValue: '9781641891783' },
+    ];
+
+    expect(selectRelatedIdentifier(identifiers, isDoi)).toEqual({ kind: 'value', value: '10.1234/abc' });
+  });
+
+  it('collapses repeats of the same value', () => {
+    const identifiers: OnixRelatedIdentifier[] = [
+      { ProductIDType: '06', IDValue: '10.1234/abc' },
+      { ProductIDType: '06', IDValue: '10.1234/abc' },
+    ];
+
+    expect(selectRelatedIdentifier(identifiers, isDoi)).toEqual({ kind: 'value', value: '10.1234/abc' });
+  });
+
+  it('reports two identifiers of one kind that disagree, whichever order they come in', () => {
+    // ONIX says a type should not repeat within one composite, but nothing validates the file on
+    // the way in, and picking the first would make the import depend on document order.
+    const forwards: OnixRelatedIdentifier[] = [
+      { ProductIDType: '06', IDValue: '10.1234/abc' },
+      { ProductIDType: '06', IDValue: '10.5678/def' },
+    ];
+
+    expect(selectRelatedIdentifier(forwards, isDoi)).toEqual({
+      kind: 'conflict',
+      values: ['10.1234/abc', '10.5678/def'],
+    });
+    expect(selectRelatedIdentifier([...forwards].reverse(), isDoi)).toEqual({
+      kind: 'conflict',
+      values: ['10.1234/abc', '10.5678/def'],
+    });
+  });
+
+  it('ignores matching identifiers with no value', () => {
+    expect(selectRelatedIdentifier([{ ProductIDType: '06' }], isDoi)).toEqual({ kind: 'none' });
+  });
+
+  it('returns nothing when nothing matches', () => {
+    expect(selectRelatedIdentifier([{ ProductIDType: '15', IDValue: '9781641891783' }], isDoi)).toEqual({
+      kind: 'none',
+    });
+    expect(selectRelatedIdentifier([], isDoi)).toEqual({ kind: 'none' });
+  });
+
+  it('reads identifiers parsed from real ONIX', () => {
+    const root = parse(
+      `<?xml version="1.0" encoding="UTF-8"?>
+       <ONIXMessage release="3.0"><Product><RecordReference>x</RecordReference><RelatedMaterial>
+         <RelatedProduct>
+           <ProductRelationCode>34</ProductRelationCode>
+           <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+           <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abc</IDValue></ProductIdentifier>
+         </RelatedProduct>
+       </RelatedMaterial></Product></ONIXMessage>`,
+    ) as ExtendedONIXMessageRoot;
+    const [product] = toOnixArray(root.ONIXMessage.Product);
+    const [relatedProduct] = toOnixArray(product.RelatedMaterial?.RelatedProduct);
+
+    expect(Array.isArray(relatedProduct.ProductIdentifier)).toBe(true);
+    expect(selectRelatedIdentifier(toOnixArray(relatedProduct.ProductIdentifier), isDoi)).toEqual({
+      kind: 'value',
+      value: '10.1234/abc',
+    });
   });
 });
 

@@ -46,7 +46,8 @@ export type ImportIssueCode =
   | 'onix.parsing_failed'
   | 'onix.no_products'
   | 'onix.series.non_publisher_collection_skipped'
-  | 'onix.reference.unrepresentable_citation';
+  | 'onix.reference.unrepresentable_citation'
+  | 'onix.reference.unusable_identifier';
 
 export type ImportIssue = {
   severity: ImportIssueSeverity;

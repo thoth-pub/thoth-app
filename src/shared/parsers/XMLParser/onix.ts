@@ -3,6 +3,7 @@ import { CollectionSequenceType, CollectionType, TitleElementLevel, TitleType } 
 import type {
   OnixCollectionLike,
   OnixCollectionSequence,
+  OnixRelatedIdentifier,
   OnixText,
   OnixTitleDetail,
   OnixTitleElement,
@@ -268,6 +269,43 @@ export const selectSeriesCollection = <T extends OnixCollectionLike>(collections
 };
 
 /**
+ * What a repeatable identifier composite says, once the caller has said which occurrences it
+ * means. `conflict` carries the disagreeing values rather than resolving them.
+ */
+export type OnixIdentifierSelection =
+  | { kind: 'none' }
+  | { kind: 'value'; value: string }
+  | { kind: 'conflict'; values: string[] };
+
+/**
+ * The value of one kind of identifier inside a RelatedProduct or RelatedWork.
+ *
+ * ONIX says an identifier composite must not repeat the same type within one parent, but files
+ * are not validated on the way in, and the whole reason this module exists is that assuming ONIX
+ * rules hold at runtime is how the importer broke before. Two occurrences agreeing collapse; two
+ * disagreeing are reported, because picking the first would make the imported reference depend on
+ * the order the file happened to list them in.
+ */
+export const selectRelatedIdentifier = (
+  identifiers: OnixRelatedIdentifier[],
+  matches: (identifier: OnixRelatedIdentifier) => boolean,
+): OnixIdentifierSelection => {
+  const values = [
+    ...new Set(
+      identifiers
+        .filter(matches)
+        .map((identifier) => getOnixText(identifier.IDValue))
+        .filter((value) => value.length > 0),
+    ),
+  ];
+
+  if (values.length === 0) return { kind: 'none' };
+  if (values.length === 1) return { kind: 'value', value: values[0] };
+
+  return { kind: 'conflict', values: values.sort() };
+};
+
+/**
  * What a Collection's sequences say about the work's position in its series.
  *
  * `conflict` carries the numbers that disagree so the caller can name them; it is not resolved
@@ -278,11 +316,23 @@ export type OnixSequenceSelection =
   | { kind: 'ordinal'; ordinal: number }
   | { kind: 'conflict'; ordinals: number[] };
 
-/** A sequence number Thoth can use: a positive whole ordinal. */
+/**
+ * A sequence number Thoth can use: a positive whole ordinal, and nothing that merely starts like
+ * one.
+ *
+ * `parseInt` is the wrong tool here. It reads `11abc` as 11 and `1.5` as 1, which would turn a
+ * malformed ONIX value into a confident issue ordinal — the file said something this importer
+ * does not understand, and inventing a plausible number from its first characters is worse than
+ * admitting that. Leading zeros are harmless and kept.
+ */
 const usableSequenceNumber = (sequence: OnixCollectionSequence): number | undefined => {
-  const parsed = parseInt(getOnixText(sequence.CollectionSequenceNumber), 10);
+  const value = getOnixText(sequence.CollectionSequenceNumber);
 
-  return Number.isNaN(parsed) || parsed <= 0 ? undefined : parsed;
+  if (!/^\d+$/.test(value)) return undefined;
+
+  const parsed = Number.parseInt(value, 10);
+
+  return parsed > 0 ? parsed : undefined;
 };
 
 /**
