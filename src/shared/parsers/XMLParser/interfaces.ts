@@ -44,9 +44,17 @@ export type OnixRepeatable<T> = T | T[];
 /**
  * A text element. `ignoreAttributes: false` means an element carrying any XML attribute is
  * emitted as an object holding the text under `#text`; the attributes themselves land on the
- * same object under `@_<name>` keys, which this importer never reads.
+ * same object under `@_<name>` keys.
+ *
+ * Only the attributes this importer reads are declared. `language` is the one that carries
+ * meaning Thoth can store: ONIX puts it on TitleText, Subtitle and Text, and it is how Thoth's
+ * own ONIX exporter writes a title's locale. Everything else an element may carry — `textformat`,
+ * `dateformat`, `collationkey` — stays undeclared until something reads it, so the type keeps
+ * saying what this parser understands rather than becoming an untyped bag.
  */
-export type OnixText = string | number | { '#text'?: string | number };
+export type OnixTextElement = { '#text'?: string | number; '@_language'?: string };
+
+export type OnixText = string | number | OnixTextElement;
 
 export interface OnixTitleElement {
   TitleElementLevel?: TitleElementLevel;
@@ -72,6 +80,16 @@ export interface OnixLanguage {
 export interface OnixCollectionLike {
   CollectionType?: CollectionType;
   TitleDetail?: OnixRepeatable<OnixTitleDetail>;
+}
+
+/**
+ * One CollectionSequence. The type says what the number counts — publication order, alphabetical
+ * order, the publisher's own arbitrary order — and the composite is repeatable, so a product can
+ * state several orderings of the same collection at once.
+ */
+export interface OnixCollectionSequence {
+  CollectionSequenceType?: CollectionSequenceType;
+  CollectionSequenceNumber?: OnixText;
 }
 
 export interface ExtendedContributor extends Contributor {
@@ -137,10 +155,7 @@ export interface ExtendedProductSupply extends ProductSupply {
 export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 'TitleDetail'>, OnixCollectionLike {
   CollectionType?: CollectionType;
   CollectionFrequency?: CollectionFrequencyCode;
-  CollectionSequence?: OnixRepeatable<{
-    CollectionSequenceType?: CollectionSequenceType;
-    CollectionSequenceNumber?: OnixText;
-  }>;
+  CollectionSequence?: OnixRepeatable<OnixCollectionSequence>;
   SourceName?: string;
   TitleDetail?: OnixRepeatable<OnixTitleDetail>;
   LevelSequenceNumber?: OnixText;
