@@ -1475,7 +1475,8 @@ describe('XMLParser', () => {
               } as ExtendedDescriptiveDetail,
               PublishingDetail: {
                 Imprint: { ImprintName: imprints[0].label },
-                PublishingStatus: '04',
+                // 16 Withdrawn: the only kind of work Thoth stores a withdrawn date for.
+                PublishingStatus: '16',
                 PublishingDate: [
                   { PublishingDateRole: PublishingDateRole._01, Date: { '#text': publicationDate } },
                   { PublishingDateRole: PublishingDateRole._13, Date: { '#text': withdrawnDate } },
@@ -6276,6 +6277,139 @@ describe('XMLParser', () => {
         );
 
         expect(result.data.plan.chapters[0].publicationDate).toBe('2024-08-07');
+      });
+
+      /**
+       * `WorkProperties::validate` stores a withdrawn date for exactly the out-of-print statuses:
+       * it demands one for those (`NoWithdrawnDateError`) and refuses one for every other status
+       * (`WithdrawnDateError`). A complete withdrawal date on a work that is not out of print is
+       * therefore a date with nowhere to go, and a plan that carried it would fail at `createWork`.
+       */
+      describe('against the work status', () => {
+        it('drops a withdrawn date an active work cannot store', async () => {
+          const result = await runFidelityParser(
+            productXml({
+              publishingStatus: '04',
+              publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '20250101', '00')}`,
+            }),
+          );
+
+          expect(result.status).toBe('success');
+          // The publication date is untouched: only the date the status has no room for goes.
+          expect(datesOf(result)).toEqual(['2024-08-07', '']);
+          expect(result.issues).toEqual([
+            {
+              severity: 'warning',
+              code: 'onix.date.incompatible_status',
+              message:
+                'Withdrawn date "2025-01-01" in product 1 (9781641891783) cannot be stored for a work with status ACTIVE, so it was not imported',
+              source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+            },
+          ]);
+        });
+
+        it('drops a withdrawn date a forthcoming work cannot store', async () => {
+          const result = await runFidelityParser(
+            productXml({ publishingStatus: '02', publishingDates: publishingDateXml('13', '20250101', '00') }),
+          );
+
+          expect(result.status).toBe('success');
+          expect(datesOf(result)[1]).toBe('');
+          expect(result.issues.map(({ code }) => code)).toEqual(['onix.date.incompatible_status']);
+          expect(result.issues[0].message).toContain('with status FORTHCOMING');
+        });
+
+        it('does not change the work status to make room for the date', async () => {
+          const result = await runFidelityParser(
+            productXml({ publishingStatus: '04', publishingDates: publishingDateXml('13', '20250101', '00') }),
+          );
+
+          expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Active);
+        });
+
+        it('keeps both dates on a withdrawn work', async () => {
+          const result = await runFidelityParser(
+            productXml({
+              publishingStatus: '16',
+              publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '20250101', '00')}`,
+            }),
+          );
+
+          expect(result.issues).toEqual([]);
+          expect(datesOf(result)).toEqual(['2024-08-07', '2025-01-01']);
+        });
+
+        it('keeps both dates on a superseded work', async () => {
+          const result = await runFidelityParser(
+            productXml({
+              publishingStatus: '21',
+              publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '20250101', '00')}`,
+            }),
+          );
+
+          expect(result.issues).toEqual([]);
+          expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Superseded);
+          expect(datesOf(result)).toEqual(['2024-08-07', '2025-01-01']);
+        });
+
+        it('refuses a withdrawal that precedes publication, whichever order the file lists them', async () => {
+          // Both fields are compulsory for a withdrawn work, so there is nothing to drop that
+          // would leave a mutation that could succeed. It blocks rather than warns.
+          const dates = [publishingDateXml('01', '20250101', '00'), publishingDateXml('13', '20240101', '00')];
+          const message =
+            'Withdrawn date 2024-01-01 is earlier than publication date 2025-01-01 in product 1 (9781641891783), which Thoth does not accept';
+
+          const forwards = await runFidelityParser(
+            productXml({ publishingStatus: '16', publishingDates: dates.join('') }),
+          );
+          const backwards = await runFidelityParser(
+            productXml({ publishingStatus: '16', publishingDates: [...dates].reverse().join('') }),
+          );
+
+          [forwards, backwards].forEach((result) => {
+            expect(result.status).toBe('failed');
+            expect(errorMessages(result)).toEqual([message]);
+          });
+        });
+
+        it('refuses the same chronology on a superseded work', async () => {
+          const result = await runFidelityParser(
+            productXml({
+              publishingStatus: '21',
+              publishingDates: `${publishingDateXml('01', '20250101', '00')}${publishingDateXml('13', '20240101', '00')}`,
+            }),
+          );
+
+          expect(result.status).toBe('failed');
+          expect(errorMessages(result)).toEqual([
+            'Withdrawn date 2024-01-01 is earlier than publication date 2025-01-01 in product 1 (9781641891783), which Thoth does not accept',
+          ]);
+        });
+
+        it('accepts a work withdrawn on the day it was published', async () => {
+          // The backend's rule is `withdrawn < publication`, not `<=`.
+          const result = await runFidelityParser(
+            productXml({
+              publishingStatus: '16',
+              publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '20240807', '00')}`,
+            }),
+          );
+
+          expect(result.issues).toEqual([]);
+          expect(datesOf(result)).toEqual(['2024-08-07', '2024-08-07']);
+        });
+
+        it('does not complain twice about a withdrawn date that was already unrepresentable', async () => {
+          // The status check runs on the resolved value, so a date already dropped as partial
+          // cannot also be reported as incompatible with a status it was never going to reach.
+          const result = await runFidelityParser(
+            productXml({ publishingStatus: '04', publishingDates: publishingDateXml('13', '2025', '05') }),
+          );
+
+          expect(result.status).toBe('success');
+          expect(datesOf(result)[1]).toBe('');
+          expect(result.issues.map(({ code }) => code)).toEqual(['onix.date.unrepresentable']);
+        });
       });
     });
 

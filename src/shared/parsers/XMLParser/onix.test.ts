@@ -16,6 +16,7 @@ import {
   getOnixDateFormat,
   getOnixLanguage,
   getOnixText,
+  isEarlierCalendarDate,
   readOnixDate,
   selectCanonicalDoi,
   selectPublicationOrderSequence,
@@ -796,6 +797,22 @@ describe('readOnixDate', () => {
 
   it('has nothing to read in an absent date', () => {
     expect(readOnixDate(undefined)).toBeUndefined();
+  });
+});
+
+describe('isEarlierCalendarDate', () => {
+  it('orders canonical dates by time, not by how they are spelled', () => {
+    expect(isEarlierCalendarDate('2024-01-01', '2025-01-01')).toBe(true);
+    expect(isEarlierCalendarDate('2025-01-01', '2024-01-01')).toBe(false);
+    // Fixed-width zero-padded fields are what makes a string comparison a date comparison: a
+    // September date must not sort after an October one because `9` > `1`.
+    expect(isEarlierCalendarDate('2024-09-30', '2024-10-01')).toBe(true);
+    expect(isEarlierCalendarDate('2024-08-09', '2024-08-10')).toBe(true);
+  });
+
+  it('is strict, as the backend is', () => {
+    // `WorkProperties::validate` rejects on `withdrawn < publication`, so the same day is fine.
+    expect(isEarlierCalendarDate('2024-08-07', '2024-08-07')).toBe(false);
   });
 });
 

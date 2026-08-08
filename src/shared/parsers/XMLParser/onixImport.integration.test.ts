@@ -522,6 +522,33 @@ describe('ONIX bulk import, end to end', () => {
     });
   });
 
+  it('never hands WorkService a withdrawn date the work status cannot hold', async () => {
+    // The same record, published rather than withdrawn. `WorkProperties::validate` refuses a
+    // withdrawn date on a work that is not out of print, so passing this one on would mean
+    // sending a mutation the parser already knew would fail.
+    const activeOnix = THOTH_SHAPED_ONIX.replace(
+      '<PublishingStatus>16</PublishingStatus>',
+      '<PublishingStatus>04</PublishingStatus>',
+    );
+
+    const result = await parseUpload([foundations], activeOnix);
+
+    expect(result.status).toBe('success');
+    expect(result.issues.map(({ severity, code }) => [severity, code])).toEqual([
+      ['warning', 'onix.date.incompatible_status'],
+    ]);
+
+    const plan = result.data.plan;
+
+    expect([plan.works[0].publicationDate, plan.works[0].withdrawnDate]).toEqual(['2024-08-07', '']);
+
+    await workService.bulkCreateWorks(plan);
+
+    mutationsNamed('CreateWork').forEach((call) =>
+      expect(call.variables.data).toMatchObject({ publicationDate: '2024-08-07', withdrawnDate: null }),
+    );
+  });
+
   it('a fresh parse reuses a series created by an earlier run', async () => {
     // Scope: this covers SERIES resolution only. It does not show that a repeated import is
     // idempotent — bulkCreateWorks calls createWork unconditionally and Thoth does not

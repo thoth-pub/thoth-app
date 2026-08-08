@@ -85,6 +85,7 @@ import {
   extractOnixTitlesOfType,
   getOnixLanguage,
   getOnixText,
+  isEarlierCalendarDate,
   MAX_ISSUE_ORDINAL,
   type OnixDateSelection,
   type OnixDoiSelection,
@@ -127,29 +128,49 @@ const LANGUAGE_ROLE_RELATIONS: Partial<Record<LanguageRole, LanguageEntity['rela
 };
 
 /**
- * The work statuses that make a publication date compulsory, and those that make a withdrawn date
- * compulsory.
+ * The work statuses `WorkProperties::validate` classifies, restated where the parser can apply
+ * them.
  *
- * These are not a UI preference: `WorkProperties::validate` in `thoth-api/src/model/work/mod.rs`
- * rejects a published work with no publication date (`PublicationDateError`) and an out-of-print
- * work with no withdrawn date (`NoWithdrawnDateError`), so a work in one of these statuses whose
- * date this importer had to drop cannot be created at all. That is what decides whether an
- * unrepresentable date is a warning or an error: dropping the date is only a partial import when
- * the work would still be valid without it.
+ * These are not a UI preference. `thoth-api/src/model/work/mod.rs` decides in four branches, all
+ * of which this parser has to respect, because a plan that breaks one of them is a plan whose
+ * `createWork` is already known to fail:
+ *
+ * - `PublicationDateError` — published (`is_published`) with no publication date;
+ * - `WithdrawnDateError` — *not* out of print (`is_out_of_print`) but carrying a withdrawn date;
+ * - `NoWithdrawnDateError` — out of print with no withdrawn date;
+ * - `WithdrawnDateBeforePublicationDateError` — both present and `withdrawn < publication`.
+ *
+ * The middle two are one rule read from both sides: a withdrawn date is stored for exactly the
+ * out-of-print statuses, so for those it is compulsory and for every other status it is refused.
+ * A publication date is not symmetric — it is compulsory for a published work, but a forthcoming
+ * work may perfectly well carry one, so only its absence is ever an error.
  */
-const STATUSES_REQUIRING_PUBLICATION_DATE: WorkStatus[] = [
+const PUBLISHED_STATUSES: WorkStatus[] = [
   WorkStatuses.enum.Active,
   WorkStatuses.enum.Withdrawn,
   WorkStatuses.enum.Superseded,
 ];
 
-const STATUSES_REQUIRING_WITHDRAWN_DATE: WorkStatus[] = [WorkStatuses.enum.Withdrawn, WorkStatuses.enum.Superseded];
+const OUT_OF_PRINT_STATUSES: WorkStatus[] = [WorkStatuses.enum.Withdrawn, WorkStatuses.enum.Superseded];
 
-/** The two PublishingDate roles Thoth has a field for, and how each is named in a diagnostic. */
-const DATE_ROLES = {
-  [PublishingDateRole._01]: { label: 'Publication date', required: STATUSES_REQUIRING_PUBLICATION_DATE },
-  [PublishingDateRole._13]: { label: 'Withdrawn date', required: STATUSES_REQUIRING_WITHDRAWN_DATE },
-} as const;
+type DateRoleContract = {
+  /** How the role is named in a diagnostic. */
+  label: string;
+  /** Statuses whose work the backend refuses when this date is missing. */
+  requiredFor: WorkStatus[];
+  /** Statuses whose work the backend refuses when this date is *present*, if any. */
+  storableFor?: WorkStatus[];
+};
+
+/** The two PublishingDate roles Thoth has a field for, and what the backend does with each. */
+const DATE_ROLES: Record<string, DateRoleContract> = {
+  [PublishingDateRole._01]: { label: 'Publication date', requiredFor: PUBLISHED_STATUSES },
+  [PublishingDateRole._13]: {
+    label: 'Withdrawn date',
+    requiredFor: OUT_OF_PRINT_STATUSES,
+    storableFor: OUT_OF_PRINT_STATUSES,
+  },
+};
 
 /** What {@link XMLParser.parseWork} produces for one ONIX product. */
 type ParsedProduct = {
@@ -736,36 +757,93 @@ class XMLParser {
    * complete ONIX day converts exactly — that is the Thoth round trip, `dateformat="00"` — and
    * anything coarser or malformed is refused rather than completed. Handing `2024` on unconverted
    * was enough for the mapper's `dayjs` to make it 1 January, and `20240230` to make it 1 March.
+   *
+   * Each role is resolved on its own first, because what a role says is a fact about that role
+   * alone; only then are the two answers checked against each other and against the work's status,
+   * which is where the rest of `WorkProperties::validate` lives.
    */
   private parseDates(product: ExtendedProduct, index: number, status: WorkStatus) {
     const dates = this.convertToArray(product.PublishingDetail?.PublishingDate).filter((date) => !!date);
 
-    return {
-      publicationDate: this.resolveDate(
-        selectPublishingDate(dates, PublishingDateRole._01),
+    const publicationDate = this.resolveDate(
+      selectPublishingDate(dates, PublishingDateRole._01),
+      product,
+      index,
+      status,
+      PublishingDateRole._01,
+    );
+
+    const withdrawnDate = this.resolveDate(
+      selectPublishingDate(dates, PublishingDateRole._13),
+      product,
+      index,
+      status,
+      PublishingDateRole._13,
+    );
+
+    return this.reconcileDates(publicationDate, withdrawnDate, product, index, status);
+  }
+
+  /**
+   * Holds the two resolved dates to the rules that involve both of them, or the work's status.
+   *
+   * A date can be a perfectly good calendar day and still be one Thoth cannot store *here*.
+   * `WorkProperties::validate` stores a withdrawn date for the out-of-print statuses and refuses
+   * one for every other status, so an active work that supplies a withdrawal date is a work whose
+   * `createWork` would fail — the date is representable, the combination is not. That is a loss of
+   * source metadata like any other, so the date is dropped and reported, and the work imports.
+   *
+   * A withdrawal that precedes publication is different in kind. Both fields are compulsory for
+   * the statuses that can reach this check, so there is nothing to drop that would leave a valid
+   * mutation: keeping either date alone still fails, and reordering or choosing between them would
+   * be inventing a history the file did not state. It blocks.
+   */
+  private reconcileDates(
+    publicationDate: string,
+    withdrawnDate: string,
+    product: ExtendedProduct,
+    index: number,
+    status: WorkStatus,
+  ) {
+    const productDescription = this.describeProduct(product, index);
+    const { storableFor } = DATE_ROLES[PublishingDateRole._13];
+
+    // Runs on the resolved value, so a withdrawn date that was already dropped as unrepresentable
+    // cannot collect a second complaint about the status it was never going to reach.
+    if (withdrawnDate.length > 0 && storableFor && !storableFor.includes(status)) {
+      this.issues.push({
+        severity: 'warning',
+        code: 'onix.date.incompatible_status',
+        message: `Withdrawn date "${withdrawnDate}" in ${productDescription} cannot be stored for a work with status ${status}, so it was not imported`,
+        source: this.productSource(product, index),
+      });
+
+      return { publicationDate, withdrawnDate: '' };
+    }
+
+    if (
+      publicationDate.length > 0 &&
+      withdrawnDate.length > 0 &&
+      isEarlierCalendarDate(withdrawnDate, publicationDate)
+    ) {
+      this.pushError(
         product,
         index,
-        status,
-        PublishingDateRole._01,
-      ),
-      withdrawnDate: this.resolveDate(
-        selectPublishingDate(dates, PublishingDateRole._13),
-        product,
-        index,
-        status,
-        PublishingDateRole._13,
-      ),
-    };
+        `Withdrawn date ${withdrawnDate} is earlier than publication date ${publicationDate} in ${productDescription}, which Thoth does not accept`,
+      );
+    }
+
+    return { publicationDate, withdrawnDate };
   }
 
   /**
    * Turns one role's date selection into the value to store, reporting what could not be used.
    *
    * Severity comes from the backend rather than from intuition. A work whose status makes the
-   * date compulsory cannot be created without it — see {@link STATUSES_REQUIRING_PUBLICATION_DATE}
-   * — so refusing the file here says so while the whole upload can still be fixed, rather than
-   * letting a guaranteed failure surface halfway through creating works. A work that is valid
-   * without the date is imported without it and the user is told.
+   * date compulsory cannot be created without it — see {@link DATE_ROLES} — so refusing the file
+   * here says so while the whole upload can still be fixed, rather than letting a guaranteed
+   * failure surface halfway through creating works. A work that is valid without the date is
+   * imported without it and the user is told.
    *
    * Two usable dates for one role are always an error, whatever the status: the sender has stated
    * two contradictory facts, and choosing the earlier, the later or the first would all be
@@ -778,7 +856,7 @@ class XMLParser {
     status: WorkStatus,
     role: keyof typeof DATE_ROLES,
   ): string {
-    const { label, required } = DATE_ROLES[role];
+    const { label, requiredFor } = DATE_ROLES[role];
     const productDescription = this.describeProduct(product, index);
 
     if (selection.kind === 'conflict') {
@@ -796,7 +874,7 @@ class XMLParser {
     selection.unrepresentable.forEach((value) => {
       const message = `${label} "${value}" in ${productDescription} is not a complete calendar date Thoth can store`;
 
-      if (date.length === 0 && required.includes(status)) {
+      if (date.length === 0 && requiredFor.includes(status)) {
         this.pushError(product, index, `${message}, and a work with status ${status} must have one`);
 
         return;

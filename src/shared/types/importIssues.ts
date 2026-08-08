@@ -55,7 +55,12 @@ export type ImportIssueCode =
    */
   | 'onix.identifier.unusable_doi'
   /** A publication or withdrawn date Thoth cannot store as a complete calendar date. */
-  | 'onix.date.unrepresentable';
+  | 'onix.date.unrepresentable'
+  /**
+   * A complete calendar date the work's status leaves nowhere to put — a withdrawal date on a
+   * work that is not out of print. The date is representable; the combination is not.
+   */
+  | 'onix.date.incompatible_status';
 
 export type ImportIssue = {
   severity: ImportIssueSeverity;

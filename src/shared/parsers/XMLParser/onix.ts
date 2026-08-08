@@ -433,6 +433,22 @@ export const readOnixDate = (value: OnixText | undefined): string | undefined =>
 };
 
 /**
+ * Whether one calendar date falls strictly before another.
+ *
+ * Both arguments are expected to come from {@link readOnixDate}, which only ever produces
+ * `YYYY-MM-DD`: a four-digit year, a two-digit month and a two-digit day, each zero-padded, with
+ * the separators always in the same columns. In that shape a string comparison *is* a date
+ * comparison — the fields run most significant first and every field occupies the same width in
+ * every value, so no two dates can compare differently from the way they fall in time. It would
+ * not be safe on ONIX's own `YYYYMMDD` for a year of fewer than four digits, which is exactly why
+ * `readOnixDate` refuses anything but eight digits.
+ *
+ * Strict, to match the backend's `withdrawn < publication`: a work withdrawn on the day it was
+ * published is accepted there and must be accepted here.
+ */
+export const isEarlierCalendarDate = (date: string, other: string): boolean => date < other;
+
+/**
  * What a product's PublishingDates say about one role.
  *
  * Shaped like {@link OnixDoiSelection} and for the same reasons: `unrepresentable` carries the
