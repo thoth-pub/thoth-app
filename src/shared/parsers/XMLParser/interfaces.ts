@@ -6,8 +6,10 @@ import {
   LanguageBasedOnIso6392b,
   LanguageRole,
   PriceType,
+  ProductRelation,
   TitleElementLevel,
   TitleType,
+  WorkRelation,
 } from '@5stones/onix/dist/enums';
 import {
   Contributor,
@@ -90,6 +92,35 @@ export interface OnixCollectionLike {
 export interface OnixCollectionSequence {
   CollectionSequenceType?: CollectionSequenceType;
   CollectionSequenceNumber?: OnixText;
+}
+
+/**
+ * An identifier inside a RelatedProduct or RelatedWork. Repeatable in both.
+ *
+ * The ID type stays a plain string, as upstream declares WorkIDType: it is read through
+ * {@link getOnixText} and compared against the code list, which is what a file that writes
+ * `<ProductIDType>06</ProductIDType>` with attributes needs anyway.
+ */
+export interface OnixRelatedIdentifier {
+  ProductIDType?: string;
+  WorkIDType?: string;
+  IDTypeName?: OnixText;
+  IDValue?: OnixText;
+}
+
+export interface OnixRelatedProduct {
+  ProductRelationCode?: ProductRelation;
+  ProductIdentifier?: OnixRepeatable<OnixRelatedIdentifier>;
+}
+
+export interface OnixRelatedWork {
+  WorkRelationCode?: WorkRelation;
+  WorkIdentifier?: OnixRepeatable<OnixRelatedIdentifier>;
+}
+
+export interface ExtendedRelatedMaterial {
+  RelatedWork?: OnixRepeatable<OnixRelatedWork>;
+  RelatedProduct?: OnixRepeatable<OnixRelatedProduct>;
 }
 
 export interface ExtendedContributor extends Contributor {
@@ -207,10 +238,12 @@ export interface ExtendedPublishingDetail extends PublishingDetail {
   Publisher?: ExtendedPublisher;
 }
 
-export interface ExtendedProduct extends Omit<Product, 'DescriptiveDetail' | 'ProductSupply' | 'PublishingDetail'> {
+export interface ExtendedProduct
+  extends Omit<Product, 'DescriptiveDetail' | 'ProductSupply' | 'PublishingDetail' | 'RelatedMaterial'> {
   DescriptiveDetail?: ExtendedDescriptiveDetail;
   PublishingDetail?: ExtendedPublishingDetail;
   ProductSupply?: ExtendedProductSupply;
+  RelatedMaterial?: ExtendedRelatedMaterial;
   ContentDetail?: {
     ContentItem?: OnixRepeatable<ExtendedCollection>;
   };

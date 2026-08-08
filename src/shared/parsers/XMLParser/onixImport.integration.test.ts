@@ -2,6 +2,7 @@
 import { parse } from '@5stones/onix';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { LocaleCode } from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { AbstractService } from '@/src/entities/abstract/api/abstract.service';
 import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.service';
@@ -97,6 +98,90 @@ const AMBIGUOUS_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
   ${product('9781641891783', 'A Companion to the Cavendishes', 'Editorial Studies', '11')}
 </ONIXMessage>`;
 
+/**
+ * One product in the shapes Thoth's own ONIX 3 exporter writes: the canonical title tagged with
+ * the language its locale converts to, a second title as TitleType 06, the issue ordinal as
+ * CollectionSequenceType 03 behind a sequence of another type, the work's other ISBN as relation
+ * 06, and a citation as relation 34.
+ */
+const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>9781641891783</RecordReference>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <CollectionSequence>
+          <CollectionSequenceType>02</CollectionSequenceType>
+          <CollectionSequenceNumber>1</CollectionSequenceNumber>
+        </CollectionSequence>
+        <CollectionSequence>
+          <CollectionSequenceType>03</CollectionSequenceType>
+          <CollectionSequenceNumber>7</CollectionSequenceNumber>
+        </CollectionSequence>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <TitleText>Foundations</TitleText>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <TitleText language="fre">L’Étranger</TitleText>
+          <Subtitle language="fre">Un roman</Subtitle>
+        </TitleElement>
+      </TitleDetail>
+      <TitleDetail>
+        <TitleType>06</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <TitleText language="eng">The Stranger</TitleText>
+        </TitleElement>
+      </TitleDetail>
+      <TitleDetail>
+        <TitleType>05</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <TitleText>INTERNAL_9781641891783</TitleText>
+        </TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>fre</LanguageCode></Language>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <TextContent>
+        <TextType>03</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text textformat="03">Une description longue.</Text>
+      </TextContent>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+    <RelatedMaterial>
+      <RelatedProduct>
+        <ProductRelationCode>06</ProductRelationCode>
+        <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
+        <ProductIdentifier><ProductIDType>03</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
+      </RelatedProduct>
+      <RelatedProduct>
+        <ProductRelationCode>34</ProductRelationCode>
+        <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>https://doi.org/10.1234/cited</IDValue></ProductIdentifier>
+      </RelatedProduct>
+      <RelatedWork>
+        <WorkRelationCode>29</WorkRelationCode>
+        <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>https://doi.org/10.1234/original</IDValue></WorkIdentifier>
+      </RelatedWork>
+    </RelatedMaterial>
+  </Product>
+</ONIXMessage>`;
+
 const foundations: SeriesEntity = {
   id: FOUNDATIONS_ID,
   name: 'Foundations',
@@ -150,6 +235,10 @@ describe('ONIX bulk import, end to end', () => {
             return { createIssue: { issueId: `issue-${mutations.length}` } };
           case 'CreateTitle':
             return { createTitle: { titleId: 'title-1', ...(variables.data as object) } };
+          case 'CreateAbstract':
+            return { createAbstract: { abstractId: 'abstract-1', ...(variables.data as object) } };
+          case 'CreateReference':
+            return { createReference: { referenceId: 'reference-1', ...(variables.data as object) } };
           case 'CreateLanguage':
             return { createLanguage: { languageId: 'language-1', ...(variables.data as object) } };
           case 'CreatePublication':
@@ -309,6 +398,50 @@ describe('ONIX bulk import, end to end', () => {
     expect(mutationsNamed('CreateWork')).toHaveLength(1);
     expect(mutationsNamed('CreateSeries')).toHaveLength(0);
     expect(mutationsNamed('CreateIssue')).toHaveLength(0);
+  });
+
+  it('carries ONIX title, locale, sequence and citation fidelity through to the mutations', async () => {
+    const result = await parseUpload([foundations], THOTH_SHAPED_ONIX);
+
+    expect(result.status).toBe('success');
+    expect(result.issues).toEqual([]);
+
+    // The plan the parser produced is the plan the import runs.
+    const plan = result.data.plan;
+    const [work] = plan.works;
+
+    // --- what the preview shows --------------------------------------------
+    expect(
+      work.titles.map(({ title, subtitle, canonical, localeCode }) => [title, subtitle, canonical, localeCode]),
+    ).toEqual([
+      ['L’Étranger', 'Un roman', true, LocaleCode.Fr],
+      ['The Stranger', '', false, LocaleCode.En],
+    ]);
+    // Thoth writes no `language` on abstract text, so the abstract follows the language of text.
+    expect(work.abstracts.map(({ localeCode }) => localeCode)).toEqual([LocaleCode.Fr]);
+    // The publication-order sequence, not the alphabetical one that came first.
+    expect(plan.series[0].members.map(({ orderNumber }) => orderNumber)).toEqual([7]);
+    // The other ISBN of the same book and the translated-from work are not citations.
+    expect(work.references.map(({ doi }) => doi)).toEqual(['https://doi.org/10.1234/cited']);
+
+    // --- confirmation -------------------------------------------------------
+    await workService.bulkCreateWorks(plan);
+
+    expect(mutationsNamed('CreateTitle').map((call) => call.variables.data)).toEqual([
+      expect.objectContaining({
+        title: 'L’Étranger',
+        subtitle: 'Un roman',
+        canonical: true,
+        localeCode: LocaleCode.Fr,
+      }),
+      expect.objectContaining({ title: 'The Stranger', canonical: false, localeCode: LocaleCode.En }),
+    ]);
+    expect(mutationsNamed('CreateIssue').map((call) => call.variables.data)).toEqual([
+      { seriesId: FOUNDATIONS_ID, workId: 'work-1', issueOrdinal: 7 },
+    ]);
+    expect(mutationsNamed('CreateReference').map((call) => call.variables.data)).toEqual([
+      expect.objectContaining({ doi: 'https://doi.org/10.1234/cited', referenceOrdinal: 1 }),
+    ]);
   });
 
   it('a fresh parse reuses a series created by an earlier run', async () => {

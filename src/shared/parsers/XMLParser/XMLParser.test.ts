@@ -2831,8 +2831,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
-      const relatedWorkDoi = faker.string.sample();
-      const relatedProductDoi = faker.string.sample();
+      const citedDoi = faker.string.sample();
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
@@ -2847,20 +2846,17 @@ describe('XMLParser', () => {
                 PublishingStatus: '04',
               } as ExtendedPublishingDetail,
               RelatedMaterial: {
+                // A translation of the work, which is a work relation and not a citation.
                 RelatedWork: [
                   {
-                    WorkIdentifier: {
-                      WorkIDType: '06',
-                      IDValue: relatedWorkDoi,
-                    },
+                    WorkRelationCode: '29',
+                    WorkIdentifier: { WorkIDType: '06', IDValue: faker.string.sample() },
                   },
                 ],
                 RelatedProduct: [
                   {
-                    ProductIdentifier: {
-                      ProductIDType: '06',
-                      IDValue: relatedProductDoi,
-                    },
+                    ProductRelationCode: '34',
+                    ProductIdentifier: { ProductIDType: '06', IDValue: citedDoi },
                   },
                 ],
               },
@@ -2883,9 +2879,9 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.plan.works[0].references).toHaveLength(2);
-      expect(result.data.plan.works[0].references[0].doi).toContain(relatedWorkDoi);
-      expect(result.data.plan.works[0].references[1].doi).toContain(relatedProductDoi);
+      // Only the cited product becomes a reference: the related work is a translation.
+      expect(result.data.plan.works[0].references).toHaveLength(1);
+      expect(result.data.plan.works[0].references[0].doi).toContain(citedDoi);
     });
 
     it('should parse contributors', async () => {
@@ -5353,6 +5349,718 @@ describe('XMLParser', () => {
         ]);
         expect(result.data.plan.chapters[0].titles[0].title).toBe('Table of Contents');
         expect(memberOrdinals(existingGroup(result, ARC_SERIES_ID))[0]).toBe(3);
+      });
+    });
+  });
+
+  /**
+   * ONIX fidelity: what the importer makes of the parts of a record that say what language
+   * something is in, where a work sits in its series, and which of the products listed beside it
+   * are actually cited.
+   *
+   * Everything here goes through the real `@5stones/onix` parser, because the whole point is what
+   * survives the journey from an XML attribute to a Thoth field.
+   */
+  describe('ONIX fidelity', () => {
+    const FIDELITY_IMPRINT = { label: 'Fidelity Press', value: '44444444-4444-4444-4444-444444444444' };
+    const FIDELITY_SERIES_ID = '55555555-5555-5555-5555-555555555555';
+
+    /** One product, with the parts each test cares about slotted in. */
+    const productXml = ({
+      titleDetails = '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Beowulf by All</TitleText></TitleElement></TitleDetail>',
+      languages:
+        productLanguages = '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>',
+      collateralDetail = '',
+      collection = '',
+      relatedMaterial = '',
+    }: {
+      titleDetails?: string;
+      languages?: string;
+      collateralDetail?: string;
+      collection?: string;
+      relatedMaterial?: string;
+    }) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>9781641891783</RecordReference>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      ${collection}
+      ${titleDetails}
+      ${productLanguages}
+    </DescriptiveDetail>
+    ${collateralDetail}
+    <PublishingDetail>
+      <Imprint><ImprintName>${FIDELITY_IMPRINT.label}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+    ${relatedMaterial}
+  </Product>
+</ONIXMessage>`;
+
+    const fidelitySeries = (name: string): SeriesEntity => ({
+      id: FIDELITY_SERIES_ID,
+      name,
+      type: SeriesType.enum.BookSeries,
+      issnPrint: '',
+      issnDigital: '',
+      updatedAt: '',
+      imprintId: FIDELITY_IMPRINT.value,
+      imprintName: FIDELITY_IMPRINT.label,
+      url: '',
+      cfpUrl: '',
+      description: '',
+      issues: [],
+    });
+
+    const runFidelityParser = async (xml: string, parserSerieses: SeriesEntity[] = []) => {
+      const parsed = (await parse(xml)) as ExtendedONIXMessageRoot;
+
+      return new XMLParser(
+        parsed,
+        [...imprints, FIDELITY_IMPRINT],
+        licenses,
+        parserSerieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      ).parse();
+    };
+
+    describe('title locale', () => {
+      it('takes the canonical title locale from the title language attribute', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            titleDetails: `<TitleDetail><TitleType>01</TitleType><TitleElement>
+              <TitleElementLevel>01</TitleElementLevel>
+              <TitleText language="fre">L’Étranger</TitleText>
+              <Subtitle language="fre">Un roman</Subtitle>
+            </TitleElement></TitleDetail>`,
+            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>fre</LanguageCode></Language>',
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(result.data.plan.works[0].titles[0]).toMatchObject({
+          canonical: true,
+          title: 'L’Étranger',
+          subtitle: 'Un roman',
+          localeCode: LanguageTypeAlt.enum.Fr,
+        });
+      });
+
+      it("falls back to the product's language of text when the title says nothing", async () => {
+        const result = await runFidelityParser(
+          productXml({
+            titleDetails: `<TitleDetail><TitleType>01</TitleType><TitleElement>
+              <TitleElementLevel>01</TitleElementLevel><TitleText>Don Quijote</TitleText>
+            </TitleElement></TitleDetail>`,
+            languages: `<Language><LanguageRole>01</LanguageRole><LanguageCode>spa</LanguageCode></Language>
+              <Language><LanguageRole>02</LanguageRole><LanguageCode>fre</LanguageCode></Language>`,
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        // The translated-from language is not what the title is written in.
+        expect(result.data.plan.works[0].titles[0].localeCode).toBe(LanguageTypeAlt.enum.Es);
+      });
+
+      it('prefers the title language attribute over the language of text', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            titleDetails: `<TitleDetail><TitleType>01</TitleType><TitleElement>
+              <TitleElementLevel>01</TitleElementLevel><TitleText language="ger">Der Fremde</TitleText>
+            </TitleElement></TitleDetail>`,
+            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>',
+          }),
+        );
+
+        expect(result.data.plan.works[0].titles[0].localeCode).toBe(LanguageTypeAlt.enum.De);
+      });
+
+      it('keeps the English fallback when neither the title nor the product resolves', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            // `nor` is Norwegian the macro-language; Thoth models nb and nn, so there is no safe
+            // answer and the historical fallback stands.
+            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>nor</LanguageCode></Language>',
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(result.data.plan.works[0].titles[0].localeCode).toBe(LanguageTypeAlt.enum.En);
+      });
+
+      it('gives no locale evidence when the product declares two languages of text', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            languages: `<Language><LanguageRole>01</LanguageRole><LanguageCode>fre</LanguageCode></Language>
+              <Language><LanguageRole>01</LanguageRole><LanguageCode>ger</LanguageCode></Language>`,
+          }),
+        );
+
+        expect(result.data.plan.works[0].titles[0].localeCode).toBe(LanguageTypeAlt.enum.En);
+      });
+    });
+
+    describe('alternate-language titles', () => {
+      it('imports TitleType 06 as a non-canonical title in its own locale', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            titleDetails: `<TitleDetail><TitleType>01</TitleType><TitleElement>
+                <TitleElementLevel>01</TitleElementLevel><TitleText language="fre">L’Étranger</TitleText>
+              </TitleElement></TitleDetail>
+              <TitleDetail><TitleType>06</TitleType><TitleElement>
+                <TitleElementLevel>01</TitleElementLevel><TitleText language="eng">The Stranger</TitleText>
+              </TitleElement></TitleDetail>`,
+            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>fre</LanguageCode></Language>',
+          }),
+        );
+
+        expect(
+          result.data.plan.works[0].titles.map(({ title, canonical, localeCode }) => ({
+            title,
+            canonical,
+            localeCode,
+          })),
+        ).toEqual([
+          { title: 'L’Étranger', canonical: true, localeCode: LanguageTypeAlt.enum.Fr },
+          { title: 'The Stranger', canonical: false, localeCode: LanguageTypeAlt.enum.En },
+        ]);
+      });
+
+      it('never imports a publisher’s internal title (TitleType 05)', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            titleDetails: `<TitleDetail><TitleType>01</TitleType><TitleElement>
+                <TitleElementLevel>01</TitleElementLevel>
+                <TitlePrefix language="eng">A</TitlePrefix>
+                <TitleWithoutPrefix language="eng">Companion to the Cavendishes</TitleWithoutPrefix>
+              </TitleElement></TitleDetail>
+              <TitleDetail><TitleType>05</TitleType><TitleElement>
+                <TitleElementLevel>01</TitleElementLevel>
+                <TitleWithoutPrefix language="eng">COMP_Hopkins-Cavendishes</TitleWithoutPrefix>
+              </TitleElement></TitleDetail>`,
+          }),
+        );
+
+        // Arc's shape: the Type 01 title is canonical, and the Type 05 title is nowhere.
+        expect(result.data.plan.works[0].titles).toHaveLength(1);
+        expect(result.data.plan.works[0].titles[0]).toMatchObject({
+          canonical: true,
+          title: 'A Companion to the Cavendishes',
+        });
+      });
+
+      it('preserves ONIX order among several alternate titles', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            titleDetails: `<TitleDetail><TitleType>01</TitleType><TitleElement>
+                <TitleElementLevel>01</TitleElementLevel><TitleText language="fre">L’Étranger</TitleText>
+              </TitleElement></TitleDetail>
+              <TitleDetail><TitleType>06</TitleType><TitleElement>
+                <TitleElementLevel>01</TitleElementLevel><TitleText language="ger">Der Fremde</TitleText>
+              </TitleElement></TitleDetail>
+              <TitleDetail><TitleType>06</TitleType><TitleElement>
+                <TitleElementLevel>01</TitleElementLevel><TitleText language="eng">The Stranger</TitleText>
+              </TitleElement></TitleDetail>`,
+            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>fre</LanguageCode></Language>',
+          }),
+        );
+
+        expect(result.data.plan.works[0].titles.map(({ title }) => title)).toEqual([
+          'L’Étranger',
+          'Der Fremde',
+          'The Stranger',
+        ]);
+      });
+
+      it('falls back to the product language for an alternate title that names none', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            titleDetails: `<TitleDetail><TitleType>01</TitleType><TitleElement>
+                <TitleElementLevel>01</TitleElementLevel><TitleText language="eng">The Stranger</TitleText>
+              </TitleElement></TitleDetail>
+              <TitleDetail><TitleType>06</TitleType><TitleElement>
+                <TitleElementLevel>01</TitleElementLevel><TitleText>Der Fremde</TitleText>
+              </TitleElement></TitleDetail>`,
+            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>ger</LanguageCode></Language>',
+          }),
+        );
+
+        // Not the canonical title's English, and not guessed from the text: the product's own.
+        expect(result.data.plan.works[0].titles[1]).toMatchObject({
+          title: 'Der Fremde',
+          canonical: false,
+          localeCode: LanguageTypeAlt.enum.De,
+        });
+      });
+
+      it('does not repeat a Type 06 title that had to serve as the canonical one', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            titleDetails: `<TitleDetail><TitleType>06</TitleType><TitleElement>
+                <TitleElementLevel>01</TitleElementLevel><TitleText language="ger">Der Fremde</TitleText>
+              </TitleElement></TitleDetail>`,
+          }),
+        );
+
+        expect(result.data.plan.works[0].titles).toHaveLength(1);
+        expect(result.data.plan.works[0].titles[0]).toMatchObject({ title: 'Der Fremde', canonical: true });
+      });
+    });
+
+    describe('abstract locale', () => {
+      const collateral = (short: string, long: string) => `<CollateralDetail>
+        <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>${short}</TextContent>
+        <TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>${long}</TextContent>
+      </CollateralDetail>`;
+
+      it('takes each abstract locale from its own Text element', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(
+              '<Text textformat="03" language="eng">A short description.</Text>',
+              '<Text textformat="03" language="fre">Une description longue.</Text>',
+            ),
+          }),
+        );
+
+        // Neither abstract inherits the other's language.
+        expect(
+          result.data.plan.works[0].abstracts.map(({ type, content, localeCode }) => ({ type, content, localeCode })),
+        ).toEqual([
+          {
+            type: AbstractTypes.enum.Long,
+            content: 'Une description longue.',
+            localeCode: LanguageTypeAlt.enum.Fr,
+          },
+          {
+            type: AbstractTypes.enum.Short,
+            content: 'A short description.',
+            localeCode: LanguageTypeAlt.enum.En,
+          },
+        ]);
+      });
+
+      it("falls back to the product's language of text for an untagged abstract", async () => {
+        // Thoth's own ONIX exporter writes `textformat` on abstract text but never `language`,
+        // so this is the path a Thoth-produced file takes.
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(
+              '<Text textformat="03">Una descripción breve.</Text>',
+              '<Text textformat="03">Una descripción larga.</Text>',
+            ),
+            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>spa</LanguageCode></Language>',
+          }),
+        );
+
+        expect(result.data.plan.works[0].abstracts.map(({ localeCode }) => localeCode)).toEqual([
+          LanguageTypeAlt.enum.Es,
+          LanguageTypeAlt.enum.Es,
+        ]);
+      });
+
+      it('keeps the English fallback when nothing says otherwise', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral('<Text>Short.</Text>', '<Text>Long.</Text>'),
+            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>nor</LanguageCode></Language>',
+          }),
+        );
+
+        expect(result.data.plan.works[0].abstracts.map(({ localeCode }) => localeCode)).toEqual([
+          LanguageTypeAlt.enum.En,
+          LanguageTypeAlt.enum.En,
+        ]);
+      });
+    });
+
+    describe('collection sequence', () => {
+      const collectionXml = (sequences: string) => `<Collection>
+        <CollectionType>10</CollectionType>
+        ${sequences}
+        <TitleDetail><TitleType>01</TitleType><TitleElement>
+          <TitleElementLevel>02</TitleElementLevel><TitleWithoutPrefix>Arc Companions</TitleWithoutPrefix>
+        </TitleElement></TitleDetail>
+      </Collection>`;
+
+      const sequenceXml = (number: string, type?: string) => `<CollectionSequence>
+        ${type ? `<CollectionSequenceType>${type}</CollectionSequenceType>` : ''}
+        <CollectionSequenceNumber>${number}</CollectionSequenceNumber>
+      </CollectionSequence>`;
+
+      const ordinalOf = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
+        (result.data.plan.series as SeriesImportPlan)[0]?.members[0]?.orderNumber;
+
+      it('uses the publication-order sequence even when another comes first', async () => {
+        const result = await runFidelityParser(
+          productXml({ collection: collectionXml(`${sequenceXml('7', '02')}${sequenceXml('11', '03')}`) }),
+          [fidelitySeries('Arc Companions')],
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(ordinalOf(result)).toBe(11);
+      });
+
+      it('ignores a sequence that declares a different order entirely', async () => {
+        // Alphabetical position 7 is not issue 7. With no publication order supplied, the planner
+        // assigns the next ordinal itself — here the first in a series Thoth does not yet have.
+        const result = await runFidelityParser(productXml({ collection: collectionXml(sequenceXml('7', '02')) }), [
+          fidelitySeries('Arc Companions'),
+        ]);
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(ordinalOf(result)).toBe(1);
+      });
+
+      it('accepts an untyped sequence, as older files supply', async () => {
+        const result = await runFidelityParser(productXml({ collection: collectionXml(sequenceXml('4')) }), [
+          fidelitySeries('Arc Companions'),
+        ]);
+
+        expect(ordinalOf(result)).toBe(4);
+      });
+
+      it('refuses to choose between contradictory publication-order numbers', async () => {
+        const result = await runFidelityParser(
+          productXml({ collection: collectionXml(`${sequenceXml('11', '03')}${sequenceXml('2', '03')}`) }),
+          [fidelitySeries('Arc Companions')],
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.issues).toEqual([
+          {
+            severity: 'error',
+            code: 'onix.validation',
+            message:
+              'Series "Arc Companions" is given more than one publication-order number (2, 11) by product 1 (9781641891783)',
+            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+          },
+        ]);
+      });
+    });
+
+    describe('related material', () => {
+      const relatedMaterialXml = (relations: string) => `<RelatedMaterial>${relations}</RelatedMaterial>`;
+
+      const referencesOf = (result: Awaited<ReturnType<XMLParser['parse']>>) => result.data.plan.works[0].references;
+
+      it('does not turn an alternative format into a reference', async () => {
+        // Exactly what Thoth's exporter writes for another ISBN of the same work: relation 06,
+        // with the ISBN-13 and the GTIN-13 of the same product.
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>06</ProductRelationCode>
+              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
+              <ProductIdentifier><ProductIDType>03</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(referencesOf(result)).toEqual([]);
+      });
+
+      it('turns a cited product with a DOI into a reference', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(referencesOf(result)).toEqual([
+          expect.objectContaining({
+            doi: 'https://doi.org/10.1234/abcd',
+            unstructuredCitation: '',
+            orderNumber: 1,
+          }),
+        ]);
+      });
+
+      it('does not prefix a DOI that already carries its resolver', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier>
+                <ProductIDType>06</ProductIDType><IDValue>https://doi.org/10.1234/abcd</IDValue>
+              </ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(referencesOf(result)[0].doi).toBe('https://doi.org/10.1234/abcd');
+      });
+
+      it('finds a DOI that is not the first identifier', async () => {
+        // The Arc lesson applied to RelatedMaterial: ProductIdentifier is repeatable, and an
+        // unrelated identifier listed first must not hide the DOI behind it.
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
+              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(referencesOf(result)[0].doi).toBe('https://doi.org/10.1234/abcd');
+      });
+
+      it('keeps an unstructured citation and leaves its DOI empty', async () => {
+        // What Thoth exports for a reference that has no DOI.
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier>
+                <ProductIDType>01</ProductIDType>
+                <IDTypeName>Unstructured citation</IDTypeName>
+                <IDValue>Hopkins, Lisa. 2019. A Companion to the Cavendishes.</IDValue>
+              </ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(referencesOf(result)).toEqual([
+          expect.objectContaining({
+            doi: '',
+            unstructuredCitation: 'Hopkins, Lisa. 2019. A Companion to the Cavendishes.',
+          }),
+        ]);
+        // Never the resolver on its own.
+        expect(referencesOf(result)[0].doi).not.toBe('https://doi.org/');
+      });
+
+      it('keeps both a DOI and a citation when the file supplies both', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier>
+                <ProductIDType>01</ProductIDType><IDTypeName>Unstructured citation</IDTypeName>
+                <IDValue>Hopkins, Lisa. 2019.</IDValue>
+              </ProductIdentifier>
+              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(referencesOf(result)).toEqual([
+          expect.objectContaining({
+            doi: 'https://doi.org/10.1234/abcd',
+            unstructuredCitation: 'Hopkins, Lisa. 2019.',
+          }),
+        ]);
+      });
+
+      it('never creates the resolver on its own as a DOI', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier><ProductIDType>01</ProductIDType><IDValue>Some citation text</IDValue></ProductIdentifier>
+            </RelatedProduct>
+            <RelatedProduct>
+              <ProductRelationCode>06</ProductRelationCode>
+              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(referencesOf(result).map(({ doi }) => doi)).not.toContain(appConfig.validations.doiPrefix);
+      });
+
+      it('leaves non-citation product relations alone', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(
+              ['01', '02', '03', '05', '06']
+                .map(
+                  (relation) => `<RelatedProduct>
+                    <ProductRelationCode>${relation}</ProductRelationCode>
+                    <ProductIdentifier>
+                      <ProductIDType>06</ProductIDType><IDValue>10.1234/other-${relation}</IDValue>
+                    </ProductIdentifier>
+                  </RelatedProduct>`,
+                )
+                .join(''),
+            ),
+          }),
+        );
+
+        expect(referencesOf(result)).toEqual([]);
+      });
+
+      it('leaves a related work alone, whatever its relation', async () => {
+        // ONIX List 164 has no citation relation, so a RelatedWork is never a reference. These
+        // two are the translation relations Thoth's own exporter writes.
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedWork>
+                <WorkRelationCode>29</WorkRelationCode>
+                <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/original</IDValue></WorkIdentifier>
+              </RelatedWork>
+              <RelatedWork>
+                <WorkRelationCode>49</WorkRelationCode>
+                <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/translation</IDValue></WorkIdentifier>
+              </RelatedWork>`),
+          }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(referencesOf(result)).toEqual([]);
+      });
+
+      it('reports a citation it cannot represent instead of storing an empty one', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(referencesOf(result)).toEqual([]);
+        // A warning, not an error: the work is still perfectly importable.
+        expect(result.status).toBe('success');
+        expect(result.issues).toEqual([
+          {
+            severity: 'warning',
+            code: 'onix.reference.unrepresentable_citation',
+            message:
+              'A cited work in product 1 (9781641891783) carries no DOI or citation text, so its citation metadata could not be represented and the reference was skipped',
+            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+          },
+        ]);
+      });
+
+      it('numbers surviving references consecutively', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+                <ProductRelationCode>06</ProductRelationCode>
+                <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
+              </RelatedProduct>
+              <RelatedProduct>
+                <ProductRelationCode>34</ProductRelationCode>
+                <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/first</IDValue></ProductIdentifier>
+              </RelatedProduct>
+              <RelatedProduct>
+                <ProductRelationCode>34</ProductRelationCode>
+                <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/second</IDValue></ProductIdentifier>
+              </RelatedProduct>`),
+          }),
+        );
+
+        expect(referencesOf(result).map(({ doi, orderNumber }) => [doi, orderNumber])).toEqual([
+          ['https://doi.org/10.1234/first', 1],
+          ['https://doi.org/10.1234/second', 2],
+        ]);
+      });
+    });
+
+    describe('a record shaped like Thoth’s own ONIX output', () => {
+      /**
+       * Everything Thoth's ONIX 3 exporter writes for the fields this PR touches, in the shapes
+       * it writes them: the canonical title tagged with the language its locale converts to, a
+       * non-canonical title as TitleType 06, the issue ordinal as CollectionSequenceType 03, the
+       * other ISBN of the same book as relation 06, and a reference as relation 34.
+       *
+       * The claim is semantic round-tripping, not byte-identical ONIX: what Thoth exported comes
+       * back as the same Thoth metadata, minus what ONIX itself cannot carry.
+       */
+      const THOTH_SHAPED_XML = productXml({
+        titleDetails: `<TitleDetail><TitleType>01</TitleType><TitleElement>
+            <TitleElementLevel>01</TitleElementLevel>
+            <TitleText language="fre">L’Étranger</TitleText>
+            <Subtitle language="fre">Un roman</Subtitle>
+          </TitleElement></TitleDetail>
+          <TitleDetail><TitleType>06</TitleType><TitleElement>
+            <TitleElementLevel>01</TitleElementLevel>
+            <TitleText language="eng">The Stranger</TitleText>
+          </TitleElement></TitleDetail>`,
+        languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>fre</LanguageCode></Language>',
+        collection: `<Collection>
+          <CollectionType>10</CollectionType>
+          <CollectionIdentifier>
+            <CollectionIDType>01</CollectionIDType><IDTypeName>Series ID</IDTypeName>
+            <IDValue>${FIDELITY_SERIES_ID}</IDValue>
+          </CollectionIdentifier>
+          <CollectionIdentifier><CollectionIDType>02</CollectionIDType><IDValue>26343643</IDValue></CollectionIdentifier>
+          <CollectionSequence>
+            <CollectionSequenceType>03</CollectionSequenceType>
+            <CollectionSequenceNumber>11</CollectionSequenceNumber>
+          </CollectionSequence>
+          <TitleDetail><TitleType>01</TitleType><TitleElement>
+            <TitleElementLevel>02</TitleElementLevel><TitleText>Arc Companions</TitleText>
+          </TitleElement></TitleDetail>
+        </Collection>`,
+        collateralDetail: `<CollateralDetail>
+          <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>
+            <Text textformat="03">Une description brève.</Text>
+          </TextContent>
+          <TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>
+            <Text textformat="03">Une description longue.</Text>
+          </TextContent>
+        </CollateralDetail>`,
+        relatedMaterial: `<RelatedMaterial>
+          <RelatedProduct>
+            <ProductRelationCode>06</ProductRelationCode>
+            <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
+            <ProductIdentifier><ProductIDType>03</ProductIDType><IDValue>9781802700000</IDValue></ProductIdentifier>
+          </RelatedProduct>
+          <RelatedProduct>
+            <ProductRelationCode>34</ProductRelationCode>
+            <ProductIdentifier>
+              <ProductIDType>06</ProductIDType><IDValue>https://doi.org/10.1234/cited</IDValue>
+            </ProductIdentifier>
+          </RelatedProduct>
+        </RelatedMaterial>`,
+      });
+
+      it('comes back as the metadata Thoth started with', async () => {
+        const result = await runFidelityParser(THOTH_SHAPED_XML, [fidelitySeries('Arc Companions')]);
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(result.issues).toEqual([]);
+
+        const [work] = result.data.plan.works;
+
+        // Canonical stays canonical, the other title stays non-canonical, and each keeps the
+        // locale ONIX could carry. `fre` cannot say whether Thoth held Fr or FrCa: the region is
+        // the one thing ONIX genuinely loses.
+        expect(
+          work.titles.map(({ title, subtitle, canonical, localeCode }) => [title, subtitle, canonical, localeCode]),
+        ).toEqual([
+          ['L’Étranger', 'Un roman', true, LanguageTypeAlt.enum.Fr],
+          ['The Stranger', '', false, LanguageTypeAlt.enum.En],
+        ]);
+
+        // Thoth writes `textformat` but no `language` on abstract text, so the abstracts come
+        // back through the product's language of text.
+        expect(work.abstracts.map(({ type, localeCode }) => [type, localeCode])).toEqual([
+          [AbstractTypes.enum.Long, LanguageTypeAlt.enum.Fr],
+          [AbstractTypes.enum.Short, LanguageTypeAlt.enum.Fr],
+        ]);
+
+        // The publication-order sequence is the issue ordinal.
+        expect((result.data.plan.series as SeriesImportPlan)[0].members[0].orderNumber).toBe(11);
+
+        // The other format of the same book is not a citation; the cited work is.
+        expect(work.references.map(({ doi, unstructuredCitation }) => [doi, unstructuredCitation])).toEqual([
+          ['https://doi.org/10.1234/cited', ''],
+        ]);
       });
     });
   });
