@@ -51,7 +51,6 @@ import type {
   TitleEntity,
 } from '../../types';
 import {
-  canonicaliseDoi,
   getContributorRoleFromXml,
   getDefaultAbstract,
   getDefaultChapter,
@@ -1301,38 +1300,39 @@ class XMLParser {
    * arrived used to turn `not-a-doi` into `https://doi.org/not-a-doi`, which survives the import
    * and fails at the API, where the Doi scalar parses it. The work is still importable without
    * one cited work's DOI, so this warns and carries on.
+   *
+   * Selection goes through the same canonicalising helper as every other DOI here, so a cited
+   * product that gives its DOI both bare and resolver-prefixed is understood to have given one
+   * DOI twice rather than two that contradict each other.
    */
   private resolveReferenceDoi(identifiers: OnixRelatedIdentifier[], product: ExtendedProduct, index: number): string {
-    const selection = selectRelatedIdentifier(
-      identifiers,
-      (identifier) => getOnixText(identifier.ProductIDType) === ProductIdentifierType._06,
+    const selection = selectCanonicalDoi(
+      identifiers
+        .filter((identifier) => getOnixText(identifier.ProductIDType) === ProductIdentifierType._06)
+        .map((identifier) => getOnixText(identifier.IDValue)),
     );
 
-    if (selection.kind === 'none') return '';
+    selection.unusable.forEach((value) =>
+      this.warnAboutCitation(
+        product,
+        index,
+        'unusable_identifier',
+        `supplies "${value}" as a DOI, which Thoth cannot read as one, so the reference was imported without it`,
+      ),
+    );
 
     if (selection.kind === 'conflict') {
       this.warnAboutCitation(
         product,
         index,
         'unusable_identifier',
-        `supplies more than one DOI (${selection.values.join(', ')}), so the reference was imported without one`,
+        `supplies more than one DOI (${selection.dois.join(', ')}), so the reference was imported without one`,
       );
 
       return '';
     }
 
-    const doi = canonicaliseDoi(selection.value);
-
-    if (doi.length === 0) {
-      this.warnAboutCitation(
-        product,
-        index,
-        'unusable_identifier',
-        `supplies "${selection.value}" as a DOI, which Thoth cannot read as one, so the reference was imported without it`,
-      );
-    }
-
-    return doi;
+    return selection.kind === 'doi' ? selection.doi : '';
   }
 
   /** The unstructured citation of one cited product, or nothing. */

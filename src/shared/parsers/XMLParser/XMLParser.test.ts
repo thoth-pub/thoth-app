@@ -6511,8 +6511,48 @@ describe('XMLParser', () => {
             expect.objectContaining({ doi: '', unstructuredCitation: 'Hopkins, Lisa. 2019.' }),
           ]);
           expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
-          expect(result.issues[0].message).toContain('supplies more than one DOI (10.1234/abcd, 10.5678/efgh)');
+          // The conflict is between the DOIs, so the message names them as Thoth writes them.
+          expect(result.issues[0].message).toContain(
+            'supplies more than one DOI (https://doi.org/10.1234/abcd, https://doi.org/10.5678/efgh)',
+          );
         });
+      });
+
+      it('does not call one DOI written two ways a contradiction', async () => {
+        // Selection canonicalises before comparing, so the bare DOI and its resolver-prefixed
+        // twin are one identifier. Comparing the raw strings reported them as disagreeing.
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
+              <ProductIdentifier>
+                <ProductIDType>06</ProductIDType><IDValue>https://doi.org/10.1234/abcd</IDValue>
+              </ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(referencesOf(result)).toEqual([
+          expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd', unstructuredCitation: '' }),
+        ]);
+      });
+
+      it('keeps a cited DOI beside a malformed one rather than dropping both', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
+              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>PROD-1234</IDValue></ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(referencesOf(result)).toEqual([expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd' })]);
+        expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
+        expect(result.issues[0].message).toContain('supplies "PROD-1234" as a DOI');
       });
 
       it('refuses to choose between two unstructured citations', async () => {
