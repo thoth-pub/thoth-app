@@ -5801,6 +5801,31 @@ describe('XMLParser', () => {
           },
         ]);
       });
+
+      it('refuses a publication-order number Thoth has no room for', async () => {
+        // `issue_ordinal` is `Int4`. Treating this as "no sequence supplied" would have the
+        // planner number the work itself, so the publisher's issue 2147483648 would become 1.
+        const result = await runFidelityParser(
+          productXml({ collection: collectionXml(sequenceXml('2147483648', '03')) }),
+          [fidelitySeries('Arc Companions')],
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.data.plan.series).toEqual([]);
+        expect(errorMessages(result)).toEqual([
+          'Series "Arc Companions" is given publication-order number 2147483648 by product 1 (9781641891783), which is outside the range of issue numbers Thoth can store (1 to 2147483647)',
+        ]);
+      });
+
+      it('accepts the largest ordinal Thoth can store', async () => {
+        const result = await runFidelityParser(
+          productXml({ collection: collectionXml(sequenceXml('2147483647', '03')) }),
+          [fidelitySeries('Arc Companions')],
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(ordinalOf(result)).toBe(2147483647);
+      });
     });
 
     describe('work DOI', () => {
