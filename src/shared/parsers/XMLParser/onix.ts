@@ -1,8 +1,16 @@
-import { CollectionSequenceType, CollectionType, TitleElementLevel, TitleType } from '@5stones/onix/dist/enums';
+import {
+  CollectionSequenceType,
+  CollectionType,
+  DateFormat,
+  TitleElementLevel,
+  TitleType,
+} from '@5stones/onix/dist/enums';
 
+import { canonicaliseDoi } from '../../utils/validations';
 import type {
   OnixCollectionLike,
   OnixCollectionSequence,
+  OnixPublishingDate,
   OnixRelatedIdentifier,
   OnixText,
   OnixTitleDetail,
@@ -61,6 +69,23 @@ export const getOnixLanguage = (value: OnixText | undefined | null): string => {
   const language = value['@_language'];
 
   return typeof language === 'string' ? language.trim() : '';
+};
+
+/**
+ * Reads the `dateformat` attribute of a `<Date>`.
+ *
+ * ONIX List 55 lives in this attribute and nowhere else, so `20240807`, `202408` and `20240` are
+ * the same string of digits until it is read. A bare `<Date>` carries no attribute and yields an
+ * empty string; what that means is {@link readOnixDate}'s business, not this helper's.
+ */
+export const getOnixDateFormat = (value: OnixText | undefined | null): string => {
+  if (value === undefined || value === null) return '';
+
+  if (typeof value !== 'object') return '';
+
+  const dateFormat = value['@_dateformat'];
+
+  return typeof dateFormat === 'string' ? dateFormat.trim() : '';
 };
 
 export type OnixTitle = {
@@ -306,6 +331,158 @@ export const selectRelatedIdentifier = (
 };
 
 /**
+ * What a set of occurrences that all claim to be DOIs adds up to.
+ *
+ * `unusable` is carried by every outcome rather than replacing one, because a value Thoth cannot
+ * read as a DOI is a separate fact from how many DOIs were found: a product may perfectly well
+ * supply its real DOI beside a proprietary code somebody typed into the wrong field.
+ */
+export type OnixDoiSelection =
+  | { kind: 'none'; unusable: string[] }
+  | { kind: 'doi'; doi: string; unusable: string[] }
+  | { kind: 'conflict'; dois: string[]; unusable: string[] };
+
+/**
+ * The one DOI a set of occurrences means, in the single form Thoth stores.
+ *
+ * The reason this exists rather than a `.find()` is that DOI identity is not string identity.
+ * `10.1234/x`, `https://doi.org/10.1234/x` and `http://dx.doi.org/10.1234/x` are three spellings
+ * of one identifier — Thoth's own API accepts all three and stores one — so comparing the raw
+ * values would report a product that spelled its DOI twice as self-contradictory. Every value is
+ * therefore canonicalised first, through the same {@link canonicaliseDoi} the API's grammar backs,
+ * and only then compared.
+ *
+ * What comes out is deliberately not resolved: two genuinely different DOIs are handed back as a
+ * conflict, because choosing between them would mean choosing by document order, and a product's
+ * DOI must not depend on which identifier the sender happened to list first. Reversing the input
+ * cannot change any part of the result.
+ */
+export const selectCanonicalDoi = (values: string[]): OnixDoiSelection => {
+  const canonical = new Set<string>();
+  const unreadable = new Set<string>();
+
+  values
+    .map((value) => value.trim())
+    .filter((value) => value.length > 0)
+    .forEach((value) => {
+      const doi = canonicaliseDoi(value);
+
+      // A malformed value never becomes a canonical one. Prefixing a resolver onto whatever
+      // arrived is what turned `not-a-doi` into `https://doi.org/not-a-doi`, which looks like a
+      // DOI all the way to the API and fails there.
+      if (doi.length === 0) unreadable.add(value);
+      else canonical.add(doi);
+    });
+
+  const dois = [...canonical].sort();
+  const unusable = [...unreadable].sort();
+
+  if (dois.length === 0) return { kind: 'none', unusable };
+  if (dois.length === 1) return { kind: 'doi', doi: dois[0], unusable };
+
+  return { kind: 'conflict', dois, unusable };
+};
+
+/**
+ * A complete calendar date, or nothing.
+ *
+ * Thoth stores publication and withdrawn dates as a PostgreSQL `date` behind chrono's
+ * `NaiveDate` — see `Work::publication_date` in `thoth-api/src/model/work/mod.rs` — so the only
+ * ONIX date it can hold without changing its meaning is one that names a day.
+ *
+ * `dateformat` (ONIX List 55) says which of the nineteen possible readings of a string of digits
+ * is meant, and only `00`, "Common Era year, month and day", is a complete Common Era day. The
+ * ONIX specification makes `00` the default for most date elements when the attribute is omitted
+ * ("Each data element on which this attribute may be used specifies a default dateformat if the
+ * attribute is not supplied — for most date elements, this is format '00', YYYYMMDD"), which is
+ * the reading applied here and the one Thoth's own exporter writes explicitly.
+ *
+ * Everything else is refused rather than filled in: a year (`05`), a year and month (`01`), a
+ * quarter (`03`), a season (`04`), any spread (`06`–`11`), a text date (`12`), a timestamp
+ * (`13`, `14`) and the Hijri calendar forms (`20`, `21`, `25`, `32`) all say less, or something
+ * other, than a Common Era day. Turning `2024` into `2024-01-01` would not be importing the
+ * sender's date, it would be inventing one.
+ */
+export const readOnixDate = (value: OnixText | undefined): string | undefined => {
+  const format = getOnixDateFormat(value);
+
+  if (format.length > 0 && format !== DateFormat._00) return undefined;
+
+  const digits = getOnixText(value);
+
+  if (!/^\d{8}$/.test(digits)) return undefined;
+
+  const year = Number(digits.slice(0, 4));
+  const month = Number(digits.slice(4, 6));
+  const day = Number(digits.slice(6, 8));
+
+  // Every JavaScript date constructor rolls impossible components forward — `20240230` becomes
+  // 1 March — so the components are read back off the constructed date, and a value that does
+  // not survive the round trip was never a real date. The year is set separately because
+  // `Date.UTC` maps years 0-99 into the twentieth century.
+  const date = new Date(Date.UTC(2000, month - 1, day));
+  date.setUTCFullYear(year);
+
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    return undefined;
+  }
+
+  // The application's own calendar-date form, which is what `WorkDtoMapper` expects and what the
+  // API parses into a `NaiveDate`.
+  return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+};
+
+/**
+ * What a product's PublishingDates say about one role.
+ *
+ * Shaped like {@link OnixDoiSelection} and for the same reasons: `unrepresentable` carries the
+ * raw values Thoth cannot store as a calendar date whatever else was found, and a disagreement
+ * between two usable dates is reported rather than resolved.
+ */
+export type OnixDateSelection =
+  | { kind: 'none'; unrepresentable: string[] }
+  | { kind: 'date'; date: string; unrepresentable: string[] }
+  | { kind: 'conflict'; dates: string[]; unrepresentable: string[] };
+
+/**
+ * The date a product gives for one PublishingDateRole.
+ *
+ * PublishingDate is repeatable, and the role is what says which date each occurrence is; taking
+ * the first occurrence of a role would let a file that states its publication date twice import
+ * whichever came first. Identical dates collapse — two spellings of one day are one fact — and
+ * two different days are a contradiction the sender has to resolve.
+ */
+export const selectPublishingDate = (dates: OnixPublishingDate[], role: string): OnixDateSelection => {
+  const complete = new Set<string>();
+  const partial = new Set<string>();
+
+  dates
+    .filter((date) => getOnixText(date.PublishingDateRole) === role)
+    .forEach((date) => {
+      const day = readOnixDate(date.Date);
+
+      if (day === undefined) {
+        const raw = getOnixText(date.Date);
+
+        // An empty `<Date>` says nothing; there is no lost information to report.
+        if (raw.length > 0) partial.add(raw);
+
+        return;
+      }
+
+      complete.add(day);
+    });
+
+  const found = [...complete].sort();
+  const unrepresentable = [...partial].sort();
+
+  if (found.length === 0) return { kind: 'none', unrepresentable };
+  if (found.length === 1) return { kind: 'date', date: found[0], unrepresentable };
+
+  return { kind: 'conflict', dates: found, unrepresentable };
+};
+
+/**
  * What a Collection's sequences say about the work's position in its series.
  *
  * `conflict` carries the numbers that disagree so the caller can name them; it is not resolved
@@ -314,25 +491,43 @@ export const selectRelatedIdentifier = (
 export type OnixSequenceSelection =
   | { kind: 'none' }
   | { kind: 'ordinal'; ordinal: number }
-  | { kind: 'conflict'; ordinals: number[] };
+  | { kind: 'conflict'; ordinals: number[] }
+  | { kind: 'unrepresentable'; values: string[] };
 
 /**
- * A sequence number Thoth can use: a positive whole ordinal, and nothing that merely starts like
- * one.
+ * The largest issue ordinal Thoth can store.
+ *
+ * `issue.issue_ordinal` is `Int4` in the schema and `i32` on `Issue` — see
+ * `thoth-api/src/model/issue/mod.rs` — so the usable range is 1 to 2 147 483 647. Beyond it there
+ * is nothing to store, and JavaScript would keep counting happily up to `Number.MAX_SAFE_INTEGER`
+ * and past it, so the boundary has to be stated here rather than discovered at the API.
+ */
+export const MAX_ISSUE_ORDINAL = 2_147_483_647;
+
+/**
+ * What one CollectionSequenceNumber is worth to Thoth.
  *
  * `parseInt` is the wrong tool here. It reads `11abc` as 11 and `1.5` as 1, which would turn a
  * malformed ONIX value into a confident issue ordinal — the file said something this importer
  * does not understand, and inventing a plausible number from its first characters is worse than
  * admitting that. Leading zeros are harmless and kept.
+ *
+ * A well-formed number outside Thoth's storable range is a different failure from a value that is
+ * not a number at all, and is kept separate: `11abc` leaves us not knowing what position was
+ * meant, while `2147483648` tells us exactly, and tells us Thoth cannot hold it.
  */
-const usableSequenceNumber = (sequence: OnixCollectionSequence): number | undefined => {
+type SequenceNumber = { kind: 'usable'; ordinal: number } | { kind: 'out_of_range'; value: string } | { kind: 'none' };
+
+const readSequenceNumber = (sequence: OnixCollectionSequence): SequenceNumber => {
   const value = getOnixText(sequence.CollectionSequenceNumber);
 
-  if (!/^\d+$/.test(value)) return undefined;
+  if (!/^\d+$/.test(value)) return { kind: 'none' };
 
   const parsed = Number.parseInt(value, 10);
 
-  return parsed > 0 ? parsed : undefined;
+  if (parsed <= 0) return { kind: 'none' };
+
+  return parsed <= MAX_ISSUE_ORDINAL ? { kind: 'usable', ordinal: parsed } : { kind: 'out_of_range', value };
 };
 
 /**
@@ -352,19 +547,30 @@ const usableSequenceNumber = (sequence: OnixCollectionSequence): number | undefi
  * because it happened to come first is exactly the bug this replaces.
  *
  * Repeats of the same number collapse. Genuinely different numbers of the same kind are reported
- * as a conflict rather than resolved by document order.
+ * as a conflict rather than resolved by document order, and a number Thoth has no room for is
+ * reported as such rather than quietly discarded — dropping it would leave the caller unable to
+ * tell "this product stated no position" from "this product stated a position we threw away",
+ * and the series planner would then hand the work a different number of its own invention.
  */
 export const selectPublicationOrderSequence = (sequences: OnixCollectionSequence[]): OnixSequenceSelection => {
   const numbered = sequences.map((sequence) => ({
     type: getOnixText(sequence.CollectionSequenceType),
-    number: usableSequenceNumber(sequence),
+    number: readSequenceNumber(sequence),
   }));
 
   const publicationOrder = numbered.filter(({ type }) => type === CollectionSequenceType._03);
   const untyped = numbered.filter(({ type }) => type.length === 0);
   const chosen = publicationOrder.length > 0 ? publicationOrder : untyped;
 
-  const ordinals = [...new Set(chosen.map(({ number }) => number).filter((number) => number !== undefined))];
+  const outOfRange = [
+    ...new Set(chosen.map(({ number }) => (number.kind === 'out_of_range' ? number.value : undefined))),
+  ].filter((value) => value !== undefined);
+
+  if (outOfRange.length > 0) return { kind: 'unrepresentable', values: outOfRange.sort() };
+
+  const ordinals = [
+    ...new Set(chosen.map(({ number }) => (number.kind === 'usable' ? number.ordinal : undefined))),
+  ].filter((ordinal) => ordinal !== undefined);
 
   if (ordinals.length === 0) return { kind: 'none' };
   if (ordinals.length === 1) return { kind: 'ordinal', ordinal: ordinals[0] };

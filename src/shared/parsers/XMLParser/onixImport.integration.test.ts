@@ -20,8 +20,9 @@ import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { TitleService } from '@/src/entities/title/api/title.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
 
-import { currencyOptions, languageOptions, licenseOptions } from '../../constants';
+import { currencyOptions, languageOptions, licenseOptions, WorkStatuses } from '../../constants';
 import { SeriesType } from '../../constants/series';
+import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import XMLParser from './XMLParser';
 
@@ -99,17 +100,20 @@ const AMBIGUOUS_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 </ONIXMessage>`;
 
 /**
- * One product in the shapes Thoth's own ONIX 3 exporter writes: the canonical title tagged with
- * the language its locale converts to, a second title as TitleType 06, the issue ordinal as
- * CollectionSequenceType 03 behind a sequence of another type, the work's other ISBN as relation
- * 06, and a citation as relation 34 carrying the bare DOI — `Doi`'s Display strips the resolver,
- * so a DOI leaves Thoth as `10.…` and never as a URL.
+ * One product in the shapes Thoth's own ONIX 3 exporter writes: the work's DOI as
+ * ProductIdentifier 06 carrying the bare `10.…` its `Doi` Display produces, the canonical title
+ * tagged with the language its locale converts to, a second title as TitleType 06, the issue
+ * ordinal as CollectionSequenceType 03 behind a sequence of another type, a chapter whose DOI is
+ * a TextItemIdentifier of type 06, publication and withdrawn dates as `dateformat="00"` YYYYMMDD,
+ * the work's other ISBN as relation 06, and a citation as relation 34 — written here in the
+ * `dx.doi.org` form a real sender might use, which is the same DOI as the bare one.
  */
 const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/work</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <Collection>
@@ -161,9 +165,36 @@ const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         <Text textformat="03">Une description longue.</Text>
       </TextContent>
     </CollateralDetail>
+    <ContentDetail>
+      <ContentItem>
+        <LevelSequenceNumber>1</LevelSequenceNumber>
+        <TextItem>
+          <TextItemIdentifier>
+            <TextItemIDType>06</TextItemIDType><IDValue>10.1234/work.ch1</IDValue>
+          </TextItemIdentifier>
+        </TextItem>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>04</TitleElementLevel>
+            <TitleText language="fre">Premier chapitre</TitleText>
+          </TitleElement>
+        </TitleDetail>
+        <PageRun><FirstPageNumber>1</FirstPageNumber><LastPageNumber>20</LastPageNumber></PageRun>
+        <NumberOfPages>20</NumberOfPages>
+      </ContentItem>
+    </ContentDetail>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
-      <PublishingStatus>04</PublishingStatus>
+      <PublishingStatus>16</PublishingStatus>
+      <PublishingDate>
+        <PublishingDateRole>01</PublishingDateRole>
+        <Date dateformat="00">20240807</Date>
+      </PublishingDate>
+      <PublishingDate>
+        <PublishingDateRole>13</PublishingDateRole>
+        <Date dateformat="00">20250131</Date>
+      </PublishingDate>
     </PublishingDetail>
     <RelatedMaterial>
       <RelatedProduct>
@@ -173,7 +204,7 @@ const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
       </RelatedProduct>
       <RelatedProduct>
         <ProductRelationCode>34</ProductRelationCode>
-        <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/cited</IDValue></ProductIdentifier>
+        <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>http://dx.doi.org/10.1234/cited</IDValue></ProductIdentifier>
       </RelatedProduct>
       <RelatedWork>
         <WorkRelationCode>29</WorkRelationCode>
@@ -436,6 +467,9 @@ describe('ONIX bulk import, end to end', () => {
         localeCode: LocaleCode.Fr,
       }),
       expect.objectContaining({ title: 'The Stranger', canonical: false, localeCode: LocaleCode.En }),
+      // The chapter's own title, created after the work's, in the language its TitleText claims.
+      // `canonical: false` is what `parseChapters` has always produced; not this pass's subject.
+      expect.objectContaining({ title: 'Premier chapitre', canonical: false, localeCode: LocaleCode.Fr }),
     ]);
     expect(mutationsNamed('CreateIssue').map((call) => call.variables.data)).toEqual([
       { seriesId: FOUNDATIONS_ID, workId: 'work-1', issueOrdinal: 7 },
@@ -443,6 +477,49 @@ describe('ONIX bulk import, end to end', () => {
     expect(mutationsNamed('CreateReference').map((call) => call.variables.data)).toEqual([
       expect.objectContaining({ doi: 'https://doi.org/10.1234/cited', referenceOrdinal: 1 }),
     ]);
+  });
+
+  it('carries ONIX identifier and date fidelity through to the mutations', async () => {
+    const result = await parseUpload([foundations], THOTH_SHAPED_ONIX);
+
+    expect(result.status).toBe('success');
+    // The reference DOI arrives in the `dx.doi.org` form and the work's in the bare one; they are
+    // different identifiers, and neither spelling is a conflict with anything.
+    expect(result.issues).toEqual([]);
+
+    // The plan the parser produced is the plan the import runs: nothing is reassembled here.
+    const plan = result.data.plan;
+    const [work] = plan.works;
+    const [chapter] = plan.chapters;
+
+    // --- what the preview shows --------------------------------------------
+    expect(work.doi).toBe('https://doi.org/10.1234/work');
+    expect(chapter.doi).toBe('https://doi.org/10.1234/work.ch1');
+    expect([work.publicationDate, work.withdrawnDate]).toEqual(['2024-08-07', '2025-01-31']);
+    expect(work.references.map(({ doi }) => doi)).toEqual(['https://doi.org/10.1234/cited']);
+
+    // The corrected DOI is what the duplicate preflight compares, with no preflight change.
+    expect(collectWorkIdentifiers(work)).toContainEqual({ basis: 'doi', value: 'https://doi.org/10.1234/work' });
+
+    // --- confirmation: the plan is the payload ------------------------------
+    await workService.bulkCreateWorks(plan);
+
+    const [createdWork, createdChapter] = mutationsNamed('CreateWork').map((call) => call.variables.data);
+
+    // The mapper's `dayjs` round trip leaves a complete calendar date exactly as it found it —
+    // which is the whole reason the parser converts to `YYYY-MM-DD` rather than passing `20240807`
+    // on, since `dayjs('2024')` would have become 1 January.
+    expect(createdWork).toMatchObject({
+      doi: 'https://doi.org/10.1234/work',
+      publicationDate: '2024-08-07',
+      withdrawnDate: '2025-01-31',
+      workStatus: WorkStatuses.enum.Withdrawn,
+    });
+    expect(createdChapter).toMatchObject({
+      doi: 'https://doi.org/10.1234/work.ch1',
+      publicationDate: '2024-08-07',
+      withdrawnDate: '2025-01-31',
+    });
   });
 
   it('a fresh parse reuses a series created by an earlier run', async () => {
