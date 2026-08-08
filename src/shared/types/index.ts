@@ -2,6 +2,7 @@ export * from './abstracts';
 export * from './accessibility';
 export * from './filter';
 export * from './importIssues';
+export * from './importPreflight';
 export * from './languages';
 export * from './markdown';
 export * from './onix-data';

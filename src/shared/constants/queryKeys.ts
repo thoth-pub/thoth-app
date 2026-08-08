@@ -16,6 +16,7 @@ export const QueryKeys = {
   translatedWorks: 'translatedWorks',
   workTranslations: 'workTranslations',
   workSet: 'workSet',
+  importPreflight: 'importPreflight',
   // PUBLISHERS
   publisher: 'publisher',
   publishers: 'publishers',

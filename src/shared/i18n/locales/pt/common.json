@@ -241,5 +241,32 @@
   },
   "will be created": "Será criada",
   "warnings": "Avisos",
-  "bulk import did not finish": "Esta importação não foi concluída. Algumas obras podem já ter sido criadas. Feche este carregamento e verifique a lista de obras antes de tentar novamente — carregar o ficheiro de novo sem resolver a importação parcial pode criar obras duplicadas."
+  "bulk import did not finish": "Esta importação não foi concluída. Algumas obras podem já ter sido criadas. Feche este carregamento e verifique a lista de obras antes de tentar novamente — carregar o ficheiro de novo sem resolver a importação parcial pode criar obras duplicadas.",
+  "importPreflight": {
+    "summary": "Resumo da importação",
+    "worksToCreate": "Obras a criar",
+    "chaptersToCreate": "Capítulos a criar",
+    "existingSeriesJoined": "Coleções existentes às quais se juntam",
+    "seriesToCreate": "Coleções a criar",
+    "warningCount": "Avisos do ficheiro",
+    "affectedWorks": "Obras com um possível duplicado",
+    "findingCount": "Indícios de possível duplicado",
+    "coverage": "{{checked}} de {{total}} obras tinham um DOI ou ISBN que pôde ser verificado ({{withDoi}} com DOI, {{withIsbn}} com ISBN). {{unchecked}} não tinham nenhum dos dois.",
+    "noFindings": "Esta verificação não encontrou nenhum DOI ou ISBN coincidente.",
+    "scope": "Esta verificação compara DOI e ISBN dentro da editora ativa, antes de criar seja o que for. Não determina que dois registos sejam a mesma obra, e outra importação pode acrescentar uma obra coincidente depois de ela ter corrido.",
+    "checking": "A verificar possíveis duplicados…",
+    "failedTitle": "A verificação de duplicados não foi concluída",
+    "failed": "Este carregamento não foi comparado com as obras já existentes no Thoth. Não há qualquer problema com o ficheiro, e verificar de novo é seguro — apenas faz leituras.",
+    "retry": "Verificar de novo",
+    "potentialDuplicates": "Possíveis duplicados",
+    "findingsAreAdvisory": "Estes registos partilham um identificador. O Thoth não determinou que sejam a mesma obra — reveja-os e decida se quer criar esta importação mesmo assim.",
+    "sameDoi": "Mesmo DOI",
+    "sameIsbn": "Mesmo ISBN",
+    "doiRepeatedInUpload": "Este DOI aparece mais do que uma vez neste carregamento",
+    "isbnRepeatedInUpload": "Este ISBN aparece mais do que uma vez neste carregamento",
+    "doiAlsoInThoth": "Este DOI também aparece numa obra existente do Thoth",
+    "isbnAlsoInThoth": "Este ISBN também aparece numa obra existente do Thoth",
+    "inThisUpload": "Neste carregamento",
+    "alreadyInThoth": "Já no Thoth"
+  }
 }
