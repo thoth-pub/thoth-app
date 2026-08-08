@@ -98,6 +98,36 @@ export const doiValidation = optionalUrlValidation.refine(
   { message: 'Invalid DOI format (expected https://doi.org/10.xxxx/xxxxx)' },
 );
 
+/**
+ * The resolver forms Thoth's API accepts in front of a DOI.
+ *
+ * `Doi::from_str` in `thoth-api/src/model/mod.rs` matches
+ * `[[http[s]://][www.][dx.]doi.org/]10.XXXX/XXX` case-insensitively, keeps the identifier from
+ * `10.` onwards and stores it behind the canonical `https://doi.org/`. Anything else is a parse
+ * error, so this is the exact set of prefixes an importer may strip.
+ */
+const doiResolverPattern = /^(?:https?:\/\/)?(?:www\.)?(?:dx\.)?doi\.org\//i;
+
+/**
+ * A DOI in the single form Thoth stores, or an empty string when the value is not a DOI at all.
+ *
+ * Importers receive DOIs in whichever form their source writes them — bare `10.…`, the canonical
+ * resolver URL, or one of the older `dx.doi.org` and `www.doi.org` variants — and Thoth stores
+ * exactly one of those. Concatenating a prefix onto whatever arrived is not enough: it turns a
+ * publisher's product code into `https://doi.org/PROD-1234`, which looks like a DOI all the way
+ * to the API and fails there. The value is therefore canonicalised first and then held to the
+ * same grammar {@link doiValidation} enforces, which is the app's copy of the API's.
+ */
+export const canonicaliseDoi = (value: string): string => {
+  const trimmed = value.trim();
+
+  if (trimmed.length === 0) return '';
+
+  const canonical = `${appConfig.validations.doiPrefix}${trimmed.replace(doiResolverPattern, '')}`;
+
+  return doiPattern.test(canonical) ? canonical : '';
+};
+
 /* External Identifiers Validations */
 export const idValidation = z.uuid();
 export const orcidValidation = getStringValidation()
@@ -114,10 +144,9 @@ export const orcidValidation = getStringValidation()
       message: 'Invalid ORCID ID (0000-0000-0000-0000 or 0000-0000-0000-000X)',
     },
   );
-export const rorValidation = getStringValidation().refine(
-  (ror) => rorPattern.test(ror),
-  { message: 'Invalid ROR ID format (expected https://ror.org/0xxxxxxx)' },
-);
+export const rorValidation = getStringValidation().refine((ror) => rorPattern.test(ror), {
+  message: 'Invalid ROR ID format (expected https://ror.org/0xxxxxxx)',
+});
 
 export const issnValidation = optionalStringValidation.refine(
   (issn) => {

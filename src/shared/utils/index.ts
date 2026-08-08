@@ -28,6 +28,7 @@ export * from './helpers/pages';
 export * from './helpers/protocolPrefix';
 export * from './helpers/truncateString';
 export * from './helpers/urlPreview';
+export * from './locales';
 export * from './metadata';
 export * from './publications';
 export * from './publishers';

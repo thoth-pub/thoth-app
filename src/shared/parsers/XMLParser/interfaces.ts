@@ -6,8 +6,10 @@ import {
   LanguageBasedOnIso6392b,
   LanguageRole,
   PriceType,
+  ProductRelation,
   TitleElementLevel,
   TitleType,
+  WorkRelation,
 } from '@5stones/onix/dist/enums';
 import {
   Contributor,
@@ -44,9 +46,17 @@ export type OnixRepeatable<T> = T | T[];
 /**
  * A text element. `ignoreAttributes: false` means an element carrying any XML attribute is
  * emitted as an object holding the text under `#text`; the attributes themselves land on the
- * same object under `@_<name>` keys, which this importer never reads.
+ * same object under `@_<name>` keys.
+ *
+ * Only the attributes this importer reads are declared. `language` is the one that carries
+ * meaning Thoth can store: ONIX puts it on TitleText, Subtitle and Text, and it is how Thoth's
+ * own ONIX exporter writes a title's locale. Everything else an element may carry — `textformat`,
+ * `dateformat`, `collationkey` — stays undeclared until something reads it, so the type keeps
+ * saying what this parser understands rather than becoming an untyped bag.
  */
-export type OnixText = string | number | { '#text'?: string | number };
+export type OnixTextElement = { '#text'?: string | number; '@_language'?: string };
+
+export type OnixText = string | number | OnixTextElement;
 
 export interface OnixTitleElement {
   TitleElementLevel?: TitleElementLevel;
@@ -72,6 +82,45 @@ export interface OnixLanguage {
 export interface OnixCollectionLike {
   CollectionType?: CollectionType;
   TitleDetail?: OnixRepeatable<OnixTitleDetail>;
+}
+
+/**
+ * One CollectionSequence. The type says what the number counts — publication order, alphabetical
+ * order, the publisher's own arbitrary order — and the composite is repeatable, so a product can
+ * state several orderings of the same collection at once.
+ */
+export interface OnixCollectionSequence {
+  CollectionSequenceType?: CollectionSequenceType;
+  CollectionSequenceNumber?: OnixText;
+}
+
+/**
+ * An identifier inside a RelatedProduct or RelatedWork. Repeatable in both.
+ *
+ * The ID type stays a plain string, as upstream declares WorkIDType: it is read through
+ * {@link getOnixText} and compared against the code list, which is what a file that writes
+ * `<ProductIDType>06</ProductIDType>` with attributes needs anyway.
+ */
+export interface OnixRelatedIdentifier {
+  ProductIDType?: string;
+  WorkIDType?: string;
+  IDTypeName?: OnixText;
+  IDValue?: OnixText;
+}
+
+export interface OnixRelatedProduct {
+  ProductRelationCode?: ProductRelation;
+  ProductIdentifier?: OnixRepeatable<OnixRelatedIdentifier>;
+}
+
+export interface OnixRelatedWork {
+  WorkRelationCode?: WorkRelation;
+  WorkIdentifier?: OnixRepeatable<OnixRelatedIdentifier>;
+}
+
+export interface ExtendedRelatedMaterial {
+  RelatedWork?: OnixRepeatable<OnixRelatedWork>;
+  RelatedProduct?: OnixRepeatable<OnixRelatedProduct>;
 }
 
 export interface ExtendedContributor extends Contributor {
@@ -137,10 +186,7 @@ export interface ExtendedProductSupply extends ProductSupply {
 export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 'TitleDetail'>, OnixCollectionLike {
   CollectionType?: CollectionType;
   CollectionFrequency?: CollectionFrequencyCode;
-  CollectionSequence?: OnixRepeatable<{
-    CollectionSequenceType?: CollectionSequenceType;
-    CollectionSequenceNumber?: OnixText;
-  }>;
+  CollectionSequence?: OnixRepeatable<OnixCollectionSequence>;
   SourceName?: string;
   TitleDetail?: OnixRepeatable<OnixTitleDetail>;
   LevelSequenceNumber?: OnixText;
@@ -192,10 +238,12 @@ export interface ExtendedPublishingDetail extends PublishingDetail {
   Publisher?: ExtendedPublisher;
 }
 
-export interface ExtendedProduct extends Omit<Product, 'DescriptiveDetail' | 'ProductSupply' | 'PublishingDetail'> {
+export interface ExtendedProduct
+  extends Omit<Product, 'DescriptiveDetail' | 'ProductSupply' | 'PublishingDetail' | 'RelatedMaterial'> {
   DescriptiveDetail?: ExtendedDescriptiveDetail;
   PublishingDetail?: ExtendedPublishingDetail;
   ProductSupply?: ExtendedProductSupply;
+  RelatedMaterial?: ExtendedRelatedMaterial;
   ContentDetail?: {
     ContentItem?: OnixRepeatable<ExtendedCollection>;
   };
