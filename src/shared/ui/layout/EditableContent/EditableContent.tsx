@@ -15,6 +15,7 @@ import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import { CloseButton, MarkdownRenderer, Modal, ModalWrapper } from '@/src/shared/ui';
+import PreviewEditBlockedContext from '@/src/shared/ui/core/Preview/PreviewEditBlockedContext';
 
 import { type FormProps, FormWrapper } from './FormWrapper';
 
@@ -58,7 +59,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     preview,
   } = props;
 
-  const { activeFormId, edit, closeForm } = useFormStateMachine();
+  const { activeFormId, attentionRequest, edit, closeForm } = useFormStateMachine();
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
   // The just-submitted data overlays defaultValues until fresh defaultValues arrive, so
   // the preview shows the new values before the parent's data refresh lands. Derived
@@ -114,6 +115,7 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           onClose={onClose}
           onInfo={handleToggleFaq}
           showFaqButton={!!showFaqButton}
+          attentionRequest={attentionRequest}
         >
           {({ control, reset, setValue }) => formFields({ control, reset, setValue })}
         </FormWrapper>
@@ -122,7 +124,9 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
           onDoubleClick={handleEdit}
           className={`group cursor-pointer ${borderTransparent ? '' : 'border border-transparent hover:border-(--color-hover-border)'} duration-300 hover:bg-(--color-hover-alt) ${isTableVariant ? '' : 'rounded-xl p-4'}`}
         >
-          {preview({ data: formData as T, disabled: isDisabled || (!!activeFormId && !isActive), onEdit: handleEdit })}
+          <PreviewEditBlockedContext value={!!activeFormId && !isActive}>
+            {preview({ data: formData as T, disabled: isDisabled, onEdit: handleEdit })}
+          </PreviewEditBlockedContext>
         </div>
       )}
       <Modal open={showFaq} onClose={handleToggleFaq}>

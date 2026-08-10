@@ -1,9 +1,18 @@
 import { renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { IDs } from '@/src/shared/constants';
+
 const mockSelector = vi.fn();
 const mockUseActorRef = vi.fn();
 const mockSend = vi.fn();
+const mockSnapshot: {
+  value: string;
+  context: { activeForm: string | null; attentionRequest: number };
+} = {
+  value: 'init',
+  context: { activeForm: null, attentionRequest: 0 },
+};
 
 vi.mock('../forms.provider', () => ({
   FormStateMachineContext: {
@@ -21,11 +30,15 @@ import useFormStateMachine from './useFormStateMachine';
 describe('useFormStateMachine', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockUseActorRef.mockReturnValue({ send: mockSend });
+    mockSnapshot.value = 'init';
+    mockSnapshot.context.activeForm = null;
+    mockSnapshot.context.attentionRequest = 0;
+    mockSelector.mockImplementation((selector) => selector(mockSnapshot));
+    mockUseActorRef.mockReturnValue({ send: mockSend, getSnapshot: () => mockSnapshot });
   });
 
   it('should return activeFormId from selector', () => {
-    mockSelector.mockReturnValue('form-1');
+    mockSnapshot.context.activeForm = 'form-1';
     const { result } = renderHook(() => useFormStateMachine());
 
     expect(result.current.activeFormId).toBe('form-1');
@@ -33,16 +46,24 @@ describe('useFormStateMachine', () => {
   });
 
   it('should send setActiveFormId event on edit', () => {
-    mockSelector.mockReturnValue(null);
     const { result } = renderHook(() => useFormStateMachine());
 
-    result.current.edit('form-2');
+    expect(result.current.edit(IDs.WORK_TYPE)).toBe(true);
 
-    expect(mockSend).toHaveBeenCalledWith({ type: 'setActiveFormId', id: 'form-2' });
+    expect(mockSend).toHaveBeenCalledWith({ type: 'setActiveFormId', id: IDs.WORK_TYPE });
+  });
+
+  it('should report a blocked edit and keep the request in the state machine', () => {
+    mockSnapshot.value = 'editing';
+    mockSnapshot.context.activeForm = 'form-1';
+    const { result } = renderHook(() => useFormStateMachine());
+
+    expect(result.current.edit(IDs.WORK_TYPE)).toBe(false);
+
+    expect(mockSend).toHaveBeenCalledWith({ type: 'setActiveFormId', id: IDs.WORK_TYPE });
   });
 
   it('should send close event on closeForm', () => {
-    mockSelector.mockReturnValue(null);
     const { result } = renderHook(() => useFormStateMachine());
 
     result.current.closeForm();
@@ -51,7 +72,6 @@ describe('useFormStateMachine', () => {
   });
 
   it('should send close on unmount via useUnmount', () => {
-    mockSelector.mockReturnValue(null);
     const { unmount } = renderHook(() => useFormStateMachine());
 
     unmount();

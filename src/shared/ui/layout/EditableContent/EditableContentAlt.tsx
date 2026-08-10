@@ -8,6 +8,7 @@ import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { Id } from '@/src/shared/interfaces';
 import useFormStateMachine from '@/src/shared/store/forms/hooks/useFormStateMachine';
 import { CloseButton, MarkdownRenderer, Modal, ModalWrapper } from '@/src/shared/ui';
+import PreviewEditBlockedContext from '@/src/shared/ui/core/Preview/PreviewEditBlockedContext';
 
 import { type FormProps, FormWrapper } from './FormWrapper';
 
@@ -49,7 +50,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
     faq,
   } = props;
 
-  const { activeFormId, edit, closeForm } = useFormStateMachine();
+  const { activeFormId, attentionRequest, edit, closeForm } = useFormStateMachine();
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
   const [showFaq, setShowFaq] = useState(false);
   const isActive = activeFormId === formId;
@@ -89,6 +90,7 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
           onClose={onClose}
           onInfo={handleToggleFaq}
           showFaqButton={!!showFaqButton}
+          attentionRequest={attentionRequest}
           className="items-end gap-1 bg-transparent p-0 capitalize"
           controlsClassName="self-start mt-6"
         >
@@ -96,11 +98,13 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
         </FormWrapper>
       ) : (
         <div onDoubleClick={handleEdit} className="cursor-pointer">
-          {preview({
-            data: defaultValues as T,
-            disabled: (!!activeFormId && !isActive) || isDisabled,
-            onEdit: handleEdit,
-          })}
+          <PreviewEditBlockedContext value={!!activeFormId && !isActive}>
+            {preview({
+              data: defaultValues as T,
+              disabled: isDisabled,
+              onEdit: handleEdit,
+            })}
+          </PreviewEditBlockedContext>
         </div>
       )}
       {showFaqButton && (

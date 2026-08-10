@@ -24,6 +24,7 @@ import {
   ModalWrapper,
   SubmitButton,
 } from '@/src/shared/ui';
+import FormAttentionCue from '@/src/shared/ui/layout/EditableContent/FormAttentionCue';
 import { getProtocolPrefix } from '@/src/shared/utils';
 
 import type { LocationEntity, LocationForm as LocationFormType, LocationPlatform } from '../../model/location.types';
@@ -33,6 +34,7 @@ type LocationFormProps = {
   location: LocationEntity;
   isFullTextUrlHidden: boolean;
   isCheckboxDisabled: boolean;
+  attentionRequest?: number;
   onSubmit?: (data: LocationEntity) => void;
   onClose?: () => void;
 };
@@ -41,7 +43,7 @@ const { PLATFORM, LANDING_PAGE, FULL_TEXT_URL, CANONICAL } = FORM_FIELDS;
 const { LOCATION: LOCATION_HELPER_TEXT } = HELPER_TEXT;
 
 export const LocationForm = (props: LocationFormProps) => {
-  const { location, isFullTextUrlHidden, isCheckboxDisabled, onSubmit, onClose } = props;
+  const { location, isFullTextUrlHidden, isCheckboxDisabled, attentionRequest, onSubmit, onClose } = props;
 
   const [showFaq, setShowFaq] = useState(false);
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
@@ -78,7 +80,7 @@ export const LocationForm = (props: LocationFormProps) => {
   useEscapeKey(onClose, !isDesktop && !showFaq);
 
   const formComponent = (
-    <form onSubmit={handleSubmit(handleSubmitForm)} className="flex flex-col gap-(--default-gap)">
+    <form onSubmit={handleSubmit(handleSubmitForm)} className="relative flex flex-col gap-(--default-gap)">
       <FormFieldWrapper>
         <FormFieldLabel label={PLATFORM.label} id={PLATFORM.name} />
         <FormFieldWithControlsWrapper>
@@ -135,6 +137,7 @@ export const LocationForm = (props: LocationFormProps) => {
           className="mr-auto p-0"
         />
       </FormFieldWrapper>
+      <FormAttentionCue attentionRequest={attentionRequest} />
     </form>
   );
 

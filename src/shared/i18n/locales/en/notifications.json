@@ -1,4 +1,5 @@
 {
+  "activeFormBlocked": "Save or cancel the current edit before editing another field.",
   "authFailed": "Invalid username or password.",
   "workCreationSuccess": "Work created successfully",
   "workCreationFailed": "Failed to create work",

@@ -1,4 +1,5 @@
 {
+  "activeFormBlocked": "Speichern oder verwerfen Sie die aktuelle Bearbeitung, bevor Sie ein anderes Feld bearbeiten.",
   "authFailed": "Ungültiger Benutzername oder Passwort.",
   "workCreationSuccess": "Werk erfolgreich erstellt",
   "workCreationFailed": "Werk konnte nicht erstellt werden",

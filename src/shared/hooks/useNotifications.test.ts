@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockSendSuccess = vi.fn();
 const mockSendError = vi.fn();
+const mockSendWarning = vi.fn();
 const mockSendProgress = vi.fn();
 const mockDismiss = vi.fn();
 
@@ -11,6 +12,7 @@ vi.mock('@/src/shared/context', () => ({
     notificationService: {
       sendSuccessNotification: mockSendSuccess,
       sendErrorNotification: mockSendError,
+      sendWarningNotification: mockSendWarning,
       sendProgressNotification: mockSendProgress,
       dismissNotification: mockDismiss,
     },
@@ -35,6 +37,7 @@ describe('useNotification', () => {
 
     expect(result.current.sendSuccessNotification).toBeDefined();
     expect(result.current.sendErrorNotification).toBeDefined();
+    expect(result.current.sendWarningNotification).toBeDefined();
     expect(result.current.sendProgressNotification).toBeDefined();
     expect(result.current.dismissNotification).toBeDefined();
   });
@@ -67,6 +70,16 @@ describe('useNotification', () => {
 
     expect(mockT).toHaveBeenCalledWith('progress.key', { count: 3 });
     expect(mockSendProgress).toHaveBeenCalledWith('Translated progress', 'task-1');
+  });
+
+  it('sendWarningNotification should translate and call notificationService', () => {
+    mockT.mockReturnValue('Translated warning');
+    const { result } = renderHook(() => useNotification());
+
+    result.current.sendWarningNotification('warning.key');
+
+    expect(mockT).toHaveBeenCalledWith('warning.key', undefined);
+    expect(mockSendWarning).toHaveBeenCalledWith('Translated warning');
   });
 
   it('dismissNotification should call notificationService dismiss', () => {

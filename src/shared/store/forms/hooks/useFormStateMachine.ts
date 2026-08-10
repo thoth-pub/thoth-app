@@ -7,11 +7,16 @@ import { FormStateMachineContext } from '../forms.provider';
 
 const useFormStateMachine = () => {
   const activeFormId: Id | null = FormStateMachineContext.useSelector((state) => state.context.activeForm);
+  const attentionRequest = FormStateMachineContext.useSelector((state) => state.context.attentionRequest);
   const actorRef = FormStateMachineContext.useActorRef();
 
   const edit = useCallback(
     (formId: Id) => {
+      const isEditing = actorRef.getSnapshot().value === 'editing';
+
       actorRef.send({ type: 'setActiveFormId', id: formId });
+
+      return !isEditing;
     },
     [actorRef],
   );
@@ -24,7 +29,7 @@ const useFormStateMachine = () => {
     closeForm();
   });
 
-  return { activeFormId, edit, closeForm };
+  return { activeFormId, attentionRequest, edit, closeForm };
 };
 
 export default useFormStateMachine;

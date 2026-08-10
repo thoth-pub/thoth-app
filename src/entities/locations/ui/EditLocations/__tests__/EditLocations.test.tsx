@@ -2,11 +2,14 @@ import { ThemeProvider } from '@mui/material';
 import { act, fireEvent, render, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { LocationPlatform } from '@/gql/graphql';
 import type { LocationEntity } from '@/src/entities/locations/model/location.types';
 import { theme } from '@/src/shared/theme';
 
 const mocks = vi.hoisted(() => ({
   activeLocation: null as LocationEntity | null,
+  activeFormId: null as string | null,
+  attentionRequest: 0,
   closeForm: vi.fn(),
   edit: vi.fn(),
   editForm: vi.fn(),
@@ -22,7 +25,12 @@ vi.mock('@/src/entities/locations/store/location.store', () => ({
 }));
 
 vi.mock('@/src/shared/store/forms/hooks/useFormStateMachine', () => ({
-  default: vi.fn(() => ({ activeFormId: null, edit: mocks.editForm, closeForm: mocks.closeForm })),
+  default: vi.fn(() => ({
+    activeFormId: mocks.activeFormId,
+    attentionRequest: mocks.attentionRequest,
+    edit: mocks.editForm,
+    closeForm: mocks.closeForm,
+  })),
 }));
 
 vi.mock('@/src/shared/hooks', () => ({
@@ -37,12 +45,18 @@ vi.mock('@/src/shared/hooks', () => ({
 import EditLocations from '../EditLocations';
 
 const mockLocations: LocationEntity[] = [
-  { id: '1', locationPlatform: 'PROJECT_MUSE', fullTextUrl: '', landingPage: 'https://muse.jhu.edu', canonical: true },
+  {
+    id: '1',
+    locationPlatform: LocationPlatform.ProjectMuse,
+    fullTextUrl: '',
+    landingPage: 'https://muse.jhu.edu',
+    canonical: true,
+  },
 ];
 
 const newLocation: LocationEntity = {
   id: '0000-0000-0000-0000-2',
-  locationPlatform: 'OTHER',
+  locationPlatform: LocationPlatform.Other,
   fullTextUrl: '',
   landingPage: '',
   canonical: false,
@@ -64,9 +78,12 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 describe('EditLocations', () => {
   beforeEach(() => {
     mocks.activeLocation = null;
+    mocks.activeFormId = null;
+    mocks.attentionRequest = 0;
     mocks.closeForm.mockReset();
     mocks.edit.mockReset();
     mocks.editForm.mockReset();
+    mocks.editForm.mockReturnValue(true);
     mocks.finishEditing.mockReset();
   });
 
@@ -74,7 +91,7 @@ describe('EditLocations', () => {
     const { container } = render(
       <Wrapper>
         <EditLocations locations={mockLocations} isFullTextUrlHidden={false} onUpdate={vi.fn()} />
-      </Wrapper>
+      </Wrapper>,
     );
     expect(container).toMatchSnapshot('EditLocations');
   });
@@ -83,7 +100,7 @@ describe('EditLocations', () => {
     const { container } = render(
       <Wrapper>
         <EditLocations locations={[]} isFullTextUrlHidden={false} onUpdate={vi.fn()} />
-      </Wrapper>
+      </Wrapper>,
     );
     expect(container).toMatchSnapshot('EditLocations - empty');
   });
@@ -116,12 +133,7 @@ describe('EditLocations', () => {
 
       const { container } = render(
         <Wrapper>
-          <EditLocations
-            locations={mockLocations}
-            isFullTextUrlHidden={false}
-            onUpdate={vi.fn()}
-            onDelete={onDelete}
-          />
+          <EditLocations locations={mockLocations} isFullTextUrlHidden={false} onUpdate={vi.fn()} onDelete={onDelete} />
         </Wrapper>,
       );
 
@@ -169,5 +181,68 @@ describe('EditLocations', () => {
 
     await waitFor(() => expect(mocks.finishEditing).toHaveBeenCalledTimes(1));
     expect(mocks.closeForm).toHaveBeenCalledTimes(1);
+  });
+
+  it('EditLocations_blocksEditingAnExistingLocationUntilTheActiveFormCloses', () => {
+    mocks.activeFormId = 'another-form';
+    mocks.editForm.mockReturnValue(false);
+
+    const { container, rerender } = render(
+      <Wrapper>
+        <EditLocations locations={mockLocations} isFullTextUrlHidden={false} onUpdate={vi.fn()} />
+      </Wrapper>,
+    );
+
+    const editButton = container.querySelector('[data-testid="EditIcon"]')!.closest('button')!;
+    expect(editButton).toHaveAttribute('aria-disabled', 'true');
+
+    fireEvent.click(editButton);
+
+    expect(mocks.editForm).toHaveBeenCalledWith('location_platform');
+    expect(mocks.edit).not.toHaveBeenCalled();
+    expect(container.querySelector('form')).not.toBeInTheDocument();
+
+    mocks.activeFormId = null;
+    mocks.editForm.mockReturnValue(true);
+    rerender(
+      <Wrapper>
+        <EditLocations locations={mockLocations} isFullTextUrlHidden={false} onUpdate={vi.fn()} />
+      </Wrapper>,
+    );
+
+    fireEvent.click(container.querySelector('[data-testid="EditIcon"]')!.closest('button')!);
+
+    expect(mocks.edit).toHaveBeenCalledWith(mockLocations[0]);
+  });
+
+  it('EditLocations_blocksAddingANewLocationUntilTheActiveFormCloses', () => {
+    mocks.activeFormId = 'another-form';
+    mocks.editForm.mockReturnValue(false);
+
+    const { container, rerender } = render(
+      <Wrapper>
+        <EditLocations locations={[]} isFullTextUrlHidden={false} onUpdate={vi.fn()} />
+      </Wrapper>,
+    );
+
+    const addButton = container.querySelector('button')!;
+    expect(addButton).toHaveAttribute('aria-disabled', 'true');
+
+    fireEvent.click(addButton);
+
+    expect(mocks.editForm).toHaveBeenCalledWith('location_platform');
+    expect(mocks.edit).not.toHaveBeenCalled();
+
+    mocks.activeFormId = null;
+    mocks.editForm.mockReturnValue(true);
+    rerender(
+      <Wrapper>
+        <EditLocations locations={[]} isFullTextUrlHidden={false} onUpdate={vi.fn()} />
+      </Wrapper>,
+    );
+
+    fireEvent.click(container.querySelector('button')!);
+
+    expect(mocks.edit).toHaveBeenCalledWith({ ...newLocation, id: '0000-0000-0000-0000-1' });
   });
 });
