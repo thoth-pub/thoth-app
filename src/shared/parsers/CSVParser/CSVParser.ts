@@ -39,6 +39,7 @@ import {
 } from '../../utils';
 import { createEmptyImportPlan } from '../../utils/importPlan';
 import { compileFullTitle } from '../../utils/titles';
+import { ImportLookupCoordinator } from '../importLookupCoordinator';
 import { importStatus, sortIssues } from '../issues/importIssues';
 import {
   buildSeriesPlan,
@@ -89,8 +90,7 @@ export class CSVParser {
   private licenses: FormFieldOption[] = [];
   private serieses: SeriesEntity[] = [];
   private defaultId: string = appConfig.defaultId;
-  private contributorService: ContributorService;
-  private institutionService: InstitutionService;
+  private readonly lookupCoordinator: ImportLookupCoordinator;
   private t: TranslateFunction;
 
   constructor(
@@ -108,8 +108,7 @@ export class CSVParser {
     this.imprints = imprints;
     this.licenses = licenses;
     this.serieses = serieses;
-    this.contributorService = contributorService;
-    this.institutionService = institutionService;
+    this.lookupCoordinator = new ImportLookupCoordinator(contributorService, institutionService);
     this.t = t;
   }
 
@@ -803,18 +802,10 @@ export class CSVParser {
         website,
       } = filteredContributors[i];
 
-      const [foundedContributors, foundedInstitutions] = await Promise.all([
-        this.contributorService.getContributors(fullName),
-        affiliationInstitutionRor.length > 0
-          ? this.institutionService.getInstitutions(
-              0,
-              appConfig.data.maxItemsPerRequestLimit,
-              affiliationInstitutionRor,
-            )
-          : Promise.resolve([]),
+      const [foundedContributors, institution] = await Promise.all([
+        this.lookupCoordinator.findContributors(fullName),
+        this.lookupCoordinator.findInstitutionByRor(affiliationInstitutionRor),
       ]);
-
-      const institution = foundedInstitutions[0] ?? null;
 
       const affiliation = institution
         ? getDefaultAffiliation({
