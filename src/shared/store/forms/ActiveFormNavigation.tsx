@@ -17,7 +17,7 @@ type ActiveFormTarget = {
 };
 
 type ActiveFormNavigationContextValue = {
-  goToActiveForm: () => void;
+  goToActiveForm: (expectedFormId?: Id | null) => void;
   registerActiveForm: (target: ActiveFormTarget) => () => void;
 };
 
@@ -36,12 +36,12 @@ const ActiveFormIndicator = ({ label, onGoToEdit }: { label?: string; onGoToEdit
       component="aside"
       role="status"
       elevation={2}
-      className="fixed bottom-4 left-1/2 z-[1200] flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-full border border-(--color-notification-border) bg-(--color-notification-background-system) px-4 py-2 text-(--color-notification-text-system)"
+      className="fixed bottom-4 left-1/2 z-[1200] flex max-w-[calc(100vw-2rem)] -translate-x-1/2 items-center gap-3 rounded-full border border-(--color-hover-border) bg-(--color-form-background) px-4 py-2 text-(--color-typography)"
     >
       <Typography component="span" className="min-w-0 truncate text-inherit">
         {label ? t(NOTIFICATIONS.ACTIVE_FORM_EDITING_LABEL, { label }) : t(NOTIFICATIONS.ACTIVE_FORM_EDITING)}
       </Typography>
-      <Button variant="text" className="min-h-11 shrink-0 normal-case" onClick={onGoToEdit}>
+      <Button variant="text" className="min-h-11 shrink-0 normal-case" onClick={() => onGoToEdit()}>
         {t(NOTIFICATIONS.ACTIVE_FORM_GO_TO_EDIT)}
       </Button>
     </Paper>
@@ -67,21 +67,26 @@ export const ActiveFormNavigationProvider = ({ children }: { children: ReactNode
     };
   }, []);
 
-  const goToActiveForm = useCallback(() => {
-    const currentActiveFormId = actorRef.getSnapshot().context.activeForm;
-    const currentTarget = targetRef.current;
+  const goToActiveForm = useCallback(
+    (expectedFormId?: Id | null) => {
+      const currentActiveFormId = actorRef.getSnapshot().context.activeForm;
+      const currentTarget = targetRef.current;
 
-    if (!currentActiveFormId || !currentTarget || currentTarget.formId !== currentActiveFormId) {
-      return;
-    }
+      if (expectedFormId !== undefined && expectedFormId !== currentActiveFormId) return;
 
-    if (!currentTarget.element.isConnected) return;
+      if (!currentActiveFormId || !currentTarget || currentTarget.formId !== currentActiveFormId) {
+        return;
+      }
 
-    const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+      if (!currentTarget.element.isConnected) return;
 
-    currentTarget.element.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
-    requestAttention();
-  }, [actorRef, requestAttention]);
+      const prefersReducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+
+      currentTarget.element.scrollIntoView({ behavior: prefersReducedMotion ? 'auto' : 'smooth', block: 'center' });
+      requestAttention();
+    },
+    [actorRef, requestAttention],
+  );
 
   const value = useMemo(() => ({ goToActiveForm, registerActiveForm }), [goToActiveForm, registerActiveForm]);
   const activeLabel = target && target.formId === activeFormId ? target.label?.trim() || undefined : undefined;

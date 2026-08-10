@@ -25,6 +25,7 @@ vi.mock('react-i18next', () => ({
 const Harness = () => {
   const { activeFormId, attentionRequest, edit, closeForm } = useFormStateMachine();
   const formRef = useActiveFormNavigationTarget(IDs.WORK_TITLE, 'Main title');
+  const replacementFormRef = useActiveFormNavigationTarget(IDs.WORK_NOTES, 'Notes');
 
   return (
     <>
@@ -34,12 +35,16 @@ const Harness = () => {
       <button type="button" onClick={() => edit(IDs.WORK_TYPE)}>
         Edit second
       </button>
+      <button type="button" onClick={() => edit(IDs.WORK_NOTES)}>
+        Edit replacement
+      </button>
       <button type="button" onClick={closeForm}>
         Close
       </button>
       <span data-testid="active-form">{typeof activeFormId === 'string' ? activeFormId : ''}</span>
       <span data-testid="attention-request">{attentionRequest}</span>
       {activeFormId === IDs.WORK_TITLE && <form ref={formRef} aria-label="Active form" />}
+      {activeFormId === IDs.WORK_NOTES && <form ref={replacementFormRef} aria-label="Replacement form" />}
     </>
   );
 };
@@ -102,6 +107,28 @@ describe('FormBlockedFeedback', () => {
 
     expect(scrollIntoView).not.toHaveBeenCalled();
     expect(screen.getByTestId('active-form')).toBeEmptyDOMElement();
+    expect(screen.getByTestId('attention-request')).toHaveTextContent('0');
+    expect(mocks.sendWarningNotification).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not navigate to a replacement form from a warning created for a closed form', async () => {
+    const user = userEvent.setup();
+    renderHarness();
+
+    await user.click(screen.getByRole('button', { name: 'Edit first' }));
+    await user.click(screen.getByRole('button', { name: 'Edit second' }));
+    const staleAction = mocks.sendWarningNotification.mock.calls[0][2];
+
+    await user.click(screen.getByRole('button', { name: 'Close' }));
+    await user.click(screen.getByRole('button', { name: 'Edit replacement' }));
+    const replacementForm = screen.getByRole('form', { name: 'Replacement form' });
+    const scrollIntoView = vi.fn();
+    replacementForm.scrollIntoView = scrollIntoView;
+
+    act(() => staleAction.onClick());
+
+    expect(scrollIntoView).not.toHaveBeenCalled();
+    expect(screen.getByTestId('active-form')).toHaveTextContent(IDs.WORK_NOTES);
     expect(screen.getByTestId('attention-request')).toHaveTextContent('0');
     expect(mocks.sendWarningNotification).toHaveBeenCalledTimes(1);
   });
