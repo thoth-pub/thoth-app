@@ -49,7 +49,7 @@ import {
   ExtendedPublishingDetail,
 } from './interfaces';
 import { toOnixArray } from './onix';
-import XMLParser from './XMLParser';
+import XMLParser, { ONIX_PROCESSING_FAILURE_MESSAGE } from './XMLParser';
 
 /**
  * The messages of a result's error issues, in the order the parser reported them. Structured
@@ -58,6 +58,53 @@ import XMLParser from './XMLParser';
  */
 const errorMessages = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
   result.issues.filter(({ severity }) => severity === 'error').map(({ message }) => message);
+
+const lookupProduct = ({
+  title,
+  imprintName,
+  languageCode,
+  contributorName,
+  contributorRor,
+  fundingRor,
+}: {
+  title: string;
+  imprintName: string;
+  languageCode: string;
+  contributorName?: string;
+  contributorRor?: string;
+  /** `null` includes a funding publisher with no ROR identifier; `undefined` includes none. */
+  fundingRor?: string | null;
+}): ExtendedProduct => ({
+  DescriptiveDetail: {
+    ProductForm: ProductForm._BC,
+    TitleDetail: { TitleElement: { TitleText: title } },
+    Language: { LanguageCode: languageCode },
+    Contributor: contributorName
+      ? [
+          {
+            ContributorRole: 'A01',
+            PersonName: contributorName,
+            ProfessionalAffiliation:
+              contributorRor === undefined ? undefined : { AffiliationIdentifier: { IDValue: contributorRor } },
+          },
+        ]
+      : undefined,
+  } as ExtendedDescriptiveDetail,
+  PublishingDetail: {
+    Imprint: { ImprintName: imprintName },
+    PublishingStatus: '04',
+    Publisher:
+      fundingRor === undefined
+        ? undefined
+        : [
+            {
+              PublishingRole: '16',
+              PublisherIdentifier: fundingRor === null ? undefined : { PublisherIDType: '40', IDValue: fundingRor },
+              Funding: [{ FundingIdentifier: [] }],
+            },
+          ],
+  } as ExtendedPublishingDetail,
+});
 
 describe('XMLParser', () => {
   let mockContributorService: ContributorService;
@@ -105,6 +152,57 @@ describe('XMLParser', () => {
   });
 
   describe('parse', () => {
+    it('reports a safe file-level diagnostic while logging the original unexpected error', async () => {
+      const originalError = new Error('backend contributor lookup exploded');
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.mocked(mockContributorService.getContributors).mockRejectedValue(originalError);
+      const xml: ExtendedONIXMessageRoot = {
+        ONIXMessage: {
+          Product: lookupProduct({
+            title: 'A valid book',
+            imprintName: imprints[0].label,
+            languageCode: languages[0].value,
+            contributorName: 'Jane Doe',
+          }),
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencies,
+      );
+
+      try {
+        const result = await parser.parse();
+
+        expect(result).toEqual({
+          status: 'failed',
+          data: {
+            plan: { works: [], chapters: [], series: [] },
+            contributorsForSelection: {},
+          },
+          issues: [
+            {
+              severity: 'error',
+              code: 'onix.processing_failed',
+              message: ONIX_PROCESSING_FAILURE_MESSAGE,
+              source: { kind: 'file' },
+            },
+          ],
+        });
+        expect(result.issues[0].message).not.toBe('errors.xmlParsingError');
+        expect(result.issues[0].message).not.toContain(originalError.message);
+        expect(consoleError).toHaveBeenCalledWith('Unexpected error while processing ONIX bulk import', originalError);
+      } finally {
+        consoleError.mockRestore();
+      }
+    });
+
     it('should return failed status if products are empty in XML', async () => {
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
@@ -163,6 +261,118 @@ describe('XMLParser', () => {
       expect(result.data.plan.works).toHaveLength(0);
       expect(result.data.plan.chapters).toHaveLength(0);
       expect(result.data.plan.series).toEqual([]);
+    });
+
+    it('coalesces repeated contributor and shared contributor/funding ROR lookups across products', async () => {
+      const ror = 'https://ror.org/03vek6s52';
+      const contributorName = 'Jane Doe';
+      const existingContributor = {
+        id: 'existing-contributor',
+        name: contributorName,
+        fullName: contributorName,
+        firstName: 'Jane',
+        lastName: 'Doe',
+        orcid: '',
+        website: '',
+        updatedAt: '',
+        lastContributionTitle: 'Earlier work',
+      };
+      const exactInstitution = {
+        id: 'exact-institution',
+        name: 'Exact Institution',
+        ror,
+        doi: '',
+        countryCode: '',
+        updatedAt: '',
+      };
+      vi.mocked(mockContributorService.getContributors).mockResolvedValue([existingContributor]);
+      vi.mocked(mockInstitutionService.getInstitutions).mockResolvedValue([exactInstitution]);
+      const xml: ExtendedONIXMessageRoot = {
+        ONIXMessage: {
+          Product: ['First', 'Second', 'Third'].map((title) =>
+            lookupProduct({
+              title,
+              imprintName: imprints[0].label,
+              languageCode: languages[0].value,
+              contributorName,
+              contributorRor: ror,
+              fundingRor: ror,
+            }),
+          ),
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencies,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(mockContributorService.getContributors).toHaveBeenCalledTimes(1);
+      expect(mockContributorService.getContributors).toHaveBeenCalledWith(contributorName);
+      expect(mockInstitutionService.getInstitutions).toHaveBeenCalledTimes(1);
+      expect(mockInstitutionService.getInstitutions).toHaveBeenCalledWith(
+        0,
+        appConfig.data.maxItemsPerRequestLimit,
+        ror,
+      );
+      expect(result.data.plan.works.map((work) => work.titles[0].title)).toEqual(['First', 'Second', 'Third']);
+      expect(result.data.plan.works.every((work) => work.fundings[0]?.institutionRor === ror)).toBe(true);
+
+      for (const work of result.data.plan.works) {
+        const [options] = Object.values(result.data.contributorsForSelection[work.id]);
+
+        expect(options.map(({ selected }) => selected)).toEqual([true, false]);
+        expect(options.map(({ fullName }) => fullName)).toEqual([contributorName, contributorName]);
+      }
+    });
+
+    it('does not query institutions for absent or blank contributor and funding RORs', async () => {
+      const xml: ExtendedONIXMessageRoot = {
+        ONIXMessage: {
+          Product: [
+            lookupProduct({
+              title: 'Absent RORs',
+              imprintName: imprints[0].label,
+              languageCode: languages[0].value,
+              contributorName: 'Absent ROR Contributor',
+              fundingRor: null,
+            }),
+            lookupProduct({
+              title: 'Blank RORs',
+              imprintName: imprints[0].label,
+              languageCode: languages[0].value,
+              contributorName: 'Blank ROR Contributor',
+              contributorRor: '   ',
+              fundingRor: '   ',
+            }),
+          ],
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencies,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(mockInstitutionService.getInstitutions).not.toHaveBeenCalled();
+      expect(result.data.plan.works.every((work) => work.contributions[0].affiliations.length === 0)).toBe(true);
+      expect(result.data.plan.works.every((work) => work.fundings.length === 0)).toBe(true);
     });
 
     it('should successfully parse valid XML with a single product', async () => {

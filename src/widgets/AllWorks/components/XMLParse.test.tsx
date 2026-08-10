@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ERRORS } from '@/src/shared/constants';
+import { ONIX_PROCESSING_FAILURE_MESSAGE } from '@/src/shared/parsers/XMLParser/XMLParser';
 import type { ImportIssue } from '@/src/shared/types';
 import { getDefaultWork } from '@/src/shared/utils/work';
 
@@ -188,6 +189,30 @@ describe('XMLParse', () => {
       await waitFor(() => expect(onValidationFailure).toHaveBeenCalledWith([warning, error]));
       expect(onPreview).not.toHaveBeenCalled();
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+    });
+
+    it('hands the display-ready processing failure to the upload step without translating it as a key', async () => {
+      const processingFailure: ImportIssue = {
+        severity: 'error',
+        code: 'onix.processing_failed',
+        message: ONIX_PROCESSING_FAILURE_MESSAGE,
+        source: { kind: 'file' },
+      };
+
+      mockParse.mockResolvedValue({
+        status: 'failed',
+        data: { plan: { works: [], chapters: [], series: [] }, contributorsForSelection: {} },
+        issues: [processingFailure],
+      });
+
+      const onPreview = vi.fn();
+      const onValidationFailure = vi.fn();
+      renderParse(onPreview, onValidationFailure);
+
+      await waitFor(() => expect(onValidationFailure).toHaveBeenCalledWith([processingFailure]));
+      expect(onValidationFailure.mock.calls[0][0][0].message).toBe(ONIX_PROCESSING_FAILURE_MESSAGE);
+      expect(onValidationFailure.mock.calls[0][0][0].message).not.toBe(ERRORS.XML_PARSING_ERROR);
+      expect(onPreview).not.toHaveBeenCalled();
     });
   });
 });

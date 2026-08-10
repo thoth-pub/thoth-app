@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockCSVParse } = vi.hoisted(() => ({ mockCSVParse: vi.fn() }));
+const { mockCSVParse, mockXMLParse } = vi.hoisted(() => ({ mockCSVParse: vi.fn(), mockXMLParse: vi.fn() }));
 
 vi.mock('./CSVParse', () => ({
   CSVParse: (props: { onValidationFailure?: (issues: unknown[]) => void }) => {
@@ -12,7 +12,13 @@ vi.mock('./CSVParse', () => ({
   },
 }));
 
-vi.mock('./XMLParse', () => ({ XMLParse: () => <div data-testid="xml-parse" /> }));
+vi.mock('./XMLParse', () => ({
+  XMLParse: (props: { onValidationFailure?: (issues: unknown[]) => void }) => {
+    mockXMLParse(props);
+
+    return <div data-testid="xml-parse" />;
+  },
+}));
 
 vi.mock('@/src/entities/series', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
@@ -28,6 +34,7 @@ vi.mock('@/src/shared/hooks', () => ({
   useTypedTranslation: vi.fn(() => ({ t: (key: string) => key })),
 }));
 
+import { ONIX_PROCESSING_FAILURE_MESSAGE } from '@/src/shared/parsers/XMLParser/XMLParser';
 import type { ImportIssue } from '@/src/shared/types';
 
 import { UploadStep } from './UploadStep';
@@ -36,6 +43,12 @@ const uploadCsv = async (contents = 'imprint,title\nPublisher,Book') => {
   const input = document.querySelector('input[type="file"]') as HTMLInputElement;
 
   await userEvent.upload(input, new File([contents], 'test.csv', { type: 'text/csv' }));
+};
+
+const uploadXml = async (contents = '<ONIXMessage></ONIXMessage>') => {
+  const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+  await userEvent.upload(input, new File([contents], 'test.xml', { type: 'text/xml' }));
 };
 
 /**
@@ -99,5 +112,25 @@ describe('UploadStep', () => {
     expect(screen.getByText(/row 3 error/)).toBeInTheDocument();
     expect(screen.getByText(/row 2 warning/).textContent).toContain('1.');
     expect(screen.getByText(/row 3 error/).textContent).toContain('2.');
+  });
+
+  it('renders the readable ONIX processing failure instead of an i18n key', async () => {
+    render(<UploadStep />);
+
+    await uploadXml();
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalled());
+
+    const issue: ImportIssue = {
+      severity: 'error',
+      code: 'onix.processing_failed',
+      message: ONIX_PROCESSING_FAILURE_MESSAGE,
+      source: { kind: 'file' },
+    };
+    const { onValidationFailure } = mockXMLParse.mock.calls[0][0];
+
+    onValidationFailure([issue]);
+
+    expect(await screen.findByText(ONIX_PROCESSING_FAILURE_MESSAGE)).toBeInTheDocument();
+    expect(screen.queryByText('errors.xmlParsingError')).not.toBeInTheDocument();
   });
 });

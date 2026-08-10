@@ -1390,6 +1390,54 @@ describe('CSVParser', () => {
       expect(selectionOptions[0][1].selected).toBe(false);
     });
 
+    it('performs one lookup per distinct contributor filter and meaningful ROR across rows', async () => {
+      const firstRor = 'https://ror.org/03vek6s52';
+      const secondRor = 'https://ror.org/05dxps055';
+      const getContributors = vi.fn().mockResolvedValue([]);
+      const getInstitutions = vi.fn((_offset: number, _limit: number, ror: string) =>
+        Promise.resolve([{ id: ror, name: `Institution ${ror}`, ror }]),
+      );
+      const csv = buildCsvRows([
+        {
+          ...BASE,
+          title: 'First Jane work',
+          contribution_1_first_name: 'Jane',
+          contribution_1_surname: 'Doe',
+          contribution_1_role: 'AUTHOR',
+          contribution_1_affiliation_institution_ror: firstRor,
+        },
+        {
+          ...BASE,
+          title: 'Second Jane work',
+          contribution_1_first_name: 'Jane',
+          contribution_1_surname: 'Doe',
+          contribution_1_role: 'EDITOR',
+          contribution_1_affiliation_institution_ror: firstRor,
+        },
+        {
+          ...BASE,
+          title: 'John work',
+          contribution_1_first_name: 'John',
+          contribution_1_surname: 'Smith',
+          contribution_1_role: 'AUTHOR',
+          contribution_1_affiliation_institution_ror: secondRor,
+        },
+      ]);
+
+      const result = await makeParser(makeFile(csv), { getContributors, getInstitutions }).parse();
+
+      expect(result.status).toBe('success');
+      expect(getContributors).toHaveBeenCalledTimes(2);
+      expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(['Jane Doe', 'John Smith']);
+      expect(getInstitutions).toHaveBeenCalledTimes(2);
+      expect(getInstitutions.mock.calls.map(([, , filter]) => filter)).toEqual([firstRor, secondRor]);
+      expect(result.data.plan.works.map((work) => work.titles[0].title)).toEqual([
+        'First Jane work',
+        'Second Jane work',
+        'John work',
+      ]);
+    });
+
     it('does not query or attach an institution when no affiliation ROR is supplied', async () => {
       const getInstitutions = vi
         .fn()
@@ -1465,6 +1513,49 @@ describe('CSVParser', () => {
         rorId: ror,
         position: 'Professor',
       });
+    });
+
+    it('selects the exact ROR candidate instead of the first broad-search result', async () => {
+      const ror = 'https://ror.org/03vek6s52';
+      const getInstitutions = vi.fn().mockResolvedValue([
+        { id: 'unrelated', name: 'Unrelated Institution', ror: 'https://ror.org/not-the-one' },
+        { id: 'exact', name: 'Exact Institution', ror },
+      ]);
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+        contribution_1_affiliation_institution_ror: ror,
+      });
+
+      const result = await makeParser(makeFile(csv), { getInstitutions }).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0].contributions[0].affiliations[0]).toMatchObject({
+        institutionId: 'exact',
+        institutionName: 'Exact Institution',
+        rorId: ror,
+      });
+    });
+
+    it('does not attach an affiliation when broad-search results contain no exact ROR', async () => {
+      const ror = 'https://ror.org/03vek6s52';
+      const getInstitutions = vi
+        .fn()
+        .mockResolvedValue([{ id: 'unrelated', name: 'Unrelated Institution', ror: 'https://ror.org/not-the-one' }]);
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+        contribution_1_affiliation_institution_ror: ror,
+      });
+
+      const result = await makeParser(makeFile(csv), { getInstitutions }).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0].contributions[0].affiliations).toEqual([]);
     });
 
     it('trims an explicit ROR before looking up its affiliation', async () => {

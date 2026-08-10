@@ -43,7 +43,7 @@ export type ImportIssueCode =
   | 'csv.validation'
   | 'csv.parsing_failed'
   | 'onix.validation'
-  | 'onix.parsing_failed'
+  | 'onix.processing_failed'
   | 'onix.no_products'
   | 'onix.series.non_publisher_collection_skipped'
   | 'onix.reference.unrepresentable_citation'

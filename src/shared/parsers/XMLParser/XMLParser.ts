@@ -38,7 +38,6 @@ import {
   WorkTypes,
 } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
-import { ERRORS } from '../../constants/errors';
 import { FormFieldOption } from '../../interfaces';
 import type {
   AbstractEntity,
@@ -64,6 +63,7 @@ import {
   localeFromLanguageCode,
 } from '../../utils';
 import { createEmptyImportPlan } from '../../utils/importPlan';
+import { ImportLookupCoordinator } from '../importLookupCoordinator';
 import { importStatus, sortIssues } from '../issues/importIssues';
 import {
   buildSeriesPlan,
@@ -96,6 +96,9 @@ import {
   selectSeriesCollection,
   toOnixArray,
 } from './onix';
+
+export const ONIX_PROCESSING_FAILURE_MESSAGE =
+  'Thoth could not finish processing this ONIX file because an unexpected error occurred. The file itself may still be valid, and nothing has been created from this upload. Please try again; if the problem continues, report it to Thoth.';
 
 /**
  * The `IDTypeName` Thoth's ONIX exporter gives the proprietary identifier that holds a reference's
@@ -209,8 +212,7 @@ class XMLParser {
   private serieses: SeriesEntity[] = [];
   private currencyOptions: FormFieldOption[] = [];
   private defaultId: string = appConfig.defaultId;
-  private contributorService: ContributorService;
-  private institutionService: InstitutionService;
+  private readonly lookupCoordinator: ImportLookupCoordinator;
 
   constructor(
     xml: ExtendedONIXMessageRoot,
@@ -228,8 +230,7 @@ class XMLParser {
     this.serieses = serieses;
     this.languages = languages;
     this.currencyOptions = currencyOptions;
-    this.contributorService = contributorService;
-    this.institutionService = institutionService;
+    this.lookupCoordinator = new ImportLookupCoordinator(contributorService, institutionService);
   }
 
   async parse(): Promise<ImportParseResult> {
@@ -295,15 +296,17 @@ class XMLParser {
         },
         issues: sortedIssues,
       };
-    } catch (_error) {
+    } catch (error) {
+      console.error('Unexpected error while processing ONIX bulk import', error);
+
       return {
         status: 'failed',
         data: this.emptyData(),
         issues: [
           {
             severity: 'error',
-            code: 'onix.parsing_failed',
-            message: ERRORS.XML_PARSING_ERROR,
+            code: 'onix.processing_failed',
+            message: ONIX_PROCESSING_FAILURE_MESSAGE,
             source: { kind: 'file' },
           },
         ],
@@ -1046,22 +1049,12 @@ class XMLParser {
       return identifiers.find((identifier) => identifier.PublisherIDType === '40')?.IDValue ?? '';
     });
 
-    const institutionsPromises = institutionsRors.map((ror) => {
-      return this.institutionService.getInstitutions(0, appConfig.data.maxItemsPerRequestLimit, ror);
-    });
+    const institutions = await Promise.all(
+      institutionsRors.map((ror) => this.lookupCoordinator.findInstitutionByRor(ror)),
+    );
 
-    const institutions = await Promise.all(institutionsPromises);
-    const institutionsEntities = institutions.flatMap((institution) => institution);
-
-    publishersWithFundings.forEach((publisherWithFunding) => {
-      const identifiers = this.convertToArray(publisherWithFunding.PublisherIdentifier).filter(
-        (identifier) => !!identifier,
-      );
-      const ror = identifiers.find((identifier) => identifier.PublisherIDType === '40')?.IDValue ?? '';
-
-      if (!ror || ror.length === 0) return;
-
-      const institution = institutionsEntities.find((institution) => institution.ror === ror);
+    publishersWithFundings.forEach((publisherWithFunding, publisherIndex) => {
+      const institution = institutions[publisherIndex];
 
       if (!institution) return;
 
@@ -1550,19 +1543,16 @@ class XMLParser {
 
       if (newContributor.fullName.length === 0) continue;
 
-      const institutions = await this.institutionService.getInstitutions(
-        0,
-        appConfig.data.maxItemsPerRequestLimit,
-        `${affiliationInstitutionRor}`,
-      );
+      const [foundedInstitution, foundedContributors] = await Promise.all([
+        this.lookupCoordinator.findInstitutionByRor(affiliationInstitutionRor),
+        this.lookupCoordinator.findContributors(newContributor.fullName),
+      ]);
 
-      const foundedInstitutions = institutions.find((institution) => institution.ror === affiliationInstitutionRor);
-
-      const affiliation = foundedInstitutions
+      const affiliation = foundedInstitution
         ? getDefaultAffiliation({
-            institutionId: foundedInstitutions.id,
-            institutionName: foundedInstitutions.name,
-            rorId: foundedInstitutions.ror,
+            institutionId: foundedInstitution.id,
+            institutionName: foundedInstitution.name,
+            rorId: foundedInstitution.ror,
             position: affiliationPosition,
           })
         : null;
@@ -1588,8 +1578,6 @@ class XMLParser {
       multipleContributions[workId][multipleContributionsItemId] = [
         { ...contributionWithNewContributor, selected: true, lastContribution: '' },
       ];
-
-      const foundedContributors = await this.contributorService.getContributors(newContributor.fullName);
 
       if (foundedContributors.length === 0) continue;
 
