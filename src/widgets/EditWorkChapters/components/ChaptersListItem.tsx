@@ -44,8 +44,6 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
 
   const { id, titles, pageCount, contributions, firstPage, lastPage, doi, landingPage } = chapter;
 
-  const contributorsNames = contributions.map((contribution) => contribution.fullName);
-
   const handleSelect = () => {
     if (selected) {
       onDeselect?.(id);
@@ -82,7 +80,7 @@ export const ChaptersListItem = (props: ChaptersListItemProps) => {
         <MarkdownRenderer markdown={getDisplayTitle(titles).title} />
       </Typography>
 
-      <ContributorsChip contributors={contributorsNames} />
+      <ContributorsChip contributors={contributions} />
 
       {pageCount > 0 && (
         <Typography className="cardItem">
