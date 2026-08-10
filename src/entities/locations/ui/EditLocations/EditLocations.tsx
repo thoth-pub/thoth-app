@@ -42,7 +42,7 @@ const EditLocations = (props: EditLocationsProps) => {
   const { locations, isFullTextUrlHidden, deleteLoading = false, canDelete = true, onUpdate, onDelete } = props;
 
   const { activeEntity: activeLocation, edit, finishEditing } = useLocationStateMachine();
-  const { activeFormId, edit: editForm, closeForm } = useFormStateMachine();
+  const { activeFormId, attentionRequest, edit: editForm, closeForm } = useFormStateMachine();
 
   const isEditingNewLocation = activeLocation && isDefaultId(activeLocation.id);
   const isLocationsFilled = locations.length > 0;
@@ -54,7 +54,8 @@ const EditLocations = (props: EditLocationsProps) => {
   };
 
   const handleEditLocation = (location: LocationEntity) => {
-    editForm(IDs.LOCATION_PLATFORM);
+    if (!editForm(IDs.LOCATION_PLATFORM)) return;
+
     edit(location);
   };
 
@@ -66,7 +67,8 @@ const EditLocations = (props: EditLocationsProps) => {
   };
 
   const handleAddNewLocation = () => {
-    editForm(IDs.LOCATION_PLATFORM);
+    if (!editForm(IDs.LOCATION_PLATFORM)) return;
+
     edit({
       locationPlatform: LocationPlatform.Other,
       fullTextUrl: '',
@@ -112,7 +114,11 @@ const EditLocations = (props: EditLocationsProps) => {
           <TranslatedContent content={LOCATIONS.label} namespace={NAMESPACES.enum.forms} />
         </InputLabel>
         {!activeLocation && !isLocationsFilled && (
-          <AddButton onAdd={handleAddNewLocation} className="mr-auto p-0 capitalize" disabled={!!activeFormId}>
+          <AddButton
+            onAdd={handleAddNewLocation}
+            className="mr-auto p-0 capitalize"
+            aria-disabled={activeFormId ? true : undefined}
+          >
             <TranslatedContent content="actions.addNewLocation" />
           </AddButton>
         )}
@@ -127,6 +133,7 @@ const EditLocations = (props: EditLocationsProps) => {
                 location={location}
                 isFullTextUrlHidden={isFullTextUrlHidden}
                 isCheckboxDisabled={isThothLocationSelected}
+                attentionRequest={attentionRequest}
                 onClose={handleClose}
                 onSubmit={handleSubmitLocation}
               />
@@ -159,8 +166,13 @@ const EditLocations = (props: EditLocationsProps) => {
                 {location.fullTextUrl && location.fullTextUrl.length > 0 && <DescriptionOutlinedIcon color="primary" />}
                 {location.canonical && <StarIcon color="primary" />}
                 <ButtonGroup className="ml-auto">
-                  {canDelete && <DeleteButton onClick={() => handleDeleteLocation(location.id)} disabled={deleteLoading} />}
-                  <EditButton onClick={() => handleEditLocation(location)} disabled={!!activeFormId} />
+                  {canDelete && (
+                    <DeleteButton onClick={() => handleDeleteLocation(location.id)} disabled={deleteLoading} />
+                  )}
+                  <EditButton
+                    onClick={() => handleEditLocation(location)}
+                    aria-disabled={activeFormId ? true : undefined}
+                  />
                 </ButtonGroup>
               </li>
             ),
@@ -173,13 +185,18 @@ const EditLocations = (props: EditLocationsProps) => {
           location={activeLocation}
           isFullTextUrlHidden={isFullTextUrlHidden}
           isCheckboxDisabled={isThothLocationSelected}
+          attentionRequest={attentionRequest}
           onClose={handleClose}
           onSubmit={handleSubmitNewLocation}
         />
       )}
 
       {isLocationsFilled && (
-        <AddButton onAdd={handleAddNewLocation} className="mt-4 mr-auto p-0 capitalize" disabled={!!activeFormId}>
+        <AddButton
+          onAdd={handleAddNewLocation}
+          className="mt-4 mr-auto p-0 capitalize"
+          aria-disabled={activeFormId ? true : undefined}
+        >
           <TranslatedContent content="actions.addNewLocation" />
         </AddButton>
       )}

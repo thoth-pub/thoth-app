@@ -4,12 +4,14 @@ vi.mock('sonner', () => ({
   toast: {
     success: vi.fn(),
     error: vi.fn(),
+    warning: vi.fn(),
     loading: vi.fn(),
     dismiss: vi.fn(),
   },
 }));
 
 import { toast } from 'sonner';
+
 import { NotificationService } from './notification.service';
 
 describe('NotificationService', () => {
@@ -46,6 +48,17 @@ describe('NotificationService', () => {
         color: 'var(--color-notification-text-system)',
       },
       duration: Infinity,
+    });
+  });
+
+  it('sendWarningNotification should call toast.warning with message and style', () => {
+    service.sendWarningNotification('Warning!');
+
+    expect(toast.warning).toHaveBeenCalledWith('Warning!', {
+      style: {
+        background: 'var(--color-notification-background-system)',
+        color: 'var(--color-notification-text-system)',
+      },
     });
   });
 

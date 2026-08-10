@@ -1,4 +1,6 @@
 export const NOTIFICATIONS = {
+  // Forms
+  ACTIVE_FORM_BLOCKED: 'activeFormBlocked',
   // Auth
   AUTH_FAILED: 'authFailed',
   // Works

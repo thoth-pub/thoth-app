@@ -1,6 +1,7 @@
 'use client';
 
 import AddIcon from '@mui/icons-material/Add';
+import { use } from 'react';
 
 import useIsGermanLocale from '@/src/shared/hooks/useIsDeutchLocale';
 import { Namespace, NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
@@ -12,6 +13,7 @@ import Button from '../Button/Button';
 import EditButton from '../EditButton/EditButton';
 import TranslatedContent from '../TranslatedContent/TranslatedContent';
 import Typography from '../Typography/Typography';
+import PreviewEditBlockedContext from './PreviewEditBlockedContext';
 
 type PreviewProps = Partial<{
   label: string;
@@ -45,6 +47,7 @@ const Preview = (props: PreviewProps) => {
   } = props;
 
   const isGermanLocale = useIsGermanLocale();
+  const isEditBlocked = use(PreviewEditBlockedContext);
 
   return (
     <ContentWrapper>
@@ -67,6 +70,7 @@ const Preview = (props: PreviewProps) => {
         {!value && (
           <Button
             disabled={disabled}
+            aria-disabled={isEditBlocked || undefined}
             endIcon={<AddIcon className="opacity-0 group-hover:opacity-100" />}
             onClick={onEdit}
             className="mr-2 w-full justify-between p-0"
@@ -87,6 +91,7 @@ const Preview = (props: PreviewProps) => {
         {value && (
           <EditButton
             disabled={disabled}
+            aria-disabled={isEditBlocked || undefined}
             className={mergeStyles('opacity-0 group-hover:opacity-100', editButtonClassName)}
             onClick={onEdit}
             sx={{

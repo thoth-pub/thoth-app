@@ -31,7 +31,7 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
   const { createAbstract } = useCreateAbstract(workId);
   const { updateAbstract } = useUpdateAbstract(workId);
   const { deleteAbstract, loading: deleteAbstractLoading } = useDeleteAbstract(workId);
-  const { activeFormId, closeForm } = useFormStateMachine();
+  const { closeForm } = useFormStateMachine();
   const defaultLocaleOption = useDefaultLocaleOption(work.imprintId);
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
 
@@ -141,12 +141,12 @@ export const EditAbstracts = (props: BaseRecommendedSectionProps) => {
           onDelete={deleteAbstracts}
         />
       )}
-      preview={({ onEdit }) => (
+      preview={({ onEdit, disabled }) => (
         <Preview
           label={WORK_ABSTRACTS.label}
           value={work.abstracts.length > 0 ? longAbstractContent || ' ' : ''}
           onEdit={onEdit}
-          disabled={!!activeFormId}
+          disabled={disabled}
         >
           <div className="flex flex-col gap-2">
             <Typography component="span">

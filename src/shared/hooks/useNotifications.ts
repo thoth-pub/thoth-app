@@ -11,8 +11,15 @@ export const useNotification = () => {
   const { notificationService } = useServices();
   const { t } = useTranslation('notifications');
 
-  const [{ sendSuccessNotification, sendErrorNotification, sendProgressNotification, dismissNotification }] =
-    useState(notificationService);
+  const [
+    {
+      sendSuccessNotification,
+      sendErrorNotification,
+      sendWarningNotification,
+      sendProgressNotification,
+      dismissNotification,
+    },
+  ] = useState(notificationService);
 
   const sendTranslatedSuccessNotification = useCallback(
     (message: NotificationMessage, options?: Record<string, unknown>) => {
@@ -28,6 +35,13 @@ export const useNotification = () => {
     [sendErrorNotification, t],
   );
 
+  const sendTranslatedWarningNotification = useCallback(
+    (message: NotificationMessage, options?: Record<string, unknown>) => {
+      sendWarningNotification(t(message, options));
+    },
+    [sendWarningNotification, t],
+  );
+
   const sendTranslatedProgressNotification = useCallback(
     (message: NotificationMessage, id: string | number, options?: Record<string, unknown>) => {
       sendProgressNotification(t(message, options), id);
@@ -38,6 +52,7 @@ export const useNotification = () => {
   return {
     sendSuccessNotification: sendTranslatedSuccessNotification,
     sendErrorNotification: sendTranslatedErrorNotification,
+    sendWarningNotification: sendTranslatedWarningNotification,
     sendProgressNotification: sendTranslatedProgressNotification,
     dismissNotification,
   };

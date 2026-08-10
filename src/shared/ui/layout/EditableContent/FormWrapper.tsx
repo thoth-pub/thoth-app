@@ -17,6 +17,7 @@ import { mergeStyles } from '@/src/shared/utils';
 
 import ModalWrapper from '../../core/ModalWrapper/ModalWrapper';
 import FormControlGroup from '../../forms/FormControlGroup/FormControlGroup';
+import FormAttentionCue from './FormAttentionCue';
 
 export type FormProps<T extends FieldValues> = {
   validationSchema: ZodType<unknown, FieldValues>;
@@ -27,6 +28,7 @@ export type FormProps<T extends FieldValues> = {
   validationMode?: keyof ValidationMode;
   borderTransparent?: boolean;
   showFaqButton?: boolean;
+  attentionRequest?: number;
   children: (props: {
     control: Control<FieldValues>;
     reset: UseFormReset<FieldValues>;
@@ -47,6 +49,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     controlsClassName,
     className,
     showFaqButton,
+    attentionRequest,
     children,
     onSubmit,
     onClose,
@@ -81,7 +84,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
         <form
           onSubmit={handleSubmitForm}
           className={mergeStyles(
-            `flex gap-1 ${borderTransparent ? '' : 'border border-(--color-hover-border)'} bg-(--color-form-background) ${isTableVariant ? '' : 'rounded-xl p-4'} `,
+            `relative flex gap-1 ${borderTransparent ? '' : 'border border-(--color-hover-border)'} bg-(--color-form-background) ${isTableVariant ? '' : 'rounded-xl p-4'} `,
             className,
           )}
         >
@@ -94,13 +97,14 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
             showFaqButton={showFaqButton}
             className={controlsClassName}
           />
+          <FormAttentionCue attentionRequest={attentionRequest} />
         </form>
       ) : (
         <Modal open onClose={onClose}>
           <ModalWrapper>
             <form
               onSubmit={handleSubmitForm}
-              className={mergeStyles('flex gap-1 rounded-xl bg-(--color-form-background) p-4', className)}
+              className={mergeStyles('relative flex gap-1 rounded-xl bg-(--color-form-background) p-4', className)}
             >
               <div className="grow">{children({ control: control as Control<FieldValues>, reset, setValue })}</div>
               <FormControlGroup
@@ -111,6 +115,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
                 showFaqButton={showFaqButton}
                 className={controlsClassName}
               />
+              <FormAttentionCue attentionRequest={attentionRequest} />
             </form>
           </ModalWrapper>
         </Modal>

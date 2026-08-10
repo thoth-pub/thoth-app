@@ -4,6 +4,7 @@ import type { Id } from '../../interfaces';
 
 type FormContext = {
   activeForm: Id | null;
+  attentionRequest: number;
 };
 
 export const formStateMachine = setup({
@@ -14,6 +15,7 @@ export const formStateMachine = setup({
   id: 'formEditor',
   context: {
     activeForm: null,
+    attentionRequest: 0,
   } as FormContext,
   initial: 'init',
   states: {
@@ -23,12 +25,23 @@ export const formStateMachine = setup({
           target: 'editing',
           actions: assign({
             activeForm: ({ event }) => event?.id ?? null,
+            attentionRequest: () => 0,
           }),
         },
       },
     },
     editing: {
-      on: { close: { target: 'init', actions: assign({ activeForm: () => null }) } },
+      on: {
+        setActiveFormId: {
+          actions: assign({
+            attentionRequest: ({ context }) => context.attentionRequest + 1,
+          }),
+        },
+        close: {
+          target: 'init',
+          actions: assign({ activeForm: () => null, attentionRequest: () => 0 }),
+        },
+      },
     },
   },
 });
