@@ -5,9 +5,10 @@ import InfoOutlineIcon from '@mui/icons-material/InfoOutline';
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 
-import { FORM_FIELDS, HELPER_TEXT, locationPlatformOptions } from '@/src/shared/constants';
+import { FORM_FIELDS, HELPER_TEXT, IDs, locationPlatformOptions } from '@/src/shared/constants';
 import { useEscapeKey, useIsDesktop, useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import { useActiveFormNavigationTarget } from '@/src/shared/store/forms/ActiveFormNavigation';
 import {
   AutocompleteField,
   AutocompleteGroup,
@@ -39,7 +40,7 @@ type LocationFormProps = {
   onClose?: () => void;
 };
 
-const { PLATFORM, LANDING_PAGE, FULL_TEXT_URL, CANONICAL } = FORM_FIELDS;
+const { PLATFORM, LANDING_PAGE, FULL_TEXT_URL, CANONICAL, LOCATIONS } = FORM_FIELDS;
 const { LOCATION: LOCATION_HELPER_TEXT } = HELPER_TEXT;
 
 export const LocationForm = (props: LocationFormProps) => {
@@ -47,6 +48,7 @@ export const LocationForm = (props: LocationFormProps) => {
 
   const [showFaq, setShowFaq] = useState(false);
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.forms });
+  const formRef = useActiveFormNavigationTarget(IDs.LOCATION_PLATFORM, t(LOCATIONS.label));
   const handleToggleFaq = () => setShowFaq((prev) => !prev);
 
   useEscapeKey(() => setShowFaq(false), showFaq);
@@ -80,7 +82,11 @@ export const LocationForm = (props: LocationFormProps) => {
   useEscapeKey(onClose, !isDesktop && !showFaq);
 
   const formComponent = (
-    <form onSubmit={handleSubmit(handleSubmitForm)} className="relative flex flex-col gap-(--default-gap)">
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit(handleSubmitForm)}
+      className="relative flex flex-col gap-(--default-gap)"
+    >
       <FormFieldWrapper>
         <FormFieldLabel label={PLATFORM.label} id={PLATFORM.name} />
         <FormFieldWithControlsWrapper>

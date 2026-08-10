@@ -1,6 +1,10 @@
 export const NOTIFICATIONS = {
   // Forms
   ACTIVE_FORM_BLOCKED: 'activeFormBlocked',
+  ACTIVE_FORM_GO_TO_OPEN_EDIT: 'activeFormGoToOpenEdit',
+  ACTIVE_FORM_EDITING: 'activeFormEditing',
+  ACTIVE_FORM_EDITING_LABEL: 'activeFormEditingLabel',
+  ACTIVE_FORM_GO_TO_EDIT: 'activeFormGoToEdit',
   // Auth
   AUTH_FAILED: 'authFailed',
   // Works

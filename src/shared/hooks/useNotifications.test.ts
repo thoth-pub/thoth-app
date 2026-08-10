@@ -79,7 +79,20 @@ describe('useNotification', () => {
     result.current.sendWarningNotification('warning.key');
 
     expect(mockT).toHaveBeenCalledWith('warning.key', undefined);
-    expect(mockSendWarning).toHaveBeenCalledWith('Translated warning');
+    expect(mockSendWarning).toHaveBeenCalledWith('Translated warning', undefined);
+  });
+
+  it('sendWarningNotification should translate its action label', () => {
+    const onClick = vi.fn();
+    mockT.mockImplementation((key: string) => `translated:${key}`);
+    const { result } = renderHook(() => useNotification());
+
+    result.current.sendWarningNotification('warning.key', undefined, { label: 'action.key', onClick });
+
+    expect(mockSendWarning).toHaveBeenCalledWith('translated:warning.key', {
+      label: 'translated:action.key',
+      onClick,
+    });
   });
 
   it('dismissNotification should call notificationService dismiss', () => {

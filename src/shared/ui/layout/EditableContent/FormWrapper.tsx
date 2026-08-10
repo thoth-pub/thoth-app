@@ -13,6 +13,8 @@ import {
 import type { ZodType } from 'zod';
 
 import { useEscapeKey, useIsDesktop } from '@/src/shared/hooks';
+import type { Id } from '@/src/shared/interfaces';
+import { useActiveFormNavigationTarget } from '@/src/shared/store/forms/ActiveFormNavigation';
 import { mergeStyles } from '@/src/shared/utils';
 
 import ModalWrapper from '../../core/ModalWrapper/ModalWrapper';
@@ -29,6 +31,8 @@ export type FormProps<T extends FieldValues> = {
   borderTransparent?: boolean;
   showFaqButton?: boolean;
   attentionRequest?: number;
+  formId: Id;
+  formLabel?: string;
   children: (props: {
     control: Control<FieldValues>;
     reset: UseFormReset<FieldValues>;
@@ -50,6 +54,8 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     className,
     showFaqButton,
     attentionRequest,
+    formId,
+    formLabel,
     children,
     onSubmit,
     onClose,
@@ -69,6 +75,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
   });
 
   const isDesktop = useIsDesktop(980);
+  const formRef = useActiveFormNavigationTarget(formId, formLabel);
 
   useEscapeKey(onClose, !isDesktop);
 
@@ -82,6 +89,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
     <>
       {isDesktop || (!isDesktop && isTableVariant) ? (
         <form
+          ref={formRef}
           onSubmit={handleSubmitForm}
           className={mergeStyles(
             `relative flex gap-1 ${borderTransparent ? '' : 'border border-(--color-hover-border)'} bg-(--color-form-background) ${isTableVariant ? '' : 'rounded-xl p-4'} `,
@@ -103,6 +111,7 @@ export const FormWrapper = <T extends FieldValues>(props: FormProps<T>) => {
         <Modal open onClose={onClose}>
           <ModalWrapper>
             <form
+              ref={formRef}
               onSubmit={handleSubmitForm}
               className={mergeStyles('relative flex gap-1 rounded-xl bg-(--color-form-background) p-4', className)}
             >

@@ -2,6 +2,11 @@ import { toast } from 'sonner';
 
 import type { NotificationMessage } from '@/src/shared/interfaces';
 
+type NotificationAction = {
+  label: string;
+  onClick: () => void;
+};
+
 export class NotificationService {
   sendSuccessNotification(message: NotificationMessage) {
     toast.success(message, {
@@ -17,8 +22,9 @@ export class NotificationService {
       },
     });
   }
-  sendWarningNotification(message: NotificationMessage | string) {
+  sendWarningNotification(message: NotificationMessage | string, action?: NotificationAction) {
     toast.warning(message, {
+      ...(action ? { action } : {}),
       style: {
         background: 'var(--color-notification-background-system)',
         color: 'var(--color-notification-text-system)',

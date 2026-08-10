@@ -8,10 +8,10 @@ const mockUseActorRef = vi.fn();
 const mockSend = vi.fn();
 const mockSnapshot: {
   value: string;
-  context: { activeForm: string | null; attentionRequest: number };
+  context: { activeForm: string | null; attentionRequest: number; blockedEditRequest: number };
 } = {
   value: 'init',
-  context: { activeForm: null, attentionRequest: 0 },
+  context: { activeForm: null, attentionRequest: 0, blockedEditRequest: 0 },
 };
 
 vi.mock('../forms.provider', () => ({
@@ -33,6 +33,7 @@ describe('useFormStateMachine', () => {
     mockSnapshot.value = 'init';
     mockSnapshot.context.activeForm = null;
     mockSnapshot.context.attentionRequest = 0;
+    mockSnapshot.context.blockedEditRequest = 0;
     mockSelector.mockImplementation((selector) => selector(mockSnapshot));
     mockUseActorRef.mockReturnValue({ send: mockSend, getSnapshot: () => mockSnapshot });
   });
@@ -69,6 +70,14 @@ describe('useFormStateMachine', () => {
     result.current.closeForm();
 
     expect(mockSend).toHaveBeenCalledWith({ type: 'close' });
+  });
+
+  it('should send requestAttention event without requesting another edit', () => {
+    const { result } = renderHook(() => useFormStateMachine());
+
+    result.current.requestAttention();
+
+    expect(mockSend).toHaveBeenCalledWith({ type: 'requestAttention' });
   });
 
   it('should send close on unmount via useUnmount', () => {

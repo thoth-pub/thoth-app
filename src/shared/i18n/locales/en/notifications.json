@@ -1,5 +1,9 @@
 {
   "activeFormBlocked": "Save or cancel the current edit before editing another field.",
+  "activeFormGoToOpenEdit": "Go to open edit",
+  "activeFormEditing": "Editing in progress",
+  "activeFormEditingLabel": "Editing: {{label}}",
+  "activeFormGoToEdit": "Go to edit",
   "authFailed": "Invalid username or password.",
   "workCreationSuccess": "Work created successfully",
   "workCreationFailed": "Failed to create work",
