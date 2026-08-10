@@ -2,17 +2,7 @@ import CSVFileValidator, { type ValidatorConfig } from 'csv-file-validator';
 import Papa from 'papaparse';
 import { v4 as uuidv4 } from 'uuid';
 
-import {
-  ContributionType,
-  ContributionType as GQLContributionType,
-  CurrencyCode,
-  LanguageCode,
-  LocaleCode,
-  LocationPlatform as GQLLocationPlatform,
-  LocationPlatform,
-  WorkStatus as GQLWorkStatus,
-  WorkType as GQLWorkType,
-} from '@/gql/graphql';
+import { ContributionType, CurrencyCode, LanguageCode, LocaleCode, LocationPlatform } from '@/gql/graphql';
 import { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
@@ -23,8 +13,6 @@ import { WorkEntity, WorkId, WorkStatus, WorkType } from '@/src/entities/work/mo
 
 import { appConfig } from '../../config';
 import {
-  CSV_KEYS,
-  getContributorFieldsByIndex,
   getDefaultAffiliation,
   getDefaultContribution,
   LanguageRelation,
@@ -58,27 +46,19 @@ import {
   type SeriesCandidate,
   type SeriesPlanMessages,
 } from '../series/seriesPlan';
+import {
+  CSV_KEYS,
+  type CsvFieldKey,
+  type CsvRow,
+  csvSchema,
+  type CsvValidatorRow,
+  getContributorFieldsByIndex,
+  normaliseCsvHeader,
+  normaliseCsvValue,
+} from './csvSchema';
 import { toValidatorIssues } from './validatorIssues';
 
-export type CSVFieldType = string | number | boolean;
-
 export type TranslateFunction = (key: string, options?: Record<string, unknown>) => string;
-
-// For enum entry { EditedBook: 'EDITED_BOOK' } accepts 'EDITED_BOOK', 'EditedBook', and 'Edited Book'
-function buildEnumAliasMap(enumObj: Record<string, string>): Map<string, string> {
-  const map = new Map<string, string>();
-  for (const [key, value] of Object.entries(enumObj)) {
-    const display = key.replace(/([A-Z])/g, ' $1').trim();
-    map.set(value.toLowerCase(), value);
-    map.set(key.toLowerCase(), value);
-    map.set(display.toLowerCase(), value);
-  }
-  return map;
-}
-
-type Row = {
-  [CSVKey in (typeof CSV_KEYS)[keyof typeof CSV_KEYS]]: CSVFieldType;
-};
 
 /**
  * The largest issue ordinal Thoth can store: `issueOrdinal` is a GraphQL `Int`, which the
@@ -139,7 +119,7 @@ export class CSVParser {
    */
   async parse(): Promise<ImportParseResult> {
     try {
-      const csvParseResult = await CSVFileValidator(await this.normalizeFile(), this.csvConfig);
+      const csvParseResult = await CSVFileValidator<CsvValidatorRow>(await this.normalizeFile(), this.csvConfig);
 
       const isErrors = csvParseResult.inValidData.length > 0;
 
@@ -153,7 +133,10 @@ export class CSVParser {
         return { status: 'failed', data: this.emptyData(), issues };
       }
 
-      const data: Row[] = csvParseResult.data;
+      // csv-file-validator exposes string | number | boolean cells because Papa Parse can be
+      // configured for dynamic typing. This importer never enables that mode, but narrow the
+      // third-party contract once here instead of spreading its union through parser helpers.
+      const data = csvParseResult.data.map((row, index) => this.toCsvRow(row, index + 1));
 
       // `Promise.all` resolves in input order regardless of completion order, so collecting the
       // results here — rather than letting each concurrent `parseRow` push into shared state —
@@ -240,7 +223,7 @@ export class CSVParser {
     };
   }
 
-  private async parseRow(row: Row, rowNumber: number): Promise<ParsedRow> {
+  private async parseRow(row: CsvRow, rowNumber: number): Promise<ParsedRow> {
     const workId = this.generateId();
 
     const breakdown = this.parsePageBreakdownField(row, CSV_KEYS.PAGE_BREAKDOWN, rowNumber);
@@ -264,6 +247,7 @@ export class CSVParser {
       coverUrl: this.parseStringField(row, CSV_KEYS.COVER_URL, rowNumber),
       publicationDate: this.parseStringField(row, CSV_KEYS.PUBLICATION_DATE, rowNumber),
       withdrawnDate: this.parseStringField(row, CSV_KEYS.WITHDRAWN_DATE, rowNumber),
+      place: this.parseStringField(row, CSV_KEYS.PLACE_OF_PUBLICATION, rowNumber),
       imageCount: this.parseNumberField(row, CSV_KEYS.IMAGE_COUNT, rowNumber),
       tableCount: this.parseNumberField(row, CSV_KEYS.TABLE_COUNT, rowNumber),
       audioCount: this.parseNumberField(row, CSV_KEYS.AUDIO_COUNT, rowNumber),
@@ -298,21 +282,30 @@ export class CSVParser {
     };
   }
 
-  private parseStringField(row: Row, field: keyof Row, rowNumber: number) {
+  private toCsvRow(row: CsvValidatorRow, rowNumber: number): CsvRow {
+    return Object.fromEntries(
+      csvSchema.map(({ key }) => {
+        const value = row[key];
+
+        if (value === undefined) return [key, ''];
+        if (typeof value === 'string') return [key, value];
+
+        this.pushIssue(rowNumber, this.t('errors.csvFieldNotString', { field: key, row: rowNumber }));
+
+        return [key, ''];
+      }),
+    ) as CsvRow;
+  }
+
+  private parseStringField(row: CsvRow, field: CsvFieldKey, _rowNumber: number) {
     const value = row[field];
 
     if (value === undefined) return '';
 
-    if (typeof value !== 'string') {
-      this.pushIssue(rowNumber, this.t('errors.csvFieldNotString', { field, row: rowNumber }));
-
-      return '';
-    }
-
     return value;
   }
 
-  private parseNumberField(row: Row, field: keyof Row, rowNumber: number) {
+  private parseNumberField(row: CsvRow, field: CsvFieldKey, rowNumber: number) {
     const value = this.parseStringField(row, field, rowNumber);
 
     if (value.length === 0) {
@@ -330,7 +323,7 @@ export class CSVParser {
     return numberValue;
   }
 
-  private parseFloatNumberField(row: Row, field: keyof Row, rowNumber: number) {
+  private parseFloatNumberField(row: CsvRow, field: CsvFieldKey, rowNumber: number) {
     const value = this.parseStringField(row, field, rowNumber);
 
     if (value.length === 0) {
@@ -348,7 +341,7 @@ export class CSVParser {
     return numberValue;
   }
 
-  private parseImprint(row: Row, rowNumber: number) {
+  private parseImprint(row: CsvRow, rowNumber: number) {
     const imprintName = this.parseStringField(row, CSV_KEYS.IMPRINT, rowNumber);
 
     const imprint = this.imprints.find((imprint) => imprint.label === imprintName);
@@ -361,7 +354,7 @@ export class CSVParser {
     return imprint.value;
   }
 
-  private parsePageBreakdownField(row: Row, field: keyof Row, rowNumber: number) {
+  private parsePageBreakdownField(row: CsvRow, field: CsvFieldKey, rowNumber: number) {
     const value = this.parseStringField(row, field, rowNumber);
 
     const [frontmatterCount = '', totalPages = '', backmatterCount = ''] = value.split('+');
@@ -373,7 +366,7 @@ export class CSVParser {
     };
   }
 
-  private parseTitles(row: Row, rowNumber: number): TitleEntity[] {
+  private parseTitles(row: CsvRow, rowNumber: number): TitleEntity[] {
     const title = this.parseStringField(row, CSV_KEYS.TITLE, rowNumber);
     const subtitle = this.parseStringField(row, CSV_KEYS.SUBTITLE, rowNumber);
     const fullTitle = compileFullTitle(title, subtitle);
@@ -381,7 +374,7 @@ export class CSVParser {
     return [getDefaultTitle({ canonical: true, title, subtitle, fullTitle })];
   }
 
-  private parseAbstracts(row: Row, rowNumber: number): AbstractEntity[] {
+  private parseAbstracts(row: CsvRow, rowNumber: number): AbstractEntity[] {
     const longAbstract = this.parseStringField(row, CSV_KEYS.LONG_ABSTRACT, rowNumber);
     const shortAbstract = this.parseStringField(row, CSV_KEYS.SHORT_ABSTRACT, rowNumber);
     const abstracts: AbstractEntity[] = [];
@@ -397,7 +390,7 @@ export class CSVParser {
     return abstracts;
   }
 
-  private parseLicenseField(row: Row, field: keyof Row, rowNumber: number) {
+  private parseLicenseField(row: CsvRow, field: CsvFieldKey, rowNumber: number) {
     const value = this.parseStringField(row, field, rowNumber);
 
     if (value.length === 0) {
@@ -416,10 +409,10 @@ export class CSVParser {
   }
 
   private parseLanguages(
-    row: Row,
-    originalLanguage: keyof Row,
-    translatedFromLanguage: keyof Row,
-    translatedIntoLanguage: keyof Row,
+    row: CsvRow,
+    originalLanguage: CsvFieldKey,
+    translatedFromLanguage: CsvFieldKey,
+    translatedIntoLanguage: CsvFieldKey,
     rowNumber: number,
   ) {
     const originalLanguageValue = this.parseStringField(row, originalLanguage, rowNumber);
@@ -458,12 +451,12 @@ export class CSVParser {
   }
 
   private parseSubjects(
-    row: Row,
-    themeSubjects: keyof Row,
-    bicSubjects: keyof Row,
-    bisacSubjects: keyof Row,
-    lccSubjects: keyof Row,
-    keywordSubjects: keyof Row,
+    row: CsvRow,
+    themeSubjects: CsvFieldKey,
+    bicSubjects: CsvFieldKey,
+    bisacSubjects: CsvFieldKey,
+    lccSubjects: CsvFieldKey,
+    keywordSubjects: CsvFieldKey,
     rowNumber: number,
   ) {
     const subjects: SubjectEntity[] = [];
@@ -541,7 +534,7 @@ export class CSVParser {
     return subjects;
   }
 
-  private parsePublication(row: Row, rowNumber: number) {
+  private parsePublication(row: CsvRow, rowNumber: number) {
     const publications: PublicationEntity[] = [];
 
     const paperbackIsbn = this.parseStringField(row, CSV_KEYS.PUBLICATION_PAPERBACK_ISBN, rowNumber);
@@ -663,7 +656,7 @@ export class CSVParser {
    * `series_issn_print` and `series_issn_digital` columns with real mappings. Until then it is
    * accepted and ignored, so existing files keep importing.
    */
-  private parseSeries(row: Row, rowNumber: number, imprintId: string): SeriesCandidate | undefined {
+  private parseSeries(row: CsvRow, rowNumber: number, imprintId: string): SeriesCandidate | undefined {
     const seriesName = this.parseStringField(row, CSV_KEYS.SERIES_NAME, rowNumber).trim();
     const issueNumber = this.parseStringField(row, CSV_KEYS.SERIES_ISSUE_NUMBER, rowNumber).trim();
 
@@ -751,7 +744,7 @@ export class CSVParser {
     return ordinal;
   }
 
-  private async parseContributors(row: Row, workId: WorkId, rowNumber: number) {
+  private async parseContributors(row: CsvRow, workId: WorkId, rowNumber: number) {
     const contributors = new Array(appConfig.maxCsvContributorsCount).fill(null).map((_, index) => {
       const {
         FIRST_NAME,
@@ -764,18 +757,18 @@ export class CSVParser {
         AFFILIATION_INSTITUTION_ROR,
       } = getContributorFieldsByIndex(index + 1);
 
-      const contributorFirstName = this.parseStringField(row, FIRST_NAME as keyof Row, rowNumber);
-      const contributorLastName = this.parseStringField(row, LAST_NAME as keyof Row, rowNumber);
-      const contributorRole = this.parseStringField(row, ROLE as keyof Row, rowNumber);
-      const contributorBiography = this.parseStringField(row, BIOGRAPHY as keyof Row, rowNumber);
-      const contributorOrcid = this.parseStringField(row, ORCID as keyof Row, rowNumber);
-      const contributorWebsite = this.parseStringField(row, WEBSITE as keyof Row, rowNumber);
-      const contributorAffiliationPosition = this.parseStringField(row, AFFILIATION_POSITION as keyof Row, rowNumber);
+      const contributorFirstName = this.parseStringField(row, FIRST_NAME, rowNumber);
+      const contributorLastName = this.parseStringField(row, LAST_NAME, rowNumber);
+      const contributorRole = this.parseStringField(row, ROLE, rowNumber);
+      const contributorBiography = this.parseStringField(row, BIOGRAPHY, rowNumber);
+      const contributorOrcid = this.parseStringField(row, ORCID, rowNumber);
+      const contributorWebsite = this.parseStringField(row, WEBSITE, rowNumber);
+      const contributorAffiliationPosition = this.parseStringField(row, AFFILIATION_POSITION, rowNumber);
       const contributorAffiliationInstitutionRor = this.parseStringField(
         row,
-        AFFILIATION_INSTITUTION_ROR as keyof Row,
+        AFFILIATION_INSTITUTION_ROR,
         rowNumber,
-      );
+      ).trim();
 
       return {
         fullName: contributorFirstName + ' ' + contributorLastName,
@@ -812,7 +805,13 @@ export class CSVParser {
 
       const [foundedContributors, foundedInstitutions] = await Promise.all([
         this.contributorService.getContributors(fullName),
-        this.institutionService.getInstitutions(0, appConfig.data.maxItemsPerRequestLimit, affiliationInstitutionRor),
+        affiliationInstitutionRor.length > 0
+          ? this.institutionService.getInstitutions(
+              0,
+              appConfig.data.maxItemsPerRequestLimit,
+              affiliationInstitutionRor,
+            )
+          : Promise.resolve([]),
       ]);
 
       const institution = foundedInstitutions[0] ?? null;
@@ -907,40 +906,18 @@ export class CSVParser {
 
         const [headerRow, ...dataRows] = parsed.data;
 
-        const normalizedHeaders = headerRow.map((h) => (h.trim().toLowerCase() === 'publisher' ? 'imprint' : h.trim()));
+        const normalizedHeaders = headerRow.map(normaliseCsvHeader);
 
         const headerIndex = new Map<string, number>(normalizedHeaders.map((h, i) => [h, i]));
 
-        type HeaderDef = { name: string };
-        const configHeaders = (this.csvConfig as { headers: HeaderDef[] }).headers;
-
-        const ENUM_COLUMN_MAPS: Record<string, Map<string, string>> = {
-          work_type: buildEnumAliasMap(GQLWorkType as unknown as Record<string, string>),
-          work_status: buildEnumAliasMap(GQLWorkStatus as unknown as Record<string, string>),
-          publication_pdf_location_platform: buildEnumAliasMap(
-            GQLLocationPlatform as unknown as Record<string, string>,
-          ),
-        };
-        for (let i = 1; i <= appConfig.maxCsvContributorsCount; i++) {
-          ENUM_COLUMN_MAPS[`contribution_${i}_role`] = buildEnumAliasMap(
-            GQLContributionType as unknown as Record<string, string>,
-          );
-        }
-
-        const normalizeEnumValue = (columnName: string, value: string) => {
-          const aliasMap = ENUM_COLUMN_MAPS[columnName];
-          if (!aliasMap || value.trim() === '') return value;
-          return aliasMap.get(value.trim().toLowerCase()) ?? value;
-        };
-
         const rewriteRow = (row: string[]) =>
-          configHeaders.map(({ name }) => {
-            const pos = headerIndex.get(name);
+          csvSchema.map((field) => {
+            const pos = headerIndex.get(field.header);
             const raw = pos !== undefined ? (row[pos] ?? '') : '';
-            return normalizeEnumValue(name, raw);
+            return normaliseCsvValue(field, raw);
           });
 
-        const newRows = [configHeaders.map((h) => h.name), ...dataRows.map(rewriteRow)];
+        const newRows = [csvSchema.map(({ header }) => header), ...dataRows.map(rewriteRow)];
         const newCsv = Papa.unparse(newRows);
 
         resolve(new File([newCsv], this.csv.name, { type: this.csv.type }));

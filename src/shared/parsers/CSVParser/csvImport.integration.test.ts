@@ -44,8 +44,8 @@ const imprints = [{ label: IMPRINT_NAME, value: IMPRINT_ID }];
 const t = (key: string, options?: Record<string, unknown>) => (options ? `${key}:${JSON.stringify(options)}` : key);
 
 /** Two rows in a series Thoth does not have, one in a series it does. */
-const ROWS = [
-  { title: 'A Companion to the Cavendishes', series_name: 'Arc Companions' },
+const ROWS: Record<string, string>[] = [
+  { title: 'A Companion to the Cavendishes', place_of_publication: 'Cambridge', series_name: 'Arc Companions' },
   { title: 'The Medieval Womb', series_name: 'Arc Companions' },
   { title: 'Beowulf by All', series_name: 'Foundations' },
 ];
@@ -182,6 +182,7 @@ describe('CSV bulk import, end to end', () => {
     const plan = result.data.plan;
 
     expect(plan.works.map((work) => work.titles[0].title)).toEqual(ROWS.map(({ title }) => title));
+    expect(plan.works[0].place).toBe('Cambridge');
     // A CSV import has no chapters.
     expect(plan.chapters).toEqual([]);
 
@@ -204,6 +205,8 @@ describe('CSV bulk import, end to end', () => {
 
     // --- confirmation: exactly what PreviewStep hands to the mutation -----
     await workService.bulkCreateWorks(plan);
+
+    expect(mutationsNamed('CreateWork')[0].variables.data).toMatchObject({ place: 'Cambridge' });
 
     // --- created series ---------------------------------------------------
     const createSeriesCalls = mutationsNamed('CreateSeries');

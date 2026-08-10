@@ -24,8 +24,6 @@ type CSVParseProps = {
   onValidationFailure?: (issues: ImportIssue[]) => void;
 };
 
-export type CSVFieldType = string | number | boolean;
-
 export const CSVParse = (props: CSVParseProps) => {
   const { file, imprints, serieses, onValidationFailure, onPreview } = props;
 
