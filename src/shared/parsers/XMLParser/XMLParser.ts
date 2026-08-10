@@ -38,7 +38,6 @@ import {
   WorkTypes,
 } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
-import { ERRORS } from '../../constants/errors';
 import { FormFieldOption } from '../../interfaces';
 import type {
   AbstractEntity,
@@ -97,6 +96,9 @@ import {
   selectSeriesCollection,
   toOnixArray,
 } from './onix';
+
+export const ONIX_PROCESSING_FAILURE_MESSAGE =
+  'Thoth could not finish processing this ONIX file because an unexpected error occurred. The file itself may still be valid, and nothing has been created from this upload. Please try again; if the problem continues, report it to Thoth.';
 
 /**
  * The `IDTypeName` Thoth's ONIX exporter gives the proprietary identifier that holds a reference's
@@ -294,15 +296,17 @@ class XMLParser {
         },
         issues: sortedIssues,
       };
-    } catch (_error) {
+    } catch (error) {
+      console.error('Unexpected error while processing ONIX bulk import', error);
+
       return {
         status: 'failed',
         data: this.emptyData(),
         issues: [
           {
             severity: 'error',
-            code: 'onix.parsing_failed',
-            message: ERRORS.XML_PARSING_ERROR,
+            code: 'onix.processing_failed',
+            message: ONIX_PROCESSING_FAILURE_MESSAGE,
             source: { kind: 'file' },
           },
         ],

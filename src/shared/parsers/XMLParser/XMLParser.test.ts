@@ -49,7 +49,7 @@ import {
   ExtendedPublishingDetail,
 } from './interfaces';
 import { toOnixArray } from './onix';
-import XMLParser from './XMLParser';
+import XMLParser, { ONIX_PROCESSING_FAILURE_MESSAGE } from './XMLParser';
 
 /**
  * The messages of a result's error issues, in the order the parser reported them. Structured
@@ -152,6 +152,57 @@ describe('XMLParser', () => {
   });
 
   describe('parse', () => {
+    it('reports a safe file-level diagnostic while logging the original unexpected error', async () => {
+      const originalError = new Error('backend contributor lookup exploded');
+      const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+      vi.mocked(mockContributorService.getContributors).mockRejectedValue(originalError);
+      const xml: ExtendedONIXMessageRoot = {
+        ONIXMessage: {
+          Product: lookupProduct({
+            title: 'A valid book',
+            imprintName: imprints[0].label,
+            languageCode: languages[0].value,
+            contributorName: 'Jane Doe',
+          }),
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencies,
+      );
+
+      try {
+        const result = await parser.parse();
+
+        expect(result).toEqual({
+          status: 'failed',
+          data: {
+            plan: { works: [], chapters: [], series: [] },
+            contributorsForSelection: {},
+          },
+          issues: [
+            {
+              severity: 'error',
+              code: 'onix.processing_failed',
+              message: ONIX_PROCESSING_FAILURE_MESSAGE,
+              source: { kind: 'file' },
+            },
+          ],
+        });
+        expect(result.issues[0].message).not.toBe('errors.xmlParsingError');
+        expect(result.issues[0].message).not.toContain(originalError.message);
+        expect(consoleError).toHaveBeenCalledWith('Unexpected error while processing ONIX bulk import', originalError);
+      } finally {
+        consoleError.mockRestore();
+      }
+    });
+
     it('should return failed status if products are empty in XML', async () => {
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {

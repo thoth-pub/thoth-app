@@ -41,7 +41,7 @@ const FOUNDATIONS_ID = '22222222-2222-2222-2222-222222222222';
 const CREATED_SERIES_ID = '33333333-3333-3333-3333-333333333333';
 
 /** Three products in a series Thoth does not have, one in a series it does. */
-const product = (isbn: string, title: string, seriesName: string, collectionType = '10') => `
+const product = (isbn: string, title: string, seriesName: string, collectionType = '10', contributorName?: string) => `
   <Product>
     <RecordReference>${isbn}</RecordReference>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
@@ -75,6 +75,17 @@ const product = (isbn: string, title: string, seriesName: string, collectionType
         </TitleElement>
       </TitleDetail>
       <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+      ${
+        contributorName
+          ? `<Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>${contributorName}</PersonName>
+        <NamesBeforeKey>Jane</NamesBeforeKey>
+        <KeyNames>Doe</KeyNames>
+      </Contributor>`
+          : ''
+      }
     </DescriptiveDetail>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
@@ -88,6 +99,13 @@ const ONIX = `<?xml version="1.0" encoding="UTF-8"?>
   ${product('9781641893763', 'The Medieval Womb', 'Arc Companions')}
   ${product('9781802704488', 'Beowulf by All', 'Foundations')}
   ${product('9781802703306', 'Trans Histories of the Medieval Book', 'Arc Companions')}
+</ONIXMessage>`;
+
+/** A compact production-shaped Arc file: repeated contributor, no affiliation or ROR metadata. */
+const ARC_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  ${product('9781641891783', 'A Companion to the Cavendishes', 'Arc Companions', '10', 'Jane Doe')}
+  ${product('9781641893763', 'The Medieval Womb', 'Arc Companions', '10', 'Jane Doe')}
 </ONIXMessage>`;
 
 /**
@@ -336,6 +354,60 @@ describe('ONIX bulk import, end to end', () => {
   };
 
   const mutationsNamed = (operation: string) => mutations.filter((call) => call.operation === operation);
+
+  it('real ONIX parsing preserves Arc product semantics and coalesces affiliation-free contributors', async () => {
+    const xml = (await parse(ARC_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
+    const products = Array.isArray(xml.ONIXMessage.Product) ? xml.ONIXMessage.Product : [xml.ONIXMessage.Product];
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const getInstitutions = vi.fn().mockResolvedValue([]);
+    const parser = new XMLParser(
+      xml,
+      [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
+      licenseOptions,
+      [],
+      { getContributors } as never,
+      { getInstitutions } as never,
+      languageOptions,
+      currencyOptions,
+    );
+
+    // This assertion is deliberately before XMLParser: the library itself has produced two
+    // products with contributors, rather than this test constructing its parsed object shape.
+    expect(products).toHaveLength(2);
+    expect(products.every((item) => item?.DescriptiveDetail?.Contributor !== undefined)).toBe(true);
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works.map((work) => work.titles[0].title)).toEqual([
+      'A Companion to the Cavendishes',
+      'The Medieval Womb',
+    ]);
+    expect(
+      result.data.plan.works.map((work) => work.titles.map(({ title, canonical }) => ({ title, canonical }))),
+    ).toEqual([
+      [{ title: 'A Companion to the Cavendishes', canonical: true }],
+      [{ title: 'The Medieval Womb', canonical: true }],
+    ]);
+    expect(result.data.plan.series).toEqual([
+      {
+        name: 'Arc Companions',
+        target: {
+          kind: 'proposed',
+          series: { name: 'Arc Companions', type: SeriesType.enum.BookSeries, imprintId: IMPRINT_ID },
+        },
+        members: [
+          { workId: result.data.plan.works[0].id, orderNumber: 1 },
+          { workId: result.data.plan.works[1].id, orderNumber: 2 },
+        ],
+      },
+    ]);
+    expect(result.data.plan.works.map((work) => work.contributions[0].fullName)).toEqual(['Jane Doe', 'Jane Doe']);
+    expect(getContributors).toHaveBeenCalledTimes(1);
+    expect(getContributors).toHaveBeenCalledWith('Jane Doe');
+    expect(getInstitutions).not.toHaveBeenCalled();
+    expect(result.issues).not.toContainEqual(expect.objectContaining({ code: 'onix.processing_failed' }));
+  });
 
   it('uploads, previews, confirms, and creates the missing series with its issues', async () => {
     const result = await parseUpload([foundations]);
