@@ -62,6 +62,14 @@ describe('NotificationService', () => {
     });
   });
 
+  it('sendWarningNotification should pass through an action', () => {
+    const action = { label: 'Go to edit', onClick: vi.fn() };
+
+    service.sendWarningNotification('Warning!', action);
+
+    expect(toast.warning).toHaveBeenCalledWith('Warning!', expect.objectContaining({ action }));
+  });
+
   it('dismissNotification should call toast.dismiss with the given id', () => {
     service.dismissNotification('toast-1');
 

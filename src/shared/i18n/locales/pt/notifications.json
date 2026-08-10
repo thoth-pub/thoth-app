@@ -1,5 +1,9 @@
 {
   "activeFormBlocked": "Salve ou cancele a edição atual antes de editar outro campo.",
+  "activeFormGoToOpenEdit": "Ir para a edição aberta",
+  "activeFormEditing": "Edição em andamento",
+  "activeFormEditingLabel": "Editando: {{label}}",
+  "activeFormGoToEdit": "Ir para a edição",
   "authFailed": "Nome de usuário ou senha inválidos.",
   "workCreationSuccess": "Obra criada com sucesso",
   "workCreationFailed": "Falha ao criar a obra",

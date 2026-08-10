@@ -26,13 +26,18 @@ vi.mock('./FormWrapper', () => ({
   FormWrapper: ({
     defaultValues,
     attentionRequest,
+    formId,
+    formLabel,
   }: {
     defaultValues?: { text?: string };
     attentionRequest?: number;
+    formId: string;
+    formLabel?: string;
   }) => (
     <div>
       <span data-testid="alt-form-value">{defaultValues?.text}</span>
       <span data-testid="alt-attention-request">{attentionRequest}</span>
+      <span data-testid="alt-form-target">{`${formId}:${formLabel ?? ''}`}</span>
     </div>
   ),
 }));
@@ -45,6 +50,7 @@ const renderPair = () =>
       <FormBlockedFeedback />
       <EditableContentAlt
         formId={IDs.WORK_TITLE}
+        formLabel="Title"
         defaultValues={{ text: 'Alt A' }}
         validationSchema={validationSchema}
         onSubmit={vi.fn()}
@@ -84,8 +90,13 @@ describe('EditableContentAlt', () => {
     await user.click(screen.getByRole('button', { name: 'Edit Alt B' }));
 
     expect(screen.getByTestId('alt-form-value')).toHaveTextContent('Alt A');
+    expect(screen.getByTestId('alt-form-target')).toHaveTextContent(`${IDs.WORK_TITLE}:Title`);
     expect(screen.getByRole('button', { name: 'Edit Alt B' })).toBeInTheDocument();
     expect(screen.getByTestId('alt-attention-request')).toHaveTextContent('1');
-    expect(mocks.sendWarningNotification).toHaveBeenCalledWith('activeFormBlocked');
+    expect(mocks.sendWarningNotification).toHaveBeenCalledWith(
+      'activeFormBlocked',
+      undefined,
+      expect.objectContaining({ label: 'activeFormGoToOpenEdit' }),
+    );
   });
 });

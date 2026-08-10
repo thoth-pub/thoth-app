@@ -16,6 +16,7 @@ import { SetStateMachineContext } from '@/src/entities/sets';
 import { SubjectStateMachineContext } from '@/src/entities/subject';
 import { WorkStateMachineContext } from '@/src/entities/work';
 import { ServicesProvider } from '@/src/shared/context';
+import { ActiveFormNavigationProvider } from '@/src/shared/store/forms/ActiveFormNavigation';
 import FormBlockedFeedback from '@/src/shared/store/forms/FormBlockedFeedback';
 import { FormStateMachineContext } from '@/src/shared/store/forms/forms.provider';
 import { RouteChangeHandler } from '@/src/shared/store/RouteChangeHandler';
@@ -45,9 +46,11 @@ const ComposedProviders = composeProviders(
 
 const StoreProvider = ({ children }: { children: React.ReactNode }) => (
   <ComposedProviders>
-    <RouteChangeHandler />
-    <FormBlockedFeedback />
-    {children}
+    <ActiveFormNavigationProvider>
+      <RouteChangeHandler />
+      <FormBlockedFeedback />
+      {children}
+    </ActiveFormNavigationProvider>
   </ComposedProviders>
 );
 

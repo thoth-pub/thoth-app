@@ -29,15 +29,20 @@ vi.mock('./FormWrapper', () => ({
     onClose,
     onSubmit,
     attentionRequest,
+    formId,
+    formLabel,
   }: {
     defaultValues?: { text?: string };
     onClose: () => void;
     onSubmit: (data: { text: string }) => void | Promise<void>;
     attentionRequest?: number;
+    formId: string;
+    formLabel?: string;
   }) => (
     <div>
       <span data-testid="form-value">{defaultValues?.text}</span>
       <span data-testid="attention-request">{attentionRequest}</span>
+      <span data-testid="form-target">{`${formId}:${formLabel ?? ''}`}</span>
       <button
         type="button"
         onClick={() => {
@@ -77,6 +82,7 @@ const renderEditableContent = (onSubmit: (data: TestFormValues) => void | Promis
       <FormBlockedFeedback />
       <EditableContent<TestFormValues>
         formId={FORM_ID}
+        formLabel="Notes"
         defaultValues={{ text: 'Saved value' }}
         validationSchema={validationSchema}
         onSubmit={onSubmit}
@@ -153,6 +159,7 @@ describe('EditableContent', () => {
     await waitFor(() => expect(onSubmit).toHaveBeenCalledWith({ text: 'Unsaved value' }));
 
     expect(screen.getByTestId('form-value')).toHaveTextContent('Saved value');
+    expect(screen.getByTestId('form-target')).toHaveTextContent(`${FORM_ID}:Notes`);
     expect(screen.queryByTestId('preview-value')).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('button', { name: 'Close' }));

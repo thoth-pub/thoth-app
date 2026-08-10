@@ -14,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   edit: vi.fn(),
   editForm: vi.fn(),
   finishEditing: vi.fn(),
+  registerActiveFormTarget: vi.fn(),
 }));
 
 vi.mock('@/src/entities/locations/store/location.store', () => ({
@@ -31,6 +32,14 @@ vi.mock('@/src/shared/store/forms/hooks/useFormStateMachine', () => ({
     edit: mocks.editForm,
     closeForm: mocks.closeForm,
   })),
+}));
+
+vi.mock('@/src/shared/store/forms/ActiveFormNavigation', () => ({
+  // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix
+  useActiveFormNavigationTarget: (...args: unknown[]) => {
+    mocks.registerActiveFormTarget(...args);
+    return vi.fn();
+  },
 }));
 
 vi.mock('@/src/shared/hooks', () => ({
@@ -85,6 +94,7 @@ describe('EditLocations', () => {
     mocks.editForm.mockReset();
     mocks.editForm.mockReturnValue(true);
     mocks.finishEditing.mockReset();
+    mocks.registerActiveFormTarget.mockReset();
   });
 
   it('renders snapshot', () => {
@@ -180,6 +190,46 @@ describe('EditLocations', () => {
     });
 
     await waitFor(() => expect(mocks.finishEditing).toHaveBeenCalledTimes(1));
+    expect(mocks.closeForm).toHaveBeenCalledTimes(1);
+  });
+
+  it('EditLocations_registersExistingLocationFormAsTheActiveNavigationTarget', () => {
+    mocks.activeLocation = mockLocations[0];
+
+    render(
+      <Wrapper>
+        <EditLocations locations={mockLocations} isFullTextUrlHidden={false} onUpdate={vi.fn()} />
+      </Wrapper>,
+    );
+
+    expect(mocks.registerActiveFormTarget).toHaveBeenCalledWith('location_platform', 'locations.label');
+  });
+
+  it('EditLocations_registersNewLocationFormAsTheActiveNavigationTarget', () => {
+    mocks.activeLocation = newLocation;
+
+    render(
+      <Wrapper>
+        <EditLocations locations={mockLocations} isFullTextUrlHidden={false} onUpdate={vi.fn()} />
+      </Wrapper>,
+    );
+
+    expect(mocks.registerActiveFormTarget).toHaveBeenCalledWith('location_platform', 'locations.label');
+  });
+
+  it('EditLocations_cancelsLocationEditingWithoutSaving', () => {
+    mocks.activeLocation = mockLocations[0];
+
+    const { container } = render(
+      <Wrapper>
+        <EditLocations locations={mockLocations} isFullTextUrlHidden={false} onUpdate={vi.fn()} />
+      </Wrapper>,
+    );
+
+    const closeButton = container.querySelector('button[aria-label="Close"]')!;
+    fireEvent.click(closeButton);
+
+    expect(mocks.finishEditing).toHaveBeenCalledTimes(1);
     expect(mocks.closeForm).toHaveBeenCalledTimes(1);
   });
 

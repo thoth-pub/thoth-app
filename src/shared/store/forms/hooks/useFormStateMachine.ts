@@ -5,10 +5,19 @@ import type { Id } from '@/src/shared/interfaces';
 
 import { FormStateMachineContext } from '../forms.provider';
 
+export const useRequestFormAttention = () => {
+  const actorRef = FormStateMachineContext.useActorRef();
+
+  return useCallback(() => {
+    actorRef.send({ type: 'requestAttention' });
+  }, [actorRef]);
+};
+
 const useFormStateMachine = () => {
   const activeFormId: Id | null = FormStateMachineContext.useSelector((state) => state.context.activeForm);
   const attentionRequest = FormStateMachineContext.useSelector((state) => state.context.attentionRequest);
   const actorRef = FormStateMachineContext.useActorRef();
+  const requestAttention = useRequestFormAttention();
 
   const edit = useCallback(
     (formId: Id) => {
@@ -29,7 +38,7 @@ const useFormStateMachine = () => {
     closeForm();
   });
 
-  return { activeFormId, attentionRequest, edit, closeForm };
+  return { activeFormId, attentionRequest, edit, closeForm, requestAttention };
 };
 
 export default useFormStateMachine;

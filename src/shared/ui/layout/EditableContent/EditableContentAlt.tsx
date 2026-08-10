@@ -26,6 +26,7 @@ type PreviewProps<T extends FieldValues> = Partial<{
 
 type EditableContentAltProps<T extends FieldValues> = {
   formId: Id;
+  formLabel?: string;
   isDisabled?: boolean;
   borderTransparent?: boolean;
   onSubmit: (data: T) => void;
@@ -39,6 +40,7 @@ type EditableContentAltProps<T extends FieldValues> = {
 export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableContentAltProps<T>, 'onFormSubmit'>) => {
   const {
     formId,
+    formLabel,
     defaultValues,
     validationSchema,
     borderTransparent = false,
@@ -82,6 +84,8 @@ export const EditableContentAlt = <T extends FieldValues>(props: Omit<EditableCo
     <>
       {isActive ? (
         <FormWrapper
+          formId={formId}
+          formLabel={formLabel}
           defaultValues={defaultValues}
           validationSchema={validationSchema}
           validationMode={validationMode}

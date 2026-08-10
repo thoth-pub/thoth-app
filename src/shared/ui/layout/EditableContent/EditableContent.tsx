@@ -33,6 +33,7 @@ type PreviewProps<T extends FieldValues> = Partial<{
 
 type EditableContentProps<T extends FieldValues> = {
   formId: Id;
+  formLabel?: string;
   isTableVariant?: boolean;
   isDisabled?: boolean;
   borderTransparent?: boolean;
@@ -47,6 +48,7 @@ type EditableContentProps<T extends FieldValues> = {
 export const EditableContent = <T extends FieldValues>(props: Omit<EditableContentProps<T>, 'onFormSubmit'>) => {
   const {
     formId,
+    formLabel,
     defaultValues,
     validationSchema,
     isTableVariant = false,
@@ -106,6 +108,8 @@ export const EditableContent = <T extends FieldValues>(props: Omit<EditableConte
     <>
       {isActive ? (
         <FormWrapper
+          formId={formId}
+          formLabel={formLabel}
           defaultValues={formData}
           validationSchema={validationSchema}
           isTableVariant={isTableVariant}

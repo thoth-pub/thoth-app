@@ -7,6 +7,11 @@ import type { NotificationMessage } from '@/src/shared/interfaces';
 
 import { useServices } from '../context';
 
+type TranslatedNotificationAction = {
+  label: NotificationMessage;
+  onClick: () => void;
+};
+
 export const useNotification = () => {
   const { notificationService } = useServices();
   const { t } = useTranslation('notifications');
@@ -36,8 +41,8 @@ export const useNotification = () => {
   );
 
   const sendTranslatedWarningNotification = useCallback(
-    (message: NotificationMessage, options?: Record<string, unknown>) => {
-      sendWarningNotification(t(message, options));
+    (message: NotificationMessage, options?: Record<string, unknown>, action?: TranslatedNotificationAction) => {
+      sendWarningNotification(t(message, options), action ? { ...action, label: t(action.label) } : undefined);
     },
     [sendWarningNotification, t],
   );

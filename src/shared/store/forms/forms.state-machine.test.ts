@@ -12,6 +12,7 @@ describe('formStateMachine', () => {
     expect(actor.getSnapshot().value).toBe('init');
     expect(actor.getSnapshot().context.activeForm).toBeNull();
     expect(actor.getSnapshot().context.attentionRequest).toBe(0);
+    expect(actor.getSnapshot().context.blockedEditRequest).toBe(0);
   });
 
   it('transitions from init to editing on setActiveFormId', () => {
@@ -58,6 +59,7 @@ describe('formStateMachine', () => {
 
     expect(actor.getSnapshot().context.activeForm).toBe(IDs.WORK_TITLE);
     expect(actor.getSnapshot().context.attentionRequest).toBe(1);
+    expect(actor.getSnapshot().context.blockedEditRequest).toBe(1);
   });
 
   it('can request attention repeatedly without replacing the active form', () => {
@@ -69,6 +71,18 @@ describe('formStateMachine', () => {
 
     expect(actor.getSnapshot().context.activeForm).toBe(IDs.WORK_TITLE);
     expect(actor.getSnapshot().context.attentionRequest).toBe(2);
+    expect(actor.getSnapshot().context.blockedEditRequest).toBe(2);
+  });
+
+  it('requests fresh attention without changing the active form or reporting another blocked edit', () => {
+    const actor = interpret(formStateMachine).start();
+    actor.send({ type: 'setActiveFormId', id: IDs.WORK_TITLE });
+
+    actor.send({ type: 'requestAttention' });
+
+    expect(actor.getSnapshot().context.activeForm).toBe(IDs.WORK_TITLE);
+    expect(actor.getSnapshot().context.attentionRequest).toBe(1);
+    expect(actor.getSnapshot().context.blockedEditRequest).toBe(0);
   });
 
   it('clears the attention request when the active form closes', () => {
@@ -80,5 +94,6 @@ describe('formStateMachine', () => {
 
     expect(actor.getSnapshot().context.activeForm).toBeNull();
     expect(actor.getSnapshot().context.attentionRequest).toBe(0);
+    expect(actor.getSnapshot().context.blockedEditRequest).toBe(0);
   });
 });
