@@ -4,6 +4,8 @@ import { appConfig } from '../../config';
 
 export type CsvFieldDisposition = 'imported' | 'compatibility-only';
 
+export type CsvRequiredErrorRule = 'fieldRequired';
+
 export type CsvValidationRule =
   | 'imprint'
   | 'workType'
@@ -35,6 +37,7 @@ type CsvFieldDefinitionInput<Header extends string, Key extends string> = {
   optionalColumn?: boolean;
   aliases?: readonly CsvHeaderAlias[];
   validation?: CsvValidationRule;
+  requiredError?: CsvRequiredErrorRule;
   normalise?: CsvEnumNormaliser;
   disposition: CsvFieldDisposition;
   consumer: string;
@@ -64,6 +67,7 @@ const workFields = defineFields([
     required: true,
     aliases: [{ header: 'publisher', caseInsensitive: true }],
     validation: 'imprint',
+    requiredError: 'fieldRequired',
     disposition: 'imported',
     consumer: 'parseImprint / parseRow',
     destination: 'WorkEntity.imprintId / publisherName',

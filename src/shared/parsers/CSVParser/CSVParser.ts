@@ -764,7 +764,11 @@ export class CSVParser {
       const contributorOrcid = this.parseStringField(row, ORCID, rowNumber);
       const contributorWebsite = this.parseStringField(row, WEBSITE, rowNumber);
       const contributorAffiliationPosition = this.parseStringField(row, AFFILIATION_POSITION, rowNumber);
-      const contributorAffiliationInstitutionRor = this.parseStringField(row, AFFILIATION_INSTITUTION_ROR, rowNumber);
+      const contributorAffiliationInstitutionRor = this.parseStringField(
+        row,
+        AFFILIATION_INSTITUTION_ROR,
+        rowNumber,
+      ).trim();
 
       return {
         fullName: contributorFirstName + ' ' + contributorLastName,

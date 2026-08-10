@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { appConfig } from '../../config';
 import { csvSchema, getContributorFieldsByIndex } from './csvSchema';
@@ -99,6 +99,22 @@ describe('CSV schema', () => {
     expect(new Set(headers).size).toBe(headers.length);
     expect(new Set(keys).size).toBe(keys.length);
     expect(headers).toEqual(expectedContract.map(([header]) => header));
+  });
+
+  it('owns the only custom required-error rule and adapts it without field-specific config logic', () => {
+    expect(
+      csvSchema
+        .filter(({ requiredError }) => requiredError)
+        .map(({ header, requiredError }) => [header, requiredError]),
+    ).toEqual([['imprint', 'fieldRequired']]);
+
+    const t = vi.fn((key: string) => key);
+    const config = getCsvConfig([{ label: 'Imprint', value: 'id' }], [], t);
+    const fieldsWithRequiredError = config.headers.filter(({ requiredError }) => requiredError);
+
+    expect(fieldsWithRequiredError.map(({ name }) => name)).toEqual(['imprint']);
+    expect(fieldsWithRequiredError[0].requiredError?.('imprint', 2, 1)).toBe('errors.csvFieldRequired');
+    expect(t).toHaveBeenCalledWith('errors.csvFieldRequired', { field: 'imprint', row: 2, column: 1 });
   });
 
   it('generates the configured contributor groups in stable field order', () => {

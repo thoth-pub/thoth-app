@@ -14,7 +14,7 @@ import { ContributorTypes, currencyOptions, languageOptions, WorkStatuses, WorkT
 import { FormFieldOption } from '../../interfaces';
 import { workStatusValidation } from '../../utils';
 import type { TranslateFunction } from './CSVParser';
-import { csvSchema, type CsvValidationRule, type CsvValidatorCell } from './csvSchema';
+import { type CsvRequiredErrorRule, csvSchema, type CsvValidationRule, type CsvValidatorCell } from './csvSchema';
 
 type ValidationContext = {
   imprintLabels: string[];
@@ -89,6 +89,16 @@ const validationFor = (
   }
 };
 
+const requiredErrorFor = (rule: CsvRequiredErrorRule, t: TranslateFunction): Pick<FieldSchema, 'requiredError'> => {
+  switch (rule) {
+    case 'fieldRequired':
+      return {
+        requiredError: (headerName: string, rowNumber: number, columnNumber: number) =>
+          t('errors.csvFieldRequired', { field: headerName, row: rowNumber, column: columnNumber }),
+      };
+  }
+};
+
 /** Adapts the application-owned CSV contract to csv-file-validator's third-party shape. */
 export const getCsvConfig = (
   imprints: FormFieldOption[],
@@ -98,17 +108,12 @@ export const getCsvConfig = (
   const context: ValidationContext = { imprintLabels: imprints.map(({ label }) => label), licenseOptions, t };
 
   return {
-    headers: csvSchema.map(({ header, key, required, optionalColumn, validation }) => ({
+    headers: csvSchema.map(({ header, key, required, optionalColumn, validation, requiredError }) => ({
       name: header,
       inputName: key,
       required,
       ...(optionalColumn ? { optional: true } : {}),
-      ...(header === 'imprint'
-        ? {
-            requiredError: (headerName: string, rowNumber: number, columnNumber: number) =>
-              t('errors.csvFieldRequired', { field: headerName, row: rowNumber, column: columnNumber }),
-          }
-        : {}),
+      ...(requiredError ? requiredErrorFor(requiredError, t) : {}),
       ...(validation ? validationFor(validation, context) : {}),
     })),
   };

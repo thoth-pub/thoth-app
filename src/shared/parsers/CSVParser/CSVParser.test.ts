@@ -1407,6 +1407,24 @@ describe('CSVParser', () => {
       expect(result.data.plan.works[0].contributions[0].affiliations).toEqual([]);
     });
 
+    it('does not query or attach an institution when the affiliation ROR is whitespace-only', async () => {
+      const getInstitutions = vi
+        .fn()
+        .mockResolvedValue([{ id: 'unrelated', name: 'Unrelated Institution', ror: 'https://ror.org/unrelated' }]);
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+        contribution_1_affiliation_institution_ror: '   ',
+      });
+      const result = await makeParser(makeFile(csv), { getInstitutions }).parse();
+
+      expect(result.status).toBe('success');
+      expect(getInstitutions).not.toHaveBeenCalled();
+      expect(result.data.plan.works[0].contributions[0].affiliations).toEqual([]);
+    });
+
     it('accepts institution name for compatibility without using it as an implicit lookup filter', async () => {
       const getInstitutions = vi
         .fn()
@@ -1440,6 +1458,30 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv), { getInstitutions }).parse();
 
       expect(result.status).toBe('success');
+      expect(getInstitutions).toHaveBeenCalledWith(0, appConfig.data.maxItemsPerRequestLimit, ror);
+      expect(result.data.plan.works[0].contributions[0].affiliations[0]).toMatchObject({
+        institutionId: 'institution',
+        institutionName: 'Harvard University',
+        rorId: ror,
+        position: 'Professor',
+      });
+    });
+
+    it('trims an explicit ROR before looking up its affiliation', async () => {
+      const ror = 'https://ror.org/03vek6s52';
+      const getInstitutions = vi.fn().mockResolvedValue([{ id: 'institution', name: 'Harvard University', ror }]);
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+        contribution_1_affiliation_position: 'Professor',
+        contribution_1_affiliation_institution_ror: `  ${ror}  `,
+      });
+      const result = await makeParser(makeFile(csv), { getInstitutions }).parse();
+
+      expect(result.status).toBe('success');
+      expect(getInstitutions).toHaveBeenCalledTimes(1);
       expect(getInstitutions).toHaveBeenCalledWith(0, appConfig.data.maxItemsPerRequestLimit, ror);
       expect(result.data.plan.works[0].contributions[0].affiliations[0]).toMatchObject({
         institutionId: 'institution',
