@@ -1,17 +1,18 @@
 'use client';
 
-import { DragAndDropListener, DraggableComponent, Typography } from '@/src/shared/ui';
+import { DragAndDropListener, DraggableComponent, RorLink, Typography } from '@/src/shared/ui';
 import { isDragAndDropDisabled } from '@/src/shared/utils';
 
 type PreviewItemProps = {
   id: string;
   totalItemsCount: number;
   text: string;
+  rorId?: string;
   isDisabled?: boolean;
 };
 
 export const PreviewItem = (props: PreviewItemProps) => {
-  const { id, text, totalItemsCount } = props;
+  const { id, text, rorId, totalItemsCount } = props;
 
   return (
     <DraggableComponent id={id}>
@@ -25,6 +26,7 @@ export const PreviewItem = (props: PreviewItemProps) => {
         >
           <DragAndDropListener isDisabled={isDragAndDropDisabled(totalItemsCount)} listeners={listeners} />
           {text}
+          {rorId && <RorLink rorId={rorId} />}
         </Typography>
       )}
     </DraggableComponent>
