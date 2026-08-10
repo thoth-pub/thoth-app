@@ -8,6 +8,7 @@ import {
   ProductForm,
   ProductIdentifierType,
   PublishingDateRole,
+  TextItemIdentifierType,
   TextType,
   TitleElementLevel,
   TitleType,
@@ -38,6 +39,7 @@ import {
 import { AbstractTypes } from '../../constants/abstracts';
 import { SeriesType } from '../../constants/series';
 import { ContributorsForSelection, SeriesImportGroup, SeriesImportPlan } from '../../types';
+import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import {
   ExtendedCollection,
   ExtendedDescriptiveDetail,
@@ -46,6 +48,7 @@ import {
   ExtendedProductSupply,
   ExtendedPublishingDetail,
 } from './interfaces';
+import { toOnixArray } from './onix';
 import XMLParser from './XMLParser';
 
 /**
@@ -1472,7 +1475,8 @@ describe('XMLParser', () => {
               } as ExtendedDescriptiveDetail,
               PublishingDetail: {
                 Imprint: { ImprintName: imprints[0].label },
-                PublishingStatus: '04',
+                // 16 Withdrawn: the only kind of work Thoth stores a withdrawn date for.
+                PublishingStatus: '16',
                 PublishingDate: [
                   { PublishingDateRole: PublishingDateRole._01, Date: { '#text': publicationDate } },
                   { PublishingDateRole: PublishingDateRole._13, Date: { '#text': withdrawnDate } },
@@ -1496,8 +1500,9 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].publicationDate).toBe(publicationDate);
-      expect(result.data.plan.works[0].withdrawnDate).toBe(withdrawnDate);
+      // ONIX writes a complete date as YYYYMMDD; Thoth stores a calendar date.
+      expect(result.data.plan.works[0].publicationDate).toBe('2024-01-01');
+      expect(result.data.plan.works[0].withdrawnDate).toBe('2025-01-01');
     });
 
     it('should return empty publication and withdrawn dates if not provided', async () => {
@@ -3730,7 +3735,7 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
-      const chapterDoi = faker.string.sample();
+      const chapterDoi = `10.${faker.string.numeric(5)}/${faker.string.alpha(8)}`;
       const chapterPageCount = faker.number.int(100);
       const chapterFirstPage = faker.number.int(100);
       const chapterLastPage = faker.number.int(100);
@@ -3755,6 +3760,7 @@ describe('XMLParser', () => {
                     TitleDetail: { TitleElement: { TitleText: chapterTitle } },
                     TextItem: {
                       TextItemIdentifier: {
+                        TextItemIDType: TextItemIdentifierType._06,
                         IDValue: chapterDoi,
                       },
                     },
@@ -5368,33 +5374,47 @@ describe('XMLParser', () => {
 
     /** One product, with the parts each test cares about slotted in. */
     const productXml = ({
+      identifiers = '',
       titleDetails = '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Beowulf by All</TitleText></TitleElement></TitleDetail>',
       languages:
         productLanguages = '<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>',
+      contributors = '',
       collateralDetail = '',
       collection = '',
+      contentDetail = '',
+      publishingStatus = '04',
+      publishingDates = '',
       relatedMaterial = '',
     }: {
+      identifiers?: string;
       titleDetails?: string;
       languages?: string;
+      contributors?: string;
       collateralDetail?: string;
       collection?: string;
+      contentDetail?: string;
+      publishingStatus?: string;
+      publishingDates?: string;
       relatedMaterial?: string;
     }) => `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+    ${identifiers}
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       ${collection}
       ${titleDetails}
       ${productLanguages}
+      ${contributors}
     </DescriptiveDetail>
     ${collateralDetail}
+    ${contentDetail}
     <PublishingDetail>
       <Imprint><ImprintName>${FIDELITY_IMPRINT.label}</ImprintName></Imprint>
-      <PublishingStatus>04</PublishingStatus>
+      <PublishingStatus>${publishingStatus}</PublishingStatus>
+      ${publishingDates}
     </PublishingDetail>
     ${relatedMaterial}
   </Product>
@@ -5782,6 +5802,709 @@ describe('XMLParser', () => {
           },
         ]);
       });
+
+      it('refuses a publication-order number Thoth has no room for', async () => {
+        // `issue_ordinal` is `Int4`. Treating this as "no sequence supplied" would have the
+        // planner number the work itself, so the publisher's issue 2147483648 would become 1.
+        const result = await runFidelityParser(
+          productXml({ collection: collectionXml(sequenceXml('2147483648', '03')) }),
+          [fidelitySeries('Arc Companions')],
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.data.plan.series).toEqual([]);
+        expect(errorMessages(result)).toEqual([
+          'Series "Arc Companions" is given publication-order number 2147483648 by product 1 (9781641891783), which is outside the range of issue numbers Thoth can store (1 to 2147483647)',
+        ]);
+      });
+
+      it('accepts the largest ordinal Thoth can store', async () => {
+        const result = await runFidelityParser(
+          productXml({ collection: collectionXml(sequenceXml('2147483647', '03')) }),
+          [fidelitySeries('Arc Companions')],
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(ordinalOf(result)).toBe(2147483647);
+      });
+    });
+
+    describe('work DOI', () => {
+      const productIdentifier = (type: string, value: string) =>
+        `<ProductIdentifier><ProductIDType>${type}</ProductIDType><IDValue>${value}</IDValue></ProductIdentifier>`;
+
+      const doiOf = (result: Awaited<ReturnType<XMLParser['parse']>>) => result.data.plan.works[0].doi;
+
+      it('canonicalises a bare DOI', async () => {
+        const result = await runFidelityParser(productXml({ identifiers: productIdentifier('06', '10.1234/abcd') }));
+
+        expect(result.issues).toEqual([]);
+        expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
+      });
+
+      it('does not prefix a resolver onto a DOI that already has one', async () => {
+        // `doiPrefix + value` made this `https://doi.org/https://doi.org/10.1234/abcd`.
+        const result = await runFidelityParser(
+          productXml({ identifiers: productIdentifier('06', 'https://doi.org/10.1234/abcd') }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
+      });
+
+      it('accepts an older resolver form', async () => {
+        const result = await runFidelityParser(
+          productXml({ identifiers: productIdentifier('06', 'http://dx.doi.org/10.1234/abcd') }),
+        );
+
+        expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
+      });
+
+      it('finds a DOI listed behind an unrelated identifier', async () => {
+        // The product's own ISBN is already the first ProductIdentifier, and a `.find()` over an
+        // unnormalised composite saw an array and matched nothing at all.
+        const result = await runFidelityParser(
+          productXml({
+            identifiers: `${productIdentifier('13', '2019012345')}${productIdentifier('06', '10.1234/abcd')}`,
+          }),
+        );
+
+        expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
+      });
+
+      it('does not report two spellings of one DOI as a contradiction', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            identifiers: `${productIdentifier('06', '10.1234/abcd')}${productIdentifier('06', 'https://doi.org/10.1234/abcd')}`,
+          }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
+      });
+
+      it('refuses to choose between two genuinely different DOIs', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            identifiers: `${productIdentifier('06', '10.5678/efgh')}${productIdentifier('06', '10.1234/abcd')}`,
+          }),
+        );
+
+        // A warning, not an error: a DOI is optional metadata, so the work still imports.
+        expect(result.status).toBe('success');
+        expect(doiOf(result)).toBe('');
+        expect(result.issues).toEqual([
+          {
+            severity: 'warning',
+            code: 'onix.identifier.unusable_doi',
+            message:
+              'More than one distinct DOI (https://doi.org/10.1234/abcd, https://doi.org/10.5678/efgh) is given for product 1 (9781641891783), so it was imported without a work DOI',
+            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+          },
+        ]);
+      });
+
+      it('drops a DOI the Thoth API would reject rather than dressing it up', async () => {
+        const result = await runFidelityParser(productXml({ identifiers: productIdentifier('06', 'not-a-doi') }));
+
+        expect(doiOf(result)).toBe('');
+        expect(doiOf(result)).not.toBe('https://doi.org/not-a-doi');
+        expect(result.issues).toEqual([
+          {
+            severity: 'warning',
+            code: 'onix.identifier.unusable_doi',
+            message:
+              '"not-a-doi" is given as a DOI for product 1 (9781641891783), which Thoth cannot represent as one, so it was not imported',
+            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+          },
+        ]);
+      });
+
+      it('keeps a valid DOI beside a malformed one and says which was refused', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            identifiers: `${productIdentifier('06', '10.1234/abcd')}${productIdentifier('06', 'PROD-1234')}`,
+          }),
+        );
+
+        expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
+        expect(result.issues.map(({ severity, code }) => [severity, code])).toEqual([
+          ['warning', 'onix.identifier.unusable_doi'],
+        ]);
+        expect(result.issues[0].message).toContain('"PROD-1234" is given as a DOI');
+      });
+
+      it('leaves the DOI empty when no identifier claims to be one', async () => {
+        const result = await runFidelityParser(productXml({ identifiers: productIdentifier('13', '2019012345') }));
+
+        expect(result.issues).toEqual([]);
+        expect(doiOf(result)).toBe('');
+      });
+
+      it('hands the canonical DOI to the duplicate preflight unchanged', async () => {
+        // Preflight reads `work.doi` straight off the plan, so the corrected value reaches it
+        // without any change to preflight itself.
+        const result = await runFidelityParser(
+          productXml({ identifiers: productIdentifier('06', 'http://dx.doi.org/10.1234/abcd') }),
+        );
+
+        expect(collectWorkIdentifiers(result.data.plan.works[0])).toContainEqual({
+          basis: 'doi',
+          value: 'https://doi.org/10.1234/abcd',
+        });
+      });
+    });
+
+    describe('chapter DOI', () => {
+      const textItemIdentifier = (type: string, value: string) =>
+        `<TextItemIdentifier><TextItemIDType>${type}</TextItemIDType><IDValue>${value}</IDValue></TextItemIdentifier>`;
+
+      const contentDetailXml = (identifiers: string) => `<ContentDetail>
+        <ContentItem>
+          <LevelSequenceNumber>1</LevelSequenceNumber>
+          <TitleDetail><TitleType>01</TitleType><TitleElement>
+            <TitleElementLevel>04</TitleElementLevel><TitleText>A Chapter</TitleText>
+          </TitleElement></TitleDetail>
+          <TextItem>${identifiers}</TextItem>
+        </ContentItem>
+      </ContentDetail>`;
+
+      const chapterDoiOf = (result: Awaited<ReturnType<XMLParser['parse']>>) => result.data.plan.chapters[0].doi;
+
+      it('reads one TextItemIdentifier as the object the parser emits', async () => {
+        const parsed = (await parse(
+          productXml({ contentDetail: contentDetailXml(textItemIdentifier('06', '10.1234/chapter')) }),
+        )) as ExtendedONIXMessageRoot;
+        const [product] = toOnixArray(parsed.ONIXMessage.Product);
+        const [chapter] = toOnixArray(product.ContentDetail?.ContentItem);
+
+        expect(Array.isArray(chapter.TextItem?.TextItemIdentifier)).toBe(false);
+        expect(chapter.TextItem?.TextItemIdentifier).toEqual({ TextItemIDType: '06', IDValue: '10.1234/chapter' });
+      });
+
+      it('reads two TextItemIdentifiers as the array the parser emits', async () => {
+        const parsed = (await parse(
+          productXml({
+            contentDetail: contentDetailXml(
+              `${textItemIdentifier('01', 'SKU-1')}${textItemIdentifier('06', '10.1234/chapter')}`,
+            ),
+          }),
+        )) as ExtendedONIXMessageRoot;
+        const [product] = toOnixArray(parsed.ONIXMessage.Product);
+        const [chapter] = toOnixArray(product.ContentDetail?.ContentItem);
+
+        expect(Array.isArray(chapter.TextItem?.TextItemIdentifier)).toBe(true);
+        expect(toOnixArray(chapter.TextItem?.TextItemIdentifier)).toHaveLength(2);
+      });
+
+      it('canonicalises a bare chapter DOI', async () => {
+        const result = await runFidelityParser(
+          productXml({ contentDetail: contentDetailXml(textItemIdentifier('06', '10.1234/chapter')) }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(chapterDoiOf(result)).toBe('https://doi.org/10.1234/chapter');
+      });
+
+      it('does not prefix a resolver onto a chapter DOI that already has one', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contentDetail: contentDetailXml(textItemIdentifier('06', 'https://doi.org/10.1234/chapter')),
+          }),
+        );
+
+        expect(chapterDoiOf(result)).toBe('https://doi.org/10.1234/chapter');
+      });
+
+      it('finds a chapter DOI listed behind an identifier of another type', async () => {
+        // Reading `TextItemIdentifier.IDValue` without checking the type made `SKU-1` the DOI.
+        const result = await runFidelityParser(
+          productXml({
+            contentDetail: contentDetailXml(
+              `${textItemIdentifier('01', 'SKU-1')}${textItemIdentifier('06', '10.1234/chapter')}`,
+            ),
+          }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(chapterDoiOf(result)).toBe('https://doi.org/10.1234/chapter');
+      });
+
+      it('never makes an identifier of another type into a chapter DOI', async () => {
+        const result = await runFidelityParser(
+          productXml({ contentDetail: contentDetailXml(textItemIdentifier('01', 'SKU-1')) }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(chapterDoiOf(result)).toBe('');
+      });
+
+      it('does not report two spellings of one chapter DOI as a contradiction', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contentDetail: contentDetailXml(
+              `${textItemIdentifier('06', '10.1234/chapter')}${textItemIdentifier('06', 'http://dx.doi.org/10.1234/chapter')}`,
+            ),
+          }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(chapterDoiOf(result)).toBe('https://doi.org/10.1234/chapter');
+      });
+
+      it('refuses to choose between two different chapter DOIs, whichever order they come in', async () => {
+        const identifiers = [textItemIdentifier('06', '10.5678/efgh'), textItemIdentifier('06', '10.1234/abcd')];
+        const message =
+          'More than one distinct DOI (https://doi.org/10.1234/abcd, https://doi.org/10.5678/efgh) is given for a chapter of product 1 (9781641891783), so the chapter was imported without one';
+
+        const forwards = await runFidelityParser(productXml({ contentDetail: contentDetailXml(identifiers.join('')) }));
+        const backwards = await runFidelityParser(
+          productXml({ contentDetail: contentDetailXml([...identifiers].reverse().join('')) }),
+        );
+
+        [forwards, backwards].forEach((result) => {
+          expect(result.status).toBe('success');
+          expect(chapterDoiOf(result)).toBe('');
+          expect(result.issues.map(({ code, message: text }) => [code, text])).toEqual([
+            ['onix.identifier.unusable_doi', message],
+          ]);
+        });
+      });
+
+      it('never lets a malformed chapter DOI reach the plan', async () => {
+        const result = await runFidelityParser(
+          productXml({ contentDetail: contentDetailXml(textItemIdentifier('06', 'not-a-doi')) }),
+        );
+
+        expect(chapterDoiOf(result)).toBe('');
+        expect(chapterDoiOf(result)).not.toBe('https://doi.org/not-a-doi');
+        expect(result.issues).toEqual([
+          {
+            severity: 'warning',
+            code: 'onix.identifier.unusable_doi',
+            message:
+              '"not-a-doi" is given as a DOI for a chapter of product 1 (9781641891783), which Thoth cannot represent as one, so it was not imported',
+            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+          },
+        ]);
+      });
+
+      it('keeps a valid chapter DOI beside a malformed one', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contentDetail: contentDetailXml(
+              `${textItemIdentifier('06', '10.1234/chapter')}${textItemIdentifier('06', 'PROD-1234')}`,
+            ),
+          }),
+        );
+
+        expect(chapterDoiOf(result)).toBe('https://doi.org/10.1234/chapter');
+        expect(result.issues[0].message).toContain('"PROD-1234" is given as a DOI for a chapter');
+      });
+
+      it('leaves the chapter DOI empty when the TextItem has no identifier at all', async () => {
+        const result = await runFidelityParser(productXml({ contentDetail: contentDetailXml('') }));
+
+        expect(result.issues).toEqual([]);
+        expect(chapterDoiOf(result)).toBe('');
+      });
+    });
+
+    describe('publishing dates', () => {
+      const publishingDateXml = (role: string, value: string, dateformat?: string) =>
+        `<PublishingDate><PublishingDateRole>${role}</PublishingDateRole>${
+          dateformat === undefined ? `<Date>${value}</Date>` : `<Date dateformat="${dateformat}">${value}</Date>`
+        }</PublishingDate>`;
+
+      const datesOf = (result: Awaited<ReturnType<XMLParser['parse']>>) => [
+        result.data.plan.works[0]?.publicationDate,
+        result.data.plan.works[0]?.withdrawnDate,
+      ];
+
+      it('reads the complete dates Thoth itself writes', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            publishingStatus: '16',
+            publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '20250101', '00')}`,
+          }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(datesOf(result)).toEqual(['2024-08-07', '2025-01-01']);
+      });
+
+      it('treats a Date with no dateformat as a complete date, as ONIX defines', async () => {
+        const result = await runFidelityParser(productXml({ publishingDates: publishingDateXml('01', '20240807') }));
+
+        expect(result.issues).toEqual([]);
+        expect(datesOf(result)[0]).toBe('2024-08-07');
+      });
+
+      it('never turns a year into the first of January', async () => {
+        // `dayjs('2024')` says 1 January 2024. The status here does not need a publication date,
+        // so the work imports without one and the loss is reported.
+        const result = await runFidelityParser(
+          productXml({ publishingStatus: '02', publishingDates: publishingDateXml('01', '2024', '05') }),
+        );
+
+        expect(result.status).toBe('success');
+        expect(datesOf(result)[0]).toBe('');
+        expect(result.issues).toEqual([
+          {
+            severity: 'warning',
+            code: 'onix.date.unrepresentable',
+            message:
+              'Publication date "2024" in product 1 (9781641891783) is not a complete calendar date Thoth can store, so it was not imported',
+            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+          },
+        ]);
+      });
+
+      it('never turns a year and month into the first of the month', async () => {
+        const result = await runFidelityParser(
+          productXml({ publishingStatus: '02', publishingDates: publishingDateXml('01', '202408', '01') }),
+        );
+
+        expect(datesOf(result)[0]).toBe('');
+        expect(result.issues[0].message).toContain('"202408"');
+      });
+
+      it('refuses a day that never existed', async () => {
+        const result = await runFidelityParser(
+          productXml({ publishingStatus: '02', publishingDates: publishingDateXml('01', '20240230', '00') }),
+        );
+
+        expect(datesOf(result)[0]).toBe('');
+        expect(datesOf(result)[0]).not.toBe('2024-03-01');
+      });
+
+      it('blocks the import when the status makes the date it could not read compulsory', async () => {
+        // `WorkProperties::validate` rejects a published work with no publication date, so
+        // importing this work without one would fail at the API halfway through the upload.
+        const result = await runFidelityParser(
+          productXml({ publishingStatus: '04', publishingDates: publishingDateXml('01', '2024', '05') }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.issues).toEqual([
+          {
+            severity: 'error',
+            code: 'onix.validation',
+            message:
+              'Publication date "2024" in product 1 (9781641891783) is not a complete calendar date Thoth can store, and a work with status ACTIVE must have one',
+            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+          },
+        ]);
+      });
+
+      it('blocks the import when an out-of-print work loses its withdrawn date', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            publishingStatus: '16',
+            publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '2025', '05')}`,
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(errorMessages(result)).toEqual([
+          'Withdrawn date "2025" in product 1 (9781641891783) is not a complete calendar date Thoth can store, and a work with status WITHDRAWN must have one',
+        ]);
+      });
+
+      it('collapses one date stated twice', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('01', '20240807')}`,
+          }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(datesOf(result)[0]).toBe('2024-08-07');
+      });
+
+      it('refuses to choose between two publication dates, whichever order they come in', async () => {
+        const dates = [publishingDateXml('01', '20240807', '00'), publishingDateXml('01', '20240808', '00')];
+        const message =
+          'More than one publication date (2024-08-07, 2024-08-08) is given for product 1 (9781641891783), so none can be imported';
+
+        const forwards = await runFidelityParser(productXml({ publishingDates: dates.join('') }));
+        const backwards = await runFidelityParser(productXml({ publishingDates: [...dates].reverse().join('') }));
+
+        [forwards, backwards].forEach((result) => {
+          expect(result.status).toBe('failed');
+          expect(errorMessages(result)).toEqual([message]);
+        });
+      });
+
+      it('refuses to choose between two withdrawn dates', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            publishingStatus: '16',
+            publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '20250101', '00')}${publishingDateXml('13', '20250202', '00')}`,
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(errorMessages(result)).toEqual([
+          'More than one withdrawn date (2025-01-01, 2025-02-02) is given for product 1 (9781641891783), so none can be imported',
+        ]);
+      });
+
+      it('keeps the two roles independent', async () => {
+        // A withdrawn date this importer cannot read does not cost the work its publication date.
+        const result = await runFidelityParser(
+          productXml({
+            publishingStatus: '04',
+            publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '2025', '05')}`,
+          }),
+        );
+
+        expect(result.status).toBe('success');
+        expect(datesOf(result)).toEqual(['2024-08-07', '']);
+      });
+
+      it('gives a chapter the dates its product ended up with', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            publishingDates: publishingDateXml('01', '20240807', '00'),
+            contentDetail: `<ContentDetail><ContentItem>
+              <LevelSequenceNumber>1</LevelSequenceNumber>
+              <TitleDetail><TitleType>01</TitleType><TitleElement>
+                <TitleElementLevel>04</TitleElementLevel><TitleText>A Chapter</TitleText>
+              </TitleElement></TitleDetail>
+            </ContentItem></ContentDetail>`,
+          }),
+        );
+
+        expect(result.data.plan.chapters[0].publicationDate).toBe('2024-08-07');
+      });
+
+      /**
+       * `WorkProperties::validate` stores a withdrawn date for exactly the out-of-print statuses:
+       * it demands one for those (`NoWithdrawnDateError`) and refuses one for every other status
+       * (`WithdrawnDateError`). A complete withdrawal date on a work that is not out of print is
+       * therefore a date with nowhere to go, and a plan that carried it would fail at `createWork`.
+       */
+      describe('against the work status', () => {
+        it('drops a withdrawn date an active work cannot store', async () => {
+          const result = await runFidelityParser(
+            productXml({
+              publishingStatus: '04',
+              publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '20250101', '00')}`,
+            }),
+          );
+
+          expect(result.status).toBe('success');
+          // The publication date is untouched: only the date the status has no room for goes.
+          expect(datesOf(result)).toEqual(['2024-08-07', '']);
+          expect(result.issues).toEqual([
+            {
+              severity: 'warning',
+              code: 'onix.date.incompatible_status',
+              message:
+                'Withdrawn date "2025-01-01" in product 1 (9781641891783) cannot be stored for a work with status ACTIVE, so it was not imported',
+              source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+            },
+          ]);
+        });
+
+        it('drops a withdrawn date a forthcoming work cannot store', async () => {
+          const result = await runFidelityParser(
+            productXml({ publishingStatus: '02', publishingDates: publishingDateXml('13', '20250101', '00') }),
+          );
+
+          expect(result.status).toBe('success');
+          expect(datesOf(result)[1]).toBe('');
+          expect(result.issues.map(({ code }) => code)).toEqual(['onix.date.incompatible_status']);
+          expect(result.issues[0].message).toContain('with status FORTHCOMING');
+        });
+
+        it('does not change the work status to make room for the date', async () => {
+          const result = await runFidelityParser(
+            productXml({ publishingStatus: '04', publishingDates: publishingDateXml('13', '20250101', '00') }),
+          );
+
+          expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Active);
+        });
+
+        it('keeps both dates on a withdrawn work', async () => {
+          const result = await runFidelityParser(
+            productXml({
+              publishingStatus: '16',
+              publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '20250101', '00')}`,
+            }),
+          );
+
+          expect(result.issues).toEqual([]);
+          expect(datesOf(result)).toEqual(['2024-08-07', '2025-01-01']);
+        });
+
+        it('keeps both dates on a superseded work', async () => {
+          const result = await runFidelityParser(
+            productXml({
+              publishingStatus: '21',
+              publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '20250101', '00')}`,
+            }),
+          );
+
+          expect(result.issues).toEqual([]);
+          expect(result.data.plan.works[0].status).toBe(WorkStatuses.enum.Superseded);
+          expect(datesOf(result)).toEqual(['2024-08-07', '2025-01-01']);
+        });
+
+        it('refuses a withdrawal that precedes publication, whichever order the file lists them', async () => {
+          // Both fields are compulsory for a withdrawn work, so there is nothing to drop that
+          // would leave a mutation that could succeed. It blocks rather than warns.
+          const dates = [publishingDateXml('01', '20250101', '00'), publishingDateXml('13', '20240101', '00')];
+          const message =
+            'Withdrawn date 2024-01-01 is earlier than publication date 2025-01-01 in product 1 (9781641891783), which Thoth does not accept';
+
+          const forwards = await runFidelityParser(
+            productXml({ publishingStatus: '16', publishingDates: dates.join('') }),
+          );
+          const backwards = await runFidelityParser(
+            productXml({ publishingStatus: '16', publishingDates: [...dates].reverse().join('') }),
+          );
+
+          [forwards, backwards].forEach((result) => {
+            expect(result.status).toBe('failed');
+            expect(errorMessages(result)).toEqual([message]);
+          });
+        });
+
+        it('refuses the same chronology on a superseded work', async () => {
+          const result = await runFidelityParser(
+            productXml({
+              publishingStatus: '21',
+              publishingDates: `${publishingDateXml('01', '20250101', '00')}${publishingDateXml('13', '20240101', '00')}`,
+            }),
+          );
+
+          expect(result.status).toBe('failed');
+          expect(errorMessages(result)).toEqual([
+            'Withdrawn date 2024-01-01 is earlier than publication date 2025-01-01 in product 1 (9781641891783), which Thoth does not accept',
+          ]);
+        });
+
+        it('accepts a work withdrawn on the day it was published', async () => {
+          // The backend's rule is `withdrawn < publication`, not `<=`.
+          const result = await runFidelityParser(
+            productXml({
+              publishingStatus: '16',
+              publishingDates: `${publishingDateXml('01', '20240807', '00')}${publishingDateXml('13', '20240807', '00')}`,
+            }),
+          );
+
+          expect(result.issues).toEqual([]);
+          expect(datesOf(result)).toEqual(['2024-08-07', '2024-08-07']);
+        });
+
+        it('does not complain twice about a withdrawn date that was already unrepresentable', async () => {
+          // The status check runs on the resolved value, so a date already dropped as partial
+          // cannot also be reported as incompatible with a status it was never going to reach.
+          const result = await runFidelityParser(
+            productXml({ publishingStatus: '04', publishingDates: publishingDateXml('13', '2025', '05') }),
+          );
+
+          expect(result.status).toBe('success');
+          expect(datesOf(result)[1]).toBe('');
+          expect(result.issues.map(({ code }) => code)).toEqual(['onix.date.unrepresentable']);
+        });
+      });
+    });
+
+    describe('contributor biography', () => {
+      const contributorXml = (biographicalNotes: string) => `<Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Umberto Eco</PersonName>
+        ${biographicalNotes}
+      </Contributor>`;
+
+      const biographiesOf = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
+        result.data.plan.works[0].contributions[0].biographies.map(({ content, localeCode, canonical }) => [
+          content,
+          localeCode,
+          canonical,
+        ]);
+
+      it('keeps a bare biography in the English every import used to get', async () => {
+        const result = await runFidelityParser(
+          productXml({ contributors: contributorXml('<BiographicalNote>A made-up author</BiographicalNote>') }),
+        );
+
+        expect(biographiesOf(result)).toEqual([['A made-up author', LanguageTypeAlt.enum.En, true]]);
+      });
+
+      it('keeps the language an attributed biography declares', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml('<BiographicalNote language="fre">Un auteur inventé</BiographicalNote>'),
+          }),
+        );
+
+        expect(biographiesOf(result)).toEqual([['Un auteur inventé', LanguageTypeAlt.enum.Fr, true]]);
+      });
+
+      it('reads the text of an attributed biography rather than the object holding it', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml(
+              '<BiographicalNote language="eng" textformat="05">A made-up author</BiographicalNote>',
+            ),
+          }),
+        );
+
+        expect(biographiesOf(result)[0][0]).toBe('A made-up author');
+        expect(biographiesOf(result)[0][0]).not.toContain('object Object');
+      });
+
+      it('falls back to English for a language Thoth has no locale for', async () => {
+        // `nor` is a macro-language Thoth splits into Nb and Nn, so there is no honest answer.
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml('<BiographicalNote language="nor">En oppdiktet forfatter</BiographicalNote>'),
+          }),
+        );
+
+        expect(biographiesOf(result)).toEqual([['En oppdiktet forfatter', LanguageTypeAlt.enum.En, true]]);
+      });
+
+      it('does not make an untagged biography follow the language of the book', async () => {
+        // A biography is prose about a person, not part of the work's text: an English note about
+        // a Spanish author is entirely ordinary.
+        const result = await runFidelityParser(
+          productXml({
+            languages: '<Language><LanguageRole>01</LanguageRole><LanguageCode>spa</LanguageCode></Language>',
+            contributors: contributorXml('<BiographicalNote>A made-up author</BiographicalNote>'),
+          }),
+        );
+
+        expect(biographiesOf(result)).toEqual([['A made-up author', LanguageTypeAlt.enum.En, true]]);
+      });
+
+      it('keeps every language a repeated biography is written in', async () => {
+        // ONIX repeats BiographicalNote rather than Contributor for a multilingual biography.
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml(
+              `<BiographicalNote language="eng">A made-up author</BiographicalNote>
+               <BiographicalNote language="ita">Un autore inventato</BiographicalNote>`,
+            ),
+          }),
+        );
+
+        expect(biographiesOf(result)).toEqual([
+          ['A made-up author', LanguageTypeAlt.enum.En, true],
+          ['Un autore inventato', LanguageTypeAlt.enum.It, false],
+        ]);
+      });
+
+      it('gives a contributor with no biography none', async () => {
+        const result = await runFidelityParser(productXml({ contributors: contributorXml('') }));
+
+        expect(biographiesOf(result)).toEqual([]);
+      });
     });
 
     describe('related material', () => {
@@ -5947,8 +6670,48 @@ describe('XMLParser', () => {
             expect.objectContaining({ doi: '', unstructuredCitation: 'Hopkins, Lisa. 2019.' }),
           ]);
           expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
-          expect(result.issues[0].message).toContain('supplies more than one DOI (10.1234/abcd, 10.5678/efgh)');
+          // The conflict is between the DOIs, so the message names them as Thoth writes them.
+          expect(result.issues[0].message).toContain(
+            'supplies more than one DOI (https://doi.org/10.1234/abcd, https://doi.org/10.5678/efgh)',
+          );
         });
+      });
+
+      it('does not call one DOI written two ways a contradiction', async () => {
+        // Selection canonicalises before comparing, so the bare DOI and its resolver-prefixed
+        // twin are one identifier. Comparing the raw strings reported them as disagreeing.
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
+              <ProductIdentifier>
+                <ProductIDType>06</ProductIDType><IDValue>https://doi.org/10.1234/abcd</IDValue>
+              </ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(result.issues).toEqual([]);
+        expect(referencesOf(result)).toEqual([
+          expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd', unstructuredCitation: '' }),
+        ]);
+      });
+
+      it('keeps a cited DOI beside a malformed one rather than dropping both', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            relatedMaterial: relatedMaterialXml(`<RelatedProduct>
+              <ProductRelationCode>34</ProductRelationCode>
+              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/abcd</IDValue></ProductIdentifier>
+              <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>PROD-1234</IDValue></ProductIdentifier>
+            </RelatedProduct>`),
+          }),
+        );
+
+        expect(referencesOf(result)).toEqual([expect.objectContaining({ doi: 'https://doi.org/10.1234/abcd' })]);
+        expect(result.issues.map(({ code }) => code)).toEqual(['onix.reference.unusable_identifier']);
+        expect(result.issues[0].message).toContain('supplies "PROD-1234" as a DOI');
       });
 
       it('refuses to choose between two unstructured citations', async () => {

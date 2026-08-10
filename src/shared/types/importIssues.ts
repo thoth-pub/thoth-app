@@ -47,7 +47,20 @@ export type ImportIssueCode =
   | 'onix.no_products'
   | 'onix.series.non_publisher_collection_skipped'
   | 'onix.reference.unrepresentable_citation'
-  | 'onix.reference.unusable_identifier';
+  | 'onix.reference.unusable_identifier'
+  /**
+   * A DOI given for the work itself or for one of its chapters that Thoth cannot represent —
+   * either because the value is not a DOI or because two distinct ones were supplied. Distinct
+   * from `onix.reference.unusable_identifier`, which is about a cited work's metadata.
+   */
+  | 'onix.identifier.unusable_doi'
+  /** A publication or withdrawn date Thoth cannot store as a complete calendar date. */
+  | 'onix.date.unrepresentable'
+  /**
+   * A complete calendar date the work's status leaves nowhere to put — a withdrawal date on a
+   * work that is not out of print. The date is representable; the combination is not.
+   */
+  | 'onix.date.incompatible_status';
 
 export type ImportIssue = {
   severity: ImportIssueSeverity;

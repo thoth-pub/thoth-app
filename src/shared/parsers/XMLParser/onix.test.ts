@@ -2,14 +2,25 @@ import { parse } from '@5stones/onix';
 import { CollectionSequenceType, CollectionType, TitleElementLevel, TitleType } from '@5stones/onix/dist/enums';
 import { describe, expect, it } from 'vitest';
 
-import type { ExtendedCollection, ExtendedONIXMessageRoot, OnixRelatedIdentifier, OnixTitleDetail } from './interfaces';
+import type {
+  ExtendedCollection,
+  ExtendedONIXMessageRoot,
+  OnixPublishingDate,
+  OnixRelatedIdentifier,
+  OnixTitleDetail,
+} from './interfaces';
 import {
   classifyCollectionType,
   extractOnixTitle,
   extractOnixTitlesOfType,
+  getOnixDateFormat,
   getOnixLanguage,
   getOnixText,
+  isEarlierCalendarDate,
+  readOnixDate,
+  selectCanonicalDoi,
   selectPublicationOrderSequence,
+  selectPublishingDate,
   selectRelatedIdentifier,
   selectSeriesCollection,
   toOnixArray,
@@ -467,6 +478,46 @@ describe('selectPublicationOrderSequence', () => {
   it('returns nothing when the collection has no sequence', () => {
     expect(selectPublicationOrderSequence([])).toEqual({ kind: 'none' });
   });
+
+  it('accepts the whole range Thoth can store', () => {
+    // `issue.issue_ordinal` is `Int4`, so 1 and 2147483647 are the ends of what exists.
+    expect(selectPublicationOrderSequence([sequence('1', '03')])).toEqual({ kind: 'ordinal', ordinal: 1 });
+    expect(selectPublicationOrderSequence([sequence('2147483647', '03')])).toEqual({
+      kind: 'ordinal',
+      ordinal: 2147483647,
+    });
+  });
+
+  it('reports a number past the end of that range instead of pretending none was given', () => {
+    // Falling through as `none` would have the series planner number the work itself, so a
+    // publisher who said "issue 2147483648" would silently be given issue 1.
+    expect(selectPublicationOrderSequence([sequence('2147483648', '03')])).toEqual({
+      kind: 'unrepresentable',
+      values: ['2147483648'],
+    });
+    expect(selectPublicationOrderSequence([sequence('999999999999999999999999', '03')])).toEqual({
+      kind: 'unrepresentable',
+      values: ['999999999999999999999999'],
+    });
+  });
+
+  it('reports an out-of-range untyped sequence too', () => {
+    expect(selectPublicationOrderSequence([sequence('2147483648')])).toEqual({
+      kind: 'unrepresentable',
+      values: ['2147483648'],
+    });
+  });
+
+  it('does not let an out-of-range number be resolved by an in-range one beside it', () => {
+    const forwards = [sequence('3', '03'), sequence('2147483648', '03')];
+
+    expect(selectPublicationOrderSequence(forwards)).toEqual({ kind: 'unrepresentable', values: ['2147483648'] });
+    expect(selectPublicationOrderSequence([...forwards].reverse())).toEqual(selectPublicationOrderSequence(forwards));
+  });
+
+  it('ignores an out-of-range sequence of some other order', () => {
+    expect(selectPublicationOrderSequence([sequence('2147483648', '02')])).toEqual({ kind: 'none' });
+  });
 });
 
 describe('selectRelatedIdentifier', () => {
@@ -547,6 +598,303 @@ describe('selectRelatedIdentifier', () => {
       kind: 'value',
       value: '10.1234/abc',
     });
+  });
+});
+
+describe('selectCanonicalDoi', () => {
+  const CANONICAL = 'https://doi.org/10.1234/x';
+
+  it('finds nothing in nothing', () => {
+    expect(selectCanonicalDoi([])).toEqual({ kind: 'none', unusable: [] });
+  });
+
+  it('canonicalises a bare DOI', () => {
+    expect(selectCanonicalDoi(['10.1234/x'])).toEqual({ kind: 'doi', doi: CANONICAL, unusable: [] });
+  });
+
+  it('leaves a DOI that already carries the canonical resolver alone', () => {
+    expect(selectCanonicalDoi([CANONICAL])).toEqual({ kind: 'doi', doi: CANONICAL, unusable: [] });
+  });
+
+  it('accepts every resolver form the Thoth API accepts', () => {
+    // `Doi::from_str` matches `[[http[s]://][www.][dx.]doi.org/]10.XXXX/XXX`, so all of these are
+    // the same identifier as far as Thoth is concerned.
+    ['http://doi.org/10.1234/x', 'https://www.doi.org/10.1234/x', 'http://dx.doi.org/10.1234/x'].forEach((spelling) =>
+      expect(selectCanonicalDoi([spelling])).toEqual({ kind: 'doi', doi: CANONICAL, unusable: [] }),
+    );
+  });
+
+  it('treats a bare DOI and its resolver-prefixed twin as one DOI', () => {
+    // The whole point of canonicalising before comparing: these are one identifier written twice,
+    // not two identifiers that disagree.
+    expect(selectCanonicalDoi(['10.1234/x', 'https://doi.org/10.1234/x'])).toEqual({
+      kind: 'doi',
+      doi: CANONICAL,
+      unusable: [],
+    });
+    expect(selectCanonicalDoi(['http://dx.doi.org/10.1234/x', '10.1234/x'])).toEqual({
+      kind: 'doi',
+      doi: CANONICAL,
+      unusable: [],
+    });
+  });
+
+  it('collapses an identical repeat', () => {
+    expect(selectCanonicalDoi(['10.1234/x', '10.1234/x'])).toEqual({ kind: 'doi', doi: CANONICAL, unusable: [] });
+  });
+
+  it('refuses to choose between two genuinely different DOIs', () => {
+    expect(selectCanonicalDoi(['10.1234/x', '10.5678/y'])).toEqual({
+      kind: 'conflict',
+      dois: ['https://doi.org/10.1234/x', 'https://doi.org/10.5678/y'],
+      unusable: [],
+    });
+  });
+
+  it('gives the same answer whichever order the conflicting values arrive in', () => {
+    expect(selectCanonicalDoi(['10.5678/y', '10.1234/x'])).toEqual(selectCanonicalDoi(['10.1234/x', '10.5678/y']));
+  });
+
+  it('never turns a value that is not a DOI into one', () => {
+    // `doiPrefix + value` used to make this `https://doi.org/not-a-doi`, which survives the whole
+    // import and fails at the API.
+    expect(selectCanonicalDoi(['not-a-doi'])).toEqual({ kind: 'none', unusable: ['not-a-doi'] });
+  });
+
+  it('keeps a real DOI beside a malformed one and reports the malformed one', () => {
+    expect(selectCanonicalDoi(['10.1234/x', 'PROD-1234'])).toEqual({
+      kind: 'doi',
+      doi: CANONICAL,
+      unusable: ['PROD-1234'],
+    });
+  });
+
+  it('ignores blank values', () => {
+    expect(selectCanonicalDoi(['', '   ', '10.1234/x'])).toEqual({ kind: 'doi', doi: CANONICAL, unusable: [] });
+    expect(selectCanonicalDoi(['', '  '])).toEqual({ kind: 'none', unusable: [] });
+  });
+
+  it('trims before reading', () => {
+    expect(selectCanonicalDoi(['  10.1234/x  '])).toEqual({ kind: 'doi', doi: CANONICAL, unusable: [] });
+  });
+
+  it('reads DOIs off identifiers parsed from real ONIX', () => {
+    const root = parse(
+      `<?xml version="1.0" encoding="UTF-8"?>
+       <ONIXMessage release="3.0"><Product>
+         <RecordReference>x</RecordReference>
+         <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+         <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/x</IDValue></ProductIdentifier>
+       </Product></ONIXMessage>`,
+    ) as ExtendedONIXMessageRoot;
+    const [product] = toOnixArray(root.ONIXMessage.Product);
+    const identifiers = toOnixArray(product.ProductIdentifier);
+
+    expect(Array.isArray(product.ProductIdentifier)).toBe(true);
+    expect(
+      selectCanonicalDoi(
+        identifiers
+          .filter((identifier) => identifier.ProductIDType === '06')
+          .map((identifier) => `${identifier.IDValue}`),
+      ),
+    ).toEqual({ kind: 'doi', doi: CANONICAL, unusable: [] });
+  });
+});
+
+describe('getOnixDateFormat', () => {
+  it('reads the attribute a real parse produces', () => {
+    const root = parse(
+      `<?xml version="1.0" encoding="UTF-8"?>
+       <ONIXMessage release="3.0"><Product><RecordReference>x</RecordReference><PublishingDetail>
+         <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20240807</Date></PublishingDate>
+         <PublishingDate><PublishingDateRole>09</PublishingDateRole><Date>20240808</Date></PublishingDate>
+       </PublishingDetail></Product></ONIXMessage>`,
+    ) as ExtendedONIXMessageRoot;
+    const [product] = toOnixArray(root.ONIXMessage.Product);
+    const [attributed, bare] = toOnixArray(product.PublishingDetail?.PublishingDate);
+
+    // An attributed Date is an object holding its text under `#text`; a bare one is a string.
+    expect(attributed.Date).toEqual({ '#text': '20240807', '@_dateformat': '00' });
+    expect(bare.Date).toBe('20240808');
+    expect(getOnixDateFormat(attributed.Date)).toBe('00');
+    expect(getOnixDateFormat(bare.Date)).toBe('');
+  });
+
+  it('has nothing to say about an absent date', () => {
+    expect(getOnixDateFormat(undefined)).toBe('');
+    expect(getOnixDateFormat(null)).toBe('');
+  });
+});
+
+describe('readOnixDate', () => {
+  it('reads the complete date Thoth itself writes', () => {
+    expect(readOnixDate({ '#text': '20240807', '@_dateformat': '00' })).toBe('2024-08-07');
+  });
+
+  it('reads a leap day', () => {
+    expect(readOnixDate({ '#text': '20240229', '@_dateformat': '00' })).toBe('2024-02-29');
+  });
+
+  it('treats an omitted dateformat as format 00', () => {
+    // ONIX: "Each data element on which this attribute may be used specifies a default dateformat
+    // if the attribute is not supplied — for most date elements, this is format '00', YYYYMMDD".
+    expect(readOnixDate('20240807')).toBe('2024-08-07');
+    expect(readOnixDate({ '#text': '20240807' })).toBe('2024-08-07');
+  });
+
+  it('rejects a day that does not exist', () => {
+    // `dayjs('20240230')` says 1 March. There is no honest way to import a date the sender got
+    // wrong, and repairing it silently changes what the file said.
+    expect(readOnixDate({ '#text': '20240230', '@_dateformat': '00' })).toBeUndefined();
+    expect(readOnixDate({ '#text': '20230229', '@_dateformat': '00' })).toBeUndefined();
+  });
+
+  it('rejects an impossible month or day', () => {
+    ['20241301', '20240100', '20240132', '20240001'].forEach((digits) =>
+      expect(readOnixDate({ '#text': digits, '@_dateformat': '00' })).toBeUndefined(),
+    );
+  });
+
+  it('rejects anything that is not eight digits', () => {
+    ['2024AA01', '2024-08-07', '2024080', '202408070', '', '  '].forEach((digits) =>
+      expect(readOnixDate({ '#text': digits, '@_dateformat': '00' })).toBeUndefined(),
+    );
+  });
+
+  it('never completes a partial date', () => {
+    // A year is not 1 January and a month is not its first day; Thoth stores a `NaiveDate`, and
+    // inventing the missing precision would store a fact the sender never stated.
+    expect(readOnixDate({ '#text': '2024', '@_dateformat': '05' })).toBeUndefined();
+    expect(readOnixDate({ '#text': '202408', '@_dateformat': '01' })).toBeUndefined();
+  });
+
+  it('refuses every date format that is not a complete Common Era day', () => {
+    // Quarters, seasons, spreads, text dates, timestamps and the Hijri calendar forms all mean
+    // something a `NaiveDate` cannot hold without changing it.
+    [
+      '01',
+      '02',
+      '03',
+      '04',
+      '05',
+      '06',
+      '07',
+      '08',
+      '09',
+      '10',
+      '11',
+      '12',
+      '13',
+      '14',
+      '20',
+      '21',
+      '25',
+      '32',
+    ].forEach((dateformat) =>
+      expect(readOnixDate({ '#text': '20240807', '@_dateformat': dateformat })).toBeUndefined(),
+    );
+  });
+
+  it('has nothing to read in an absent date', () => {
+    expect(readOnixDate(undefined)).toBeUndefined();
+  });
+});
+
+describe('isEarlierCalendarDate', () => {
+  it('orders canonical dates by time, not by how they are spelled', () => {
+    expect(isEarlierCalendarDate('2024-01-01', '2025-01-01')).toBe(true);
+    expect(isEarlierCalendarDate('2025-01-01', '2024-01-01')).toBe(false);
+    // Fixed-width zero-padded fields are what makes a string comparison a date comparison: a
+    // September date must not sort after an October one because `9` > `1`.
+    expect(isEarlierCalendarDate('2024-09-30', '2024-10-01')).toBe(true);
+    expect(isEarlierCalendarDate('2024-08-09', '2024-08-10')).toBe(true);
+  });
+
+  it('is strict, as the backend is', () => {
+    // `WorkProperties::validate` rejects on `withdrawn < publication`, so the same day is fine.
+    expect(isEarlierCalendarDate('2024-08-07', '2024-08-07')).toBe(false);
+  });
+});
+
+describe('selectPublishingDate', () => {
+  const date = (role: string, value: string, dateformat?: string): OnixPublishingDate => ({
+    PublishingDateRole: role,
+    Date: dateformat ? { '#text': value, '@_dateformat': dateformat } : value,
+  });
+
+  it('reads the date for the role it was asked about', () => {
+    expect(selectPublishingDate([date('01', '20240807', '00')], '01')).toEqual({
+      kind: 'date',
+      date: '2024-08-07',
+      unrepresentable: [],
+    });
+  });
+
+  it('keeps the two roles independent', () => {
+    const dates = [date('01', '20240807', '00'), date('13', '20250101', '00')];
+
+    expect(selectPublishingDate(dates, '01')).toEqual({ kind: 'date', date: '2024-08-07', unrepresentable: [] });
+    expect(selectPublishingDate(dates, '13')).toEqual({ kind: 'date', date: '2025-01-01', unrepresentable: [] });
+  });
+
+  it('ignores roles Thoth has no field for', () => {
+    expect(selectPublishingDate([date('09', '20240807', '00')], '01')).toEqual({ kind: 'none', unrepresentable: [] });
+  });
+
+  it('collapses the same date stated twice for one role', () => {
+    expect(selectPublishingDate([date('01', '20240807', '00'), date('01', '20240807')], '01')).toEqual({
+      kind: 'date',
+      date: '2024-08-07',
+      unrepresentable: [],
+    });
+  });
+
+  it('refuses to choose between two dates for one role', () => {
+    expect(selectPublishingDate([date('01', '20240807', '00'), date('01', '20240808', '00')], '01')).toEqual({
+      kind: 'conflict',
+      dates: ['2024-08-07', '2024-08-08'],
+      unrepresentable: [],
+    });
+  });
+
+  it('gives the same answer whichever order the contradiction comes in', () => {
+    const forwards = [date('01', '20240807', '00'), date('01', '20240808', '00')];
+
+    expect(selectPublishingDate([...forwards].reverse(), '01')).toEqual(selectPublishingDate(forwards, '01'));
+  });
+
+  it('reports a date it cannot represent rather than dropping it silently', () => {
+    expect(selectPublishingDate([date('01', '2024', '05')], '01')).toEqual({
+      kind: 'none',
+      unrepresentable: ['2024'],
+    });
+  });
+
+  it('keeps a usable date beside an unusable one and reports the unusable one', () => {
+    expect(selectPublishingDate([date('01', '2024', '05'), date('01', '20240807', '00')], '01')).toEqual({
+      kind: 'date',
+      date: '2024-08-07',
+      unrepresentable: ['2024'],
+    });
+  });
+
+  it('has nothing to report about an empty Date element', () => {
+    expect(selectPublishingDate([date('01', '')], '01')).toEqual({ kind: 'none', unrepresentable: [] });
+  });
+
+  it('reads dates parsed from real ONIX, single or repeated', () => {
+    const root = parse(
+      `<?xml version="1.0" encoding="UTF-8"?>
+       <ONIXMessage release="3.0"><Product><RecordReference>x</RecordReference><PublishingDetail>
+         <PublishingDate><PublishingDateRole>01</PublishingDateRole><Date dateformat="00">20240807</Date></PublishingDate>
+         <PublishingDate><PublishingDateRole>13</PublishingDateRole><Date dateformat="00">20250101</Date></PublishingDate>
+       </PublishingDetail></Product></ONIXMessage>`,
+    ) as ExtendedONIXMessageRoot;
+    const [product] = toOnixArray(root.ONIXMessage.Product);
+    const dates = toOnixArray(product.PublishingDetail?.PublishingDate);
+
+    expect(selectPublishingDate(dates, '01')).toEqual({ kind: 'date', date: '2024-08-07', unrepresentable: [] });
+    expect(selectPublishingDate(dates, '13')).toEqual({ kind: 'date', date: '2025-01-01', unrepresentable: [] });
   });
 });
 

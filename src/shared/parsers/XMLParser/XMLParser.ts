@@ -5,6 +5,7 @@ import {
   ProductIdentifierType,
   ProductRelation,
   PublishingDateRole,
+  TextItemIdentifierType,
   TextType,
   TitleElementLevel,
   TitleType,
@@ -50,7 +51,6 @@ import type {
   TitleEntity,
 } from '../../types';
 import {
-  canonicaliseDoi,
   getContributorRoleFromXml,
   getDefaultAbstract,
   getDefaultChapter,
@@ -72,6 +72,7 @@ import {
   type SeriesPlanMessages,
 } from '../series/seriesPlan';
 import {
+  ExtendedCollection,
   ExtendedContributor,
   ExtendedONIXMessageRoot,
   ExtendedProduct,
@@ -84,7 +85,13 @@ import {
   extractOnixTitlesOfType,
   getOnixLanguage,
   getOnixText,
+  isEarlierCalendarDate,
+  MAX_ISSUE_ORDINAL,
+  type OnixDateSelection,
+  type OnixDoiSelection,
+  selectCanonicalDoi,
   selectPublicationOrderSequence,
+  selectPublishingDate,
   selectRelatedIdentifier,
   selectSeriesCollection,
   toOnixArray,
@@ -118,6 +125,51 @@ const LANGUAGE_ROLE_RELATIONS: Partial<Record<LanguageRole, LanguageEntity['rela
   [LanguageRole._06]: LanguageRelation.enum.Original,
   // Translated language in a multilingual edition.
   [LanguageRole._07]: LanguageRelation.enum.TranslatedInto,
+};
+
+/**
+ * The work statuses `WorkProperties::validate` classifies, restated where the parser can apply
+ * them.
+ *
+ * These are not a UI preference. `thoth-api/src/model/work/mod.rs` decides in four branches, all
+ * of which this parser has to respect, because a plan that breaks one of them is a plan whose
+ * `createWork` is already known to fail:
+ *
+ * - `PublicationDateError` — published (`is_published`) with no publication date;
+ * - `WithdrawnDateError` — *not* out of print (`is_out_of_print`) but carrying a withdrawn date;
+ * - `NoWithdrawnDateError` — out of print with no withdrawn date;
+ * - `WithdrawnDateBeforePublicationDateError` — both present and `withdrawn < publication`.
+ *
+ * The middle two are one rule read from both sides: a withdrawn date is stored for exactly the
+ * out-of-print statuses, so for those it is compulsory and for every other status it is refused.
+ * A publication date is not symmetric — it is compulsory for a published work, but a forthcoming
+ * work may perfectly well carry one, so only its absence is ever an error.
+ */
+const PUBLISHED_STATUSES: WorkStatus[] = [
+  WorkStatuses.enum.Active,
+  WorkStatuses.enum.Withdrawn,
+  WorkStatuses.enum.Superseded,
+];
+
+const OUT_OF_PRINT_STATUSES: WorkStatus[] = [WorkStatuses.enum.Withdrawn, WorkStatuses.enum.Superseded];
+
+type DateRoleContract = {
+  /** How the role is named in a diagnostic. */
+  label: string;
+  /** Statuses whose work the backend refuses when this date is missing. */
+  requiredFor: WorkStatus[];
+  /** Statuses whose work the backend refuses when this date is *present*, if any. */
+  storableFor?: WorkStatus[];
+};
+
+/** The two PublishingDate roles Thoth has a field for, and what the backend does with each. */
+const DATE_ROLES: Record<string, DateRoleContract> = {
+  [PublishingDateRole._01]: { label: 'Publication date', requiredFor: PUBLISHED_STATUSES },
+  [PublishingDateRole._13]: {
+    label: 'Withdrawn date',
+    requiredFor: OUT_OF_PRINT_STATUSES,
+    storableFor: OUT_OF_PRINT_STATUSES,
+  },
 };
 
 /** What {@link XMLParser.parseWork} produces for one ONIX product. */
@@ -157,7 +209,6 @@ class XMLParser {
   private serieses: SeriesEntity[] = [];
   private currencyOptions: FormFieldOption[] = [];
   private defaultId: string = appConfig.defaultId;
-  private doiPrefix: string = appConfig.validations.doiPrefix;
   private contributorService: ContributorService;
   private institutionService: InstitutionService;
 
@@ -331,8 +382,10 @@ class XMLParser {
     const workId = this.generateId();
     const imprintId = this.parseImprint(product, index);
 
+    const status = this.parseWorkStatus(product);
+
     const { imageCount, tableCount, audioCount, videoCount } = this.parseMedia(product);
-    const { publicationDate, withdrawnDate } = this.parseDates(product);
+    const { publicationDate, withdrawnDate } = this.parseDates(product, index, status);
     const languages = this.parseLanguages(product, index);
     const textLocale = this.parseTextLocale(product);
     const fundings = await this.parseFundings(product);
@@ -341,10 +394,10 @@ class XMLParser {
 
     const work = getDefaultWork({
       id: workId,
-      status: this.parseWorkStatus(product),
+      status,
       type: workType,
       imprintId,
-      doi: this.parseDoi(product),
+      doi: this.parseDoi(product, index),
       lccn: this.parseLccn(product),
       oclc: this.parseOclc(product),
       license: this.parseLicense(product, index),
@@ -370,7 +423,7 @@ class XMLParser {
       contributions: workContributions,
     });
 
-    const chapters = await this.parseChapters(product, work, textLocale);
+    const chapters = await this.parseChapters(product, index, work, textLocale);
 
     return { work, chapters, seriesCandidate: this.parseSeries(product, index, imprintId) };
   }
@@ -387,10 +440,77 @@ class XMLParser {
     return imprint.value;
   }
 
-  private parseDoi(product: ExtendedProduct) {
-    const doi = this.findProductIdentifier(product, ProductIdentifierType._06);
+  /** Says what a DOI a product supplied could not become, without failing the work over it. */
+  private warnAboutDoi(product: ExtendedProduct, index: number, detail: string) {
+    this.issues.push({
+      severity: 'warning',
+      code: 'onix.identifier.unusable_doi',
+      message: detail,
+      source: this.productSource(product, index),
+    });
+  }
 
-    return doi.length > 0 ? this.doiPrefix + doi : '';
+  /**
+   * Turns a DOI selection into the value to store, reporting whatever could not be used.
+   *
+   * A DOI is optional metadata everywhere Thoth stores one, so nothing here blocks an import:
+   * the work or chapter is created without a DOI and the user is told which value was refused.
+   * `subject` names what the DOI was for, so one routine serves both the product and its chapters.
+   */
+  private resolveDoi(
+    selection: OnixDoiSelection,
+    product: ExtendedProduct,
+    index: number,
+    subject: string,
+    omission: string,
+  ): string {
+    selection.unusable.forEach((value) =>
+      this.warnAboutDoi(
+        product,
+        index,
+        `"${value}" is given as a DOI for ${subject}, which Thoth cannot represent as one, so it was not imported`,
+      ),
+    );
+
+    if (selection.kind === 'conflict') {
+      this.warnAboutDoi(
+        product,
+        index,
+        `More than one distinct DOI (${selection.dois.join(', ')}) is given for ${subject}, so ${omission}`,
+      );
+
+      return '';
+    }
+
+    return selection.kind === 'doi' ? selection.doi : '';
+  }
+
+  /**
+   * The work's DOI, in the single form Thoth stores.
+   *
+   * ProductIdentifier is repeatable, so the type has to be read off every occurrence rather than
+   * off whichever one came first — an ISBN listed before the DOI used to be enough to hide it —
+   * and only ProductIDType 06 is a DOI. What the sender wrote is then canonicalised rather than
+   * prefixed: `doiPrefix + value` turned an already-resolver-prefixed DOI into
+   * `https://doi.org/https://doi.org/10.…` and a publisher's product code into a URL that looks
+   * like a DOI until the API parses it.
+   */
+  private parseDoi(product: ExtendedProduct, index: number) {
+    const identifiers = this.convertToArray(product.ProductIdentifier).filter((identifier) => !!identifier);
+
+    const selection = selectCanonicalDoi(
+      identifiers
+        .filter((identifier) => getOnixText(identifier.ProductIDType) === ProductIdentifierType._06)
+        .map((identifier) => getOnixText(identifier.IDValue)),
+    );
+
+    return this.resolveDoi(
+      selection,
+      product,
+      index,
+      this.describeProduct(product, index),
+      'it was imported without a work DOI',
+    );
   }
 
   private parseLccn(product: ExtendedProduct) {
@@ -629,21 +749,146 @@ class XMLParser {
     return workStatus;
   }
 
-  private parseDates(product: ExtendedProduct) {
-    const publicationDates = this.convertToArray(product.PublishingDetail?.PublishingDate).filter((date) => !!date);
+  /**
+   * The work's publication and withdrawn dates, as calendar days or not at all.
+   *
+   * ONIX dates carry their own precision, Thoth's do not: `publication_date` and `withdrawn_date`
+   * are a PostgreSQL `date` behind chrono's `NaiveDate`, which names a day and nothing less. So a
+   * complete ONIX day converts exactly — that is the Thoth round trip, `dateformat="00"` — and
+   * anything coarser or malformed is refused rather than completed. Handing `2024` on unconverted
+   * was enough for the mapper's `dayjs` to make it 1 January, and `20240230` to make it 1 March.
+   *
+   * Each role is resolved on its own first, because what a role says is a fact about that role
+   * alone; only then are the two answers checked against each other and against the work's status,
+   * which is where the rest of `WorkProperties::validate` lives.
+   */
+  private parseDates(product: ExtendedProduct, index: number, status: WorkStatus) {
+    const dates = this.convertToArray(product.PublishingDetail?.PublishingDate).filter((date) => !!date);
 
-    const publicationDate = getOnixText(
-      publicationDates.find((date) => date?.PublishingDateRole === PublishingDateRole._01)?.Date,
+    const publicationDate = this.resolveDate(
+      selectPublishingDate(dates, PublishingDateRole._01),
+      product,
+      index,
+      status,
+      PublishingDateRole._01,
     );
 
-    const withdrawnDate = getOnixText(
-      publicationDates.find((date) => date?.PublishingDateRole === PublishingDateRole._13)?.Date,
+    const withdrawnDate = this.resolveDate(
+      selectPublishingDate(dates, PublishingDateRole._13),
+      product,
+      index,
+      status,
+      PublishingDateRole._13,
     );
 
-    return {
-      publicationDate,
-      withdrawnDate,
-    };
+    return this.reconcileDates(publicationDate, withdrawnDate, product, index, status);
+  }
+
+  /**
+   * Holds the two resolved dates to the rules that involve both of them, or the work's status.
+   *
+   * A date can be a perfectly good calendar day and still be one Thoth cannot store *here*.
+   * `WorkProperties::validate` stores a withdrawn date for the out-of-print statuses and refuses
+   * one for every other status, so an active work that supplies a withdrawal date is a work whose
+   * `createWork` would fail — the date is representable, the combination is not. That is a loss of
+   * source metadata like any other, so the date is dropped and reported, and the work imports.
+   *
+   * A withdrawal that precedes publication is different in kind. Both fields are compulsory for
+   * the statuses that can reach this check, so there is nothing to drop that would leave a valid
+   * mutation: keeping either date alone still fails, and reordering or choosing between them would
+   * be inventing a history the file did not state. It blocks.
+   */
+  private reconcileDates(
+    publicationDate: string,
+    withdrawnDate: string,
+    product: ExtendedProduct,
+    index: number,
+    status: WorkStatus,
+  ) {
+    const productDescription = this.describeProduct(product, index);
+    const { storableFor } = DATE_ROLES[PublishingDateRole._13];
+
+    // Runs on the resolved value, so a withdrawn date that was already dropped as unrepresentable
+    // cannot collect a second complaint about the status it was never going to reach.
+    if (withdrawnDate.length > 0 && storableFor && !storableFor.includes(status)) {
+      this.issues.push({
+        severity: 'warning',
+        code: 'onix.date.incompatible_status',
+        message: `Withdrawn date "${withdrawnDate}" in ${productDescription} cannot be stored for a work with status ${status}, so it was not imported`,
+        source: this.productSource(product, index),
+      });
+
+      return { publicationDate, withdrawnDate: '' };
+    }
+
+    if (
+      publicationDate.length > 0 &&
+      withdrawnDate.length > 0 &&
+      isEarlierCalendarDate(withdrawnDate, publicationDate)
+    ) {
+      this.pushError(
+        product,
+        index,
+        `Withdrawn date ${withdrawnDate} is earlier than publication date ${publicationDate} in ${productDescription}, which Thoth does not accept`,
+      );
+    }
+
+    return { publicationDate, withdrawnDate };
+  }
+
+  /**
+   * Turns one role's date selection into the value to store, reporting what could not be used.
+   *
+   * Severity comes from the backend rather than from intuition. A work whose status makes the
+   * date compulsory cannot be created without it — see {@link DATE_ROLES} — so refusing the file
+   * here says so while the whole upload can still be fixed, rather than letting a guaranteed
+   * failure surface halfway through creating works. A work that is valid without the date is
+   * imported without it and the user is told.
+   *
+   * Two usable dates for one role are always an error, whatever the status: the sender has stated
+   * two contradictory facts, and choosing the earlier, the later or the first would all be
+   * inventions.
+   */
+  private resolveDate(
+    selection: OnixDateSelection,
+    product: ExtendedProduct,
+    index: number,
+    status: WorkStatus,
+    role: keyof typeof DATE_ROLES,
+  ): string {
+    const { label, requiredFor } = DATE_ROLES[role];
+    const productDescription = this.describeProduct(product, index);
+
+    if (selection.kind === 'conflict') {
+      this.pushError(
+        product,
+        index,
+        `More than one ${label.toLowerCase()} (${selection.dates.join(', ')}) is given for ${productDescription}, so none can be imported`,
+      );
+
+      return '';
+    }
+
+    const date = selection.kind === 'date' ? selection.date : '';
+
+    selection.unrepresentable.forEach((value) => {
+      const message = `${label} "${value}" in ${productDescription} is not a complete calendar date Thoth can store`;
+
+      if (date.length === 0 && requiredFor.includes(status)) {
+        this.pushError(product, index, `${message}, and a work with status ${status} must have one`);
+
+        return;
+      }
+
+      this.issues.push({
+        severity: 'warning',
+        code: 'onix.date.unrepresentable',
+        message: `${message}, so it was not imported`,
+        source: this.productSource(product, index),
+      });
+    });
+
+    return date;
   }
 
   private parseCopyrightHolder(product: ExtendedProduct): string {
@@ -1026,6 +1271,19 @@ class XMLParser {
       return undefined;
     }
 
+    if (sequenceSelection.kind === 'unrepresentable') {
+      // Letting this fall through as "no sequence supplied" would have the planner number the
+      // work itself, so a publisher who said "issue 3000000000" would silently get issue 1. The
+      // number is real and unambiguous; it is Thoth's column that has no room for it.
+      this.pushError(
+        product,
+        index,
+        `Series "${seriesName}" is given publication-order number ${sequenceSelection.values.join(', ')} by ${productDescription}, which is outside the range of issue numbers Thoth can store (1 to ${MAX_ISSUE_ORDINAL})`,
+      );
+
+      return undefined;
+    }
+
     // Only a publisher collection is a safe basis for creating a Thoth series. An unspecified
     // or editorial-line collection may well be one, so it is still matched below, but we will
     // not invent a series from it.
@@ -1120,38 +1378,39 @@ class XMLParser {
    * arrived used to turn `not-a-doi` into `https://doi.org/not-a-doi`, which survives the import
    * and fails at the API, where the Doi scalar parses it. The work is still importable without
    * one cited work's DOI, so this warns and carries on.
+   *
+   * Selection goes through the same canonicalising helper as every other DOI here, so a cited
+   * product that gives its DOI both bare and resolver-prefixed is understood to have given one
+   * DOI twice rather than two that contradict each other.
    */
   private resolveReferenceDoi(identifiers: OnixRelatedIdentifier[], product: ExtendedProduct, index: number): string {
-    const selection = selectRelatedIdentifier(
-      identifiers,
-      (identifier) => getOnixText(identifier.ProductIDType) === ProductIdentifierType._06,
+    const selection = selectCanonicalDoi(
+      identifiers
+        .filter((identifier) => getOnixText(identifier.ProductIDType) === ProductIdentifierType._06)
+        .map((identifier) => getOnixText(identifier.IDValue)),
     );
 
-    if (selection.kind === 'none') return '';
+    selection.unusable.forEach((value) =>
+      this.warnAboutCitation(
+        product,
+        index,
+        'unusable_identifier',
+        `supplies "${value}" as a DOI, which Thoth cannot read as one, so the reference was imported without it`,
+      ),
+    );
 
     if (selection.kind === 'conflict') {
       this.warnAboutCitation(
         product,
         index,
         'unusable_identifier',
-        `supplies more than one DOI (${selection.values.join(', ')}), so the reference was imported without one`,
+        `supplies more than one DOI (${selection.dois.join(', ')}), so the reference was imported without one`,
       );
 
       return '';
     }
 
-    const doi = canonicaliseDoi(selection.value);
-
-    if (doi.length === 0) {
-      this.warnAboutCitation(
-        product,
-        index,
-        'unusable_identifier',
-        `supplies "${selection.value}" as a DOI, which Thoth cannot read as one, so the reference was imported without it`,
-      );
-    }
-
-    return doi;
+    return selection.kind === 'doi' ? selection.doi : '';
   }
 
   /** The unstructured citation of one cited product, or nothing. */
@@ -1227,6 +1486,33 @@ class XMLParser {
     return references;
   }
 
+  /**
+   * A contributor's biographies, each in the language its own note claims.
+   *
+   * ONIX repeats BiographicalNote rather than the Contributor when a biography exists in several
+   * languages, and tags each occurrence with a `language` attribute; a note carrying any attribute
+   * arrives as an object, so reading it as a plain value made an attributed note `[object Object]`.
+   *
+   * The language is the note's own or nothing. A biography is independent prose about a person —
+   * an English note about a French author is perfectly ordinary — so unlike a title or an
+   * abstract it must not inherit the language of the book's text. Where the note does not say, or
+   * says something Thoth has no locale for, it keeps the English every ONIX import used to get.
+   */
+  private parseBiographies(contributor: ExtendedContributor) {
+    return this.convertToArray(contributor.BiographicalNote)
+      .map((note) => ({ content: getOnixText(note), language: getOnixLanguage(note) }))
+      .filter(({ content }) => content.length > 0)
+      .map(({ content, language }, order) => ({
+        id: this.defaultId,
+        // Thoth marks one biography per contribution as the canonical one, and ONIX says nothing
+        // about which of several languages is primary, so the first one listed keeps the role.
+        canonical: order === 0,
+        content,
+        localeCode: localeFromLanguageCode(language) ?? LocaleCode.En,
+        contributionId: this.defaultId,
+      }));
+  }
+
   private async parseContributors(contributors: ExtendedContributor[] | ExtendedContributor, workId: WorkId) {
     const xmlContributors = this.convertToArray(contributors).filter((contributor) => !!contributor);
 
@@ -1248,7 +1534,7 @@ class XMLParser {
       const affiliationPosition = contributor.ProfessionalAffiliation?.ProfessionalPosition ?? '';
       const affiliationInstitutionRor = contributor.ProfessionalAffiliation?.AffiliationIdentifier?.IDValue;
       const position = contributor.ProfessionalAffiliation?.ProfessionalPosition ?? '';
-      const biography = contributor.BiographicalNote ?? '';
+      const biographies = this.parseBiographies(contributor);
 
       const newContributor = {
         lastName,
@@ -1260,7 +1546,6 @@ class XMLParser {
         affiliationPosition,
         affiliationInstitutionRor,
         position,
-        biography,
       };
 
       if (newContributor.fullName.length === 0) continue;
@@ -1281,18 +1566,6 @@ class XMLParser {
             position: affiliationPosition,
           })
         : null;
-
-      const biographies = biography
-        ? [
-            {
-              id: this.defaultId,
-              canonical: true,
-              content: `${biography}`,
-              localeCode: LocaleCode.En,
-              contributionId: this.defaultId,
-            },
-          ]
-        : [];
 
       const contributionWithNewContributor = getDefaultContribution({
         fullName,
@@ -1350,8 +1623,35 @@ class XMLParser {
     return workContributions;
   }
 
+  /**
+   * The DOI of one ContentItem, in the single form Thoth stores.
+   *
+   * TextItemIdentifier is repeatable and carries a TextItemIDType (ONIX List 43), of which only
+   * `06` is a DOI — the code Thoth's own exporter writes for a chapter DOI. Reading `IDValue` off
+   * the first identifier without looking at its type made a proprietary chapter key into a DOI,
+   * and prefixing a resolver onto it made that key look like one.
+   */
+  private parseChapterDoi(chapter: ExtendedCollection, product: ExtendedProduct, index: number): string {
+    const identifiers = this.convertToArray(chapter?.TextItem?.TextItemIdentifier).filter((identifier) => !!identifier);
+
+    const selection = selectCanonicalDoi(
+      identifiers
+        .filter((identifier) => getOnixText(identifier.TextItemIDType) === TextItemIdentifierType._06)
+        .map((identifier) => getOnixText(identifier.IDValue)),
+    );
+
+    return this.resolveDoi(
+      selection,
+      product,
+      index,
+      `a chapter of ${this.describeProduct(product, index)}`,
+      'the chapter was imported without one',
+    );
+  }
+
   private async parseChapters(
     product: ExtendedProduct,
+    index: number,
     relatedWork: WorkEntity,
     textLocale: LocaleCodeType | undefined,
   ) {
@@ -1380,7 +1680,6 @@ class XMLParser {
 
     for (const chapter of sortedChapters) {
       const chapterId = this.generateId();
-      const chapterDoi = chapter?.TextItem?.TextItemIdentifier?.IDValue ?? '';
       const { title: chapterTitleContent, language: chapterLanguage } = extractOnixTitle(
         chapter?.TitleDetail,
         TitleElementLevel._04,
@@ -1389,7 +1688,7 @@ class XMLParser {
       const newChapter = getDefaultChapter({
         id: chapterId,
         status,
-        doi: chapterDoi.length > 0 ? this.doiPrefix + chapterDoi : '',
+        doi: this.parseChapterDoi(chapter, product, index),
         imprintId,
         license,
         copyrightHolder,

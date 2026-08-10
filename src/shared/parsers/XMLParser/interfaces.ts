@@ -21,7 +21,6 @@ import {
   Publisher,
   PublishingDetail,
   Supplier,
-  Text,
 } from '@5stones/onix/dist/interfaces';
 import { Collection } from '@5stones/onix/dist/interfaces/Collection';
 import { ONIXMessage } from '@5stones/onix/dist/interfaces/ONIXMessage';
@@ -48,13 +47,15 @@ export type OnixRepeatable<T> = T | T[];
  * emitted as an object holding the text under `#text`; the attributes themselves land on the
  * same object under `@_<name>` keys.
  *
- * Only the attributes this importer reads are declared. `language` is the one that carries
- * meaning Thoth can store: ONIX puts it on TitleText, Subtitle and Text, and it is how Thoth's
- * own ONIX exporter writes a title's locale. Everything else an element may carry — `textformat`,
- * `dateformat`, `collationkey` — stays undeclared until something reads it, so the type keeps
- * saying what this parser understands rather than becoming an untyped bag.
+ * Only the attributes this importer reads are declared. `language` carries meaning Thoth can
+ * store: ONIX puts it on TitleText, Subtitle, Text and BiographicalNote, and it is how Thoth's
+ * own ONIX exporter writes a title's locale. `dateformat` says how to read the digits of a
+ * `<Date>` — without it `20240807`, `202408` and `2024` are indistinguishable strings of digits.
+ * Everything else an element may carry — `textformat`, `collationkey`, `textscript` — stays
+ * undeclared until something reads it, so the type keeps saying what this parser understands
+ * rather than becoming an untyped bag.
  */
-export type OnixTextElement = { '#text'?: string | number; '@_language'?: string };
+export type OnixTextElement = { '#text'?: string | number; '@_language'?: string; '@_dateformat'?: string };
 
 export type OnixText = string | number | OnixTextElement;
 
@@ -108,6 +109,33 @@ export interface OnixRelatedIdentifier {
   IDValue?: OnixText;
 }
 
+/**
+ * An identifier of the text of one ContentItem. Repeatable, and repeatable at runtime: a sender
+ * may give a chapter its DOI alongside a proprietary key of its own.
+ *
+ * TextItemIDType is ONIX List 43, in which `06` is the DOI — the code Thoth's own ONIX exporter
+ * writes for a chapter DOI. Reading `IDValue` without it treats every identifier as a DOI.
+ */
+export interface OnixTextItemIdentifier {
+  TextItemIDType?: string;
+  IDTypeName?: OnixText;
+  IDValue?: OnixText;
+}
+
+export interface OnixTextItem {
+  TextItemIdentifier?: OnixRepeatable<OnixTextItemIdentifier>;
+}
+
+/**
+ * One PublishingDate. `Date` is a text element carrying a `dateformat` attribute, so it arrives
+ * as a bare string when the attribute is absent and as an object when it is not — upstream's
+ * `DateClass` only describes the second case.
+ */
+export interface OnixPublishingDate {
+  PublishingDateRole?: string;
+  Date?: OnixText;
+}
+
 export interface OnixRelatedProduct {
   ProductRelationCode?: ProductRelation;
   ProductIdentifier?: OnixRepeatable<OnixRelatedIdentifier>;
@@ -123,7 +151,7 @@ export interface ExtendedRelatedMaterial {
   RelatedProduct?: OnixRepeatable<OnixRelatedProduct>;
 }
 
-export interface ExtendedContributor extends Contributor {
+export interface ExtendedContributor extends Omit<Contributor, 'BiographicalNote'> {
   ContributorRole?: string;
   PersonName?: string;
   KeyNames?: string;
@@ -141,7 +169,13 @@ export interface ExtendedContributor extends Contributor {
       IDValue?: string;
     };
   };
-  BiographicalNote?: Text;
+  /**
+   * ONIX repeats BiographicalNote rather than the whole Contributor when a note exists in more
+   * than one language, tagging each occurrence with a `language` attribute — see EDItEUR's
+   * "Multilingual metadata in ONIX" application note. Upstream declares it as `Text`, which
+   * describes neither the repeat nor the bare string a note with no attributes becomes.
+   */
+  BiographicalNote?: OnixRepeatable<OnixText>;
 }
 
 export interface ExtendedPublisher extends Publisher {
@@ -195,11 +229,7 @@ export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 
     LastPageNumber?: OnixText;
   };
   NumberOfPages?: OnixText;
-  TextItem?: {
-    TextItemIdentifier?: {
-      IDValue?: string;
-    };
-  };
+  TextItem?: OnixTextItem;
   Contributor?: OnixRepeatable<ExtendedContributor>;
 }
 
@@ -229,7 +259,8 @@ export interface ExtendedDescriptiveDetail
   Contributor?: OnixRepeatable<ExtendedContributor>;
 }
 
-export interface ExtendedPublishingDetail extends PublishingDetail {
+export interface ExtendedPublishingDetail extends Omit<PublishingDetail, 'PublishingDate'> {
+  PublishingDate?: OnixRepeatable<OnixPublishingDate>;
   CopyrightStatement?: {
     CopyrightOwner?: {
       PersonName?: string;
