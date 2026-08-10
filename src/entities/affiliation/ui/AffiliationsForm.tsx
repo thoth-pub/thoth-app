@@ -37,6 +37,7 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
       [AFFILIATION.name]: { value: institutionId, label: institutionName },
       [POSITION.name]: position,
     }));
+  const rorIdsByAffiliationId = new Map(defaultValue.map(({ id, rorId }) => [id, rorId]));
 
   const showIndicator = showRecommendations && defaultValues.length === 0;
 
@@ -87,6 +88,7 @@ const AffiliationsForm = (props: AffiliationsFormProps) => {
                           key={id}
                           id={id}
                           text={`${position && position !== '' ? `${position}, ` : ''}${label}`}
+                          rorId={rorIdsByAffiliationId.get(id)}
                           totalItemsCount={defaultValues.length}
                         />
                       ))}

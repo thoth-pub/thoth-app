@@ -17,7 +17,7 @@ import {
   FormTextField,
   InputAdornment,
 } from '@/src/shared/ui';
-import { convertEntityToSelectFieldOptions } from '@/src/shared/utils';
+import { convertEntityToSelectFieldOptions, convertRorIdToText } from '@/src/shared/utils';
 
 import type { AffiliationsForm } from '../../model/affiliation.types';
 
@@ -36,6 +36,7 @@ export const FormField = ({ control, affiliationFieldName, positionFieldName, on
   const { institutions = [], loading } = useInstitutions({ filter: debouncedValue });
 
   const options = convertEntityToSelectFieldOptions(institutions, 'name');
+  const rorIdsByInstitutionId = new Map(institutions.map(({ id, ror }) => [id, ror]));
 
   return (
     <>
@@ -51,6 +52,21 @@ export const FormField = ({ control, affiliationFieldName, positionFieldName, on
             options={options}
             onInputChange={(_, value) => setSearchValue(value)}
             loading={loading}
+            filterOptions={(options) => options}
+            renderOption={({ key: _key, ...optionProps }, option) => {
+              const rorId = rorIdsByInstitutionId.get(option.value);
+
+              return (
+                <li key={option.value} {...optionProps} className={`${optionProps.className ?? ''} gap-2`}>
+                  <span className="min-w-0 flex-1">{option.label}</span>
+                  {rorId && (
+                    <span className="ml-auto shrink-0 text-sm text-(--color-placeholder)">
+                      ROR: {convertRorIdToText(rorId)}
+                    </span>
+                  )}
+                </li>
+              );
+            }}
             icon={
               <InputAdornment position="start">
                 <SearchIcon color="primary" />
