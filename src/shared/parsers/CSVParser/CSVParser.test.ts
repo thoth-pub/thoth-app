@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
+import { appConfig } from '@/src/shared/config';
 import { licenseOptions } from '@/src/shared/constants/formFields';
 
 import CSVParser from './CSVParser';
@@ -64,11 +65,13 @@ const makeParser = (
     contributorResults?: object[];
     institutionResults?: object[];
     getContributors?: (fullName: string) => Promise<object[]>;
+    getInstitutions?: (offset: number, limit: number, filter: string) => Promise<object[]>;
   } = {},
 ) => {
   const series = opts.series ?? testSeries;
   const config = getCsvConfig(imprints, licenseOptions, t);
   const getContributors = opts.getContributors ?? vi.fn().mockResolvedValue(opts.contributorResults ?? []);
+  const getInstitutions = opts.getInstitutions ?? vi.fn().mockResolvedValue(opts.institutionResults ?? []);
 
   return new CSVParser(
     file,
@@ -77,7 +80,7 @@ const makeParser = (
     licenseOptions,
     series,
     { getContributors } as unknown as ContributorService,
-    { getInstitutions: vi.fn().mockResolvedValue(opts.institutionResults ?? []) } as unknown as InstitutionService,
+    { getInstitutions } as unknown as InstitutionService,
     t,
   );
 };
@@ -179,12 +182,37 @@ describe('CSVParser', () => {
       expect(errorMessages(result)).toEqual([]);
       expect(result.status).toBe('success');
     });
+
+    it('trims headers and detects the publisher alias case-insensitively', async () => {
+      const csv = makeFile(' title , work_status , PuBliShEr , work_type \nBook,ACTIVE,My Publisher,MONOGRAPH');
+      const result = await makeParser(csv).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0].titles[0].title).toBe('Book');
+    });
+
+    it('rewrites arbitrary input order to schema order and ignores unknown extra columns', async () => {
+      const csv = makeFile('title,unknown,work_status,work_type,imprint\nBook,ignored,ACTIVE,MONOGRAPH,My Publisher');
+      const result = await makeParser(csv).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]).toMatchObject({ type: 'MONOGRAPH', status: 'ACTIVE' });
+      expect(result.data.plan.works[0].titles[0].title).toBe('Book');
+    });
   });
 
   // -------------------------------------------------------------------------
   // Optional columns
   // -------------------------------------------------------------------------
   describe('optional columns', () => {
+    it('does not error when every contributor column after slot 1 is absent', async () => {
+      const csv = makeFile('imprint,work_type,work_status,title\nMy Publisher,MONOGRAPH,ACTIVE,Book');
+      const result = await makeParser(csv).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.issues).toEqual([]);
+    });
+
     it('does not error when contribution columns 6-20 are absent', async () => {
       const csv = makeFile(`${TEMPLATE_HEADER}\n${makeTemplateDataRow(IMPRINT_LABEL)}`);
       const result = await makeParser(csv).parse();
@@ -243,6 +271,16 @@ describe('CSVParser', () => {
       expect(title.title).toBe('Main Title');
       expect(title.subtitle).toBe('The Subtitle');
       expect(title.fullTitle).toBe('Main Title: The Subtitle');
+    });
+  });
+
+  describe('work fields', () => {
+    it('imports place_of_publication directly into WorkEntity.place', async () => {
+      const csv = buildCsv({ ...BASE, place_of_publication: 'Cambridge' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0].place).toBe('Cambridge');
     });
   });
 
@@ -1351,6 +1389,65 @@ describe('CSVParser', () => {
       expect(selectionOptions[0][0].selected).toBe(true);
       expect(selectionOptions[0][1].selected).toBe(false);
     });
+
+    it('does not query or attach an institution when no affiliation ROR is supplied', async () => {
+      const getInstitutions = vi
+        .fn()
+        .mockResolvedValue([{ id: 'unrelated', name: 'Unrelated Institution', ror: 'https://ror.org/unrelated' }]);
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+      });
+      const result = await makeParser(makeFile(csv), { getInstitutions }).parse();
+
+      expect(result.status).toBe('success');
+      expect(getInstitutions).not.toHaveBeenCalled();
+      expect(result.data.plan.works[0].contributions[0].affiliations).toEqual([]);
+    });
+
+    it('accepts institution name for compatibility without using it as an implicit lookup filter', async () => {
+      const getInstitutions = vi
+        .fn()
+        .mockResolvedValue([{ id: 'matching', name: 'Named Institution', ror: 'https://ror.org/matching' }]);
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+        contribution_1_affiliation_institution_name: 'Named Institution',
+      });
+      const result = await makeParser(makeFile(csv), { getInstitutions }).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.issues).toEqual([]);
+      expect(getInstitutions).not.toHaveBeenCalled();
+      expect(result.data.plan.works[0].contributions[0].affiliations).toEqual([]);
+    });
+
+    it('still resolves an affiliation when an explicit ROR is supplied', async () => {
+      const ror = 'https://ror.org/03vek6s52';
+      const getInstitutions = vi.fn().mockResolvedValue([{ id: 'institution', name: 'Harvard University', ror }]);
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+        contribution_1_affiliation_position: 'Professor',
+        contribution_1_affiliation_institution_ror: ror,
+      });
+      const result = await makeParser(makeFile(csv), { getInstitutions }).parse();
+
+      expect(result.status).toBe('success');
+      expect(getInstitutions).toHaveBeenCalledWith(0, appConfig.data.maxItemsPerRequestLimit, ror);
+      expect(result.data.plan.works[0].contributions[0].affiliations[0]).toMatchObject({
+        institutionId: 'institution',
+        institutionName: 'Harvard University',
+        rorId: ror,
+        position: 'Professor',
+      });
+    });
   });
 
   // -------------------------------------------------------------------------
@@ -1361,6 +1458,14 @@ describe('CSVParser', () => {
       const csv = buildCsv({ ...BASE, work_type: 'Edited Book' });
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
+    });
+
+    it('accepts "EditedBook" as work_type (normalises to EDITED_BOOK)', async () => {
+      const csv = buildCsv({ ...BASE, work_type: 'EditedBook' });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0].type).toBe('EDITED_BOOK');
     });
 
     it('accepts "Active" as work_status (normalises to ACTIVE)', async () => {
@@ -1391,6 +1496,23 @@ describe('CSVParser', () => {
       const result = await makeParser(makeFile(csv)).parse();
       expect(result.status).toBe('success');
       expect(result.data.plan.works[0].contributions[0].type).toBe('INTRODUCTION_BY');
+    });
+
+    it('normalises the configured maximum contributor slot from the generated role metadata', async () => {
+      const max = appConfig.maxCsvContributorsCount;
+      const csv = buildCsv({
+        ...BASE,
+        [`contribution_${max}_first_name`]: 'Max',
+        [`contribution_${max}_surname`]: 'Contributor',
+        [`contribution_${max}_role`]: 'Introduction By',
+      });
+      const result = await makeParser(makeFile(csv)).parse();
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0].contributions[0]).toMatchObject({
+        fullName: 'Max Contributor',
+        type: 'INTRODUCTION_BY',
+      });
     });
 
     it('accepts "Publisher Website" as pdf_location_platform (normalises to PUBLISHER_WEBSITE)', async () => {

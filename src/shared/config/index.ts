@@ -105,7 +105,7 @@ export const appConfig = {
   maxPublicationFileSize: 5368709120,
   maxFeaturedVideoFileSize: 5368709120,
   minItemsCountForDragAndDrop: 2,
-  maxCsvContributorsCount: 20,
+  maxCsvContributorsCount: 20 as const,
   maxBulkChaptersCount: 100,
   persistentStorage: {
     prefix: 'thoth_app',
