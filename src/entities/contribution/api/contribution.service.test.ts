@@ -1,6 +1,7 @@
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { MarkupFormat } from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { appConfig } from '@/src/shared/config';
@@ -269,6 +270,48 @@ describe('ContributionService', () => {
         expect.anything(),
         expect.objectContaining({ markupFormat: MarkdownFormats.enum.JATS_XML }),
       );
+    });
+
+    it('uses the imported source format instead of sniffing the content', async () => {
+      // Arc's real shape: HTML tags inside a biography. Content sniffing would call this JATS
+      // and fail the API's validator; the import resolved it to HTML and that must win.
+      const biography = createBiography({
+        content: 'Lisa Hopkins is co-editor of <I>Shakespeare</I>.',
+        sourceMarkupFormat: MarkupFormat.Html,
+      });
+
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+        createBiography: { biographyId: faker.string.uuid() },
+      });
+
+      await service.createBiography(biography, faker.string.uuid());
+
+      expect(mockGraphqlService.mutation).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ markupFormat: MarkdownFormats.enum.HTML }),
+      );
+    });
+
+    it('never sends the source format as a field of the biography data', async () => {
+      // Through the real mapper: the source format is creation intent for the markupFormat
+      // argument, not a property of the biography being created.
+      const realMapperService = new ContributionService({
+        graphqlService: mockGraphqlService,
+        contributorService: mockContributorService,
+        affiliationService: mockAffiliationService,
+      });
+      const biography = createBiography({ content: 'Plain', sourceMarkupFormat: MarkupFormat.PlainText });
+
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+        createBiography: { biographyId: faker.string.uuid() },
+      });
+
+      await realMapperService.createBiography(biography, faker.string.uuid());
+
+      const [, variables] = (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mock.calls[0];
+
+      expect(variables.data).not.toHaveProperty('sourceMarkupFormat');
+      expect(variables.markupFormat).toBe(MarkdownFormats.enum.PLAIN_TEXT);
     });
   });
 

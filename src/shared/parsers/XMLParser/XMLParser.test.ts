@@ -21,7 +21,7 @@ import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 
-import { LanguageCode } from '@/gql/graphql';
+import { LanguageCode, MarkupFormat } from '@/gql/graphql';
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 import { appConfig } from '../../config';
 import {
@@ -6714,6 +6714,200 @@ describe('XMLParser', () => {
         const result = await runFidelityParser(productXml({ contributors: contributorXml('') }));
 
         expect(biographiesOf(result)).toEqual([]);
+      });
+    });
+
+    describe('text markup format', () => {
+      const collateral = (long: string) =>
+        `<CollateralDetail><TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>${long}</TextContent></CollateralDetail>`;
+
+      const contributorXml = (biographicalNotes: string) => `<Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Lisa Hopkins</PersonName>
+        ${biographicalNotes}
+      </Contributor>`;
+
+      const abstractsOf = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
+        result.data.plan.works[0].abstracts.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat]);
+
+      const biographiesOf = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
+        result.data.plan.works[0].contributions[0].biographies.map(({ content, sourceMarkupFormat }) => [
+          content,
+          sourceMarkupFormat,
+        ]);
+
+      it('keeps a declared-HTML abstract as HTML rather than reading its tags as JATS', async () => {
+        // The Arc failure: `textformat="02"` with `<em>` inside used to reach the API declared
+        // as JATS XML and fail its validator on the first HTML tag.
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(
+              '<Text textformat="02">&lt;p&gt;The &lt;em&gt;A Companion to the Cavendishes&lt;/em&gt; volume.&lt;/p&gt;</Text>',
+            ),
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(abstractsOf(result)).toEqual([
+          ['<p>The <em>A Companion to the Cavendishes</em> volume.</p>', MarkupFormat.Html],
+        ]);
+      });
+
+      it('sends a declared-HTML abstract with no tags as plain text', async () => {
+        // The API's HTML input path refuses content with nothing tag-shaped in it, and a
+        // markup-free string means the same in both formats.
+        const result = await runFidelityParser(
+          productXml({ collateralDetail: collateral('<Text textformat="02">A plain description</Text>') }),
+        );
+
+        expect(abstractsOf(result)).toEqual([['A plain description', MarkupFormat.PlainText]]);
+      });
+
+      it('keeps a declared-XML abstract in the Thoth JATS subset as JATS', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(
+              '<Text textformat="03">&lt;p&gt;The &lt;italic&gt;book&lt;/italic&gt;.&lt;/p&gt;</Text>',
+            ),
+          }),
+        );
+
+        expect(abstractsOf(result)).toEqual([['<p>The <italic>book</italic>.</p>', MarkupFormat.JatsXml]]);
+      });
+
+      it('keeps a plain declared-plain abstract plain', async () => {
+        const result = await runFidelityParser(
+          productXml({ collateralDetail: collateral('<Text textformat="06">Plain description</Text>') }),
+        );
+
+        expect(abstractsOf(result)).toEqual([['Plain description', MarkupFormat.PlainText]]);
+      });
+
+      it('routes a plain-text declaration that really contains HTML through HTML, not JATS', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(
+              '<Text textformat="06">&lt;p&gt;The &lt;em&gt;book&lt;/em&gt;.&lt;/p&gt;</Text>',
+            ),
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(abstractsOf(result)).toEqual([['<p>The <em>book</em>.</p>', MarkupFormat.Html]]);
+      });
+
+      it('resolves the short and long abstract formats independently', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: `<CollateralDetail>
+              <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>
+                <Text textformat="06">A plain short description</Text>
+              </TextContent>
+              <TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>
+                <Text textformat="02">&lt;p&gt;An &lt;em&gt;HTML&lt;/em&gt; long description&lt;/p&gt;</Text>
+              </TextContent>
+            </CollateralDetail>`,
+          }),
+        );
+
+        expect(abstractsOf(result)).toEqual([
+          ['<p>An <em>HTML</em> long description</p>', MarkupFormat.Html],
+          ['A plain short description', MarkupFormat.PlainText],
+        ]);
+      });
+
+      it('blocks the import when an abstract declares XML but contains non-JATS markup', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(
+              '<Text textformat="03">&lt;p&gt;The &lt;em&gt;book&lt;/em&gt;.&lt;/p&gt;</Text>',
+            ),
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.data.plan.works).toEqual([]);
+        expect(result.issues).toContainEqual({
+          severity: 'error',
+          code: 'onix.text.unrepresentable_format',
+          message: expect.stringContaining('long abstract'),
+          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+        });
+        expect(errorMessages(result)[0]).toContain('textformat "03"');
+        expect(errorMessages(result)[0]).toContain('<em>');
+      });
+
+      it('blocks the import when markup cannot be classified at all', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(
+              '<Text textformat="06">A &lt;blink&gt;bad&lt;/blink&gt; description</Text>',
+            ),
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.issues).toContainEqual(
+          expect.objectContaining({ severity: 'error', code: 'onix.text.unrepresentable_format' }),
+        );
+      });
+
+      it('imports the real Arc biography shape as HTML, never as JATS or plain text', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml(
+              '<BiographicalNote textformat="06">Lisa Hopkins is co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>',
+            ),
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(biographiesOf(result)).toEqual([
+          ['Lisa Hopkins is co-editor of <I>Shakespeare</I>.', MarkupFormat.Html],
+        ]);
+      });
+
+      it('gives each repeated biography its own format rather than the first one’s', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml(
+              `<BiographicalNote textformat="02" language="eng">&lt;p&gt;An &lt;em&gt;editor&lt;/em&gt;.&lt;/p&gt;</BiographicalNote>
+               <BiographicalNote textformat="06" language="ita">Un autore inventato</BiographicalNote>`,
+            ),
+          }),
+        );
+
+        expect(biographiesOf(result)).toEqual([
+          ['<p>An <em>editor</em>.</p>', MarkupFormat.Html],
+          ['Un autore inventato', MarkupFormat.PlainText],
+        ]);
+      });
+
+      it('keeps a bare biography with no declared format plain', async () => {
+        const result = await runFidelityParser(
+          productXml({ contributors: contributorXml('<BiographicalNote>A made-up author</BiographicalNote>') }),
+        );
+
+        expect(biographiesOf(result)).toEqual([['A made-up author', MarkupFormat.PlainText]]);
+      });
+
+      it('blocks the import when a biography’s markup cannot be classified, naming the author', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml(
+              '<BiographicalNote textformat="06">A &lt;marquee&gt;showy&lt;/marquee&gt; author</BiographicalNote>',
+            ),
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.issues).toContainEqual({
+          severity: 'error',
+          code: 'onix.text.unrepresentable_format',
+          message: expect.stringContaining('biography of Lisa Hopkins'),
+          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+        });
       });
     });
 
