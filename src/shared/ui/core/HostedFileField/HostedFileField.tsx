@@ -12,6 +12,9 @@ import Typography from '../Typography/Typography';
 
 export type HostedFileFieldProps = {
   accept: string[];
+  // busy silently locks file selection (no disabled notification, no upload
+  // presentation) while a surrounding request is in flight.
+  busy?: boolean;
   disabled?: boolean;
   fileUrl?: string;
   label: React.ReactNode;
@@ -25,6 +28,7 @@ export type HostedFileFieldProps = {
 
 const HostedFileField = ({
   accept,
+  busy = false,
   disabled = false,
   fileUrl = '',
   label,
@@ -48,6 +52,7 @@ const HostedFileField = ({
       <FileDropzone
         accept={accept}
         actionLabel={<TranslatedContent content={actionKey} />}
+        busy={busy}
         disabled={disabled}
         dragActiveLabel={<TranslatedContent content="fileUpload.drop" />}
         loading={loading}

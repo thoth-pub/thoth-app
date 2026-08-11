@@ -75,6 +75,30 @@ describe('HostedFileField', () => {
     expect(link.getAttribute('target')).toBe('_blank');
   });
 
+  it('locks selection while busy without claiming an upload', () => {
+    const { dropzone, input, onFileSelect } = renderField({ busy: true, pendingFileName: 'pending.pdf' });
+
+    expect(input).toBeDisabled();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByText('fileUpload.uploading')).toBeNull();
+    expect(screen.getByText('fileUpload.selected:pending.pdf')).toBeDefined();
+
+    fireEvent.change(input, { target: { files: [validFile] } });
+    const dropEvent = createEvent.drop(dropzone);
+    Object.defineProperty(dropEvent, 'dataTransfer', { value: { files: [validFile] } });
+    fireEvent(dropzone, dropEvent);
+
+    expect(onFileSelect).not.toHaveBeenCalled();
+  });
+
+  it('keeps the plain instructions while busy without a pending file', () => {
+    renderField({ busy: true });
+
+    expect(screen.getByText('fileUpload.instructions')).toBeDefined();
+    expect(screen.queryByRole('status')).toBeNull();
+    expect(screen.queryByText('fileUpload.uploading')).toBeNull();
+  });
+
   it('supports replacement through browse and drop', () => {
     const { dropzone, input, onFileSelect } = renderField({ fileUrl: 'https://cdn.example.org/old.pdf' });
 

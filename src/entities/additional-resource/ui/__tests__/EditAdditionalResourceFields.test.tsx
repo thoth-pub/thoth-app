@@ -142,6 +142,33 @@ describe('EditAdditionalResourceFields', () => {
     expect(container).toBeDefined();
   });
 
+  it('silently locks file selection while the surrounding request is busy', () => {
+    const { container } = render(
+      <Wrapper>
+        <EditAdditionalResourceForm title="Supplement" resourceType="DOCUMENT" uploadBusy />
+      </Wrapper>,
+    );
+
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+
+    expect(input).toBeDisabled();
+    expect(within(container).queryByRole('status')).toBeNull();
+    expect(within(container).getByText('fileUpload.instructions')).toBeInTheDocument();
+  });
+
+  it('advertises both MIME types and extensions to the file picker', () => {
+    const { container } = render(
+      <Wrapper>
+        <EditAdditionalResourceForm title="Supplement" resourceType="DOCUMENT" />
+      </Wrapper>,
+    );
+
+    const accept = (container.querySelector('input[type="file"]') as HTMLInputElement).getAttribute('accept') ?? '';
+
+    expect(accept).toContain('application/pdf');
+    expect(accept).toContain('.docx');
+  });
+
   it('places the file field after Resource Type and before Description', () => {
     const { container } = render(
       <Wrapper>

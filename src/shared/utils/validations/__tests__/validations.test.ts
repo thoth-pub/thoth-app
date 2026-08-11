@@ -1,6 +1,15 @@
-import { describe, it, expect } from 'vitest';
+import { describe, expect, it } from 'vitest';
 
-import { canonicaliseDoi, doiValidation, issnValidation, rorValidation, getRequiredStringValidation } from '../index';
+import { ERRORS } from '@/src/shared/constants';
+
+import {
+  canonicaliseDoi,
+  doiValidation,
+  getFileValidation,
+  getRequiredStringValidation,
+  issnValidation,
+  rorValidation,
+} from '../index';
 
 describe('doiValidation', () => {
   it('accepts a valid DOI', () => {
@@ -140,5 +149,54 @@ describe('getRequiredStringValidation', () => {
   it('works without maxLength', () => {
     const validation = getRequiredStringValidation();
     expect(validation.safeParse('any string').success).toBe(true);
+  });
+});
+
+describe('getFileValidation', () => {
+  const makeFile = (name: string, type: string, size = 50) => new File([new Uint8Array(size)], name, { type });
+  const { FILE_FORMAT_INVALID, MAX_FILE_SIZE_EXCEEDED, MIN_FILE_SIZE_NOT_MET } = ERRORS;
+  const validation = getFileValidation(
+    10,
+    100,
+    ['application/pdf'],
+    FILE_FORMAT_INVALID,
+    MAX_FILE_SIZE_EXCEEDED,
+    MIN_FILE_SIZE_NOT_MET,
+    ['.pdf'],
+  );
+  const validate = (file: File, schema = validation) => schema.safeParse([file] as unknown as FileList);
+
+  it('accepts a supported non-empty MIME type regardless of the filename', () => {
+    expect(validate(makeFile('renamed.dat', 'application/pdf')).success).toBe(true);
+  });
+
+  it('rejects a known unsupported MIME type even when the extension looks supported', () => {
+    expect(validate(makeFile('book.pdf', 'application/x-msdownload')).success).toBe(false);
+  });
+
+  it('falls back to the extension allowlist only when the MIME type is empty', () => {
+    expect(validate(makeFile('book.pdf', '')).success).toBe(true);
+    expect(validate(makeFile('malware.exe', '')).success).toBe(false);
+  });
+
+  it('matches extensions case-insensitively', () => {
+    expect(validate(makeFile('BOOK.PDF', '')).success).toBe(true);
+  });
+
+  it('keeps rejecting empty MIME types for callers without an extension allowlist', () => {
+    const mimeOnly = getFileValidation(
+      10,
+      100,
+      ['application/pdf'],
+      FILE_FORMAT_INVALID,
+      MAX_FILE_SIZE_EXCEEDED,
+      MIN_FILE_SIZE_NOT_MET,
+    );
+    expect(validate(makeFile('book.pdf', ''), mimeOnly).success).toBe(false);
+  });
+
+  it('still enforces size bounds for empty-MIME files', () => {
+    expect(validate(makeFile('book.pdf', '', 5)).success).toBe(false);
+    expect(validate(makeFile('book.pdf', '', 500)).success).toBe(false);
   });
 });

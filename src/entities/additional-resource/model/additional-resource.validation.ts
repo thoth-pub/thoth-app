@@ -46,6 +46,9 @@ export const additionalResourceDoiValidationSchema = z.object({
 export const getSupportedAdditionalResourceFileTypes = (resourceType: string) =>
   appConfig.additionalResourceFileTypesByResourceType[resourceType] ?? [];
 
+export const getSupportedAdditionalResourceFileExtensions = (resourceType: string) =>
+  appConfig.additionalResourceFileExtensionsByResourceType[resourceType] ?? [];
+
 export const getAdditionalResourceFileValidationSchema = (resourceType: string) =>
   z.object({
     file: getFileValidation(
@@ -55,5 +58,6 @@ export const getAdditionalResourceFileValidationSchema = (resourceType: string) 
       ERRORS.FILE_FORMAT_INVALID,
       ERRORS.MAX_FILE_SIZE_EXCEEDED,
       ERRORS.MIN_FILE_SIZE_NOT_MET,
+      getSupportedAdditionalResourceFileExtensions(resourceType),
     ),
   });

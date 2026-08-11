@@ -128,6 +128,7 @@ const AddAdditionalResource = (props: AddAdditionalResourceProps) => {
         handle={handle}
         url={url}
         uploadLoading={loading && !!pendingFile}
+        uploadBusy={loading}
         uploadProgress={uploadProgress}
         pendingFileName={pendingFile?.name}
         isCloseDisabled={loading}

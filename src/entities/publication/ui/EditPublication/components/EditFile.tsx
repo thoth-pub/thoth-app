@@ -6,11 +6,13 @@ import { HostedFileField, TranslatedContent } from '@/src/shared/ui';
 import { PublicationType as GQLPublicationType } from '../../../model/publication.types';
 import {
   getPublicationFileValidationSchema,
+  getSupportedPublicationFileExtensions,
   getSupportedPublicationFileTypes,
 } from '../../../model/publication.validation';
 
 type EditFileProps = {
   publicationType: GQLPublicationType;
+  busy?: boolean;
   disabled: boolean;
   loading: boolean;
   fileUrl?: string;
@@ -23,6 +25,7 @@ const { PUBLICATION_UPLOAD_FILE_DISABLED } = NOTIFICATIONS;
 
 const EditFile = ({
   publicationType,
+  busy = false,
   disabled,
   loading,
   fileUrl,
@@ -36,7 +39,12 @@ const EditFile = ({
     sendErrorNotification(PUBLICATION_UPLOAD_FILE_DISABLED);
   };
 
-  const supportedFileTypes = getSupportedPublicationFileTypes(publicationType);
+  // Extensions accompany the MIME types so pickers keep offering formats the
+  // browser reports with an empty or unknown MIME type.
+  const acceptedFileTypes = [
+    ...getSupportedPublicationFileTypes(publicationType),
+    ...getSupportedPublicationFileExtensions(publicationType),
+  ];
 
   const onFileSelect = (file: File) => {
     const result = getPublicationFileValidationSchema(publicationType).safeParse({
@@ -54,7 +62,8 @@ const EditFile = ({
 
   return (
     <HostedFileField
-      accept={supportedFileTypes}
+      accept={acceptedFileTypes}
+      busy={busy}
       disabled={disabled}
       fileUrl={fileUrl}
       label={<TranslatedContent content="publicationFile.label" namespace={NAMESPACES.enum.forms} />}

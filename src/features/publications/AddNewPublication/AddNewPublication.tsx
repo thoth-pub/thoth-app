@@ -80,6 +80,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         fileUrl=""
         loading={loading}
         fileUploadLoading={loading && !!file}
+        fileUploadBusy={loading}
         pendingFileName={file?.name}
         isUploadFileFormDisabled={isUploadFileFormDisabled}
         uploadProgress={uploadProgress}

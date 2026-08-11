@@ -30,5 +30,6 @@ export const featuredVideoFileValidationSchema = z.object({
     ERRORS.FILE_FORMAT_INVALID,
     ERRORS.MAX_FILE_SIZE_EXCEEDED,
     ERRORS.MIN_FILE_SIZE_NOT_MET,
+    appConfig.supportedVideoFileExtensions,
   ),
 });
