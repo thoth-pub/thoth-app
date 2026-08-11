@@ -1,12 +1,12 @@
 'use client';
 
 import AddIcon from '@mui/icons-material/Add';
-import { useRef, useState } from 'react';
 
 import { mergeStyles } from '@/src/shared/utils';
 
 import Button from '../Button/Button';
 import Typography from '../Typography/Typography';
+import useFileDropzone from './useFileDropzone';
 
 export type FileDropzoneProps = {
   accept: string[];
@@ -31,78 +31,8 @@ const FileDropzone = ({
   onDisabledAction,
   onFileSelect,
 }: FileDropzoneProps) => {
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dragDepth = useRef(0);
-  const [isDragActive, setIsDragActive] = useState(false);
-
-  const unavailable = disabled || loading;
-
-  const clearInput = () => {
-    if (inputRef.current) inputRef.current.value = '';
-  };
-
-  const processFile = (file?: File) => {
-    if (unavailable) {
-      if (disabled) onDisabledAction?.();
-      clearInput();
-      return;
-    }
-
-    if (!file) {
-      clearInput();
-      return;
-    }
-
-    try {
-      void onFileSelect(file);
-    } finally {
-      clearInput();
-    }
-  };
-
-  const browse = () => {
-    if (unavailable) {
-      if (disabled) onDisabledAction?.();
-      return;
-    }
-
-    inputRef.current?.click();
-  };
-
-  const onInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    processFile(event.currentTarget.files?.[0]);
-  };
-
-  const onDragEnter = (event: React.DragEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (unavailable) return;
-
-    dragDepth.current += 1;
-    if (dragDepth.current === 1) setIsDragActive(true);
-  };
-
-  const onDragOver = (event: React.DragEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-  };
-
-  const onDragLeave = (event: React.DragEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    dragDepth.current = Math.max(0, dragDepth.current - 1);
-    if (dragDepth.current === 0) setIsDragActive(false);
-  };
-
-  const onDrop = (event: React.DragEvent<HTMLElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-
-    dragDepth.current = 0;
-    setIsDragActive(false);
-    processFile(event.dataTransfer.files?.[0]);
-  };
+  const { inputRef, isDragActive, unavailable, browse, onInputChange, onDragEnter, onDragOver, onDragLeave, onDrop } =
+    useFileDropzone({ disabled, loading, onDisabledAction, onFileSelect });
 
   return (
     <div

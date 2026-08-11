@@ -76,6 +76,28 @@ describe('FileDropzone', () => {
     expect(dropzone.dataset.dragActive).toBe('false');
   });
 
+  it('keeps drag depth valid after stray leave events', () => {
+    const { dropzone } = renderDropzone();
+
+    fireEvent.dragLeave(dropzone);
+    fireEvent.dragLeave(dropzone);
+    fireEvent.dragEnter(dropzone);
+    expect(dropzone.dataset.dragActive).toBe('true');
+
+    fireEvent.dragLeave(dropzone);
+    expect(dropzone.dataset.dragActive).toBe('false');
+  });
+
+  it('resets drag state on drop', () => {
+    const { dropzone } = renderDropzone();
+
+    fireEvent.dragEnter(dropzone);
+    expect(dropzone.dataset.dragActive).toBe('true');
+
+    drop(dropzone, [file]);
+    expect(dropzone.dataset.dragActive).toBe('false');
+  });
+
   it('prevents dragover default navigation', () => {
     const { dropzone } = renderDropzone();
     const event = createEvent.dragOver(dropzone);
@@ -94,5 +116,29 @@ describe('FileDropzone', () => {
 
     expect(onFileSelect).not.toHaveBeenCalled();
     expect(onDisabledAction).toHaveBeenCalledTimes(2);
+  });
+
+  it('does not submit or run the disabled callback while loading', () => {
+    const { dropzone, input, onDisabledAction, onFileSelect } = renderDropzone({ loading: true });
+
+    expect(input).toBeDisabled();
+    fireEvent.change(input, { target: { files: [file] } });
+    drop(dropzone, [file]);
+
+    expect(onFileSelect).not.toHaveBeenCalled();
+    expect(onDisabledAction).not.toHaveBeenCalled();
+  });
+
+  it('gives loading precedence over the disabled action callback', () => {
+    const { dropzone, input, onDisabledAction, onFileSelect } = renderDropzone({
+      disabled: true,
+      loading: true,
+    });
+
+    fireEvent.change(input, { target: { files: [file] } });
+    drop(dropzone, [file]);
+
+    expect(onFileSelect).not.toHaveBeenCalled();
+    expect(onDisabledAction).not.toHaveBeenCalled();
   });
 });
