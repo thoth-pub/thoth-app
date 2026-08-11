@@ -9,8 +9,11 @@ import {
   isFullTextUrlAvailable,
 } from '@/src/shared/utils';
 
-import type { PublicationAccessibilityForm, PublicationDimensionsForm, PublicationType } from '../../model/publication.types';
-import DownloadPublication from '../DownloadPublication/DownloadPublication';
+import type {
+  PublicationAccessibilityForm,
+  PublicationDimensionsForm,
+  PublicationType,
+} from '../../model/publication.types';
 import { EditAccessibility } from './components/EditAccessibility';
 import { EditDimensions } from './components/EditDimensions';
 import EditFile from './components/EditFile';
@@ -30,13 +33,15 @@ type EditPublicationProps = {
   weightOz: number;
   fileUrl: string;
   loading: boolean;
+  fileUploadLoading?: boolean;
+  pendingFileName?: string;
   accessibilityStandards: AccessibilityStandardType[];
   accessibilityException: AccessibilityExceptionType | null;
   accessibilityReportUrl: string;
   isDimensionFormHidden: boolean;
   isUploadFileFormDisabled: boolean;
   uploadProgress?: number | null;
-  children?: (isFullTextUrlHidden: boolean) => Readonly<React.ReactNode>;
+  children?: (isFullTextUrlHidden: boolean, publicationFileField: React.ReactNode) => Readonly<React.ReactNode>;
   onDone?: () => void;
   onClose?: () => void;
   onUpdateType?: (type: PublicationType) => void | Promise<void>;
@@ -44,7 +49,7 @@ type EditPublicationProps = {
   onUpdateDimensions?: (dimensions: PublicationDimensionsForm) => void | Promise<void>;
   onUpdateAccessibility?: (data: PublicationAccessibilityForm) => void | Promise<void>;
   onDeleteAccessibility?: () => void | Promise<void>;
-  onUpdateFile?: (file: File) => void;
+  onUpdateFile?: (file: File) => void | Promise<void>;
 };
 
 const emptyAccessibilityStandards: EditPublicationProps['accessibilityStandards'] = [];
@@ -62,6 +67,8 @@ const EditPublication = (props: EditPublicationProps) => {
     weight,
     weightOz,
     loading,
+    fileUploadLoading = false,
+    pendingFileName,
     isDimensionFormHidden,
     accessibilityStandards = emptyAccessibilityStandards,
     accessibilityException,
@@ -85,28 +92,21 @@ const EditPublication = (props: EditPublicationProps) => {
   const isAccessabilitySectionAvailable = isAccessibilityStandardAvailable(publicationType);
   const isUploadFileFormHidden = !isFileAvailable(publicationType);
 
+  const publicationFileField = !isUploadFileFormHidden ? (
+    <EditFile
+      publicationType={publicationType}
+      disabled={isUploadFileFormDisabled}
+      fileUrl={fileUrl}
+      loading={fileUploadLoading}
+      pendingFileName={pendingFileName}
+      progress={uploadProgress}
+      onSubmit={onUpdateFile}
+    />
+  ) : null;
+
   return (
     <TableFormsWrapper>
-      <TableFormsHeader
-        title={publicationType}
-        controls={
-          <>
-            <DownloadPublication fileUrl={fileUrl} />
-            {!isUploadFileFormHidden && (
-              <EditFile
-                publicationType={publicationType}
-                disabled={isUploadFileFormDisabled}
-                loading={loading}
-                progress={uploadProgress}
-                onSubmit={onUpdateFile}
-              />
-            )}
-          </>
-        }
-        onDone={onDone}
-        onClose={onClose}
-        isCloseDisabled={loading}
-      />
+      <TableFormsHeader title={publicationType} onDone={onDone} onClose={onClose} isCloseDisabled={loading} />
       <EditPublicationType publicationType={publicationType} onSubmit={onUpdateType} />
       <EditIsbn isbn={isbn} onSubmit={onUpdateIsbn} />
       {!isDimensionsHidden && (
@@ -123,7 +123,7 @@ const EditPublication = (props: EditPublicationProps) => {
         />
       )}
 
-      {children?.(isFullTextUrlHidden)}
+      {children?.(isFullTextUrlHidden, publicationFileField)}
 
       <Activity mode={isAccessabilitySectionAvailable ? 'visible' : 'hidden'}>
         <EditAccessibility

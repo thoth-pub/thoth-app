@@ -401,7 +401,8 @@
     "label": "CloudFront-Distributions-ID"
   },
   "publicationFile": {
-    "label": "Datei"
+    "label": "Publikationsdatei",
+    "pending": "Diese Datei wird beim Speichern der Publikation hochgeladen"
   },
   "chapterCount": {
     "label": "Anzahl der Kapitel"

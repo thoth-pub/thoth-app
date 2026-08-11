@@ -401,7 +401,8 @@
     "label": "ID de distribuição do CloudFront"
   },
   "publicationFile": {
-    "label": "Arquivo"
+    "label": "Arquivo da publicação",
+    "pending": "Este arquivo será enviado quando a publicação for salva"
   },
   "chapterCount": {
     "label": "Número de capítulos"

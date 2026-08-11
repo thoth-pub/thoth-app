@@ -2,7 +2,7 @@
 
 import { TOptions } from 'i18next';
 
-import { useTypedTranslation } from '@/src/shared/hooks';
+import useTypedTranslation from '@/src/shared/hooks/useTypedTranslation';
 import { Namespace, NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 
 type TranslatedContentProps = {
