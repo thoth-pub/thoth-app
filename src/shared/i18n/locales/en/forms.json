@@ -403,7 +403,16 @@
     "label": "CloudFront Distribution ID"
   },
   "publicationFile": {
-    "label": "File"
+    "label": "Publication file",
+    "pending": "This file will be uploaded when the publication is saved"
+  },
+  "additionalResourceFile": {
+    "label": "Additional Resource file",
+    "pending": "This file will be uploaded when the additional resource is saved"
+  },
+  "featuredVideoFile": {
+    "label": "Featured Video file",
+    "pending": "This file will be uploaded when the featured video is saved"
   },
   "chapterCount": {
     "label": "Number of Chapters"

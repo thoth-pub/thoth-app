@@ -14,8 +14,11 @@ const EditFeaturedVideo = (props: BaseRecommendedSectionProps) => {
 
   const { activeEntity: activeFeaturedVideo, update, finishEditing } = useFeaturedVideoStateMachine();
   const { updateFeaturedVideo } = useUpdateFeaturedVideo({ workId });
-  const { uploadFeaturedVideoFile, loading: uploadLoading, progress: uploadProgress } =
-    useUploadFeaturedVideoFile(workId);
+  const {
+    uploadFeaturedVideoFile,
+    loading: uploadLoading,
+    progress: uploadProgress,
+  } = useUploadFeaturedVideoFile(workId);
 
   const updateTitle = (title: string) => {
     if (!activeFeaturedVideo) return;
@@ -68,6 +71,7 @@ const EditFeaturedVideo = (props: BaseRecommendedSectionProps) => {
         fileUrl={fileUrl}
         uploadLoading={uploadLoading}
         uploadProgress={uploadProgress}
+        isCloseDisabled={uploadLoading}
         isDoneDisabled={!title?.trim() || !fileUrl || !activeFeaturedVideo?.width || !activeFeaturedVideo?.height}
         onFileUpload={handleFileUpload}
         onTitleUpdate={updateTitle}

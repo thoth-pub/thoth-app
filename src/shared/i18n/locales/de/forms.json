@@ -401,7 +401,16 @@
     "label": "CloudFront-Distributions-ID"
   },
   "publicationFile": {
-    "label": "Datei"
+    "label": "Publikationsdatei",
+    "pending": "Diese Datei wird beim Speichern der Publikation hochgeladen"
+  },
+  "additionalResourceFile": {
+    "label": "Datei der zusätzlichen Ressource",
+    "pending": "Diese Datei wird beim Speichern der zusätzlichen Ressource hochgeladen"
+  },
+  "featuredVideoFile": {
+    "label": "Datei des empfohlenen Videos",
+    "pending": "Diese Datei wird beim Speichern des empfohlenen Videos hochgeladen"
   },
   "chapterCount": {
     "label": "Anzahl der Kapitel"

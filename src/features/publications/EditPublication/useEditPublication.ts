@@ -46,13 +46,16 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { updateLocation, loading: isUpdateLocationLoading } = useUpdateLocation({ workId });
   const { deleteLocation: deleteLocationMutation, loading: isDeleteLocationLoading } = useDeleteLocation({ workId });
   const { activeEntity: activeLocation, update: reconcileActiveLocation } = useLocationStateMachine();
-  const { uploadPublicationFile, loading: isUploadPublicationFileLoading, progress: uploadProgress } =
-    useUploadPublicationFile(workId);
+  const {
+    uploadPublicationFile,
+    loading: isUploadPublicationFileLoading,
+    progress: uploadProgress,
+  } = useUploadPublicationFile(workId);
 
   useEffect(() => {
     if (!activePublication || publication) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
     setPublication(activePublication);
   }, [activePublication, publication]);
 
@@ -63,7 +66,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
     if (!freshPublication) return;
 
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+    // eslint-disable-next-line react-hooks/set-state-in-effect, @eslint-react/hooks-extra/no-direct-set-state-in-use-effect
     setPublication(freshPublication);
   }, [work, publication?.id]);
 
@@ -227,9 +230,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     const failedMutation = results.find((result) => result.status === 'rejected');
 
     if (!failedMutation) {
-      const createdPrices = successfulMutations
-        .filter((result) => result.type === 'create')
-        .map(({ price }) => price);
+      const createdPrices = successfulMutations.filter((result) => result.type === 'create').map(({ price }) => price);
 
       setPublication({ ...publication, prices: [...existingPrices, ...createdPrices] });
       return;
@@ -316,7 +317,11 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
         // promotion below. The location persisted as non-canonical, so record that
         // state: if the promotion rejects, a retry must classify this location as
         // existing (server id) instead of recreating it with its temporary id.
-        createdLocations.push({ ...location, id: created.id, canonical: isDeferredCanonical ? false : location.canonical });
+        createdLocations.push({
+          ...location,
+          id: created.id,
+          canonical: isDeferredCanonical ? false : location.canonical,
+        });
 
         // The editor form may still be open on this location, holding its temporary id
         // in the shared location state machine. Reconcile that active entity to the
@@ -382,13 +387,16 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
 
     const url = await uploadPublicationFile(publication.id, file);
 
-    setPublication({ ...publication, fileUrl: url });
+    setPublication((currentPublication) =>
+      currentPublication ? { ...currentPublication, fileUrl: url } : currentPublication,
+    );
   };
 
   return {
     activePublication: publication,
     priceFormVersion,
     loading,
+    fileUploadLoading: isUploadPublicationFileLoading,
     uploadProgress,
     defaultCurrencyOption,
     deleteLocationLoading: isDeleteLocationLoading,

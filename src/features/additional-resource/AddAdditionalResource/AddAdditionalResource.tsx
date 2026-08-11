@@ -8,6 +8,9 @@ import {
   useCreateAdditionalResource,
 } from '@/src/entities/additional-resource';
 import type { AdditionalResourceEntity } from '@/src/entities/additional-resource/model/additional-resource.types';
+import { getAdditionalResourceFileValidationSchema } from '@/src/entities/additional-resource/model/additional-resource.validation';
+import { ERRORS } from '@/src/shared/constants';
+import { useNotifications } from '@/src/shared/hooks';
 import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
@@ -26,6 +29,7 @@ const AddAdditionalResource = (props: AddAdditionalResourceProps) => {
   );
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const { createAdditionalResource, loading, progress: uploadProgress } = useCreateAdditionalResource({ workId });
+  const { sendErrorNotification } = useNotifications();
 
   const handleFileUpload = (file: File) => {
     setPendingFile(file);
@@ -33,6 +37,18 @@ const AddAdditionalResource = (props: AddAdditionalResourceProps) => {
 
   const create = async () => {
     if (!additionalResource) return;
+
+    if (pendingFile) {
+      const result = getAdditionalResourceFileValidationSchema(additionalResource.resourceType).safeParse({
+        file: [pendingFile],
+      });
+
+      if (!result.success) {
+        setPendingFile(null);
+        sendErrorNotification(result.error.issues[0]?.message ?? ERRORS.FILE_FORMAT_INVALID);
+        return;
+      }
+    }
 
     const lastOrderNumber = [...additionalResources].sort((a, b) => b.orderNumber - a.orderNumber)[0]?.orderNumber;
 
@@ -68,6 +84,15 @@ const AddAdditionalResource = (props: AddAdditionalResourceProps) => {
     if (!additionalResource) return;
 
     setAdditionalResource({ ...additionalResource, resourceType });
+
+    if (pendingFile) {
+      const result = getAdditionalResourceFileValidationSchema(resourceType).safeParse({ file: [pendingFile] });
+
+      if (!result.success) {
+        setPendingFile(null);
+        sendErrorNotification(result.error.issues[0]?.message ?? ERRORS.FILE_FORMAT_INVALID);
+      }
+    }
   };
 
   const updateDoi = (doi: string) => {
@@ -102,8 +127,11 @@ const AddAdditionalResource = (props: AddAdditionalResourceProps) => {
         doi={doi}
         handle={handle}
         url={url}
-        uploadLoading={loading}
+        uploadLoading={loading && !!pendingFile}
+        uploadBusy={loading}
         uploadProgress={uploadProgress}
+        pendingFileName={pendingFile?.name}
+        isCloseDisabled={loading}
         isDoneDisabled={!title?.trim() || !resourceType?.trim()}
         onFileUpload={handleFileUpload}
         onTitleUpdate={updateTitle}

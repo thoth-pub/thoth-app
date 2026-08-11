@@ -39,6 +39,23 @@
     "addNewImprint": "Agregar nuevo sello editorial",
     "downloadMetadata": "Descargar metadatos"
   },
+  "fileUpload": {
+    "drop": "Suelta el archivo aquí",
+    "browse": "Seleccionar archivo",
+    "replace": "Reemplazar archivo",
+    "instructions": "Suelta un archivo aquí o selecciónalo",
+    "selected": "Seleccionado: {{filename}}",
+    "pending": "Este archivo se subirá al guardar",
+    "uploaded": "Archivo subido",
+    "uploading": "Subiendo archivo...",
+    "uploadingProgress": "Subiendo archivo... {{progress}}%",
+    "copyUrl": "Copiar URL",
+    "openDownload": "Abrir/descargar"
+  },
+  "bulkUpload": {
+    "drop": "Suelta aquí un archivo ONIX/XML o CSV",
+    "instructions": "Suelta aquí un archivo ONIX/XML o CSV o selecciónalo"
+  },
   "title": "Título",
   "updated at": "Actualizado el",
   "type": "tipo",

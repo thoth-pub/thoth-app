@@ -39,6 +39,23 @@
     "addNewImprint": "Neues Impressum hinzufügen",
     "downloadMetadata": "Metadaten herunterladen"
   },
+  "fileUpload": {
+    "drop": "Datei hier ablegen",
+    "browse": "Datei auswählen",
+    "replace": "Datei ersetzen",
+    "instructions": "Datei hier ablegen oder eine Datei auswählen",
+    "selected": "Ausgewählt: {{filename}}",
+    "pending": "Diese Datei wird beim Speichern hochgeladen",
+    "uploaded": "Datei hochgeladen",
+    "uploading": "Datei wird hochgeladen...",
+    "uploadingProgress": "Datei wird hochgeladen... {{progress}}%",
+    "copyUrl": "URL kopieren",
+    "openDownload": "Öffnen/herunterladen"
+  },
+  "bulkUpload": {
+    "drop": "ONIX/XML- oder CSV-Datei hier ablegen",
+    "instructions": "ONIX/XML- oder CSV-Datei hier ablegen oder eine Datei auswählen"
+  },
   "title": "Titel",
   "updated at": "Aktualisiert am",
   "type": "Typ",

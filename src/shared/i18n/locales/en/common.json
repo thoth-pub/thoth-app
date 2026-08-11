@@ -39,6 +39,23 @@
     "addNewImprint": "Add New Imprint",
     "downloadMetadata": "Download Metadata"
   },
+  "fileUpload": {
+    "drop": "Drop file here",
+    "browse": "Browse file",
+    "replace": "Replace file",
+    "instructions": "Drop a file here or browse to select one",
+    "selected": "Selected: {{filename}}",
+    "pending": "This file will be uploaded when saved",
+    "uploaded": "File uploaded",
+    "uploading": "Uploading file...",
+    "uploadingProgress": "Uploading file... {{progress}}%",
+    "copyUrl": "Copy URL",
+    "openDownload": "Open/download"
+  },
+  "bulkUpload": {
+    "drop": "Drop an ONIX/XML or CSV file here",
+    "instructions": "Drop an ONIX/XML or CSV file here or browse to select one"
+  },
   "title": "Title",
   "updated at": "Updated at",
   "type": "type",

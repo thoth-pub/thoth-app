@@ -20,6 +20,7 @@ const EditPublication = (props: EditPublicationProps) => {
     activePublication,
     priceFormVersion,
     loading,
+    fileUploadLoading,
     uploadProgress,
     defaultCurrencyOption,
     deleteLocationLoading,
@@ -65,6 +66,7 @@ const EditPublication = (props: EditPublicationProps) => {
       fileUrl={activePublication.fileUrl ?? ''}
       isUploadFileFormDisabled={isUploadFileFormDisabled}
       loading={loading}
+      fileUploadLoading={fileUploadLoading}
       uploadProgress={uploadProgress}
       onUpdateIsbn={updateIsbn}
       onUpdateType={updateType}
@@ -75,7 +77,7 @@ const EditPublication = (props: EditPublicationProps) => {
       onDeleteAccessibility={deleteAccessibility}
       onUpdateFile={updateFile}
     >
-      {(isFullTextUrlHidden) => (
+      {(isFullTextUrlHidden, publicationFileField) => (
         <>
           <EditPrice
             key={priceFormVersion}
@@ -83,6 +85,7 @@ const EditPublication = (props: EditPublicationProps) => {
             prices={activePublication.prices}
             onUpdate={updatePrices}
           />
+          {publicationFileField}
           <EditLocations
             locations={activePublication.locations}
             isFullTextUrlHidden={isFullTextUrlHidden}

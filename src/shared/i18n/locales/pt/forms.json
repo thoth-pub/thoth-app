@@ -401,7 +401,16 @@
     "label": "ID de distribuição do CloudFront"
   },
   "publicationFile": {
-    "label": "Arquivo"
+    "label": "Arquivo da publicação",
+    "pending": "Este arquivo será enviado quando a publicação for salva"
+  },
+  "additionalResourceFile": {
+    "label": "Arquivo do recurso adicional",
+    "pending": "Este arquivo será enviado quando o recurso adicional for salvo"
+  },
+  "featuredVideoFile": {
+    "label": "Arquivo do vídeo em destaque",
+    "pending": "Este arquivo será enviado quando o vídeo em destaque for salvo"
   },
   "chapterCount": {
     "label": "Número de capítulos"

@@ -23,8 +23,10 @@ export { default as DraggableComponent } from './core/DraggableComponent/Draggab
 export { default as DragAndDropListener } from './core/DranAndDropListener/DragAndDropListener';
 export { default as EditButton } from './core/EditButton/EditButton';
 export { default as FavoriteButton } from './core/FavoriteButton/FavoriteButton';
+export { default as FileDropzone, type FileDropzoneProps } from './core/FileDropzone/FileDropzone';
 export { default as FormHelperText } from './core/FormHelperText/FormHelperText';
 export { default as Grid } from './core/Grid/Grid';
+export { default as HostedFileField, type HostedFileFieldProps } from './core/HostedFileField/HostedFileField';
 export { default as Icon } from './core/Icon/Icon';
 export { default as IconButton } from './core/IconButton/IconButton';
 export { default as ImageWithFallback } from './core/ImageWithFallback/ImageWithFallback';
@@ -66,7 +68,6 @@ export { default as Tabs } from './core/Tabs/Tabs/Tabs';
 export { default as TextField, type TextFieldProps } from './core/TextField/TextField';
 export { default as Tooltip } from './core/Tooltip/Tooltip';
 export { default as Typography } from './core/Typography/Typography';
-export { default as UploadFileButton } from './core/UploadFileButton/UploadFileButton';
 export { default as DashboardGrid } from './dashboard/DashboardGrid/DashboardGrid';
 export { default as DashboardGridItem } from './dashboard/DashboardGridItem/DashboardGridItem';
 export { default as TableFormsHeader } from './forms/TableFormsHeader/TableFormsHeader';

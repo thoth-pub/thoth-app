@@ -17,13 +17,14 @@ const mocks = vi.hoisted(() => ({
   updateWorkFrontCover: vi.fn(),
   updateWork: vi.fn().mockResolvedValue({}),
   loading: false,
+  isWorkLoading: false,
   sendErrorNotification: vi.fn(),
   sendSuccessNotification: vi.fn(),
   copyToClipboard: vi.fn(),
 }));
 
 vi.mock('@/src/entities/work', () => ({
-  useWork: () => ({ work: mocks.work, loading: false, updateWork: mocks.updateWork }),
+  useWork: () => ({ work: mocks.work, loading: mocks.isWorkLoading, updateWork: mocks.updateWork }),
   useUpdateWorkFrontCover: () => ({
     updateWorkFrontCover: mocks.updateWorkFrontCover,
     loading: mocks.loading,
@@ -50,7 +51,15 @@ vi.mock('@mui/icons-material/ContentCopy', () => ({ default: () => <span>copy-ic
 vi.mock('@mui/icons-material/DeleteOutline', () => ({ default: () => <span>delete-icon</span> }));
 
 vi.mock('@/src/shared/ui', () => ({
-  Button: ({ children, onClick, disabled }: { children: React.ReactNode; onClick?: () => void; disabled?: boolean }) => (
+  Button: ({
+    children,
+    onClick,
+    disabled,
+  }: {
+    children: React.ReactNode;
+    onClick?: () => void;
+    disabled?: boolean;
+  }) => (
     <button type="button" onClick={onClick} disabled={disabled}>
       {children}
     </button>
@@ -113,6 +122,7 @@ describe('DragAndDropForm (integration)', () => {
     mocks.work.doi = '10.1234/test';
     mocks.work.coverUrl = 'https://cdn.example.org/10.1234/test_frontcover.jpg';
     mocks.loading = false;
+    mocks.isWorkLoading = false;
     mocks.updateWorkFrontCover.mockReset().mockResolvedValue('https://cdn.example.org/new_frontcover.jpg');
     mocks.updateWork.mockClear();
     mocks.sendErrorNotification.mockClear();
@@ -301,6 +311,26 @@ describe('DragAndDropForm (integration)', () => {
       expect(mocks.updateWorkFrontCover).not.toHaveBeenCalled();
     });
 
+    it('selecting a WebP performs no upload', async () => {
+      const { container } = render(<DragAndDropForm workId="work-1" />);
+      const { input } = getDropZone(container);
+
+      fireEvent.change(input, { target: { files: [makeFile('cover.webp', 'image/webp')] } });
+
+      await waitFor(() => expect(mocks.sendErrorNotification).toHaveBeenCalledTimes(1));
+      expect(mocks.updateWorkFrontCover).not.toHaveBeenCalled();
+    });
+
+    it('rejects a file whose contents are not JPEG data', async () => {
+      const { container } = render(<DragAndDropForm workId="work-1" />);
+      const { input } = getDropZone(container);
+
+      fireEvent.change(input, { target: { files: [makeFile('cover.jpg', JPEG_MIME, VALID_SIZE, false)] } });
+
+      await waitFor(() => expect(mocks.sendErrorNotification).toHaveBeenCalledTimes(1));
+      expect(mocks.updateWorkFrontCover).not.toHaveBeenCalled();
+    });
+
     it('clears the input after a successful upload so the same file can be reselected', async () => {
       const { container } = render(<DragAndDropForm workId="work-1" />);
       const { input } = getDropZone(container);
@@ -384,9 +414,7 @@ describe('DragAndDropForm (integration)', () => {
       // A successful upload bumps it to the new clock value.
       fireEvent.change(input, { target: { files: [makeFile('cover.jpg', JPEG_MIME)] } });
       await waitFor(() => expect(mocks.updateWorkFrontCover).toHaveBeenCalledTimes(2));
-      await waitFor(() =>
-        expect((screen.getByAltText('Cover') as HTMLImageElement).src).toContain('?2000'),
-      );
+      await waitFor(() => expect((screen.getByAltText('Cover') as HTMLImageElement).src).toContain('?2000'));
 
       nowSpy.mockRestore();
     });
@@ -398,22 +426,79 @@ describe('DragAndDropForm (integration)', () => {
       // Confirm removal.
       fireEvent.click(screen.getByText('confirm-remove'));
 
-      await waitFor(() =>
-        expect(mocks.updateWork).toHaveBeenCalledWith(expect.objectContaining({ coverUrl: '' })),
-      );
+      await waitFor(() => expect(mocks.updateWork).toHaveBeenCalledWith(expect.objectContaining({ coverUrl: '' })));
+      expect(mocks.sendSuccessNotification).toHaveBeenCalledWith('coverRemoveSuccess');
+    });
+
+    it('copies the canonical cover URL without the cache-buster', () => {
+      render(<DragAndDropForm workId="work-1" />);
+
+      fireEvent.click(screen.getByText('copy-icon'));
+
+      expect(mocks.copyToClipboard).toHaveBeenCalledWith('https://cdn.example.org/10.1234/test_frontcover.jpg');
+      expect(mocks.sendSuccessNotification).toHaveBeenCalledWith('coverUrlCopySuccess');
     });
   });
 
   describe('doi guard', () => {
-    it('does not upload and warns when the work has no DOI', async () => {
+    it('blocks browse and warns once when the work has no DOI', () => {
       mocks.work.doi = '';
+      render(<DragAndDropForm workId="work-1" />);
+
+      fireEvent.click(screen.getByText('actions.browseFile'));
+
+      expect(mocks.sendErrorNotification).toHaveBeenCalledTimes(1);
+      expect(mocks.updateWorkFrontCover).not.toHaveBeenCalled();
+    });
+
+    it('blocks a drop and warns once when the work has no DOI', () => {
+      mocks.work.doi = '';
+      const { container } = render(<DragAndDropForm workId="work-1" />);
+      const { dropZone } = getDropZone(container);
+
+      dropFileOn(dropZone, makeFile('cover.jpg', JPEG_MIME));
+
+      expect(mocks.sendErrorNotification).toHaveBeenCalledTimes(1);
+      expect(mocks.updateWorkFrontCover).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('loading guard', () => {
+    it('disables browse and does not start another upload', () => {
+      mocks.loading = true;
       const { container } = render(<DragAndDropForm workId="work-1" />);
       const { input } = getDropZone(container);
 
+      expect(input).toBeDisabled();
       fireEvent.change(input, { target: { files: [makeFile('cover.jpg', JPEG_MIME)] } });
 
-      await waitFor(() => expect(mocks.sendErrorNotification).toHaveBeenCalledTimes(1));
       expect(mocks.updateWorkFrontCover).not.toHaveBeenCalled();
+      expect(mocks.sendErrorNotification).not.toHaveBeenCalled();
+    });
+
+    it('does not start another upload when a valid JPEG is dropped', () => {
+      mocks.loading = true;
+      const { container } = render(<DragAndDropForm workId="work-1" />);
+      const { dropZone } = getDropZone(container);
+
+      fireEvent.dragEnter(dropZone);
+      dropFileOn(dropZone, makeFile('cover.jpg', JPEG_MIME));
+
+      expect(mocks.updateWorkFrontCover).not.toHaveBeenCalled();
+      expect(mocks.sendErrorNotification).not.toHaveBeenCalled();
+      expect(screen.queryByText('actions.browseFile')).not.toBeNull();
+    });
+
+    it('does not show a DOI warning when loading and DOI-less', () => {
+      mocks.work.doi = '';
+      mocks.isWorkLoading = true;
+      const { container } = render(<DragAndDropForm workId="work-1" />);
+      const { dropZone } = getDropZone(container);
+
+      dropFileOn(dropZone, makeFile('cover.jpg', JPEG_MIME));
+
+      expect(mocks.updateWorkFrontCover).not.toHaveBeenCalled();
+      expect(mocks.sendErrorNotification).not.toHaveBeenCalled();
     });
   });
 });

@@ -35,6 +35,7 @@ const mocks = vi.hoisted(() => {
     locations: [canonicalLocation, otherLocation],
     accessibilityStandard: null,
     accessibilityAdditionalStandard: null,
+    fileUrl: 'https://cdn.example.org/old.pdf',
   };
 
   return {
@@ -53,6 +54,7 @@ const mocks = vi.hoisted(() => {
     createPrice: vi.fn().mockResolvedValue({ id: 'price-3' }),
     deletePrice: vi.fn().mockResolvedValue({}),
     updatePublication: vi.fn().mockResolvedValue({}),
+    uploadPublicationFile: vi.fn().mockResolvedValue('https://cdn.example.org/new.pdf'),
     activeLocation: null as LocationEntity | null,
     reconcileActiveLocation: vi.fn(),
   };
@@ -77,7 +79,7 @@ vi.mock('@/src/entities/price', () => ({
 vi.mock('@/src/entities/publication', () => ({
   usePublicationsStateMachine: () => ({ activeEntity: mocks.publication, finishEditing: vi.fn() }),
   useUpdatePublication: () => ({ updatePublication: mocks.updatePublication, loading: false }),
-  useUploadPublicationFile: () => ({ uploadPublicationFile: vi.fn(), loading: false, progress: 0 }),
+  useUploadPublicationFile: () => ({ uploadPublicationFile: mocks.uploadPublicationFile, loading: false, progress: 0 }),
 }));
 
 vi.mock('@/src/entities/work', () => ({
@@ -323,7 +325,9 @@ describe('useEditPublication updateLocations', () => {
     const reconciledLocations = result.current.activePublication?.locations ?? [];
 
     await act(async () => {
-      await result.current.updateLocations(reconciledLocations.map((location) => ({ ...location })) as LocationEntity[]);
+      await result.current.updateLocations(
+        reconciledLocations.map((location) => ({ ...location })) as LocationEntity[],
+      );
     });
 
     // The already-persisted location was not created a second time.
@@ -350,6 +354,7 @@ describe('useEditPublication field updates', () => {
     mocks.publication.accessibilityStandard = null;
     mocks.publication.accessibilityAdditionalStandard = null;
     mocks.updatePublication.mockReset().mockResolvedValue({});
+    mocks.uploadPublicationFile.mockReset().mockResolvedValue('https://cdn.example.org/new.pdf');
   });
 
   it('useEditPublication_doesNotStageIsbnAfterFailedUpdate', async () => {
@@ -383,9 +388,7 @@ describe('useEditPublication field updates', () => {
     const { result } = renderEditPublication();
 
     await act(async () => {
-      await expect(
-        result.current.updateSizes({ widthMm: 999 } as never),
-      ).rejects.toThrow('Update failed');
+      await expect(result.current.updateSizes({ widthMm: 999 } as never)).rejects.toThrow('Update failed');
     });
 
     expect(result.current.activePublication?.width).toBe(100);
@@ -436,6 +439,18 @@ describe('useEditPublication field updates', () => {
     );
     expect(result.current.activePublication?.accessibilityStandard).toBe(AccessibilityStandard.Wcag21Aa);
     expect(result.current.activePublication?.accessibilityAdditionalStandard).toBe(AccessibilityStandard.PdfUa1);
+  });
+
+  it('reconciles the canonical URL returned by a successful replacement immediately', async () => {
+    const { result } = renderEditPublication();
+    const file = new File([new Uint8Array(7000)], 'replacement.pdf', { type: 'application/pdf' });
+
+    await act(async () => {
+      await result.current.updateFile(file);
+    });
+
+    expect(mocks.uploadPublicationFile).toHaveBeenCalledWith(mocks.publication.id, file);
+    expect(result.current.activePublication?.fileUrl).toBe('https://cdn.example.org/new.pdf');
   });
 });
 
@@ -530,10 +545,7 @@ describe('useEditPublication updatePrices', () => {
 
     await act(async () => {
       await result.current.updatePrices({
-        prices: [
-          priceRow('price-1', 'GBP', 27.5),
-          priceRow('0000-0000-0000-0000-3', 'EUR', 22),
-        ],
+        prices: [priceRow('price-1', 'GBP', 27.5), priceRow('0000-0000-0000-0000-3', 'EUR', 22)],
       });
     });
 

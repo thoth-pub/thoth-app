@@ -18,6 +18,7 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
 
   const {
     publication,
+    file,
     loading,
     uploadProgress,
     defaultCurrencyOption,
@@ -78,6 +79,9 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         accessibilityReportUrl={accessibilityReportUrl}
         fileUrl=""
         loading={loading}
+        fileUploadLoading={loading && !!file}
+        fileUploadBusy={loading}
+        pendingFileName={file?.name}
         isUploadFileFormDisabled={isUploadFileFormDisabled}
         uploadProgress={uploadProgress}
         onUpdateIsbn={updateIsbn}
@@ -89,13 +93,14 @@ const AddNewPublication = (props: AddNewPublicationProps) => {
         onDeleteAccessibility={deleteAccessibility}
         onUpdateFile={updateFile}
       >
-        {(isFullTextUrlHidden) => (
+        {(isFullTextUrlHidden, publicationFileField) => (
           <>
             <EditPrice
               defaultCurrencyOption={defaultCurrencyOption}
               onUpdate={updatePrices}
               prices={publication.prices}
             />
+            {publicationFileField}
             <EditLocations
               locations={publication.locations}
               onUpdate={updateLocations}

@@ -209,6 +209,21 @@ export const numberOrRomanNumeralValidationOptional = numberOrRomanNumeralValida
 
 export const uuidValidation = z.uuid();
 
+/**
+ * A non-empty browser MIME type is authoritative: a file whose type is a known
+ * unsupported MIME is rejected even when its name looks supported. Some
+ * browser/OS combinations report `File.type` as '' for legitimate formats
+ * (notably MOBI, AZW3 and FictionBook); only then does the filename extension
+ * decide, against an explicit allowlist so unknown files are still rejected.
+ */
+const isSupportedFileFormat = (file: File, filesFormat: Array<string>, filesExtensions?: Array<string>) => {
+  if (file.type !== '' || !filesExtensions) return filesFormat.includes(file.type);
+
+  const fileName = file.name.toLowerCase();
+
+  return filesExtensions.some((extension) => fileName.endsWith(extension));
+};
+
 export const getFileValidation = (
   minFileSize: number,
   maxFileSize: number,
@@ -216,12 +231,16 @@ export const getFileValidation = (
   formatErrMessage?: ErrorMessage,
   maxFileSizeErrMessage?: ErrorMessage,
   minFileSizeErrMessage?: ErrorMessage,
+  filesExtensions?: Array<string>,
 ) =>
   z
     .custom<FileList | undefined>()
     .refine((files) => files && files[0] && files[0].size >= minFileSize, minFileSizeErrMessage)
     .refine((files) => files && files[0] && files[0].size <= maxFileSize, maxFileSizeErrMessage)
-    .refine((files) => files && filesFormat.includes(files[0].type), formatErrMessage);
+    .refine(
+      (files) => files && files[0] && isSupportedFileFormat(files[0], filesFormat, filesExtensions),
+      formatErrMessage,
+    );
 
 export const isJpegCoverFile = async (file: File): Promise<boolean> => {
   const name = file.name.toLowerCase();
