@@ -60,7 +60,7 @@ export const FormField = ({ control, affiliationFieldName, positionFieldName, on
                 <li key={option.value} {...optionProps} className={`${optionProps.className ?? ''} gap-2`}>
                   <span className="min-w-0 flex-1">{option.label}</span>
                   {rorId && (
-                    <span className="ml-auto shrink-0 text-sm text-(--color-placeholder)">
+                    <span className="ml-auto shrink-0 text-sm text-(--color-typography)">
                       ROR: {convertRorIdToText(rorId)}
                     </span>
                   )}
