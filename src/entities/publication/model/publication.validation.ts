@@ -1,7 +1,13 @@
 import z from 'zod';
 
 import { appConfig } from '@/src/shared/config';
-import { accessibilityAdditionalStandards, accessibilityStandards, ERRORS, FORM_FIELDS } from '@/src/shared/constants';
+import {
+  accessibilityAdditionalStandards,
+  accessibilityStandards,
+  ERRORS,
+  FORM_FIELDS,
+  PublicationType as PublicationTypeEnum,
+} from '@/src/shared/constants';
 import {
   accessibilityExceptionValidation,
   accessibilityStandardValidation,
@@ -46,6 +52,58 @@ const widthValidation = optionalPositiveIntValidation;
 const heightValidation = optionalPositiveIntValidation;
 const depthValidation = optionalPositiveIntValidation;
 const weightValidation = optionalPositiveIntValidation;
+
+const allSupportedPublicationFileTypes = [
+  ...supportedPdfFileTypes,
+  ...supportedEpubFileTypes,
+  ...supportedHtmlFileTypes,
+  ...supportedXmlFileTypes,
+  ...supportedDocxFileTypes,
+  ...supportedMobiFileTypes,
+  ...supportedAzw3FileTypes,
+  ...supportedFictionBookFileTypes,
+  ...supportedMP3FileTypes,
+  ...supportedWavFileTypes,
+];
+
+export const getSupportedPublicationFileTypes = (publicationType: string) => {
+  switch (publicationType) {
+    case PublicationTypeEnum.enum.Pdf:
+      return supportedPdfFileTypes;
+    case PublicationTypeEnum.enum.Epub:
+      return supportedEpubFileTypes;
+    case PublicationTypeEnum.enum.Html:
+      return supportedHtmlFileTypes;
+    case PublicationTypeEnum.enum.Xml:
+      return supportedXmlFileTypes;
+    case PublicationTypeEnum.enum.Docx:
+      return supportedDocxFileTypes;
+    case PublicationTypeEnum.enum.Mobi:
+      return supportedMobiFileTypes;
+    case PublicationTypeEnum.enum.Azw3:
+      return supportedAzw3FileTypes;
+    case PublicationTypeEnum.enum.FictionBook:
+      return supportedFictionBookFileTypes;
+    case PublicationTypeEnum.enum.Mp3:
+      return supportedMP3FileTypes;
+    case PublicationTypeEnum.enum.Wav:
+      return supportedWavFileTypes;
+    default:
+      return allSupportedPublicationFileTypes;
+  }
+};
+
+export const getPublicationFileValidationSchema = (publicationType: string) =>
+  z.object({
+    [PUBLICATION_FILE.name]: getFileValidation(
+      appConfig.minFileSize,
+      appConfig.maxPublicationFileSize,
+      getSupportedPublicationFileTypes(publicationType),
+      ERRORS.FILE_FORMAT_INVALID,
+      ERRORS.MAX_FILE_SIZE_EXCEEDED,
+      ERRORS.MIN_FILE_SIZE_NOT_MET,
+    ),
+  });
 
 export const publicationTypeValidationSchema = z.object({ [PUBLICATION_TYPE.name]: publicationTypeValidation });
 
@@ -106,18 +164,7 @@ export const publicationFileValidationSchema = z.object({
   [PUBLICATION_FILE.name]: getFileValidation(
     appConfig.minFileSize,
     appConfig.maxPublicationFileSize,
-    [
-      ...supportedPdfFileTypes,
-      ...supportedEpubFileTypes,
-      ...supportedHtmlFileTypes,
-      ...supportedXmlFileTypes,
-      ...supportedDocxFileTypes,
-      ...supportedMobiFileTypes,
-      ...supportedAzw3FileTypes,
-      ...supportedFictionBookFileTypes,
-      ...supportedMP3FileTypes,
-      ...supportedWavFileTypes,
-    ],
+    allSupportedPublicationFileTypes,
     ERRORS.FILE_FORMAT_INVALID,
     ERRORS.MAX_FILE_SIZE_EXCEEDED,
     ERRORS.MIN_FILE_SIZE_NOT_MET,

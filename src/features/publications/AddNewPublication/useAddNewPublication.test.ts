@@ -2,7 +2,9 @@
 import { act, renderHook } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { PublicationType } from '@/gql/graphql';
 import type { PublicationEntity } from '@/src/entities/publication/model/publication.types';
+import { ERRORS } from '@/src/shared/constants';
 
 const mocks = vi.hoisted(() => {
   const publication: PublicationEntity = {
@@ -21,6 +23,7 @@ const mocks = vi.hoisted(() => {
     defaultCurrencyOption: { value: 'GBP', label: 'GBP' },
     loading: false,
     progress: 0,
+    sendErrorNotification: vi.fn(),
   };
 });
 
@@ -42,6 +45,7 @@ vi.mock('@/src/entities/work', () => ({
 
 vi.mock('@/src/shared/hooks', () => ({
   useDefaultCurrencyOption: () => mocks.defaultCurrencyOption,
+  useNotifications: () => ({ sendErrorNotification: mocks.sendErrorNotification }),
 }));
 
 vi.mock('@/src/shared/utils/locations', () => ({
@@ -56,6 +60,7 @@ describe('useAddNewPublication', () => {
   beforeEach(() => {
     mocks.finishEditing.mockClear();
     mocks.createPublication.mockClear();
+    mocks.sendErrorNotification.mockClear();
     mocks.publication.isbn = '';
     mocks.publication.type = 'BOOK';
   });
@@ -153,15 +158,11 @@ describe('useAddNewPublication', () => {
 
       act(() => {
         result.current.updatePrices({
-          prices: [
-            { priceId: 'p1', currency: { value: 'GBP', label: 'GBP' }, priceValue: 25 },
-          ],
+          prices: [{ priceId: 'p1', currency: { value: 'GBP', label: 'GBP' }, priceValue: 25 }],
         });
       });
 
-      expect(result.current.publication?.prices).toEqual([
-        { id: 'p1', currencyCode: 'GBP', unitPrice: 25 },
-      ]);
+      expect(result.current.publication?.prices).toEqual([{ id: 'p1', currencyCode: 'GBP', unitPrice: 25 }]);
     });
   });
 
@@ -171,7 +172,13 @@ describe('useAddNewPublication', () => {
 
       act(() => {
         result.current.updateLocations([
-          { id: 'loc-1', locationPlatform: 'OTHER', canonical: true, landingPage: 'https://example.com', fullTextUrl: '' },
+          {
+            id: 'loc-1',
+            locationPlatform: 'OTHER',
+            canonical: true,
+            landingPage: 'https://example.com',
+            fullTextUrl: '',
+          },
         ]);
       });
 
@@ -182,7 +189,13 @@ describe('useAddNewPublication', () => {
   describe('deleteLocation', () => {
     it('should remove location by id', () => {
       mocks.publication.locations = [
-        { id: 'loc-1', locationPlatform: 'OTHER', canonical: true, landingPage: 'https://example.com', fullTextUrl: '' },
+        {
+          id: 'loc-1',
+          locationPlatform: 'OTHER',
+          canonical: true,
+          landingPage: 'https://example.com',
+          fullTextUrl: '',
+        },
         { id: 'loc-2', locationPlatform: 'OAPEN', canonical: false, landingPage: '', fullTextUrl: '' },
       ];
 
@@ -198,13 +211,55 @@ describe('useAddNewPublication', () => {
   });
 
   describe('updateFile', () => {
-    it('should set the file', () => {
+    const makePdf = (name: string) => new File([new Uint8Array(7000)], name, { type: 'application/pdf' });
+
+    it('exposes the selected file as pending and passes it to createPublication', async () => {
+      mocks.publication.type = PublicationType.Pdf;
       const { result } = renderHook(() => useAddNewPublication(defaultProps));
-      const file = new File([''], 'test.pdf');
+      const file = makePdf('test.pdf');
 
       act(() => {
         result.current.updateFile(file);
       });
+
+      expect(result.current.file).toBe(file);
+
+      await act(async () => {
+        await result.current.create();
+      });
+
+      expect(mocks.createPublication).toHaveBeenCalledWith({ data: expect.anything(), file });
+    });
+
+    it('keeps only the final replacement before save', async () => {
+      mocks.publication.type = PublicationType.Pdf;
+      const { result } = renderHook(() => useAddNewPublication(defaultProps));
+      const firstFile = makePdf('first.pdf');
+      const finalFile = makePdf('final.pdf');
+
+      act(() => {
+        result.current.updateFile(firstFile);
+        result.current.updateFile(finalFile);
+      });
+
+      expect(result.current.file).toBe(finalFile);
+
+      await act(async () => {
+        await result.current.create();
+      });
+
+      expect(mocks.createPublication).toHaveBeenCalledWith({ data: expect.anything(), file: finalFile });
+    });
+
+    it('clears a pending file that becomes invalid when the publication type changes', () => {
+      mocks.publication.type = PublicationType.Pdf;
+      const { result } = renderHook(() => useAddNewPublication(defaultProps));
+
+      act(() => result.current.updateFile(makePdf('book.pdf')));
+      act(() => result.current.updateType(PublicationType.Epub));
+
+      expect(result.current.file).toBeNull();
+      expect(mocks.sendErrorNotification).toHaveBeenCalledWith(ERRORS.FILE_FORMAT_INVALID);
     });
   });
 

@@ -1,7 +1,9 @@
-import { render } from '@testing-library/react';
 import { ThemeProvider } from '@mui/material';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { PublicationType } from '@/gql/graphql';
 import { theme } from '@/src/shared/theme';
-import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/src/shared/store/forms/hooks/useFormStateMachine', () => ({
   default: vi.fn(() => ({ activeFormId: null, edit: vi.fn(), closeForm: vi.fn() })),
@@ -23,6 +25,8 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe('EditPublication', () => {
+  afterEach(cleanup);
+
   it('renders snapshot', () => {
     const { container } = render(
       <Wrapper>
@@ -45,8 +49,79 @@ describe('EditPublication', () => {
           isDimensionFormHidden={false}
           isUploadFileFormDisabled={false}
         />
-      </Wrapper>
+      </Wrapper>,
     );
     expect(container).toMatchSnapshot('EditPublication');
+  });
+
+  it('places an available publication file field between Price and Locations content', () => {
+    render(
+      <Wrapper>
+        <EditPublication
+          publicationType={PublicationType.Pdf}
+          isbn=""
+          width={0}
+          widthIn={0}
+          height={0}
+          heightIn={0}
+          depth={0}
+          depthIn={0}
+          weight={0}
+          weightOz={0}
+          fileUrl=""
+          loading={false}
+          accessibilityStandards={[]}
+          accessibilityException={null}
+          accessibilityReportUrl=""
+          isDimensionFormHidden={false}
+          isUploadFileFormDisabled={false}
+        >
+          {(_, fileField) => (
+            <>
+              <div>Price marker</div>
+              {fileField}
+              <div>Locations marker</div>
+            </>
+          )}
+        </EditPublication>
+      </Wrapper>,
+    );
+
+    const price = screen.getByText('Price marker');
+    const field = screen.getByTestId('hosted-file-field');
+    const locations = screen.getByText('Locations marker');
+
+    expect(price.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(field.compareDocumentPosition(locations) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it('hides the publication file field when files are unavailable for the publication type', () => {
+    render(
+      <Wrapper>
+        <EditPublication
+          publicationType={PublicationType.Paperback}
+          isbn=""
+          width={0}
+          widthIn={0}
+          height={0}
+          heightIn={0}
+          depth={0}
+          depthIn={0}
+          weight={0}
+          weightOz={0}
+          fileUrl=""
+          loading={false}
+          accessibilityStandards={[]}
+          accessibilityException={null}
+          accessibilityReportUrl=""
+          isDimensionFormHidden={false}
+          isUploadFileFormDisabled={false}
+        >
+          {(_, fileField) => fileField}
+        </EditPublication>
+      </Wrapper>,
+    );
+
+    expect(screen.queryByTestId('hosted-file-field')).toBeNull();
   });
 });

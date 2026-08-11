@@ -12,15 +12,18 @@ import type {
   PublicationEntity,
   PublicationType,
 } from '@/src/entities/publication/model/publication.types';
+import { getPublicationFileValidationSchema } from '@/src/entities/publication/model/publication.validation';
 import { useWork } from '@/src/entities/work';
 import {
   accessibilityAdditionalStandards,
   accessibilityStandards,
+  ERRORS,
+  FORM_FIELDS,
   getAccessibilityStandardOptions,
 } from '@/src/shared/constants';
-import { useDefaultCurrencyOption } from '@/src/shared/hooks';
+import { useDefaultCurrencyOption, useNotifications } from '@/src/shared/hooks';
 import type { BaseEditSectionProps } from '@/src/shared/types';
-import { isAccessibilityStandardAvailable } from '@/src/shared/utils';
+import { isAccessibilityStandardAvailable, isFileAvailable } from '@/src/shared/utils';
 import { selectCanonicalLocation } from '@/src/shared/utils/locations';
 
 export const useAddNewPublication = (props: BaseEditSectionProps) => {
@@ -32,12 +35,33 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
   const defaultCurrencyOption = useDefaultCurrencyOption(work.imprintId);
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
   const [file, setFile] = useState<File | null>(null);
-  const { createPublication, loading, progress: uploadProgress } = useCreatePublication({
+  const { sendErrorNotification } = useNotifications();
+  const {
+    createPublication,
+    loading,
+    progress: uploadProgress,
+  } = useCreatePublication({
     workId,
   });
 
   const create = async () => {
     if (!publication) return;
+
+    if (file) {
+      const validation = getPublicationFileValidationSchema(publication.type).safeParse({
+        [FORM_FIELDS.PUBLICATION_FILE.name]: [file],
+      });
+
+      if (!isFileAvailable(publication.type) || !validation.success) {
+        sendErrorNotification(
+          validation.success
+            ? ERRORS.FILE_FORMAT_INVALID
+            : (validation.error.issues[0]?.message ?? ERRORS.FILE_FORMAT_INVALID),
+        );
+        setFile(null);
+        return;
+      }
+    }
 
     await createPublication({ data: publication, file: file ?? undefined });
 
@@ -46,6 +70,21 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
 
   const updateType = (type: PublicationType) => {
     if (!publication) return;
+
+    if (file) {
+      const validation = getPublicationFileValidationSchema(type).safeParse({
+        [FORM_FIELDS.PUBLICATION_FILE.name]: [file],
+      });
+
+      if (!isFileAvailable(type) || !validation.success) {
+        sendErrorNotification(
+          validation.success
+            ? ERRORS.FILE_FORMAT_INVALID
+            : (validation.error.issues[0]?.message ?? ERRORS.FILE_FORMAT_INVALID),
+        );
+        setFile(null);
+      }
+    }
 
     const isAccessibilityAvailable = isAccessibilityStandardAvailable(type);
     const availableAccessibilityStandards = getAccessibilityStandardOptions(type);
@@ -175,6 +214,7 @@ export const useAddNewPublication = (props: BaseEditSectionProps) => {
 
   return {
     publication,
+    file,
     loading,
     uploadProgress,
     defaultCurrencyOption,

@@ -403,7 +403,8 @@
     "label": "CloudFront Distribution ID"
   },
   "publicationFile": {
-    "label": "File"
+    "label": "Publication file",
+    "pending": "This file will be uploaded when the publication is saved"
   },
   "chapterCount": {
     "label": "Number of Chapters"
