@@ -51,11 +51,19 @@ export type OnixRepeatable<T> = T | T[];
  * store: ONIX puts it on TitleText, Subtitle, Text and BiographicalNote, and it is how Thoth's
  * own ONIX exporter writes a title's locale. `dateformat` says how to read the digits of a
  * `<Date>` — without it `20240807`, `202408` and `2024` are indistinguishable strings of digits.
- * Everything else an element may carry — `textformat`, `collationkey`, `textscript` — stays
- * undeclared until something reads it, so the type keeps saying what this parser understands
- * rather than becoming an untyped bag.
+ * `textformat` is ONIX List 34, which says whether a `<Text>` or `<BiographicalNote>` holds
+ * HTML, XML or plain text — without it `<em>` inside an abstract is indistinguishable from
+ * JATS, which is how HTML abstracts used to reach the API declared as JATS and fail there.
+ * Everything else an element may carry — `collationkey`, `textscript` — stays undeclared until
+ * something reads it, so the type keeps saying what this parser understands rather than
+ * becoming an untyped bag.
  */
-export type OnixTextElement = { '#text'?: string | number; '@_language'?: string; '@_dateformat'?: string };
+export type OnixTextElement = {
+  '#text'?: string | number;
+  '@_language'?: string;
+  '@_dateformat'?: string;
+  '@_textformat'?: string;
+};
 
 export type OnixText = string | number | OnixTextElement;
 

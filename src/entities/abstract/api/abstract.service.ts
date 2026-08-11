@@ -20,7 +20,9 @@ export class AbstractService extends BaseService<AbstractEntity, AbstractDto, Ab
   async createAbstract(data: AbstractEntity, relatedWorkId: WorkId): Promise<AbstractEntity> {
     const { abstractId: _, ...dto } = this.dtoMapper.toDto(data);
 
-    const markupFormat = this.getMarkupFormat(data.content);
+    // An imported abstract knows what format its source declared; content sniffing is only for
+    // entities that carry no such provenance, i.e. everything created in the editor.
+    const markupFormat = data.sourceMarkupFormat ?? this.getMarkupFormat(data.content);
 
     const response = await this.graphqlService.mutation(CREATE_ABSTRACT, {
       data: { ...dto, workId: relatedWorkId },

@@ -1,7 +1,7 @@
 import z from 'zod';
 
 import { Biography, ContributionType } from '@/gql/graphql';
-import type { LocaleCodeType } from '@/src/shared/types';
+import type { ImportedMarkupFormat, LocaleCodeType } from '@/src/shared/types';
 
 import { AffiliationEntity } from '../../affiliation/model/affiliation.types';
 import { ContributorId } from '../../contributor/model/contributor.types';
@@ -25,6 +25,13 @@ export type BiographyEntity = {
   content: string;
   localeCode: LocaleCodeType;
   contributionId: string;
+  /**
+   * The markup format the content arrived in, when this biography came from a bulk import whose
+   * source declared one. Creation intent only: `BiographyDtoMapper` never maps it, so it cannot
+   * reach a GraphQL data DTO, and entities read back from the API never carry it. Absent for
+   * everything created in the editor, which keeps the existing content-sniffing behaviour.
+   */
+  sourceMarkupFormat?: ImportedMarkupFormat;
 };
 
 export type WorkContribution = {

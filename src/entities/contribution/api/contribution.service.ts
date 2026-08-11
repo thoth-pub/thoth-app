@@ -154,9 +154,11 @@ export class ContributionService {
 
   async createBiography(data: BiographyEntity, contributionId: ContributionId): Promise<BiographyEntity> {
     const { biographyId: _, contributionId: _contributionId, ...dto } = this.biographyDtoMapper.toDto(data);
-    const markupFormat = isTextContainsAnyMarkdownTag(data.content)
-      ? MarkdownFormats.enum.JATS_XML
-      : MarkdownFormats.enum.PLAIN_TEXT;
+    // An imported biography knows what format its source declared; content sniffing is only for
+    // entities that carry no such provenance, i.e. everything created in the editor.
+    const markupFormat =
+      data.sourceMarkupFormat ??
+      (isTextContainsAnyMarkdownTag(data.content) ? MarkdownFormats.enum.JATS_XML : MarkdownFormats.enum.PLAIN_TEXT);
 
     const response = await this.graphqlService.mutation(CREATE_BIOGRAPHY, {
       data: { contributionId, ...dto },

@@ -2,10 +2,14 @@ import {
   CollectionSequenceType,
   CollectionType,
   DateFormat,
+  TextFormat,
   TitleElementLevel,
   TitleType,
 } from '@5stones/onix/dist/enums';
 
+import { MarkupFormat } from '@/gql/graphql';
+
+import type { ImportedMarkupFormat } from '../../types/markdown';
 import { canonicaliseDoi } from '../../utils/validations';
 import type {
   OnixCollectionLike,
@@ -86,6 +90,170 @@ export const getOnixDateFormat = (value: OnixText | undefined | null): string =>
   const dateFormat = value['@_dateformat'];
 
   return typeof dateFormat === 'string' ? dateFormat.trim() : '';
+};
+
+/**
+ * Reads the `textformat` attribute of a `<Text>` or `<BiographicalNote>`.
+ *
+ * ONIX List 34 lives in this attribute and nowhere else, so `<em>` inside an abstract declared
+ * `02` (HTML) and `<italic>` inside one declared `03` (XML) are just angle brackets until it is
+ * read. A bare element carries no attribute and yields an empty string; what that means is
+ * {@link resolveOnixTextMarkup}'s business, not this helper's.
+ */
+export const getOnixTextFormat = (value: OnixText | undefined | null): string => {
+  if (value === undefined || value === null) return '';
+
+  if (typeof value !== 'object') return '';
+
+  const textFormat = value['@_textformat'];
+
+  return typeof textFormat === 'string' ? textFormat.trim() : '';
+};
+
+/**
+ * Whether text visibly contains markup, read the way the API reads it: something shaped like an
+ * opening or closing tag, `<` followed by a letter. Deliberately the same shape as the backend's
+ * `looks_like_markup` (`thoth-api/src/markup/mod.rs`), because the point of asking is to predict
+ * which of the backend's input paths the content belongs on — plain prose containing `a < b` or
+ * `<3` must not count.
+ */
+const containsMarkup = (content: string): boolean => /<\/?[A-Za-z][^>]*>/.test(content);
+
+/** Every distinct tag name in the content, in first-appearance order, case preserved. */
+const extractTagNames = (content: string): string[] => {
+  const names = new Set<string>();
+
+  for (const match of content.matchAll(/<\/?([A-Za-z][A-Za-z0-9-]*)[^>]*>/g)) {
+    names.add(match[1]);
+  }
+
+  return [...names];
+};
+
+/**
+ * Tags the API's HTML input path understands, per `html_to_ast` in `thoth-api/src/markup/ast.rs`.
+ * Compared case-insensitively because that path parses with a real HTML parser, which lowercases
+ * tag names — Arc's `<I>` is `<i>` by the time the backend sees it.
+ */
+const HTML_INPUT_TAGS = new Set([
+  'html',
+  'body',
+  'div',
+  'p',
+  'br',
+  'strong',
+  'b',
+  'em',
+  'i',
+  'u',
+  'underline',
+  's',
+  'strike',
+  'del',
+  'strikethrough',
+  'code',
+  'sup',
+  'sub',
+  'ul',
+  'ol',
+  'li',
+  'span',
+  'a',
+]);
+
+/**
+ * Tags the API's JATS validator accepts for abstracts and biographies, per `validate_jats_subset`
+ * in `thoth-api/src/markup/mod.rs`. Compared case-sensitively because that validator is: `<P>` is
+ * an unsupported JATS element there, whatever `<p>` is.
+ *
+ * This is a list of tag *names* only, kept so the importer can route and refuse deterministically
+ * before mutation; structural and attribute validation stays the API's job, and this list is not
+ * a second implementation of it.
+ */
+const JATS_INPUT_TAGS = new Set([
+  'p',
+  'bold',
+  'italic',
+  'underline',
+  'strike',
+  'monospace',
+  'sup',
+  'sub',
+  'sc',
+  'list',
+  'list-item',
+  'ext-link',
+  'inline-formula',
+  'tex-math',
+  'email',
+  'uri',
+]);
+
+/**
+ * What one piece of ONIX text resolves to: the single input format the mutation should declare,
+ * or the refusal to guess one. `unclassifiable` carries the tags that defeated classification so
+ * the issue shown to the user can name them.
+ */
+export type OnixTextMarkupResolution =
+  | { kind: 'format'; format: ImportedMarkupFormat }
+  | { kind: 'unclassifiable'; tags: string[] };
+
+const classifyByContent = (tags: string[]): OnixTextMarkupResolution => {
+  if (tags.every((tag) => HTML_INPUT_TAGS.has(tag.toLowerCase()))) {
+    return { kind: 'format', format: MarkupFormat.Html };
+  }
+
+  if (tags.every((tag) => JATS_INPUT_TAGS.has(tag))) {
+    return { kind: 'format', format: MarkupFormat.JatsXml };
+  }
+
+  return { kind: 'unclassifiable', tags };
+};
+
+/**
+ * The markup input format one ONIX text element means, decided from what the sender declared
+ * (ONIX List 34, via {@link getOnixTextFormat}) *and* what the content visibly contains. This is
+ * the only place that decision lives: the services must not rediscover the format from the string
+ * after the declaration has been thrown away, which is exactly how HTML abstracts used to reach
+ * the API declared as JATS.
+ *
+ * Content with no markup resolves to plain text whatever was declared. That is not a correction
+ * of the sender: a markup-free string is the same text in every one of these formats, and the
+ * API's HTML path refuses input with nothing tag-shaped in it, so `PLAIN_TEXT` is the one
+ * spelling of that content the API accepts unconditionally.
+ *
+ * With markup present, the declaration is followed:
+ *
+ * - `02` (HTML) and `05` (XHTML) go to the API's HTML input path as declared. XHTML has no input
+ *   enum of its own, and the backend parses HTML with a real HTML5 parser, which handles XHTML
+ *   fragments; tag rewriting (`<em>` -> `<italic>`) is deliberately left to that path too.
+ * - `03` (XML) is generic XML in ONIX, but the one XML Thoth's own exporter emits for structured
+ *   text is its JATS subset under `textformat="03"`, so XML whose tags all belong to that subset
+ *   is read back as JATS. This is a Thoth round-trip compatibility interpretation, not a claim
+ *   that arbitrary ONIX XML is JATS: XML with tags outside the subset is refused here, by name,
+ *   rather than sent to fail halfway through an import.
+ * - `06` and `07` declare plain text, so markup inside them is a contradiction — and a common
+ *   one, Arc's biographies being real examples — that would be rejected outright as PLAIN_TEXT.
+ *   The compatibility rule is scoped to exactly this case: tags the HTML input path understands
+ *   route to HTML, tags wholly within Thoth's JATS subset route to JATS, and anything else is
+ *   refused rather than guessed. An unknown or absent declaration is read the same way.
+ */
+export const resolveOnixTextMarkup = (declaredFormat: string, content: string): OnixTextMarkupResolution => {
+  if (!containsMarkup(content)) return { kind: 'format', format: MarkupFormat.PlainText };
+
+  const tags = extractTagNames(content);
+
+  switch (declaredFormat) {
+    case TextFormat._02:
+    case TextFormat._05:
+      return { kind: 'format', format: MarkupFormat.Html };
+    case TextFormat._03:
+      return tags.every((tag) => JATS_INPUT_TAGS.has(tag))
+        ? { kind: 'format', format: MarkupFormat.JatsXml }
+        : { kind: 'unclassifiable', tags: tags.filter((tag) => !JATS_INPUT_TAGS.has(tag)) };
+    default:
+      return classifyByContent(tags);
+  }
 };
 
 export type OnixTitle = {
