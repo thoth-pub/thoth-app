@@ -10,8 +10,8 @@ vi.mock('react-use', () => ({
   useCopyToClipboard: () => [null, mocks.copyToClipboard],
 }));
 
-vi.mock('@/src/shared/hooks', () => ({
-  useTypedTranslation: () => ({
+vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({
+  default: () => ({
     t: (key: string, options?: Record<string, string | number>) =>
       options?.filename
         ? `${key}:${options.filename}`
