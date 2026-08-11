@@ -3,6 +3,10 @@
 import { useRef, useState } from 'react';
 
 export type UseFileDropzoneOptions = {
+  // busy locks selection while a surrounding request is in flight: unlike
+  // disabled it never triggers onDisabledAction, and unlike loading it carries
+  // no upload presentation.
+  busy?: boolean;
   disabled?: boolean;
   loading?: boolean;
   onDisabledAction?: () => void;
@@ -10,6 +14,7 @@ export type UseFileDropzoneOptions = {
 };
 
 const useFileDropzone = ({
+  busy = false,
   disabled = false,
   loading = false,
   onDisabledAction,
@@ -19,14 +24,14 @@ const useFileDropzone = ({
   const dragDepth = useRef(0);
   const [isDragActive, setIsDragActive] = useState(false);
 
-  const unavailable = disabled || loading;
+  const unavailable = disabled || loading || busy;
 
   const clearInput = () => {
     if (inputRef.current) inputRef.current.value = '';
   };
 
   const handleUnavailableAction = () => {
-    if (disabled && !loading) onDisabledAction?.();
+    if (disabled && !loading && !busy) onDisabledAction?.();
   };
 
   const processFile = (file?: File) => {

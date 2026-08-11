@@ -34,6 +34,9 @@ type EditPublicationProps = {
   fileUrl: string;
   loading: boolean;
   fileUploadLoading?: boolean;
+  // Locks file selection without upload presentation while a surrounding
+  // request (e.g. the create mutation) is in flight.
+  fileUploadBusy?: boolean;
   pendingFileName?: string;
   accessibilityStandards: AccessibilityStandardType[];
   accessibilityException: AccessibilityExceptionType | null;
@@ -68,6 +71,7 @@ const EditPublication = (props: EditPublicationProps) => {
     weightOz,
     loading,
     fileUploadLoading = false,
+    fileUploadBusy = false,
     pendingFileName,
     isDimensionFormHidden,
     accessibilityStandards = emptyAccessibilityStandards,
@@ -95,6 +99,7 @@ const EditPublication = (props: EditPublicationProps) => {
   const publicationFileField = !isUploadFileFormHidden ? (
     <EditFile
       publicationType={publicationType}
+      busy={fileUploadBusy}
       disabled={isUploadFileFormDisabled}
       fileUrl={fileUrl}
       loading={fileUploadLoading}

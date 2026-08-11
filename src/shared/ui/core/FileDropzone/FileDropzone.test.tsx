@@ -141,4 +141,48 @@ describe('FileDropzone', () => {
     expect(onFileSelect).not.toHaveBeenCalled();
     expect(onDisabledAction).not.toHaveBeenCalled();
   });
+
+  it('silently locks browse, drop, and the hidden input while busy', () => {
+    const { dropzone, input, onDisabledAction, onFileSelect } = renderDropzone({ busy: true });
+
+    expect(input).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Browse file' })).toBeDisabled();
+
+    fireEvent.change(input, { target: { files: [file] } });
+    drop(dropzone, [file]);
+
+    expect(onFileSelect).not.toHaveBeenCalled();
+    expect(onDisabledAction).not.toHaveBeenCalled();
+  });
+
+  it('gives busy precedence over the disabled action callback', () => {
+    const { dropzone, input, onDisabledAction, onFileSelect } = renderDropzone({ busy: true, disabled: true });
+
+    fireEvent.change(input, { target: { files: [file] } });
+    drop(dropzone, [file]);
+
+    expect(onFileSelect).not.toHaveBeenCalled();
+    expect(onDisabledAction).not.toHaveBeenCalled();
+  });
+
+  it('restores selection once busy ends', () => {
+    const onFileSelect = vi.fn();
+    const props = {
+      accept: ['application/pdf'],
+      actionLabel: 'Browse file',
+      dragActiveLabel: 'Drop file here',
+      onFileSelect,
+    };
+    const { container, rerender } = render(<FileDropzone {...props} busy />);
+    const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(onFileSelect).not.toHaveBeenCalled();
+
+    rerender(<FileDropzone {...props} busy={false} />);
+
+    expect(input).not.toBeDisabled();
+    fireEvent.change(input, { target: { files: [file] } });
+    expect(onFileSelect).toHaveBeenCalledWith(file);
+  });
 });

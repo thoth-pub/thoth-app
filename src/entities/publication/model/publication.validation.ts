@@ -29,6 +29,16 @@ const {
   supportedFictionBookFileTypes,
   supportedMP3FileTypes,
   supportedWavFileTypes,
+  supportedPdfFileExtensions,
+  supportedEpubFileExtensions,
+  supportedHtmlFileExtensions,
+  supportedXmlFileExtensions,
+  supportedDocxFileExtensions,
+  supportedMobiFileExtensions,
+  supportedAzw3FileExtensions,
+  supportedFictionBookFileExtensions,
+  supportedMP3FileExtensions,
+  supportedWavFileExtensions,
 } = appConfig;
 
 const {
@@ -66,6 +76,19 @@ const allSupportedPublicationFileTypes = [
   ...supportedWavFileTypes,
 ];
 
+const allSupportedPublicationFileExtensions = [
+  ...supportedPdfFileExtensions,
+  ...supportedEpubFileExtensions,
+  ...supportedHtmlFileExtensions,
+  ...supportedXmlFileExtensions,
+  ...supportedDocxFileExtensions,
+  ...supportedMobiFileExtensions,
+  ...supportedAzw3FileExtensions,
+  ...supportedFictionBookFileExtensions,
+  ...supportedMP3FileExtensions,
+  ...supportedWavFileExtensions,
+];
+
 export const getSupportedPublicationFileTypes = (publicationType: string) => {
   switch (publicationType) {
     case PublicationTypeEnum.enum.Pdf:
@@ -93,6 +116,33 @@ export const getSupportedPublicationFileTypes = (publicationType: string) => {
   }
 };
 
+export const getSupportedPublicationFileExtensions = (publicationType: string) => {
+  switch (publicationType) {
+    case PublicationTypeEnum.enum.Pdf:
+      return supportedPdfFileExtensions;
+    case PublicationTypeEnum.enum.Epub:
+      return supportedEpubFileExtensions;
+    case PublicationTypeEnum.enum.Html:
+      return supportedHtmlFileExtensions;
+    case PublicationTypeEnum.enum.Xml:
+      return supportedXmlFileExtensions;
+    case PublicationTypeEnum.enum.Docx:
+      return supportedDocxFileExtensions;
+    case PublicationTypeEnum.enum.Mobi:
+      return supportedMobiFileExtensions;
+    case PublicationTypeEnum.enum.Azw3:
+      return supportedAzw3FileExtensions;
+    case PublicationTypeEnum.enum.FictionBook:
+      return supportedFictionBookFileExtensions;
+    case PublicationTypeEnum.enum.Mp3:
+      return supportedMP3FileExtensions;
+    case PublicationTypeEnum.enum.Wav:
+      return supportedWavFileExtensions;
+    default:
+      return allSupportedPublicationFileExtensions;
+  }
+};
+
 export const getPublicationFileValidationSchema = (publicationType: string) =>
   z.object({
     [PUBLICATION_FILE.name]: getFileValidation(
@@ -102,6 +152,7 @@ export const getPublicationFileValidationSchema = (publicationType: string) =>
       ERRORS.FILE_FORMAT_INVALID,
       ERRORS.MAX_FILE_SIZE_EXCEEDED,
       ERRORS.MIN_FILE_SIZE_NOT_MET,
+      getSupportedPublicationFileExtensions(publicationType),
     ),
   });
 
@@ -168,5 +219,6 @@ export const publicationFileValidationSchema = z.object({
     ERRORS.FILE_FORMAT_INVALID,
     ERRORS.MAX_FILE_SIZE_EXCEEDED,
     ERRORS.MIN_FILE_SIZE_NOT_MET,
+    allSupportedPublicationFileExtensions,
   ),
 });

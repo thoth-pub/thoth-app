@@ -21,6 +21,7 @@ const mocks = vi.hoisted(() => ({
     orderNumber: 1,
   },
   createAdditionalResource: vi.fn().mockResolvedValue({}),
+  createLoading: false,
   updateAdditionalResource: vi.fn().mockResolvedValue({}),
   uploadAdditionalResourceFile: vi.fn().mockResolvedValue('https://cdn.example.org/new.pdf'),
   update: vi.fn(),
@@ -41,7 +42,7 @@ vi.mock('@/src/entities/additional-resource', () => ({
   }),
   useCreateAdditionalResource: () => ({
     createAdditionalResource: mocks.createAdditionalResource,
-    loading: false,
+    loading: mocks.createLoading,
     progress: 0,
   }),
   useUpdateAdditionalResource: () => ({ updateAdditionalResource: mocks.updateAdditionalResource }),
@@ -53,6 +54,8 @@ vi.mock('@/src/entities/additional-resource', () => ({
   EditAdditionalResourceForm: (props: {
     pendingFileName?: string;
     fileUrl?: string;
+    uploadLoading?: boolean;
+    uploadBusy?: boolean;
     onFileUpload?: (file: File) => void | Promise<void>;
     onResourceTypeUpdate?: (resourceType: string) => void;
     onDone?: () => void | Promise<void>;
@@ -60,6 +63,8 @@ vi.mock('@/src/entities/additional-resource', () => ({
     <div>
       <span data-testid="pending-file-name">{props.pendingFileName}</span>
       <span data-testid="file-url">{props.fileUrl}</span>
+      <span data-testid="upload-loading">{String(props.uploadLoading)}</span>
+      <span data-testid="upload-busy">{String(props.uploadBusy)}</span>
       <button type="button" onClick={() => props.onFileUpload?.(mockFiles.first)}>
         Select first
       </button>
@@ -88,6 +93,7 @@ describe('Additional Resource file flows', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mocks.activeEntity.resourceType = 'DOCUMENT';
+    mocks.createLoading = false;
     Object.defineProperty(mockFiles.first, 'size', { configurable: true, value: 7000 });
   });
   afterEach(cleanup);
@@ -104,6 +110,23 @@ describe('Additional Resource file flows', () => {
 
     expect(mocks.createAdditionalResource).toHaveBeenCalledTimes(1);
     expect(mocks.createAdditionalResource.mock.calls[0][0].file).toBe(mockFiles.replacement);
+  });
+
+  it('locks file selection for a fileless create request without claiming an upload', () => {
+    mocks.createLoading = true;
+    render(<AddAdditionalResource workId="w1" />);
+
+    expect(screen.getByTestId('upload-busy')).toHaveTextContent('true');
+    expect(screen.getByTestId('upload-loading')).toHaveTextContent('false');
+  });
+
+  it('keeps the upload presentation when the create request includes a pending file', () => {
+    mocks.createLoading = true;
+    render(<AddAdditionalResource workId="w1" />);
+    fireEvent.click(screen.getByRole('button', { name: 'Select first' }));
+
+    expect(screen.getByTestId('upload-busy')).toHaveTextContent('true');
+    expect(screen.getByTestId('upload-loading')).toHaveTextContent('true');
   });
 
   it('clears and reports a pending file invalidated by Resource Type change', () => {

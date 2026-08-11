@@ -21,6 +21,9 @@ type EditAdditionalResourceFormProps = Partial<{
   url: string;
   fileUrl: string;
   uploadLoading: boolean;
+  // Locks file selection without upload presentation while a surrounding
+  // request (e.g. the create mutation) is in flight.
+  uploadBusy: boolean;
   uploadProgress: number | null;
   pendingFileName: string;
   isCloseDisabled: boolean;
@@ -48,6 +51,7 @@ const EditAdditionalResourceForm = (props: EditAdditionalResourceFormProps) => {
     url,
     fileUrl,
     uploadLoading,
+    uploadBusy,
     uploadProgress,
     pendingFileName,
     isCloseDisabled,
@@ -78,6 +82,7 @@ const EditAdditionalResourceForm = (props: EditAdditionalResourceFormProps) => {
       <EditAdditionalResourceFile
         title={title ?? ''}
         resourceType={resourceType ?? ''}
+        busy={uploadBusy ?? false}
         loading={uploadLoading ?? false}
         fileUrl={fileUrl}
         pendingFileName={pendingFileName}

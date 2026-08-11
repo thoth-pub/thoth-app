@@ -9,7 +9,11 @@ import { HostedFileField, TranslatedContent } from '@/src/shared/ui';
 import { featuredVideoFileValidationSchema } from '../../../model/featured-video.validation';
 
 const { FEATURED_VIDEO_UPLOAD_FILE_DISABLED } = NOTIFICATIONS;
-const { supportedVideoFileTypes } = appConfig;
+const { supportedVideoFileTypes, supportedVideoFileExtensions } = appConfig;
+
+// Extensions accompany the MIME types so pickers keep offering formats the
+// browser reports with an empty or unknown MIME type.
+const acceptedVideoFileTypes = [...supportedVideoFileTypes, ...supportedVideoFileExtensions];
 
 type EditFeaturedVideoFileProps = {
   disabled: boolean;
@@ -48,7 +52,7 @@ const EditFeaturedVideoFile = ({
 
   return (
     <HostedFileField
-      accept={supportedVideoFileTypes}
+      accept={acceptedVideoFileTypes}
       disabled={disabled}
       fileUrl={fileUrl}
       label={<TranslatedContent content="featuredVideoFile.label" namespace={NAMESPACES.enum.forms} />}

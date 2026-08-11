@@ -110,6 +110,24 @@ describe('EditFeaturedVideoFile', () => {
     expect(screen.queryByText('fileUpload.uploaded')).not.toBeInTheDocument();
   });
 
+  it('advertises both MIME types and extensions to the file picker', () => {
+    const { input } = renderField();
+    const accept = input.getAttribute('accept') ?? '';
+
+    appConfig.supportedVideoFileTypes.forEach((mimeType) => expect(accept).toContain(mimeType));
+    appConfig.supportedVideoFileExtensions.forEach((extension) => expect(accept).toContain(extension));
+  });
+
+  it('accepts a supported video file whose browser MIME type is empty', () => {
+    const { input, onSubmit } = renderField();
+    const file = makeFile('video.mkv', '');
+
+    fireEvent.change(input, { target: { files: [file] } });
+
+    expect(mocks.sendErrorNotification).not.toHaveBeenCalled();
+    expect(onSubmit).toHaveBeenCalledWith(file);
+  });
+
   it('shows upload-specific progress', () => {
     renderField({ loading: true, pendingFileName: 'pending.mp4', progress: 68 });
 

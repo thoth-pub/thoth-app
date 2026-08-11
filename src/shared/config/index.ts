@@ -43,6 +43,23 @@ export const appConfig = {
     'video/x-matroska',
     'video/ogg',
   ],
+  // Canonical filename extensions per format, lowercase and dot-prefixed.
+  // Used only when the browser reports an empty File.type (a non-empty MIME
+  // type is authoritative) and advertised in the pickers' `accept` lists so
+  // MIME-unknown formats stay selectable.
+  supportedPdfFileExtensions: ['.pdf'],
+  supportedEpubFileExtensions: ['.epub'],
+  supportedHtmlFileExtensions: ['.html', '.htm'],
+  supportedXmlFileExtensions: ['.xml'],
+  supportedDocxFileExtensions: ['.docx'],
+  supportedMobiFileExtensions: ['.mobi'],
+  supportedAzw3FileExtensions: ['.azw3'],
+  // The GraphQL schema documents FICTION_BOOK as ".fb2, .fb3, .fbz"; .fb2.zip
+  // is the standard zipped form (the MIME list already accepts zip archives).
+  supportedFictionBookFileExtensions: ['.fb2', '.fb2.zip', '.fb3', '.fbz'],
+  supportedMP3FileExtensions: ['.mp3'],
+  supportedWavFileExtensions: ['.wav'],
+  supportedVideoFileExtensions: ['.mp4', '.webm', '.mov', '.avi', '.mkv', '.ogv'],
   additionalResourceFileTypesByResourceType: {
     AUDIO: ['audio/mp3', 'audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/x-m4a', 'audio/flac'],
     VIDEO: ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-m4v'],
@@ -68,6 +85,16 @@ export const appConfig = {
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
       'application/vnd.oasis.opendocument.spreadsheet',
     ],
+  } as Record<string, string[]>,
+  // Same per-resource-type shape as the MIME map above: the extensions of the
+  // MIME types each resource type already permits.
+  additionalResourceFileExtensionsByResourceType: {
+    AUDIO: ['.mp3', '.wav', '.ogg', '.oga', '.m4a', '.flac'],
+    VIDEO: ['.mp4', '.webm', '.mov', '.m4v'],
+    IMAGE: ['.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg', '.tif', '.tiff'],
+    DOCUMENT: ['.pdf', '.doc', '.docx', '.txt', '.rtf'],
+    DATASET: ['.csv', '.tsv', '.json', '.zip', '.parquet'],
+    SPREADSHEET: ['.csv', '.tsv', '.xls', '.xlsx', '.ods'],
   } as Record<string, string[]>,
   additionalResourceUploadableTypes: ['AUDIO', 'VIDEO', 'IMAGE', 'DOCUMENT', 'DATASET', 'SPREADSHEET'],
   maxAdditionalResourceFileSize: 5368709120,

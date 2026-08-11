@@ -12,6 +12,7 @@ export type FileDropzoneProps = {
   accept: string[];
   actionLabel: React.ReactNode;
   dragActiveLabel: React.ReactNode;
+  busy?: boolean;
   children?: React.ReactNode;
   className?: string;
   disabled?: boolean;
@@ -24,6 +25,7 @@ const FileDropzone = ({
   accept,
   actionLabel,
   dragActiveLabel,
+  busy = false,
   children,
   className,
   disabled = false,
@@ -32,7 +34,7 @@ const FileDropzone = ({
   onFileSelect,
 }: FileDropzoneProps) => {
   const { inputRef, isDragActive, unavailable, browse, onInputChange, onDragEnter, onDragOver, onDragLeave, onDrop } =
-    useFileDropzone({ disabled, loading, onDisabledAction, onFileSelect });
+    useFileDropzone({ busy, disabled, loading, onDisabledAction, onFileSelect });
 
   return (
     <div
@@ -52,7 +54,7 @@ const FileDropzone = ({
       {!isDragActive && (
         <Button
           aria-disabled={unavailable}
-          disabled={loading}
+          disabled={loading || busy}
           onClick={browse}
           startIcon={<AddIcon />}
           type="button"

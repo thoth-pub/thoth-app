@@ -7,7 +7,8 @@ import { PublicationType } from '@/gql/graphql';
 import AddNewPublication from './AddNewPublication';
 
 const mocks = vi.hoisted(() => ({
-  file: new File([new Uint8Array(7000)], 'pending.pdf', { type: 'application/pdf' }),
+  file: new File([new Uint8Array(7000)], 'pending.pdf', { type: 'application/pdf' }) as File | null,
+  loading: false,
   publication: {
     type: 'PDF',
     isbn: '',
@@ -32,7 +33,7 @@ vi.mock('./useAddNewPublication', () => ({
   useAddNewPublication: () => ({
     publication: mocks.publication,
     file: mocks.file,
-    loading: false,
+    loading: mocks.loading,
     uploadProgress: 0,
     defaultCurrencyOption: undefined,
     finishEditing: vi.fn(),
@@ -55,12 +56,18 @@ vi.mock('@/src/entities/publication', () => ({
   EditPublication: ({
     children,
     pendingFileName,
+    fileUploadLoading,
+    fileUploadBusy,
   }: {
     children: (isFullTextUrlHidden: boolean, fileField: React.ReactNode) => React.ReactNode;
     pendingFileName?: string;
+    fileUploadLoading?: boolean;
+    fileUploadBusy?: boolean;
   }) => (
     <div>
       <span data-testid="pending-file-name">{pendingFileName}</span>
+      <span data-testid="file-upload-loading">{String(fileUploadLoading)}</span>
+      <span data-testid="file-upload-busy">{String(fileUploadBusy)}</span>
       {children(false, <div>Publication file field</div>)}
     </div>
   ),
@@ -71,7 +78,39 @@ vi.mock('@/src/shared/ui', () => ({
 }));
 
 describe('AddNewPublication', () => {
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    mocks.loading = false;
+    mocks.file = new File([new Uint8Array(7000)], 'pending.pdf', { type: 'application/pdf' });
+  });
+
+  it('locks file selection for a fileless create request without claiming an upload', () => {
+    mocks.publication.type = PublicationType.Pdf;
+    mocks.loading = true;
+    mocks.file = null;
+    render(<AddNewPublication workId="work-1" isDimensionFormHidden={false} isUploadFileFormDisabled={false} />);
+
+    expect(screen.getByTestId('file-upload-busy').textContent).toBe('true');
+    expect(screen.getByTestId('file-upload-loading').textContent).toBe('false');
+  });
+
+  it('keeps the upload presentation when the create request includes a pending file', () => {
+    mocks.publication.type = PublicationType.Pdf;
+    mocks.loading = true;
+    render(<AddNewPublication workId="work-1" isDimensionFormHidden={false} isUploadFileFormDisabled={false} />);
+
+    expect(screen.getByTestId('file-upload-busy').textContent).toBe('true');
+    expect(screen.getByTestId('file-upload-loading').textContent).toBe('true');
+    expect(screen.getByTestId('pending-file-name').textContent).toBe('pending.pdf');
+  });
+
+  it('leaves file selection unlocked while no create request is in flight', () => {
+    mocks.publication.type = PublicationType.Pdf;
+    render(<AddNewPublication workId="work-1" isDimensionFormHidden={false} isUploadFileFormDisabled={false} />);
+
+    expect(screen.getByTestId('file-upload-busy').textContent).toBe('false');
+    expect(screen.getByTestId('file-upload-loading').textContent).toBe('false');
+  });
 
   it('passes the selected filename as pending and places the file field between Price and Locations', () => {
     mocks.publication.type = PublicationType.Pdf;

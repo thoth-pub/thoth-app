@@ -8,6 +8,7 @@ import { HostedFileField, TranslatedContent } from '@/src/shared/ui';
 
 import {
   getAdditionalResourceFileValidationSchema,
+  getSupportedAdditionalResourceFileExtensions,
   getSupportedAdditionalResourceFileTypes,
 } from '../../model/additional-resource.validation';
 
@@ -17,6 +18,7 @@ const { additionalResourceUploadableTypes } = appConfig;
 type EditAdditionalResourceFileProps = {
   title: string;
   resourceType: string;
+  busy?: boolean;
   loading: boolean;
   fileUrl?: string;
   pendingFileName?: string;
@@ -27,6 +29,7 @@ type EditAdditionalResourceFileProps = {
 const EditAdditionalResourceFile = ({
   title,
   resourceType,
+  busy = false,
   loading,
   fileUrl,
   pendingFileName,
@@ -36,7 +39,12 @@ const EditAdditionalResourceFile = ({
   const { sendErrorNotification } = useNotifications();
 
   const isUploadable = additionalResourceUploadableTypes.includes(resourceType) && !!title.trim();
-  const acceptedTypes = getSupportedAdditionalResourceFileTypes(resourceType);
+  // Extensions accompany the MIME types so pickers keep offering formats the
+  // browser reports with an empty or unknown MIME type.
+  const acceptedTypes = [
+    ...getSupportedAdditionalResourceFileTypes(resourceType),
+    ...getSupportedAdditionalResourceFileExtensions(resourceType),
+  ];
 
   const onDisabledClick = () => {
     sendErrorNotification(ADDITIONAL_RESOURCE_UPLOAD_FILE_DISABLED);
@@ -57,6 +65,7 @@ const EditAdditionalResourceFile = ({
   return (
     <HostedFileField
       accept={acceptedTypes}
+      busy={busy}
       disabled={!isUploadable}
       fileUrl={fileUrl}
       label={<TranslatedContent content="additionalResourceFile.label" namespace={NAMESPACES.enum.forms} />}
