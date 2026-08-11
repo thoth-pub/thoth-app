@@ -141,7 +141,7 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
         contributionId: activeContribution.id || '',
         institutionId: affiliation.affiliation.value || '',
         institutionName: affiliation.affiliation.label || '',
-        rorId: affiliation.affiliation.value || '',
+        rorId: '',
         orderNumber: activeContribution.affiliations.length + 1,
         position: affiliation.position || '',
       })),
@@ -167,15 +167,19 @@ export const useAddNewContribution = (props: UseAddNewContributionProps) => {
   const moveAffiliation = (data: AffiliationsForm['affiliations']) => {
     if (!activeContribution) return;
 
-    const updatedAffiliations: AffiliationEntity[] = data.map((item, index) => ({
-      id: item.id,
-      contributionId: activeContribution.id || '',
-      institutionId: item.affiliation?.value || '',
-      institutionName: item.affiliation?.label || '',
-      rorId: item.affiliation?.value || '',
-      position: item.position || '',
-      orderNumber: index + 1,
-    }));
+    const updatedAffiliations: AffiliationEntity[] = data.map((item, index) => {
+      const existingAffiliation = activeContribution.affiliations.find(({ id }) => id === item.id);
+
+      return {
+        id: item.id,
+        contributionId: activeContribution.id || '',
+        institutionId: item.affiliation?.value || '',
+        institutionName: item.affiliation?.label || '',
+        rorId: existingAffiliation?.rorId || '',
+        position: item.position || '',
+        orderNumber: index + 1,
+      };
+    });
 
     updateContribution({
       ...activeContribution,

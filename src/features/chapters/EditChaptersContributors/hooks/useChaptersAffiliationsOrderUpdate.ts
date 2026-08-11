@@ -82,11 +82,13 @@ export const useChaptersAffiliationsOrderUpdate = () => {
       if (!contributionsToUpdateIds.includes(contribution.id)) return contribution;
 
       const affiliations: AffiliationEntity[] = changedAffiliations.map((affiliation) => {
+        const existingAffiliation = contribution.affiliations.find(({ id }) => id === affiliation.affiliationId);
+
         return {
           id: affiliation.affiliationId,
           institutionId: affiliation.affiliation?.value,
           institutionName: affiliation.affiliation?.label,
-          rorId: affiliation.affiliation?.value,
+          rorId: existingAffiliation?.rorId || '',
           contributionId: contribution.id,
           orderNumber: affiliation.newOrdinal,
           position: affiliation.position || '',

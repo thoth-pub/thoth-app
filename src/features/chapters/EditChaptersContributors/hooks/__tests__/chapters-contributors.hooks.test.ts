@@ -25,7 +25,15 @@ const chapters: WorkEntity[] = [
         orcidId: '',
         website: '',
         affiliations: [
-          { id: 'aff-1', institutionId: 'inst-1', institutionName: 'Uni A', orderNumber: 1, position: 'Author', contributionId: 'contrib-1', rorId: '' },
+          {
+            id: 'aff-1',
+            institutionId: 'inst-1',
+            institutionName: 'Uni A',
+            orderNumber: 1,
+            position: 'Author',
+            contributionId: 'contrib-1',
+            rorId: '',
+          },
         ],
         biographies: [
           { id: 'bio-1', content: 'Bio A', localeCode: 'en', canonical: true, contributionId: 'contrib-1' },
@@ -53,7 +61,15 @@ const chapters: WorkEntity[] = [
         orcidId: '',
         website: '',
         affiliations: [
-          { id: 'aff-2', institutionId: 'inst-1', institutionName: 'Uni A', orderNumber: 1, position: 'Author', contributionId: 'contrib-2', rorId: '' },
+          {
+            id: 'aff-2',
+            institutionId: 'inst-1',
+            institutionName: 'Uni A',
+            orderNumber: 1,
+            position: 'Author',
+            contributionId: 'contrib-2',
+            rorId: '',
+          },
         ],
         biographies: [
           { id: 'bio-2', content: 'Bio A', localeCode: 'en', canonical: true, contributionId: 'contrib-2' },
@@ -81,11 +97,17 @@ const uniqueContributors: WorkContribution[] = [
     orcidId: '',
     website: '',
     affiliations: [
-      { id: 'aff-1', institutionId: 'inst-1', institutionName: 'Uni A', orderNumber: 1, position: 'Author', contributionId: 'contrib-1', rorId: '' },
+      {
+        id: 'aff-1',
+        institutionId: 'inst-1',
+        institutionName: 'Uni A',
+        orderNumber: 1,
+        position: 'Author',
+        contributionId: 'contrib-1',
+        rorId: '',
+      },
     ],
-    biographies: [
-      { id: 'bio-1', content: 'Bio A', localeCode: 'en', canonical: true, contributionId: 'contrib-1' },
-    ],
+    biographies: [{ id: 'bio-1', content: 'Bio A', localeCode: 'en', canonical: true, contributionId: 'contrib-1' }],
   },
 ];
 
@@ -184,15 +206,149 @@ describe('useChaptersAffiliationsOrderUpdate', () => {
 
     await act(async () => {
       await result.current.updateChaptersAffiliationsOrder({
-        data: [
-          { affiliationId: 'aff-1', affiliation: { value: 'inst-1', label: 'Uni A' }, position: 'Editor' },
-        ],
+        data: [{ affiliationId: 'aff-1', affiliation: { value: 'inst-1', label: 'Uni A' }, position: 'Editor' }],
         chapters,
         uniqueContributors,
       });
     });
 
     expect(mocks.moveBulkAffiliation).toHaveBeenCalled();
+  });
+
+  it('preserves authoritative ROR state and affiliation semantics when reordering', async () => {
+    const rorId = 'https://ror.org/012345678';
+    const contribution: WorkContribution = {
+      ...uniqueContributors[0],
+      affiliations: [
+        {
+          id: 'aff-with-ror',
+          institutionId: 'inst-with-ror',
+          institutionName: 'University with ROR',
+          orderNumber: 1,
+          position: 'Author',
+          contributionId: 'contrib-1',
+          rorId,
+        },
+        {
+          id: 'aff-without-ror',
+          institutionId: 'inst-without-ror',
+          institutionName: 'University without ROR',
+          orderNumber: 2,
+          position: 'Editor',
+          contributionId: 'contrib-1',
+          rorId: '',
+        },
+      ],
+    };
+    const chaptersWithAffiliations: WorkEntity[] = [
+      {
+        ...chapters[0],
+        contributions: [
+          contribution,
+          {
+            ...contribution,
+            id: 'filler-contribution',
+            contributorId: 'filler-contributor',
+            affiliations: [],
+          },
+        ],
+      },
+    ];
+    const { result } = renderHook(() => useChaptersAffiliationsOrderUpdate());
+
+    const updated = await act(async () => {
+      return result.current.updateChaptersAffiliationsOrder({
+        data: [
+          {
+            id: 'aff-without-ror',
+            affiliationId: 'aff-without-ror',
+            affiliation: { value: 'inst-without-ror', label: 'University without ROR' },
+            position: 'Editor',
+          },
+          {
+            id: 'aff-with-ror',
+            affiliationId: 'aff-with-ror',
+            affiliation: { value: 'inst-with-ror', label: 'University with ROR' },
+            position: 'Author',
+          },
+        ],
+        chapters: chaptersWithAffiliations,
+        uniqueContributors: [contribution],
+      });
+    });
+
+    expect(mocks.moveBulkAffiliation).toHaveBeenCalledWith([{ affiliationId: 'aff-without-ror', newOrdinal: 1 }]);
+    expect(updated[0].affiliations).toEqual([
+      {
+        id: 'aff-without-ror',
+        institutionId: 'inst-without-ror',
+        institutionName: 'University without ROR',
+        rorId: '',
+        contributionId: 'contrib-1',
+        orderNumber: 1,
+        position: 'Editor',
+      },
+      {
+        id: 'aff-with-ror',
+        institutionId: 'inst-with-ror',
+        institutionName: 'University with ROR',
+        rorId,
+        contributionId: 'contrib-1',
+        orderNumber: 2,
+        position: 'Author',
+      },
+    ]);
+    expect(updated[0].affiliations[1].rorId).not.toBe('inst-with-ror');
+  });
+
+  it('uses an empty ROR when the reordered affiliation has no local ID match', async () => {
+    const chapterContribution: WorkContribution = {
+      ...uniqueContributors[0],
+      affiliations: [
+        {
+          ...uniqueContributors[0].affiliations[0],
+          id: 'chapter-affiliation',
+          rorId: 'https://ror.org/012345678',
+        },
+      ],
+    };
+    const localContribution: WorkContribution = {
+      ...chapterContribution,
+      affiliations: [
+        {
+          ...chapterContribution.affiliations[0],
+          id: 'different-local-affiliation',
+        },
+      ],
+    };
+    const { result } = renderHook(() => useChaptersAffiliationsOrderUpdate());
+
+    const updated = await act(async () => {
+      return result.current.updateChaptersAffiliationsOrder({
+        data: [
+          {
+            id: 'chapter-affiliation',
+            affiliationId: 'chapter-affiliation',
+            affiliation: { value: 'inst-1', label: 'Uni A' },
+            position: 'Editor',
+          },
+        ],
+        chapters: [{ ...chapters[0], contributions: [chapterContribution] }],
+        uniqueContributors: [localContribution],
+      });
+    });
+
+    expect(updated[0].affiliations).toEqual([
+      {
+        id: 'chapter-affiliation',
+        institutionId: 'inst-1',
+        institutionName: 'Uni A',
+        rorId: '',
+        contributionId: 'contrib-1',
+        orderNumber: 1,
+        position: 'Editor',
+      },
+    ]);
   });
 
   it('should return empty array when no matching chapter found', async () => {
@@ -216,9 +372,7 @@ describe('useChaptersAffiliationsOrderUpdate', () => {
 
     await act(async () => {
       await result.current.updateChaptersAffiliationsOrder({
-        data: [
-          { affiliationId: 'aff-1', affiliation: { value: 'inst-1', label: 'Uni A' }, position: 'Author' },
-        ],
+        data: [{ affiliationId: 'aff-1', affiliation: { value: 'inst-1', label: 'Uni A' }, position: 'Author' }],
         chapters: [chapters[0]],
         uniqueContributors,
       });
@@ -441,8 +595,24 @@ describe('useDeleteChaptersAffiliations', () => {
   });
 
   const affiliations = [
-    { id: 'aff-1', institutionId: 'inst-1', institutionName: 'Uni A', orderNumber: 1, position: 'Author', contributionId: 'contrib-1', rorId: '' },
-    { id: 'aff-2', institutionId: 'inst-1', institutionName: 'Uni A', orderNumber: 1, position: 'Author', contributionId: 'contrib-2', rorId: '' },
+    {
+      id: 'aff-1',
+      institutionId: 'inst-1',
+      institutionName: 'Uni A',
+      orderNumber: 1,
+      position: 'Author',
+      contributionId: 'contrib-1',
+      rorId: '',
+    },
+    {
+      id: 'aff-2',
+      institutionId: 'inst-1',
+      institutionName: 'Uni A',
+      orderNumber: 1,
+      position: 'Author',
+      contributionId: 'contrib-2',
+      rorId: '',
+    },
   ];
 
   it('should delete matched affiliations across same contributions', async () => {
