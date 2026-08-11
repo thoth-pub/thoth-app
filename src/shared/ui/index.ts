@@ -68,7 +68,6 @@ export { default as Tabs } from './core/Tabs/Tabs/Tabs';
 export { default as TextField, type TextFieldProps } from './core/TextField/TextField';
 export { default as Tooltip } from './core/Tooltip/Tooltip';
 export { default as Typography } from './core/Typography/Typography';
-export { default as UploadFileButton } from './core/UploadFileButton/UploadFileButton';
 export { default as DashboardGrid } from './dashboard/DashboardGrid/DashboardGrid';
 export { default as DashboardGridItem } from './dashboard/DashboardGridItem/DashboardGridItem';
 export { default as TableFormsHeader } from './forms/TableFormsHeader/TableFormsHeader';

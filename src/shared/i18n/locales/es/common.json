@@ -52,6 +52,10 @@
     "copyUrl": "Copiar URL",
     "openDownload": "Abrir/descargar"
   },
+  "bulkUpload": {
+    "drop": "Suelta aquí un archivo ONIX/XML o CSV",
+    "instructions": "Suelta aquí un archivo ONIX/XML o CSV o selecciónalo"
+  },
   "title": "Título",
   "updated at": "Actualizado el",
   "type": "tipo",

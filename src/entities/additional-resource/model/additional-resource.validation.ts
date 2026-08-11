@@ -1,7 +1,8 @@
 import z from 'zod';
 
-import { FORM_FIELDS } from '@/src/shared/constants';
-import { optionalStringValidation, optionalUrlValidation } from '@/src/shared/utils';
+import { appConfig } from '@/src/shared/config';
+import { ERRORS, FORM_FIELDS } from '@/src/shared/constants';
+import { getFileValidation, optionalStringValidation, optionalUrlValidation } from '@/src/shared/utils';
 import { doiValidation, getRequiredStringValidation } from '@/src/shared/utils/validations';
 
 const {
@@ -41,3 +42,18 @@ export const additionalResourceUrlValidationSchema = z.object({
 export const additionalResourceDoiValidationSchema = z.object({
   [DOI.name]: doiValidation,
 });
+
+export const getSupportedAdditionalResourceFileTypes = (resourceType: string) =>
+  appConfig.additionalResourceFileTypesByResourceType[resourceType] ?? [];
+
+export const getAdditionalResourceFileValidationSchema = (resourceType: string) =>
+  z.object({
+    file: getFileValidation(
+      appConfig.minFileSize,
+      appConfig.maxAdditionalResourceFileSize,
+      getSupportedAdditionalResourceFileTypes(resourceType),
+      ERRORS.FILE_FORMAT_INVALID,
+      ERRORS.MAX_FILE_SIZE_EXCEEDED,
+      ERRORS.MIN_FILE_SIZE_NOT_MET,
+    ),
+  });
