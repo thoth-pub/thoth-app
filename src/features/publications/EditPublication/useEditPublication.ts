@@ -41,7 +41,7 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { updatePublication, loading: isUpdatePublicationLoading } = useUpdatePublication({ workId });
   const { createPrice, loading: isCreatePriceLoading } = useCreatePrice({ workId });
   const { updatePrice, loading: isUpdatePriceLoading } = useUpdatePrice({ workId });
-  const { deletePrice } = useDeletePrice({ workId });
+  const { deletePrice, loading: isDeletePriceLoading } = useDeletePrice({ workId });
   const { createLocation, loading: isCreateLocationLoading } = useCreateLocation({ workId });
   const { updateLocation, loading: isUpdateLocationLoading } = useUpdateLocation({ workId });
   const { deleteLocation: deleteLocationMutation, loading: isDeleteLocationLoading } = useDeleteLocation({ workId });
@@ -70,12 +70,18 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication(freshPublication);
   }, [work, publication?.id]);
 
+  // Every publication mutation belongs here, deletions included: a pure price deletion or
+  // the final location deletion request leaves all create/update flags false, and the
+  // snapshot setters those flows end with would overwrite the fileUrl staged by an upload
+  // that started while the file field was still unlocked.
   const loading =
     isUpdatePublicationLoading ||
     isCreatePriceLoading ||
     isUpdatePriceLoading ||
+    isDeletePriceLoading ||
     isCreateLocationLoading ||
     isUpdateLocationLoading ||
+    isDeleteLocationLoading ||
     isUploadPublicationFileLoading;
 
   // These paths must await the mutation before staging local state: EditableContent
