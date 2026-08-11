@@ -66,6 +66,10 @@ const EditPublication = (props: EditPublicationProps) => {
       fileUrl={activePublication.fileUrl ?? ''}
       isUploadFileFormDisabled={isUploadFileFormDisabled}
       loading={loading}
+      // Any in-flight publication mutation locks file selection: those setters stage a
+      // snapshot taken before their mutation, so a concurrent upload's fileUrl would be
+      // overwritten when the older mutation resolves.
+      fileUploadBusy={loading}
       fileUploadLoading={fileUploadLoading}
       uploadProgress={uploadProgress}
       onUpdateIsbn={updateIsbn}
