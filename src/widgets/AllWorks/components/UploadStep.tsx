@@ -1,24 +1,25 @@
 'use client';
 
-import UploadIcon from '@mui/icons-material/Upload';
-import { Activity, useState } from 'react';
+import { useState } from 'react';
 
 import { useAllUserSerieses } from '@/src/entities/series';
 import { useUser } from '@/src/entities/user';
-import { FORM_FIELDS } from '@/src/shared/constants';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import type { ImportIssue, ImportIssueCode, ImportPlan } from '@/src/shared/types';
-import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
+import { FileDropzone, TranslatedContent, Typography } from '@/src/shared/ui';
 import { isCsv as isCsvFile, isXml as isXmlFile } from '@/src/shared/utils';
 
 import { CSVParse } from './CSVParse';
 import { XMLParse } from './XMLParse';
 
-const { BULK_UPLOAD } = FORM_FIELDS;
-
 type UploadStepProps = {
   onPreview?: (plan: ImportPlan, warnings: ImportIssue[]) => void;
+};
+
+type SelectedFile = {
+  file: File;
+  selectionId: number;
 };
 
 export const UploadStep = (props: UploadStepProps) => {
@@ -27,17 +28,16 @@ export const UploadStep = (props: UploadStepProps) => {
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
   const { userImprintsOptions } = useUser();
   const { serieses } = useAllUserSerieses();
-  const [files, setFiles] = useState<FileList | null>(null);
+  const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [validationIssues, setValidationIssues] = useState<ImportIssue[]>([]);
 
-  const isFileUploaded = files && files.length > 0;
-  const file = isFileUploaded ? files[0] : null;
-  const isCsv = file && isCsvFile(file);
-  const isXml = file && isXmlFile(file);
+  const file = selectedFile?.file ?? null;
+  const isCsv = file ? isCsvFile(file) : false;
+  const isXml = file ? isXmlFile(file) : false;
 
   const handleIssues = (issues: ImportIssue[]) => {
     setValidationIssues(issues);
-    setFiles(null);
+    setSelectedFile(null);
   };
 
   /**
@@ -47,48 +47,43 @@ export const UploadStep = (props: UploadStepProps) => {
   const rejectFile = (code: ImportIssueCode, message: string) =>
     handleIssues([{ severity: 'error', code, message, source: { kind: 'file' } }]);
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileSelect = (selectedFile: File) => {
     setValidationIssues([]);
 
-    const uploadedFiles = event.target.files;
-    const uploadedFile = uploadedFiles?.[0];
-
-    if (uploadedFile && uploadedFile.size === 0) {
+    if (selectedFile.size === 0) {
       rejectFile('file.validation', t('errors.emptyFile'));
       return;
     }
 
-    if (uploadedFile && !isCsvFile(uploadedFile) && !isXmlFile(uploadedFile)) {
+    if (!isCsvFile(selectedFile) && !isXmlFile(selectedFile)) {
       rejectFile('file.validation', t('errors.unsupportedFileType'));
       return;
     }
 
-    setFiles(uploadedFiles);
+    setSelectedFile((current) => ({
+      file: selectedFile,
+      selectionId: (current?.selectionId ?? 0) + 1,
+    }));
   };
 
   return (
     <div className="flex flex-col items-center gap-(--default-gap)">
-      <Activity mode={isFileUploaded ? 'hidden' : 'visible'}>
-        <Button
-          className="capitalize"
-          type="submit"
-          component="label"
-          variant="contained"
-          tabIndex={-1}
-          startIcon={<UploadIcon />}
-        >
-          <TranslatedContent content="actions.upload" />
-          <input
-            name={BULK_UPLOAD.name}
-            className="hidden"
-            type={BULK_UPLOAD.type}
-            accept=".csv, .xml"
-            onChange={handleFileChange}
+      <FileDropzone
+        accept={['.csv', '.xml']}
+        actionLabel={<TranslatedContent content={file ? 'fileUpload.replace' : 'fileUpload.browse'} />}
+        dragActiveLabel={<TranslatedContent content="bulkUpload.drop" />}
+        onFileSelect={handleFileSelect}
+      >
+        <Typography className={file ? 'font-semibold' : undefined}>
+          <TranslatedContent
+            content={file ? 'fileUpload.selected' : 'bulkUpload.instructions'}
+            options={{ filename: file?.name }}
           />
-        </Button>
-      </Activity>
+        </Typography>
+      </FileDropzone>
       {isCsv && file && (
         <CSVParse
+          key={`csv-${selectedFile?.selectionId}`}
           file={file}
           imprints={userImprintsOptions}
           serieses={serieses}
@@ -98,6 +93,7 @@ export const UploadStep = (props: UploadStepProps) => {
       )}
       {isXml && file && (
         <XMLParse
+          key={`xml-${selectedFile?.selectionId}`}
           file={file}
           imprints={userImprintsOptions}
           serieses={serieses}

@@ -2,7 +2,6 @@
 
 import { TableFormsHeader, TableFormsWrapper } from '@/src/shared/ui';
 
-import DownloadFeaturedVideo from '../DownloadFeaturedVideo/DownloadFeaturedVideo';
 import EditFeaturedVideoFile from './components/EditFeaturedVideoFile';
 import { EditFeaturedVideoHeight } from './components/EditFeaturedVideoHeight';
 import { EditFeaturedVideoTitle } from './components/EditFeaturedVideoTitle';
@@ -17,6 +16,8 @@ type EditFeaturedVideoFormProps = {
   fileUrl?: string;
   uploadLoading?: boolean;
   uploadProgress?: number | null;
+  pendingFileName?: string;
+  isCloseDisabled?: boolean;
   onFileUpload?: (file: File) => void;
   onTitleUpdate?: (data: string) => void;
   onUrlUpdate?: (data: string) => void;
@@ -36,6 +37,8 @@ const EditFeaturedVideoForm = (props: EditFeaturedVideoFormProps) => {
     fileUrl,
     uploadLoading,
     uploadProgress,
+    pendingFileName,
+    isCloseDisabled,
     onFileUpload,
     onTitleUpdate,
     onUrlUpdate,
@@ -50,21 +53,23 @@ const EditFeaturedVideoForm = (props: EditFeaturedVideoFormProps) => {
     <TableFormsWrapper>
       <TableFormsHeader
         title="featured video"
-        controls={
-          <>
-            <DownloadFeaturedVideo fileUrl={fileUrl} />
-            <EditFeaturedVideoFile disabled={!width || !height} loading={uploadLoading ?? false} progress={uploadProgress} onSubmit={onFileUpload} />
-          </>
-        }
         onDone={onDone}
         onClose={onClose}
         isDoneDisabled={isDoneDisabled}
-        isCloseDisabled={uploadLoading}
+        isCloseDisabled={isCloseDisabled ?? uploadLoading}
       />
       <EditFeaturedVideoTitle defaultValue={title} onUpdate={onTitleUpdate} />
       <EditFeaturedVideoUrl defaultValue={url} onUpdate={onUrlUpdate} />
       <EditFeaturedVideoWidth defaultValue={width} onUpdate={onWidthUpdate} />
       <EditFeaturedVideoHeight defaultValue={height} onUpdate={onHeightUpdate} />
+      <EditFeaturedVideoFile
+        disabled={!width || !height}
+        loading={uploadLoading ?? false}
+        fileUrl={fileUrl}
+        pendingFileName={pendingFileName}
+        progress={uploadProgress}
+        onSubmit={onFileUpload}
+      />
     </TableFormsWrapper>
   );
 };

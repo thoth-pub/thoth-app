@@ -404,6 +404,14 @@
     "label": "Archivo de publicación",
     "pending": "Este archivo se subirá cuando se guarde la publicación"
   },
+  "additionalResourceFile": {
+    "label": "Archivo del recurso adicional",
+    "pending": "Este archivo se subirá cuando se guarde el recurso adicional"
+  },
+  "featuredVideoFile": {
+    "label": "Archivo del vídeo destacado",
+    "pending": "Este archivo se subirá cuando se guarde el vídeo destacado"
+  },
   "chapterCount": {
     "label": "Número de capítulos"
   },

@@ -1,7 +1,9 @@
-import { render } from '@testing-library/react';
+/* eslint-disable @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocks must match hook export names */
 import { ThemeProvider } from '@mui/material';
+import { cleanup, render, screen } from '@testing-library/react';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import { theme } from '@/src/shared/theme';
-import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('@/src/shared/store/forms/hooks/useFormStateMachine', () => ({
   default: vi.fn(() => ({ activeFormId: null, edit: vi.fn(), closeForm: vi.fn() })),
@@ -16,6 +18,12 @@ vi.mock('@/src/shared/hooks', () => ({
   useIsDesktop: vi.fn(() => true),
 }));
 
+vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({
+  default: vi.fn(() => ({ t: (key: string) => key })),
+}));
+
+vi.mock('react-use', () => ({ useCopyToClipboard: () => [null, vi.fn()] }));
+
 import EditFeaturedVideoForm from '../EditFeaturedVideoForm';
 
 function Wrapper({ children }: { children: React.ReactNode }) {
@@ -23,17 +31,23 @@ function Wrapper({ children }: { children: React.ReactNode }) {
 }
 
 describe('EditFeaturedVideoForm', () => {
-  it('renders snapshot', () => {
-    const { container } = render(
+  afterEach(cleanup);
+
+  it('renders the empty file field after Width and Height', () => {
+    render(
       <Wrapper>
         <EditFeaturedVideoForm />
-      </Wrapper>
+      </Wrapper>,
     );
-    expect(container).toMatchSnapshot('EditFeaturedVideoForm');
+
+    const height = screen.getAllByText('featuredVideoHeight.label')[0];
+    const file = screen.getByText('featuredVideoFile.label');
+    expect(height.compareDocumentPosition(file) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(screen.getByText('fileUpload.instructions')).toBeInTheDocument();
   });
 
-  it('renders with all values', () => {
-    const { container } = render(
+  it('renders the canonical hosted URL in the file field', () => {
+    render(
       <Wrapper>
         <EditFeaturedVideoForm
           title="Promo Video"
@@ -46,8 +60,14 @@ describe('EditFeaturedVideoForm', () => {
           onWidthUpdate={vi.fn()}
           onHeightUpdate={vi.fn()}
         />
-      </Wrapper>
+      </Wrapper>,
     );
-    expect(container).toMatchSnapshot('EditFeaturedVideoForm - filled');
+
+    expect(screen.getByText('fileUpload.uploaded')).toBeInTheDocument();
+    expect(screen.getByText('https://example.com/video.mp4')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'fileUpload.openDownload' })).toHaveAttribute(
+      'href',
+      'https://example.com/video.mp4',
+    );
   });
 });

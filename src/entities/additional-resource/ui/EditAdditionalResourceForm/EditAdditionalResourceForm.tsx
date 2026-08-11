@@ -2,7 +2,6 @@
 
 import { TableFormsHeader, TableFormsWrapper } from '@/src/shared/ui';
 
-import DownloadAdditionalResourceFile from '../DownloadAdditionalResourceFile/DownloadAdditionalResourceFile';
 import { EditAdditionalResourceAttribution } from '../EditAdditionalResourceAttribution/EditAdditionalResourceAttribution';
 import { EditAdditionalResourceDescription } from '../EditAdditionalResourceDescription/EditAdditionalResourceDescription';
 import { EditAdditionalResourceDoi } from '../EditAdditionalResourceDoi/EditAdditionalResourceDoi';
@@ -23,6 +22,8 @@ type EditAdditionalResourceFormProps = Partial<{
   fileUrl: string;
   uploadLoading: boolean;
   uploadProgress: number | null;
+  pendingFileName: string;
+  isCloseDisabled: boolean;
   isDoneDisabled: boolean;
   onFileUpload: (file: File) => void;
   onTitleUpdate: (data: string) => void;
@@ -48,6 +49,8 @@ const EditAdditionalResourceForm = (props: EditAdditionalResourceFormProps) => {
     fileUrl,
     uploadLoading,
     uploadProgress,
+    pendingFileName,
+    isCloseDisabled,
     onFileUpload,
     onTitleUpdate,
     onDescriptionUpdate,
@@ -65,25 +68,22 @@ const EditAdditionalResourceForm = (props: EditAdditionalResourceFormProps) => {
     <TableFormsWrapper>
       <TableFormsHeader
         title="additional resource"
-        controls={
-          <>
-            <DownloadAdditionalResourceFile fileUrl={fileUrl} />
-            <EditAdditionalResourceFile
-              title={title ?? ''}
-              resourceType={resourceType ?? ''}
-              loading={uploadLoading ?? false}
-              progress={uploadProgress}
-              onSubmit={onFileUpload}
-            />
-          </>
-        }
         isDoneDisabled={isDoneDisabled}
-        isCloseDisabled={uploadLoading}
+        isCloseDisabled={isCloseDisabled ?? uploadLoading}
         onDone={onDone}
         onClose={onClose}
       />
       <EditAdditionalResourceTitle defaultValue={title} onUpdate={onTitleUpdate} />
       <EditAdditionalResourceResourceType defaultValue={resourceType} onUpdate={onResourceTypeUpdate} />
+      <EditAdditionalResourceFile
+        title={title ?? ''}
+        resourceType={resourceType ?? ''}
+        loading={uploadLoading ?? false}
+        fileUrl={fileUrl}
+        pendingFileName={pendingFileName}
+        progress={uploadProgress}
+        onSubmit={onFileUpload}
+      />
       <EditAdditionalResourceDescription defaultValue={description} onUpdate={onDescriptionUpdate} />
       <EditAdditionalResourceAttribution defaultValue={attribution} onUpdate={onAttributionUpdate} />
       <EditAdditionalResourceDoi defaultValue={doi} onUpdate={onDoiUpdate} />

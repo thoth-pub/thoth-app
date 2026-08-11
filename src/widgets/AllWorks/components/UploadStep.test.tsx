@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, createEvent, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -34,6 +34,12 @@ vi.mock('@/src/shared/hooks', () => ({
   useTypedTranslation: vi.fn(() => ({ t: (key: string) => key })),
 }));
 
+vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({
+  default: vi.fn(() => ({
+    t: (key: string, options?: { filename?: string }) => (options?.filename ? `${key}:${options.filename}` : key),
+  })),
+}));
+
 import { ONIX_PROCESSING_FAILURE_MESSAGE } from '@/src/shared/parsers/XMLParser/XMLParser';
 import type { ImportIssue } from '@/src/shared/types';
 
@@ -51,6 +57,15 @@ const uploadXml = async (contents = '<ONIXMessage></ONIXMessage>') => {
   await userEvent.upload(input, new File([contents], 'test.xml', { type: 'text/xml' }));
 };
 
+const dropFile = (file: File) => {
+  const dropzone = document.querySelector('[data-drag-active]') as HTMLElement;
+  const event = createEvent.drop(dropzone);
+  Object.defineProperty(event, 'dataTransfer', { value: { files: [file] } });
+  const preventDefault = vi.spyOn(event, 'preventDefault');
+  fireEvent(dropzone, event);
+  return preventDefault;
+};
+
 /**
  * The upload step is where a rejected file explains itself. It renders whatever the parser
  * reported, error or not, in the order it was reported.
@@ -61,6 +76,66 @@ describe('UploadStep', () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('selects CSV and XML through browse and invokes the matching parser once', async () => {
+    const { unmount } = render(<UploadStep />);
+
+    await uploadCsv();
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalledTimes(1));
+    expect(screen.getByText('fileUpload.selected:test.csv')).toBeInTheDocument();
+    expect(mockXMLParse).not.toHaveBeenCalled();
+
+    unmount();
+    vi.clearAllMocks();
+    render(<UploadStep />);
+    await uploadXml();
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+    expect(screen.getByText('fileUpload.selected:test.xml')).toBeInTheDocument();
+    expect(mockCSVParse).not.toHaveBeenCalled();
+  });
+
+  it('selects CSV and XML through drop and prevents browser navigation', async () => {
+    const { unmount } = render(<UploadStep />);
+    const csv = new File(['title\nBook'], 'drop.csv', { type: 'text/csv' });
+    const csvPreventDefault = dropFile(csv);
+
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalledTimes(1));
+    expect(csvPreventDefault).toHaveBeenCalled();
+
+    unmount();
+    vi.clearAllMocks();
+    render(<UploadStep />);
+    const xml = new File(['<ONIXMessage />'], 'drop.xml', { type: 'text/xml' });
+    const xmlPreventDefault = dropFile(xml);
+
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+    expect(xmlPreventDefault).toHaveBeenCalled();
+  });
+
+  it('replaces CSV with XML and XML with CSV using the correct parser', async () => {
+    render(<UploadStep />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+    await userEvent.upload(input, new File(['title\nBook'], 'first.csv', { type: 'text/csv' }));
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalledTimes(1));
+    await userEvent.upload(input, new File(['<ONIXMessage />'], 'second.xml', { type: 'text/xml' }));
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+    await userEvent.upload(input, new File(['title\nOther'], 'third.csv', { type: 'text/csv' }));
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalledTimes(2));
+
+    expect(screen.getByText('fileUpload.selected:third.csv')).toBeInTheDocument();
+  });
+
+  it('allows same-file reselection and invokes the parser once per accepted selection', async () => {
+    render(<UploadStep />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+    const file = new File(['title\nBook'], 'same.csv', { type: 'text/csv' });
+
+    await userEvent.upload(input, file);
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalledTimes(1));
+    await userEvent.upload(input, file);
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalledTimes(2));
   });
 
   it('rejects an unsupported file type as a problem with the file', async () => {
@@ -76,6 +151,18 @@ describe('UploadStep', () => {
 
     expect(screen.getByText(/errors.unsupportedFileType/)).toBeInTheDocument();
     expect(screen.queryByTestId('csv-parse')).not.toBeInTheDocument();
+  });
+
+  it('rejects unsupported drops and remains usable for retry', async () => {
+    render(<UploadStep />);
+
+    dropFile(new File(['nope'], 'test.pdf', { type: 'application/pdf' }));
+    expect(screen.getByText(/errors.unsupportedFileType/)).toBeInTheDocument();
+    expect(screen.queryByTestId('csv-parse')).not.toBeInTheDocument();
+
+    await uploadCsv();
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalledTimes(1));
+    expect(screen.queryByText(/errors.unsupportedFileType/)).not.toBeInTheDocument();
   });
 
   it('rejects an empty file', async () => {

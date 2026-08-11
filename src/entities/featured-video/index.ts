@@ -13,6 +13,5 @@ export type { FeaturedVideoDto, FeaturedVideoEntity, FeaturedVideoId } from './m
 export { FeaturedVideoStateMachineContext, useFeaturedVideoStateMachine } from './store/featured-video.store';
 
 // UI
-export { default as DownloadFeaturedVideo } from './ui/DownloadFeaturedVideo/DownloadFeaturedVideo';
 export { default as EditFeaturedVideoForm } from './ui/EditFeaturedVideoForm/EditFeaturedVideoForm';
 export { FeaturedVideoPreview } from './ui/FeaturedVideoPreview/FeaturedVideoPreview';

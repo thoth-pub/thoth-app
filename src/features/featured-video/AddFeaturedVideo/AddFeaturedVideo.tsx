@@ -8,6 +8,9 @@ import {
   useFeaturedVideoStateMachine,
 } from '@/src/entities/featured-video';
 import type { FeaturedVideoEntity } from '@/src/entities/featured-video/model/featured-video.types';
+import { featuredVideoFileValidationSchema } from '@/src/entities/featured-video/model/featured-video.validation';
+import { ERRORS } from '@/src/shared/constants';
+import { useNotifications } from '@/src/shared/hooks';
 import type { BaseRecommendedSectionProps } from '@/src/shared/types';
 import { TableNewEntityFormWrapper } from '@/src/shared/ui';
 
@@ -18,6 +21,7 @@ const AddFeaturedVideo = (props: BaseRecommendedSectionProps) => {
   const [featuredVideo, setFeaturedVideo] = useState<FeaturedVideoEntity | null>(activeFeaturedVideo);
   const [pendingFile, setPendingFile] = useState<File | null>(null);
   const { createFeaturedVideo, loading, progress: uploadProgress } = useCreateFeaturedVideo({ workId });
+  const { sendErrorNotification } = useNotifications();
 
   const handleFileUpload = (file: File) => {
     setPendingFile(file);
@@ -25,6 +29,14 @@ const AddFeaturedVideo = (props: BaseRecommendedSectionProps) => {
 
   const create = async () => {
     if (!featuredVideo || !pendingFile) return;
+
+    const result = featuredVideoFileValidationSchema.safeParse({ file: [pendingFile] });
+
+    if (!result.success) {
+      setPendingFile(null);
+      sendErrorNotification(result.error.issues[0]?.message ?? ERRORS.FILE_FORMAT_INVALID);
+      return;
+    }
 
     await createFeaturedVideo({ data: featuredVideo, file: pendingFile });
 
@@ -66,8 +78,10 @@ const AddFeaturedVideo = (props: BaseRecommendedSectionProps) => {
         url={url}
         width={width}
         height={height}
-        uploadLoading={loading}
+        uploadLoading={loading && !!pendingFile}
         uploadProgress={uploadProgress}
+        pendingFileName={pendingFile?.name}
+        isCloseDisabled={loading}
         isDoneDisabled={!title?.trim() || !pendingFile || !featuredVideo?.width || !featuredVideo?.height}
         onFileUpload={handleFileUpload}
         onTitleUpdate={updateTitle}
