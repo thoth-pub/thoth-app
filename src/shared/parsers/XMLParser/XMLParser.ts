@@ -42,6 +42,7 @@ import { FormFieldOption } from '../../interfaces';
 import type {
   AbstractEntity,
   ContributorsForSelection,
+  ImportedMarkupFormat,
   ImportIssue,
   ImportIssueSource,
   ImportParseResult,
@@ -78,6 +79,7 @@ import {
   ExtendedProduct,
   OnixRelatedIdentifier,
   OnixRelatedProduct,
+  OnixText,
 } from './interfaces';
 import {
   classifyCollectionType,
@@ -85,10 +87,12 @@ import {
   extractOnixTitlesOfType,
   getOnixLanguage,
   getOnixText,
+  getOnixTextFormat,
   isEarlierCalendarDate,
   MAX_ISSUE_ORDINAL,
   type OnixDateSelection,
   type OnixDoiSelection,
+  resolveOnixTextMarkup,
   selectCanonicalDoi,
   selectPublicationOrderSequence,
   selectPublishingDate,
@@ -393,7 +397,7 @@ class XMLParser {
     const textLocale = this.parseTextLocale(product);
     const fundings = await this.parseFundings(product);
     const workContributors = product.DescriptiveDetail?.Contributor ?? [];
-    const workContributions = await this.parseContributors(workContributors, workId);
+    const workContributions = await this.parseContributors(workContributors, workId, product, index);
 
     const work = getDefaultWork({
       id: workId,
@@ -409,7 +413,7 @@ class XMLParser {
       edition: this.parseEdition(product),
       bibliographyNote: this.parseBibliographyNote(product),
       generalNote: this.parseGeneralNote(product),
-      abstracts: this.parseAbstracts(product, textLocale),
+      abstracts: this.parseAbstracts(product, index, textLocale),
       pageCount: this.parsePageCount(product),
       imageCount,
       tableCount,
@@ -635,13 +639,54 @@ class XMLParser {
   }
 
   /**
+   * The markup input format one piece of ONIX text should be created with, resolved here — while
+   * the `textformat` declaration is still in hand — because the services that build the mutation
+   * only ever see the extracted string. The policy itself lives in {@link resolveOnixTextMarkup}.
+   *
+   * `undefined` means no format could safely be determined. That pushes a blocking issue — the
+   * import will not run — and the caller must drop the text rather than hand it on, so nothing
+   * lacking a resolved format can ever reach a mutation, however this plan is later used.
+   */
+  private resolveTextMarkup(
+    text: OnixText | undefined,
+    content: string,
+    product: ExtendedProduct,
+    index: number,
+    subject: string,
+  ): ImportedMarkupFormat | undefined {
+    const declared = getOnixTextFormat(text);
+    const resolution = resolveOnixTextMarkup(declared, content);
+
+    if (resolution.kind === 'format') return resolution.format;
+
+    const declaration = declared.length > 0 ? `declares ONIX textformat "${declared}"` : 'declares no ONIX textformat';
+    const tags = resolution.tags.map((tag) => `<${tag}>`).join(', ');
+
+    this.issues.push({
+      severity: 'error',
+      code: 'onix.text.unrepresentable_format',
+      message: `The ${subject} of ${this.describeProduct(product, index)} ${declaration} but contains markup Thoth cannot safely read as HTML, JATS or plain text (${tags}), so it cannot be imported`,
+      source: this.productSource(product, index),
+    });
+
+    return undefined;
+  }
+
+  /**
    * The work's abstracts, each in the language its own TextContent claims.
    *
    * The two abstracts are read from separate TextContent composites, so each resolves its locale
    * from its own Text element. Neither inherits the other's: a file that supplies an English
    * short description alongside a French description is describing two languages, not one.
+   *
+   * Each abstract also resolves its markup input format from its own Text element, for the same
+   * reason: a plain short description beside an HTML long description is two formats, not one.
    */
-  private parseAbstracts(product: ExtendedProduct, textLocale: LocaleCodeType | undefined): AbstractEntity[] {
+  private parseAbstracts(
+    product: ExtendedProduct,
+    index: number,
+    textLocale: LocaleCodeType | undefined,
+  ): AbstractEntity[] {
     const collateralDetailTextContent = this.convertToArray(product.CollateralDetail?.TextContent);
     const longText = collateralDetailTextContent.find((text) => text?.TextType === TextType._03)?.Text;
     const shortText = collateralDetailTextContent.find((text) => text?.TextType === TextType._02)?.Text;
@@ -650,25 +695,35 @@ class XMLParser {
     const abstracts: AbstractEntity[] = [];
 
     if (longAbstract.length > 0) {
-      abstracts.push(
-        getDefaultAbstract({
-          content: longAbstract,
-          type: AbstractTypes.enum.Long,
-          canonical: true,
-          localeCode: this.resolveLocale(getOnixLanguage(longText), textLocale),
-        }),
-      );
+      const sourceMarkupFormat = this.resolveTextMarkup(longText, longAbstract, product, index, 'long abstract');
+
+      if (sourceMarkupFormat !== undefined) {
+        abstracts.push(
+          getDefaultAbstract({
+            content: longAbstract,
+            type: AbstractTypes.enum.Long,
+            canonical: true,
+            localeCode: this.resolveLocale(getOnixLanguage(longText), textLocale),
+            sourceMarkupFormat,
+          }),
+        );
+      }
     }
 
     if (shortAbstract.length > 0) {
-      abstracts.push(
-        getDefaultAbstract({
-          content: shortAbstract,
-          type: AbstractTypes.enum.Short,
-          canonical: false,
-          localeCode: this.resolveLocale(getOnixLanguage(shortText), textLocale),
-        }),
-      );
+      const sourceMarkupFormat = this.resolveTextMarkup(shortText, shortAbstract, product, index, 'short abstract');
+
+      if (sourceMarkupFormat !== undefined) {
+        abstracts.push(
+          getDefaultAbstract({
+            content: shortAbstract,
+            type: AbstractTypes.enum.Short,
+            canonical: false,
+            localeCode: this.resolveLocale(getOnixLanguage(shortText), textLocale),
+            sourceMarkupFormat,
+          }),
+        );
+      }
     }
 
     return abstracts;
@@ -1490,23 +1545,53 @@ class XMLParser {
    * an English note about a French author is perfectly ordinary — so unlike a title or an
    * abstract it must not inherit the language of the book's text. Where the note does not say, or
    * says something Thoth has no locale for, it keeps the English every ONIX import used to get.
+   *
+   * The markup input format is likewise each note's own: BiographicalNote repeats, every
+   * occurrence carries its own `textformat`, and an English HTML note beside a plain French one
+   * is two formats, not one to be inherited from whichever note came first.
    */
-  private parseBiographies(contributor: ExtendedContributor) {
-    return this.convertToArray(contributor.BiographicalNote)
-      .map((note) => ({ content: getOnixText(note), language: getOnixLanguage(note) }))
-      .filter(({ content }) => content.length > 0)
-      .map(({ content, language }, order) => ({
-        id: this.defaultId,
-        // Thoth marks one biography per contribution as the canonical one, and ONIX says nothing
-        // about which of several languages is primary, so the first one listed keeps the role.
-        canonical: order === 0,
-        content,
-        localeCode: localeFromLanguageCode(language) ?? LocaleCode.En,
-        contributionId: this.defaultId,
-      }));
+  private parseBiographies(contributor: ExtendedContributor, product: ExtendedProduct, index: number) {
+    return (
+      this.convertToArray(contributor.BiographicalNote)
+        .map((note) => ({
+          note,
+          content: getOnixText(note),
+          language: getOnixLanguage(note),
+        }))
+        .filter(({ content }) => content.length > 0)
+        .map(({ note, content, language }) => ({
+          content,
+          language,
+          sourceMarkupFormat: this.resolveTextMarkup(
+            note,
+            content,
+            product,
+            index,
+            `biography of ${contributor.PersonName ?? 'a contributor'}`,
+          ),
+        }))
+        // A note with no resolvable format has already raised a blocking issue; dropping it here
+        // is what guarantees it cannot reach CREATE_BIOGRAPHY whatever happens to the plan.
+        .filter(({ sourceMarkupFormat }) => sourceMarkupFormat !== undefined)
+        .map(({ content, language, sourceMarkupFormat }, order) => ({
+          id: this.defaultId,
+          // Thoth marks one biography per contribution as the canonical one, and ONIX says nothing
+          // about which of several languages is primary, so the first one listed keeps the role.
+          canonical: order === 0,
+          content,
+          localeCode: localeFromLanguageCode(language) ?? LocaleCode.En,
+          contributionId: this.defaultId,
+          sourceMarkupFormat,
+        }))
+    );
   }
 
-  private async parseContributors(contributors: ExtendedContributor[] | ExtendedContributor, workId: WorkId) {
+  private async parseContributors(
+    contributors: ExtendedContributor[] | ExtendedContributor,
+    workId: WorkId,
+    product: ExtendedProduct,
+    index: number,
+  ) {
     const xmlContributors = this.convertToArray(contributors).filter((contributor) => !!contributor);
 
     if (xmlContributors.length === 0) return [];
@@ -1527,7 +1612,7 @@ class XMLParser {
       const affiliationPosition = contributor.ProfessionalAffiliation?.ProfessionalPosition ?? '';
       const affiliationInstitutionRor = contributor.ProfessionalAffiliation?.AffiliationIdentifier?.IDValue;
       const position = contributor.ProfessionalAffiliation?.ProfessionalPosition ?? '';
-      const biographies = this.parseBiographies(contributor);
+      const biographies = this.parseBiographies(contributor, product, index);
 
       const newContributor = {
         lastName,
@@ -1701,7 +1786,7 @@ class XMLParser {
 
       const chapterContributors = chapter?.Contributor ?? [];
 
-      const workContributions = await this.parseContributors(chapterContributors, newChapter.id);
+      const workContributions = await this.parseContributors(chapterContributors, newChapter.id, product, index);
 
       newChapter.contributions = workContributions;
 

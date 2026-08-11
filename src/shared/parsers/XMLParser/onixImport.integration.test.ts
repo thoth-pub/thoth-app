@@ -2,7 +2,7 @@
 import { parse } from '@5stones/onix';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { LocaleCode } from '@/gql/graphql';
+import { LocaleCode, MarkupFormat } from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { AbstractService } from '@/src/entities/abstract/api/abstract.service';
 import { AffiliationService } from '@/src/entities/affiliation/api/affiliation.service';
@@ -106,6 +106,116 @@ const ARC_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   ${product('9781641891783', 'A Companion to the Cavendishes', 'Arc Companions', '10', 'Jane Doe')}
   ${product('9781641893763', 'The Medieval Womb', 'Arc Companions', '10', 'Jane Doe')}
+</ONIXMessage>`;
+
+/**
+ * The Arc markup shapes, verbatim from the production failure: an abstract declared
+ * `textformat="02"` (HTML) whose `<em>` used to be sent to the API as JATS XML and fail its
+ * validator, and a biography declared `textformat="06"` (plain text) that nevertheless contains
+ * `<I>` — internally contradictory publisher data the import has to route through HTML.
+ *
+ * Product 1 carries both, through the same NoPrefix/TitleWithoutPrefix title shape and
+ * affiliation-free contributor the real file uses. Product 2 repeats the contributor and keeps
+ * its text genuinely plain, one declared 06 and one bare.
+ */
+const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>9781641891783</RecordReference>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix>Arc Companions</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <TitlePrefix>A</TitlePrefix>
+          <TitleWithoutPrefix language="eng">Companion to the Cavendishes</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Lisa Hopkins</PersonName>
+        <NamesBeforeKey>Lisa</NamesBeforeKey>
+        <KeyNames>Hopkins</KeyNames>
+        <BiographicalNote textformat="06">Lisa Hopkins is Professor Emerita of English and co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>
+      </Contributor>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <TextContent>
+        <TextType>03</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text textformat="02">&lt;p&gt;The &lt;em&gt;A Companion to the Cavendishes&lt;/em&gt; volume surveys the family.&lt;/p&gt;</Text>
+      </TextContent>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+  </Product>
+  <Product>
+    <RecordReference>9781641893763</RecordReference>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641893763</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix>Arc Companions</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">The Medieval Womb</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Lisa Hopkins</PersonName>
+        <NamesBeforeKey>Lisa</NamesBeforeKey>
+        <KeyNames>Hopkins</KeyNames>
+      </Contributor>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <TextContent>
+        <TextType>03</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text textformat="06">A study of medieval medicine and the maternal body.</Text>
+      </TextContent>
+      <TextContent>
+        <TextType>02</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text>A study of medieval medicine.</Text>
+      </TextContent>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+  </Product>
 </ONIXMessage>`;
 
 /**
@@ -287,6 +397,14 @@ describe('ONIX bulk import, end to end', () => {
             return { createTitle: { titleId: 'title-1', ...(variables.data as object) } };
           case 'CreateAbstract':
             return { createAbstract: { abstractId: 'abstract-1', ...(variables.data as object) } };
+          case 'CreateContributor':
+            return {
+              createContributor: { contributorId: `contributor-${mutations.length}`, ...(variables.data as object) },
+            };
+          case 'CreateContribution':
+            return { createContribution: { contributionId: `contribution-${mutations.length}` } };
+          case 'CreateBiography':
+            return { createBiography: { biographyId: `biography-${mutations.length}`, ...(variables.data as object) } };
           case 'CreateReference':
             return { createReference: { referenceId: 'reference-1', ...(variables.data as object) } };
           case 'CreateLanguage':
@@ -619,6 +737,140 @@ describe('ONIX bulk import, end to end', () => {
     mutationsNamed('CreateWork').forEach((call) =>
       expect(call.variables.data).toMatchObject({ publicationDate: '2024-08-07', withdrawnDate: null }),
     );
+  });
+
+  it('imports Arc markup as the format it really is, all the way to the mutations', async () => {
+    // The production failure this hotfix exists for. Parsed by the real @5stones/onix, so the
+    // textformat attributes take the exact runtime shape the importer sees.
+    const xml = (await parse(ARC_MARKUP_ONIX)) as ExtendedONIXMessageRoot;
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const getInstitutions = vi.fn().mockResolvedValue([]);
+    const parser = new XMLParser(
+      xml,
+      [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
+      licenseOptions,
+      [],
+      { getContributors } as never,
+      { getInstitutions } as never,
+      languageOptions,
+      currencyOptions,
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.issues).toEqual([]);
+
+    const plan = result.data.plan;
+
+    // --- what the preview shows: works in source order, titles intact -------
+    expect(plan.works.map((work) => work.titles[0].title)).toEqual([
+      'A Companion to the Cavendishes',
+      'The Medieval Womb',
+    ]);
+    expect(plan.series.map((group) => ({ name: group.name, kind: group.target.kind }))).toEqual([
+      { name: 'Arc Companions', kind: 'proposed' },
+    ]);
+
+    // --- creation intent: the resolved format is in the plan itself ---------
+    expect(plan.works[0].abstracts.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat])).toEqual([
+      ['<p>The <em>A Companion to the Cavendishes</em> volume surveys the family.</p>', MarkupFormat.Html],
+    ]);
+    expect(
+      plan.works[0].contributions[0].biographies.map(({ content, sourceMarkupFormat }) => [
+        content,
+        sourceMarkupFormat,
+      ]),
+    ).toEqual([
+      ['Lisa Hopkins is Professor Emerita of English and co-editor of <I>Shakespeare</I>.', MarkupFormat.Html],
+    ]);
+    expect(plan.works[1].abstracts.map(({ sourceMarkupFormat }) => sourceMarkupFormat)).toEqual([
+      MarkupFormat.PlainText,
+      MarkupFormat.PlainText,
+    ]);
+
+    // --- #73 regressions: lookups still coalesced, no institution lookup ----
+    expect(getContributors).toHaveBeenCalledTimes(1);
+    expect(getContributors).toHaveBeenCalledWith('Lisa Hopkins');
+    expect(getInstitutions).not.toHaveBeenCalled();
+
+    // --- confirmation: the formats the API is actually told -----------------
+    await workService.bulkCreateWorks(plan);
+
+    const abstractCalls = mutationsNamed('CreateAbstract').map((call) => ({
+      content: (call.variables.data as { content: string }).content,
+      markupFormat: call.variables.markupFormat,
+    }));
+
+    expect(abstractCalls).toEqual([
+      {
+        content: '<p>The <em>A Companion to the Cavendishes</em> volume surveys the family.</p>',
+        markupFormat: MarkupFormat.Html,
+      },
+      { content: 'A study of medieval medicine and the maternal body.', markupFormat: MarkupFormat.PlainText },
+      { content: 'A study of medieval medicine.', markupFormat: MarkupFormat.PlainText },
+    ]);
+    // The Arc abstract is never again declared JATS: that claim is exactly what failed with
+    // "Unsupported JATS element: <em>".
+    expect(abstractCalls.filter(({ markupFormat }) => markupFormat === MarkupFormat.JatsXml)).toEqual([]);
+
+    const biographyCalls = mutationsNamed('CreateBiography').map((call) => ({
+      content: (call.variables.data as { content: string }).content,
+      markupFormat: call.variables.markupFormat,
+    }));
+
+    expect(biographyCalls).toEqual([
+      {
+        content: 'Lisa Hopkins is Professor Emerita of English and co-editor of <I>Shakespeare</I>.',
+        markupFormat: MarkupFormat.Html,
+      },
+    ]);
+    expect(biographyCalls.filter(({ markupFormat }) => markupFormat !== MarkupFormat.Html)).toEqual([]);
+
+    // Source order survived to the mutations: titles are created per work, in plan order.
+    expect(mutationsNamed('CreateWork')).toHaveLength(2);
+    expect(mutationsNamed('CreateTitle').map((call) => (call.variables.data as { title: string }).title)).toEqual([
+      'A Companion to the Cavendishes',
+      'The Medieval Womb',
+    ]);
+  });
+
+  it('still reads Thoth’s own exported JATS back as JATS', async () => {
+    // Thoth's ONIX exporter writes stored JATS under textformat="03". A structured abstract
+    // that was accepted before this change must keep reaching the API as JATS_XML.
+    const thothJatsOnix = THOTH_SHAPED_ONIX.replace(
+      '<Text textformat="03">Une description longue.</Text>',
+      '<Text textformat="03">&lt;p&gt;Une &lt;italic&gt;description&lt;/italic&gt; longue.&lt;/p&gt;</Text>',
+    );
+
+    const result = await parseUpload([foundations], thothJatsOnix);
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].abstracts[0].sourceMarkupFormat).toBe(MarkupFormat.JatsXml);
+
+    await workService.bulkCreateWorks(result.data.plan);
+
+    expect(
+      mutationsNamed('CreateAbstract').map((call) => ({
+        content: (call.variables.data as { content: string }).content,
+        markupFormat: call.variables.markupFormat,
+      })),
+    ).toEqual([{ content: '<p>Une <italic>description</italic> longue.</p>', markupFormat: MarkupFormat.JatsXml }]);
+  });
+
+  it('sends Thoth’s plain textformat-03 abstracts as plain text, exactly as before', async () => {
+    // The unstructured variant of the round trip: markup-free content is the same text in
+    // every input format, and the API's HTML path would refuse it, so it stays PLAIN_TEXT.
+    const result = await parseUpload([foundations], THOTH_SHAPED_ONIX);
+
+    await workService.bulkCreateWorks(result.data.plan);
+
+    expect(
+      mutationsNamed('CreateAbstract').map((call) => ({
+        content: (call.variables.data as { content: string }).content,
+        markupFormat: call.variables.markupFormat,
+      })),
+    ).toEqual([{ content: 'Une description longue.', markupFormat: MarkupFormat.PlainText }]);
   });
 
   it('a fresh parse reuses a series created by an earlier run', async () => {

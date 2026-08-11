@@ -1,6 +1,7 @@
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { MarkupFormat } from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 
@@ -85,6 +86,45 @@ describe('AbstractService', () => {
           markupFormat: MarkdownFormats.enum.JATS_XML,
         }),
       );
+    });
+
+    it('uses the imported source format instead of sniffing the content', async () => {
+      // Arc's real shape: `textformat="02"` HTML with `<em>` inside. Content sniffing would
+      // call this JATS and fail the API's validator; the import resolved it to HTML and that
+      // must win.
+      const entity = createEntity({
+        content: '<p>The <em>A Companion to the Cavendishes</em> volume.</p>',
+        sourceMarkupFormat: MarkupFormat.Html,
+      });
+
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+        createAbstract: { abstractId: faker.string.uuid() },
+      });
+
+      await service.createAbstract(entity, faker.string.uuid());
+
+      expect(mockGraphqlService.mutation).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ markupFormat: MarkdownFormats.enum.HTML }),
+      );
+    });
+
+    it('never sends the source format as a field of the abstract data', async () => {
+      // Through the real mapper: the source format is creation intent for the markupFormat
+      // argument, not a property of the abstract being created.
+      const realMapperService = new AbstractService(mockGraphqlService);
+      const entity = createEntity({ sourceMarkupFormat: MarkupFormat.PlainText });
+
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+        createAbstract: { abstractId: faker.string.uuid() },
+      });
+
+      await realMapperService.createAbstract(entity, faker.string.uuid());
+
+      const [, variables] = (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mock.calls[0];
+
+      expect(variables.data).not.toHaveProperty('sourceMarkupFormat');
+      expect(variables.markupFormat).toBe(MarkdownFormats.enum.PLAIN_TEXT);
     });
 
     it('should return mapped entity', async () => {

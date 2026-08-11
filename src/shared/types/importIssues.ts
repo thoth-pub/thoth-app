@@ -60,7 +60,14 @@ export type ImportIssueCode =
    * A complete calendar date the work's status leaves nowhere to put — a withdrawal date on a
    * work that is not out of print. The date is representable; the combination is not.
    */
-  | 'onix.date.incompatible_status';
+  | 'onix.date.incompatible_status'
+  /**
+   * An abstract or biography whose markup Thoth cannot safely assign to any of the API's input
+   * formats — the declared ONIX textformat and the tags actually present contradict each other
+   * in a way no compatibility rule covers. Blocking, because a guessed format would be sent to
+   * the API only to fail there partway through the import.
+   */
+  | 'onix.text.unrepresentable_format';
 
 export type ImportIssue = {
   severity: ImportIssueSeverity;

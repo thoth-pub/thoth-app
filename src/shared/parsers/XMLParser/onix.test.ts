@@ -2,6 +2,8 @@ import { parse } from '@5stones/onix';
 import { CollectionSequenceType, CollectionType, TitleElementLevel, TitleType } from '@5stones/onix/dist/enums';
 import { describe, expect, it } from 'vitest';
 
+import { MarkupFormat } from '@/gql/graphql';
+
 import type {
   ExtendedCollection,
   ExtendedONIXMessageRoot,
@@ -16,8 +18,10 @@ import {
   getOnixDateFormat,
   getOnixLanguage,
   getOnixText,
+  getOnixTextFormat,
   isEarlierCalendarDate,
   readOnixDate,
+  resolveOnixTextMarkup,
   selectCanonicalDoi,
   selectPublicationOrderSequence,
   selectPublishingDate,
@@ -966,5 +970,134 @@ describe('selectSeriesCollection', () => {
 
   it('returns undefined when there is nothing to consider', () => {
     expect(selectSeriesCollection([])).toBeUndefined();
+  });
+});
+
+describe('getOnixTextFormat', () => {
+  it('reads the attribute a real parse produces, on abstracts and biographies alike', () => {
+    const root = parse(
+      `<?xml version="1.0" encoding="UTF-8"?>
+       <ONIXMessage release="3.0"><Product><RecordReference>x</RecordReference>
+         <DescriptiveDetail>
+           <Contributor>
+             <PersonName>Lisa Hopkins</PersonName>
+             <BiographicalNote textformat="06">Co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;</BiographicalNote>
+           </Contributor>
+         </DescriptiveDetail>
+         <CollateralDetail>
+           <TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>
+             <Text textformat="02">&lt;p&gt;An &lt;em&gt;HTML&lt;/em&gt; description&lt;/p&gt;</Text>
+           </TextContent>
+           <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>
+             <Text>A bare description</Text>
+           </TextContent>
+         </CollateralDetail>
+       </Product></ONIXMessage>`,
+    ) as ExtendedONIXMessageRoot;
+    const [product] = toOnixArray(root.ONIXMessage.Product);
+    const [long, short] = toOnixArray(product.CollateralDetail?.TextContent);
+    const [contributor] = toOnixArray(product.DescriptiveDetail?.Contributor);
+    const [note] = toOnixArray(contributor.BiographicalNote);
+
+    // An attributed element is an object holding its text under `#text`; a bare one is a string.
+    expect(long?.Text).toEqual({ '#text': '<p>An <em>HTML</em> description</p>', '@_textformat': '02' });
+    expect(short?.Text).toBe('A bare description');
+    expect(getOnixTextFormat(long?.Text)).toBe('02');
+    expect(getOnixTextFormat(short?.Text)).toBe('');
+    expect(getOnixTextFormat(note)).toBe('06');
+  });
+
+  it('reports no format for an element carrying only other attributes', () => {
+    expect(getOnixTextFormat({ '#text': 'Some description', '@_language': 'eng' })).toBe('');
+  });
+
+  it('trims a malformed runtime value and tolerates non-string ones', () => {
+    expect(getOnixTextFormat({ '#text': 'x', '@_textformat': ' 02 ' })).toBe('02');
+    expect(getOnixTextFormat({ '#text': 'x', '@_textformat': 2 as never })).toBe('');
+  });
+
+  it('has nothing to say about absent or scalar values', () => {
+    expect(getOnixTextFormat(undefined)).toBe('');
+    expect(getOnixTextFormat(null)).toBe('');
+    expect(getOnixTextFormat('bare text')).toBe('');
+    expect(getOnixTextFormat(12)).toBe('');
+  });
+});
+
+describe('resolveOnixTextMarkup', () => {
+  const format = (value: MarkupFormat) => ({ kind: 'format', format: value });
+
+  it('resolves markup-free content to plain text whatever was declared', () => {
+    // The API's HTML input path refuses content with no tags in it, and a markup-free string
+    // says the same thing in every one of these formats, so PLAIN_TEXT is the one safe spelling.
+    for (const declared of ['', '02', '03', '05', '06', '07', '99']) {
+      expect(resolveOnixTextMarkup(declared, 'A plain description')).toEqual(format(MarkupFormat.PlainText));
+    }
+  });
+
+  it('does not mistake angle brackets in prose for markup', () => {
+    // ONIX plain text may legitimately contain the entities &amp; and &lt;, which parse back
+    // to bare characters; the backend's own markup test requires a letter after `<`.
+    expect(resolveOnixTextMarkup('06', 'AT&T proved a < b, <3 readers agreed')).toEqual(format(MarkupFormat.PlainText));
+  });
+
+  it('sends declared HTML with markup down the HTML path', () => {
+    expect(resolveOnixTextMarkup('02', '<p>The <em>book</em> is good</p>')).toEqual(format(MarkupFormat.Html));
+  });
+
+  it('sends declared XHTML with markup down the HTML path', () => {
+    // The API has no separate XHTML input format; its HTML parser handles XHTML fragments.
+    expect(resolveOnixTextMarkup('05', '<p>An <i>XHTML</i> fragment<br/></p>')).toEqual(format(MarkupFormat.Html));
+  });
+
+  it('reads declared XML within the Thoth JATS subset back as JATS', () => {
+    // Thoth's own ONIX exporter writes its stored JATS under textformat="03"; this is what
+    // keeps that round trip working. It is a compatibility interpretation, not a claim that
+    // arbitrary ONIX XML is JATS.
+    expect(resolveOnixTextMarkup('03', '<p>Une <italic>description</italic> <bold>longue</bold>.</p>')).toEqual(
+      format(MarkupFormat.JatsXml),
+    );
+    expect(resolveOnixTextMarkup('03', '<list list-type="bullet"><list-item><p>Un</p></list-item></list>')).toEqual(
+      format(MarkupFormat.JatsXml),
+    );
+  });
+
+  it('refuses declared XML whose tags are outside the Thoth JATS subset, naming them', () => {
+    // Guessing HTML here would reinterpret the sender's declared XML; guessing JATS would fail
+    // at the API partway through the import. Neither guess is made.
+    expect(resolveOnixTextMarkup('03', '<p>The <em>book</em></p>')).toEqual({
+      kind: 'unclassifiable',
+      tags: ['em'],
+    });
+  });
+
+  it('routes plain-text declarations that really contain HTML through the HTML path', () => {
+    // Arc's real biographies: textformat 06 with <I> inside. The tag set is compared
+    // case-insensitively because the API parses HTML with a real HTML parser.
+    expect(resolveOnixTextMarkup('06', 'Co-editor of <I>Shakespeare</I>')).toEqual(format(MarkupFormat.Html));
+    expect(resolveOnixTextMarkup('07', 'A <b>bold</b> claim')).toEqual(format(MarkupFormat.Html));
+    expect(resolveOnixTextMarkup('', '<p>An <em>undeclared</em> description</p>')).toEqual(format(MarkupFormat.Html));
+  });
+
+  it('routes plain-text declarations that really contain JATS through the JATS path', () => {
+    expect(resolveOnixTextMarkup('06', '<p>Une <italic>description</italic></p>')).toEqual(
+      format(MarkupFormat.JatsXml),
+    );
+  });
+
+  it('treats an unknown declared format like an absent one', () => {
+    expect(resolveOnixTextMarkup('99', 'The <em>book</em>')).toEqual(format(MarkupFormat.Html));
+  });
+
+  it('refuses markup it cannot classify rather than guessing', () => {
+    expect(resolveOnixTextMarkup('06', 'A <blink>bad</blink> idea')).toEqual({
+      kind: 'unclassifiable',
+      tags: ['blink'],
+    });
+    // A mix of HTML-only and JATS-only tags belongs to neither input path in full.
+    expect(resolveOnixTextMarkup('06', 'The <em>book</em> is <italic>good</italic>')).toEqual({
+      kind: 'unclassifiable',
+      tags: ['em', 'italic'],
+    });
   });
 });
