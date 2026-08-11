@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 
 import { useAllUserSerieses } from '@/src/entities/series';
 import { useUser } from '@/src/entities/user';
@@ -30,22 +30,43 @@ export const UploadStep = (props: UploadStepProps) => {
   const { serieses } = useAllUserSerieses();
   const [selectedFile, setSelectedFile] = useState<SelectedFile | null>(null);
   const [validationIssues, setValidationIssues] = useState<ImportIssue[]>([]);
+  // Selection IDs come from a ref rather than the previous selection so they stay monotonic even
+  // after `selectedFile` resets to null: a reused ID would let an old parser pass the staleness
+  // check below.
+  const selectionSequence = useRef(0);
 
   const file = selectedFile?.file ?? null;
   const isCsv = file ? isCsvFile(file) : false;
   const isXml = file ? isXmlFile(file) : false;
 
-  const handleIssues = (issues: ImportIssue[]) => {
+  const nextSelectionId = () => {
+    selectionSequence.current += 1;
+    return selectionSequence.current;
+  };
+
+  /**
+   * A parser can fail after its file has already been replaced: the old parser unmounts, but its
+   * asynchronous validation still runs to completion. Each failure is therefore scoped to the
+   * selection that produced it, and a stale one is dropped — acting on it would clear or overwrite
+   * the newer selection's state.
+   */
+  const handleParserFailure = (selectionId: number) => (issues: ImportIssue[]) => {
+    if (selectionId !== selectionSequence.current) return;
+
     setValidationIssues(issues);
     setSelectedFile(null);
   };
 
   /**
    * A problem with the upload itself, raised before either parser sees it, so it belongs to the
-   * file rather than to any row or product.
+   * file rather than to any row or product. A rejected attempt is still a new selection: it
+   * advances the sequence so that any parser still validating the previous file becomes stale.
    */
-  const rejectFile = (code: ImportIssueCode, message: string) =>
-    handleIssues([{ severity: 'error', code, message, source: { kind: 'file' } }]);
+  const rejectFile = (code: ImportIssueCode, message: string) => {
+    nextSelectionId();
+    setValidationIssues([{ severity: 'error', code, message, source: { kind: 'file' } }]);
+    setSelectedFile(null);
+  };
 
   const handleFileSelect = (selectedFile: File) => {
     setValidationIssues([]);
@@ -60,10 +81,7 @@ export const UploadStep = (props: UploadStepProps) => {
       return;
     }
 
-    setSelectedFile((current) => ({
-      file: selectedFile,
-      selectionId: (current?.selectionId ?? 0) + 1,
-    }));
+    setSelectedFile({ file: selectedFile, selectionId: nextSelectionId() });
   };
 
   return (
@@ -81,23 +99,23 @@ export const UploadStep = (props: UploadStepProps) => {
           />
         </Typography>
       </FileDropzone>
-      {isCsv && file && (
+      {isCsv && selectedFile && (
         <CSVParse
-          key={`csv-${selectedFile?.selectionId}`}
-          file={file}
+          key={`csv-${selectedFile.selectionId}`}
+          file={selectedFile.file}
           imprints={userImprintsOptions}
           serieses={serieses}
-          onValidationFailure={handleIssues}
+          onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onPreview={onPreview}
         />
       )}
-      {isXml && file && (
+      {isXml && selectedFile && (
         <XMLParse
-          key={`xml-${selectedFile?.selectionId}`}
-          file={file}
+          key={`xml-${selectedFile.selectionId}`}
+          file={selectedFile.file}
           imprints={userImprintsOptions}
           serieses={serieses}
-          onValidationFailure={handleIssues}
+          onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onPreview={onPreview}
         />
       )}
