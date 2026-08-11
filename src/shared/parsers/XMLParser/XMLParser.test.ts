@@ -6841,9 +6841,7 @@ describe('XMLParser', () => {
       it('blocks the import when markup cannot be classified at all', async () => {
         const result = await runFidelityParser(
           productXml({
-            collateralDetail: collateral(
-              '<Text textformat="06">A &lt;blink&gt;bad&lt;/blink&gt; description</Text>',
-            ),
+            collateralDetail: collateral('<Text textformat="06">A &lt;blink&gt;bad&lt;/blink&gt; description</Text>'),
           }),
         );
 

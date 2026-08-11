@@ -398,7 +398,9 @@ describe('ONIX bulk import, end to end', () => {
           case 'CreateAbstract':
             return { createAbstract: { abstractId: 'abstract-1', ...(variables.data as object) } };
           case 'CreateContributor':
-            return { createContributor: { contributorId: `contributor-${mutations.length}`, ...(variables.data as object) } };
+            return {
+              createContributor: { contributorId: `contributor-${mutations.length}`, ...(variables.data as object) },
+            };
           case 'CreateContribution':
             return { createContribution: { contributionId: `contribution-${mutations.length}` } };
           case 'CreateBiography':
@@ -853,9 +855,7 @@ describe('ONIX bulk import, end to end', () => {
         content: (call.variables.data as { content: string }).content,
         markupFormat: call.variables.markupFormat,
       })),
-    ).toEqual([
-      { content: '<p>Une <italic>description</italic> longue.</p>', markupFormat: MarkupFormat.JatsXml },
-    ]);
+    ).toEqual([{ content: '<p>Une <italic>description</italic> longue.</p>', markupFormat: MarkupFormat.JatsXml }]);
   });
 
   it('sends Thoth’s plain textformat-03 abstracts as plain text, exactly as before', async () => {

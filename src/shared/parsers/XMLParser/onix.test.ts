@@ -1038,9 +1038,7 @@ describe('resolveOnixTextMarkup', () => {
   it('does not mistake angle brackets in prose for markup', () => {
     // ONIX plain text may legitimately contain the entities &amp; and &lt;, which parse back
     // to bare characters; the backend's own markup test requires a letter after `<`.
-    expect(resolveOnixTextMarkup('06', 'AT&T proved a < b, <3 readers agreed')).toEqual(
-      format(MarkupFormat.PlainText),
-    );
+    expect(resolveOnixTextMarkup('06', 'AT&T proved a < b, <3 readers agreed')).toEqual(format(MarkupFormat.PlainText));
   });
 
   it('sends declared HTML with markup down the HTML path', () => {
@@ -1056,9 +1054,9 @@ describe('resolveOnixTextMarkup', () => {
     // Thoth's own ONIX exporter writes its stored JATS under textformat="03"; this is what
     // keeps that round trip working. It is a compatibility interpretation, not a claim that
     // arbitrary ONIX XML is JATS.
-    expect(
-      resolveOnixTextMarkup('03', '<p>Une <italic>description</italic> <bold>longue</bold>.</p>'),
-    ).toEqual(format(MarkupFormat.JatsXml));
+    expect(resolveOnixTextMarkup('03', '<p>Une <italic>description</italic> <bold>longue</bold>.</p>')).toEqual(
+      format(MarkupFormat.JatsXml),
+    );
     expect(resolveOnixTextMarkup('03', '<list list-type="bullet"><list-item><p>Un</p></list-item></list>')).toEqual(
       format(MarkupFormat.JatsXml),
     );
@@ -1078,9 +1076,7 @@ describe('resolveOnixTextMarkup', () => {
     // case-insensitively because the API parses HTML with a real HTML parser.
     expect(resolveOnixTextMarkup('06', 'Co-editor of <I>Shakespeare</I>')).toEqual(format(MarkupFormat.Html));
     expect(resolveOnixTextMarkup('07', 'A <b>bold</b> claim')).toEqual(format(MarkupFormat.Html));
-    expect(resolveOnixTextMarkup('', '<p>An <em>undeclared</em> description</p>')).toEqual(
-      format(MarkupFormat.Html),
-    );
+    expect(resolveOnixTextMarkup('', '<p>An <em>undeclared</em> description</p>')).toEqual(format(MarkupFormat.Html));
   });
 
   it('routes plain-text declarations that really contain JATS through the JATS path', () => {

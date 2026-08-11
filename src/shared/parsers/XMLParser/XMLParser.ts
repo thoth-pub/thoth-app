@@ -1551,37 +1551,39 @@ class XMLParser {
    * is two formats, not one to be inherited from whichever note came first.
    */
   private parseBiographies(contributor: ExtendedContributor, product: ExtendedProduct, index: number) {
-    return this.convertToArray(contributor.BiographicalNote)
-      .map((note) => ({
-        note,
-        content: getOnixText(note),
-        language: getOnixLanguage(note),
-      }))
-      .filter(({ content }) => content.length > 0)
-      .map(({ note, content, language }) => ({
-        content,
-        language,
-        sourceMarkupFormat: this.resolveTextMarkup(
+    return (
+      this.convertToArray(contributor.BiographicalNote)
+        .map((note) => ({
           note,
+          content: getOnixText(note),
+          language: getOnixLanguage(note),
+        }))
+        .filter(({ content }) => content.length > 0)
+        .map(({ note, content, language }) => ({
           content,
-          product,
-          index,
-          `biography of ${contributor.PersonName ?? 'a contributor'}`,
-        ),
-      }))
-      // A note with no resolvable format has already raised a blocking issue; dropping it here
-      // is what guarantees it cannot reach CREATE_BIOGRAPHY whatever happens to the plan.
-      .filter(({ sourceMarkupFormat }) => sourceMarkupFormat !== undefined)
-      .map(({ content, language, sourceMarkupFormat }, order) => ({
-        id: this.defaultId,
-        // Thoth marks one biography per contribution as the canonical one, and ONIX says nothing
-        // about which of several languages is primary, so the first one listed keeps the role.
-        canonical: order === 0,
-        content,
-        localeCode: localeFromLanguageCode(language) ?? LocaleCode.En,
-        contributionId: this.defaultId,
-        sourceMarkupFormat,
-      }));
+          language,
+          sourceMarkupFormat: this.resolveTextMarkup(
+            note,
+            content,
+            product,
+            index,
+            `biography of ${contributor.PersonName ?? 'a contributor'}`,
+          ),
+        }))
+        // A note with no resolvable format has already raised a blocking issue; dropping it here
+        // is what guarantees it cannot reach CREATE_BIOGRAPHY whatever happens to the plan.
+        .filter(({ sourceMarkupFormat }) => sourceMarkupFormat !== undefined)
+        .map(({ content, language, sourceMarkupFormat }, order) => ({
+          id: this.defaultId,
+          // Thoth marks one biography per contribution as the canonical one, and ONIX says nothing
+          // about which of several languages is primary, so the first one listed keeps the role.
+          canonical: order === 0,
+          content,
+          localeCode: localeFromLanguageCode(language) ?? LocaleCode.En,
+          contributionId: this.defaultId,
+          sourceMarkupFormat,
+        }))
+    );
   }
 
   private async parseContributors(
