@@ -24,6 +24,7 @@ import {
 } from '@5stones/onix/dist/interfaces';
 import { Collection } from '@5stones/onix/dist/interfaces/Collection';
 import { ONIXMessage } from '@5stones/onix/dist/interfaces/ONIXMessage';
+import { SubjectElement } from '@5stones/onix/dist/interfaces/SubjectElement';
 
 /**
  * `@5stones/onix` parses with `fast-xml-parser` using `ignoreAttributes: false` and no
@@ -85,6 +86,14 @@ export interface OnixTitleDetail {
 export interface OnixLanguage {
   LanguageRole?: LanguageRole;
   LanguageCode?: LanguageBasedOnIso6392b | string;
+}
+
+/** A subject whose scheme, code and heading can all carry standard ONIX text attributes. */
+export interface OnixSubject
+  extends Omit<SubjectElement, 'SubjectSchemeIdentifier' | 'SubjectCode' | 'SubjectHeadingText'> {
+  SubjectSchemeIdentifier?: OnixText;
+  SubjectCode?: OnixText;
+  SubjectHeadingText?: OnixText;
 }
 
 /** The subset of a Collection that {@link selectSeriesCollection} needs to rank candidates. */
@@ -242,9 +251,10 @@ export interface ExtendedCollection extends Omit<Collection, 'CollectionType' | 
 }
 
 export interface ExtendedDescriptiveDetail
-  extends Omit<ProductDescriptiveDetail, 'Collection' | 'Contributor' | 'Language' | 'TitleDetail'> {
+  extends Omit<ProductDescriptiveDetail, 'Collection' | 'Contributor' | 'Language' | 'Subject' | 'TitleDetail'> {
   TitleDetail?: OnixRepeatable<OnixTitleDetail>;
   Language?: OnixRepeatable<OnixLanguage>;
+  Subject?: OnixRepeatable<OnixSubject>;
   AncillaryContent?: {
     AncillaryContentType?: string;
     Number?: number;

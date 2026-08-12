@@ -134,6 +134,25 @@ const LANGUAGE_ROLE_RELATIONS: Partial<Record<LanguageRole, LanguageEntity['rela
   [LanguageRole._07]: LanguageRelation.enum.TranslatedInto,
 };
 
+type OnixSubjectRule = {
+  scheme: string;
+  type: SubjectEntity['type'];
+  valueFrom: 'code' | 'heading';
+};
+
+/**
+ * Supported ONIX List 27 subject schemes, in the grouping order the importer has always used.
+ * Controlled schemes must never substitute a descriptive heading for a missing machine code.
+ */
+const ONIX_SUBJECT_RULES: readonly OnixSubjectRule[] = [
+  { scheme: '04', type: SubjectTypes.enum.Lcc, valueFrom: 'code' },
+  { scheme: '10', type: SubjectTypes.enum.Bisac, valueFrom: 'code' },
+  { scheme: '12', type: SubjectTypes.enum.Bic, valueFrom: 'code' },
+  { scheme: '20', type: SubjectTypes.enum.Keyword, valueFrom: 'heading' },
+  { scheme: '93', type: SubjectTypes.enum.Thema, valueFrom: 'code' },
+  { scheme: 'B2', type: SubjectTypes.enum.Custom, valueFrom: 'heading' },
+];
+
 /**
  * The work statuses `WorkProperties::validate` classifies, restated where the parser can apply
  * them.
@@ -968,65 +987,19 @@ class XMLParser {
     const subjects: SubjectEntity[] = [];
     const xmlSubjects = this.convertToArray(product.DescriptiveDetail?.Subject).filter((subject) => !!subject);
 
-    const llcSubjects = xmlSubjects.filter((subject) => subject.SubjectSchemeIdentifier === '04');
-    const bisacSubjects = xmlSubjects.filter((subject) => subject.SubjectSchemeIdentifier === '10');
-    const bicSubjects = xmlSubjects.filter((subject) => subject.SubjectSchemeIdentifier === '12');
-    const keywordSubjects = xmlSubjects.filter((subject) => subject.SubjectSchemeIdentifier === '20');
-    const themaSubjects = xmlSubjects.filter((subject) => subject.SubjectSchemeIdentifier === '93');
-    const customSubjects = xmlSubjects.filter((subject) => subject.SubjectSchemeIdentifier === 'B2');
+    ONIX_SUBJECT_RULES.forEach(({ scheme, type, valueFrom }) => {
+      xmlSubjects
+        .filter((subject) => getOnixText(subject.SubjectSchemeIdentifier) === scheme)
+        .forEach((subject) => {
+          const code = getOnixText(valueFrom === 'code' ? subject.SubjectCode : subject.SubjectHeadingText);
 
-    llcSubjects.forEach((subject) => {
-      subjects.push({
-        id: this.defaultId,
-        code: subject.SubjectHeadingText ?? '',
-        type: SubjectTypes.enum.Lcc,
-        ordinal: subjects.length + 1,
-      });
-    });
-
-    bisacSubjects.forEach((subject) => {
-      subjects.push({
-        id: this.defaultId,
-        code: subject.SubjectHeadingText ?? '',
-        type: SubjectTypes.enum.Bisac,
-        ordinal: subjects.length + 1,
-      });
-    });
-
-    bicSubjects.forEach((subject) => {
-      subjects.push({
-        id: this.defaultId,
-        code: subject.SubjectHeadingText ?? '',
-        type: SubjectTypes.enum.Bic,
-        ordinal: subjects.length + 1,
-      });
-    });
-
-    keywordSubjects.forEach((subject) => {
-      subjects.push({
-        id: this.defaultId,
-        code: subject.SubjectHeadingText ?? '',
-        type: SubjectTypes.enum.Keyword,
-        ordinal: subjects.length + 1,
-      });
-    });
-
-    themaSubjects.forEach((subject) => {
-      subjects.push({
-        id: this.defaultId,
-        code: subject.SubjectHeadingText ?? '',
-        type: SubjectTypes.enum.Thema,
-        ordinal: subjects.length + 1,
-      });
-    });
-
-    customSubjects.forEach((subject) => {
-      subjects.push({
-        id: this.defaultId,
-        code: subject.SubjectHeadingText ?? '',
-        type: SubjectTypes.enum.Custom,
-        ordinal: subjects.length + 1,
-      });
+          subjects.push({
+            id: this.defaultId,
+            code,
+            type,
+            ordinal: subjects.length + 1,
+          });
+        });
     });
 
     const filteredSubjects = subjects.filter((subject) => subject.code.length > 0);

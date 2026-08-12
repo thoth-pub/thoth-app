@@ -47,6 +47,7 @@ import {
   ExtendedProduct,
   ExtendedProductSupply,
   ExtendedPublishingDetail,
+  OnixSubject,
 } from './interfaces';
 import { toOnixArray } from './onix';
 import XMLParser, { ONIX_PROCESSING_FAILURE_MESSAGE } from './XMLParser';
@@ -1914,18 +1915,17 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].landingPage).toEqual('');
     });
 
-    it('should return empty subjects if not provided', async () => {
-      const language = languages[0];
-      const title = faker.lorem.sentence();
+    const parseSubjectEntities = async (subjects: OnixSubject[]) => {
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
-                TitleDetail: { TitleElement: { TitleText: title } },
-                Language: { LanguageCode: language.value },
-              } as ExtendedDescriptiveDetail,
+                TitleDetail: { TitleElement: { TitleText: faker.lorem.sentence() } },
+                Language: { LanguageCode: languages[0].value },
+                Subject: subjects,
+              },
               PublishingDetail: {
                 Imprint: { ImprintName: imprints[0].label },
                 PublishingStatus: '04',
@@ -1948,351 +1948,137 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].subjects).toEqual([]);
+
+      return result.data.plan.works[0].subjects;
+    };
+
+    it('should return empty subjects if not provided', async () => {
+      expect(await parseSubjectEntities([])).toEqual([]);
     });
 
-    it('should parse llc subjects', async () => {
-      const language = languages[0];
-      const title = faker.lorem.sentence();
-      const imprint = imprints[0];
-      const subjectText = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                TitleDetail: { TitleElement: { TitleText: title } },
-                Language: { LanguageCode: language.value },
-                Subject: [
-                  {
-                    SubjectSchemeIdentifier: '04',
-                    SubjectHeadingText: subjectText,
-                  },
-                ],
-              } as ExtendedDescriptiveDetail,
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              } as ExtendedPublishingDetail,
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
+    it('imports Arc’s Thema code instead of its descriptive heading', async () => {
+      const heading = 'Literary studies: c 1600 to c 1800';
+      const subjects = await parseSubjectEntities([
+        { SubjectSchemeIdentifier: '93', SubjectCode: 'DSBD', SubjectHeadingText: heading },
+      ]);
 
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].subjects).toHaveLength(1);
-      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Lcc);
-      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
+      expect(subjects).toEqual([{ id: appConfig.defaultId, code: 'DSBD', type: SubjectTypes.enum.Thema, ordinal: 1 }]);
+      expect(subjects[0].code).not.toBe(heading);
     });
 
-    it('should parse bisac subjects', async () => {
-      const language = languages[0];
-      const title = faker.lorem.sentence();
-      const imprint = imprints[0];
-      const subjectText = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                TitleDetail: { TitleElement: { TitleText: title } },
-                Language: { LanguageCode: language.value },
-                Subject: [
-                  {
-                    SubjectSchemeIdentifier: '10',
-                    SubjectHeadingText: subjectText,
-                  },
-                ],
-              } as ExtendedDescriptiveDetail,
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              } as ExtendedPublishingDetail,
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
+    it.each([
+      ['04', SubjectTypes.enum.Lcc, 'PS3563.O8749', 'Morrison, Toni'],
+      ['10', SubjectTypes.enum.Bisac, 'LIT004290', 'LITERARY CRITICISM / Women Authors'],
+      ['12', SubjectTypes.enum.Bic, 'DSBD', 'Literary studies: c 1500 to c 1800'],
+    ])('imports controlled scheme %s from SubjectCode', async (scheme, type, code, heading) => {
+      const subjects = await parseSubjectEntities([
+        { SubjectSchemeIdentifier: scheme, SubjectCode: code, SubjectHeadingText: heading },
+      ]);
 
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].subjects).toHaveLength(1);
-      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Bisac);
-      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
+      expect(subjects).toEqual([{ id: appConfig.defaultId, code, type, ordinal: 1 }]);
+      expect(subjects[0].code).not.toBe(heading);
     });
 
-    it('should parse bic subjects', async () => {
-      const language = languages[0];
-      const title = faker.lorem.sentence();
-      const imprint = imprints[0];
-      const subjectText = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                TitleDetail: { TitleElement: { TitleText: title } },
-                Language: { LanguageCode: language.value },
-                Subject: [
-                  {
-                    SubjectSchemeIdentifier: '12',
-                    SubjectHeadingText: subjectText,
-                  },
-                ],
-              } as ExtendedDescriptiveDetail,
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              } as ExtendedPublishingDetail,
-            },
-          ],
+    it('uses codes for controlled schemes, headings for text schemes, and preserves grouped ordering', async () => {
+      const keyword = 'literary culture; aristocratic life; women’s writing';
+      const custom = 'My publisher subject';
+      const subjects = await parseSubjectEntities([
+        {
+          SubjectSchemeIdentifier: 'B2',
+          SubjectCode: 'INCIDENTAL-CUSTOM-CODE',
+          SubjectHeadingText: custom,
         },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
+        {
+          SubjectSchemeIdentifier: '93',
+          SubjectCode: 'DSBD',
+          SubjectHeadingText: 'Literary studies: c 1600 to c 1800',
+        },
+        {
+          SubjectSchemeIdentifier: '20',
+          SubjectCode: 'INCIDENTAL-KEYWORD-CODE',
+          SubjectHeadingText: keyword,
+        },
+        {
+          SubjectSchemeIdentifier: '12',
+          SubjectCode: 'HBLH',
+          SubjectHeadingText: 'Early modern history: c 1450/1500 to c 1700',
+        },
+        {
+          SubjectSchemeIdentifier: '10',
+          SubjectCode: 'LIT004290',
+          SubjectHeadingText: 'LITERARY CRITICISM / Women Authors',
+        },
+        {
+          SubjectSchemeIdentifier: '04',
+          SubjectCode: 'PS3563.O8749',
+          SubjectHeadingText: 'Morrison, Toni',
+        },
+      ]);
 
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].subjects).toHaveLength(1);
-      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Bic);
-      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
+      expect(subjects).toEqual([
+        {
+          id: appConfig.defaultId,
+          code: 'PS3563.O8749',
+          type: SubjectTypes.enum.Lcc,
+          ordinal: 1,
+        },
+        {
+          id: appConfig.defaultId,
+          code: 'LIT004290',
+          type: SubjectTypes.enum.Bisac,
+          ordinal: 2,
+        },
+        {
+          id: appConfig.defaultId,
+          code: 'HBLH',
+          type: SubjectTypes.enum.Bic,
+          ordinal: 3,
+        },
+        {
+          id: appConfig.defaultId,
+          code: keyword,
+          type: SubjectTypes.enum.Keyword,
+          ordinal: 4,
+        },
+        {
+          id: appConfig.defaultId,
+          code: 'DSBD',
+          type: SubjectTypes.enum.Thema,
+          ordinal: 5,
+        },
+        {
+          id: appConfig.defaultId,
+          code: custom,
+          type: SubjectTypes.enum.Custom,
+          ordinal: 6,
+        },
+      ]);
+      expect(subjects.map(({ code }) => code)).not.toContain('Literary studies: c 1600 to c 1800');
+      expect(subjects.map(({ code }) => code)).not.toContain('LITERARY CRITICISM / Women Authors');
+      expect(subjects[3].code).toBe(keyword);
+      expect(subjects[5].code).toBe(custom);
     });
 
-    it('should parse keyword subjects', async () => {
-      const language = languages[0];
-      const title = faker.lorem.sentence();
-      const imprint = imprints[0];
-      const subjectText = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                TitleDetail: { TitleElement: { TitleText: title } },
-                Language: { LanguageCode: language.value },
-                Subject: [
-                  {
-                    SubjectSchemeIdentifier: '20',
-                    SubjectHeadingText: subjectText,
-                  },
-                ],
-              } as ExtendedDescriptiveDetail,
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              } as ExtendedPublishingDetail,
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
+    it('omits missing controlled codes and leaves unsupported schemes ignored', async () => {
+      const themaHeading = 'Literary studies: c 1600 to c 1800';
+      const bisacHeading = 'LITERARY CRITICISM / Women Authors';
+      const subjects = await parseSubjectEntities([
+        { SubjectSchemeIdentifier: '93', SubjectHeadingText: themaHeading },
+        { SubjectSchemeIdentifier: '10', SubjectCode: '   ', SubjectHeadingText: bisacHeading },
+        { SubjectSchemeIdentifier: '20', SubjectCode: 'INCIDENTAL-KEYWORD-CODE' },
+        { SubjectSchemeIdentifier: 'B2', SubjectCode: 'INCIDENTAL-CUSTOM-CODE' },
+        { SubjectSchemeIdentifier: '94', SubjectCode: '1DDB' },
+        { SubjectSchemeIdentifier: '96', SubjectCode: '3MPQS' },
+        { SubjectSchemeIdentifier: 'ZZ', SubjectHeadingText: 'Unknown scheme' },
+      ]);
+
+      expect(subjects).toEqual([]);
+      expect(subjects).not.toContainEqual(
+        expect.objectContaining({ type: SubjectTypes.enum.Thema, code: themaHeading }),
       );
-
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].subjects).toHaveLength(1);
-      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Keyword);
-      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
-    });
-
-    it('should parse thema subjects', async () => {
-      const language = languages[0];
-      const title = faker.lorem.sentence();
-      const imprint = imprints[0];
-      const subjectText = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                TitleDetail: { TitleElement: { TitleText: title } },
-                Language: { LanguageCode: language.value },
-                Subject: [
-                  {
-                    SubjectSchemeIdentifier: '93',
-                    SubjectHeadingText: subjectText,
-                  },
-                ],
-              } as ExtendedDescriptiveDetail,
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              } as ExtendedPublishingDetail,
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
+      expect(subjects).not.toContainEqual(
+        expect.objectContaining({ type: SubjectTypes.enum.Bisac, code: bisacHeading }),
       );
-
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].subjects).toHaveLength(1);
-      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Thema);
-      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
-    });
-
-    it('should parse custom subjects', async () => {
-      const language = languages[0];
-      const title = faker.lorem.sentence();
-      const imprint = imprints[0];
-      const subjectText = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                TitleDetail: { TitleElement: { TitleText: title } },
-                Language: { LanguageCode: language.value },
-                Subject: [
-                  {
-                    SubjectSchemeIdentifier: 'B2',
-                    SubjectHeadingText: subjectText,
-                  },
-                ],
-              } as ExtendedDescriptiveDetail,
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              } as ExtendedPublishingDetail,
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
-
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].subjects).toHaveLength(1);
-      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText);
-      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Custom);
-      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
-    });
-
-    it('should parse multiple subjects', async () => {
-      const language = languages[0];
-      const title = faker.lorem.sentence();
-      const imprint = imprints[0];
-      const subjectText1 = faker.lorem.sentence();
-      const subjectText2 = faker.lorem.sentence();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                TitleDetail: { TitleElement: { TitleText: title } },
-                Language: { LanguageCode: language.value },
-                Subject: [
-                  {
-                    SubjectSchemeIdentifier: 'B2',
-                    SubjectHeadingText: subjectText1,
-                  },
-                  {
-                    SubjectSchemeIdentifier: '04',
-                    SubjectHeadingText: subjectText2,
-                  },
-                ],
-              } as ExtendedDescriptiveDetail,
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              } as ExtendedPublishingDetail,
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
-
-      const result = await parser.parse();
-
-      expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].subjects).toHaveLength(2);
-      expect(result.data.plan.works[0].subjects[0].code).toBe(subjectText2);
-      expect(result.data.plan.works[0].subjects[0].type).toBe(SubjectTypes.enum.Lcc);
-      expect(result.data.plan.works[0].subjects[0].ordinal).toBe(1);
-      expect(result.data.plan.works[0].subjects[1].code).toBe(subjectText1);
-      expect(result.data.plan.works[0].subjects[1].type).toBe(SubjectTypes.enum.Custom);
-      expect(result.data.plan.works[0].subjects[1].ordinal).toBe(2);
     });
 
     it('should return error if language is not provided', async () => {
