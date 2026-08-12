@@ -9,6 +9,7 @@ import type {
   ExtendedONIXMessageRoot,
   OnixPublishingDate,
   OnixRelatedIdentifier,
+  OnixText,
   OnixTitleDetail,
 } from './interfaces';
 import {
@@ -21,6 +22,7 @@ import {
   getOnixTextFormat,
   isEarlierCalendarDate,
   readOnixDate,
+  resolveOnixContributorOrder,
   resolveOnixTextMarkup,
   selectCanonicalDoi,
   selectPublicationOrderSequence,
@@ -1099,5 +1101,160 @@ describe('resolveOnixTextMarkup', () => {
       kind: 'unclassifiable',
       tags: ['em', 'italic'],
     });
+  });
+});
+
+describe('resolveOnixContributorOrder', () => {
+  /** One contributor as the helper reads it: a name to track identity by, and a SequenceNumber. */
+  type Contributor = { name: string; SequenceNumber?: OnixText };
+
+  const contributors = (...entries: Array<[string, OnixText | undefined]>): Contributor[] =>
+    entries.map(([name, SequenceNumber]) => ({ name, SequenceNumber }));
+
+  /** The resolved order as `[name, orderNumber]` pairs, which is what every case below asserts. */
+  const order = (result: ReturnType<typeof resolveOnixContributorOrder<Contributor>>) =>
+    result.ordered.map(({ contributor, orderNumber }) => [contributor.name, orderNumber] as const);
+
+  it('sorts ascending by SequenceNumber when every contributor has a usable, unique one', () => {
+    const result = resolveOnixContributorOrder(contributors(['Lisa', '1'], ['Tom', '2']));
+
+    expect(order(result)).toEqual([
+      ['Lisa', 1],
+      ['Tom', 2],
+    ]);
+    expect(result.sequenceFallback).toBe(false);
+  });
+
+  it('interprets SequenceNumber rather than source order, so reverse-listed authors re-sort', () => {
+    // Person A is listed first but numbered 2; the resolved order must be B then A.
+    const result = resolveOnixContributorOrder(contributors(['A', '2'], ['B', '1']));
+
+    expect(order(result)).toEqual([
+      ['B', 1],
+      ['A', 2],
+    ]);
+    expect(result.sequenceFallback).toBe(false);
+  });
+
+  it('preserves relative order but not the numbers themselves for a gapped sequence', () => {
+    // 10 and 20 express order; Thoth stores contiguous 1 and 2, never the raw gaps.
+    const result = resolveOnixContributorOrder(contributors(['A', '10'], ['B', '20']));
+
+    expect(order(result)).toEqual([
+      ['A', 1],
+      ['B', 2],
+    ]);
+    expect(result.sequenceFallback).toBe(false);
+  });
+
+  it('keeps source order, without warning, when SequenceNumber is absent throughout', () => {
+    const result = resolveOnixContributorOrder(contributors(['A', undefined], ['B', undefined]));
+
+    expect(order(result)).toEqual([
+      ['A', 1],
+      ['B', 2],
+    ]);
+    // Absent is not a fallback worth a warning: source order is a representable ordering.
+    expect(result.sequenceFallback).toBe(false);
+  });
+
+  it('falls back to source order and warns when only some contributors are numbered', () => {
+    const result = resolveOnixContributorOrder(contributors(['A', '1'], ['B', undefined]));
+
+    expect(order(result)).toEqual([
+      ['A', 1],
+      ['B', 2],
+    ]);
+    expect(result.sequenceFallback).toBe(true);
+  });
+
+  it('falls back to source order and warns when SequenceNumbers collide', () => {
+    const result = resolveOnixContributorOrder(contributors(['A', '1'], ['B', '1']));
+
+    expect(order(result)).toEqual([
+      ['A', 1],
+      ['B', 2],
+    ]);
+    expect(result.sequenceFallback).toBe(true);
+  });
+
+  it('treats a blank SequenceNumber mixed with a populated one as unusable', () => {
+    const result = resolveOnixContributorOrder(contributors(['A', '1'], ['B', '']));
+
+    expect(order(result)).toEqual([
+      ['A', 1],
+      ['B', 2],
+    ]);
+    expect(result.sequenceFallback).toBe(true);
+  });
+
+  it.each([
+    ['zero', '0'],
+    ['negative', '-1'],
+    ['decimal', '1.5'],
+    ['non-numeric', 'abc'],
+  ])('never lets a %s SequenceNumber reach an ordinal, using source order instead', (_label, bad) => {
+    const result = resolveOnixContributorOrder(contributors(['A', bad], ['B', '2']));
+
+    // Source order, contiguous, positive — and the malformed value is nowhere in the ordinals.
+    expect(order(result)).toEqual([
+      ['A', 1],
+      ['B', 2],
+    ]);
+    expect(result.ordered.every(({ orderNumber }) => Number.isInteger(orderNumber) && orderNumber >= 1)).toBe(true);
+    expect(result.sequenceFallback).toBe(true);
+  });
+
+  it('numbers a single contributor 1 with no fallback', () => {
+    const result = resolveOnixContributorOrder(contributors(['Solo', '1']));
+
+    expect(order(result)).toEqual([['Solo', 1]]);
+    expect(result.sequenceFallback).toBe(false);
+  });
+
+  it('reads a SequenceNumber that arrives as an attributed object, not "[object Object]"', () => {
+    // The runtime shape @5stones/onix emits when <SequenceNumber> carries an XML attribute.
+    const result = resolveOnixContributorOrder([
+      { name: 'A', SequenceNumber: { '#text': '2' } },
+      { name: 'B', SequenceNumber: { '#text': '1' } },
+    ]);
+
+    expect(order(result)).toEqual([
+      ['B', 1],
+      ['A', 2],
+    ]);
+    expect(result.sequenceFallback).toBe(false);
+  });
+
+  it('returns an empty ordering for an empty contributor list', () => {
+    const result = resolveOnixContributorOrder<Contributor>([]);
+
+    expect(result.ordered).toEqual([]);
+    expect(result.sequenceFallback).toBe(false);
+  });
+
+  it('does not mutate the input array', () => {
+    const input = contributors(['A', '2'], ['B', '1']);
+    const snapshot = input.map((contributor) => contributor.name);
+
+    resolveOnixContributorOrder(input);
+
+    expect(input.map((contributor) => contributor.name)).toEqual(snapshot);
+  });
+
+  it('always produces positive, unique, contiguous 1..n ordinals whatever the input', () => {
+    const cases: Contributor[][] = [
+      contributors(['A', '1'], ['B', '2'], ['C', '3']),
+      contributors(['A', '3'], ['B', '1'], ['C', '2']),
+      contributors(['A', undefined], ['B', undefined], ['C', undefined]),
+      contributors(['A', '1'], ['B', '1'], ['C', undefined]),
+      contributors(['A', '0'], ['B', '-1'], ['C', 'abc']),
+    ];
+
+    for (const input of cases) {
+      const ordinals = resolveOnixContributorOrder(input).ordered.map(({ orderNumber }) => orderNumber);
+
+      expect(ordinals).toEqual([1, 2, 3]);
+    }
   });
 });

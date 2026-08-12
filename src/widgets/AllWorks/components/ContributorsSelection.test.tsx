@@ -162,4 +162,88 @@ describe('ContributorsSelection', () => {
     expect(updated.chapters).toEqual(plan.chapters);
     expect(updated.series).toBe(plan.series);
   });
+
+  /**
+   * A contributor's ordinal is a property of the source contributor, not of the identity the user
+   * picks for it. These cases prove selection preserves the ordinals the parser resolved, whatever
+   * choice is made and in whatever order the choices are enumerated.
+   */
+  describe('preserves resolved contribution ordinals', () => {
+    /** One selection item: a create-new default and one existing match, both at the same ordinal. */
+    const itemFor = (name: string, existingId: string, orderNumber: number) => [
+      {
+        ...getDefaultContribution({ contributorId: '00000000-0000-0000-0000-000000000000', fullName: name, orderNumber }),
+        selected: true,
+        lastContribution: '',
+      },
+      {
+        ...getDefaultContribution({ contributorId: existingId, fullName: name, orderNumber }),
+        selected: false,
+        lastContribution: 'Some Book',
+      },
+    ];
+
+    /** Lisa at ordinal 1 and Tom at ordinal 2, each with a create-new and an existing option. */
+    const twoContributorChoices = (workId: string): ContributorsForSelection => ({
+      [workId]: {
+        'item-lisa': itemFor('Lisa Hopkins', 'existing-lisa', 1),
+        'item-tom': itemFor('Tom Rutter', 'existing-tom', 2),
+      },
+    });
+
+    /** The applied plan's contributions as `[fullName, orderNumber]`, and their invariant. */
+    const appliedOrdinals = (plan: ImportPlan) => {
+      const ordinals = plan.works[0].contributions.map(({ orderNumber }) => orderNumber);
+
+      expect(new Set(ordinals).size).toBe(ordinals.length);
+      expect(ordinals.every((ordinal) => ordinal >= 1)).toBe(true);
+
+      return plan.works[0].contributions.map(({ fullName, orderNumber }) => [fullName, orderNumber] as const);
+    };
+
+    it('keeps ordinals 1 and 2 when an existing record is chosen for the second contributor', async () => {
+      const works = [workWithTitle('work-1', 'First')];
+      const onPreview = vi.fn();
+
+      render(
+        <ContributorsSelection contributors={twoContributorChoices('work-1')} plan={planOf(works)} onPreview={onPreview} />,
+      );
+
+      // Two radio groups; pick the existing record (second radio) of Tom's group only.
+      const radios = screen.getAllByRole('radio');
+      // Groups render in insertion order: [Lisa create, Lisa existing, Tom create, Tom existing].
+      await userEvent.click(radios[3]);
+      await userEvent.click(screen.getByRole('button', { name: 'preview' }));
+
+      const [updated] = onPreview.mock.calls[0] as [ImportPlan];
+
+      expect(appliedOrdinals(updated)).toEqual([
+        ['Lisa Hopkins', 1],
+        ['Tom Rutter', 2],
+      ]);
+      // Lisa stayed the new contributor; Tom became the chosen existing record — ordinals intact.
+      expect(updated.works[0].contributions.map(({ contributorId }) => contributorId)).toEqual([
+        '00000000-0000-0000-0000-000000000000',
+        'existing-tom',
+      ]);
+    });
+
+    it('keeps ordinals 1 and 2 when both contributors keep their create-new default', async () => {
+      const works = [workWithTitle('work-1', 'First')];
+      const onPreview = vi.fn();
+
+      render(
+        <ContributorsSelection contributors={twoContributorChoices('work-1')} plan={planOf(works)} onPreview={onPreview} />,
+      );
+
+      await userEvent.click(screen.getByRole('button', { name: 'preview' }));
+
+      const [updated] = onPreview.mock.calls[0] as [ImportPlan];
+
+      expect(appliedOrdinals(updated)).toEqual([
+        ['Lisa Hopkins', 1],
+        ['Tom Rutter', 2],
+      ]);
+    });
+  });
 });

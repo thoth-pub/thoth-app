@@ -761,3 +761,112 @@ export const selectPublicationOrderSequence = (sequences: OnixCollectionSequence
 
   return { kind: 'conflict', ordinals: ordinals.sort((a, b) => a - b) };
 };
+
+/**
+ * What one contributor's SequenceNumber is worth as an ordering signal.
+ *
+ * ONIX List makes SequenceNumber a positive integer, and this reads it as one or not at all —
+ * `parseInt`'s tolerance for `1.5` or `2nd` would let a malformed value masquerade as a position.
+ * `absent` and a value that is not a positive integer are kept apart because the caller warns
+ * about the second and stays quiet about the first: a file that simply omits SequenceNumber has
+ * lost nothing by being ordered on its source order, while one that supplied `0`, `-1` or `abc`
+ * offered an ordering this importer then declined to trust.
+ */
+type ContributorSequence = { kind: 'usable'; ordinal: number } | { kind: 'invalid' } | { kind: 'absent' };
+
+const readContributorSequenceNumber = (value: OnixText | undefined): ContributorSequence => {
+  // Read through getOnixText, never coerced: a SequenceNumber carrying any XML attribute arrives
+  // as `{ '#text': … }`, which `${value}` would turn into "[object Object]".
+  const text = getOnixText(value);
+
+  if (text.length === 0) return { kind: 'absent' };
+  if (!/^\d+$/.test(text)) return { kind: 'invalid' };
+
+  const ordinal = Number.parseInt(text, 10);
+
+  if (ordinal <= 0) return { kind: 'invalid' };
+
+  return { kind: 'usable', ordinal };
+};
+
+/** One ONIX contributor paired with the position it will hold in Thoth. */
+export type OrderedOnixContributor<T> = {
+  contributor: T;
+  /** The contributor's index in the ONIX source list, kept as tie-break and fallback evidence. */
+  sourceIndex: number;
+  /**
+   * The Thoth contribution ordinal: contiguous `1..n` over the resolved order, never the raw
+   * SequenceNumber. `contribution_ordinal` is a positive, per-work-unique `i32`, so the ordering
+   * ONIX expresses is honoured while the numbers Thoth stores stay inside its own invariant — a
+   * file numbering its authors 10 and 20 becomes contributions 1 and 2, not 10 and 20.
+   */
+  orderNumber: number;
+};
+
+export type OnixContributorOrdering<T> = {
+  ordered: OrderedOnixContributor<T>[];
+  /**
+   * True when explicit SequenceNumber data was present but could not be used as a complete,
+   * unique ordering, so ONIX source order was used instead. False when SequenceNumber was simply
+   * absent — source order is a representable ordering, not a fallback worth warning about.
+   */
+  sequenceFallback: boolean;
+};
+
+/**
+ * Resolves ONIX contributors into the order Thoth will store them in, with contiguous ordinals.
+ *
+ * One explicit, deterministic policy, decided from the file rather than from lookup timing:
+ *
+ * - every contributor carries a usable, unique, positive-integer SequenceNumber → sort ascending
+ *   by SequenceNumber (this is the case that proves SequenceNumber is interpreted, not ignored);
+ * - SequenceNumber is absent throughout → keep ONIX source order;
+ * - anything in between — some numbered and some not, duplicates, zero, negative, decimal,
+ *   non-numeric — → keep ONIX source order for the whole list, rather than invent a hybrid
+ *   interleaving of numbered and unnumbered contributors.
+ *
+ * Either way the resolved order is then numbered `1..n`, so the result is always positive, unique
+ * within the list and contiguous — the three things the backend's
+ * `contribution_contribution_ordinal_work_id_uniq` and `contribution_ordinal > 0` require. The
+ * input array is not mutated: the sort runs on a fresh mapping, and source order is the
+ * documented tie-break so the output cannot depend on `Array.prototype.sort` stability.
+ */
+export const resolveOnixContributorOrder = <T extends { SequenceNumber?: OnixText }>(
+  contributors: T[],
+): OnixContributorOrdering<T> => {
+  const withSequence = contributors.map((contributor, sourceIndex) => ({
+    contributor,
+    sourceIndex,
+    sequence: readContributorSequenceNumber(contributor.SequenceNumber),
+  }));
+
+  const usableOrdinals = withSequence
+    .map(({ sequence }) => (sequence.kind === 'usable' ? sequence.ordinal : undefined))
+    .filter((ordinal) => ordinal !== undefined);
+
+  const everyContributorNumbered = usableOrdinals.length === withSequence.length && withSequence.length > 0;
+  const ordinalsAreUnique = new Set(usableOrdinals).size === usableOrdinals.length;
+  const useSequenceOrder = everyContributorNumbered && ordinalsAreUnique;
+
+  const resolved = useSequenceOrder
+    ? [...withSequence].sort((a, b) => {
+        const left = a.sequence.kind === 'usable' ? a.sequence.ordinal : 0;
+        const right = b.sequence.kind === 'usable' ? b.sequence.ordinal : 0;
+
+        return left - right || a.sourceIndex - b.sourceIndex;
+      })
+    : withSequence;
+
+  const ordered = resolved.map(({ contributor, sourceIndex }, position) => ({
+    contributor,
+    sourceIndex,
+    orderNumber: position + 1,
+  }));
+
+  // Warn only when the file actually offered sequence data we then declined to use. Absent reads
+  // as "no data"; anything non-empty — usable but inconsistent, or outright invalid — is a signal
+  // the publisher meant an ordering this importer could not honour wholesale.
+  const hadExplicitSequence = withSequence.some(({ sequence }) => sequence.kind !== 'absent');
+
+  return { ordered, sequenceFallback: !useSequenceOrder && hadExplicitSequence };
+};

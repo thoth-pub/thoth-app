@@ -67,7 +67,14 @@ export type ImportIssueCode =
    * in a way no compatibility rule covers. Blocking, because a guessed format would be sent to
    * the API only to fail there partway through the import.
    */
-  | 'onix.text.unrepresentable_format';
+  | 'onix.text.unrepresentable_format'
+  /**
+   * A product or content item whose contributors carried SequenceNumber data that could not be
+   * used as a complete, unique ordering — some numbered and some not, duplicated, or malformed —
+   * so contributor order followed the ONIX source order instead. Non-blocking: source order is a
+   * perfectly importable ordering, and the contributors are still created with contiguous ordinals.
+   */
+  | 'onix.contributor.sequence_fallback';
 
 export type ImportIssue = {
   severity: ImportIssueSeverity;

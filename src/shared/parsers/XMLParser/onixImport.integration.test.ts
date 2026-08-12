@@ -110,6 +110,84 @@ const ARC_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 </ONIXMessage>`;
 
 /**
+ * The Arc first product's real contributor shape: two authors on one work, numbered by
+ * SequenceNumber, alongside the Arc regressions the file also exercises — a NoPrefix /
+ * TitleWithoutPrefix title, a TitleType 05 internal title that must not be imported, controlled
+ * subject codes read from SubjectCode, a CollectionType 10 publisher series, an affiliation- and
+ * ROR-free contributor, and a biography declared textformat="06" that nevertheless carries `<I>`.
+ *
+ * This is the fixture the "A contribution with this ordinal number already exists" failure needs:
+ * two contributions on the SAME newly-created work.
+ */
+const ARC_MULTI_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>9781641891783</RecordReference>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix>Arc Companions</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">A Companion to the Cavendishes</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <TitleDetail>
+        <TitleType>05</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix>INTERNAL_9781641891783</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+      <Subject>
+        <SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>
+        <SubjectCode>LIT004290</SubjectCode>
+        <SubjectHeadingText>LITERARY CRITICISM / Women Authors</SubjectHeadingText>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectCode>DSBD</SubjectCode>
+        <SubjectHeadingText>Literary studies: c 1500 to c 1800</SubjectHeadingText>
+      </Subject>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>B01</ContributorRole>
+        <PersonName>Lisa Hopkins</PersonName>
+        <NamesBeforeKey>Lisa</NamesBeforeKey>
+        <KeyNames>Hopkins</KeyNames>
+        <BiographicalNote textformat="06">Lisa Hopkins is co-editor of &lt;I&gt;Shakespeare&lt;/I&gt;.</BiographicalNote>
+      </Contributor>
+      <Contributor>
+        <SequenceNumber>2</SequenceNumber>
+        <ContributorRole>B01</ContributorRole>
+        <PersonName>Tom Rutter</PersonName>
+        <NamesBeforeKey>Tom</NamesBeforeKey>
+        <KeyNames>Rutter</KeyNames>
+      </Contributor>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+/**
  * The Arc markup shapes, verbatim from the production failure: an abstract declared
  * `textformat="02"` (HTML) whose `<em>` used to be sent to the API as JATS XML and fail its
  * validator, and a biography declared `textformat="06"` (plain text) that nevertheless contains
@@ -1037,5 +1115,137 @@ describe('ONIX bulk import, end to end', () => {
       { seriesId: FOUNDATIONS_ID, workId: 'work-3', issueOrdinal: 3 },
       { seriesId: CREATED_SERIES_ID, workId: 'work-4', issueOrdinal: 3 },
     ]);
+  });
+
+  describe('two contributors on one Arc work', () => {
+    type ContributionVariables = { fullName: string; contributorId: string; contributionOrdinal: number };
+
+    const parseArc = async (getContributors: (name: string) => Promise<unknown[]>) => {
+      const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
+      const parser = new XMLParser(
+        xml,
+        [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
+        licenseOptions,
+        [],
+        { getContributors } as never,
+        { getInstitutions: async () => [] } as never,
+        languageOptions,
+        currencyOptions,
+      );
+
+      return parser.parse();
+    };
+
+    const contributionVariables = () =>
+      mutationsNamed('CreateContribution').map((call) => call.variables.data as ContributionVariables);
+
+    const ordinalByName = (variables: ContributionVariables[], fullName: string) =>
+      variables.find((variable) => variable.fullName === fullName)?.contributionOrdinal;
+
+    it('parses Lisa and Tom with distinct, contiguous ordinals and keeps the Arc regressions', async () => {
+      const getContributors = vi.fn().mockResolvedValue([]);
+      const result = await parseArc(getContributors);
+
+      expect(result.status).toBe('success');
+      // No sequence fallback: both authors carry usable, unique SequenceNumbers.
+      expect(result.issues.filter((issue) => issue.code === 'onix.contributor.sequence_fallback')).toEqual([]);
+
+      const [work] = result.data.plan.works;
+
+      // The ordinal fix itself.
+      expect(work.contributions.map(({ fullName, orderNumber }) => [fullName, orderNumber])).toEqual([
+        ['Lisa Hopkins', 1],
+        ['Tom Rutter', 2],
+      ]);
+      const ordinals = work.contributions.map(({ orderNumber }) => orderNumber);
+      expect(new Set(ordinals).size).toBe(ordinals.length);
+      expect(ordinals).not.toEqual([1, 1]);
+
+      // Arc regressions in the same fixture: distinctive title without its prefix logic tripping,
+      // the TitleType 05 internal title excluded, controlled subject codes from SubjectCode, the
+      // publisher series proposed, and the contradictory textformat="06" biography routed as HTML.
+      expect(work.titles.map(({ title, canonical }) => [title, canonical])).toEqual([
+        ['A Companion to the Cavendishes', true],
+      ]);
+      expect(work.subjects.map(({ type, code }) => ({ type, code }))).toEqual([
+        { type: SubjectTypes.enum.Bisac, code: 'LIT004290' },
+        { type: SubjectTypes.enum.Thema, code: 'DSBD' },
+      ]);
+      expect(result.data.plan.series.map((group) => ({ name: group.name, kind: group.target.kind }))).toEqual([
+        { name: 'Arc Companions', kind: 'proposed' },
+      ]);
+      expect(work.contributions[0].biographies.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat])).toEqual([
+        ['Lisa Hopkins is co-editor of <I>Shakespeare</I>.', MarkupFormat.Html],
+      ]);
+      // No ROR anywhere, so no institution lookup was provoked.
+      expect(getContributors).toHaveBeenCalledTimes(2);
+    });
+
+    it('sends CREATE_CONTRIBUTION ordinals 1 and 2, never 1 and 1', async () => {
+      await parseArc(async () => []).then((result) => workService.bulkCreateWorks(result.data.plan));
+
+      const variables = contributionVariables();
+
+      expect(variables).toHaveLength(2);
+      // Asserted by contributor identity, not by asynchronous call-completion order.
+      expect(ordinalByName(variables, 'Lisa Hopkins')).toBe(1);
+      expect(ordinalByName(variables, 'Tom Rutter')).toBe(2);
+
+      const ordinals = variables.map(({ contributionOrdinal }) => contributionOrdinal);
+      // The exact collision the API rejected with "A contribution with this ordinal number
+      // already exists" is now impossible for this work.
+      expect([...ordinals].sort((a, b) => a - b)).toEqual([1, 2]);
+      expect(ordinals).not.toEqual([1, 1]);
+      expect(ordinals.every((ordinal) => ordinal >= 1)).toBe(true);
+      expect(new Set(ordinals).size).toBe(ordinals.length);
+    });
+
+    it('keeps the ordinals when the user picks an existing record for the second contributor', async () => {
+      const existingTom = {
+        id: 'existing-tom',
+        name: 'Tom Rutter',
+        fullName: 'Tom Rutter',
+        firstName: 'Tom',
+        lastName: 'Rutter',
+        orcid: '',
+        website: '',
+        updatedAt: '',
+        lastContributionTitle: 'An earlier book',
+      };
+      const result = await parseArc(async (name: string) => (name === 'Tom Rutter' ? [existingTom] : []));
+
+      // Mirror ContributorsSelection.applySelections: swap Tom's planned contribution for the
+      // existing-record option the parser already tagged with Tom's resolved ordinal.
+      const [work] = result.data.plan.works;
+      const tomItem = Object.values(result.data.contributorsForSelection[work.id]).find(
+        (options) => options[0].fullName === 'Tom Rutter',
+      );
+      const chosenTom = tomItem?.find((option) => option.contributorId === 'existing-tom');
+      // Both of Tom's options carry ordinal 2 — the ordinal is fixed before identity is chosen.
+      expect(tomItem?.map(({ orderNumber }) => orderNumber)).toEqual([2, 2]);
+      const { selected: _selected, lastContribution: _lastContribution, ...chosenTomContribution } = chosenTom!;
+      const selectedPlan = {
+        ...result.data.plan,
+        works: [
+          {
+            ...work,
+            contributions: work.contributions.map((contribution) =>
+              contribution.fullName === 'Tom Rutter' ? chosenTomContribution : contribution,
+            ),
+          },
+        ],
+      };
+
+      await workService.bulkCreateWorks(selectedPlan);
+
+      const variables = contributionVariables();
+
+      expect(ordinalByName(variables, 'Lisa Hopkins')).toBe(1);
+      expect(ordinalByName(variables, 'Tom Rutter')).toBe(2);
+      // Tom reached the mutation as the chosen existing contributor, not a freshly created one.
+      expect(variables.find((variable) => variable.fullName === 'Tom Rutter')?.contributorId).toBe('existing-tom');
+      const ordinals = variables.map(({ contributionOrdinal }) => contributionOrdinal);
+      expect([...ordinals].sort((a, b) => a - b)).toEqual([1, 2]);
+    });
   });
 });

@@ -168,7 +168,15 @@ export interface ExtendedRelatedMaterial {
   RelatedProduct?: OnixRepeatable<OnixRelatedProduct>;
 }
 
-export interface ExtendedContributor extends Omit<Contributor, 'BiographicalNote'> {
+export interface ExtendedContributor extends Omit<Contributor, 'BiographicalNote' | 'SequenceNumber'> {
+  /**
+   * The contributor's position in ONIX's own ordering of a product's or content item's
+   * contributors. Upstream types it as `string`, but `ignoreAttributes: false` means an occurrence
+   * carrying any XML attribute is emitted as `{ '#text': … }` rather than a bare string — so it is
+   * read through {@link getOnixText} like every other attributed element, and typed to say so
+   * rather than lying about a shape a real file can produce.
+   */
+  SequenceNumber?: OnixText;
   ContributorRole?: string;
   PersonName?: string;
   KeyNames?: string;
