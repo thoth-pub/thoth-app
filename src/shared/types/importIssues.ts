@@ -69,6 +69,15 @@ export type ImportIssueCode =
    */
   | 'onix.text.unrepresentable_format'
   /**
+   * An abstract or biography whose format *is* representable — resolved to HTML — but whose
+   * structure is not: a meaningful HTML line break (`<br>`) that Thoth's abstract/biography model
+   * cannot hold, once the harmless empty spacer paragraphs publishers pad text with have been
+   * removed. Distinct from `unrepresentable_format`, which is about the format itself; here only
+   * the structure defeats representation. Blocking, and detected in preview, so the field is never
+   * sent to the API to fail there partway through a non-atomic bulk import.
+   */
+  | 'onix.text.unrepresentable_structure'
+  /**
    * A product or content item whose contributors carried SequenceNumber data that could not be
    * used as a complete, unique ordering — some numbered and some not, duplicated, or malformed —
    * so contributor order followed the ONIX source order instead. Non-blocking: source order is a

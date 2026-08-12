@@ -339,6 +339,55 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
   </Product>
 </ONIXMessage>`;
 
+/**
+ * Arc product 9781802700596 verbatim from the production failure this hotfix answers: a long
+ * abstract declared `textformat="02"` (HTML) whose meaningful paragraph is followed by an empty
+ * `<p style="text-align:justify;"><br></p>` layout paragraph, and an HTML biography padded with the
+ * same empty spacer. The abstract body is spliced in so the meaningful-line-break variant can reuse
+ * the whole product, contributor and biography around a different abstract.
+ */
+const ARC_SPACER_ABSTRACT =
+  '&lt;p&gt;This book examines how the military orders gave rise to a new sacred landscape.&lt;/p&gt;&lt;p style="text-align:justify;"&gt;&lt;br&gt;&lt;/p&gt;';
+
+const arcSpacerOnix = (abstractBody = ARC_SPACER_ABSTRACT) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>9781802700596</RecordReference>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700596</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Ideology and Holy Landscape in the Baltic Crusades</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Gregory Leighton</PersonName>
+        <NamesBeforeKey>Gregory</NamesBeforeKey>
+        <KeyNames>Leighton</KeyNames>
+        <BiographicalNote textformat="02">&lt;p&gt;Gregory Leighton earned his PhD in History.&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</BiographicalNote>
+      </Contributor>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <TextContent>
+        <TextType>03</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text textformat="02">${abstractBody}</Text>
+      </TextContent>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
 /** The subject blocks emitted by Thoth's ONIX 3.0/3.1 exporters, kept compact for round-trip cover. */
 const THOTH_SUBJECT_ROUND_TRIP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
@@ -1046,6 +1095,77 @@ describe('ONIX bulk import, end to end', () => {
     ]);
   });
 
+  it('normalises the Arc spacer abstract and biography before the mutations, keeping both HTML', async () => {
+    // Product 9781802700596, the production failure: the CREATE_ABSTRACT the API actually receives
+    // must be the meaningful paragraph as HTML, with the empty spacer paragraph and its <br> gone.
+    const result = await parseUpload([], arcSpacerOnix());
+
+    expect(result.status).toBe('success');
+    expect(result.issues).toEqual([]);
+
+    const plan = result.data.plan;
+    expect(plan.works[0].abstracts.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat])).toEqual([
+      ['<p>This book examines how the military orders gave rise to a new sacred landscape.</p>', MarkupFormat.Html],
+    ]);
+
+    await workService.bulkCreateWorks(plan);
+
+    const abstractCalls = mutationsNamed('CreateAbstract').map((call) => ({
+      content: (call.variables.data as { content: string }).content,
+      markupFormat: call.variables.markupFormat,
+    }));
+
+    expect(abstractCalls).toEqual([
+      {
+        content: '<p>This book examines how the military orders gave rise to a new sacred landscape.</p>',
+        markupFormat: MarkupFormat.Html,
+      },
+    ]);
+
+    // Assert at the mutation boundary that the spacer, its line break and any empty paragraph are
+    // all gone — an approximate UI check would not prove the API is safe.
+    const [{ content }] = abstractCalls;
+    expect(content).not.toContain('<br');
+    expect(content).not.toContain('text-align:justify');
+    expect(content).not.toContain('<p></p>');
+
+    const biographyCalls = mutationsNamed('CreateBiography').map((call) => ({
+      content: (call.variables.data as { content: string }).content,
+      markupFormat: call.variables.markupFormat,
+    }));
+
+    expect(biographyCalls).toEqual([
+      { content: '<p>Gregory Leighton earned his PhD in History.</p>', markupFormat: MarkupFormat.Html },
+    ]);
+  });
+
+  it('blocks a meaningful-line-break abstract in preview, so no mutation ever runs', async () => {
+    // The non-negotiable guarantee: a deterministic markup incompatibility is discovered before
+    // bulkCreateWorks, not after several earlier works have already been created.
+    const result = await parseUpload([], arcSpacerOnix('&lt;p&gt;Hello&lt;br&gt;world&lt;/p&gt;'));
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        code: 'onix.text.unrepresentable_structure',
+        source: { kind: 'onix', productIndex: 1, recordReference: '9781802700596' },
+      }),
+    );
+    expect(result.data.plan.works).toEqual([]);
+
+    await workService.bulkCreateWorks(result.data.plan);
+
+    // Zero side effects, not merely an eventual error message.
+    expect(mutationsNamed('CreateWork')).toEqual([]);
+    expect(mutationsNamed('CreateAbstract')).toEqual([]);
+    expect(mutationsNamed('CreateContributor')).toEqual([]);
+    expect(mutationsNamed('CreateContribution')).toEqual([]);
+    expect(mutationsNamed('CreateBiography')).toEqual([]);
+    expect(mutationsNamed('CreateSubject')).toEqual([]);
+    expect(mutations).toEqual([]);
+  });
+
   it('still reads Thoth’s own exported JATS back as JATS', async () => {
     // Thoth's ONIX exporter writes stored JATS under textformat="03". A structured abstract
     // that was accepted before this change must keep reaching the API as JATS_XML.
@@ -1174,9 +1294,9 @@ describe('ONIX bulk import, end to end', () => {
       expect(result.data.plan.series.map((group) => ({ name: group.name, kind: group.target.kind }))).toEqual([
         { name: 'Arc Companions', kind: 'proposed' },
       ]);
-      expect(work.contributions[0].biographies.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat])).toEqual([
-        ['Lisa Hopkins is co-editor of <I>Shakespeare</I>.', MarkupFormat.Html],
-      ]);
+      expect(
+        work.contributions[0].biographies.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat]),
+      ).toEqual([['Lisa Hopkins is co-editor of <I>Shakespeare</I>.', MarkupFormat.Html]]);
       // No ROR anywhere, so no institution lookup was provoked.
       expect(getContributors).toHaveBeenCalledTimes(2);
     });
