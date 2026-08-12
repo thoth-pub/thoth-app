@@ -22,8 +22,10 @@
  *
  * Scope. This is a narrow, pure, dependency-free transform, not an HTML sanitiser and not a second
  * copy of the backend's markup validator. It removes structurally-empty paragraphs and detects the
- * `<br>` that survive; everything it keeps is preserved byte-for-byte from the input. Anything else
- * an abstract's markup might get wrong stays the API's job.
+ * `<br>` that survive; every character outside a removed paragraph is copied verbatim, and the only
+ * other edit is trimming whitespace from the two ends of the whole field once something has been
+ * removed. Nothing between two survivors is ever dropped, so normalisation cannot run two pieces of
+ * meaningful text together. Anything else an abstract's markup might get wrong stays the API's job.
  */
 
 /**
@@ -57,7 +59,14 @@ type TagToken = {
 /** A run of text between tags; offsets are into the original string. */
 type TextToken = { type: 'text'; start: number; end: number };
 
-type Token = TagToken | TextToken;
+/**
+ * A whole `<!-- … -->` comment, opener and closer included; offsets are into the original string. A
+ * comment renders nothing, and the tag-shaped text it may contain is not markup, so it is neither
+ * visible content nor a source of elements.
+ */
+type CommentToken = { type: 'comment'; start: number; end: number };
+
+type Token = TagToken | TextToken | CommentToken;
 
 /** One top-level `<p>` element: its byte span, and the token index range of its contents. */
 type Paragraph = { start: number; end: number; innerFrom: number; innerTo: number };
@@ -131,31 +140,64 @@ const hasVisibleText = (text: string): boolean =>
   // `\s` already covers U+00A0, so replacing the entity forms with a space is enough for both.
   text.replace(NON_BREAKING_SPACE_ENTITY, ' ').replace(/\s+/g, '').length > 0;
 
+const COMMENT_OPEN = '<!--';
+const COMMENT_CLOSE = '-->';
+
 /**
- * Splits the fragment into tags and the text between them. A tag is `<` immediately followed by an
- * optional `/` and a letter, up to the next `>` — deliberately the same tag shape the backend's
- * markup detection uses, so a stray `<` in prose (`a < b`) stays text and is never read as a tag.
- * A `>` inside an attribute value would end a tag early here; abstract paragraph styling never
- * contains one, and the fallback if it did is to keep the paragraph, never to corrupt it.
+ * Splits the fragment into comments, tags and the text between them.
+ *
+ * A tag is `<` immediately followed by an optional `/` and a letter, up to the next `>` —
+ * deliberately the same tag shape the backend's markup detection uses, so a stray `<` in prose
+ * (`a < b`) stays text and is never read as a tag. A `>` inside an attribute value would end a tag
+ * early here; abstract paragraph styling never contains one, and the fallback if it did is to keep
+ * the paragraph, never to corrupt it.
+ *
+ * A comment wins over a tag wherever one opens, and is opaque: everything from `<!--` to the first
+ * following `-->` is one token, so tag-shaped prose inside it (`<!-- layout uses <br> -->`) is never
+ * tokenised as markup. That is what an HTML parser does, and reading such text as a real `<br>`
+ * would block an import over a line break that does not exist.
+ *
+ * An unterminated `<!--` is broken markup rather than a comment, and is deliberately left as
+ * ordinary text with scanning resumed straight after it. Treating it as a comment running to the end
+ * of the fragment would make every element after it invisible, which could turn a paragraph holding
+ * real text into a removable spacer. Leaving it as text can only make this normaliser keep more and
+ * block sooner — never delete more.
  */
 const tokenise = (html: string): Token[] => {
   const tokens: Token[] = [];
-  const tagPattern = /<\/?[a-zA-Z][^>]*>/g;
+  const markupPattern = /<!--|<\/?[a-zA-Z][^>]*>/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
 
-  while ((match = tagPattern.exec(html)) !== null) {
-    if (match.index > cursor) {
-      tokens.push({ type: 'text', start: cursor, end: match.index });
+  const flushText = (until: number) => {
+    if (until > cursor) tokens.push({ type: 'text', start: cursor, end: until });
+  };
+
+  while ((match = markupPattern.exec(html)) !== null) {
+    if (match[0] === COMMENT_OPEN) {
+      const closeAt = html.indexOf(COMMENT_CLOSE, match.index + COMMENT_OPEN.length);
+
+      // Unterminated: keep the `<!--` in the surrounding text run and go on scanning after it.
+      if (closeAt === -1) continue;
+
+      flushText(match.index);
+
+      const end = closeAt + COMMENT_CLOSE.length;
+      tokens.push({ type: 'comment', start: match.index, end });
+      cursor = end;
+      markupPattern.lastIndex = end;
+      continue;
     }
+
+    flushText(match.index);
 
     const raw = match[0];
     const closing = raw.startsWith('</');
     const name = (/^<\/?\s*([a-zA-Z][a-zA-Z0-9-]*)/.exec(raw)?.[1] ?? '').toLowerCase();
     const standalone = /\/\s*>$/.test(raw) || STANDALONE_ELEMENTS.has(name);
 
-    tokens.push({ type: 'tag', start: match.index, end: tagPattern.lastIndex, name, closing, standalone });
-    cursor = tagPattern.lastIndex;
+    tokens.push({ type: 'tag', start: match.index, end: markupPattern.lastIndex, name, closing, standalone });
+    cursor = markupPattern.lastIndex;
   }
 
   if (cursor < html.length) {
@@ -201,9 +243,10 @@ const findParagraphs = (tokens: Token[], length: number): Paragraph[] => {
 
 /**
  * Whether a paragraph is a removable spacer: no visible text anywhere inside it, and no child
- * beyond `<br>` and inline wrappers of blank text. A truly empty `<p></p>`, `<p>   </p>`,
- * `<p><br></p>`, `<p><br><br></p>`, `<p>&nbsp;<br></p>` and `<p><strong> </strong><br></p>` all
- * qualify; a single visible character anywhere, or any structural child such as a list, does not.
+ * beyond `<br>`, comments and inline wrappers of blank text. A truly empty `<p></p>`, `<p>   </p>`,
+ * `<p><br></p>`, `<p><br><br></p>`, `<p>&nbsp;<br></p>`, `<p><strong> </strong><br></p>` and
+ * `<p><!-- publisher spacer --><br></p>` all qualify; a single visible character anywhere, or any
+ * structural child such as a list, does not.
  */
 const isSpacerParagraph = (tokens: Token[], html: string, paragraph: Paragraph): boolean => {
   for (let index = paragraph.innerFrom; index < paragraph.innerTo; index += 1) {
@@ -213,6 +256,9 @@ const isSpacerParagraph = (tokens: Token[], html: string, paragraph: Paragraph):
       if (hasVisibleText(html.slice(token.start, token.end))) return false;
       continue;
     }
+
+    // A comment renders nothing, so it never keeps an otherwise-empty paragraph alive.
+    if (token.type === 'comment') continue;
 
     if (token.name === 'br') continue;
     if (TRANSPARENT_INLINE_ELEMENTS.has(token.name)) continue;
@@ -225,10 +271,18 @@ const isSpacerParagraph = (tokens: Token[], html: string, paragraph: Paragraph):
 };
 
 /**
- * Rebuilds the fragment with the given byte spans removed, swallowing the whitespace that
- * immediately follows each removed span so deleting a paragraph between two others does not leave a
- * doubled blank line. The spans are the spacer paragraphs; everything outside them is copied
- * verbatim, which is what keeps surviving content byte-for-byte identical to the input.
+ * Rebuilds the fragment with the given byte spans — the spacer paragraphs — removed, and *only*
+ * those spans: every character outside them, whitespace included, is copied verbatim. That is the
+ * invariant that keeps surviving content byte-for-byte identical to the input.
+ *
+ * Nothing adjacent is swallowed, deliberately. The whitespace around a spacer can be the only thing
+ * separating two survivors — `<span>Hello</span><p><br></p> <span>world</span>` renders as
+ * "Hello world" and must not come back as "Helloworld" — and this transform cannot tell an inline
+ * separator from a purely decorative newline between blocks without reserialising the whole
+ * fragment. So it leaves the source whitespace exactly where the publisher put it. The cost is that
+ * removing a spacer between two block paragraphs can leave the two newlines that surrounded it back
+ * to back; that renders identically, and is much cheaper than the risk of running two words
+ * together.
  */
 const removeSpans = (html: string, spans: [number, number][]): string => {
   const ordered = [...spans].sort((left, right) => left[0] - right[0]);
@@ -239,10 +293,7 @@ const removeSpans = (html: string, spans: [number, number][]): string => {
     if (start < cursor) continue;
 
     result += html.slice(cursor, start);
-
-    let next = end;
-    while (next < html.length && /\s/.test(html[next])) next += 1;
-    cursor = next;
+    cursor = end;
   }
 
   return result + html.slice(cursor);
@@ -255,6 +306,11 @@ const removeSpans = (html: string, spans: [number, number][]): string => {
  * meaningful `<br>` survives — one in a paragraph that carries visible content, or one loose at the
  * top level — reports the field as unrepresentable rather than editing it. A field that was nothing
  * but spacer markup comes back `empty`, so no empty entity is created for it.
+ *
+ * Precisely what "exactly as it was" means: a field with no spacer to remove is returned as the very
+ * same string. A field that lost a spacer is that string minus the spacer's own characters, then
+ * trimmed at its two ends — an edit that can only shorten the document's outermost whitespace and
+ * can never bring two survivors into contact. Whitespace *between* survivors is always kept.
  */
 export const normaliseImportedAbstractHtml = (content: string): ImportedAbstractHtml => {
   const tokens = tokenise(content);
