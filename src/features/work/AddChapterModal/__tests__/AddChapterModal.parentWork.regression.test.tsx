@@ -1,13 +1,21 @@
 /* eslint-disable @eslint-react/no-context-provider -- xstate actor contexts must be rendered via `.Provider` */
 /**
- * Regression coverage for GitHub issue #93 (APP-CHAPTER-01):
+ * DOWNSTREAM regression coverage for GitHub issue #93 (APP-CHAPTER-01):
  * "wrong parent Work ID during chapter creation".
  *
  * A publisher reported that chapters belonging to an unpublished book were genuinely
  * persisted as children of *older* books. The bad data was the WorkRelation itself, not a
- * rendering artefact. These tests reproduce the client-side chapter-creation path at the
- * highest practical integration level and assert the EXACT parent UUID that reaches the
- * GraphQL `CreateWorkRelation` mutation — not merely what the UI displays.
+ * rendering artefact. These tests exercise the chapter-creation path from AddChapterModal's
+ * `workId` prop downward and assert the EXACT parent UUID that reaches the GraphQL
+ * `CreateWorkRelation` mutation — not merely what the UI displays.
+ *
+ * SCOPE / WHAT THIS FILE DOES NOT COVER: these tests mount AddChapterModal directly and start
+ * from a given `workId` prop; they assume the correct current-route Work ID has already reached
+ * the component. They therefore prove the *downstream* invariant (given a correct workId, the
+ * chapter attaches to that Work) but do NOT exercise how the dynamic route id is obtained or
+ * propagated through the route -> EditWorkWidget -> EditWorkChapters hierarchy. That
+ * route/navigation boundary — including real Next useParams/useRouter and browser back/forward —
+ * is covered by the sibling file `AddChapterModal.routeNavigation.regression.test.tsx`.
  *
  * What is real here (the behaviour under investigation):
  *   AddChapterModal (real)
@@ -22,12 +30,12 @@
  * captured verbatim, so a test fails if the previously viewed Work ID — or any other wrong
  * UUID — is substituted for the parent.
  *
- * Navigation model: in the Next.js App Router, navigating between `/admin/works/A` and
- * `/admin/works/B` (same dynamic segment) re-renders the page subtree with a new `workId`
- * prop WITHOUT remounting the client component tree — React reconciles by type/position, so
- * `AddChapterModal`'s local state (e.g. an open modal) survives the navigation. We model that
- * faithfully by keeping the component instance mounted and changing its `workId` prop, which
- * is the adversarial (state-preserving) case a remount would only make safer.
+ * Navigation model (ADVERSARIAL, not a validated model of Next.js lifecycle): these tests keep
+ * the AddChapterModal instance mounted and change its `workId` prop. This is deliberately the
+ * worst case for stale state — a preserved component whose parent Work changes underneath it.
+ * It is NOT a claim that Next.js necessarily reuses (rather than remounts) this subtree across
+ * navigation in this app's configuration; a real remount would only reset more state and be
+ * strictly safer. The actual routing mechanism is exercised in the routeNavigation sibling file.
  */
 
 import { ThemeProvider } from '@mui/material';
@@ -266,9 +274,10 @@ function Providers({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Models client-side navigation: the same AddChapterModal instance stays mounted while its
-// workId prop changes (see navigation model note at the top of the file). The active-Work
-// setter is handed back to the test via `register` so navigation can be driven imperatively.
+// Adversarial state-preserving harness (see the navigation-model note at the top): the same
+// AddChapterModal instance is kept mounted while its workId prop changes. This is NOT a claim
+// about Next.js remount behaviour — it is the worst case for stale parent state. The active-Work
+// setter is handed back to the test via `register` so the change can be driven imperatively.
 type Nav = { go: (workId: string) => void };
 
 function NavigableModal({ register, initialWorkId }: { register: (go: Nav['go']) => void; initialWorkId: string }) {
@@ -327,7 +336,7 @@ describe('AddChapterModal – parent Work ID integrity (issue #93)', () => {
       </Providers>,
     );
 
-    // Client-side navigation A -> B without a remount.
+    // Change the active Work A -> B on the preserved (adversarial, non-remounted) instance.
     await act(async () => {
       nav.go(BOOK_B_ID);
     });
@@ -522,7 +531,8 @@ describe('AddChapterModal – parent Work ID integrity (issue #93)', () => {
       expect(call.relationType).toBe(RelationType.IsChildOf);
     });
     expect(fake.relationCalls.map((call) => call.relationOrdinal)).toEqual([1, 2, 3]);
-    const parents = new Set(fake.relationCalls.map((call) => call.relatorWorkId));
-    expect(parents.size).toBe(3);
+    // relatorWorkId is the newly created child chapter; each submission creates a distinct one.
+    const childChapterIds = new Set(fake.relationCalls.map((call) => call.relatorWorkId));
+    expect(childChapterIds.size).toBe(3);
   });
 });
