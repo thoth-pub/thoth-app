@@ -2,6 +2,13 @@
 /**
  * ROUTE-LEVEL regression coverage for GitHub issue #93 (APP-CHAPTER-01).
  *
+ * SCOPE NOTE: the `WorkRouteView` helper below MODELS the server render during these
+ * client-navigation tests — it reads `useParams()` and forwards the id to EditWorkWidget the
+ * same way production does, but it is NOT the production route. The real
+ * `app/admin/works/[...id]/page.tsx` `params` -> `EditWorkWidget workId` hand-off is separately
+ * and directly protected by `app/admin/works/[...id]/__tests__/page.handoff.regression.test.tsx`,
+ * which invokes the actual server component. The two files are complementary.
+ *
  * The sibling file `AddChapterModal.parentWork.regression.test.tsx` proves the *downstream*
  * invariant: given a correct `workId` prop, AddChapterModal always attaches chapters to that
  * Work. It does NOT exercise how the dynamic route id is obtained and propagated, because it
