@@ -61,6 +61,80 @@ describe('normaliseImportedAbstractHtml', () => {
       }
     });
 
+    /**
+     * The backend parses the HTML before validating it, so a character reference standing for
+     * whitespace reaches it as whitespace: `<p>&#10;<br></p>` is an empty spacer, not a paragraph
+     * holding five visible characters. Every expectation below matches what a real HTML parser
+     * decodes the reference to.
+     */
+    it('treats a character reference that decodes to whitespace as blank', () => {
+      const references = [
+        // Decimal: TAB, LF, FF, CR, SPACE, NBSP.
+        '&#9;',
+        '&#10;',
+        '&#12;',
+        '&#13;',
+        '&#32;',
+        '&#160;',
+        // Hexadecimal, either case, with and without leading zeros.
+        '&#x9;',
+        '&#xA;',
+        '&#xC;',
+        '&#xD;',
+        '&#x20;',
+        '&#xA0;',
+        '&#X20;',
+        '&#x0009;',
+        '&#0032;',
+        // Named. HTML is case-sensitive here, and these are the spellings it defines.
+        '&Tab;',
+        '&NewLine;',
+        '&nbsp;',
+        '&NonBreakingSpace;',
+        '&ensp;',
+        '&emsp;',
+        '&thinsp;',
+        '&MediumSpace;',
+      ];
+
+      for (const reference of references) {
+        expect(normaliseImportedAbstractHtml(`<p>${reference}<br></p>`)).toEqual({ kind: 'empty' });
+        expect(normaliseImportedAbstractHtml(`<p>Real abstract.</p><p>${reference}<br></p>`)).toEqual({
+          kind: 'content',
+          content: '<p>Real abstract.</p>',
+        });
+      }
+    });
+
+    it('keeps a reference that decodes to something visible', () => {
+      // Nothing is treated as blank for merely looking like an entity.
+      for (const reference of [
+        '&#65;',
+        '&#x41;',
+        '&lt;',
+        '&amp;',
+        '&#8203;', // U+200B zero-width space: not whitespace, so not blank.
+        '&#1114112;', // Out of range; a real parser yields U+FFFD, which is visible.
+        '&Tab', // Unterminated, so not a reference at all here.
+        '&tab;', // Named references are case-sensitive; this one is literal text.
+        '&NBSP;',
+      ]) {
+        expect(normaliseImportedAbstractHtml(`<p>${reference}<br></p>`)).toEqual({ kind: 'unrepresentable' });
+      }
+    });
+
+    it('still sees visible text sitting beside a whitespace reference', () => {
+      expect(normaliseImportedAbstractHtml('<p>&#10;Hello<br></p>')).toEqual({ kind: 'unrepresentable' });
+    });
+
+    it('leaves whitespace references in surviving content exactly as written', () => {
+      // References are decoded only to answer "is this blank?" — never to rewrite publisher content.
+      expect(normaliseImportedAbstractHtml('<p>Real&#10;abstract.</p><p>&#9;<br></p>')).toEqual({
+        kind: 'content',
+        content: '<p>Real&#10;abstract.</p>',
+      });
+    });
+
     it('drops a spacer whose <br> sits inside a blank inline wrapper', () => {
       expect(normaliseImportedAbstractHtml('<p>Real abstract.</p><p><strong> </strong><br></p>')).toEqual({
         kind: 'content',
@@ -127,10 +201,17 @@ describe('normaliseImportedAbstractHtml', () => {
       ).toEqual({ kind: 'content', content: '<span>a</span>  <span>b</span>  <span>c</span>' });
     });
 
-    it('never invents a separator where the source had none', () => {
+    it('stands one space in for the block boundary when nothing else separates the survivors', () => {
+      // The `<p>` was itself the separation: it renders "Hello" and "world" on separate lines even
+      // with no whitespace around its tags. Deleting it outright spells "Helloworld", so one space
+      // takes its place — the most of a block boundary that survives in a model with no line break.
       expect(normaliseImportedAbstractHtml('<span>Hello</span><p><br></p><span>world</span>')).toEqual({
         kind: 'content',
-        content: '<span>Hello</span><span>world</span>',
+        content: '<span>Hello</span> <span>world</span>',
+      });
+      expect(normaliseImportedAbstractHtml('Hello<p><br></p>world')).toEqual({
+        kind: 'content',
+        content: 'Hello world',
       });
     });
 
@@ -141,6 +222,84 @@ describe('normaliseImportedAbstractHtml', () => {
           content: '<p>Real abstract.</p>',
         },
       );
+    });
+
+    it('adds nothing at the edges of the field', () => {
+      // Nothing to join, and the closing trim would take the space anyway.
+      expect(normaliseImportedAbstractHtml('<p><br></p><span>world</span>')).toEqual({
+        kind: 'content',
+        content: '<span>world</span>',
+      });
+      expect(normaliseImportedAbstractHtml('<span>Hello</span><p><br></p>')).toEqual({
+        kind: 'content',
+        content: '<span>Hello</span>',
+      });
+    });
+
+    it('adds one separator for a run of touching spacers, not one each', () => {
+      expect(normaliseImportedAbstractHtml('Hello<p><br></p><p><br></p>world')).toEqual({
+        kind: 'content',
+        content: 'Hello world',
+      });
+      expect(normaliseImportedAbstractHtml('Hello<p><br></p><p><br></p><p><br></p>world')).toEqual({
+        kind: 'content',
+        content: 'Hello world',
+      });
+    });
+
+    it('adds nothing between block paragraphs, which already separate themselves', () => {
+      expect(normaliseImportedAbstractHtml('<p>One.</p><p><br></p><p>Two.</p>')).toEqual({
+        kind: 'content',
+        content: '<p>One.</p><p>Two.</p>',
+      });
+      expect(normaliseImportedAbstractHtml('<div>One.</div><p><br></p><div>Two.</div>')).toEqual({
+        kind: 'content',
+        content: '<div>One.</div><div>Two.</div>',
+      });
+    });
+
+    it('adds nothing when the nearest text already ends or begins with whitespace', () => {
+      // The separating space sits one element away from the join rather than against it, but it
+      // still separates, so no second space is invented.
+      expect(normaliseImportedAbstractHtml('<span>Hello </span><p><br></p><span>world</span>')).toEqual({
+        kind: 'content',
+        content: '<span>Hello </span><span>world</span>',
+      });
+      expect(normaliseImportedAbstractHtml('<span>Hello</span><p><br></p><span> world</span>')).toEqual({
+        kind: 'content',
+        content: '<span>Hello</span><span> world</span>',
+      });
+      // A reference standing for whitespace separates just as the character it renders as would.
+      expect(normaliseImportedAbstractHtml('Hello&nbsp;<p><br></p>world')).toEqual({
+        kind: 'content',
+        content: 'Hello&nbsp;world',
+      });
+      expect(normaliseImportedAbstractHtml('Hello<p><br></p>&#10;world')).toEqual({
+        kind: 'content',
+        content: 'Hello&#10;world',
+      });
+    });
+
+    it('adds nothing when a side has no rendered text to join', () => {
+      // The spacer was the span's whole content, so removing it leaves nothing to run together.
+      expect(normaliseImportedAbstractHtml('<span><p><br></span><p>Real.</p>')).toEqual({
+        kind: 'content',
+        content: '<span></span><p>Real.</p>',
+      });
+    });
+
+    it('adds one space only, never doubling an existing separator', () => {
+      for (const [input, content] of [
+        ['<span>Hello</span><p><br></p> <span>world</span>', '<span>Hello</span> <span>world</span>'],
+        ['<span>Hello</span> <p><br></p><span>world</span>', '<span>Hello</span> <span>world</span>'],
+        ['Text<p><br></p> more', 'Text more'],
+        ['Text <p><br></p>more', 'Text more'],
+      ] as const) {
+        const result = normaliseImportedAbstractHtml(input);
+
+        expect(result).toEqual({ kind: 'content', content });
+        expect(result.kind === 'content' && / {2}/.test(result.content)).toBe(false);
+      }
     });
   });
 

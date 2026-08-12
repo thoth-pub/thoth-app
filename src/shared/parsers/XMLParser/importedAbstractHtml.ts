@@ -22,10 +22,11 @@
  *
  * Scope. This is a narrow, pure, dependency-free transform, not an HTML sanitiser and not a second
  * copy of the backend's markup validator. It removes structurally-empty paragraphs and detects the
- * `<br>` that survive; every character outside a removed paragraph is copied verbatim, and the only
- * other edit is trimming whitespace from the two ends of the whole field once something has been
- * removed. Nothing between two survivors is ever dropped, so normalisation cannot run two pieces of
- * meaningful text together. Anything else an abstract's markup might get wrong stays the API's job.
+ * `<br>` that survive; every character outside a removed paragraph is copied verbatim. Three edits
+ * and no others are permitted: removing a spacer paragraph's own characters, trimming whitespace
+ * from the two ends of the whole field, and inserting a single space where deleting a spacer would
+ * otherwise run two survivors together. Nothing between two survivors is ever dropped. Anything else
+ * an abstract's markup might get wrong stays the API's job.
  */
 
 /**
@@ -246,17 +247,73 @@ const PARAGRAPH_IMPLICIT_END_ELEMENTS = new Set([
 ]);
 
 /**
- * The non-breaking space in the forms an ONIX HTML abstract can carry it: the named entity, the
- * decimal and hexadecimal numeric references (with optional leading zeros), and — matched
- * separately, as a literal character — U+00A0 itself. A spacer paragraph may be built from these
- * and ordinary whitespace and nothing else.
+ * A character reference: a decimal or hexadecimal numeric one, or a named one. Matched only in its
+ * terminated form. HTML also decodes some unterminated references (`&#10` renders a newline), but
+ * leaving those alone can only make this normaliser judge a paragraph non-blank and keep it, which
+ * is the safe direction for markup written that loosely.
  */
-const NON_BREAKING_SPACE_ENTITY = /&nbsp;|&#0*160;|&#x0*a0;/gi;
+const CHARACTER_REFERENCE = /&(#[Xx][0-9A-Fa-f]+|#[0-9]+|[A-Za-z][A-Za-z0-9]*);/g;
 
-/** Whether a run of text holds anything a reader would see, treating whitespace and NBSP as blank. */
+/**
+ * The named character references that decode to whitespace, taken from what a real HTML parser
+ * actually produces for each. HTML named references are case-sensitive — `&Tab;` is a tab and
+ * `&tab;` is the literal text `&tab;` — so this map is looked up exactly as written. `ZeroWidthSpace`
+ * is deliberately absent: U+200B is not whitespace, and a paragraph holding one is not blank.
+ */
+const WHITESPACE_NAMED_REFERENCES = new Map([
+  ['Tab', '\t'],
+  ['NewLine', '\n'],
+  ['nbsp', ' '],
+  ['NonBreakingSpace', ' '],
+  ['ensp', ' '],
+  ['emsp', ' '],
+  ['emsp13', ' '],
+  ['emsp14', ' '],
+  ['numsp', ' '],
+  ['puncsp', ' '],
+  ['thinsp', ' '],
+  ['hairsp', ' '],
+  ['MediumSpace', ' '],
+]);
+
+/** The character a reference stands for, or `undefined` when it names nothing this needs to know. */
+const decodeReference = (body: string): string | undefined => {
+  if (body[0] !== '#') return WHITESPACE_NAMED_REFERENCES.get(body);
+
+  const codePoint =
+    body[1] === 'x' || body[1] === 'X' ? Number.parseInt(body.slice(2), 16) : Number.parseInt(body.slice(1), 10);
+
+  // Out of range is not a character at all — a real parser substitutes U+FFFD, which is visible.
+  return Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff
+    ? String.fromCodePoint(codePoint)
+    : undefined;
+};
+
+/**
+ * The same text with every whitespace-standing character reference replaced by a space, and every
+ * other reference left exactly as written. Used to judge blankness and to find the separation
+ * already present at a join; the result is never stored, so publisher content is never rewritten.
+ */
+const withWhitespaceDecoded = (text: string): string =>
+  text.replace(CHARACTER_REFERENCE, (raw, body: string) => {
+    const decoded = decodeReference(body);
+
+    return decoded !== undefined && /^\s$/.test(decoded) ? ' ' : raw;
+  });
+
+/**
+ * Whether a run of text holds anything a reader would see.
+ *
+ * Literal whitespace is blank, and so is a character reference that *decodes* to whitespace: the
+ * backend parses the HTML before validating it, so `<p>&#10;<br></p>` reaches it as a paragraph
+ * holding a newline — an empty spacer — not as one holding five visible characters. References are
+ * resolved here only to answer that question; nothing is decoded in the content this returns, and a
+ * reference standing for anything else stays exactly as the publisher wrote it and stays visible, so
+ * `&#65;`, `&lt;` and `&amp;` all still count as content.
+ */
 const hasVisibleText = (text: string): boolean =>
-  // `\s` already covers U+00A0, so replacing the entity forms with a space is enough for both.
-  text.replace(NON_BREAKING_SPACE_ENTITY, ' ').replace(/\s+/g, '').length > 0;
+  // `\s` covers U+00A0 and the other space characters those references decode to.
+  withWhitespaceDecoded(text).replace(/\s+/g, '').length > 0;
 
 const COMMENT_OPEN = '<!--';
 const COMMENT_CLOSE = '-->';
@@ -482,28 +539,121 @@ const isSpacerParagraph = (tokens: Token[], html: string, paragraph: Paragraph):
 };
 
 /**
- * Rebuilds the fragment with the given byte spans — the spacer paragraphs — removed, and *only*
- * those spans: every character outside them, whitespace included, is copied verbatim. That is the
- * invariant that keeps surviving content byte-for-byte identical to the input.
- *
- * Nothing adjacent is swallowed, deliberately. The whitespace around a spacer can be the only thing
- * separating two survivors — `<span>Hello</span><p><br></p> <span>world</span>` renders as
- * "Hello world" and must not come back as "Helloworld" — and this transform cannot tell an inline
- * separator from a purely decorative newline between blocks without reserialising the whole
- * fragment. So it leaves the source whitespace exactly where the publisher put it. The cost is that
- * removing a spacer between two block paragraphs can leave the two newlines that surrounded it back
- * to back; that renders identically, and is much cheaper than the risk of running two words
- * together.
+ * Elements that already separate what sits on either side of them, so deleting a paragraph next to
+ * one cannot run two pieces of text together. It is the set of paragraph-ending block elements plus
+ * `p` itself — the same list a real parser gave us — rather than a second, invented idea of which
+ * tags are blocks.
  */
-const removeSpans = (html: string, spans: [number, number][]): string => {
+const BLOCK_BOUNDARY_ELEMENTS = new Set([...PARAGRAPH_IMPLICIT_END_ELEMENTS, 'p']);
+
+/**
+ * The nearest token index on each side of a span that will still be there once it is gone, or `-1`
+ * when the span reaches that end of the field. Comments render nothing and are looked past.
+ */
+const survivorsAround = (tokens: Token[], start: number, end: number) => {
+  let before = -1;
+  let after = -1;
+
+  tokens.forEach((token, index) => {
+    if (token.type === 'comment') return;
+    if (token.end <= start) before = index;
+    if (after === -1 && token.start >= end) after = index;
+  });
+
+  return { before, after };
+};
+
+/**
+ * What lies on one side of a join, looking outward from it: rendered text that could be run into the
+ * other side, whitespace that already keeps them apart, a block element that does the same, or
+ * nothing at all. `step` is `-1` to look back from the join and `1` to look forward.
+ *
+ * The first text run met decides it, and which of its ends matters depends on the direction — a run
+ * of `"Hello "` separates when the join is to its right and does not when the join is to its left.
+ */
+type JoinSide = 'text' | 'separated' | 'nothing';
+
+const sideOfJoin = (tokens: Token[], html: string, from: number, step: -1 | 1): JoinSide => {
+  for (let index = from; index >= 0 && index < tokens.length; index += step) {
+    const token = tokens[index];
+
+    if (token.type === 'comment') continue;
+
+    if (token.type === 'text') {
+      // Decoded, so an `&nbsp;` written against the join counts as the separation it renders as.
+      const run = withWhitespaceDecoded(html.slice(token.start, token.end));
+      const facing = step === -1 ? /\s$/ : /^\s/;
+
+      // Whitespace facing the join separates; anything else there is a character a reader can see.
+      return facing.test(run) ? 'separated' : 'text';
+    }
+
+    if (BLOCK_BOUNDARY_ELEMENTS.has(token.name)) return 'separated';
+  }
+
+  return 'nothing';
+};
+
+/**
+ * Whether removing this spacer would push two pieces of rendered text together, so that one space
+ * has to stand in for the block boundary being deleted.
+ *
+ * A `<p>` is a block: `<span>Hello</span><p><br></p><span>world</span>` renders "Hello" and "world"
+ * on separate lines even though no whitespace separates the tags, and dropping the paragraph outright
+ * leaves them spelling "Helloworld". Thoth cannot represent the line break itself — that is the whole
+ * reason the paragraph is going — so a single space is the most of that boundary that can survive.
+ *
+ * It is inserted only where something would actually be joined: rendered text must be reachable on
+ * both sides without first meeting whitespace the publisher already wrote or a block element that
+ * separates them anyway. At the very start or end of the field there is nothing to join, and the
+ * closing trim would drop the space regardless.
+ */
+const joinNeedsSeparator = (tokens: Token[], html: string, start: number, end: number): boolean => {
+  const { before, after } = survivorsAround(tokens, start, end);
+
+  if (before === -1 || after === -1) return false;
+
+  return sideOfJoin(tokens, html, before, -1) === 'text' && sideOfJoin(tokens, html, after, 1) === 'text';
+};
+
+/**
+ * Rebuilds the fragment with the given byte spans — the spacer paragraphs — removed. Every character
+ * outside them, whitespace included, is copied verbatim; the one thing that may be added is a single
+ * space where {@link joinNeedsSeparator} says the deleted paragraph was the only boundary between two
+ * survivors.
+ *
+ * Existing whitespace is never swallowed. It can be the only thing separating two survivors —
+ * `<span>Hello</span><p><br></p> <span>world</span>` — and this transform cannot tell an inline
+ * separator from a decorative newline between blocks without reserialising the fragment, so it leaves
+ * the source exactly where the publisher put it. The cost is that removing a spacer between two block
+ * paragraphs can leave the two newlines that surrounded it back to back, which renders identically.
+ *
+ * Spacers that touch are removed as one span, so a run of them yields one separator rather than a
+ * growing line of invented spaces.
+ */
+const removeSpans = (html: string, spans: [number, number][], tokens: Token[]): string => {
   const ordered = [...spans].sort((left, right) => left[0] - right[0]);
   let result = '';
   let cursor = 0;
 
-  for (const [start, end] of ordered) {
+  for (let index = 0; index < ordered.length; index += 1) {
+    const [start] = ordered[index];
+
     if (start < cursor) continue;
 
+    // Absorb any spacers butting directly against this one: together they are a single deletion,
+    // and a single boundary.
+    let end = ordered[index][1];
+
+    while (index + 1 < ordered.length && ordered[index + 1][0] === end) {
+      index += 1;
+      end = ordered[index][1];
+    }
+
     result += html.slice(cursor, start);
+
+    if (joinNeedsSeparator(tokens, html, start, end)) result += ' ';
+
     cursor = end;
   }
 
@@ -547,10 +697,14 @@ const rendersNothing = (tokens: Token[], html: string): boolean =>
  * a single character is removed and the emptiness test never runs on a field that still holds a real
  * line break — no `<br>` can be swept away by being declared part of an empty wrapper.
  *
- * Precisely what "exactly as it was" means: a field with no spacer to remove is returned as the very
- * same string. A field that lost a spacer is that string minus the spacer's own characters, then
- * trimmed at its two ends — an edit that can only shorten the document's outermost whitespace and
- * can never bring two survivors into contact. Whitespace *between* survivors is always kept.
+ * Precisely what "exactly as it was" means, as three rules rather than one slogan:
+ *
+ * - source content outside a removed spacer's span is preserved character for character, and a field
+ *   with no spacer to remove is returned as the very same string;
+ * - existing whitespace is never swallowed, wherever it sits;
+ * - one space may be *inserted* at a join, and only there — where the paragraph being deleted was
+ *   itself the boundary holding two survivors apart. The whole field is then trimmed at its two ends,
+ *   which can only shorten the outermost whitespace and never brings two survivors into contact.
  */
 export const normaliseImportedAbstractHtml = (content: string): ImportedAbstractHtml => {
   const tokens = tokenise(content);
@@ -574,6 +728,7 @@ export const normaliseImportedAbstractHtml = (content: string): ImportedAbstract
   const cleaned = removeSpans(
     content,
     spacers.map(({ start, end }): [number, number] => [start, end]),
+    tokens,
   ).trim();
 
   // Not a length test: what is left may still be wrappers holding nothing, such as the `<div></div>`
