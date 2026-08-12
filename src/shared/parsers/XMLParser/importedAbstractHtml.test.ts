@@ -217,6 +217,149 @@ describe('normaliseImportedAbstractHtml', () => {
   });
 
   /**
+   * `>` is legal inside a quoted attribute value, so a tag does not end at the first `>` — it ends
+   * at the first one outside quotes. Getting this wrong turned the tail of an attribute into visible
+   * paragraph text, which kept an empty spacer alive and blocked the import over its `<br>`.
+   */
+  describe('ends a tag only at a > outside quoted attribute values', () => {
+    it('treats a double-quoted attribute holding > as one opening tag', () => {
+      expect(normaliseImportedAbstractHtml('<p title="1 > 0"><br></p>')).toEqual({ kind: 'empty' });
+    });
+
+    it('treats a single-quoted attribute holding > as one opening tag', () => {
+      expect(normaliseImportedAbstractHtml("<p title='1 > 0'><br></p>")).toEqual({ kind: 'empty' });
+    });
+
+    it('keeps a paragraph whose attribute holds > and whose body is real text', () => {
+      const input = '<p title="1 > 0">Real text.</p>';
+
+      expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
+    });
+
+    it('still blocks a real break in a paragraph whose attribute holds >', () => {
+      expect(normaliseImportedAbstractHtml('<p title="1 > 0">Hello<br>world</p>')).toEqual({
+        kind: 'unrepresentable',
+      });
+    });
+
+    it('handles several > inside one attribute, and several quoted attributes', () => {
+      expect(normaliseImportedAbstractHtml('<p data-note="a > b > c"><br></p>')).toEqual({ kind: 'empty' });
+      expect(normaliseImportedAbstractHtml('<p data-note="a > b > c" class="x"><br></p>')).toEqual({ kind: 'empty' });
+      expect(normaliseImportedAbstractHtml("<p data-note='a > b' class='x'><br></p>")).toEqual({ kind: 'empty' });
+    });
+
+    it('reads a quote of the other kind inside a quoted value as ordinary text', () => {
+      const input = `<p title="it's > here">Real text.</p>`;
+
+      expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
+      expect(normaliseImportedAbstractHtml(`<p title='say "hi" > now'><br></p>`)).toEqual({ kind: 'empty' });
+    });
+
+    it('keeps the attribute verbatim on a paragraph that survives beside a removed spacer', () => {
+      expect(normaliseImportedAbstractHtml('<p title="1 > 0">Real text.</p><p><br></p>')).toEqual({
+        kind: 'content',
+        content: '<p title="1 > 0">Real text.</p>',
+      });
+    });
+
+    it('does not tokenise a quoted > written inside a comment', () => {
+      const input = '<!-- <p title="1 > 0"><br></p> --><p>Real.</p>';
+
+      expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
+      expect(normaliseImportedAbstractHtml('<p>Text</p><!-- documentation says x > y and uses <br> -->')).toEqual({
+        kind: 'content',
+        content: '<p>Text</p><!-- documentation says x > y and uses <br> -->',
+      });
+    });
+
+    it('removes a spacer whose attribute holds > and whose comment holds > and <br>', () => {
+      expect(normaliseImportedAbstractHtml('<p title="a > b"><!-- comment contains > and <br> --><br></p>')).toEqual({
+        kind: 'empty',
+      });
+    });
+
+    it('leaves a tag whose quoted value never closes as text rather than guessing where it ended', () => {
+      // Broken markup. Keeping it as text can only preserve more and block sooner; inventing a tag
+      // boundary could turn a paragraph holding real text into a removable spacer.
+      const input = '<p title="oops>Real text.';
+
+      expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
+    });
+  });
+
+  /**
+   * A field that renders nothing must be omitted rather than created empty. Removing the only
+   * paragraph of `<div><p><br></p></div>` leaves `<div></div>` — not an empty string, but an empty
+   * abstract, since the backend reads `div` as a transparent document container.
+   */
+  describe('reports a field that renders nothing as empty', () => {
+    it('omits a wrapper left holding nothing after its spacer went', () => {
+      expect(normaliseImportedAbstractHtml('<div><p><br></p></div>')).toEqual({ kind: 'empty' });
+      expect(normaliseImportedAbstractHtml('<div><p> </p></div>')).toEqual({ kind: 'empty' });
+      expect(normaliseImportedAbstractHtml('<div><p>&nbsp;</p></div>')).toEqual({ kind: 'empty' });
+      expect(normaliseImportedAbstractHtml('<div><!-- note --><p><br></p></div>')).toEqual({ kind: 'empty' });
+      expect(normaliseImportedAbstractHtml('<div><span></span><p><br></p></div>')).toEqual({ kind: 'empty' });
+    });
+
+    it('omits wrapper-only markup that never had a spacer to remove', () => {
+      for (const input of [
+        '<div></div>',
+        '<div>   </div>',
+        '<div><!-- note --></div>',
+        '<div><span></span></div>',
+        '<div><span> </span></div>',
+        '<span></span>',
+        '<strong></strong>',
+        '<em> </em>',
+        '<div><span><!-- note --> &nbsp; </span></div>',
+      ]) {
+        expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'empty' });
+      }
+    });
+
+    it('keeps a wrapper that holds real text', () => {
+      for (const input of ['<div><span>Hello</span></div>', '<div><p>Real.</p></div>', '<span>Hello</span>']) {
+        expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
+      }
+    });
+
+    it('keeps the surviving text when a wrapper holds both content and a spacer', () => {
+      expect(normaliseImportedAbstractHtml('<div><span>Real.</span><p><br></p></div>')).toEqual({
+        kind: 'content',
+        content: '<div><span>Real.</span></div>',
+      });
+    });
+
+    it('keeps a real paragraph beside a wrapper that emptied out', () => {
+      expect(normaliseImportedAbstractHtml('<div><p><br></p></div><p>Real.</p>')).toEqual({
+        kind: 'content',
+        content: '<div></div><p>Real.</p>',
+      });
+    });
+
+    it('never calls an element it does not recognise empty', () => {
+      // Conservative by design: an unknown or standalone element may carry meaning the backend
+      // understands, so the field is kept and existing validation decides — data is never deleted
+      // merely because this normaliser cannot read it.
+      for (const input of [
+        '<div><img src="cover.jpg"></div>',
+        '<div><hr></div>',
+        '<div><a href="https://example.com"></a></div>',
+        '<div><ul><li></li></ul></div>',
+        '<figure><figcaption></figcaption></figure>',
+      ]) {
+        expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
+      }
+    });
+
+    it('still blocks a real break inside a wrapper rather than calling the wrapper empty', () => {
+      expect(normaliseImportedAbstractHtml('<div><p>Hello<br>world</p></div>')).toEqual({ kind: 'unrepresentable' });
+      // A loose break in a wrapper is not a spacer paragraph, so it blocks rather than vanishing.
+      expect(normaliseImportedAbstractHtml('<div><br></div>')).toEqual({ kind: 'unrepresentable' });
+    });
+  });
+
+  /**
    * An HTML comment renders nothing and contains no markup, however tag-shaped its text looks. Both
    * directions are pinned: a comment can never conjure a structural element that is not there, and
    * it can never hide one that is.
@@ -232,10 +375,10 @@ describe('normaliseImportedAbstractHtml', () => {
     });
 
     it('does not flag a comment that is nothing but a break', () => {
-      expect(normaliseImportedAbstractHtml('<!-- <br> -->')).toEqual({
-        kind: 'content',
-        content: '<!-- <br> -->',
-      });
+      // Not unrepresentable — the commented `<br>` is not a break. It is `empty` rather than
+      // `content` because a field consisting only of a comment renders nothing, so there is no
+      // abstract to create; that is the same rule that omits `<div><p><br></p></div>`.
+      expect(normaliseImportedAbstractHtml('<!-- <br> -->')).toEqual({ kind: 'empty' });
     });
 
     it('does not build a fake spacer paragraph out of commented-out markup', () => {

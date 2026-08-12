@@ -128,6 +128,58 @@ const TRANSPARENT_INLINE_ELEMENTS = new Set([
 ]);
 
 /**
+ * Elements that render nothing of their own, so a field built from these and blank text has no
+ * content for Thoth to store. Chosen against what the backend's `html_to_ast` actually does with
+ * each one (`thoth-api/src/markup/ast.rs`), not from a general idea of which tags look decorative:
+ *
+ * - `div`, `html`, `body` and `span` become `Document(children)` — pure containers;
+ * - `p` becomes `Paragraph(children)`, which shows nothing when it holds nothing;
+ * - the formatting wrappers below become `Bold`/`Italic`/`Underline`/`Strikethrough`/`Code`/
+ *   `Superscript`/`Subscript` around their children, contributing no glyph themselves;
+ * - the remaining inline names are unknown to the backend, which turns a childless one into
+ *   `Text("")`.
+ *
+ * Everything else counts as content, deliberately. This set is narrower than
+ * {@link TRANSPARENT_INLINE_ELEMENTS} — which answers the different question of whether a
+ * *paragraph* is blank — and in particular excludes `a`, because the backend maps it to
+ * `Link { url, text }` and so an empty one still carries its href; `ul`/`ol`/`li`, which carry list
+ * structure; and every standalone element such as `<img>` and `<hr>`. An element this normaliser
+ * does not recognise leaves the field as `content`, where the existing validation policy decides its
+ * fate — the importer never deletes a field it merely fails to understand.
+ */
+const NON_RENDERING_ELEMENTS = new Set([
+  'abbr',
+  'b',
+  'big',
+  'body',
+  'cite',
+  'code',
+  'del',
+  'dfn',
+  'div',
+  'em',
+  'html',
+  'i',
+  'ins',
+  'mark',
+  'p',
+  'q',
+  's',
+  'sc',
+  'small',
+  'span',
+  'strike',
+  'strikethrough',
+  'strong',
+  'sub',
+  'sup',
+  'tt',
+  'u',
+  'underline',
+  'var',
+]);
+
+/**
  * The non-breaking space in the forms an ONIX HTML abstract can carry it: the named entity, the
  * decimal and hexadecimal numeric references (with optional leading zeros), and — matched
  * separately, as a literal character — U+00A0 itself. A spacer paragraph may be built from these
@@ -144,28 +196,63 @@ const COMMENT_OPEN = '<!--';
 const COMMENT_CLOSE = '-->';
 
 /**
+ * The offset just past the `>` that closes a tag whose name starts at `from`, or `-1` if no such
+ * `>` exists.
+ *
+ * The `>` only closes the tag when it sits outside a quoted attribute value, because `>` is a
+ * perfectly legal character inside one: `<p title="1 > 0">` is a single opening tag, not a tag
+ * ending at the attribute's `>` followed by the text ` 0">`. Both quoting styles count, and a quote
+ * of the other kind inside a quoted value is ordinary text (`<p title="it's here">`).
+ *
+ * A tag whose quoted value is never closed has no `>` outside quotes and reports `-1`; the caller
+ * then keeps the `<` as text rather than guessing where the tag ended.
+ */
+const findTagEnd = (html: string, from: number): number => {
+  let quote: string | null = null;
+
+  for (let index = from; index < html.length; index += 1) {
+    const char = html[index];
+
+    if (quote !== null) {
+      if (char === quote) quote = null;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char === '>') return index + 1;
+  }
+
+  return -1;
+};
+
+/**
  * Splits the fragment into comments, tags and the text between them.
  *
- * A tag is `<` immediately followed by an optional `/` and a letter, up to the next `>` —
- * deliberately the same tag shape the backend's markup detection uses, so a stray `<` in prose
- * (`a < b`) stays text and is never read as a tag. A `>` inside an attribute value would end a tag
- * early here; abstract paragraph styling never contains one, and the fallback if it did is to keep
- * the paragraph, never to corrupt it.
+ * A tag is `<`, an optional `/` and a letter — deliberately the same tag shape the backend's markup
+ * detection uses, so a stray `<` in prose (`a < b`) stays text and is never read as a tag — run on
+ * to the `>` that closes it per {@link findTagEnd}, which skips over quoted attribute values so a
+ * `>` inside one cannot cut the tag short.
  *
  * A comment wins over a tag wherever one opens, and is opaque: everything from `<!--` to the first
  * following `-->` is one token, so tag-shaped prose inside it (`<!-- layout uses <br> -->`) is never
  * tokenised as markup. That is what an HTML parser does, and reading such text as a real `<br>`
- * would block an import over a line break that does not exist.
+ * would block an import over a line break that does not exist. Quoted-attribute scanning never runs
+ * inside a comment, so a `>` written there is inert too.
  *
- * An unterminated `<!--` is broken markup rather than a comment, and is deliberately left as
- * ordinary text with scanning resumed straight after it. Treating it as a comment running to the end
- * of the fragment would make every element after it invisible, which could turn a paragraph holding
- * real text into a removable spacer. Leaving it as text can only make this normaliser keep more and
- * block sooner — never delete more.
+ * Markup that never terminates — an unterminated `<!--`, or a tag whose quoted attribute swallows
+ * every remaining `>` — is broken rather than markup, and is deliberately left as ordinary text with
+ * scanning resumed straight after the opener. Treating it as a region running to the end of the
+ * fragment would make everything after it invisible, which could turn a paragraph holding real text
+ * into a removable spacer. Leaving it as text can only make this normaliser keep more and block
+ * sooner — never delete more.
  */
 const tokenise = (html: string): Token[] => {
   const tokens: Token[] = [];
-  const markupPattern = /<!--|<\/?[a-zA-Z][^>]*>/g;
+  const markupPattern = /<!--|<\/?[a-zA-Z]/g;
   let cursor = 0;
   let match: RegExpExecArray | null;
 
@@ -189,15 +276,21 @@ const tokenise = (html: string): Token[] => {
       continue;
     }
 
+    const end = findTagEnd(html, match.index + match[0].length);
+
+    // Never closed outside a quoted value: keep the `<` in the text run and scan on after it.
+    if (end === -1) continue;
+
     flushText(match.index);
 
-    const raw = match[0];
+    const raw = html.slice(match.index, end);
     const closing = raw.startsWith('</');
     const name = (/^<\/?\s*([a-zA-Z][a-zA-Z0-9-]*)/.exec(raw)?.[1] ?? '').toLowerCase();
     const standalone = /\/\s*>$/.test(raw) || STANDALONE_ELEMENTS.has(name);
 
-    tokens.push({ type: 'tag', start: match.index, end: markupPattern.lastIndex, name, closing, standalone });
-    cursor = markupPattern.lastIndex;
+    tokens.push({ type: 'tag', start: match.index, end, name, closing, standalone });
+    cursor = end;
+    markupPattern.lastIndex = end;
   }
 
   if (cursor < html.length) {
@@ -300,12 +393,41 @@ const removeSpans = (html: string, spans: [number, number][]): string => {
 };
 
 /**
+ * Whether a fragment would render nothing at all: no visible text anywhere, and no element beyond
+ * the non-rendering wrappers of {@link NON_RENDERING_ELEMENTS}. Comments count for nothing, as they
+ * do everywhere else here.
+ *
+ * This is what stands between removing a spacer and creating a content-free entity. Deleting the
+ * only paragraph of `<div><p><br></p></div>` leaves `<div></div>`, which is not an empty *string*
+ * but is an empty *abstract*: the backend reads `div` as a transparent document container, so the
+ * field would reach the API holding nothing. A field like that is omitted instead.
+ *
+ * It is a deliberately shallow, conservative test rather than a second AST: it asks only whether
+ * every surviving token is blank text, a comment, or a wrapper known to render nothing, and answers
+ * "not empty" for everything else — an unrecognised element, a standalone one such as `<img>`, a
+ * list, a link. Being wrong in that direction keeps a field the API may still reject; being wrong in
+ * the other direction would silently drop an abstract.
+ */
+const rendersNothing = (tokens: Token[], html: string): boolean =>
+  tokens.every((token) => {
+    if (token.type === 'text') return !hasVisibleText(html.slice(token.start, token.end));
+    if (token.type === 'comment') return true;
+
+    return !token.standalone && NON_RENDERING_ELEMENTS.has(token.name);
+  });
+
+/**
  * Normalises one imported HTML abstract/biography field for Thoth's representable subset.
  *
  * Removes structurally-empty spacer paragraphs; keeps everything else exactly as it was; and, if a
  * meaningful `<br>` survives — one in a paragraph that carries visible content, or one loose at the
- * top level — reports the field as unrepresentable rather than editing it. A field that was nothing
- * but spacer markup comes back `empty`, so no empty entity is created for it.
+ * top level — reports the field as unrepresentable rather than editing it. A field that renders
+ * nothing once the spacers are gone comes back `empty`, so no content-free entity is created for it.
+ *
+ * The order matters and is fixed: tokenise, find the spacer paragraphs, and only then judge the
+ * `<br>` that are *not* inside one. A meaningful break outranks everything, so it is reported before
+ * a single character is removed and the emptiness test never runs on a field that still holds a real
+ * line break — no `<br>` can be swept away by being declared part of an empty wrapper.
  *
  * Precisely what "exactly as it was" means: a field with no spacer to remove is returned as the very
  * same string. A field that lost a spacer is that string minus the spacer's own characters, then
@@ -327,12 +449,16 @@ export const normaliseImportedAbstractHtml = (content: string): ImportedAbstract
   if (meaningfulBreak) return { kind: 'unrepresentable' };
 
   // Nothing to remove: return the input unchanged, so representable content is never rewritten.
-  if (spacers.length === 0) return { kind: 'content', content };
+  if (spacers.length === 0) {
+    return rendersNothing(tokens, content) ? { kind: 'empty' } : { kind: 'content', content };
+  }
 
   const cleaned = removeSpans(
     content,
     spacers.map(({ start, end }): [number, number] => [start, end]),
   ).trim();
 
-  return cleaned.length === 0 ? { kind: 'empty' } : { kind: 'content', content: cleaned };
+  // Not a length test: what is left may still be wrappers holding nothing, such as the `<div></div>`
+  // that removing the only paragraph of `<div><p><br></p></div>` leaves behind.
+  return rendersNothing(tokenise(cleaned), cleaned) ? { kind: 'empty' } : { kind: 'content', content: cleaned };
 };
