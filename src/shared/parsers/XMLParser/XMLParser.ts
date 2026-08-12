@@ -14,7 +14,7 @@ import {
 import isbn3 from 'isbn3';
 import { v4 as uuidv4 } from 'uuid';
 
-import { CurrencyCode, LanguageCode, LocaleCode } from '@/gql/graphql';
+import { CurrencyCode, LanguageCode, LocaleCode, MarkupFormat } from '@/gql/graphql';
 import { WorkContribution } from '@/src/entities/contribution/model/contribution.types';
 import { ContributorService } from '@/src/entities/contributor';
 import { FundingEntity } from '@/src/entities/funding/model/funding.types';
@@ -72,6 +72,7 @@ import {
   type SeriesCandidate,
   type SeriesPlanMessages,
 } from '../series/seriesPlan';
+import { normaliseImportedAbstractHtml } from './importedAbstractHtml';
 import {
   ExtendedCollection,
   ExtendedContributor,
@@ -693,6 +694,49 @@ class XMLParser {
   }
 
   /**
+   * The final content and markup format one imported abstract-like field should be created with, or
+   * `undefined` when it should not be created at all.
+   *
+   * Format is resolved first, by {@link resolveTextMarkup}, while the ONIX `textformat` declaration
+   * is still in hand. Only when it resolves to HTML is the content then normalised for Thoth's
+   * representable subset ({@link normaliseImportedAbstractHtml}): harmless empty spacer paragraphs
+   * are dropped, a field that was nothing but spacer markup is omitted so no empty entity is
+   * created, and a meaningful `<br>` Thoth cannot represent raises a blocking issue and drops the
+   * field — so the problem is caught in preview, never at a mutation partway through a non-atomic
+   * import. JATS and plain text are carried through untouched; the HTML rules never see them.
+   */
+  private resolveImportedText(
+    text: OnixText | undefined,
+    content: string,
+    product: ExtendedProduct,
+    index: number,
+    subject: string,
+  ): { content: string; sourceMarkupFormat: ImportedMarkupFormat } | undefined {
+    const sourceMarkupFormat = this.resolveTextMarkup(text, content, product, index, subject);
+
+    if (sourceMarkupFormat === undefined) return undefined;
+    if (sourceMarkupFormat !== MarkupFormat.Html) return { content, sourceMarkupFormat };
+
+    const normalised = normaliseImportedAbstractHtml(content);
+
+    if (normalised.kind === 'unrepresentable') {
+      this.issues.push({
+        severity: 'error',
+        code: 'onix.text.unrepresentable_structure',
+        message: `The ${subject} of ${this.describeProduct(product, index)} contains a line break Thoth cannot represent. Replace the line break with separate paragraphs and upload the file again.`,
+        source: this.productSource(product, index),
+      });
+
+      return undefined;
+    }
+
+    // Nothing but spacer markup: omit the field rather than create an empty abstract or biography.
+    if (normalised.kind === 'empty') return undefined;
+
+    return { content: normalised.content, sourceMarkupFormat };
+  }
+
+  /**
    * The work's abstracts, each in the language its own TextContent claims.
    *
    * The two abstracts are read from separate TextContent composites, so each resolves its locale
@@ -715,32 +759,32 @@ class XMLParser {
     const abstracts: AbstractEntity[] = [];
 
     if (longAbstract.length > 0) {
-      const sourceMarkupFormat = this.resolveTextMarkup(longText, longAbstract, product, index, 'long abstract');
+      const resolved = this.resolveImportedText(longText, longAbstract, product, index, 'long abstract');
 
-      if (sourceMarkupFormat !== undefined) {
+      if (resolved !== undefined) {
         abstracts.push(
           getDefaultAbstract({
-            content: longAbstract,
+            content: resolved.content,
             type: AbstractTypes.enum.Long,
             canonical: true,
             localeCode: this.resolveLocale(getOnixLanguage(longText), textLocale),
-            sourceMarkupFormat,
+            sourceMarkupFormat: resolved.sourceMarkupFormat,
           }),
         );
       }
     }
 
     if (shortAbstract.length > 0) {
-      const sourceMarkupFormat = this.resolveTextMarkup(shortText, shortAbstract, product, index, 'short abstract');
+      const resolved = this.resolveImportedText(shortText, shortAbstract, product, index, 'short abstract');
 
-      if (sourceMarkupFormat !== undefined) {
+      if (resolved !== undefined) {
         abstracts.push(
           getDefaultAbstract({
-            content: shortAbstract,
+            content: resolved.content,
             type: AbstractTypes.enum.Short,
             canonical: false,
             localeCode: this.resolveLocale(getOnixLanguage(shortText), textLocale),
-            sourceMarkupFormat,
+            sourceMarkupFormat: resolved.sourceMarkupFormat,
           }),
         );
       }
@@ -1534,9 +1578,8 @@ class XMLParser {
         }))
         .filter(({ content }) => content.length > 0)
         .map(({ note, content, language }) => ({
-          content,
           language,
-          sourceMarkupFormat: this.resolveTextMarkup(
+          resolved: this.resolveImportedText(
             note,
             content,
             product,
@@ -1544,18 +1587,19 @@ class XMLParser {
             `biography of ${contributor.PersonName ?? 'a contributor'}`,
           ),
         }))
-        // A note with no resolvable format has already raised a blocking issue; dropping it here
-        // is what guarantees it cannot reach CREATE_BIOGRAPHY whatever happens to the plan.
-        .filter(({ sourceMarkupFormat }) => sourceMarkupFormat !== undefined)
-        .map(({ content, language, sourceMarkupFormat }, order) => ({
+        // A note with no resolvable format, only spacer markup, or a line break Thoth cannot
+        // represent has already been handled — dropped, or a blocking issue raised. Dropping it
+        // here is what guarantees it cannot reach CREATE_BIOGRAPHY whatever happens to the plan.
+        .flatMap((entry) => (entry.resolved === undefined ? [] : [{ ...entry, resolved: entry.resolved }]))
+        .map(({ language, resolved }, order) => ({
           id: this.defaultId,
           // Thoth marks one biography per contribution as the canonical one, and ONIX says nothing
           // about which of several languages is primary, so the first one listed keeps the role.
           canonical: order === 0,
-          content,
+          content: resolved.content,
           localeCode: localeFromLanguageCode(language) ?? LocaleCode.En,
           contributionId: this.defaultId,
-          sourceMarkupFormat,
+          sourceMarkupFormat: resolved.sourceMarkupFormat,
         }))
     );
   }

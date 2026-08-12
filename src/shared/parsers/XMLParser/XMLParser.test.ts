@@ -3951,7 +3951,12 @@ describe('XMLParser', () => {
       result.issues.filter((issue) => issue.code === 'onix.contributor.sequence_fallback');
 
     it('gives two work contributors unique ordinals from their SequenceNumbers', async () => {
-      const result = await run(workWithContributors([{ name: 'Lisa Hopkins', sequenceNumber: '1' }, { name: 'Tom Rutter', sequenceNumber: '2' }]));
+      const result = await run(
+        workWithContributors([
+          { name: 'Lisa Hopkins', sequenceNumber: '1' },
+          { name: 'Tom Rutter', sequenceNumber: '2' },
+        ]),
+      );
 
       expect(result.status).toBe('success');
       expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
@@ -3964,7 +3969,12 @@ describe('XMLParser', () => {
 
     it('interprets SequenceNumber, re-sorting contributors listed in reverse', async () => {
       // Person A is listed first but numbered 2 — proof the number is read, not the position.
-      const result = await run(workWithContributors([{ name: 'Person A', sequenceNumber: '2' }, { name: 'Person B', sequenceNumber: '1' }]));
+      const result = await run(
+        workWithContributors([
+          { name: 'Person A', sequenceNumber: '2' },
+          { name: 'Person B', sequenceNumber: '1' },
+        ]),
+      );
 
       expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
         ['Person B', 1],
@@ -3974,7 +3984,12 @@ describe('XMLParser', () => {
     });
 
     it('preserves order but not the raw numbers for a gapped sequence', async () => {
-      const result = await run(workWithContributors([{ name: 'First', sequenceNumber: '10' }, { name: 'Second', sequenceNumber: '20' }]));
+      const result = await run(
+        workWithContributors([
+          { name: 'First', sequenceNumber: '10' },
+          { name: 'Second', sequenceNumber: '20' },
+        ]),
+      );
 
       expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
         ['First', 1],
@@ -4006,7 +4021,12 @@ describe('XMLParser', () => {
     });
 
     it('falls back to source order and warns when SequenceNumbers collide', async () => {
-      const result = await run(workWithContributors([{ name: 'First', sequenceNumber: '1' }, { name: 'Second', sequenceNumber: '1' }]));
+      const result = await run(
+        workWithContributors([
+          { name: 'First', sequenceNumber: '1' },
+          { name: 'Second', sequenceNumber: '1' },
+        ]),
+      );
 
       expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
         ['First', 1],
@@ -4018,7 +4038,12 @@ describe('XMLParser', () => {
     it.each([['0'], ['-1'], ['1.5'], ['abc']])(
       'never lets the malformed SequenceNumber %s reach a planned ordinal',
       async (bad) => {
-        const result = await run(workWithContributors([{ name: 'First', sequenceNumber: bad }, { name: 'Second', sequenceNumber: '2' }]));
+        const result = await run(
+          workWithContributors([
+            { name: 'First', sequenceNumber: bad },
+            { name: 'Second', sequenceNumber: '2' },
+          ]),
+        );
 
         expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
           ['First', 1],
@@ -4030,7 +4055,12 @@ describe('XMLParser', () => {
     );
 
     it('gives two chapter contributors unique ordinals from their SequenceNumbers', async () => {
-      const result = await run(chapterWithContributors([{ name: 'Lisa Hopkins', sequenceNumber: '1' }, { name: 'Tom Rutter', sequenceNumber: '2' }]));
+      const result = await run(
+        chapterWithContributors([
+          { name: 'Lisa Hopkins', sequenceNumber: '1' },
+          { name: 'Tom Rutter', sequenceNumber: '2' },
+        ]),
+      );
 
       expect(result.status).toBe('success');
       expect(ordinalsOf(result.data.plan.chapters[0].contributions)).toEqual([
@@ -4057,7 +4087,12 @@ describe('XMLParser', () => {
         name === 'Tom Rutter' ? [existing] : [],
       );
 
-      const result = await run(workWithContributors([{ name: 'Lisa Hopkins', sequenceNumber: '1' }, { name: 'Tom Rutter', sequenceNumber: '2' }]));
+      const result = await run(
+        workWithContributors([
+          { name: 'Lisa Hopkins', sequenceNumber: '1' },
+          { name: 'Tom Rutter', sequenceNumber: '2' },
+        ]),
+      );
 
       // The plan still carries exactly one contribution per author, with the resolved ordinals.
       expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
@@ -6914,6 +6949,119 @@ describe('XMLParser', () => {
           message: expect.stringContaining('biography of Lisa Hopkins'),
           source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
         });
+      });
+
+      it('removes an Arc empty spacer paragraph and keeps the abstract as HTML', async () => {
+        // The exact production shape of Arc product 9781802700596: a real paragraph followed by an
+        // empty <p style="text-align:justify;"><br></p> layout paragraph.
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(
+              '<Text textformat="02">&lt;p&gt;This book examines the Baltic crusades.&lt;/p&gt;&lt;p style="text-align:justify;"&gt;&lt;br&gt;&lt;/p&gt;</Text>',
+            ),
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(abstractsOf(result)).toEqual([['<p>This book examines the Baltic crusades.</p>', MarkupFormat.Html]]);
+      });
+
+      it('omits an abstract that is nothing but spacer markup, and raises no issue', async () => {
+        const result = await runFidelityParser(
+          productXml({ collateralDetail: collateral('<Text textformat="02">&lt;p&gt;&lt;br&gt;&lt;/p&gt;</Text>') }),
+        );
+
+        expect(result.status).toBe('success');
+        expect(result.issues).toEqual([]);
+        expect(abstractsOf(result)).toEqual([]);
+      });
+
+      it('blocks the import when an abstract carries a meaningful line break, and creates no work', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral('<Text textformat="02">&lt;p&gt;Hello&lt;br&gt;world&lt;/p&gt;</Text>'),
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        // A failed parse carries an empty plan, so bulkCreateWorks would create nothing.
+        expect(result.data.plan.works).toEqual([]);
+        expect(result.issues).toContainEqual({
+          severity: 'error',
+          code: 'onix.text.unrepresentable_structure',
+          message: expect.stringContaining('long abstract'),
+          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+        });
+        expect(errorMessages(result)[0]).toContain('line break');
+        // Never the raw backend wording, which is misleading for this case.
+        expect(errorMessages(result)[0]).not.toContain('nested block elements');
+      });
+
+      it('names the short abstract when its line break is the unrepresentable one', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: `<CollateralDetail>
+              <TextContent><TextType>02</TextType><ContentAudience>00</ContentAudience>
+                <Text textformat="02">&lt;p&gt;Short&lt;br&gt;break&lt;/p&gt;</Text>
+              </TextContent>
+            </CollateralDetail>`,
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.issues).toContainEqual(
+          expect.objectContaining({
+            code: 'onix.text.unrepresentable_structure',
+            message: expect.stringContaining('short abstract'),
+          }),
+        );
+      });
+
+      it('removes a spacer paragraph from a biography and keeps it as HTML', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml(
+              '<BiographicalNote textformat="02">&lt;p&gt;A real biography.&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</BiographicalNote>',
+            ),
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(biographiesOf(result)).toEqual([['<p>A real biography.</p>', MarkupFormat.Html]]);
+      });
+
+      it('blocks the import when a biography carries a meaningful line break, naming the author', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml(
+              '<BiographicalNote textformat="02">&lt;p&gt;Hello&lt;br&gt;world&lt;/p&gt;</BiographicalNote>',
+            ),
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.data.plan.works).toEqual([]);
+        expect(result.issues).toContainEqual({
+          severity: 'error',
+          code: 'onix.text.unrepresentable_structure',
+          message: expect.stringContaining('biography of Lisa Hopkins'),
+          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+        });
+      });
+
+      it('keeps a contradictory textformat="06" abstract on the HTML path after removing its spacer', async () => {
+        // Arc's textformat 06 + <I> compatibility (PR #85) must survive spacer removal: the
+        // meaningful markup stays HTML and the empty spacer paragraph is dropped.
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(
+              '<Text textformat="06">&lt;p&gt;&lt;I&gt;Something&lt;/I&gt;&lt;/p&gt;&lt;p&gt;&lt;br&gt;&lt;/p&gt;</Text>',
+            ),
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(abstractsOf(result)).toEqual([['<p><I>Something</I></p>', MarkupFormat.Html]]);
       });
     });
 
