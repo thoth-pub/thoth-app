@@ -36,12 +36,13 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const { activeEntity: activePublication, finishEditing } = usePublicationsStateMachine();
   const [publication, setPublication] = useState<PublicationEntity | null>(activePublication);
   const [priceFormVersion, setPriceFormVersion] = useState(0);
+  const [pendingUpdatePricesCount, setPendingUpdatePricesCount] = useState(0);
   const { work } = useWork(workId);
   const defaultCurrencyOption = useDefaultCurrencyOption(work.imprintId);
   const { updatePublication, loading: isUpdatePublicationLoading } = useUpdatePublication({ workId });
   const { createPrice, loading: isCreatePriceLoading } = useCreatePrice({ workId });
   const { updatePrice, loading: isUpdatePriceLoading } = useUpdatePrice({ workId });
-  const { deletePrice } = useDeletePrice({ workId });
+  const { deletePrice, loading: isDeletePriceLoading } = useDeletePrice({ workId });
   const { createLocation, loading: isCreateLocationLoading } = useCreateLocation({ workId });
   const { updateLocation, loading: isUpdateLocationLoading } = useUpdateLocation({ workId });
   const { deleteLocation: deleteLocationMutation, loading: isDeleteLocationLoading } = useDeleteLocation({ workId });
@@ -70,12 +71,19 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
     setPublication(freshPublication);
   }, [work, publication?.id]);
 
+  // Every publication mutation belongs here, deletions included: a pure price deletion or
+  // the final location deletion request leaves all create/update flags false, and the
+  // snapshot setters those flows end with would overwrite the fileUrl staged by an upload
+  // that started while the file field was still unlocked.
   const loading =
     isUpdatePublicationLoading ||
     isCreatePriceLoading ||
     isUpdatePriceLoading ||
+    isDeletePriceLoading ||
+    pendingUpdatePricesCount > 0 ||
     isCreateLocationLoading ||
     isUpdateLocationLoading ||
+    isDeleteLocationLoading ||
     isUploadPublicationFileLoading;
 
   // These paths must await the mutation before staging local state: EditableContent
@@ -192,74 +200,82 @@ export const useEditPublication = (props: BaseEditSectionProps) => {
   const updatePrices = async (data: PricesForm) => {
     if (!publication) return;
 
-    const prices = data.prices.map(({ priceId, currency, priceValue }) => ({
-      id: priceId,
-      currencyCode: currency.value,
-      unitPrice: priceValue,
-    }));
+    setPendingUpdatePricesCount((count) => count + 1);
 
-    const newPrices = prices.filter(({ id }) => isDefaultId(id));
-    const existingPrices = prices.filter(({ id }) => !isDefaultId(id));
+    try {
+      const prices = data.prices.map(({ priceId, currency, priceValue }) => ({
+        id: priceId,
+        currencyCode: currency.value,
+        unitPrice: priceValue,
+      }));
 
-    const updatedPrices = existingPrices.filter((price) => {
-      const previousPrice = publication.prices.find(({ id }) => id === price.id);
+      const newPrices = prices.filter(({ id }) => isDefaultId(id));
+      const existingPrices = prices.filter(({ id }) => !isDefaultId(id));
 
-      if (!previousPrice) return true;
+      const updatedPrices = existingPrices.filter((price) => {
+        const previousPrice = publication.prices.find(({ id }) => id === price.id);
 
-      return previousPrice.currencyCode !== price.currencyCode || previousPrice.unitPrice !== price.unitPrice;
-    });
+        if (!previousPrice) return true;
 
-    const submittedIds = prices.map(({ id }) => id);
-    const deletedPrices = publication.prices.filter(({ id }) => !submittedIds.includes(id));
+        return previousPrice.currencyCode !== price.currencyCode || previousPrice.unitPrice !== price.unitPrice;
+      });
 
-    const priceMutations = [
-      ...updatedPrices.map((price) =>
-        updatePrice({ ...price, publicationId: publication.id }).then(() => ({ type: 'update' as const, price })),
-      ),
-      ...newPrices.map((price) =>
-        createPrice({ ...price, publicationId: publication.id }).then((created) => ({
-          type: 'create' as const,
-          price: { ...price, id: created.id },
-        })),
-      ),
-      ...deletedPrices.map((price) => deletePrice(price.id).then(() => ({ type: 'delete' as const, price }))),
-    ];
+      const submittedIds = prices.map(({ id }) => id);
+      const deletedPrices = publication.prices.filter(({ id }) => !submittedIds.includes(id));
 
-    const results = await Promise.allSettled(priceMutations);
-    const successfulMutations = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
-    const failedMutation = results.find((result) => result.status === 'rejected');
+      const priceMutations = [
+        ...updatedPrices.map((price) =>
+          updatePrice({ ...price, publicationId: publication.id }).then(() => ({ type: 'update' as const, price })),
+        ),
+        ...newPrices.map((price) =>
+          createPrice({ ...price, publicationId: publication.id }).then((created) => ({
+            type: 'create' as const,
+            price: { ...price, id: created.id },
+          })),
+        ),
+        ...deletedPrices.map((price) => deletePrice(price.id).then(() => ({ type: 'delete' as const, price }))),
+      ];
 
-    if (!failedMutation) {
-      const createdPrices = successfulMutations.filter((result) => result.type === 'create').map(({ price }) => price);
+      const results = await Promise.allSettled(priceMutations);
+      const successfulMutations = results.flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []));
+      const failedMutation = results.find((result) => result.status === 'rejected');
 
-      setPublication({ ...publication, prices: [...existingPrices, ...createdPrices] });
-      return;
-    }
+      if (!failedMutation) {
+        const createdPrices = successfulMutations
+          .filter((result) => result.type === 'create')
+          .map(({ price }) => price);
 
-    if (successfulMutations.length > 0) {
-      const reconciledPrices = successfulMutations.reduce<typeof prices>((currentPrices, mutation) => {
-        if (mutation.type === 'delete') {
-          return currentPrices.filter(({ id }) => id !== mutation.price.id);
-        }
-
-        const priceIndex = currentPrices.findIndex(({ id }) => id === mutation.price.id);
-
-        if (priceIndex === -1) return [...currentPrices, mutation.price];
-
-        return currentPrices.map((price, index) => (index === priceIndex ? mutation.price : price));
-      }, publication.prices);
-
-      setPublication({ ...publication, prices: reconciledPrices });
-
-      // React Hook Form keeps its submitted values after a rejection. Remounting the
-      // price form only when a create succeeded replaces its temporary id with the
-      // reconciled server id while leaving the form open for the caller-visible error.
-      if (successfulMutations.some(({ type }) => type === 'create')) {
-        setPriceFormVersion((version) => version + 1);
+        setPublication({ ...publication, prices: [...existingPrices, ...createdPrices] });
+        return;
       }
-    }
 
-    throw failedMutation.reason;
+      if (successfulMutations.length > 0) {
+        const reconciledPrices = successfulMutations.reduce<typeof prices>((currentPrices, mutation) => {
+          if (mutation.type === 'delete') {
+            return currentPrices.filter(({ id }) => id !== mutation.price.id);
+          }
+
+          const priceIndex = currentPrices.findIndex(({ id }) => id === mutation.price.id);
+
+          if (priceIndex === -1) return [...currentPrices, mutation.price];
+
+          return currentPrices.map((price, index) => (index === priceIndex ? mutation.price : price));
+        }, publication.prices);
+
+        setPublication({ ...publication, prices: reconciledPrices });
+
+        // React Hook Form keeps its submitted values after a rejection. Remounting the
+        // price form only when a create succeeded replaces its temporary id with the
+        // reconciled server id while leaving the form open for the caller-visible error.
+        if (successfulMutations.some(({ type }) => type === 'create')) {
+          setPriceFormVersion((version) => version + 1);
+        }
+      }
+
+      throw failedMutation.reason;
+    } finally {
+      setPendingUpdatePricesCount((count) => count - 1);
+    }
   };
 
   const updateLocations = async (data: LocationEntity[]) => {

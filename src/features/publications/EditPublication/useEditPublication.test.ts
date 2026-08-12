@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
 
   const gbpPrice = { id: 'price-1', currencyCode: 'GBP', unitPrice: 25 };
   const usdPrice = { id: 'price-2', currencyCode: 'USD', unitPrice: 30 };
+  const eurPrice = { id: 'price-3', currencyCode: 'EUR', unitPrice: 35 };
 
   const publication = {
     id: 'pub-1',
@@ -43,6 +44,7 @@ const mocks = vi.hoisted(() => {
     otherLocation,
     gbpPrice,
     usdPrice,
+    eurPrice,
     publication,
     // Stable reference, like react-query data before a refetch lands: the hook's
     // fresh-publication effect must not overwrite local state between submits.
@@ -57,13 +59,25 @@ const mocks = vi.hoisted(() => {
     uploadPublicationFile: vi.fn().mockResolvedValue('https://cdn.example.org/new.pdf'),
     activeLocation: null as LocationEntity | null,
     reconcileActiveLocation: vi.fn(),
+    // Each mutation hook's pending flag, mirroring react-query's `isPending`, so a test can
+    // hold one mutation in flight and observe the aggregate busy state it contributes to.
+    loading: {
+      updatePublication: false,
+      createPrice: false,
+      updatePrice: false,
+      deletePrice: false,
+      createLocation: false,
+      updateLocation: false,
+      deleteLocation: false,
+      uploadPublicationFile: false,
+    },
   };
 });
 
 vi.mock('@/src/entities/locations', () => ({
-  useCreateLocation: () => ({ createLocation: mocks.createLocation, loading: false }),
-  useUpdateLocation: () => ({ updateLocation: mocks.updateLocation, loading: false }),
-  useDeleteLocation: () => ({ deleteLocation: mocks.deleteLocationMutation, loading: false }),
+  useCreateLocation: () => ({ createLocation: mocks.createLocation, loading: mocks.loading.createLocation }),
+  useUpdateLocation: () => ({ updateLocation: mocks.updateLocation, loading: mocks.loading.updateLocation }),
+  useDeleteLocation: () => ({ deleteLocation: mocks.deleteLocationMutation, loading: mocks.loading.deleteLocation }),
 }));
 
 vi.mock('@/src/entities/locations/store/location.store', () => ({
@@ -71,15 +85,22 @@ vi.mock('@/src/entities/locations/store/location.store', () => ({
 }));
 
 vi.mock('@/src/entities/price', () => ({
-  useCreatePrice: () => ({ createPrice: mocks.createPrice, loading: false }),
-  useUpdatePrice: () => ({ updatePrice: mocks.updatePrice, loading: false }),
-  useDeletePrice: () => ({ deletePrice: mocks.deletePrice, loading: false }),
+  useCreatePrice: () => ({ createPrice: mocks.createPrice, loading: mocks.loading.createPrice }),
+  useUpdatePrice: () => ({ updatePrice: mocks.updatePrice, loading: mocks.loading.updatePrice }),
+  useDeletePrice: () => ({ deletePrice: mocks.deletePrice, loading: mocks.loading.deletePrice }),
 }));
 
 vi.mock('@/src/entities/publication', () => ({
   usePublicationsStateMachine: () => ({ activeEntity: mocks.publication, finishEditing: vi.fn() }),
-  useUpdatePublication: () => ({ updatePublication: mocks.updatePublication, loading: false }),
-  useUploadPublicationFile: () => ({ uploadPublicationFile: mocks.uploadPublicationFile, loading: false, progress: 0 }),
+  useUpdatePublication: () => ({
+    updatePublication: mocks.updatePublication,
+    loading: mocks.loading.updatePublication,
+  }),
+  useUploadPublicationFile: () => ({
+    uploadPublicationFile: mocks.uploadPublicationFile,
+    loading: mocks.loading.uploadPublicationFile,
+    progress: 0,
+  }),
 }));
 
 vi.mock('@/src/entities/work', () => ({
@@ -91,6 +112,33 @@ vi.mock('@/src/shared/hooks', () => ({
 }));
 
 const renderEditPublication = () => renderHook(() => useEditPublication({ workId: 'work-1' }));
+
+const idleLoading = () => ({
+  updatePublication: false,
+  createPrice: false,
+  updatePrice: false,
+  deletePrice: false,
+  createLocation: false,
+  updateLocation: false,
+  deleteLocation: false,
+  uploadPublicationFile: false,
+});
+
+// A promise the test resolves by hand, so a mutation can be held pending without timers.
+const createDeferred = () => {
+  let resolve!: (value?: unknown) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+
+  return { promise, resolve, reject };
+};
+
+beforeEach(() => {
+  mocks.loading = idleLoading();
+});
 
 describe('useEditPublication updateLocations', () => {
   beforeEach(() => {
@@ -631,5 +679,233 @@ describe('useEditPublication updatePrices', () => {
 
     expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice, mocks.usdPrice]);
     expect(result.current.priceFormVersion).toBe(0);
+  });
+});
+
+describe('useEditPublication upload lock', () => {
+  beforeEach(() => {
+    mocks.publication.prices = [mocks.gbpPrice, mocks.usdPrice];
+    mocks.publication.locations = [mocks.canonicalLocation, mocks.otherLocation];
+    mocks.updatePrice.mockReset().mockResolvedValue({});
+    mocks.createPrice.mockReset().mockResolvedValue({ id: 'price-3' });
+    mocks.deletePrice.mockReset().mockResolvedValue({});
+    mocks.updateLocation.mockReset().mockResolvedValue({});
+    mocks.createLocation.mockReset().mockResolvedValue({ id: 'loc-3' });
+    mocks.deleteLocationMutation.mockReset().mockResolvedValue({});
+    mocks.activeLocation = null;
+  });
+
+  it('useEditPublication_reportsBusyWhileOnlyAPriceDeletionIsPending', () => {
+    // A pure price deletion leaves every create/update flag false.
+    mocks.loading.deletePrice = true;
+
+    const { result } = renderEditPublication();
+
+    expect(result.current.loading).toBe(true);
+  });
+
+  it('useEditPublication_reportsBusyWhileOnlyALocationDeletionIsPending', () => {
+    mocks.loading.deleteLocation = true;
+
+    const { result } = renderEditPublication();
+
+    expect(result.current.loading).toBe(true);
+    // The same flag still drives the location row's own delete indicator.
+    expect(result.current.deleteLocationLoading).toBe(true);
+  });
+
+  it('useEditPublication_keepsDeleteLocationLoadingIndependentOfOtherMutations', () => {
+    mocks.loading.updatePublication = true;
+
+    const { result } = renderEditPublication();
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.deleteLocationLoading).toBe(false);
+  });
+
+  it('useEditPublication_doesNotPresentAnUploadWhileOnlyADeletionIsPending', () => {
+    mocks.loading.deletePrice = true;
+    mocks.loading.deleteLocation = true;
+
+    const { result } = renderEditPublication();
+
+    expect(result.current.loading).toBe(true);
+    // Only the upload mutation may drive the upload spinner and its progress.
+    expect(result.current.fileUploadLoading).toBe(false);
+  });
+
+  it('useEditPublication_isIdleWhenNoMutationIsPending', () => {
+    const { result } = renderEditPublication();
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.deleteLocationLoading).toBe(false);
+    expect(result.current.fileUploadLoading).toBe(false);
+  });
+
+  it('useEditPublication_staysBusyForTheWholePendingPriceDeletion', async () => {
+    const pendingDeletion = createDeferred();
+    mocks.deletePrice.mockImplementationOnce(() => {
+      mocks.loading.deletePrice = true;
+
+      return pendingDeletion.promise;
+    });
+
+    const { result, rerender } = renderEditPublication();
+
+    expect(result.current.loading).toBe(false);
+
+    let submission!: Promise<void>;
+
+    act(() => {
+      submission = result.current.updatePrices({ prices: [priceRow('price-1', 'GBP', 25)] });
+    });
+
+    // Nothing but the deletion is in flight, so no other flag can mask the gap.
+    expect(mocks.createPrice).not.toHaveBeenCalled();
+    expect(mocks.updatePrice).not.toHaveBeenCalled();
+    expect(mocks.deletePrice).toHaveBeenCalledWith('price-2');
+
+    rerender();
+
+    // The file field stays locked for the whole delete request, so no upload can land
+    // before the snapshot setter below restages the pre-deletion publication.
+    expect(result.current.loading).toBe(true);
+    expect(result.current.fileUploadLoading).toBe(false);
+
+    await act(async () => {
+      mocks.loading.deletePrice = false;
+      pendingDeletion.resolve();
+      await submission;
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice]);
+  });
+
+  it('useEditPublication_staysBusyUntilEveryDeletionInAPriceBatchSettles', async () => {
+    const firstDeletion = createDeferred();
+    const lastStartedDeletion = createDeferred();
+    mocks.publication.prices = [mocks.gbpPrice, mocks.usdPrice, mocks.eurPrice];
+    mocks.deletePrice
+      .mockImplementationOnce(() => {
+        mocks.loading.deletePrice = true;
+
+        return firstDeletion.promise;
+      })
+      .mockImplementationOnce(() => {
+        mocks.loading.deletePrice = true;
+
+        return lastStartedDeletion.promise;
+      });
+
+    const { result, rerender } = renderEditPublication();
+    let submission!: Promise<void>;
+    let submissionSettled = false;
+
+    act(() => {
+      submission = result.current.updatePrices({ prices: [priceRow('price-1', 'GBP', 25)] });
+      void submission.finally(() => {
+        submissionSettled = true;
+      });
+    });
+
+    expect(mocks.deletePrice.mock.calls).toEqual([['price-2'], ['price-3']]);
+    expect(mocks.createPrice).not.toHaveBeenCalled();
+    expect(mocks.updatePrice).not.toHaveBeenCalled();
+
+    await act(async () => {
+      // TanStack's observer follows the last-started mutation. Model it becoming
+      // idle when that deletion settles, while the earlier deletion stays pending.
+      mocks.loading.deletePrice = false;
+      lastStartedDeletion.resolve();
+      await lastStartedDeletion.promise;
+    });
+    rerender();
+
+    expect(submissionSettled).toBe(false);
+    expect(result.current.loading).toBe(true);
+    expect(result.current.fileUploadLoading).toBe(false);
+
+    await act(async () => {
+      firstDeletion.resolve();
+      await submission;
+    });
+
+    expect(submissionSettled).toBe(true);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice]);
+  });
+
+  it('useEditPublication_clearsPriceBatchBusyStateAfterPartialFailure', async () => {
+    const successfulDeletion = createDeferred();
+    const failedDeletion = createDeferred();
+    const error = new Error('EUR deletion failed');
+    mocks.publication.prices = [mocks.gbpPrice, mocks.usdPrice, mocks.eurPrice];
+    mocks.deletePrice
+      .mockImplementationOnce(() => successfulDeletion.promise)
+      .mockImplementationOnce(() => failedDeletion.promise);
+
+    const { result } = renderEditPublication();
+    let submission!: Promise<void>;
+
+    act(() => {
+      submission = result.current.updatePrices({ prices: [priceRow('price-1', 'GBP', 25)] });
+    });
+
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      failedDeletion.reject(error);
+      await expect(failedDeletion.promise).rejects.toBe(error);
+    });
+
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      successfulDeletion.resolve();
+      await expect(submission).rejects.toBe(error);
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice, mocks.eurPrice]);
+    expect(result.current.priceFormVersion).toBe(0);
+  });
+
+  it('useEditPublication_staysBusyForTheFinalLocationDeletionRequest', async () => {
+    const pendingDeletion = createDeferred();
+    mocks.deleteLocationMutation.mockImplementationOnce(() => {
+      mocks.loading.deleteLocation = true;
+
+      return pendingDeletion.promise;
+    });
+
+    const { result, rerender } = renderEditPublication();
+
+    let submission!: Promise<void>;
+
+    await act(async () => {
+      submission = result.current.deleteLocation('loc-2');
+    });
+
+    // Deleting a non-canonical location needs no reassignment, so the create and update
+    // flags are false for the whole final deletion request.
+    expect(mocks.createLocation).not.toHaveBeenCalled();
+    expect(mocks.updateLocation).not.toHaveBeenCalled();
+    expect(mocks.deleteLocationMutation).toHaveBeenCalledWith('loc-2');
+
+    rerender();
+
+    expect(result.current.loading).toBe(true);
+    expect(result.current.deleteLocationLoading).toBe(true);
+    expect(result.current.fileUploadLoading).toBe(false);
+
+    await act(async () => {
+      mocks.loading.deleteLocation = false;
+      pendingDeletion.resolve();
+      await submission;
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.activePublication?.locations).toEqual([mocks.canonicalLocation]);
   });
 });
