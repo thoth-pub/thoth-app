@@ -20,10 +20,11 @@ import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { TitleService } from '@/src/entities/title/api/title.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
 
-import { currencyOptions, languageOptions, licenseOptions, WorkStatuses } from '../../constants';
+import { currencyOptions, languageOptions, licenseOptions, SubjectTypes, WorkStatuses } from '../../constants';
 import { SeriesType } from '../../constants/series';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
+import { toOnixArray } from './onix';
 import XMLParser from './XMLParser';
 
 /**
@@ -145,6 +146,48 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         </TitleElement>
       </TitleDetail>
       <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+      <Subject>
+        <MainSubject/>
+        <SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>
+        <SubjectSchemeVersion>2016</SubjectSchemeVersion>
+        <SubjectCode>LIT004290</SubjectCode>
+        <SubjectHeadingText>LITERARY CRITICISM / Women Authors</SubjectHeadingText>
+      </Subject>
+      <Subject>
+        <MainSubject/>
+        <SubjectSchemeIdentifier>12</SubjectSchemeIdentifier>
+        <SubjectSchemeVersion>2.1</SubjectSchemeVersion>
+        <SubjectCode>DSBD</SubjectCode>
+        <SubjectHeadingText>Literary studies: c 1500 to c 1800</SubjectHeadingText>
+      </Subject>
+      <Subject>
+        <MainSubject/>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectSchemeVersion>1.3</SubjectSchemeVersion>
+        <SubjectCode textscript="Latn">DSBD</SubjectCode>
+        <SubjectHeadingText language="eng">Literary studies: c 1600 to c 1800</SubjectHeadingText>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>10</SubjectSchemeIdentifier>
+        <SubjectCode>HIS037020</SubjectCode>
+        <SubjectHeadingText>HISTORY / Europe / Renaissance</SubjectHeadingText>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>12</SubjectSchemeIdentifier>
+        <SubjectCode>HBLH</SubjectCode>
+        <SubjectHeadingText>Early modern history: c 1450/1500 to c 1700</SubjectHeadingText>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>93</SubjectSchemeIdentifier>
+        <SubjectCode>NHDL</SubjectCode>
+        <SubjectHeadingText>European history: Renaissance</SubjectHeadingText>
+      </Subject>
+      <Subject>
+        <SubjectSchemeIdentifier>20</SubjectSchemeIdentifier>
+        <SubjectHeadingText>literary culture; aristocratic life; women’s writing; closet drama; iconography</SubjectHeadingText>
+      </Subject>
+      <Subject><SubjectSchemeIdentifier>94</SubjectSchemeIdentifier><SubjectCode>1DDB</SubjectCode></Subject>
+      <Subject><SubjectSchemeIdentifier>96</SubjectSchemeIdentifier><SubjectCode>3MPQS</SubjectCode></Subject>
       <Contributor>
         <SequenceNumber>1</SequenceNumber>
         <ContributorRole>A01</ContributorRole>
@@ -211,6 +254,29 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         <Text>A study of medieval medicine.</Text>
       </TextContent>
     </CollateralDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+/** The subject blocks emitted by Thoth's ONIX 3.0/3.1 exporters, kept compact for round-trip cover. */
+const THOTH_SUBJECT_ROUND_TRIP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>subject-round-trip</RecordReference>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Subject round trip</TitleText></TitleElement></TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+      <Subject><SubjectSchemeIdentifier>12</SubjectSchemeIdentifier><SubjectCode>AAB</SubjectCode></Subject>
+      <Subject><SubjectSchemeIdentifier>10</SubjectSchemeIdentifier><SubjectCode>AAA000000</SubjectCode></Subject>
+      <Subject><SubjectSchemeIdentifier>04</SubjectSchemeIdentifier><SubjectCode>JA85</SubjectCode></Subject>
+      <Subject><SubjectSchemeIdentifier>93</SubjectSchemeIdentifier><SubjectCode>ATXZ1</SubjectCode></Subject>
+      <Subject><SubjectSchemeIdentifier>20</SubjectSchemeIdentifier><SubjectHeadingText>keyword1</SubjectHeadingText></Subject>
+      <Subject><SubjectSchemeIdentifier>B2</SubjectSchemeIdentifier><SubjectHeadingText>custom1</SubjectHeadingText></Subject>
+    </DescriptiveDetail>
     <PublishingDetail>
       <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
       <PublishingStatus>04</PublishingStatus>
@@ -397,6 +463,8 @@ describe('ONIX bulk import, end to end', () => {
             return { createTitle: { titleId: 'title-1', ...(variables.data as object) } };
           case 'CreateAbstract':
             return { createAbstract: { abstractId: 'abstract-1', ...(variables.data as object) } };
+          case 'CreateSubject':
+            return { createSubject: { subjectId: `subject-${mutations.length}`, ...(variables.data as object) } };
           case 'CreateContributor':
             return {
               createContributor: { contributorId: `contributor-${mutations.length}`, ...(variables.data as object) },
@@ -739,10 +807,30 @@ describe('ONIX bulk import, end to end', () => {
     );
   });
 
+  it('round-trips the subject field policy emitted by Thoth ONIX', async () => {
+    const result = await parseUpload([], THOTH_SUBJECT_ROUND_TRIP_ONIX);
+
+    expect(result.status).toBe('success');
+    expect(result.issues).toEqual([]);
+    expect(result.data.plan.works[0].subjects.map(({ type, code }) => ({ type, code }))).toEqual([
+      { type: SubjectTypes.enum.Lcc, code: 'JA85' },
+      { type: SubjectTypes.enum.Bisac, code: 'AAA000000' },
+      { type: SubjectTypes.enum.Bic, code: 'AAB' },
+      { type: SubjectTypes.enum.Keyword, code: 'keyword1' },
+      { type: SubjectTypes.enum.Thema, code: 'ATXZ1' },
+      { type: SubjectTypes.enum.Custom, code: 'custom1' },
+    ]);
+  });
+
   it('imports Arc markup as the format it really is, all the way to the mutations', async () => {
     // The production failure this hotfix exists for. Parsed by the real @5stones/onix, so the
     // textformat attributes take the exact runtime shape the importer sees.
     const xml = (await parse(ARC_MARKUP_ONIX)) as ExtendedONIXMessageRoot;
+    const firstProduct = toOnixArray(xml.ONIXMessage.Product)[0];
+    const parsedSubjects = toOnixArray(firstProduct?.DescriptiveDetail?.Subject);
+    const wrappedThema = parsedSubjects.find(
+      (subject) => subject && subject.SubjectSchemeIdentifier === '93' && typeof subject.SubjectCode === 'object',
+    );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
     const parser = new XMLParser(
@@ -760,6 +848,11 @@ describe('ONIX bulk import, end to end', () => {
 
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
+    expect(wrappedThema?.SubjectCode).toMatchObject({ '#text': 'DSBD', '@_textscript': 'Latn' });
+    expect(wrappedThema?.SubjectHeadingText).toMatchObject({
+      '#text': 'Literary studies: c 1600 to c 1800',
+      '@_language': 'eng',
+    });
 
     const plan = result.data.plan;
 
@@ -770,6 +863,19 @@ describe('ONIX bulk import, end to end', () => {
     ]);
     expect(plan.series.map((group) => ({ name: group.name, kind: group.target.kind }))).toEqual([
       { name: 'Arc Companions', kind: 'proposed' },
+    ]);
+    expect(plan.works[0].subjects.map(({ type, code, ordinal }) => ({ type, code, ordinal }))).toEqual([
+      { type: SubjectTypes.enum.Bisac, code: 'LIT004290', ordinal: 1 },
+      { type: SubjectTypes.enum.Bisac, code: 'HIS037020', ordinal: 2 },
+      { type: SubjectTypes.enum.Bic, code: 'DSBD', ordinal: 3 },
+      { type: SubjectTypes.enum.Bic, code: 'HBLH', ordinal: 4 },
+      {
+        type: SubjectTypes.enum.Keyword,
+        code: 'literary culture; aristocratic life; women’s writing; closet drama; iconography',
+        ordinal: 5,
+      },
+      { type: SubjectTypes.enum.Thema, code: 'DSBD', ordinal: 6 },
+      { type: SubjectTypes.enum.Thema, code: 'NHDL', ordinal: 7 },
     ]);
 
     // --- creation intent: the resolved format is in the plan itself ---------
@@ -826,6 +932,33 @@ describe('ONIX bulk import, end to end', () => {
       },
     ]);
     expect(biographyCalls.filter(({ markupFormat }) => markupFormat !== MarkupFormat.Html)).toEqual([]);
+
+    const subjectCalls = mutationsNamed('CreateSubject').map((call) => call.variables.data as Record<string, unknown>);
+
+    expect(subjectCalls).toEqual([
+      expect.objectContaining({ subjectType: SubjectTypes.enum.Bisac, subjectCode: 'LIT004290' }),
+      expect.objectContaining({ subjectType: SubjectTypes.enum.Bisac, subjectCode: 'HIS037020' }),
+      expect.objectContaining({ subjectType: SubjectTypes.enum.Bic, subjectCode: 'DSBD' }),
+      expect.objectContaining({ subjectType: SubjectTypes.enum.Bic, subjectCode: 'HBLH' }),
+      expect.objectContaining({
+        subjectType: SubjectTypes.enum.Keyword,
+        subjectCode: 'literary culture; aristocratic life; women’s writing; closet drama; iconography',
+      }),
+      expect.objectContaining({ subjectType: SubjectTypes.enum.Thema, subjectCode: 'DSBD' }),
+      expect.objectContaining({ subjectType: SubjectTypes.enum.Thema, subjectCode: 'NHDL' }),
+    ]);
+    expect(subjectCalls.filter(({ subjectType }) => subjectType === SubjectTypes.enum.Thema)).toEqual([
+      expect.objectContaining({ subjectCode: 'DSBD' }),
+      expect.objectContaining({ subjectCode: 'NHDL' }),
+    ]);
+    expect(subjectCalls.map(({ subjectCode }) => subjectCode)).not.toEqual(
+      expect.arrayContaining([
+        'Literary studies: c 1600 to c 1800',
+        'Literary studies: c 1500 to c 1800',
+        'LITERARY CRITICISM / Women Authors',
+        'European history: Renaissance',
+      ]),
+    );
 
     // Source order survived to the mutations: titles are created per work, in plan order.
     expect(mutationsNamed('CreateWork')).toHaveLength(2);
