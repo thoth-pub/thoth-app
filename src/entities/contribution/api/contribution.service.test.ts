@@ -109,6 +109,30 @@ describe('ContributionService', () => {
       expect(result.contributorId).toBe(newContributorId);
     });
 
+    it('creates the contributor before the contribution, and cannot yet unwind it if that fails', async () => {
+      // Audit evidence for the newly-created-contributor orphan (see PR "Side-effect audit"):
+      // when contributorId is the default, a Contributor is created first, so a failing
+      // CREATE_CONTRIBUTION leaves that Contributor behind. There is deliberately no
+      // deleteContributor capability in the app, so cleanup is a documented follow-up rather than
+      // part of this ordering hotfix. This test pins the sequencing and the surfaced failure the
+      // WorkService rollback relies on — never a silent success.
+      const contribution = createContribution({ contributorId: appConfig.defaultId });
+      const newContributorId = faker.string.uuid();
+
+      (mockContributorService.createContributor as ReturnType<typeof vi.fn>).mockResolvedValue({ id: newContributorId });
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockRejectedValue(
+        new Error('A contribution with this ordinal number already exists.'),
+      );
+
+      await expect(service.createContribution(contribution, 'work-1')).rejects.toThrow(
+        'A contribution with this ordinal number already exists.',
+      );
+      // The contributor was created before the failing mutation…
+      expect(mockContributorService.createContributor).toHaveBeenCalledTimes(1);
+      // …and nothing deletes it: the service exposes no contributor-cleanup path to call.
+      expect(mockContributorService).not.toHaveProperty('deleteContributor');
+    });
+
     it('should use the existing contributorId when not the default', async () => {
       const contributorId = faker.string.uuid();
       const contribution = createContribution({ contributorId });

@@ -3715,15 +3715,20 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.plan.works[0].contributions).toHaveLength(2);
+      // The ImportPlan carries exactly the default "create new" intent for the one source
+      // contributor — the existing-contributor match is an alternative, not a second contribution.
+      expect(result.data.plan.works[0].contributions).toHaveLength(1);
       expect(result.data.plan.works[0].contributions[0].fullName).toBe(contributorFullName);
-      expect(result.data.plan.works[0].contributions[1].fullName).toBe(mockContributor.fullName);
+      expect(result.data.plan.works[0].contributions[0].contributorId).toBe(appConfig.defaultId);
 
       const workId = result.data.plan.works[0].id as WorkId;
       const contributorsForSelection = result.data.contributorsForSelection as ContributorsForSelection;
       const workContributorsForSelection = contributorsForSelection[workId];
 
-      expect(Object.values(workContributorsForSelection)[0].length).toBe(2);
+      // Both identities remain offered for selection: the default new contributor and the match.
+      const [options] = Object.values(workContributorsForSelection);
+      expect(options).toHaveLength(2);
+      expect(options.map(({ fullName }) => fullName)).toEqual([contributorFullName, mockContributor.fullName]);
     });
 
     it('should parse chapters', async () => {
@@ -3856,6 +3861,223 @@ describe('XMLParser', () => {
       expect(result.data.plan.chapters[0].contributions[0].type).toBe(ContributorTypes.enum.AfterwordBy);
     });
   });
+
+  describe('contributor ordering', () => {
+    type ContributorInput = { name: string; sequenceNumber?: string };
+
+    const contributorNode = ({ name, sequenceNumber }: ContributorInput) => ({
+      ...(sequenceNumber === undefined ? {} : { SequenceNumber: sequenceNumber }),
+      ContributorRole: 'A01',
+      PersonName: name,
+    });
+
+    /** A one-product message whose contributors sit at the product (work) level. */
+    const workWithContributors = (inputs: ContributorInput[]): ExtendedONIXMessageRoot => ({
+      ONIXMessage: {
+        Product: [
+          {
+            DescriptiveDetail: {
+              ProductForm: ProductForm._BC,
+              TitleDetail: { TitleElement: { TitleText: 'A work' } },
+              Language: { LanguageCode: languages[0].value },
+              Contributor: inputs.map(contributorNode),
+            } as unknown as ExtendedDescriptiveDetail,
+            PublishingDetail: {
+              Imprint: { ImprintName: imprints[0].label },
+              PublishingStatus: '04',
+            } as ExtendedPublishingDetail,
+          } as ExtendedProduct,
+        ],
+      },
+    });
+
+    /** The same contributors, but on a single chapter of an otherwise contributor-free work. */
+    const chapterWithContributors = (inputs: ContributorInput[]): ExtendedONIXMessageRoot => ({
+      ONIXMessage: {
+        Product: [
+          {
+            DescriptiveDetail: {
+              ProductForm: ProductForm._BC,
+              TitleDetail: { TitleElement: { TitleText: 'A work' } },
+              Language: { LanguageCode: languages[0].value },
+            } as ExtendedDescriptiveDetail,
+            PublishingDetail: {
+              Imprint: { ImprintName: imprints[0].label },
+              PublishingStatus: '04',
+            } as ExtendedPublishingDetail,
+            ContentDetail: {
+              ContentItem: [
+                {
+                  LevelSequenceNumber: '1',
+                  TitleDetail: { TitleElement: { TitleText: 'A chapter' } },
+                  Contributor: inputs.map(contributorNode),
+                },
+              ] as unknown as ExtendedCollection[],
+            },
+          } as ExtendedProduct,
+        ],
+      },
+    });
+
+    const run = async (xml: ExtendedONIXMessageRoot) => {
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencyOptions,
+      );
+
+      return parser.parse();
+    };
+
+    /** Every contribution's `[fullName, orderNumber]`, in the order the plan lists them. */
+    const ordinalsOf = (contributions: { fullName: string; orderNumber: number }[]) =>
+      contributions.map(({ fullName, orderNumber }) => [fullName, orderNumber] as const);
+
+    /** The invariant the backend's constraints require of every planned contribution list. */
+    const assertPlanOrdinals = (contributions: { orderNumber: number }[]) => {
+      const ordinals = contributions.map(({ orderNumber }) => orderNumber);
+
+      expect(ordinals.every((ordinal) => Number.isInteger(ordinal) && ordinal >= 1)).toBe(true);
+      expect(new Set(ordinals).size).toBe(ordinals.length);
+      expect([...ordinals].sort((a, b) => a - b)).toEqual(ordinals.map((_, position) => position + 1));
+    };
+
+    const sequenceFallbackWarnings = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
+      result.issues.filter((issue) => issue.code === 'onix.contributor.sequence_fallback');
+
+    it('gives two work contributors unique ordinals from their SequenceNumbers', async () => {
+      const result = await run(workWithContributors([{ name: 'Lisa Hopkins', sequenceNumber: '1' }, { name: 'Tom Rutter', sequenceNumber: '2' }]));
+
+      expect(result.status).toBe('success');
+      expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
+        ['Lisa Hopkins', 1],
+        ['Tom Rutter', 2],
+      ]);
+      assertPlanOrdinals(result.data.plan.works[0].contributions);
+      expect(sequenceFallbackWarnings(result)).toHaveLength(0);
+    });
+
+    it('interprets SequenceNumber, re-sorting contributors listed in reverse', async () => {
+      // Person A is listed first but numbered 2 — proof the number is read, not the position.
+      const result = await run(workWithContributors([{ name: 'Person A', sequenceNumber: '2' }, { name: 'Person B', sequenceNumber: '1' }]));
+
+      expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
+        ['Person B', 1],
+        ['Person A', 2],
+      ]);
+      assertPlanOrdinals(result.data.plan.works[0].contributions);
+    });
+
+    it('preserves order but not the raw numbers for a gapped sequence', async () => {
+      const result = await run(workWithContributors([{ name: 'First', sequenceNumber: '10' }, { name: 'Second', sequenceNumber: '20' }]));
+
+      expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
+        ['First', 1],
+        ['Second', 2],
+      ]);
+    });
+
+    it('uses source order when no contributor has a SequenceNumber, without warning', async () => {
+      const result = await run(workWithContributors([{ name: 'First' }, { name: 'Second' }]));
+
+      expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
+        ['First', 1],
+        ['Second', 2],
+      ]);
+      expect(sequenceFallbackWarnings(result)).toHaveLength(0);
+    });
+
+    it('falls back to source order and warns once when only some contributors are numbered', async () => {
+      const result = await run(workWithContributors([{ name: 'First', sequenceNumber: '1' }, { name: 'Second' }]));
+
+      expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
+        ['First', 1],
+        ['Second', 2],
+      ]);
+      const warnings = sequenceFallbackWarnings(result);
+      // One warning for the list, not one per contributor.
+      expect(warnings).toHaveLength(1);
+      expect(warnings[0].severity).toBe('warning');
+    });
+
+    it('falls back to source order and warns when SequenceNumbers collide', async () => {
+      const result = await run(workWithContributors([{ name: 'First', sequenceNumber: '1' }, { name: 'Second', sequenceNumber: '1' }]));
+
+      expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
+        ['First', 1],
+        ['Second', 2],
+      ]);
+      expect(sequenceFallbackWarnings(result)).toHaveLength(1);
+    });
+
+    it.each([['0'], ['-1'], ['1.5'], ['abc']])(
+      'never lets the malformed SequenceNumber %s reach a planned ordinal',
+      async (bad) => {
+        const result = await run(workWithContributors([{ name: 'First', sequenceNumber: bad }, { name: 'Second', sequenceNumber: '2' }]));
+
+        expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
+          ['First', 1],
+          ['Second', 2],
+        ]);
+        assertPlanOrdinals(result.data.plan.works[0].contributions);
+        expect(sequenceFallbackWarnings(result)).toHaveLength(1);
+      },
+    );
+
+    it('gives two chapter contributors unique ordinals from their SequenceNumbers', async () => {
+      const result = await run(chapterWithContributors([{ name: 'Lisa Hopkins', sequenceNumber: '1' }, { name: 'Tom Rutter', sequenceNumber: '2' }]));
+
+      expect(result.status).toBe('success');
+      expect(ordinalsOf(result.data.plan.chapters[0].contributions)).toEqual([
+        ['Lisa Hopkins', 1],
+        ['Tom Rutter', 2],
+      ]);
+      assertPlanOrdinals(result.data.plan.chapters[0].contributions);
+    });
+
+    it('gives every identity alternative for one source contributor the same ordinal', async () => {
+      const existing = {
+        id: 'existing-tom',
+        name: 'Tom Rutter',
+        fullName: 'Tom Rutter',
+        firstName: 'Tom',
+        lastName: 'Rutter',
+        orcid: '',
+        website: '',
+        updatedAt: '',
+        lastContributionTitle: 'An earlier book',
+      };
+      // Only Tom (the second, ordinal-2 contributor) matches an existing Thoth record.
+      vi.mocked(mockContributorService.getContributors).mockImplementation(async (name: string) =>
+        name === 'Tom Rutter' ? [existing] : [],
+      );
+
+      const result = await run(workWithContributors([{ name: 'Lisa Hopkins', sequenceNumber: '1' }, { name: 'Tom Rutter', sequenceNumber: '2' }]));
+
+      // The plan still carries exactly one contribution per author, with the resolved ordinals.
+      expect(ordinalsOf(result.data.plan.works[0].contributions)).toEqual([
+        ['Lisa Hopkins', 1],
+        ['Tom Rutter', 2],
+      ]);
+
+      const workId = result.data.plan.works[0].id as WorkId;
+      const selection = result.data.contributorsForSelection[workId];
+      const items = Object.values(selection);
+
+      // Tom's selection item has two options (create-new + existing), and both carry ordinal 2 —
+      // the ordinal is a property of the source contributor, not of the identity chosen for it.
+      const tomOptions = items.find((options) => options.some(({ fullName }) => fullName === 'Tom Rutter'));
+      expect(tomOptions).toHaveLength(2);
+      expect(tomOptions?.map(({ orderNumber }) => orderNumber)).toEqual([2, 2]);
+      expect(tomOptions?.map(({ contributorId }) => contributorId)).toEqual([appConfig.defaultId, 'existing-tom']);
+    });
+  });
+
   describe('repeatable and alternative ONIX structures', () => {
     const ARC_SERIES_ID = 'arc-companions-id';
     const ARC_SERIES_NAME = 'Arc Companions';

@@ -92,6 +92,7 @@ import {
   MAX_ISSUE_ORDINAL,
   type OnixDateSelection,
   type OnixDoiSelection,
+  resolveOnixContributorOrder,
   resolveOnixTextMarkup,
   selectCanonicalDoi,
   selectPublicationOrderSequence,
@@ -1567,7 +1568,28 @@ class XMLParser {
   ) {
     const xmlContributors = this.convertToArray(contributors).filter((contributor) => !!contributor);
 
-    if (xmlContributors.length === 0) return [];
+    // Only a contributor that becomes a contribution takes part in ordering, so a nameless entry
+    // neither consumes an ordinal nor leaves a gap in the contiguous 1..n the backend requires.
+    const namedContributors = xmlContributors.filter((contributor) => (contributor.PersonName ?? '').length > 0);
+
+    if (namedContributors.length === 0) return [];
+
+    // Order — and therefore every ordinal — is decided here, from the file alone, before any
+    // contributor lookup runs. Nothing below can make an ordinal depend on lookup completion,
+    // which is what keeps PR #73's concurrent, coalesced lookups from reordering contributors.
+    const { ordered, sequenceFallback } = resolveOnixContributorOrder(namedContributors);
+
+    if (sequenceFallback) {
+      // Non-blocking: source order is a perfectly importable ordering. The warning exists only to
+      // say the publisher's own SequenceNumbers could not be honoured wholesale, so nobody is
+      // surprised the contributors were not ordered by the numbers the file supplied.
+      this.issues.push({
+        severity: 'warning',
+        code: 'onix.contributor.sequence_fallback',
+        message: `Contributor sequence numbers in ${this.describeProduct(product, index)} were incomplete, invalid or duplicated, so contributor order follows the ONIX file`,
+        source: this.productSource(product, index),
+      });
+    }
 
     const multipleContributions: ContributorsForSelection = {
       [workId]: {},
@@ -1575,7 +1597,7 @@ class XMLParser {
 
     const workContributions: WorkContribution[] = [];
 
-    for (const contributor of xmlContributors) {
+    for (const { contributor, orderNumber } of ordered) {
       const role = getContributorRoleFromXml(contributor.ContributorRole ?? '01');
       const fullName = contributor.PersonName ?? '';
       const lastName = contributor.KeyNames ?? '';
@@ -1584,26 +1606,11 @@ class XMLParser {
       const website = contributor.Website?.WebsiteLink ?? '';
       const affiliationPosition = contributor.ProfessionalAffiliation?.ProfessionalPosition ?? '';
       const affiliationInstitutionRor = contributor.ProfessionalAffiliation?.AffiliationIdentifier?.IDValue;
-      const position = contributor.ProfessionalAffiliation?.ProfessionalPosition ?? '';
       const biographies = this.parseBiographies(contributor, product, index);
-
-      const newContributor = {
-        lastName,
-        firstName,
-        fullName,
-        orcid,
-        website,
-        type: role,
-        affiliationPosition,
-        affiliationInstitutionRor,
-        position,
-      };
-
-      if (newContributor.fullName.length === 0) continue;
 
       const [foundedInstitution, foundedContributors] = await Promise.all([
         this.lookupCoordinator.findInstitutionByRor(affiliationInstitutionRor),
-        this.lookupCoordinator.findContributors(newContributor.fullName),
+        this.lookupCoordinator.findContributors(fullName),
       ]);
 
       const affiliation = foundedInstitution
@@ -1621,7 +1628,10 @@ class XMLParser {
         firstName,
         type: role,
         isMain: true,
-        orderNumber: 1,
+        // The resolved position, not a constant: two contributors on one work used to both be
+        // ordinal 1, which the unique (work_id, contribution_ordinal) constraint then rejected
+        // with "A contribution with this ordinal number already exists."
+        orderNumber,
         biographies,
         orcidId: orcid ? `${orcid}` : '',
         website: website ? `${website}` : '',
@@ -1629,6 +1639,11 @@ class XMLParser {
         affiliations: affiliation ? [affiliation] : [],
       });
 
+      // The ImportPlan holds exactly one contribution per source contributor: the default
+      // "create a new contributor" intent. Existing-contributor matches are alternatives the user
+      // may substitute, so they belong only in contributorsForSelection — the same split CSV
+      // makes. Pushing every match here as well planned several contributions for one author, all
+      // sharing an ordinal, which is a second way to collide on the same constraint.
       workContributions.push(contributionWithNewContributor);
 
       const multipleContributionsItemId = this.generateId();
@@ -1637,8 +1652,9 @@ class XMLParser {
         { ...contributionWithNewContributor, selected: true, lastContribution: '' },
       ];
 
-      if (foundedContributors.length === 0) continue;
-
+      // Every identity alternative for this source contributor carries the same resolved ordinal,
+      // so which identity the user picks in ContributorsSelection cannot change where the
+      // contributor sits in the work.
       foundedContributors.forEach((foundedContributor) => {
         const contribution = getDefaultContribution({
           fullName: foundedContributor.fullName,
@@ -1647,14 +1663,12 @@ class XMLParser {
           contributorId: foundedContributor.id,
           type: role,
           isMain: true,
-          orderNumber: 1,
+          orderNumber,
           biographies,
           orcidId: foundedContributor.orcid,
           website: foundedContributor.website,
           affiliations: affiliation ? [affiliation] : [],
         });
-
-        workContributions.push(contribution);
 
         multipleContributions[workId][multipleContributionsItemId].push({
           ...contribution,
