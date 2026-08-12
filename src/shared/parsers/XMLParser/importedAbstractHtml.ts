@@ -98,9 +98,16 @@ const STANDALONE_ELEMENTS = new Set([
  * paragraph whose sole non-`<br>` children are these — wrapping nothing but whitespace — is still
  * an empty spacer. Anything outside this set (a list, a nested block, an image) is treated as real
  * content, so the paragraph holding it is kept rather than removed.
+ *
+ * `a` is deliberately absent. An anchor's visible text can be blank while the element still carries
+ * a URL the backend keeps — it maps to `Link { url, text }` — so a paragraph holding one is never
+ * blank in the sense that matters, and deleting it would throw away publisher data. Keeping the
+ * paragraph is the conservative answer, and it is the same answer {@link NON_RENDERING_ELEMENTS}
+ * gives: the two sets now agree about anchors. Distinguishing an anchor that has an `href` from one
+ * that does not would mean parsing attributes to decide what to delete, which is not a trade this
+ * normaliser should make.
  */
 const TRANSPARENT_INLINE_ELEMENTS = new Set([
-  'a',
   'abbr',
   'b',
   'big',
@@ -177,6 +184,65 @@ const NON_RENDERING_ELEMENTS = new Set([
   'u',
   'underline',
   'var',
+]);
+
+/**
+ * Start tags that implicitly end an open `<p>`, because HTML lets a paragraph's end tag be omitted
+ * in front of them. Derived from the parsing behaviour itself rather than from a guess at which tags
+ * "look like blocks": each name here was checked against a real HTML parser by asking whether
+ * `<p>x<tag>y</tag>` puts the element inside the paragraph or after it.
+ *
+ * `table` is the one judgement call. It closes a paragraph in standards mode and not in quirks mode,
+ * and an abstract fragment carries no doctype, so the backend's parser is technically in quirks mode
+ * for it. It is included because the HTML specification lists `table` among the elements a `<p>` end
+ * tag may be omitted before, and because including it can only spare a valid import a false block:
+ * the span removed in front of a table is a paragraph that had to be content-free to be removed at
+ * all, so no table and no text can be lost either way.
+ *
+ * Inline elements are absent by construction — a `<span>` or an `<em>` does not end a paragraph —
+ * and so is any tag not listed, including unknown and custom ones, so nothing outside this set can
+ * quietly change where a paragraph is judged to begin and end.
+ */
+const PARAGRAPH_IMPLICIT_END_ELEMENTS = new Set([
+  'address',
+  'article',
+  'aside',
+  'blockquote',
+  'center',
+  'dd',
+  'details',
+  'dialog',
+  'dir',
+  'div',
+  'dl',
+  'dt',
+  'fieldset',
+  'figcaption',
+  'figure',
+  'footer',
+  'form',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'header',
+  'hgroup',
+  'hr',
+  'li',
+  'listing',
+  'main',
+  'menu',
+  'nav',
+  'ol',
+  'plaintext',
+  'pre',
+  'section',
+  'summary',
+  'table',
+  'ul',
+  'xmp',
 ]);
 
 /**
@@ -305,6 +371,21 @@ const tokenise = (html: string): Token[] => {
  * `<p>` while one is already open closes the previous one where it stood (as a real HTML parser
  * does), and an unclosed `<p>` runs to the end of the fragment. Content outside any paragraph is
  * simply not part of a returned paragraph — it is never removed, only examined for stray `<br>`.
+ *
+ * A `<p>` also ends where a block element starts, because HTML lets its end tag be omitted there:
+ * `<p><br><div>Real text</div>` is a spacer paragraph followed by a div, not a paragraph containing
+ * one, and reading it the second way blocked an import over a `<br>` the parser puts in an empty
+ * paragraph. Only the start tags in {@link PARAGRAPH_IMPLICIT_END_ELEMENTS} do this.
+ *
+ * Where an implicit close lands matters: the paragraph ends at the end of the last token *inside* it,
+ * not at the start of the block tag, so any whitespace written between the two stays outside the
+ * paragraph's span and survives removal untouched. With nothing between them — the `<div>` above —
+ * the two are the same offset and the removed span is exactly `<p><br>`. No `</p>` is invented and
+ * nothing is reserialised.
+ *
+ * End tags are left alone. A `</div>` around an open paragraph does close it in a real parser, but
+ * following that needs a nesting stack this scanner does not keep; not closing there can only leave a
+ * paragraph looking like content and block, never delete one.
  */
 const findParagraphs = (tokens: Token[], length: number): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
@@ -317,16 +398,26 @@ const findParagraphs = (tokens: Token[], length: number): Paragraph[] => {
     }
   };
 
-  tokens.forEach((token, index) => {
-    if (token.type !== 'tag' || token.name !== 'p') return;
+  /** Ends the open paragraph after the last token that belonged to it, before token `index`. */
+  const closeBefore = (index: number) => close(index, tokens[index - 1]?.end ?? open?.start ?? 0);
 
-    if (token.closing) {
-      close(index, token.end);
-    } else if (!token.standalone) {
-      // An opening <p> implicitly closes a still-open one at the previous token's end.
-      if (open) close(index, tokens[index - 1]?.end ?? open.start);
-      open = { openIndex: index, start: token.start };
+  tokens.forEach((token, index) => {
+    if (token.type !== 'tag') return;
+
+    if (token.name === 'p') {
+      if (token.closing) {
+        close(index, token.end);
+      } else if (!token.standalone) {
+        if (open) closeBefore(index);
+        open = { openIndex: index, start: token.start };
+      }
+
+      return;
     }
+
+    // A block element's start tag ends an open paragraph. `<hr>` is one of them and is standalone,
+    // so being standalone is no reason to skip the check.
+    if (open && !token.closing && PARAGRAPH_IMPLICIT_END_ELEMENTS.has(token.name)) closeBefore(index);
   });
 
   close(tokens.length, tokens[tokens.length - 1]?.end ?? length);

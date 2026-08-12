@@ -293,6 +293,14 @@ describe('normaliseImportedAbstractHtml', () => {
    * abstract, since the backend reads `div` as a transparent document container.
    */
   describe('reports a field that renders nothing as empty', () => {
+    it('keeps a paragraph holding an anchor, whose text may be blank but whose href is not', () => {
+      // Spacer classification and emptiness must agree about anchors: the backend keeps an anchor's
+      // URL (`Link { url, text }`), so a blank-looking one is still publisher data.
+      const hrefOnly = '<p><a href="https://example.com"></a></p>';
+
+      expect(normaliseImportedAbstractHtml(hrefOnly)).toEqual({ kind: 'content', content: hrefOnly });
+    });
+
     it('omits a wrapper left holding nothing after its spacer went', () => {
       expect(normaliseImportedAbstractHtml('<div><p><br></p></div>')).toEqual({ kind: 'empty' });
       expect(normaliseImportedAbstractHtml('<div><p> </p></div>')).toEqual({ kind: 'empty' });
@@ -356,6 +364,162 @@ describe('normaliseImportedAbstractHtml', () => {
       expect(normaliseImportedAbstractHtml('<div><p>Hello<br>world</p></div>')).toEqual({ kind: 'unrepresentable' });
       // A loose break in a wrapper is not a spacer paragraph, so it blocks rather than vanishing.
       expect(normaliseImportedAbstractHtml('<div><br></div>')).toEqual({ kind: 'unrepresentable' });
+    });
+  });
+
+  /**
+   * An anchor is never blank in the sense that lets a paragraph be deleted: its text can be empty
+   * while the element still carries a URL the backend keeps. Every case here pins that the anchor —
+   * and the paragraph around it — survives, and that a real `<br>` beside one still blocks instead
+   * of the paragraph being swept away as a spacer.
+   */
+  describe('never removes a paragraph because an anchor looks blank', () => {
+    it('keeps an href-only anchor and the paragraph holding it', () => {
+      const input = '<p><a href="https://example.com"></a></p>';
+
+      expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
+      // The URL is what would have been lost, so assert on it directly.
+      expect(normaliseImportedAbstractHtml(input)).toEqual(
+        expect.objectContaining({ content: expect.stringContaining('https://example.com') }),
+      );
+    });
+
+    it('blocks a real break beside an href-only anchor instead of deleting the href', () => {
+      expect(normaliseImportedAbstractHtml('<p><a href="https://example.com"></a><br></p>')).toEqual({
+        kind: 'unrepresentable',
+      });
+    });
+
+    it('keeps an anchor that has visible text, and blocks a break beside it', () => {
+      const input = '<p><a href="https://example.com">Example</a></p>';
+
+      expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
+      expect(normaliseImportedAbstractHtml('<p><a href="https://example.com">Example</a><br></p>')).toEqual({
+        kind: 'unrepresentable',
+      });
+    });
+
+    it('keeps even an anchor with no attributes at all', () => {
+      // Deciding by attribute would mean parsing them to justify a deletion; keeping is cheaper and
+      // cannot lose anything.
+      const input = '<p><a></a></p>';
+
+      expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
+    });
+
+    it('still removes the Arc spacer, which holds no anchor', () => {
+      expect(normaliseImportedAbstractHtml('<p style="text-align:justify;"><br></p>')).toEqual({ kind: 'empty' });
+      expect(normaliseImportedAbstractHtml('<p>Real.</p><p style="text-align:justify;"><br></p>')).toEqual({
+        kind: 'content',
+        content: '<p>Real.</p>',
+      });
+    });
+  });
+
+  /**
+   * HTML lets a paragraph's end tag be omitted before a block element, and the API parses with a
+   * real HTML parser, so `<p><br><div>Real text</div>` is a spacer paragraph *followed by* a div.
+   * Reading the div as paragraph content made the spacer look meaningful and blocked the import.
+   */
+  describe('ends a paragraph where a block element implicitly closes it', () => {
+    it('removes only the spacer and keeps the block that ended it', () => {
+      expect(normaliseImportedAbstractHtml('<p><br><div>Real text</div>')).toEqual({
+        kind: 'content',
+        content: '<div>Real text</div>',
+      });
+    });
+
+    it('handles each representative block start tag', () => {
+      const cases: [string, string][] = [
+        ['<p><br><section>Real text</section>', '<section>Real text</section>'],
+        ['<p><br><article>Real text</article>', '<article>Real text</article>'],
+        ['<p><br><blockquote>Quoted</blockquote>', '<blockquote>Quoted</blockquote>'],
+        ['<p><br><ul><li>Item</li></ul>', '<ul><li>Item</li></ul>'],
+        ['<p><br><ol><li>Item</li></ol>', '<ol><li>Item</li></ol>'],
+        ['<p><br><table><tr><td>Cell</td></tr></table>', '<table><tr><td>Cell</td></tr></table>'],
+        ['<p><br><h1>Heading</h1>', '<h1>Heading</h1>'],
+        ['<p><br><pre>code</pre>', '<pre>code</pre>'],
+      ];
+
+      for (const [input, content] of cases) {
+        expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content });
+      }
+    });
+
+    it('still closes a paragraph at the next opening <p>, as it always did', () => {
+      expect(normaliseImportedAbstractHtml('<p><br><p>Real paragraph</p>')).toEqual({
+        kind: 'content',
+        content: '<p>Real paragraph</p>',
+      });
+    });
+
+    it('keeps the whitespace that sat outside the implicitly closed paragraph', () => {
+      // Whitespace *before* the `<p>` was never part of it and must survive, exactly as it does for
+      // an explicitly closed spacer. (Whitespace after the `<br>` is inside the paragraph — a real
+      // parser puts it there, since the `<div>` is what ends the paragraph — so it goes with it.)
+      expect(normaliseImportedAbstractHtml('<span>a</span> <p><br><div>Real</div>')).toEqual({
+        kind: 'content',
+        content: '<span>a</span> <div>Real</div>',
+      });
+      expect(normaliseImportedAbstractHtml('<span>a</span>\n\t<p><br><section>Real</section>')).toEqual({
+        kind: 'content',
+        content: '<span>a</span>\n\t<section>Real</section>',
+      });
+      // At the document edge the existing outer trim takes it, as before.
+      expect(normaliseImportedAbstractHtml('<p><br>\n<section>Real text</section>')).toEqual({
+        kind: 'content',
+        content: '<section>Real text</section>',
+      });
+    });
+
+    it('keeps a paragraph that a block ends but that carried real text', () => {
+      const input = '<p>Hello<div>Real</div>';
+
+      expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
+    });
+
+    it('still blocks a break belonging to a meaningful paragraph a block ended', () => {
+      expect(normaliseImportedAbstractHtml('<p>Hello<br><div>Real</div>')).toEqual({ kind: 'unrepresentable' });
+    });
+
+    it('does not let an inline element end a paragraph', () => {
+      // A `<span>` keeps the paragraph open, so the break sits beside visible text and blocks.
+      expect(normaliseImportedAbstractHtml('<p><br><span>Inline</span></p>')).toEqual({ kind: 'unrepresentable' });
+      expect(normaliseImportedAbstractHtml('<p><br><em>Inline</em></p>')).toEqual({ kind: 'unrepresentable' });
+    });
+
+    it('does not let an unknown or custom element end a paragraph', () => {
+      // Unlisted names must not silently change where a paragraph is judged to end.
+      expect(normaliseImportedAbstractHtml('<p><br><custom-tag>Real</custom-tag></p>')).toEqual({
+        kind: 'unrepresentable',
+      });
+    });
+
+    it('treats a comment before the block as the non-rendering thing it is', () => {
+      expect(normaliseImportedAbstractHtml('<p><br><!-- note --><div>Real</div>')).toEqual({
+        kind: 'content',
+        content: '<div>Real</div>',
+      });
+    });
+
+    it('closes a paragraph before a standalone <hr>, which HTML also ends a paragraph with', () => {
+      expect(normaliseImportedAbstractHtml('<p><br><hr>')).toEqual({ kind: 'content', content: '<hr>' });
+    });
+
+    it('keeps quoted attributes and comments working across an implicit close', () => {
+      expect(normaliseImportedAbstractHtml('<p title="1 > 0"><br><div>Real text</div>')).toEqual({
+        kind: 'content',
+        content: '<div>Real text</div>',
+      });
+      expect(normaliseImportedAbstractHtml('<p><br><div title="a > b">Real</div>')).toEqual({
+        kind: 'content',
+        content: '<div title="a > b">Real</div>',
+      });
+      // A block name written inside a comment is not a block start and ends nothing.
+      expect(normaliseImportedAbstractHtml('<p>Hello<!-- <div> -->world</p>')).toEqual({
+        kind: 'content',
+        content: '<p>Hello<!-- <div> -->world</p>',
+      });
     });
   });
 
