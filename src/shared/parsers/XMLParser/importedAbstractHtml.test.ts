@@ -524,6 +524,102 @@ describe('normaliseImportedAbstractHtml', () => {
   });
 
   /**
+   * The third way a paragraph ends: an element that was open *around* it closes. `</div>` cannot
+   * close while a paragraph inside it is still open, so the paragraph goes first — while `</span>`
+   * for a span opened *inside* the paragraph closes only itself. The difference is ancestry, not the
+   * tag name, and both directions are pinned here.
+   */
+  describe('ends a paragraph when an element open around it closes', () => {
+    it('removes a spacer whose parent closed, keeping the parent and what follows', () => {
+      expect(normaliseImportedAbstractHtml('<div><p><br></div><p>Real text</p>')).toEqual({
+        kind: 'content',
+        content: '<div></div><p>Real text</p>',
+      });
+    });
+
+    it('omits the field when the parent close leaves nothing that renders', () => {
+      expect(normaliseImportedAbstractHtml('<div><p><br></div>')).toEqual({ kind: 'empty' });
+    });
+
+    it('lets whitespace inside the spacer leave with it and touches nothing outside', () => {
+      expect(normaliseImportedAbstractHtml('<div><p><br>\n</div><p>Real text</p>')).toEqual({
+        kind: 'content',
+        content: '<div></div><p>Real text</p>',
+      });
+      // Whitespace before the `<p>` was never inside it and survives.
+      expect(normaliseImportedAbstractHtml('<div>\n<p><br></div><p>Real.</p>')).toEqual({
+        kind: 'content',
+        content: '<div>\n</div><p>Real.</p>',
+      });
+    });
+
+    it('closes at the innermost ancestor and deletes nothing further out', () => {
+      expect(normaliseImportedAbstractHtml('<section><div><p><br></div></section><p>Real.</p>')).toEqual({
+        kind: 'content',
+        content: '<section><div></div></section><p>Real.</p>',
+      });
+    });
+
+    it('ends a paragraph whose surrounding inline element closes', () => {
+      // `<span>` was open before the `<p>`, so it is an ancestor and its end tag closes the
+      // paragraph — exactly as a real parser does.
+      expect(normaliseImportedAbstractHtml('<span><p><br></span><p>Real.</p>')).toEqual({
+        kind: 'content',
+        content: '<span></span><p>Real.</p>',
+      });
+    });
+
+    it('does not let a descendant inline close end the paragraph', () => {
+      // `</span>` closes a span opened inside the paragraph, so the paragraph keeps going and its
+      // visible text makes the break meaningful.
+      expect(normaliseImportedAbstractHtml('<div><p><span><br></span>Real text</p></div>')).toEqual({
+        kind: 'unrepresentable',
+      });
+      expect(normaliseImportedAbstractHtml('<div><p><em>Hello</em><br></p></div>')).toEqual({
+        kind: 'unrepresentable',
+      });
+      expect(normaliseImportedAbstractHtml('<p><em>Hello</em></p>')).toEqual({
+        kind: 'content',
+        content: '<p><em>Hello</em></p>',
+      });
+    });
+
+    it('still blocks a real break when the parent close follows visible text', () => {
+      expect(normaliseImportedAbstractHtml('<div><p>Hello<br></div>')).toEqual({ kind: 'unrepresentable' });
+    });
+
+    it('removes a parent-closed spacer built from a blank formatting wrapper', () => {
+      expect(normaliseImportedAbstractHtml('<div><p><strong> </strong><br></div>')).toEqual({ kind: 'empty' });
+    });
+
+    it('leaves an explicitly closed paragraph behaving exactly as before', () => {
+      expect(normaliseImportedAbstractHtml('<div><p><br></p></div>')).toEqual({ kind: 'empty' });
+    });
+
+    it('ignores a stray end tag rather than letting it authorise a deletion', () => {
+      // Nothing of that name is open. A real parser drops the tag and would call this paragraph
+      // empty; blocking instead is the safe direction, since the alternative is deleting on the
+      // strength of markup we could not make sense of.
+      expect(normaliseImportedAbstractHtml('<p><br></div>')).toEqual({ kind: 'unrepresentable' });
+      expect(normaliseImportedAbstractHtml('<p>Real.</p></div>')).toEqual({
+        kind: 'content',
+        content: '<p>Real.</p></div>',
+      });
+    });
+
+    it('keeps the block-start close working alongside the parent close', () => {
+      expect(normaliseImportedAbstractHtml('<p><br><div>Real text</div>')).toEqual({
+        kind: 'content',
+        content: '<div>Real text</div>',
+      });
+      expect(normaliseImportedAbstractHtml('<div><p><br><section>Real</section></div>')).toEqual({
+        kind: 'content',
+        content: '<div><section>Real</section></div>',
+      });
+    });
+  });
+
+  /**
    * An HTML comment renders nothing and contains no markup, however tag-shaped its text looks. Both
    * directions are pinned: a comment can never conjure a structural element that is not there, and
    * it can never hide one that is.

@@ -383,13 +383,24 @@ const tokenise = (html: string): Token[] => {
  * the two are the same offset and the removed span is exactly `<p><br>`. No `</p>` is invented and
  * nothing is reserialised.
  *
- * End tags are left alone. A `</div>` around an open paragraph does close it in a real parser, but
- * following that needs a nesting stack this scanner does not keep; not closing there can only leave a
- * paragraph looking like content and block, never delete one.
+ * A `<p>` ends a third way: when an element that was already open *around* it closes.
+ * `<div><p><br></div>` is an empty paragraph inside a div, because `</div>` cannot close while the
+ * paragraph is still open, so the paragraph goes first. Telling that end tag from `</span>` in
+ * `<p><span><br></span>Real text</p>` — which closes something opened *inside* the paragraph and
+ * must not end it — is a question about ancestry, not about tag names, so this keeps a stack of the
+ * elements currently open and the depth that stack had when the `<p>` began. An end tag resolving
+ * below that depth closes an ancestor and takes the paragraph with it; at or above it, it closes a
+ * descendant and does not.
+ *
+ * An end tag matching nothing open is stray. A real parser ignores it, and so does this: acting on
+ * one could only turn malformed markup into a deletion, and leaving the paragraph open at worst
+ * makes it look like content and block.
  */
 const findParagraphs = (tokens: Token[], length: number): Paragraph[] => {
   const paragraphs: Paragraph[] = [];
-  let open: { openIndex: number; start: number } | null = null;
+  let open: { openIndex: number; start: number; ancestorDepth: number } | null = null;
+  /** Names of the elements open around the cursor, outermost first. `p` is tracked by `open`, not here. */
+  const elementStack: string[] = [];
 
   const close = (innerTo: number, end: number) => {
     if (open) {
@@ -409,15 +420,31 @@ const findParagraphs = (tokens: Token[], length: number): Paragraph[] => {
         close(index, token.end);
       } else if (!token.standalone) {
         if (open) closeBefore(index);
-        open = { openIndex: index, start: token.start };
+        open = { openIndex: index, start: token.start, ancestorDepth: elementStack.length };
       }
 
       return;
     }
 
+    if (token.closing) {
+      const depth = elementStack.lastIndexOf(token.name);
+
+      // Stray: nothing of that name is open. Ignore it rather than guess what it meant to close.
+      if (depth === -1) return;
+
+      // Below the depth the stack had when the paragraph opened, so it closes one of the paragraph's
+      // ancestors — the paragraph ends with it, immediately before this tag.
+      if (open && depth < open.ancestorDepth) closeBefore(index);
+
+      elementStack.length = depth;
+
+      return;
+    }
+
     // A block element's start tag ends an open paragraph. `<hr>` is one of them and is standalone,
-    // so being standalone is no reason to skip the check.
-    if (open && !token.closing && PARAGRAPH_IMPLICIT_END_ELEMENTS.has(token.name)) closeBefore(index);
+    // so being standalone is no reason to skip the check — but it opens nothing to track.
+    if (open && PARAGRAPH_IMPLICIT_END_ELEMENTS.has(token.name)) closeBefore(index);
+    if (!token.standalone) elementStack.push(token.name);
   });
 
   close(tokens.length, tokens[tokens.length - 1]?.end ?? length);
