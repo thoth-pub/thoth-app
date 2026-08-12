@@ -47,6 +47,7 @@ const mocks = vi.hoisted(() => {
     prices: [
       { id: 'price-1', currencyCode: 'GBP', unitPrice: 25 },
       { id: 'price-2', currencyCode: 'USD', unitPrice: 30 },
+      { id: 'price-3', currencyCode: 'EUR', unitPrice: 35 },
     ],
     locations: [canonicalLocation, otherLocation],
   };
@@ -104,8 +105,15 @@ vi.mock('@/src/entities/locations/store/location.store', () => ({
 // A minimal price form: submitting resends only the GBP row, so the USD row is removed
 // and the hook runs a deletion with no create or update mutation alongside it.
 vi.mock('@/src/entities/price', () => ({
-  EditPrice: ({ onUpdate }: { onUpdate?: (data: { prices: unknown[] }) => void }) => (
+  EditPrice: ({
+    prices,
+    onUpdate,
+  }: {
+    prices?: { currencyCode: string }[];
+    onUpdate?: (data: { prices: unknown[] }) => void;
+  }) => (
     <div data-testid="price-field">
+      <span data-testid="price-currencies">{prices?.map(({ currencyCode }) => currencyCode).join(',')}</span>
       <button
         type="button"
         onClick={() =>
@@ -347,6 +355,56 @@ describe('EditPublication file upload locking during deletions', () => {
     rerender(editPublicationTree());
 
     await waitFor(() => expect(getFileInput()).not.toBeDisabled());
+  });
+
+  it('EditPublication_keepsFileInteractionLockedUntilEveryPriceDeletionSettles', async () => {
+    const firstDeletion = createDeferred();
+    const lastStartedDeletion = createDeferred();
+    mocks.publication.prices = [
+      { id: 'price-1', currencyCode: 'GBP', unitPrice: 25 },
+      { id: 'price-2', currencyCode: 'USD', unitPrice: 30 },
+      { id: 'price-3', currencyCode: 'EUR', unitPrice: 35 },
+    ];
+    mocks.deletePrice
+      .mockImplementationOnce(() => {
+        mocks.loading.deletePrice = true;
+
+        return firstDeletion.promise;
+      })
+      .mockImplementationOnce(() => {
+        mocks.loading.deletePrice = true;
+
+        return lastStartedDeletion.promise;
+      });
+
+    const { rerender } = renderEditPublication();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'delete-price' }));
+    });
+
+    expect(mocks.deletePrice.mock.calls).toEqual([['price-2'], ['price-3']]);
+
+    await act(async () => {
+      // Model the mutation observer becoming idle when the last-started deletion
+      // settles even though the first deletion is still unresolved.
+      mocks.loading.deletePrice = false;
+      lastStartedDeletion.resolve();
+      await lastStartedDeletion.promise;
+    });
+    rerender(editPublicationTree());
+
+    expectFileInteractionLocked();
+    expectNoUploadPresentation();
+
+    await act(async () => {
+      firstDeletion.resolve();
+      await firstDeletion.promise;
+    });
+
+    await waitFor(() => expect(getFileInput()).not.toBeDisabled());
+    expect(screen.getByTestId('price-currencies')).toHaveTextContent('GBP');
+    expect(mocks.uploadPublicationFile).not.toHaveBeenCalled();
   });
 
   it('EditPublication_locksTheFileFieldForTheFinalLocationDeletionRequest', async () => {

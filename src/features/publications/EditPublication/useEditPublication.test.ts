@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
 
   const gbpPrice = { id: 'price-1', currencyCode: 'GBP', unitPrice: 25 };
   const usdPrice = { id: 'price-2', currencyCode: 'USD', unitPrice: 30 };
+  const eurPrice = { id: 'price-3', currencyCode: 'EUR', unitPrice: 35 };
 
   const publication = {
     id: 'pub-1',
@@ -43,6 +44,7 @@ const mocks = vi.hoisted(() => {
     otherLocation,
     gbpPrice,
     usdPrice,
+    eurPrice,
     publication,
     // Stable reference, like react-query data before a refetch lands: the hook's
     // fresh-publication effect must not overwrite local state between submits.
@@ -125,11 +127,13 @@ const idleLoading = () => ({
 // A promise the test resolves by hand, so a mutation can be held pending without timers.
 const createDeferred = () => {
   let resolve!: (value?: unknown) => void;
-  const promise = new Promise((resolvePromise) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise((resolvePromise, rejectPromise) => {
     resolve = resolvePromise;
+    reject = rejectPromise;
   });
 
-  return { promise, resolve };
+  return { promise, resolve, reject };
 };
 
 beforeEach(() => {
@@ -776,6 +780,95 @@ describe('useEditPublication upload lock', () => {
 
     expect(result.current.loading).toBe(false);
     expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice]);
+  });
+
+  it('useEditPublication_staysBusyUntilEveryDeletionInAPriceBatchSettles', async () => {
+    const firstDeletion = createDeferred();
+    const lastStartedDeletion = createDeferred();
+    mocks.publication.prices = [mocks.gbpPrice, mocks.usdPrice, mocks.eurPrice];
+    mocks.deletePrice
+      .mockImplementationOnce(() => {
+        mocks.loading.deletePrice = true;
+
+        return firstDeletion.promise;
+      })
+      .mockImplementationOnce(() => {
+        mocks.loading.deletePrice = true;
+
+        return lastStartedDeletion.promise;
+      });
+
+    const { result, rerender } = renderEditPublication();
+    let submission!: Promise<void>;
+    let submissionSettled = false;
+
+    act(() => {
+      submission = result.current.updatePrices({ prices: [priceRow('price-1', 'GBP', 25)] });
+      void submission.finally(() => {
+        submissionSettled = true;
+      });
+    });
+
+    expect(mocks.deletePrice.mock.calls).toEqual([['price-2'], ['price-3']]);
+    expect(mocks.createPrice).not.toHaveBeenCalled();
+    expect(mocks.updatePrice).not.toHaveBeenCalled();
+
+    await act(async () => {
+      // TanStack's observer follows the last-started mutation. Model it becoming
+      // idle when that deletion settles, while the earlier deletion stays pending.
+      mocks.loading.deletePrice = false;
+      lastStartedDeletion.resolve();
+      await lastStartedDeletion.promise;
+    });
+    rerender();
+
+    expect(submissionSettled).toBe(false);
+    expect(result.current.loading).toBe(true);
+    expect(result.current.fileUploadLoading).toBe(false);
+
+    await act(async () => {
+      firstDeletion.resolve();
+      await submission;
+    });
+
+    expect(submissionSettled).toBe(true);
+    expect(result.current.loading).toBe(false);
+    expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice]);
+  });
+
+  it('useEditPublication_clearsPriceBatchBusyStateAfterPartialFailure', async () => {
+    const successfulDeletion = createDeferred();
+    const failedDeletion = createDeferred();
+    const error = new Error('EUR deletion failed');
+    mocks.publication.prices = [mocks.gbpPrice, mocks.usdPrice, mocks.eurPrice];
+    mocks.deletePrice
+      .mockImplementationOnce(() => successfulDeletion.promise)
+      .mockImplementationOnce(() => failedDeletion.promise);
+
+    const { result } = renderEditPublication();
+    let submission!: Promise<void>;
+
+    act(() => {
+      submission = result.current.updatePrices({ prices: [priceRow('price-1', 'GBP', 25)] });
+    });
+
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      failedDeletion.reject(error);
+      await expect(failedDeletion.promise).rejects.toBe(error);
+    });
+
+    expect(result.current.loading).toBe(true);
+
+    await act(async () => {
+      successfulDeletion.resolve();
+      await expect(submission).rejects.toBe(error);
+    });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.activePublication?.prices).toEqual([mocks.gbpPrice, mocks.eurPrice]);
+    expect(result.current.priceFormVersion).toBe(0);
   });
 
   it('useEditPublication_staysBusyForTheFinalLocationDeletionRequest', async () => {
