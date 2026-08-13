@@ -388,6 +388,151 @@ const arcSpacerOnix = (abstractBody = ARC_SPACER_ABSTRACT) => `<?xml version="1.
   </Product>
 </ONIXMessage>`;
 
+/**
+ * Arc product 9781942401353 (production product 8), reduced to the composites the importer reads
+ * but with every kept element **verbatim from the production file** — including the physical
+ * newlines that wrap the tagless `textformat="02"` long abstract, the NBSP inside the short
+ * abstract, and both plain-text `textformat="06"` biographies. This is the product the 2026-08
+ * import run failed on after the first seven: its long abstract declares HTML, contains no tags,
+ * and used to reach the API as plain text with the source-line newlines intact, where each newline
+ * became a `Break` the abstract validator rejects.
+ *
+ * Two byte classes are spelled as XML character references so the source file carries no trailing
+ * or invisible whitespace: the production file's trailing space before each wrapped newline is
+ * `&#32;`, and its raw NBSP is `&#xA0;` (hex deliberately — the parser mis-decodes the decimal
+ * form `&#160;` to a plain space). Both decode to the production bytes; the exact-content
+ * assertions below are what prove it.
+ */
+const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>9781942401353</RecordReference>
+    <ProductIdentifier>
+      <ProductIDType>06</ProductIDType>
+      <IDValue>10.17302/CDH-9781942401353</IDValue>
+    </ProductIdentifier>
+    <ProductIdentifier>
+      <ProductIDType>15</ProductIDType>
+      <IDValue>9781942401353</IDValue>
+    </ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>ED</ProductForm>
+      <EpubLicense>
+        <EpubLicenseName>CC-BY-NC-ND</EpubLicenseName>
+        <EpubLicenseExpression>
+          <EpubLicenseExpressionType>01</EpubLicenseExpressionType>
+          <EpubLicenseExpressionLink>https://creativecommons.org/licenses/by-nc-nd/4.0/</EpubLicenseExpressionLink>
+        </EpubLicenseExpression>
+      </EpubLicense>
+      <Collection>
+        <CollectionType>10</CollectionType>
+        <TitleDetail>
+          <TitleType>01</TitleType>
+          <TitleElement>
+            <TitleElementLevel>02</TitleElementLevel>
+            <NoPrefix/>
+            <TitleWithoutPrefix>Collection Development, Cultural Heritage, and Digital Humanities</TitleWithoutPrefix>
+          </TitleElement>
+        </TitleDetail>
+      </Collection>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">Digital Techniques for Documenting and Preserving Cultural Heritage</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <TitleDetail>
+        <TitleType>05</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">CDH_Bentkowska-Digital</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language>
+        <LanguageRole>01</LanguageRole>
+        <LanguageCode>eng</LanguageCode>
+      </Language>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>B01</ContributorRole>
+        <PersonName>Anna Bentkowska-Kafel</PersonName>
+        <PersonNameInverted>Bentkowska-Kafel, Anna</PersonNameInverted>
+        <NamesBeforeKey>Anna</NamesBeforeKey>
+        <KeyNames>Bentkowska-Kafel</KeyNames>
+        <ContributorDate>
+          <ContributorDateRole>50</ContributorDateRole>
+          <Date dateformat="05">1954</Date>
+        </ContributorDate>
+        <ProfessionalAffiliation>
+          <ProfessionalPosition>Independent (f. Department of Digital Humanities, King's College London)</ProfessionalPosition>
+          <Affiliation>Independent, PhD 1998, Nottingham Trent University</Affiliation>
+        </ProfessionalAffiliation>
+        <BiographicalNote textformat="06">Anna Bentkowska-Kafel is an art historian with a special interest in the use of 3D electronic imaging in documentation and scholarly interpretation of art.</BiographicalNote>
+      </Contributor>
+      <Contributor>
+        <SequenceNumber>2</SequenceNumber>
+        <ContributorRole>B01</ContributorRole>
+        <PersonName>Lindsay MacDonald</PersonName>
+        <PersonNameInverted>MacDonald, Lindsay</PersonNameInverted>
+        <NamesBeforeKey>Lindsay</NamesBeforeKey>
+        <KeyNames>MacDonald</KeyNames>
+        <ProfessionalAffiliation>
+          <ProfessionalPosition>Faculty of Engineering</ProfessionalPosition>
+          <Affiliation>University College London</Affiliation>
+        </ProfessionalAffiliation>
+        <BiographicalNote textformat="06">Lindsay MacDonald, Research Associate in the Faculty of Engineering Science, University College London, is a colour scientist specializing in imaging applications</BiographicalNote>
+      </Contributor>
+    </DescriptiveDetail>
+    <CollateralDetail>
+      <TextContent>
+        <TextType>02</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text textformat="02" language="eng">&lt;p>This book is Open Access and available from OAPEN.&#xA0;This book presents interdisciplinary approaches to the examination and documentation of material cultural heritage, using non-invasive spatial and spectral optical technologies.&lt;/p></Text>
+      </TextContent>
+      <TextContent>
+        <TextType>03</TextType>
+        <ContentAudience>00</ContentAudience>
+        <Text textformat="02" language="eng">In this unique collection the authors present a wide range of&#32;
+  interdisciplinary methods to study, document, and conserve material&#32;
+  cultural heritage. The methods used serve as exemplars of best practice&#32;
+  with a wide variety of cultural heritage objects
+  having been recorded, examined, and visualised. The objects range in&#32;
+  date, scale, materials, and state of preservation and so
+  pose different research questions and challenges for digitization,&#32;
+  conservation, and ontological representation of knowledge. Heritage&#32;
+  science and specialist digital technologies are presented in a way&#32;
+  approachable to non-scientists, while a separate technical section provides details of methods and techniques, alongside examples of notable&#32;
+  applications of spatial and spectral documentation of material cultural&#32;
+  heritage, with selected literature and identification of future&#32;
+  research. This book is an outcome of interdisciplinary research and debates conducted by the participants of the COST Action TD1201, Colour and Space in Cultural Heritage, 2012–16 and is an Open Access publication available under a CC BY-NC-ND licence.</Text>
+      </TextContent>
+    </CollateralDetail>
+    <PublishingDetail>
+      <Imprint>
+        <ImprintName>Arc Humanities Press</ImprintName>
+      </Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+/** Product 8's long abstract exactly as HTML renders it: source-line wrapping collapsed, nothing else changed. */
+const ARC_PRODUCT_8_COLLAPSED_ABSTRACT =
+  'In this unique collection the authors present a wide range of interdisciplinary methods to study, document, ' +
+  'and conserve material cultural heritage. The methods used serve as exemplars of best practice with a wide variety ' +
+  'of cultural heritage objects having been recorded, examined, and visualised. The objects range in date, scale, ' +
+  'materials, and state of preservation and so pose different research questions and challenges for digitization, ' +
+  'conservation, and ontological representation of knowledge. Heritage science and specialist digital technologies ' +
+  'are presented in a way approachable to non-scientists, while a separate technical section provides details of ' +
+  'methods and techniques, alongside examples of notable applications of spatial and spectral documentation of ' +
+  'material cultural heritage, with selected literature and identification of future research. This book is an ' +
+  'outcome of interdisciplinary research and debates conducted by the participants of the COST Action TD1201, ' +
+  'Colour and Space in Cultural Heritage, 2012\u201316 and is an Open Access publication available under a ' +
+  'CC BY-NC-ND licence.';
+
 /** The subject blocks emitted by Thoth's ONIX 3.0/3.1 exporters, kept compact for round-trip cover. */
 const THOTH_SUBJECT_ROUND_TRIP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
@@ -1163,6 +1308,115 @@ describe('ONIX bulk import, end to end', () => {
     expect(mutationsNamed('CreateContribution')).toEqual([]);
     expect(mutationsNamed('CreateBiography')).toEqual([]);
     expect(mutationsNamed('CreateSubject')).toEqual([]);
+    expect(mutations).toEqual([]);
+  });
+
+  it('imports the wrapped tagless Arc abstract of product 9781942401353 as collapsed plain text', async () => {
+    // Production product 8, the run's next blocker after #100: an abstract declared HTML with no
+    // tags, wrapped across physical source lines. The newlines are HTML formatting whitespace, not
+    // line breaks, so they collapse to spaces — and nothing else about the prose changes.
+    const result = await parseUpload([], ARC_PRODUCT_8_ONIX);
+
+    expect(result.status).toBe('success');
+    expect(result.issues).toEqual([]);
+
+    // Parsing and previewing mutate nothing, whatever the plan holds.
+    expect(mutations).toEqual([]);
+
+    const [work] = result.data.plan.works;
+    const [longAbstract, shortAbstract] = work.abstracts;
+
+    expect(longAbstract.sourceMarkupFormat).toBe(MarkupFormat.PlainText);
+    expect(longAbstract.content).toBe(ARC_PRODUCT_8_COLLAPSED_ABSTRACT);
+    // No physical source newline survives into the plan.
+    expect(longAbstract.content).not.toMatch(/[\r\n]/);
+
+    // The short abstract is real HTML and keeps its raw NBSP; the long abstract keeps its en dash.
+    expect(shortAbstract.sourceMarkupFormat).toBe(MarkupFormat.Html);
+    expect(shortAbstract.content).toContain('OAPEN.\u00A0This book');
+    expect(longAbstract.content).toContain('2012\u201316');
+
+    // Both textformat="06" biographies are single-line plain text and pass the new guard untouched.
+    const biographies = work.contributions.flatMap((contribution) => contribution.biographies);
+    expect(biographies.map(({ sourceMarkupFormat }) => sourceMarkupFormat)).toEqual([
+      MarkupFormat.PlainText,
+      MarkupFormat.PlainText,
+    ]);
+  });
+
+  it('sends product 9781942401353 to CREATE_ABSTRACT as the collapsed one-line plain text', async () => {
+    // The mutation boundary itself: what the API would actually receive, not just the plan.
+    const result = await parseUpload([], ARC_PRODUCT_8_ONIX);
+
+    await workService.bulkCreateWorks(result.data.plan);
+
+    const abstractCalls = mutationsNamed('CreateAbstract').map((call) => ({
+      content: (call.variables.data as { content: string }).content,
+      markupFormat: call.variables.markupFormat,
+    }));
+
+    expect(abstractCalls).toEqual([
+      { content: ARC_PRODUCT_8_COLLAPSED_ABSTRACT, markupFormat: MarkupFormat.PlainText },
+      {
+        content:
+          '<p>This book is Open Access and available from OAPEN.\u00A0This book presents interdisciplinary ' +
+          'approaches to the examination and documentation of material cultural heritage, using non-invasive ' +
+          'spatial and spectral optical technologies.</p>',
+        markupFormat: MarkupFormat.Html,
+      },
+    ]);
+
+    const biographyCalls = mutationsNamed('CreateBiography')
+      .map((call) => ({
+        content: (call.variables.data as { content: string }).content,
+        markupFormat: call.variables.markupFormat,
+      }))
+      .sort((a, b) => a.content.localeCompare(b.content));
+
+    expect(biographyCalls).toEqual([
+      {
+        content:
+          'Anna Bentkowska-Kafel is an art historian with a special interest in the use of 3D electronic imaging ' +
+          'in documentation and scholarly interpretation of art.',
+        markupFormat: MarkupFormat.PlainText,
+      },
+      {
+        content:
+          'Lindsay MacDonald, Research Associate in the Faculty of Engineering Science, University College London, ' +
+          'is a colour scientist specializing in imaging applications',
+        markupFormat: MarkupFormat.PlainText,
+      },
+    ]);
+  });
+
+  it('blocks an unrepresentable plain-text line break in preview, so no mutation ever runs', async () => {
+    // The plain-text twin of the meaningful-<br> guarantee: under a non-HTML declaration a single
+    // newline is a deliberate line break Thoth cannot represent, and it must be discovered before
+    // bulkCreateWorks — never as a failed CREATE_ABSTRACT after seven works already exist.
+    const brokenOnix = ARC_PRODUCT_8_ONIX.replace(
+      /<Text textformat="02" language="eng">In this unique collection[\s\S]*?<\/Text>/,
+      '<Text textformat="06" language="eng">Line one\nLine two</Text>',
+    );
+
+    const result = await parseUpload([], brokenOnix);
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toContainEqual(
+      expect.objectContaining({
+        severity: 'error',
+        code: 'onix.text.unrepresentable_structure',
+        source: { kind: 'onix', productIndex: 1, recordReference: '9781942401353' },
+      }),
+    );
+    expect(result.data.plan.works).toEqual([]);
+
+    await workService.bulkCreateWorks(result.data.plan);
+
+    // Zero side effects, not merely an eventual error message.
+    expect(mutationsNamed('CreateWork')).toEqual([]);
+    expect(mutationsNamed('CreateAbstract')).toEqual([]);
+    expect(mutationsNamed('CreateContributor')).toEqual([]);
+    expect(mutationsNamed('CreateBiography')).toEqual([]);
     expect(mutations).toEqual([]);
   });
 
