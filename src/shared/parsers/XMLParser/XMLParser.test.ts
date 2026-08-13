@@ -7063,6 +7063,120 @@ describe('XMLParser', () => {
         expect(errorMessages(result)).toEqual([]);
         expect(abstractsOf(result)).toEqual([['<p><I>Something</I></p>', MarkupFormat.Html]]);
       });
+
+      it('collapses the source-line wrapping of a tagless declared-HTML abstract, keeping it plain text', async () => {
+        // The production shape of Arc product 9781942401353: an abstract declared textformat="02"
+        // (HTML) containing no tags at all, wrapped across physical lines by the publisher's XML
+        // tooling. HTML whitespace collapses when rendered, so the newlines are formatting, not
+        // line breaks — and the markup-free result still belongs on the plain-text input path.
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(`<Text textformat="02">In this unique collection the authors present a
+wide range of interdisciplinary methods.</Text>`),
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(abstractsOf(result)).toEqual([
+          [
+            'In this unique collection the authors present a wide range of interdisciplinary methods.',
+            MarkupFormat.PlainText,
+          ],
+        ]);
+      });
+
+      it('collapses a tagless declared-XHTML (05) abstract the same way', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(`<Text textformat="05">Hello
+world</Text>`),
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(abstractsOf(result)).toEqual([['Hello world', MarkupFormat.PlainText]]);
+      });
+
+      it('blocks a plain-text abstract holding a single line break, and creates no work', async () => {
+        // textformat 06 declares plain text, where a newline is a deliberate line break — one the
+        // API's plain-text path would turn into a Break no abstract paragraph may hold. Blocking in
+        // preview is what keeps the failure out of a half-finished bulk import.
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(`<Text textformat="06">Hello
+world</Text>`),
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.data.plan.works).toEqual([]);
+        expect(result.issues).toContainEqual({
+          severity: 'error',
+          code: 'onix.text.unrepresentable_structure',
+          message: expect.stringContaining('long abstract'),
+          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+        });
+        expect(errorMessages(result)[0]).toContain('single line break');
+        // Never the raw backend wording, which is misleading for this case.
+        expect(errorMessages(result)[0]).not.toContain('nested block elements');
+      });
+
+      it('blocks an abstract with no declared format holding a single line break, conservatively', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(`<Text>Hello
+world</Text>`),
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.issues).toContainEqual(expect.objectContaining({ code: 'onix.text.unrepresentable_structure' }));
+      });
+
+      it('keeps blank-line paragraph separation in a plain-text abstract: the API represents it', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(`<Text textformat="06">Paragraph one.
+
+Paragraph two.</Text>`),
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(abstractsOf(result)).toEqual([['Paragraph one.\n\nParagraph two.', MarkupFormat.PlainText]]);
+      });
+
+      it('blocks a plain-text biography holding a single line break, naming the author', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml(`<BiographicalNote textformat="06">Lisa Hopkins writes.
+She edits too.</BiographicalNote>`),
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.data.plan.works).toEqual([]);
+        expect(result.issues).toContainEqual({
+          severity: 'error',
+          code: 'onix.text.unrepresentable_structure',
+          message: expect.stringContaining('biography of Lisa Hopkins'),
+          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+        });
+      });
+
+      it('collapses a tagless declared-HTML biography like an abstract', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            contributors: contributorXml(`<BiographicalNote textformat="02">Lisa Hopkins is
+Professor Emerita of English.</BiographicalNote>`),
+          }),
+        );
+
+        expect(errorMessages(result)).toEqual([]);
+        expect(biographiesOf(result)).toEqual([
+          ['Lisa Hopkins is Professor Emerita of English.', MarkupFormat.PlainText],
+        ]);
+      });
     });
 
     describe('related material', () => {

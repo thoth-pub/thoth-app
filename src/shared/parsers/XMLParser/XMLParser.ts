@@ -73,6 +73,7 @@ import {
   type SeriesPlanMessages,
 } from '../series/seriesPlan';
 import { normaliseImportedAbstractHtml } from './importedAbstractHtml';
+import { normaliseImportedPlainText } from './importedPlainText';
 import {
   ExtendedCollection,
   ExtendedContributor,
@@ -669,13 +670,12 @@ class XMLParser {
    * lacking a resolved format can ever reach a mutation, however this plan is later used.
    */
   private resolveTextMarkup(
-    text: OnixText | undefined,
+    declared: string,
     content: string,
     product: ExtendedProduct,
     index: number,
     subject: string,
   ): ImportedMarkupFormat | undefined {
-    const declared = getOnixTextFormat(text);
     const resolution = resolveOnixTextMarkup(declared, content);
 
     if (resolution.kind === 'format') return resolution.format;
@@ -698,12 +698,20 @@ class XMLParser {
    * `undefined` when it should not be created at all.
    *
    * Format is resolved first, by {@link resolveTextMarkup}, while the ONIX `textformat` declaration
-   * is still in hand. Only when it resolves to HTML is the content then normalised for Thoth's
-   * representable subset ({@link normaliseImportedAbstractHtml}): harmless empty spacer paragraphs
-   * are dropped, a field that was nothing but spacer markup is omitted so no empty entity is
-   * created, and a meaningful `<br>` Thoth cannot represent raises a blocking issue and drops the
-   * field — so the problem is caught in preview, never at a mutation partway through a non-atomic
-   * import. JATS and plain text are carried through untouched; the HTML rules never see them.
+   * is still in hand. The content is then normalised for Thoth's representable subset by the rules
+   * of the format it resolved to:
+   *
+   * - HTML ({@link normaliseImportedAbstractHtml}): harmless empty spacer paragraphs are dropped, a
+   *   field that was nothing but spacer markup is omitted so no empty entity is created, and a
+   *   meaningful `<br>` Thoth cannot represent raises a blocking issue and drops the field.
+   * - Plain text ({@link normaliseImportedPlainText}), which still knows the declaration the
+   *   markup-free content arrived under: HTML/XHTML whitespace collapses the way it would render,
+   *   and under every other declaration a literal single line break — which the API's plain-text
+   *   path would turn into a `Break` no abstract may hold — raises a blocking issue and drops the
+   *   field.
+   *
+   * Either way the problem is caught in preview, never at a mutation partway through a non-atomic
+   * import. JATS is carried through untouched; neither rule set ever sees it.
    */
   private resolveImportedText(
     text: OnixText | undefined,
@@ -712,9 +720,31 @@ class XMLParser {
     index: number,
     subject: string,
   ): { content: string; sourceMarkupFormat: ImportedMarkupFormat } | undefined {
-    const sourceMarkupFormat = this.resolveTextMarkup(text, content, product, index, subject);
+    const declared = getOnixTextFormat(text);
+    const sourceMarkupFormat = this.resolveTextMarkup(declared, content, product, index, subject);
 
     if (sourceMarkupFormat === undefined) return undefined;
+
+    if (sourceMarkupFormat === MarkupFormat.PlainText) {
+      const normalised = normaliseImportedPlainText(declared, content);
+
+      if (normalised.kind === 'unrepresentable') {
+        this.issues.push({
+          severity: 'error',
+          code: 'onix.text.unrepresentable_structure',
+          message: `The ${subject} of ${this.describeProduct(product, index)} contains a single line break Thoth cannot represent. Separate paragraphs with a blank line, or remove the line break, and upload the file again.`,
+          source: this.productSource(product, index),
+        });
+
+        return undefined;
+      }
+
+      // Nothing but whitespace: omit the field rather than create an empty abstract or biography.
+      if (normalised.kind === 'empty') return undefined;
+
+      return { content: normalised.content, sourceMarkupFormat };
+    }
+
     if (sourceMarkupFormat !== MarkupFormat.Html) return { content, sourceMarkupFormat };
 
     const normalised = normaliseImportedAbstractHtml(content);
