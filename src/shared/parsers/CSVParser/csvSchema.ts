@@ -6,6 +6,30 @@ export type CsvFieldDisposition = 'imported' | 'compatibility-only';
 
 export type CsvRequiredErrorRule = 'fieldRequired';
 
+/**
+ * How a field treats accidental leading/trailing whitespace, chosen by what the value *is*:
+ *
+ * - `canonicalise` — the value names something (an identifier, an enum member, an imprint, a
+ *   date): boundary whitespace is never part of it, so it is trimmed once during canonical-row
+ *   construction. The trimmed value is then what every validator sees *and* what the ImportPlan
+ *   carries, closing the historical gap where a rule validated a trimmed copy while the raw value
+ *   flowed on into the plan.
+ * - `report` — the value is an identity Thoth must not silently rewrite (a contributor's name):
+ *   boundary whitespace or hidden characters are reported as an actionable preflight error
+ *   instead, so the identity that is looked up is always exactly the identity that was validated.
+ *
+ * Fields with no policy (titles, abstracts, biographies, free prose) are never trimmed or
+ * rewritten: publisher content is imported as supplied.
+ */
+export type CsvBoundaryPolicy = 'canonicalise' | 'report';
+
+/**
+ * Deterministic preflight rules evaluated on every trustworthy canonical row, named here so the
+ * schema stays the one authoritative field contract; implementations live in `csvPreflight.ts`,
+ * exactly as `CsvValidationRule` names are implemented by `getCsvConfig`.
+ */
+export type CsvPreflightRule = 'isoDate' | 'doi' | 'orcid' | 'ror' | 'integer' | 'decimal' | 'importedText';
+
 export type CsvValidationRule =
   | 'imprint'
   | 'workType'
@@ -39,6 +63,8 @@ type CsvFieldDefinitionInput<Header extends string, Key extends string> = {
   validation?: CsvValidationRule;
   requiredError?: CsvRequiredErrorRule;
   normalise?: CsvEnumNormaliser;
+  boundary?: CsvBoundaryPolicy;
+  preflight?: CsvPreflightRule;
   disposition: CsvFieldDisposition;
   consumer: string;
   destination: string;
@@ -51,6 +77,8 @@ type ContributorFieldGroupInput = {
   keySuffix: string;
   validation?: CsvValidationRule;
   normalise?: CsvEnumNormaliser;
+  boundary?: CsvBoundaryPolicy;
+  preflight?: CsvPreflightRule;
   disposition: CsvFieldDisposition;
   consumer: string;
   destination: string;
@@ -68,6 +96,7 @@ const workFields = defineFields([
     aliases: [{ header: 'publisher', caseInsensitive: true }],
     validation: 'imprint',
     requiredError: 'fieldRequired',
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parseImprint / parseRow',
     destination: 'WorkEntity.imprintId / publisherName',
@@ -123,6 +152,8 @@ const workFields = defineFields([
     header: 'publication_date',
     key: 'publicationDate',
     required: false,
+    boundary: 'canonicalise',
+    preflight: 'isoDate',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.publicationDate',
@@ -131,6 +162,8 @@ const workFields = defineFields([
     header: 'withdrawn_date',
     key: 'withdrawnDate',
     required: false,
+    boundary: 'canonicalise',
+    preflight: 'isoDate',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.withdrawnDate',
@@ -156,14 +189,18 @@ const workFields = defineFields([
     header: 'doi',
     key: 'doi',
     required: false,
+    boundary: 'canonicalise',
+    preflight: 'doi',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.doi',
+    notes: 'Canonicalised to the https://doi.org/ resolver form during canonical-row construction.',
   },
   {
     header: 'page_count',
     key: 'pageCount',
     required: false,
+    preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.pageCount',
@@ -180,6 +217,7 @@ const workFields = defineFields([
     header: 'image_count',
     key: 'imageCount',
     required: false,
+    preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.imageCount',
@@ -188,6 +226,7 @@ const workFields = defineFields([
     header: 'table_count',
     key: 'tableCount',
     required: false,
+    preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.tableCount',
@@ -196,6 +235,7 @@ const workFields = defineFields([
     header: 'audio_count',
     key: 'audioCount',
     required: false,
+    preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.audioCount',
@@ -204,6 +244,7 @@ const workFields = defineFields([
     header: 'video_count',
     key: 'videoCount',
     required: false,
+    preflight: 'integer',
     disposition: 'imported',
     consumer: 'parseRow',
     destination: 'WorkEntity.videoCount',
@@ -213,6 +254,7 @@ const workFields = defineFields([
     key: 'license',
     required: false,
     validation: 'license',
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parseLicenseField',
     destination: 'WorkEntity.license',
@@ -237,6 +279,7 @@ const workFields = defineFields([
     header: 'short_abstract',
     key: 'shortAbstract',
     required: false,
+    preflight: 'importedText',
     disposition: 'imported',
     consumer: 'parseAbstracts',
     destination: 'WorkEntity.abstracts[] (SHORT)',
@@ -245,6 +288,7 @@ const workFields = defineFields([
     header: 'long_abstract',
     key: 'longAbstract',
     required: false,
+    preflight: 'importedText',
     disposition: 'imported',
     consumer: 'parseAbstracts',
     destination: 'WorkEntity.abstracts[] (LONG)',
@@ -256,17 +300,21 @@ const contributorFieldGroup = [
     constant: 'FIRST_NAME',
     headerSuffix: 'first_name',
     keySuffix: 'FirstName',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parseContributors',
     destination: 'WorkContribution.firstName / fullName',
+    notes: 'Boundary whitespace is reported, never trimmed: the name is the lookup identity.',
   },
   {
     constant: 'LAST_NAME',
     headerSuffix: 'surname',
     keySuffix: 'LastName',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parseContributors',
     destination: 'WorkContribution.lastName / fullName',
+    notes: 'Boundary whitespace is reported, never trimmed: the name is the lookup identity.',
   },
   {
     constant: 'ROLE',
@@ -274,6 +322,7 @@ const contributorFieldGroup = [
     keySuffix: 'Role',
     validation: 'contributorRole',
     normalise: { kind: 'enum', values: ContributionType },
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parseContributors',
     destination: 'WorkContribution.type',
@@ -282,6 +331,7 @@ const contributorFieldGroup = [
     constant: 'BIOGRAPHY',
     headerSuffix: 'biography',
     keySuffix: 'Biography',
+    preflight: 'importedText',
     disposition: 'imported',
     consumer: 'parseContributors',
     destination: 'WorkContribution.biographies[]',
@@ -290,6 +340,8 @@ const contributorFieldGroup = [
     constant: 'ORCID',
     headerSuffix: 'orcid',
     keySuffix: 'Orcid',
+    boundary: 'canonicalise',
+    preflight: 'orcid',
     disposition: 'imported',
     consumer: 'parseContributors',
     destination: 'WorkContribution.orcidId',
@@ -323,7 +375,10 @@ const contributorFieldGroup = [
     constant: 'AFFILIATION_INSTITUTION_ROR',
     headerSuffix: 'affiliation_institution_ror',
     keySuffix: 'AffiliationInstitutionRor',
+    boundary: 'canonicalise',
+    preflight: 'ror',
     disposition: 'imported',
+    notes: 'Canonicalised to the https://ror.org/ resolver form — the form institutions carry — during canonical-row construction.',
     consumer: 'parseContributors',
     destination: 'AffiliationEntity institution fields',
   },
@@ -335,6 +390,7 @@ const trailingFields = defineFields([
     key: 'originalLanguage',
     required: false,
     validation: 'language',
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parseLanguages',
     destination: 'WorkEntity.languages[] (ORIGINAL)',
@@ -344,6 +400,7 @@ const trailingFields = defineFields([
     key: 'translatedFromLanguage',
     required: false,
     validation: 'language',
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parseLanguages',
     destination: 'WorkEntity.languages[] (TRANSLATED_FROM)',
@@ -353,6 +410,7 @@ const trailingFields = defineFields([
     key: 'translatedIntoLanguage',
     required: false,
     validation: 'language',
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parseLanguages',
     destination: 'WorkEntity.languages[] (TRANSLATED_INTO)',
@@ -403,6 +461,7 @@ const trailingFields = defineFields([
     key: 'publicationPaperbackIsbn',
     required: false,
     validation: 'isbn',
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.isbn (PAPERBACK)',
@@ -412,6 +471,7 @@ const trailingFields = defineFields([
     key: 'publicationPaperbackPrice1CurrencyCode',
     required: false,
     validation: 'currency',
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.prices[].currencyCode (PAPERBACK)',
@@ -420,6 +480,7 @@ const trailingFields = defineFields([
     header: 'publication_paperback_price_1_unit_price',
     key: 'publicationPaperbackPrice1UnitPrice',
     required: false,
+    preflight: 'decimal',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.prices[].unitPrice (PAPERBACK)',
@@ -429,6 +490,7 @@ const trailingFields = defineFields([
     key: 'publicationHardbackIsbn',
     required: false,
     validation: 'isbn',
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.isbn (HARDBACK)',
@@ -438,6 +500,7 @@ const trailingFields = defineFields([
     key: 'publicationHardbackPrice1CurrencyCode',
     required: false,
     validation: 'currency',
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.prices[].currencyCode (HARDBACK)',
@@ -446,6 +509,7 @@ const trailingFields = defineFields([
     header: 'publication_hardback_price_1_unit_price',
     key: 'publicationHardbackPrice1UnitPrice',
     required: false,
+    preflight: 'decimal',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.prices[].unitPrice (HARDBACK)',
@@ -455,6 +519,7 @@ const trailingFields = defineFields([
     key: 'publicationPdfIsbn',
     required: false,
     validation: 'isbn',
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.isbn (PDF)',
@@ -481,6 +546,7 @@ const trailingFields = defineFields([
     required: false,
     validation: 'locationPlatform',
     normalise: { kind: 'enum', values: LocationPlatform },
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.locations[].locationPlatform (PDF)',
@@ -489,6 +555,7 @@ const trailingFields = defineFields([
     header: 'series_name',
     key: 'seriesName',
     required: false,
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parseSeries',
     destination: 'SeriesImportPlan identity/name',
@@ -506,6 +573,7 @@ const trailingFields = defineFields([
     header: 'series_issue_number',
     key: 'seriesIssueNumber',
     required: false,
+    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parseSeries / parseIssueNumber',
     destination: 'SeriesImportPlan member ordinal',
@@ -553,8 +621,19 @@ const contributorFields: CsvFieldDefinition[] = Array.from(
     const optionalColumn = index >= 6;
 
     return contributorFieldGroup.map((field: ContributorFieldBase & ContributorFieldGroupInput) => {
-      const { constant, headerSuffix, keySuffix, validation, normalise, disposition, consumer, destination, notes } =
-        field;
+      const {
+        constant,
+        headerSuffix,
+        keySuffix,
+        validation,
+        normalise,
+        boundary,
+        preflight,
+        disposition,
+        consumer,
+        destination,
+        notes,
+      } = field;
 
       return {
         header: `contribution_${index}_${headerSuffix}` as const,
@@ -563,6 +642,8 @@ const contributorFields: CsvFieldDefinition[] = Array.from(
         ...(optionalColumn ? { optionalColumn: true } : {}),
         ...(validation ? { validation } : {}),
         ...(normalise ? { normalise } : {}),
+        ...(boundary ? { boundary } : {}),
+        ...(preflight ? { preflight } : {}),
         disposition,
         consumer,
         destination,

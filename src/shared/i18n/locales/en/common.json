@@ -58,6 +58,7 @@
   },
   "bulkImport": {
     "identifier": "Identifier",
+    "issuesSummary": "{{count}} issues found across {{rows}} rows",
     "stageLabel": "Stage",
     "stage": {
       "work": "Creating the work",
@@ -299,6 +300,14 @@
     "csvFieldNotValidOptions": "{{field}} is not valid in row {{row}} / column {{column}}. Should be one of: {{options}}",
     "csvFieldNotString": "{{field}} is not a string in row {{row}}",
     "csvFieldNotNumber": "{{field}} is not a number in row {{row}}",
+    "csvFieldNotIsoDate": "{{field}} \"{{value}}\" is not a complete YYYY-MM-DD calendar date in row {{row}}",
+    "csvDoiNotValid": "doi \"{{value}}\" is not a valid DOI in row {{row}}. Use https://doi.org/10.xxxx/xxxxx or the bare 10.xxxx/xxxxx form",
+    "csvOrcidNotValid": "{{field}} \"{{value}}\" is not a valid ORCID iD in row {{row}}",
+    "csvRorNotValid": "{{field}} \"{{value}}\" is not a valid ROR ID in row {{row}} (expected https://ror.org/0xxxxxxxNN or the bare identifier)",
+    "csvFieldWhitespace": "{{field}} has stray leading/trailing whitespace or hidden characters in row {{row}}",
+    "csvTextUnsupportedMarkup": "{{field}} in row {{row}} contains markup Thoth cannot store: <{{tag}}>",
+    "csvTextNestedBlock": "{{field}} in row {{row}} nests a block element inside a paragraph, which Thoth cannot store",
+    "csvTextLineBreak": "{{field}} in row {{row}} contains a single line break, which Thoth cannot store. Separate paragraphs with a blank line instead",
     "csvImprintNotFound": "Imprint \"{{name}}\" not found in row {{row}}",
     "csvLicenseNotFound": "License \"{{value}}\" not found in row {{row}}",
     "csvRow": "CSV row {{row}}",

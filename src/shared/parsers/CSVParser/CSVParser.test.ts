@@ -1042,22 +1042,21 @@ describe('CSVParser', () => {
         ]);
       });
 
-      it('files a header problem against the file, not against data row 1', async () => {
-        // An unterminated quote defeats the header normaliser, which hands the original file to
-        // the validator — the one path on which real header findings reach us.
+      it('reports an unterminated quote as one file-level failure, not fabricated row findings', async () => {
+        // An unterminated quote makes the parsed structure untrustworthy: columns can no longer
+        // be identified reliably, so guessing at rows would only manufacture noise. This used to
+        // fall back to validating the raw file, producing a pile of header findings.
         const result = await makeParser(makeFile('publisher,title\n"unclosed,Book')).parse();
 
         expect(result.status).toBe('failed');
-
-        const sourceOf = (fragment: string) => result.issues.find(({ message }) => message.includes(fragment))?.source;
-
-        // Both header categories are file-level: the one that names no row at all, and the one
-        // the library numbers as row 1 with a column — which is the header, not data row 1.
-        expect(sourceOf('Header name imprint is not correct or missing')).toEqual({ kind: 'file' });
-        expect(sourceOf('is not correct or missing in the 1 row')).toEqual({ kind: 'file' });
-        // The malformed data row is a row, and keeps its own row despite the library numbering
-        // this category from the first data row instead of from the header.
-        expect(sourceOf('Number of fields mismatch')).toEqual({ kind: 'csv', row: 1 });
+        expect(result.issues).toEqual([
+          {
+            severity: 'error',
+            code: 'csv.validation',
+            message: 'errors.csvParsingError',
+            source: { kind: 'file' },
+          },
+        ]);
       });
 
       it('orders normalised findings by row, with file-level problems first', async () => {
@@ -1252,21 +1251,15 @@ describe('CSVParser', () => {
       expect(errorMessages(result).map((error) => error.match(/"row":(\d+)/)?.[1])).toEqual(['1', '2']);
     });
 
-    it('orders publication errors by row even though they are raised after the awaited lookup', async () => {
-      // parsePublication runs after `await parseContributors`, so with row 1's lookup delayed
-      // row 2 reaches parsePublication first and pushes its error first. Both errors used to be
-      // filed under the synthetic row 0 and tie-broken by insertion order, which made the output
-      // depend on lookup completion order and left the messages with no row number at all.
-      const completions: string[] = [];
+    it('orders publication errors by row without performing any lookup at all', async () => {
+      // These errors used to surface only inside parseRow, after `await parseContributors`, so
+      // their order depended on lookup completion and both were filed under a synthetic row 0.
+      // The deterministic preflight now finds them before any lookup is allowed to start: the
+      // ordering is source order by construction, and no contributor request is ever made for a
+      // file that cannot be imported.
+      const getContributors = vi.fn().mockResolvedValue([]);
 
-      const getContributors = async (fullName: string) => {
-        await new Promise((resolve) => setTimeout(resolve, fullName === 'First Author' ? 30 : 0));
-        completions.push(fullName);
-
-        return [];
-      };
-
-      // Unit price is not numerically validated by getCsvConfig, so this is a parser-level error.
+      // Unit price is not numerically validated by getCsvConfig, so this is an app-owned rule.
       const priceRow = (title: string, firstName: string, unitPrice: string) => ({
         ...BASE,
         title,
@@ -1285,8 +1278,7 @@ describe('CSVParser', () => {
 
       const result = await makeParser(makeFile(csv), { getContributors }).parse();
 
-      // Row 2 really did finish its lookup — and therefore its publication parsing — first.
-      expect(completions).toEqual(['Second Author', 'First Author']);
+      expect(getContributors).not.toHaveBeenCalled();
 
       expect(result.status).toBe('failed');
       expect(errorMessages(result)).toHaveLength(2);

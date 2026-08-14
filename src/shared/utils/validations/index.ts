@@ -128,6 +128,31 @@ export const canonicaliseDoi = (value: string): string => {
   return doiPattern.test(canonical) ? canonical : '';
 };
 
+/**
+ * The resolver forms Thoth's API accepts in front of a ROR identifier.
+ *
+ * `Ror::from_str` in `thoth-api/src/model/mod.rs` matches
+ * `[[[http[s]://]|[https://www.]]ror.org/]0XXXXXXNN` with a case-insensitive resolver, keeps the
+ * identifier and stores it behind the canonical `https://ror.org/`. The identifier itself is
+ * case-sensitive lowercase, exactly as in the API's pattern.
+ */
+const rorResolverPattern = /^(?:https?:\/\/|https:\/\/www\.)?ror\.org\//i;
+const rorIdentifierPattern = /^0[a-hjkmnp-z0-9]{6}\d{2}$/;
+
+/**
+ * A ROR in the single form Thoth stores, or an empty string when the value is not a ROR at all.
+ *
+ * The importer counterpart of {@link canonicaliseDoi}: institutions in Thoth carry the canonical
+ * `https://ror.org/…` URL, so a bare identifier that is never canonicalised can pass a shape
+ * check and still match no institution. Canonicalising first means the value that is validated
+ * is the value that is looked up and imported.
+ */
+export const canonicaliseRor = (value: string): string => {
+  const identifier = value.trim().replace(rorResolverPattern, '');
+
+  return rorIdentifierPattern.test(identifier) ? `${appConfig.validations.rorPrefix}${identifier}` : '';
+};
+
 /* External Identifiers Validations */
 export const idValidation = z.uuid();
 export const orcidValidation = getStringValidation()

@@ -47,6 +47,7 @@ import {
   type SeriesCandidate,
   type SeriesPlanMessages,
 } from '../series/seriesPlan';
+import { collectRowPreflightFindings, toCanonicalCsvValue } from './csvPreflight';
 import {
   CSV_KEYS,
   type CsvFieldKey,
@@ -55,7 +56,6 @@ import {
   type CsvValidatorRow,
   getContributorFieldsByIndex,
   normaliseCsvHeader,
-  normaliseCsvValue,
 } from './csvSchema';
 import { toValidatorIssues } from './validatorIssues';
 
@@ -115,27 +115,70 @@ export class CSVParser {
   /**
    * A CSV import has no chapters: the template describes one work per row, with no equivalent
    * of an ONIX ContentItem, so the plan's chapters are always empty rather than optional.
+   *
+   * Parsing is two phases with a strict boundary between them.
+   *
+   * The first phase is a deterministic preflight: the file is parsed into one canonical row
+   * representation, `csv-file-validator` and every schema-named preflight rule are evaluated
+   * across *all* trustworthy rows, and series identity is resolved against the already-loaded
+   * series list. Nothing in this phase touches the network. If anything blocks, every
+   * independently actionable finding is returned together, with an empty plan — the historical
+   * behaviour of stopping at the first validation layer is exactly what this phase replaces.
+   *
+   * Only a clean preflight reaches the second phase, which is the pre-existing pipeline:
+   * contributor/institution lookups, row parsing, series planning, contributor selection. A
+   * genuine lookup failure there remains a hard parser failure, exactly as before.
    */
   async parse(): Promise<ImportParseResult> {
     try {
-      const csvParseResult = await CSVFileValidator<CsvValidatorRow>(await this.normalizeFile(), this.csvConfig);
+      const structure = await this.readCanonicalStructure();
 
-      const isErrors = csvParseResult.inValidData.length > 0;
-
-      if (isErrors) {
-        // The file validator numbers its rows in more than one way and reports header problems
-        // that belong to no data row; `toValidatorIssues` normalises both onto this parser's own
-        // row numbering. Sorted for the same reason row issues are: source order, then the order
-        // they were raised within one row.
-        const issues = sortIssues(toValidatorIssues(csvParseResult.inValidData, this.csvConfig));
-
-        return { status: 'failed', data: this.emptyData(), issues };
+      // An unusable parse yields one file-level failure rather than a cascade of row findings
+      // guessed from misidentified columns: nothing read out of an untrustworthy structure could
+      // name the cell the user has to fix.
+      if (structure.kind === 'unreadable') {
+        return {
+          status: 'failed',
+          data: this.emptyData(),
+          issues: [
+            {
+              severity: 'error',
+              code: 'csv.validation',
+              message: this.t(ERRORS.CSV_PARSING_ERROR),
+              source: { kind: 'file' },
+            },
+          ],
+        };
       }
 
-      // csv-file-validator exposes string | number | boolean cells because Papa Parse can be
-      // configured for dynamic typing. This importer never enables that mode, but narrow the
-      // third-party contract once here instead of spreading its union through parser helpers.
-      const data = csvParseResult.data.map((row, index) => this.toCsvRow(row, index + 1));
+      const { canonicalFile, rows } = structure;
+
+      // The file validator sees the canonical representation — the same cells, in the same form,
+      // that the preflight rules validate and that a successful parse plans and imports.
+      const csvParseResult = await CSVFileValidator<CsvValidatorRow>(canonicalFile, this.csvConfig);
+
+      // The file validator numbers its rows in more than one way and reports header problems
+      // that belong to no data row; `toValidatorIssues` normalises both onto this parser's own
+      // row numbering.
+      const validatorIssues = toValidatorIssues(csvParseResult.inValidData, this.csvConfig);
+
+      // App-owned deterministic rules over the same canonical rows. An earlier validator finding
+      // never suppresses these: they read different fields, so each is independently actionable.
+      rows.forEach((row, index) =>
+        collectRowPreflightFindings(row, index + 1, this.t).forEach((message) => this.pushIssue(index + 1, message)),
+      );
+
+      // Series identity and numbering need no network either, so their findings belong in the
+      // same preflight result instead of surfacing only after everything else is fixed.
+      this.collectSeriesPreflightIssues(rows);
+
+      const preflightIssues = sortIssues([...validatorIssues, ...this.issues]);
+
+      if (importStatus(preflightIssues) === 'failed') {
+        return { status: 'failed', data: this.emptyData(), issues: preflightIssues };
+      }
+
+      const data = rows;
 
       // `Promise.all` resolves in input order regardless of completion order, so collecting the
       // results here — rather than letting each concurrent `parseRow` push into shared state —
@@ -281,19 +324,36 @@ export class CSVParser {
     };
   }
 
-  private toCsvRow(row: CsvValidatorRow, rowNumber: number): CsvRow {
-    return Object.fromEntries(
-      csvSchema.map(({ key }) => {
-        const value = row[key];
+  /**
+   * Resolves the series consequences of every canonical row using only data this parser already
+   * holds — the user's imprints and the pre-fetched series list — so they can be reported inside
+   * the deterministic preflight. The plan built here is discarded: after a clean preflight the
+   * second phase rebuilds it from the parsed works, from the same deterministic inputs.
+   *
+   * Cascade suppression, unchanged from the row parser it mirrors: a row whose imprint did not
+   * resolve contributes no series candidate, because the validator has already reported the
+   * imprint itself and series identity cannot be scoped without one. The issue-number checks
+   * still run for such a row — they are independent of the imprint.
+   */
+  private collectSeriesPreflightIssues(rows: CsvRow[]): void {
+    const members = rows.map((row, index) => {
+      const rowNumber = index + 1;
+      const imprintName = this.parseStringField(row, CSV_KEYS.IMPRINT, rowNumber);
+      const imprint = this.imprints.find((option) => option.label === imprintName);
 
-        if (value === undefined) return [key, ''];
-        if (typeof value === 'string') return [key, value];
+      return {
+        // A placeholder work: `buildSeriesPlan` needs one per member, but only its identity, and
+        // nothing from this throwaway plan survives into the real one.
+        work: getDefaultWork({ id: this.generateId() }),
+        candidate: this.parseSeries(row, rowNumber, imprint?.value ?? ''),
+      };
+    });
 
-        this.pushIssue(rowNumber, this.t('errors.csvFieldNotString', { field: key, row: rowNumber }));
+    const { issues } = buildSeriesPlan(members, this.serieses, this.seriesMessages);
 
-        return [key, ''];
-      }),
-    ) as CsvRow;
+    issues.forEach(({ index, severity, code, message }) =>
+      this.issues.push({ severity, code, message, source: { kind: 'csv', row: index } }),
+    );
   }
 
   private parseStringField(row: CsvRow, field: CsvFieldKey, _rowNumber: number) {
@@ -883,7 +943,21 @@ export class CSVParser {
     return { contributions: workContributions, contributorsForSelection };
   }
 
-  private normalizeFile(): Promise<File> {
+  /**
+   * Reads the source file into the one canonical representation everything downstream shares.
+   *
+   * Trustworthy means Papa Parse read the bytes into rows without a structural complaint (broken
+   * quoting, inconsistent structure) and at least one of the canonical template columns was
+   * recognised in the header, after the usual alias and ordering normalisation. Only then are
+   * cell values worth judging: each is canonicalised once by `toCanonicalCsvValue`, and those
+   * exact strings feed the file validator, every preflight rule, and — when everything passes —
+   * the ImportPlan itself. Delimiter handling is unchanged: any delimiter Papa Parse can detect
+   * unambiguously is rewritten into the canonical comma-delimited form, as it always was.
+   *
+   * An untrustworthy source reports `unreadable` and is never guessed at: fabricating hundreds
+   * of row findings from misidentified columns would bury the one problem the user can fix.
+   */
+  private readCanonicalStructure(): Promise<{ kind: 'unreadable' } | { kind: 'rows'; canonicalFile: File; rows: CsvRow[] }> {
     return new Promise((resolve) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -891,7 +965,7 @@ export class CSVParser {
         const parsed = Papa.parse<string[]>(text, { skipEmptyLines: true });
 
         if (parsed.errors.length > 0 || !parsed.data.length) {
-          resolve(this.csv);
+          resolve({ kind: 'unreadable' });
           return;
         }
 
@@ -901,19 +975,35 @@ export class CSVParser {
 
         const headerIndex = new Map<string, number>(normalizedHeaders.map((h, i) => [h, i]));
 
-        const rewriteRow = (row: string[]) =>
-          csvSchema.map((field) => {
-            const pos = headerIndex.get(field.header);
-            const raw = pos !== undefined ? (row[pos] ?? '') : '';
-            return normaliseCsvValue(field, raw);
-          });
+        if (!csvSchema.some(({ header }) => headerIndex.has(header))) {
+          resolve({ kind: 'unreadable' });
+          return;
+        }
 
-        const newRows = [csvSchema.map(({ header }) => header), ...dataRows.map(rewriteRow)];
-        const newCsv = Papa.unparse(newRows);
+        const rows = dataRows.map(
+          (row) =>
+            Object.fromEntries(
+              csvSchema.map((field) => {
+                const pos = headerIndex.get(field.header);
+                const raw = pos !== undefined ? (row[pos] ?? '') : '';
 
-        resolve(new File([newCsv], this.csv.name, { type: this.csv.type }));
+                return [field.key, toCanonicalCsvValue(field, raw)];
+              }),
+            ) as CsvRow,
+        );
+
+        const canonicalCsv = Papa.unparse([
+          csvSchema.map(({ header }) => header),
+          ...rows.map((row) => csvSchema.map(({ key }) => row[key])),
+        ]);
+
+        resolve({
+          kind: 'rows',
+          canonicalFile: new File([canonicalCsv], this.csv.name, { type: this.csv.type }),
+          rows,
+        });
       };
-      reader.onerror = () => resolve(this.csv);
+      reader.onerror = () => resolve({ kind: 'unreadable' });
       reader.readAsText(this.csv);
     });
   }

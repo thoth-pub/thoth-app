@@ -22,6 +22,10 @@ type SelectedFile = {
   selectionId: number;
 };
 
+/** How many distinct source rows the issues point at; file-level findings name no row. */
+const countIssueRows = (issues: ImportIssue[]): number =>
+  new Set(issues.flatMap(({ source }) => (source.kind === 'csv' ? [source.row] : []))).size;
+
 export const UploadStep = (props: UploadStepProps) => {
   const { onPreview } = props;
 
@@ -118,6 +122,20 @@ export const UploadStep = (props: UploadStepProps) => {
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
           onPreview={onPreview}
         />
+      )}
+
+      {/*
+        The aggregate line orients, never replaces: every individual issue below stays rendered.
+        It only appears when there are several findings that belong to actual rows — a lone
+        finding or a file-level failure explains itself.
+      */}
+      {validationIssues.length > 1 && countIssueRows(validationIssues) > 0 && (
+        <Typography className="font-semibold" data-testid="import-issues-summary">
+          <TranslatedContent
+            content="bulkImport.issuesSummary"
+            options={{ count: validationIssues.length, rows: countIssueRows(validationIssues) }}
+          />
+        </Typography>
       )}
 
       {/*
