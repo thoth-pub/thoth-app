@@ -662,6 +662,27 @@ describe('CSV preflight: text representability', () => {
     expect(result.data.plan.works[0].abstracts[0].content).toBe(abstract);
   });
 
+  it('keeps a top-level JATS paragraph valid', async () => {
+    const abstract = '<p>Valid paragraph</p>';
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, long_abstract: abstract }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].abstracts[0].content).toBe(abstract);
+  });
+
+  it('keeps a valid JATS list valid: the historical denylist is HTML lists, not JATS ones', async () => {
+    const abstract =
+      '<list list-type="bullet"><list-item><p>First</p></list-item><list-item><p>Second</p></list-item></list>';
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, long_abstract: abstract }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].abstracts[0].content).toBe(abstract);
+  });
+
   it('rejects a lone line break inside a plain-text abstract before any mutation could', async () => {
     const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, long_abstract: 'Line one\nline two.' }])));
 
@@ -678,9 +699,36 @@ describe('CSV preflight: text representability', () => {
     ]);
   });
 
-  it('leaves markup it does not recognise to the API instead of keeping a second rulebook', async () => {
-    // `<b>` is not in Thoth's JATS subset, but which elements are is backend policy: preflight
-    // checks only the named regression structures, so this passes and the API stays the judge.
+  // The block-HTML structures publisher support kept correcting by hand: an abstract pasted out of
+  // a word processor or a web page. Every one of these is submitted as JATS_XML and refused by the
+  // mutation, so preflight has to catch them here rather than after the user has waited for it.
+  it.each([
+    ['a div', '<div>My abstract</div>', 'div'],
+    ['a heading', '<h2>Heading</h2><p>My abstract</p>', 'h2'],
+    ['a blockquote', '<blockquote>Quoted</blockquote>', 'blockquote'],
+    ['an HTML unordered list', '<ul><li>First</li><li>Second</li></ul>', 'ul'],
+    ['an HTML ordered list', '<ol><li>First</li></ol>', 'ol'],
+    ['a bare HTML list item', '<li>First</li>', 'li'],
+    ['an uppercase div, since HTML element names are case-insensitive', '<DIV>My abstract</DIV>', 'DIV'],
+    ['a stray closing block tag left behind by a paste', 'My abstract</div>', 'div'],
+  ])('rejects %s, a known historical block-HTML fault, before lookup or mutation', async (_, abstract, tag) => {
+    const { parser, spies } = makeParser(makeFile(buildCsv([{ ...BASE, long_abstract: abstract }])));
+
+    const result = await parser.parse();
+
+    expect(errorMessages(result)).toEqual([
+      `errors.csvTextUnsupportedMarkup:{"field":"long_abstract","row":1,"tag":"${tag}"}`,
+    ]);
+    expect(result.data.plan.works).toHaveLength(0);
+    expect(spies.getContributors).not.toHaveBeenCalled();
+    expect(spies.getInstitutions).not.toHaveBeenCalled();
+  });
+
+  it('leaves markup outside the historical regression set to the API, by design', async () => {
+    // Intentional fail-open. `<b>` is not in Thoth's JATS subset, but which elements are is backend
+    // policy: the app keeps a small historical-regression denylist, not a copy of the backend
+    // rulebook, so an element outside it passes preflight and the API stays the judge. Replacing
+    // this with "reject every tag that is not explicitly allowed" is the thing being guarded against.
     const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, short_abstract: '<p>Read <b>this</b></p>' }])));
 
     expect((await parser.parse()).status).toBe('success');
@@ -883,6 +931,7 @@ describe('CSV preflight: one file, many faults', () => {
       publication_date: '22.07.26', // non-ISO date
       doi: 'PROD-1234', // not a DOI in any accepted form
       page_count: 'many', // malformed numeric
+      short_abstract: '<div>My abstract</div>', // known historical block-HTML fault
       long_abstract: 'Line one\nline two.', // unrepresentable lone line break
       contribution_1_first_name: ' Jane', // boundary whitespace on a lookup identity
       contribution_1_surname: 'Doe',
@@ -915,10 +964,11 @@ describe('CSV preflight: one file, many faults', () => {
 
     // Row 1: the validator's finding first, then the app-owned rules in template column order.
     expect(messages[0]).toContain('csvFieldNotValidOptions'); // work_status
-    expect(messages.slice(1, 8)).toEqual([
+    expect(messages.slice(1, 9)).toEqual([
       'errors.csvFieldNotIsoDate:{"field":"publication_date","value":"22.07.26","row":1}',
       'errors.csvDoiNotValid:{"value":"PROD-1234","row":1}',
       'errors.csvFieldNotNumber:{"field":"page_count","row":1}',
+      'errors.csvTextUnsupportedMarkup:{"field":"short_abstract","row":1,"tag":"div"}',
       'errors.csvTextLineBreak:{"field":"long_abstract","row":1}',
       'errors.csvFieldWhitespace:{"field":"contribution_1_first_name","row":1}',
       'errors.csvOrcidNotValid:{"field":"contribution_1_orcid","value":"0000-0002-1825","row":1}',
@@ -926,17 +976,17 @@ describe('CSV preflight: one file, many faults', () => {
     ]);
 
     // Row 2: again validator finding first (ISBN), then the app-owned rules.
-    expect(messages[8]).toContain('publication_paperback_isbn');
-    expect(messages.slice(9)).toEqual([
+    expect(messages[9]).toContain('publication_paperback_isbn');
+    expect(messages.slice(10)).toEqual([
       'errors.csvFieldNotIsoDate:{"field":"withdrawn_date","value":"2026-02-30","row":2}',
       'errors.csvTextUnsupportedMarkup:{"field":"contribution_1_biography","row":2,"tag":"br"}',
     ]);
 
-    expect(messages).toHaveLength(11);
+    expect(messages).toHaveLength(12);
 
     // Every issue names its source row, in source order.
     expect(result.issues.map(({ source }) => source.kind === 'csv' && source.row)).toEqual([
-      1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2,
+      1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2,
     ]);
   });
 
@@ -948,6 +998,7 @@ describe('CSV preflight: one file, many faults', () => {
         publication_date: '2026-07-22',
         doi: '10.12345/test-book',
         page_count: '302',
+        short_abstract: '<p>My abstract</p>',
         long_abstract: 'Line one line two.',
         contribution_1_first_name: 'Jane',
         contribution_1_orcid: '0000-0002-1825-0097',

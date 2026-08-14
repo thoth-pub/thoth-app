@@ -65,15 +65,16 @@ const withoutBoundaryDefect = (value: string): string => value.replace(HIDDEN_CH
 const LOOKS_LIKE_MARKUP = /<\/?[A-Za-z][^>]*>/;
 
 /**
- * The two markup structures this preflight rejects, and the only two.
+ * The markup structures this preflight rejects, and the only ones.
  *
- * Both are named production regressions of this import path — the exact structures behind the
- * "Abstracts and biographies cannot contain nested block elements inside paragraphs" and
- * line-break API failures that motivated issue #110:
+ * Each is a named production regression of this import path — the structures behind the
+ * "Abstracts and biographies cannot contain nested block elements inside paragraphs", line-break
+ * and pasted-block-HTML API failures that motivated issue #110:
  *
  * - a line-break element (`<br>`, `<break>`): Thoth's abstract/biography model cannot hold a
  *   line break in any input format, so the element is unrepresentable wherever it appears;
- * - a block element (`p`, `list`, `list-item`) opening directly inside an open `<p>`.
+ * - a block element (`p`, `list`, `list-item`) opening directly inside an open `<p>`;
+ * - one of the {@link KNOWN_UNSUPPORTED_BLOCK_HTML} structures below.
  *
  * Deliberately NOT here: any general list of which elements Thoth accepts. That rulebook lives in
  * the backend and only there; content this scan passes may still be refused by the API, and that
@@ -83,6 +84,37 @@ const LOOKS_LIKE_MARKUP = /<\/?[A-Za-z][^>]*>/;
 const LINE_BREAK_ELEMENTS = new Set(['br', 'break']);
 
 const BLOCK_ELEMENTS = new Set(['p', 'list', 'list-item']);
+
+/**
+ * A small historical-regression denylist: the block-HTML structures that publisher-support
+ * corrections behind issue #110 kept producing, in abstracts and biographies pasted out of a word
+ * processor or a web page. A CSV abstract carrying tags is content-sniffed and submitted as
+ * `JATS_XML`, and the mutation deterministically refuses every one of these — so letting them
+ * through preflight only moves the same failure later into the correction loop this task exists to
+ * remove.
+ *
+ * This is NOT the authoritative account of what Thoth's markup subset allows or forbids: backend
+ * markup semantics stay authoritative and this list is deliberately not exhaustive. An element
+ * absent from here — and not matching the two structural checks above — still defers to the API
+ * exactly as before. The app deliberately keeps no second copy of the backend's rulebook.
+ *
+ * Matched case-insensitively, unlike the JATS structures above: these are HTML elements, where
+ * `<DIV>` and `<div>` are the same element, and no element of Thoth's JATS subset differs from one
+ * of these by case alone.
+ */
+const KNOWN_UNSUPPORTED_BLOCK_HTML = new Set([
+  'div',
+  'blockquote',
+  'h1',
+  'h2',
+  'h3',
+  'h4',
+  'h5',
+  'h6',
+  'ul',
+  'ol',
+  'li',
+]);
 
 /** One tag: optional `/` for closing, a name (namespace prefix allowed), optional `/>` self-close. */
 const TAG_PATTERN = /<(\/?)([A-Za-z][^\s/>]*)(?:[^>"']|"[^"]*"|'[^']*')*?(\/?)>/g;
@@ -102,7 +134,8 @@ export type ImportedCsvTextProblem =
  * Tag-free content is judged by the existing plain-text representability helper: the API's
  * plain-text parser turns a lone newline inside a paragraph into a line break it then rejects,
  * while blank-line paragraph separation is exactly what it stores. Tag-bearing content is scanned
- * only for the two named structures of {@link LINE_BREAK_ELEMENTS} / {@link BLOCK_ELEMENTS}.
+ * only for the named structures of {@link LINE_BREAK_ELEMENTS}, {@link BLOCK_ELEMENTS} and
+ * {@link KNOWN_UNSUPPORTED_BLOCK_HTML}.
  *
  * Everything else is deliberately left to the API — this is a regression check for structures
  * already seen to break real imports, not an app-side markup validator. Nothing is rewritten:
@@ -125,6 +158,10 @@ export const checkImportedCsvText = (content: string): ImportedCsvTextProblem | 
   for (const match of content.matchAll(TAG_PATTERN)) {
     const [, closing, rawName, selfClosing] = match;
     const tag = localTagName(rawName);
+
+    // Either half of the pair is enough to know the cell carries block HTML: prose pasted with a
+    // stray `</div>` is the same historical fault as prose pasted with the whole element.
+    if (KNOWN_UNSUPPORTED_BLOCK_HTML.has(tag.toLowerCase())) return { kind: 'unsupportedElement', tag };
 
     if (closing) {
       const depth = openElements.lastIndexOf(tag);
