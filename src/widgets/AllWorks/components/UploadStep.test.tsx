@@ -201,6 +201,41 @@ describe('UploadStep', () => {
     expect(screen.getByText(/row 3 error/).textContent).toContain('2.');
   });
 
+  it('renders every issue of an aggregated preflight failure, with an orienting summary line', async () => {
+    render(<UploadStep />);
+
+    await uploadCsv();
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalled());
+
+    const issues: ImportIssue[] = [
+      { severity: 'error', code: 'csv.validation', message: 'first row 1 error', source: { kind: 'csv', row: 1 } },
+      { severity: 'error', code: 'csv.validation', message: 'second row 1 error', source: { kind: 'csv', row: 1 } },
+      { severity: 'error', code: 'csv.validation', message: 'row 3 error', source: { kind: 'csv', row: 3 } },
+    ];
+
+    mockCSVParse.mock.calls[0][0].onValidationFailure(issues);
+
+    // The summary orients; every individual finding is still rendered beneath it.
+    expect(await screen.findByTestId('import-issues-summary')).toHaveTextContent('bulkImport.issuesSummary');
+    expect(screen.getByText(/first row 1 error/)).toBeInTheDocument();
+    expect(screen.getByText(/second row 1 error/)).toBeInTheDocument();
+    expect(screen.getByText(/row 3 error/)).toBeInTheDocument();
+  });
+
+  it('shows no summary line for a single finding or a file-level failure', async () => {
+    render(<UploadStep />);
+
+    await uploadCsv();
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalled());
+
+    mockCSVParse.mock.calls[0][0].onValidationFailure([
+      { severity: 'error', code: 'csv.validation', message: 'the only finding', source: { kind: 'file' } },
+    ] satisfies ImportIssue[]);
+
+    await screen.findByText(/the only finding/);
+    expect(screen.queryByTestId('import-issues-summary')).not.toBeInTheDocument();
+  });
+
   /**
    * The dropzone stays available while a parser is validating, so a file can be replaced before
    * its predecessor's asynchronous validation settles. A failure from a superseded selection must
