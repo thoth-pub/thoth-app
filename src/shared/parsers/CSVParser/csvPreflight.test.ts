@@ -132,3 +132,652 @@ describe('CSV preflight: delimiter compatibility', () => {
     expect(result.data.plan.works[0].titles[0].subtitle).toBe('A; B');
   });
 });
+
+// ---------------------------------------------------------------------------
+// Structure: untrustworthy sources fail at file level, without guessed rows
+// ---------------------------------------------------------------------------
+
+const buildCsv = (rows: Record<string, string>[]) => buildDelimitedCsv(rows, ',');
+
+const errorMessages = (result: Awaited<ReturnType<CSVParser['parse']>>) =>
+  result.issues.filter(({ severity }) => severity === 'error').map(({ message }) => message);
+
+const FILE_LEVEL_FAILURE = {
+  severity: 'error',
+  code: 'csv.validation',
+  message: 'errors.csvParsingError',
+  source: { kind: 'file' },
+};
+
+describe('CSV preflight: structural trust', () => {
+  it('reports broken quoting as one file-level failure with an empty plan', async () => {
+    const { parser, spies } = makeParser(makeFile('imprint,title\n"broken,Book'));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toEqual([FILE_LEVEL_FAILURE]);
+    expect(result.data.plan.works).toHaveLength(0);
+    expect(spies.getContributors).not.toHaveBeenCalled();
+    expect(spies.getInstitutions).not.toHaveBeenCalled();
+  });
+
+  it('reports a file with no recognisable template column as one file-level failure', async () => {
+    const { parser } = makeParser(makeFile('foo,bar,baz\n1,2,3\n4,5,6'));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toEqual([FILE_LEVEL_FAILURE]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Strict dates
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: dates', () => {
+  it('accepts a complete YYYY-MM-DD date', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, publication_date: '2026-07-22' }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].publicationDate).toBe('2026-07-22');
+  });
+
+  it('accepts a blank optional date', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, publication_date: '' }])));
+
+    expect((await parser.parse()).status).toBe('success');
+  });
+
+  it('rejects the non-ISO 22.07.26 form', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, publication_date: '22.07.26' }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual([
+      'errors.csvFieldNotIsoDate:{"field":"publication_date","value":"22.07.26","row":1}',
+    ]);
+  });
+
+  it('rejects the impossible calendar date 2026-02-30', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, withdrawn_date: '2026-02-30' }])));
+
+    const result = await parser.parse();
+
+    expect(errorMessages(result)).toEqual([
+      'errors.csvFieldNotIsoDate:{"field":"withdrawn_date","value":"2026-02-30","row":1}',
+    ]);
+  });
+
+  it('rejects a partial date', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, publication_date: '2026-07' }])));
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvFieldNotIsoDate:{"field":"publication_date","value":"2026-07","row":1}',
+    ]);
+  });
+
+  it('accepts 2024-02-29: a leap day is a real date', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, publication_date: '2024-02-29' }])));
+
+    expect((await parser.parse()).status).toBe('success');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// DOI: accept what the Thoth contract accepts, canonicalise, reject the rest
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: DOI', () => {
+  it('accepts the canonical resolver URL unchanged', async () => {
+    const doi = 'https://doi.org/10.12345/test-book';
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, doi }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].doi).toBe(doi);
+  });
+
+  it('accepts a bare DOI and canonicalises it into the plan', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, doi: '10.12345/test-book' }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].doi).toBe('https://doi.org/10.12345/test-book');
+  });
+
+  it('accepts the legacy dx.doi.org resolver form and canonicalises it', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, doi: 'http://dx.doi.org/10.12345/test-book' }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].doi).toBe('https://doi.org/10.12345/test-book');
+  });
+
+  it('rejects a product code instead of prefixing it into a plausible DOI', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, doi: 'PROD-1234' }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual(['errors.csvDoiNotValid:{"value":"PROD-1234","row":1}']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Identifiers and whitespace
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: identifiers and whitespace', () => {
+  it('canonicalises an ISBN with a trailing tab so the validated value is the planned value', async () => {
+    const { parser } = makeParser(
+      makeFile(buildCsv([{ ...BASE, publication_paperback_isbn: '978-3-16-148410-0\t' }])),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].publications[0].isbn).toBe('978-3-16-148410-0');
+  });
+
+  it('still rejects an invalid ISBN check digit', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, publication_paperback_isbn: '9781234567890' }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toHaveLength(1);
+  });
+
+  it('accepts a valid ORCID in bare and URL forms', async () => {
+    const rows = [
+      { ...BASE, contribution_1_first_name: 'A', contribution_1_surname: 'B', contribution_1_orcid: '0000-0002-1825-0097' },
+      {
+        ...BASE,
+        contribution_1_first_name: 'C',
+        contribution_1_surname: 'D',
+        contribution_1_orcid: 'https://orcid.org/0000-0002-1825-0097',
+      },
+    ];
+    const { parser } = makeParser(makeFile(buildCsv(rows)));
+
+    expect((await parser.parse()).status).toBe('success');
+  });
+
+  it('rejects a malformed ORCID under the existing authoritative rule', async () => {
+    // The authoritative orcidValidation checks the identifier shape; a truncated iD fails it.
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          { ...BASE, contribution_1_first_name: 'A', contribution_1_surname: 'B', contribution_1_orcid: '0000-0002-1825' },
+        ]),
+      ),
+    );
+
+    const result = await parser.parse();
+
+    expect(errorMessages(result)).toEqual([
+      'errors.csvOrcidNotValid:{"field":"contribution_1_orcid","value":"0000-0002-1825","row":1}',
+    ]);
+  });
+
+  it('accepts a bare ROR, canonicalises it, and looks the institution up by the canonical form', async () => {
+    const canonical = 'https://ror.org/03vek6s52';
+    const getInstitutions = vi.fn().mockResolvedValue([{ id: 'inst-1', name: 'Harvard', ror: canonical }]);
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          {
+            ...BASE,
+            contribution_1_first_name: 'A',
+            contribution_1_surname: 'B',
+            contribution_1_role: 'AUTHOR',
+            contribution_1_affiliation_institution_ror: '03vek6s52',
+          },
+        ]),
+      ),
+      { getInstitutions },
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(getInstitutions).toHaveBeenCalledWith(expect.anything(), expect.anything(), canonical);
+    expect(result.data.plan.works[0].contributions[0].affiliations[0].rorId).toBe(canonical);
+  });
+
+  it('rejects a value that is not a ROR in any accepted form', async () => {
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          {
+            ...BASE,
+            contribution_1_first_name: 'A',
+            contribution_1_surname: 'B',
+            contribution_1_affiliation_institution_ror: 'not-a-ror',
+          },
+        ]),
+      ),
+    );
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvRorNotValid:{"field":"contribution_1_affiliation_institution_ror","value":"not-a-ror","row":1}',
+    ]);
+  });
+
+  it('reports contributor-name boundary whitespace instead of silently altering the lookup identity', async () => {
+    const { parser, spies } = makeParser(
+      makeFile(buildCsv([{ ...BASE, contribution_1_first_name: ' Jane', contribution_1_surname: 'Doe​' }])),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual([
+      'errors.csvFieldWhitespace:{"field":"contribution_1_first_name","row":1}',
+      'errors.csvFieldWhitespace:{"field":"contribution_1_surname","row":1}',
+    ]);
+    expect(spies.getContributors).not.toHaveBeenCalled();
+  });
+
+  it('does not trim free-text fields: a title keeps its boundary whitespace verbatim', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, title: ' My Book ' }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].titles[0].title).toBe(' My Book ');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Malformed numeric values
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: numeric fields', () => {
+  it('reports a malformed integer count during preflight', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, page_count: 'many' }])));
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvFieldNotNumber:{"field":"page_count","row":1}',
+    ]);
+  });
+
+  it('reports a malformed price during preflight', async () => {
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          {
+            ...BASE,
+            publication_paperback_isbn: '978-3-16-148410-0',
+            publication_paperback_price_1_currency_code: 'USD',
+            publication_paperback_price_1_unit_price: 'twenty',
+          },
+        ]),
+      ),
+    );
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvFieldNotNumber:{"field":"publication_paperback_price_1_unit_price","row":1}',
+    ]);
+  });
+
+  it('still accepts valid numerics', async () => {
+    const { parser } = makeParser(
+      makeFile(buildCsv([{ ...BASE, page_count: '302', image_count: '12' }])),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].pageCount).toBe(302);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Abstract / biography representability
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: text representability', () => {
+  it('keeps plain text valid', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, long_abstract: 'One plain paragraph.' }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].abstracts[0].content).toBe('One plain paragraph.');
+  });
+
+  it('keeps blank-line paragraph separation valid, exactly as the API stores it', async () => {
+    const abstract = 'First paragraph.\n\nSecond paragraph.';
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, long_abstract: abstract }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].abstracts[0].content).toBe(abstract);
+  });
+
+  it('keeps supported JATS structure valid and unrewritten', async () => {
+    const abstract = '<p>First <bold>bold</bold> paragraph.</p><list list-type="bullet"><list-item><p>a</p></list-item></list>';
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, long_abstract: abstract }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works[0].abstracts[0].content).toBe(abstract);
+  });
+
+  it('rejects a lone line break inside a plain-text abstract before any mutation could', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, long_abstract: 'Line one\nline two.' }])));
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvTextLineBreak:{"field":"long_abstract","row":1}',
+    ]);
+  });
+
+  it('rejects markup outside the JATS abstract subset, naming the offending tag', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, short_abstract: '<p>Read <b>this</b></p>' }])));
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvTextUnsupportedMarkup:{"field":"short_abstract","row":1,"tag":"b"}',
+    ]);
+  });
+
+  it('rejects the known nested-block regression: a block element inside a paragraph', async () => {
+    const { parser } = makeParser(
+      makeFile(buildCsv([{ ...BASE, long_abstract: '<p>Intro<list list-type="bullet"><list-item><p>a</p></list-item></list></p>' }])),
+    );
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvTextNestedBlock:{"field":"long_abstract","row":1}',
+    ]);
+  });
+
+  it('applies the same representability rules to contributor biographies', async () => {
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          {
+            ...BASE,
+            contribution_1_first_name: 'A',
+            contribution_1_surname: 'B',
+            contribution_1_biography: '<p>Bio<br></p>',
+          },
+        ]),
+      ),
+    );
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvTextUnsupportedMarkup:{"field":"contribution_1_biography","row":1,"tag":"br"}',
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Aggregation, ordering and cascade suppression
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: aggregation', () => {
+  it('returns every independent error in one row together', async () => {
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([{ ...BASE, publication_date: '22.07.26', doi: 'PROD-1', page_count: 'many' }]),
+      ),
+    );
+
+    const result = await parser.parse();
+
+    expect(errorMessages(result)).toEqual([
+      'errors.csvFieldNotIsoDate:{"field":"publication_date","value":"22.07.26","row":1}',
+      'errors.csvDoiNotValid:{"value":"PROD-1","row":1}',
+      'errors.csvFieldNotNumber:{"field":"page_count","row":1}',
+    ]);
+  });
+
+  it('does not let an earlier validator finding suppress later deterministic checks', async () => {
+    // work_status is a csv-file-validator rule; the date rule is app-owned and runs later.
+    const { parser } = makeParser(
+      makeFile(buildCsv([{ ...BASE, work_status: 'Published', publication_date: '22.07.26' }])),
+    );
+
+    const result = await parser.parse();
+    const messages = errorMessages(result);
+
+    expect(messages).toHaveLength(2);
+    expect(messages[0]).toContain('csvFieldNotValidOptions');
+    expect(messages[1]).toBe('errors.csvFieldNotIsoDate:{"field":"publication_date","value":"22.07.26","row":1}');
+  });
+
+  it('aggregates independent errors across several rows in row order', async () => {
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          { ...BASE, publication_date: '22.07.26' },
+          { ...BASE },
+          { ...BASE, doi: 'PROD-3' },
+        ]),
+      ),
+    );
+
+    const result = await parser.parse();
+
+    expect(errorMessages(result)).toEqual([
+      'errors.csvFieldNotIsoDate:{"field":"publication_date","value":"22.07.26","row":1}',
+      'errors.csvDoiNotValid:{"value":"PROD-3","row":3}',
+    ]);
+  });
+
+  it('suppresses series-identity cascades behind an unresolved imprint but keeps independent checks', async () => {
+    // The imprint is wrong, so series identity cannot be scoped: no series noise. The issue
+    // number is checked independently of the imprint, so its own error still surfaces.
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([{ ...BASE, imprint: 'No Such Publisher', series_name: 'Some Series', series_issue_number: 'x' }]),
+      ),
+    );
+
+    const result = await parser.parse();
+    const messages = errorMessages(result);
+
+    expect(messages).toHaveLength(2);
+    expect(messages[0]).toContain('csvFieldNotValidOptions');
+    expect(messages[1]).toBe('errors.csvSeriesIssueNumberNotValid:{"value":"x","row":1}');
+  });
+
+  it('returns the identical issue list when the same file is parsed again', async () => {
+    const csv = buildCsv([
+      { ...BASE, publication_date: '22.07.26', doi: 'PROD-1', contribution_1_first_name: ' A', contribution_1_surname: 'B' },
+      { ...BASE, page_count: 'many' },
+    ]);
+
+    const first = await makeParser(makeFile(csv)).parser.parse();
+    const second = await makeParser(makeFile(csv)).parser.parse();
+
+    expect(first.issues).toEqual(second.issues);
+    expect(first.issues.length).toBeGreaterThan(2);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Network / side-effect boundary
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: side-effect boundary', () => {
+  it('performs no contributor or institution lookup while blocking errors exist', async () => {
+    const { parser, spies } = makeParser(
+      makeFile(
+        buildCsv([
+          {
+            ...BASE,
+            publication_date: '22.07.26',
+            contribution_1_first_name: 'Jane',
+            contribution_1_surname: 'Doe',
+            contribution_1_role: 'AUTHOR',
+            contribution_1_affiliation_institution_ror: 'https://ror.org/03vek6s52',
+          },
+        ]),
+      ),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toHaveLength(0);
+    expect(result.data.contributorsForSelection).toEqual({});
+    expect(spies.getContributors).not.toHaveBeenCalled();
+    expect(spies.getInstitutions).not.toHaveBeenCalled();
+  });
+
+  it('still performs lookups after a clean preflight', async () => {
+    const { parser, spies } = makeParser(
+      makeFile(
+        buildCsv([
+          { ...BASE, contribution_1_first_name: 'Jane', contribution_1_surname: 'Doe', contribution_1_role: 'AUTHOR' },
+        ]),
+      ),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(spies.getContributors).toHaveBeenCalledWith('Jane Doe');
+  });
+
+  it('keeps a genuine lookup rejection after a clean preflight as a hard failure', async () => {
+    const getContributors = vi.fn().mockRejectedValue(new Error('auth failed'));
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          { ...BASE, contribution_1_first_name: 'Jane', contribution_1_surname: 'Doe', contribution_1_role: 'AUTHOR' },
+        ]),
+      ),
+      { getContributors },
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toEqual([
+      {
+        severity: 'error',
+        code: 'csv.parsing_failed',
+        message: 'errors.csvParsingError',
+        source: { kind: 'file' },
+      },
+    ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// One file, many faults: the required aggregate regression
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: one file, many faults', () => {
+  const faultyRows: Record<string, string>[] = [
+    {
+      ...BASE,
+      work_status: 'Published', // csv-file-validator enum error
+      publication_date: '22.07.26', // non-ISO date
+      doi: 'PROD-1234', // not a DOI in any accepted form
+      page_count: 'many', // malformed numeric
+      long_abstract: 'Line one\nline two.', // unrepresentable lone line break
+      contribution_1_first_name: ' Jane', // boundary whitespace on a lookup identity
+      contribution_1_surname: 'Doe',
+      contribution_1_role: 'AUTHOR',
+      contribution_1_orcid: '0000-0002-1825', // malformed ORCID
+      contribution_1_affiliation_institution_ror: 'not-a-ror', // invalid ROR
+    },
+    {
+      ...BASE,
+      withdrawn_date: '2026-02-30', // impossible calendar date
+      publication_paperback_isbn: '9781234567890', // invalid ISBN check digit
+      contribution_1_first_name: 'John',
+      contribution_1_surname: 'Smith',
+      contribution_1_role: 'AUTHOR',
+      contribution_1_biography: '<p>Bio<br></p>', // markup outside the JATS subset
+    },
+  ];
+
+  it('returns the complete independently actionable set from one parse, in deterministic order', async () => {
+    const { parser, spies } = makeParser(makeFile(buildCsv(faultyRows)));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toHaveLength(0);
+    expect(spies.getContributors).not.toHaveBeenCalled();
+    expect(spies.getInstitutions).not.toHaveBeenCalled();
+
+    const messages = errorMessages(result);
+
+    // Row 1: the validator's finding first, then the app-owned rules in template column order.
+    expect(messages[0]).toContain('csvFieldNotValidOptions'); // work_status
+    expect(messages.slice(1, 8)).toEqual([
+      'errors.csvFieldNotIsoDate:{"field":"publication_date","value":"22.07.26","row":1}',
+      'errors.csvDoiNotValid:{"value":"PROD-1234","row":1}',
+      'errors.csvFieldNotNumber:{"field":"page_count","row":1}',
+      'errors.csvTextLineBreak:{"field":"long_abstract","row":1}',
+      'errors.csvFieldWhitespace:{"field":"contribution_1_first_name","row":1}',
+      'errors.csvOrcidNotValid:{"field":"contribution_1_orcid","value":"0000-0002-1825","row":1}',
+      'errors.csvRorNotValid:{"field":"contribution_1_affiliation_institution_ror","value":"not-a-ror","row":1}',
+    ]);
+
+    // Row 2: again validator finding first (ISBN), then the app-owned rules.
+    expect(messages[8]).toContain('publication_paperback_isbn');
+    expect(messages.slice(9)).toEqual([
+      'errors.csvFieldNotIsoDate:{"field":"withdrawn_date","value":"2026-02-30","row":2}',
+      'errors.csvTextUnsupportedMarkup:{"field":"contribution_1_biography","row":2,"tag":"br"}',
+    ]);
+
+    expect(messages).toHaveLength(11);
+
+    // Every issue names its source row, in source order.
+    expect(result.issues.map(({ source }) => source.kind === 'csv' && source.row)).toEqual([
+      1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2,
+    ]);
+  });
+
+  it('reaches normal planning and contributor selection once every fault is corrected', async () => {
+    const correctedRows = [
+      {
+        ...faultyRows[0],
+        work_status: 'ACTIVE',
+        publication_date: '2026-07-22',
+        doi: '10.12345/test-book',
+        page_count: '302',
+        long_abstract: 'Line one line two.',
+        contribution_1_first_name: 'Jane',
+        contribution_1_orcid: '0000-0002-1825-0097',
+        contribution_1_affiliation_institution_ror: '03vek6s52',
+      },
+      {
+        ...faultyRows[1],
+        withdrawn_date: '',
+        publication_paperback_isbn: '978-3-16-148410-0',
+        contribution_1_biography: '<p>Bio</p>',
+      },
+    ];
+    const getInstitutions = vi
+      .fn()
+      .mockResolvedValue([{ id: 'inst-1', name: 'Harvard', ror: 'https://ror.org/03vek6s52' }]);
+    const { parser, spies } = makeParser(makeFile(buildCsv(correctedRows)), { getInstitutions });
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.issues).toEqual([]);
+    expect(result.data.plan.works).toHaveLength(2);
+    expect(result.data.plan.works[0].doi).toBe('https://doi.org/10.12345/test-book');
+    expect(result.data.plan.works[1].publications[0].isbn).toBe('978-3-16-148410-0');
+    expect(Object.keys(result.data.contributorsForSelection)).toHaveLength(2);
+    expect(spies.getContributors).toHaveBeenCalled();
+  });
+});
