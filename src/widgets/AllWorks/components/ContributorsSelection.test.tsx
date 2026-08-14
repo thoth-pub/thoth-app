@@ -74,6 +74,47 @@ describe('ContributorsSelection', () => {
     expect(updated.works[0]).toBe(works[0]);
   });
 
+  it('offers a hintless existing contributor as a full candidate, with no latest-contribution line', async () => {
+    // Issue #107: the latest-contribution hint is optional presentation metadata. A candidate
+    // that arrives without one keeps its identity, its radio, and its effect on the plan.
+    const works = [workWithTitle('work-1', 'First')];
+    const onPreview = vi.fn();
+    const contributors: ContributorsForSelection = {
+      'work-1': {
+        'item-1': [
+          {
+            ...contribution('00000000-0000-0000-0000-000000000000', 'Jane Doe'),
+            selected: true,
+            lastContribution: '',
+          },
+          { ...contribution('hinted-id', 'Jane Doe'), selected: false, lastContribution: 'Some Book' },
+          { ...contribution('hintless-id', 'Jane Doe'), selected: false, lastContribution: '' },
+        ],
+      },
+    };
+
+    render(<ContributorsSelection contributors={contributors} plan={planOf(works)} onPreview={onPreview} />);
+
+    // Exactly one candidate shows the hint; the hintless one renders no latest-contribution line.
+    expect(screen.getAllByText(/latest contribution to/)).toHaveLength(1);
+    expect(screen.getByText(/Some Book/)).toBeInTheDocument();
+    // Identity information is still present for every candidate: one create-new label and two
+    // existing-record names.
+    expect(screen.getAllByText('Jane Doe', { exact: false }).length).toBeGreaterThanOrEqual(2);
+
+    const radios = screen.getAllByRole('radio');
+
+    expect(radios).toHaveLength(3);
+
+    await userEvent.click(radios[2]);
+    await userEvent.click(screen.getByRole('button', { name: 'preview' }));
+
+    const [updated] = onPreview.mock.calls[0] as [ImportPlan];
+
+    // Choosing the hintless candidate resolves the contribution exactly like any other choice.
+    expect(updated.works[0].contributions.map(({ contributorId }) => contributorId)).toEqual(['hintless-id']);
+  });
+
   it('keeps works in their source order when only a middle work has choices', async () => {
     const works = [
       workWithTitle('work-1', 'First'),
