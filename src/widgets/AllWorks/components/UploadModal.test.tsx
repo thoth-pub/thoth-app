@@ -20,23 +20,40 @@ vi.mock('./UploadStep', () => ({
 }));
 
 vi.mock('./PreviewStep', () => ({
-  PreviewStep: (props: { onSubmit: () => void }) => {
+  PreviewStep: (props: { onSubmit: () => void; onRunningChange?: (running: boolean) => void }) => {
     mockPreviewStep(props);
 
     return (
-      <button type="button" onClick={props.onSubmit}>
-        confirm
-      </button>
+      <>
+        {/* Stands in for pressing Create: the real PreviewStep signals the run synchronously here. */}
+        <button type="button" onClick={() => props.onRunningChange?.(true)}>
+          create
+        </button>
+        <button type="button" onClick={props.onSubmit}>
+          confirm
+        </button>
+      </>
     );
   },
 }));
 
 vi.mock('./TemplateStep', () => ({ TemplateStep: () => <div /> }));
 
+// A stand-in that honours `isDismissible` the way the real FullScreenModal does: the close control
+// is disabled and the dismiss path is refused while locked. It lets this integration test observe
+// whether UploadModal has made the modal non-dismissible, without pulling in MUI's backdrop.
 vi.mock('@/src/features/layout/FullScreenModal/FullScreenModal', () => ({
-  default: ({ children, onClose }: { children: React.ReactNode; onClose: () => void }) => (
+  default: ({
+    children,
+    onClose,
+    isDismissible = true,
+  }: {
+    children: React.ReactNode;
+    onClose: () => void;
+    isDismissible?: boolean;
+  }) => (
     <div>
-      <button type="button" onClick={onClose}>
+      <button type="button" onClick={() => isDismissible && onClose()} disabled={!isDismissible}>
         close
       </button>
       {children}
@@ -145,5 +162,30 @@ describe('UploadModal', () => {
 
     // Two resets, two plans: nothing one import appends to can reach the next.
     expect(lastPreviewProps().plan).not.toBe(firstEmpty);
+  });
+
+  it('becomes non-dismissible the moment Create is pressed, and dismissible again when the run ends', async () => {
+    const onClose = vi.fn();
+    render(<UploadModal isOpen onClose={onClose} />);
+
+    await sendPlan(plan, warnings);
+
+    const closeButton = () => screen.getByRole('button', { name: 'close' });
+
+    // Before the run: the modal can be dismissed as usual.
+    expect(closeButton()).not.toBeDisabled();
+
+    // Create fires the preview's running signal synchronously; the modal locks in the same tick,
+    // with no intervening dismissible frame.
+    await userEvent.click(screen.getByRole('button', { name: 'create' }));
+    expect(closeButton()).toBeDisabled();
+
+    // The lock is real: while it holds, the close path does not reach onClose.
+    await userEvent.click(closeButton());
+    expect(onClose).not.toHaveBeenCalled();
+
+    // When the preview reports the run finished, the modal is dismissible again.
+    act(() => lastPreviewProps().onRunningChange?.(false));
+    expect(closeButton()).not.toBeDisabled();
   });
 });

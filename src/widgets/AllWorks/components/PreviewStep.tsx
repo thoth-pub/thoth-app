@@ -63,8 +63,13 @@ export const PreviewStep = (props: PreviewStepProps) => {
   // partway. Removed the moment it succeeds, fails, or the preview unmounts.
   useBeforeUnloadGuard(isRunning);
 
-  // Kept in step with the parent so the modal can lock its exits for exactly as long as the run
-  // is in flight — and is told the run is over on unmount, so a lock can never outlive it.
+  // Keeps the parent's lock in step with the run for everything after the start: it clears the
+  // lock the moment the run reaches a terminal state (success or failure), and clears it on
+  // unmount too, so a lock can never outlive the run. The *start* of the lock is not left to this
+  // effect — that would only fire after the running UI had already committed and painted, leaving
+  // a frame in which the import is running but the modal is still dismissible. `handleCreate`
+  // below closes that window by locking synchronously with the click; this reaffirms it and owns
+  // the unlock.
   useEffect(() => {
     onRunningChange?.(isRunning);
 
@@ -90,6 +95,12 @@ export const PreviewStep = (props: PreviewStepProps) => {
   // time. The failure report says as much; resolving a partial import is a manual step.
   const handleCreate = () => {
     if (!source) return;
+
+    // Lock the modal in the same tick as the click, before the run is even kicked off. This
+    // batches with the reducer's move to `running`, so the parent commits its non-dismissible
+    // state in the same render that first shows the running UI — the import can never be seen
+    // running while the modal is still dismissible. The effect above then owns the unlock.
+    onRunningChange?.(true);
 
     void runImport(plan, source);
   };

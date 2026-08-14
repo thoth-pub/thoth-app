@@ -254,6 +254,33 @@ describe('PreviewStep', () => {
     expect(onRunningChange.mock.calls.at(-1)?.[0]).toBe(false);
   });
 
+  it('locks the modal synchronously with the Create press, before the first mutation runs', async () => {
+    // A single ordered log of both signals: when the parent is told the run is running, and when
+    // the mutation is actually dispatched. Their relative order is the whole point of the test.
+    const order: string[] = [];
+    const onRunningChange = vi.fn((running: boolean) => order.push(`running:${running}`));
+    mockBulkCreateWorks.mockImplementation(
+      (_plan: ImportPlan, observer: { onProgress?: (p: ImportExecutionProgress) => void }) => {
+        order.push('mutation');
+        observer.onProgress?.(progress());
+        // Stays pending, so the run sits in its running state for the assertions.
+        return new Promise<void>(() => {});
+      },
+    );
+
+    renderStep({ onRunningChange });
+
+    // Ignore the mount reading; watch only what pressing Create sets in motion.
+    order.length = 0;
+    await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+    // The lock is the very first thing the click produces, and it lands before the mutation is
+    // dispatched. Were the lock left to the running-state effect, the mutation would be recorded
+    // first and the modal would still be dismissible for that render — this ordering forbids it.
+    expect(order[0]).toBe('running:true');
+    expect(order[1]).toBe('mutation');
+  });
+
   it('does nothing when Create is pressed before a source is known', async () => {
     mockBulkCreateWorks.mockResolvedValue(undefined);
 

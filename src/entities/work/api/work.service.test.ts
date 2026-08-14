@@ -808,4 +808,71 @@ describe('bulkCreateWorks execution observer', () => {
     expect(withObserver).toEqual(withoutObserver);
     expect(withObserver).toEqual(['work:w1', 'chapter:1', 'series', 'issue:created-w1', 'work:w2', 'issue:created-w2']);
   });
+
+  it('isolates a throwing observer: every mutation still runs, in the same order, and the run does not fail', async () => {
+    const works = [titledWork('w1', 'One'), titledWork('w2', 'Two')];
+    const chapters = [chapterOf('c1', 'w1')];
+    const series: SeriesImportPlan = [
+      {
+        name: 'Arc Companions',
+        target: { kind: 'proposed', series: proposedSeries() },
+        members: [member('w1', 1), member('w2', 2)],
+      },
+    ];
+
+    // Records the exact sequence of mutations, so the throwing run can be compared against a clean
+    // one. Reset between runs so each run's sequence stands alone.
+    const instrument = () => {
+      const log: string[] = [];
+      createWorkSpy.mockImplementation(async (work: WorkEntity) => {
+        log.push(`work:${work.id}`);
+        return { ...work, id: `created-${work.id}` };
+      });
+      createChapterSpy.mockImplementation(async (_chapter: WorkEntity, _relatedWorkId: string, ordinal: number) => {
+        log.push(`chapter:${ordinal}`);
+        return getDefaultWork({ id: 'chapter' });
+      });
+      (mockSeriesService.createSeries as ReturnType<typeof vi.fn>).mockImplementation(async (data) => {
+        log.push('series');
+        return { ...data, id: 'created-series' };
+      });
+      (mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mockImplementation(async (issue) => {
+        log.push(`issue:${issue.workId}`);
+      });
+      return log;
+    };
+
+    // Baseline: the mutation sequence with no observer at all.
+    const baseline = instrument();
+    await workService.bulkCreateWorks(planOf(works, series, chapters));
+
+    // An observer that throws on every single reading, at every stage of every work.
+    const onProgress = vi.fn(() => {
+      throw new Error('observer boom');
+    });
+    // The throw is caught and logged inside the service, never surfaced; silence it here.
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const withThrowingObserver = instrument();
+    // The run resolves normally: the observer's failure never became an ImportExecutionError.
+    await expect(workService.bulkCreateWorks(planOf(works, series, chapters), { onProgress })).resolves.toBeUndefined();
+
+    // The throwing path was actually exercised — the observer was called and did throw.
+    expect(onProgress).toHaveBeenCalled();
+    // Yet the mutations ran identically to the observer-free run: same set, same order. A throw
+    // before a mutation never prevented it, and a throw during one work never stopped the next.
+    expect(withThrowingObserver).toEqual(baseline);
+    expect(withThrowingObserver).toEqual([
+      'work:w1',
+      'chapter:1',
+      'series',
+      'issue:created-w1',
+      'work:w2',
+      'issue:created-w2',
+    ]);
+    // The failure was handled where it happened — logged, not raised to the caller.
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
+  });
 });

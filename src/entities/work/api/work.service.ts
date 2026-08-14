@@ -7,6 +7,7 @@ import { BaseService } from '@/src/shared/interfaces/services';
 import { TransactionContext } from '@/src/shared/services';
 import type {
   ImportExecutionObserver,
+  ImportExecutionProgress,
   ImportExecutionStage,
   ImportExecutionWorkContext,
   ImportPlan,
@@ -471,6 +472,23 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   }
 
   /**
+   * Hands one reading to the observer, and shields the import from it entirely. Observation is
+   * meant to be inert: a throw from `onProgress` is the observer's own bug, never the import's,
+   * so it is caught and logged here rather than allowed to escape. Were it to escape, the
+   * surrounding try/catch below would mistake it for an API failure — turning it into an
+   * {@link ImportExecutionError}, aborting the very mutation this reading precedes, and stopping
+   * every later work. Isolating it here keeps the mutations, their order and their payloads
+   * identical whether the observer throws, runs cleanly, or is absent.
+   */
+  private static reportProgress(observer: ImportExecutionObserver | undefined, progress: ImportExecutionProgress) {
+    try {
+      observer?.onProgress?.(progress);
+    } catch (error) {
+      console.error('Bulk import progress observer threw; the import was unaffected:', error);
+    }
+  }
+
+  /**
    * Runs a planned bulk import: every work, its chapters, and its place in a series.
    *
    * The plan is the unit that crosses this boundary, rather than three arrays that have to be
@@ -480,11 +498,13 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
    *
    * The optional {@link ImportExecutionObserver} is told, before each stage of each work, what is
    * about to happen — which top-level work, at which stage, and how many are already done. It
-   * observes only: it is passed no data it could change, and its readings never alter the order
-   * or the payload of a single mutation below. A work counts as `completed` only once its whole
-   * path (work, then chapters, then series) has returned. When a stage throws, the run stops and
-   * an {@link ImportExecutionError} is raised carrying the original message plus that context; the
-   * work it stopped on is left as it was — partially created, not rolled back.
+   * observes only: it is passed no data it could change, its readings never alter the order or the
+   * payload of a single mutation below, and — because every reading goes through
+   * {@link reportProgress} — a throw from it cannot touch the run either. A work counts as
+   * `completed` only once its whole path (work, then chapters, then series) has returned. When a
+   * *mutation* stage throws, the run stops and an {@link ImportExecutionError} is raised carrying
+   * the original message plus that context; the work it stopped on is left as it was — partially
+   * created, not rolled back.
    */
   async bulkCreateWorks(plan: ImportPlan, observer?: ImportExecutionObserver) {
     const { works, chapters, series } = plan;
@@ -527,13 +547,13 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       let stage: ImportExecutionStage = 'work';
 
       try {
-        observer?.onProgress?.({ total, completed, current, stage });
+        WorkService.reportProgress(observer, { total, completed, current, stage });
 
         const createdWork = await this.createWork(work);
 
         if (foundedChapters.length > 0) {
           stage = 'chapters';
-          observer?.onProgress?.({ total, completed, current, stage });
+          WorkService.reportProgress(observer, { total, completed, current, stage });
 
           await Promise.all(
             foundedChapters.map((chapter, chapterIndex) =>
@@ -544,7 +564,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
         if (membership) {
           stage = 'series';
-          observer?.onProgress?.({ total, completed, current, stage });
+          WorkService.reportProgress(observer, { total, completed, current, stage });
 
           const seriesId = await this.resolveSeriesId(membership.group, resolvedSeriesIds);
 
