@@ -91,7 +91,11 @@ describe('CSVParse', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
     // One plan, with the series membership intact, and the warnings beside it rather than in it.
-    expect(onPreview).toHaveBeenCalledWith({ works: [work], chapters: [], series }, [warning]);
+    // The source (CSV, and the file's name) travels alongside, never in the plan.
+    expect(onPreview).toHaveBeenCalledWith({ works: [work], chapters: [], series }, [warning], {
+      type: 'csv',
+      filename: 'test.csv',
+    });
     expect(onValidationFailure).not.toHaveBeenCalled();
   });
 
@@ -132,7 +136,10 @@ describe('CSVParse', () => {
     await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
 
     // A CSV import never has chapters.
-    expect(onPreview).toHaveBeenCalledWith({ works: [work], chapters: [], series: [] }, []);
+    expect(onPreview).toHaveBeenCalledWith({ works: [work], chapters: [], series: [] }, [], {
+      type: 'csv',
+      filename: 'test.csv',
+    });
     expect(onValidationFailure).not.toHaveBeenCalled();
   });
 });

@@ -1,7 +1,7 @@
-import { useState, useTransition } from 'react';
+import { useEffect } from 'react';
 
-import { useBulkCreateWorks, useImportPreflight } from '@/src/entities/work';
-import type { ImportIssue, ImportPlan } from '@/src/shared/types';
+import { useImportPreflight } from '@/src/entities/work';
+import type { ImportIssue, ImportPlan, ImportSource } from '@/src/shared/types';
 import {
   Button,
   TableBody,
@@ -14,6 +14,9 @@ import {
 } from '@/src/shared/ui';
 import { convertOptionToString, getDisplayTitle } from '@/src/shared/utils';
 
+import { useBeforeUnloadGuard } from '../hooks/useBeforeUnloadGuard';
+import { useBulkImportExecution } from '../hooks/useBulkImportExecution';
+import { ImportExecutionStatus } from './ImportExecutionStatus';
 import { ImportPreflightReport } from './ImportPreflightReport';
 
 /** Stable identity, so a preview with nothing to warn about does not re-render on every pass. */
@@ -31,16 +34,42 @@ type PreviewStepProps = {
    * the user can decide not to go ahead.
    */
   warnings?: ImportIssue[];
+  /**
+   * Where the plan came from — importer type and filename. Held for the running display and the
+   * copyable failure report; carries no file contents and never reaches the API. Null only before
+   * a file has been parsed, when the preview is not on screen.
+   */
+  source: ImportSource | null;
+  /** Acknowledge a finished import: continue to the Works list and close the modal. */
   onSubmit: () => void;
+  /**
+   * Told whenever the import starts and stops running, so the modal can refuse to be dismissed
+   * while a non-atomic run is in flight.
+   */
+  onRunningChange?: (running: boolean) => void;
 };
 
 export const PreviewStep = (props: PreviewStepProps) => {
-  const { plan, warnings = NO_WARNINGS, onSubmit } = props;
+  const { plan, warnings = NO_WARNINGS, source, onSubmit, onRunningChange } = props;
   const { works, chapters, series } = plan;
 
-  const { bulkCreateWorks } = useBulkCreateWorks();
-  const [isPending, startTransition] = useTransition();
-  const [hasFailed, setHasFailed] = useState(false);
+  // Runtime execution state, kept apart from the plan: the plan is what to create, this is what
+  // is happening to it. The observer it installs only reports; it changes nothing about the run.
+  const { state, runImport } = useBulkImportExecution();
+  const isRunning = state.phase === 'running';
+  const hasStarted = state.phase !== 'idle';
+
+  // Only while a run is actually in flight: a refresh or tab close then risks cutting it off
+  // partway. Removed the moment it succeeds, fails, or the preview unmounts.
+  useBeforeUnloadGuard(isRunning);
+
+  // Kept in step with the parent so the modal can lock its exits for exactly as long as the run
+  // is in flight — and is told the run is over on unmount, so a lock can never outlive it.
+  useEffect(() => {
+    onRunningChange?.(isRunning);
+
+    return () => onRunningChange?.(false);
+  }, [isRunning, onRunningChange]);
 
   // The preflight runs against the plan as it now stands, so the report describes exactly what
   // the button below would create. It reads Thoth and changes nothing; its findings are shown,
@@ -52,32 +81,17 @@ export const PreviewStep = (props: PreviewStepProps) => {
     retry: retryPreflight,
   } = useImportPreflight(plan);
 
-  // The import is awaited so the preview stays on screen while it runs, and stays on screen if
-  // it fails: a bulk import is not atomic, so navigating away on failure would leave the user
-  // with no idea what was created. The error notification is raised by useBulkCreateWorks;
-  // rethrowing here would surface as an unhandled rejection.
+  // Starting the import replaces this whole preview with the execution status below, so a second
+  // press has nothing to press. The run is awaited inside the hook, which resolves the rejection
+  // itself: the preview stays on screen on failure, and no unhandled rejection escapes.
   //
-  // A failed import cannot be retried from this screen. The plan was built against the series
-  // Thoth had before the attempt, so a group still marked `proposed` may name a series the
-  // failed run already created — confirming again would create it a second time.
-  //
-  // Re-uploading is not a safe retry either, and the message deliberately does not offer it as
-  // one. A fresh parse does resolve an already-created series to `existing`, but bulkCreateWorks
-  // calls createWork unconditionally and Thoth does not deduplicate works, so every work the
-  // failed run managed to create would be created again. The user has to inspect the Works list
-  // and resolve the partial import themselves.
-  const handleSubmit = () => {
-    startTransition(async () => {
-      try {
-        await bulkCreateWorks(plan);
-      } catch {
-        setHasFailed(true);
+  // A failed import is not offered a retry from here. The plan was built against the series Thoth
+  // had before the attempt, so re-running it could create a series — and every work — a second
+  // time. The failure report says as much; resolving a partial import is a manual step.
+  const handleCreate = () => {
+    if (!source) return;
 
-        return;
-      }
-
-      onSubmit();
-    });
+    void runImport(plan, source);
   };
 
   // A work belongs to at most one planned series, so a flat lookup is enough. Membership is by
@@ -91,6 +105,13 @@ export const PreviewStep = (props: PreviewStepProps) => {
       ),
     ),
   );
+
+  // Once the run has begun, the preview gives way to a single, persistent account of it: running,
+  // then either the success summary (acknowledged before navigating) or the failure report. There
+  // is deliberately no path back to the Create button from a terminal state.
+  if (hasStarted) {
+    return <ImportExecutionStatus state={state} onViewWorks={onSubmit} />;
+  }
 
   return (
     <>
@@ -109,7 +130,7 @@ export const PreviewStep = (props: PreviewStepProps) => {
       />
       {/*
         Shown above the works so they are read before the list is scanned, and kept out of the
-        `hasFailed` channel below: nothing here stops the import, and the Create button stays
+        execution channel below: nothing here stops the import, and the Create button stays
         enabled. Order is the parser's, which is source-file order.
       */}
       {warnings.length > 0 && (
@@ -176,11 +197,6 @@ export const PreviewStep = (props: PreviewStepProps) => {
           })}
         </TableBody>
       </TableWrapper>
-      {hasFailed && (
-        <Typography color="error" className="text-center">
-          <TranslatedContent content="bulk import did not finish" />
-        </Typography>
-      )}
       {/*
         Confirmation waits for the preflight, and for nothing else it found. Creating before the
         check has answered would show the user a report about an import they had already run, and
@@ -194,8 +210,8 @@ export const PreviewStep = (props: PreviewStepProps) => {
         variant="contained"
         color="primary"
         className="m-auto max-w-max capitalize"
-        onClick={handleSubmit}
-        disabled={isPending || hasFailed || isCheckingDuplicates || preflightFailed}
+        onClick={handleCreate}
+        disabled={isCheckingDuplicates || preflightFailed}
       >
         <TranslatedContent content="actions.create" />
       </Button>

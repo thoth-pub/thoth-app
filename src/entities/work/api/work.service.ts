@@ -5,8 +5,17 @@ import { WorkStatuses } from '@/src/shared/constants';
 import { MarkdownFormats } from '@/src/shared/constants/markdown';
 import { BaseService } from '@/src/shared/interfaces/services';
 import { TransactionContext } from '@/src/shared/services';
-import type { ImportPlan, SeriesImportGroup, TitleDto, TitleEntity } from '@/src/shared/types';
+import type {
+  ImportExecutionObserver,
+  ImportExecutionStage,
+  ImportExecutionWorkContext,
+  ImportPlan,
+  SeriesImportGroup,
+  TitleDto,
+  TitleEntity,
+} from '@/src/shared/types';
 import { getDateInFuture } from '@/src/shared/utils';
+import { getDisplayTitle } from '@/src/shared/utils/work';
 
 import { AbstractService } from '../../abstract/api/abstract.service';
 import { ContributionService } from '../../contribution/api/contribution.service';
@@ -20,6 +29,7 @@ import type { SeriesId } from '../../series/model/series.types';
 import { SubjectService } from '../../subject/api/subject.service';
 import { TitleService } from '../../title/api/title.service';
 import { TitleDtoMapper } from '../../title/model/title.mapper';
+import { extractErrorMessage, ImportExecutionError } from '../model/import-execution.error';
 import { WorkDtoMapper } from '../model/work.mapper';
 import { CREATE_WORK, MOVE_WORK_RELATION } from '../model/work.mutations';
 import {
@@ -444,15 +454,41 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
   }
 
   /**
+   * The identity of a top-level work as it should read to a human, drawn from the plan rather
+   * than fabricated. A DOI is preferred as the reference; failing that, the source reference;
+   * a work that carries neither simply has none.
+   */
+  private static workContext(work: WorkEntity, position: number, chapterCount: number): ImportExecutionWorkContext {
+    const doi = work.doi?.trim();
+    const reference = work.reference?.trim();
+
+    return {
+      position,
+      title: getDisplayTitle(work.titles).title,
+      reference: doi || reference || undefined,
+      chapterCount,
+    };
+  }
+
+  /**
    * Runs a planned bulk import: every work, its chapters, and its place in a series.
    *
    * The plan is the unit that crosses this boundary, rather than three arrays that have to be
    * kept in step by whoever calls it. Works are created in plan order, and a work is attached to
    * its series only after it exists, so a run that stops partway leaves no issue pointing at a
    * work that was never created.
+   *
+   * The optional {@link ImportExecutionObserver} is told, before each stage of each work, what is
+   * about to happen — which top-level work, at which stage, and how many are already done. It
+   * observes only: it is passed no data it could change, and its readings never alter the order
+   * or the payload of a single mutation below. A work counts as `completed` only once its whole
+   * path (work, then chapters, then series) has returned. When a stage throws, the run stops and
+   * an {@link ImportExecutionError} is raised carrying the original message plus that context; the
+   * work it stopped on is left as it was — partially created, not rolled back.
    */
-  async bulkCreateWorks(plan: ImportPlan) {
+  async bulkCreateWorks(plan: ImportPlan, observer?: ImportExecutionObserver) {
     const { works, chapters, series } = plan;
+    const total = works.length;
     const resolvedSeriesIds = new Map<SeriesImportGroup, SeriesId>();
 
     // Built once, before any work is created: the plan says which series each work belongs to
@@ -469,30 +505,63 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       }
     }
 
-    for (const work of works) {
+    let completed = 0;
+
+    for (let index = 0; index < works.length; index += 1) {
+      const work = works[index];
       const initialId = work.id;
 
-      const createdWork = await this.createWork(work);
-
+      // Pure reads. Computing them before anything is created gives the progress reading a
+      // chapter count and a display identity, and moves no mutation: the chapter filter and the
+      // membership lookup touch nothing on the server.
       const foundedChapters = chapters.filter((chapter) => chapter.relationId === initialId);
-
-      await Promise.all(
-        foundedChapters.map((chapter, index) => this.createChapter(chapter, createdWork.id, index + 1)),
-      );
 
       // The work's own ordinal, not the first ordinal in the series: a series can hold several
       // works from the same import, each with its own issue ordinal.
       const membership = membershipByWorkId.get(initialId);
 
-      if (!membership) continue;
+      const current = WorkService.workContext(work, index + 1, foundedChapters.length);
 
-      const seriesId = await this.resolveSeriesId(membership.group, resolvedSeriesIds);
+      // Tracks which stage the work is at, so a throw can name it. It is the only thing the
+      // catch below needs beyond the counts it already has.
+      let stage: ImportExecutionStage = 'work';
 
-      await this.seriesService.createIssue({
-        orderNumber: membership.orderNumber,
-        seriesId,
-        workId: createdWork.id,
-      });
+      try {
+        observer?.onProgress?.({ total, completed, current, stage });
+
+        const createdWork = await this.createWork(work);
+
+        if (foundedChapters.length > 0) {
+          stage = 'chapters';
+          observer?.onProgress?.({ total, completed, current, stage });
+
+          await Promise.all(
+            foundedChapters.map((chapter, chapterIndex) =>
+              this.createChapter(chapter, createdWork.id, chapterIndex + 1),
+            ),
+          );
+        }
+
+        if (membership) {
+          stage = 'series';
+          observer?.onProgress?.({ total, completed, current, stage });
+
+          const seriesId = await this.resolveSeriesId(membership.group, resolvedSeriesIds);
+
+          await this.seriesService.createIssue({
+            orderNumber: membership.orderNumber,
+            seriesId,
+            workId: createdWork.id,
+          });
+        }
+      } catch (error) {
+        // The original message is kept verbatim as the thrown error's own message; the context
+        // says where the run stopped. `completed` here is the number finished before this work,
+        // which is exactly what "fully processed before the failure" means.
+        throw new ImportExecutionError(extractErrorMessage(error), { total, completed, current, stage }, error);
+      }
+
+      completed += 1;
     }
   }
 

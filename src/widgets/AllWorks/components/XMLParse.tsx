@@ -10,7 +10,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { XMLParser } from '@/src/shared/parsers';
-import { ContributorsForSelection, ImportIssue, ImportPlan } from '@/src/shared/types';
+import { ContributorsForSelection, ImportIssue, ImportPlan, ImportSource } from '@/src/shared/types';
 import { CircularProgress } from '@/src/shared/ui';
 import { createEmptyImportPlan } from '@/src/shared/utils';
 
@@ -21,7 +21,7 @@ type XMLParseProps = {
   imprints: FormFieldOption[];
   serieses: SeriesEntity[];
   onValidationFailure?: (issues: ImportIssue[]) => void;
-  onPreview?: (plan: ImportPlan, warnings: ImportIssue[]) => void;
+  onPreview?: (plan: ImportPlan, warnings: ImportIssue[], source: ImportSource) => void;
 };
 
 export const XMLParse = (props: XMLParseProps) => {
@@ -98,7 +98,9 @@ export const XMLParse = (props: XMLParseProps) => {
   }, [file]);
 
   const handleSubmit = (resolvedPlan: ImportPlan) => {
-    onPreview?.(resolvedPlan, warnings);
+    // The importer type and filename travel to the preview beside the plan, never in it: they
+    // are what the running display and any failure report name the source by.
+    onPreview?.(resolvedPlan, warnings, { type: 'onix', filename: file.name });
   };
 
   return (

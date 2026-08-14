@@ -89,13 +89,15 @@ describe('UploadModal', () => {
     },
   ];
 
+  const source = { type: 'onix' as const, filename: 'catalogue.xml' };
+
   const lastPreviewProps = () => mockPreviewStep.mock.calls.at(-1)?.[0];
 
   /** What the upload step does once contributor resolution has produced the final plan. */
   const sendPlan = async (nextPlan: ImportPlan, nextWarnings: ImportIssue[] = []) => {
     const { onPreview } = mockUploadStep.mock.calls.at(-1)?.[0] ?? {};
 
-    await act(async () => onPreview?.(nextPlan, nextWarnings));
+    await act(async () => onPreview?.(nextPlan, nextWarnings, source));
   };
 
   beforeEach(() => {
@@ -109,6 +111,8 @@ describe('UploadModal', () => {
 
     expect(lastPreviewProps().plan).toEqual(plan);
     expect(lastPreviewProps().warnings).toEqual(warnings);
+    // The source travels to the preview beside the plan, so the running/failure report can name it.
+    expect(lastPreviewProps().source).toEqual(source);
   });
 
   it('starts with an empty plan and no warnings', () => {
