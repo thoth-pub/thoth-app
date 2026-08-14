@@ -382,8 +382,9 @@ describe('useBulkCreateWorks', () => {
 
     await bulkCreateWorks(plan);
 
-    // One value crosses the boundary: no unpacking into arrays on the way.
-    expect(mockServices.workService.bulkCreateWorks).toHaveBeenCalledWith(plan);
+    // The plan still crosses the boundary whole — no unpacking into arrays on the way. The
+    // second argument is the optional progress observer, omitted here, so nothing observes.
+    expect(mockServices.workService.bulkCreateWorks).toHaveBeenCalledWith(plan, undefined);
   });
 });
 

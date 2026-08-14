@@ -105,6 +105,24 @@ describe('ImportLookupCoordinator', () => {
     expect(maximumActive).toBe(4);
   });
 
+  it('propagates a genuine contributor lookup rejection to every coalesced caller', async () => {
+    const failure = new Error('contributor lookup transport failure');
+    const getContributors = vi.fn().mockRejectedValue(failure);
+    const coordinator = new ImportLookupCoordinator(
+      { getContributors } as unknown as ContributorService,
+      { getInstitutions: vi.fn() } as unknown as InstitutionService,
+    );
+
+    const first = coordinator.findContributors('Jane Doe');
+    const second = coordinator.findContributors('Jane Doe');
+
+    // Coalescing must not soften the failure: both callers see the original rejection, and the
+    // failed lookup is not retried behind their backs.
+    await expect(first).rejects.toBe(failure);
+    await expect(second).rejects.toBe(failure);
+    expect(getContributors).toHaveBeenCalledTimes(1);
+  });
+
   it('skips blank RORs, trims meaningful filters, and selects only an exact returned ROR', async () => {
     const exactRor = 'https://ror.org/exact';
     const exact = institution(exactRor, 'exact');

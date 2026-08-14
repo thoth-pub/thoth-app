@@ -1,6 +1,8 @@
 import type { ImportDuplicateFinding, ImportPreflightReport as ImportPreflightReportType } from '@/src/shared/types';
 import { Button, TranslatedContent, Typography } from '@/src/shared/ui';
 
+import { ImportPhaseStatus } from './ImportPhaseStatus';
+
 /**
  * The preflight's findings, shown at the confirmation boundary.
  *
@@ -161,13 +163,10 @@ export const ImportPreflightReport = (props: ImportPreflightReportProps) => {
   }
 
   if (isChecking || report === null) {
-    return (
-      <section className="rounded border border-slate-200 bg-slate-50 p-4">
-        <Typography>
-          <TranslatedContent content="importPreflight.checking" />
-        </Typography>
-      </section>
-    );
+    // The duplicate check is real background work, so it joins the shared phase/status language
+    // rather than sitting behind a bare spinner. It stays a read-only signal: nothing about the
+    // findings or the failure/retry behaviour below changes.
+    return <ImportPhaseStatus content="importPreflight.checking" data-testid="import-phase-preflight" />;
   }
 
   const { summary, duplicateFindings } = report;

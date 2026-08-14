@@ -10,7 +10,10 @@ export const GET_CONTRIBUTORS = graphql(`
       contributorId
       contributions(order: { field: UPDATED_AT, direction: DESC }, limit: 1) {
         work {
-          title
+          titles {
+            canonical
+            title
+          }
         }
       }
     }

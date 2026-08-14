@@ -5,7 +5,7 @@ import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { SubjectTypes } from '@/src/shared/constants';
 import { getDefaultContribution } from '@/src/shared/constants/contributions';
 import { SeriesType as SeriesTypes } from '@/src/shared/constants/series';
-import type { ImportPlan, ProposedSeries, SeriesImportPlan } from '@/src/shared/types';
+import type { ImportExecutionProgress, ImportPlan, ProposedSeries, SeriesImportPlan } from '@/src/shared/types';
 import { getDefaultFunding } from '@/src/shared/utils/fundings';
 import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultAbstract, getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
@@ -19,6 +19,7 @@ import { ReferenceService } from '../../reference/api/reference.service';
 import { SeriesService } from '../../series';
 import { SubjectService } from '../../subject/api/subject.service';
 import { TitleService } from '../../title/api/title.service';
+import { ImportExecutionError } from '../model/import-execution.error';
 import { WorkDtoMapper } from '../model/work.mapper';
 import type { WorkDto, WorkEntity } from '../model/work.types';
 import { WorkService } from './work.service';
@@ -606,5 +607,272 @@ describe('bulkCreateWorks', () => {
 
     expect(mockSeriesService.createSeries).not.toHaveBeenCalled();
     expect(mockSeriesService.createIssue).not.toHaveBeenCalled();
+  });
+});
+
+describe('bulkCreateWorks execution observer', () => {
+  const IMPRINT_ID = 'imprint-a';
+
+  let workService: WorkService;
+  let mockSeriesService: SeriesService;
+  let createWorkSpy: ReturnType<typeof vi.spyOn>;
+  let createChapterSpy: ReturnType<typeof vi.spyOn>;
+
+  const proposedSeries = (name = 'Arc Companions'): ProposedSeries => ({
+    name,
+    imprintId: IMPRINT_ID,
+    type: SeriesTypes.enum.BookSeries,
+  });
+
+  const member = (workId: string, orderNumber: number) => ({ workId, orderNumber });
+
+  const titledWork = (id: string, title: string, extra: Partial<WorkEntity> = {}): WorkEntity =>
+    getDefaultWork({ id, titles: [getDefaultTitle({ title })], ...extra });
+
+  const chapterOf = (id: string, relationId: string): WorkEntity => ({ ...getDefaultWork({ id }), relationId });
+
+  const planOf = (works: WorkEntity[], series: SeriesImportPlan = [], chapters: WorkEntity[] = []): ImportPlan => ({
+    works,
+    chapters,
+    series,
+  });
+
+  const record = () => {
+    const events: ImportExecutionProgress[] = [];
+    return { events, observer: { onProgress: (progress: ImportExecutionProgress) => events.push(progress) } };
+  };
+
+  beforeEach(() => {
+    mockSeriesService = {
+      createSeries: vi.fn().mockImplementation(async (data) => ({ ...data, id: 'created-series' })),
+      createIssue: vi.fn().mockResolvedValue({}),
+    } as unknown as SeriesService;
+
+    workService = new WorkService({
+      graphqlService: {} as unknown as GraphqlService,
+      fundingService: {} as unknown as FundingService,
+      subjectService: {} as unknown as SubjectService,
+      contributionService: {} as unknown as ContributionService,
+      publicationService: {} as unknown as PublicationService,
+      languageService: {} as unknown as LanguageService,
+      seriesService: mockSeriesService,
+      referenceService: {} as unknown as ReferenceService,
+      titleService: {} as unknown as TitleService,
+      abstractService: {} as unknown as AbstractService,
+    });
+
+    createWorkSpy = vi
+      .spyOn(workService, 'createWork')
+      .mockImplementation(async (work: WorkEntity) => ({ ...work, id: `created-${work.id}` }));
+    createChapterSpy = vi.spyOn(workService, 'createChapter').mockResolvedValue(getDefaultWork({ id: 'chapter' }));
+  });
+
+  it('initialises the total and walks the top-level works in plan order', async () => {
+    const works = [titledWork('w1', 'One'), titledWork('w2', 'Two'), titledWork('w3', 'Three')];
+    const { events, observer } = record();
+
+    await workService.bulkCreateWorks(planOf(works), observer);
+
+    // Every reading agrees on the total, and the work stage is emitted once per work, in order.
+    expect(events.every((event) => event.total === 3)).toBe(true);
+    const workStage = events.filter((event) => event.stage === 'work');
+    expect(workStage.map((event) => event.current.position)).toEqual([1, 2, 3]);
+    expect(workStage.map((event) => event.current.title)).toEqual(['One', 'Two', 'Three']);
+    // completed is the number finished before the current work: 0, then 1, then 2.
+    expect(workStage.map((event) => event.completed)).toEqual([0, 1, 2]);
+  });
+
+  it('reports the work, chapter and series stages in order, with the work identity and chapter count', async () => {
+    const work = titledWork('w1', 'One', { doi: '10.1/one' });
+    const chapters = [chapterOf('c1', 'w1'), chapterOf('c2', 'w1')];
+    const series: SeriesImportPlan = [
+      { name: 'Arc Companions', target: { kind: 'proposed', series: proposedSeries() }, members: [member('w1', 1)] },
+    ];
+    const { events, observer } = record();
+
+    await workService.bulkCreateWorks(planOf([work], series, chapters), observer);
+
+    expect(events.map((event) => event.stage)).toEqual(['work', 'chapters', 'series']);
+    // None of the three counts the work as done; it is still in flight through all of them.
+    expect(events.every((event) => event.completed === 0)).toBe(true);
+    expect(events[0].current).toMatchObject({ position: 1, title: 'One', reference: '10.1/one', chapterCount: 2 });
+  });
+
+  it('falls back from DOI to the source reference for the work identifier, and to none when neither exists', async () => {
+    const withReference = titledWork('w1', 'One', { doi: '', reference: 'ARC-001' });
+    const withNeither = titledWork('w2', 'Two', { doi: '', reference: '' });
+    const { events, observer } = record();
+
+    await workService.bulkCreateWorks(planOf([withReference, withNeither]), observer);
+
+    const workStage = events.filter((event) => event.stage === 'work');
+    expect(workStage[0].current.reference).toBe('ARC-001');
+    expect(workStage[1].current.reference).toBeUndefined();
+  });
+
+  it('does not count a work as completed until its chapters and series steps have finished', async () => {
+    const log: string[] = [];
+    createChapterSpy.mockImplementation(async () => {
+      log.push('chapter');
+      return getDefaultWork({ id: 'chapter' });
+    });
+    (mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mockImplementation(async () => {
+      log.push('issue');
+    });
+
+    const works = [titledWork('w1', 'One'), titledWork('w2', 'Two')];
+    const chapters = [chapterOf('c1', 'w1')];
+    const series: SeriesImportPlan = [
+      { name: 'Arc Companions', target: { kind: 'proposed', series: proposedSeries() }, members: [member('w1', 1)] },
+    ];
+
+    await workService.bulkCreateWorks(planOf(works, series, chapters), {
+      onProgress: (progress) =>
+        log.push(`stage:${progress.stage}:w${progress.current.position}:done=${progress.completed}`),
+    });
+
+    // The second work's first reading (done=1) appears only after the first work's chapter and
+    // issue have both run: completed does not advance until the whole path has returned.
+    expect(log).toEqual([
+      'stage:work:w1:done=0',
+      'stage:chapters:w1:done=0',
+      'chapter',
+      'stage:series:w1:done=0',
+      'issue',
+      'stage:work:w2:done=1',
+    ]);
+  });
+
+  it('stops after a sub-stage failure, preserves the original message with context, and never starts later works', async () => {
+    const works = [titledWork('w1', 'One'), titledWork('w2', 'Two', { doi: '10.2/two' }), titledWork('w3', 'Three')];
+    // Only the second work has a chapter, so the single chapter creation is the one that fails.
+    const chapters = [chapterOf('c1', 'w2')];
+    createChapterSpy.mockRejectedValue(new Error('chapter boom'));
+
+    const { events, observer } = record();
+    const error = await workService.bulkCreateWorks(planOf(works, [], chapters), observer).catch((thrown) => thrown);
+
+    expect(error).toBeInstanceOf(ImportExecutionError);
+    // The original, useful message is the thrown error's own message — not rewritten.
+    expect(error.message).toBe('chapter boom');
+    expect(error.cause).toBeInstanceOf(Error);
+    expect(error.context).toMatchObject({
+      total: 3,
+      completed: 1,
+      stage: 'chapters',
+      current: { position: 2, title: 'Two', reference: '10.2/two' },
+    });
+
+    // The first two works were reached; the third was never started.
+    expect(createWorkSpy).toHaveBeenCalledTimes(2);
+    expect(events.some((event) => event.current.position === 3)).toBe(false);
+  });
+
+  it('does not change the sequence of mutations when an observer is attached', async () => {
+    const works = [titledWork('w1', 'One'), titledWork('w2', 'Two')];
+    const chapters = [chapterOf('c1', 'w1')];
+    const series: SeriesImportPlan = [
+      {
+        name: 'Arc Companions',
+        target: { kind: 'proposed', series: proposedSeries() },
+        members: [member('w1', 1), member('w2', 2)],
+      },
+    ];
+
+    const instrument = () => {
+      const log: string[] = [];
+      createWorkSpy.mockImplementation(async (work: WorkEntity) => {
+        log.push(`work:${work.id}`);
+        return { ...work, id: `created-${work.id}` };
+      });
+      createChapterSpy.mockImplementation(async (_chapter: WorkEntity, _relatedWorkId: string, ordinal: number) => {
+        log.push(`chapter:${ordinal}`);
+        return getDefaultWork({ id: 'chapter' });
+      });
+      (mockSeriesService.createSeries as ReturnType<typeof vi.fn>).mockImplementation(async (data) => {
+        log.push('series');
+        return { ...data, id: 'created-series' };
+      });
+      (mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mockImplementation(async (issue) => {
+        log.push(`issue:${issue.workId}`);
+      });
+      return log;
+    };
+
+    const withoutObserver = instrument();
+    await workService.bulkCreateWorks(planOf(works, series, chapters));
+
+    const withObserver = instrument();
+    await workService.bulkCreateWorks(planOf(works, series, chapters), { onProgress: () => {} });
+
+    expect(withObserver).toEqual(withoutObserver);
+    expect(withObserver).toEqual(['work:w1', 'chapter:1', 'series', 'issue:created-w1', 'work:w2', 'issue:created-w2']);
+  });
+
+  it('isolates a throwing observer: every mutation still runs, in the same order, and the run does not fail', async () => {
+    const works = [titledWork('w1', 'One'), titledWork('w2', 'Two')];
+    const chapters = [chapterOf('c1', 'w1')];
+    const series: SeriesImportPlan = [
+      {
+        name: 'Arc Companions',
+        target: { kind: 'proposed', series: proposedSeries() },
+        members: [member('w1', 1), member('w2', 2)],
+      },
+    ];
+
+    // Records the exact sequence of mutations, so the throwing run can be compared against a clean
+    // one. Reset between runs so each run's sequence stands alone.
+    const instrument = () => {
+      const log: string[] = [];
+      createWorkSpy.mockImplementation(async (work: WorkEntity) => {
+        log.push(`work:${work.id}`);
+        return { ...work, id: `created-${work.id}` };
+      });
+      createChapterSpy.mockImplementation(async (_chapter: WorkEntity, _relatedWorkId: string, ordinal: number) => {
+        log.push(`chapter:${ordinal}`);
+        return getDefaultWork({ id: 'chapter' });
+      });
+      (mockSeriesService.createSeries as ReturnType<typeof vi.fn>).mockImplementation(async (data) => {
+        log.push('series');
+        return { ...data, id: 'created-series' };
+      });
+      (mockSeriesService.createIssue as ReturnType<typeof vi.fn>).mockImplementation(async (issue) => {
+        log.push(`issue:${issue.workId}`);
+      });
+      return log;
+    };
+
+    // Baseline: the mutation sequence with no observer at all.
+    const baseline = instrument();
+    await workService.bulkCreateWorks(planOf(works, series, chapters));
+
+    // An observer that throws on every single reading, at every stage of every work.
+    const onProgress = vi.fn(() => {
+      throw new Error('observer boom');
+    });
+    // The throw is caught and logged inside the service, never surfaced; silence it here.
+    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+
+    const withThrowingObserver = instrument();
+    // The run resolves normally: the observer's failure never became an ImportExecutionError.
+    await expect(workService.bulkCreateWorks(planOf(works, series, chapters), { onProgress })).resolves.toBeUndefined();
+
+    // The throwing path was actually exercised — the observer was called and did throw.
+    expect(onProgress).toHaveBeenCalled();
+    // Yet the mutations ran identically to the observer-free run: same set, same order. A throw
+    // before a mutation never prevented it, and a throw during one work never stopped the next.
+    expect(withThrowingObserver).toEqual(baseline);
+    expect(withThrowingObserver).toEqual([
+      'work:w1',
+      'chapter:1',
+      'series',
+      'issue:created-w1',
+      'work:w2',
+      'issue:created-w2',
+    ]);
+    // The failure was handled where it happened — logged, not raised to the caller.
+    expect(consoleSpy).toHaveBeenCalled();
+
+    consoleSpy.mockRestore();
   });
 });

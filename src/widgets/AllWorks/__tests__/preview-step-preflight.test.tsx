@@ -1,12 +1,12 @@
 import { ThemeProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { theme } from '@/src/shared/theme';
-import type { ExistingWorkMatch, ImportIssue, ImportPlan } from '@/src/shared/types';
+import type { ExistingWorkMatch, ImportIssue, ImportPlan, ImportSource } from '@/src/shared/types';
 import { importIdentifierKey } from '@/src/shared/utils/importPreflight';
 import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
@@ -69,13 +69,25 @@ const existing = (workId: string, title: string, { doi = '', isbns = [] as strin
 const doiMatches = (value: string, works: ExistingWorkMatch[]) =>
   new Map([[importIdentifierKey({ basis: 'doi', value }), works]]);
 
-const renderPreview = (props: { plan: ImportPlan; warnings?: ImportIssue[]; onSubmit?: () => void }) => {
+const source: ImportSource = { type: 'onix', filename: 'catalogue.xml' };
+
+const renderPreview = (props: {
+  plan: ImportPlan;
+  warnings?: ImportIssue[];
+  onSubmit?: () => void;
+  source?: ImportSource | null;
+}) => {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   return render(
     <ThemeProvider theme={theme}>
       <QueryClientProvider client={queryClient}>
-        <PreviewStep plan={props.plan} warnings={props.warnings} onSubmit={props.onSubmit ?? vi.fn()} />
+        <PreviewStep
+          plan={props.plan}
+          warnings={props.warnings}
+          source={props.source ?? source}
+          onSubmit={props.onSubmit ?? vi.fn()}
+        />
       </QueryClientProvider>
     </ThemeProvider>,
   );
@@ -101,6 +113,64 @@ describe('PreviewStep preflight', () => {
     renderPreview({ plan: plan([work('w1', { doi: 'https://doi.org/10.1234/one' })]) });
 
     expect(screen.getByText('importPreflight.checking')).toBeInTheDocument();
+    expect(createButton()).toBeDisabled();
+  });
+
+  it('does not offer the ready-to-import phase while the duplicate check is still running', async () => {
+    mocks.findExistingIdentifierMatches.mockReturnValue(new Promise(() => {}));
+
+    renderPreview({ plan: plan([work('w1', { doi: 'https://doi.org/10.1234/one' })]) });
+
+    // The checking phase is the one on screen; the ready phase is the frame *after* it, not now.
+    expect(screen.getByText('importPreflight.checking')).toBeInTheDocument();
+    expect(screen.queryByTestId('import-phase-ready')).not.toBeInTheDocument();
+    expect(screen.queryByText('bulkImport.phase.ready')).not.toBeInTheDocument();
+  });
+
+  it('marks the plan ready to import once the check finds nothing, without busy or spinner semantics', async () => {
+    renderPreview({ plan: plan([work('w1', { doi: 'https://doi.org/10.1234/one' })]) });
+
+    const ready = await screen.findByTestId('import-phase-ready');
+
+    expect(ready).toBeVisible();
+    expect(ready).toHaveTextContent('bulkImport.phase.ready');
+    // A still frame at the confirmation boundary: it does not claim the app is progressing on its
+    // own, so it is neither aria-busy nor accompanied by a spinner.
+    expect(ready).toHaveAttribute('aria-busy', 'false');
+    expect(within(ready).queryByRole('progressbar', { hidden: true })).not.toBeInTheDocument();
+    // It sits beside the preflight summary and the Create button, replacing neither.
+    expect(screen.getByText('importPreflight.summary')).toBeInTheDocument();
+    expect(createButton()).toBeEnabled();
+  });
+
+  it('still marks the plan ready to import when the check raises advisory duplicate findings', async () => {
+    mocks.findExistingIdentifierMatches.mockResolvedValue(
+      doiMatches('https://doi.org/10.1234/shared', [
+        existing('existing-1', 'An Existing Book', { doi: 'https://doi.org/10.1234/shared' }),
+      ]),
+    );
+
+    renderPreview({ plan: plan([work('w1', { title: 'Imported Book', doi: 'https://doi.org/10.1234/shared' })]) });
+
+    await waitFor(() => expect(screen.getByText('importPreflight.potentialDuplicates')).toBeInTheDocument());
+
+    // Findings are advisory and never block: the ready phase appears alongside them, not instead
+    // of them, and the Create button stays enabled.
+    expect(screen.getByTestId('import-phase-ready')).toBeVisible();
+    expect(screen.getByText('importPreflight.potentialDuplicates')).toBeInTheDocument();
+    expect(createButton()).toBeEnabled();
+  });
+
+  it('does not mark the plan ready to import when the check itself fails', async () => {
+    mocks.findExistingIdentifierMatches.mockRejectedValue(new Error('network down'));
+
+    renderPreview({ plan: plan([work('w1', { doi: 'https://doi.org/10.1234/one' })]) });
+
+    await waitFor(() => expect(screen.getByText('importPreflight.failed')).toBeInTheDocument());
+
+    // No ready phase over a failed check, and the existing failure/retry affordance is untouched.
+    expect(screen.queryByTestId('import-phase-ready')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'importPreflight.retry' })).toBeEnabled();
     expect(createButton()).toBeDisabled();
   });
 
@@ -243,14 +313,21 @@ describe('PreviewStep preflight', () => {
 
     await waitFor(() => expect(mocks.bulkCreateWorks).toHaveBeenCalled());
 
-    // The report never reaches the mutation: one argument, and it is the plan itself.
+    // The report never reaches the mutation: the plan is the first argument, and the second is
+    // the progress observer — the plan itself is passed whole, never unpacked.
     expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1);
-    expect(mocks.bulkCreateWorks.mock.calls[0]).toHaveLength(1);
+    expect(mocks.bulkCreateWorks.mock.calls[0]).toHaveLength(2);
     expect(mocks.bulkCreateWorks.mock.calls[0][0]).toBe(importPlan);
+
+    // Success is acknowledged before navigating: the completion state shows first.
+    await waitFor(() => expect(screen.getByText('bulkImport.success.heading')).toBeInTheDocument());
+    expect(onSubmit).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'bulkImport.success.viewWorks' }));
     await waitFor(() => expect(onSubmit).toHaveBeenCalled());
   });
 
-  it('still refuses a second attempt after a failed bulk creation', async () => {
+  it('shows a persistent failure report after a failed bulk creation, with no way to re-run the plan', async () => {
     mocks.bulkCreateWorks.mockRejectedValue(new Error('import failed'));
 
     renderPreview({ plan: plan([work('w1', { doi: 'https://doi.org/10.1234/one' })]) });
@@ -259,11 +336,14 @@ describe('PreviewStep preflight', () => {
 
     await userEvent.click(createButton());
 
-    await waitFor(() => expect(screen.getByText('bulk import did not finish')).toBeInTheDocument());
+    // The failure persists in the modal — it does not vanish with the toast — and carries the
+    // underlying error message.
+    await waitFor(() => expect(screen.getByText('bulkImport.failure.heading')).toBeInTheDocument());
+    expect(screen.getByTestId('import-failure-message')).toHaveTextContent('import failed');
 
-    // Unchanged by the preflight: a partly-executed import is not safe to repeat, and no retry
-    // is offered for it — unlike the preflight, which only reads.
-    expect(createButton()).toBeDisabled();
+    // A partly-executed import is not safe to repeat, so the Create button is gone entirely: there
+    // is no retry/resume affordance and nothing to press a second time.
+    expect(screen.queryByRole('button', { name: 'actions.create' })).not.toBeInTheDocument();
     expect(mocks.bulkCreateWorks).toHaveBeenCalledTimes(1);
   });
 });

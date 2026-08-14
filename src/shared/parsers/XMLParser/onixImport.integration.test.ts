@@ -867,6 +867,118 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.issues).not.toContainEqual(expect.objectContaining({ code: 'onix.processing_failed' }));
   });
 
+  /**
+   * Issue #107 regression, end to end over the real `ContributorService`: the GraphQL transport
+   * answers `GetContributors` with matched identities whose latest works carry zero titles or no
+   * canonical title. The deprecated `work { title }` projection used to make the backend reject
+   * that whole operation, which surfaced as `onix.processing_failed` for a valid file.
+   */
+  it('parses a valid file whose matched contributors lack usable historical-title metadata', async () => {
+    const identity = {
+      lastName: 'Hopkins',
+      firstName: 'Lisa',
+      orcid: null,
+      website: null,
+      updatedAt: '2024-01-01T00:00:00Z',
+    };
+    (graphqlService.query as ReturnType<typeof vi.fn>).mockImplementation(async (document: unknown, variables?: unknown) => {
+      if (operationNameOf(document) !== 'GetContributors') return {};
+
+      const { filter } = variables as { filter: string };
+
+      if (filter !== 'Lisa Hopkins') return { contributors: [] };
+
+      return {
+        contributors: [
+          { ...identity, contributorId: 'zero-titles', fullName: filter, contributions: [{ work: { titles: [] } }] },
+          {
+            ...identity,
+            contributorId: 'no-canonical',
+            fullName: filter,
+            contributions: [{ work: { titles: [{ canonical: false, title: 'Uma Tradução' }] } }],
+          },
+          {
+            ...identity,
+            contributorId: 'with-canonical',
+            fullName: filter,
+            contributions: [
+              {
+                work: {
+                  titles: [
+                    { canonical: false, title: 'Not This One' },
+                    { canonical: true, title: 'A Canonical Book' },
+                  ],
+                },
+              },
+            ],
+          },
+        ],
+      };
+    });
+    const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
+    const parser = new XMLParser(
+      xml,
+      [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
+      licenseOptions,
+      [],
+      new ContributorService(graphqlService),
+      { getInstitutions: async () => [] } as never,
+      languageOptions,
+      currencyOptions,
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('success');
+    expect(result.issues).not.toContainEqual(expect.objectContaining({ code: 'onix.processing_failed' }));
+
+    const [work] = result.data.plan.works;
+    const lisaOptions = Object.values(result.data.contributorsForSelection[work.id]).find(
+      (options) => options[0].fullName === 'Lisa Hopkins',
+    );
+
+    // The create-new default plus all three matched identities; the hint degrades per candidate
+    // instead of the lookup failing for all of them.
+    expect(lisaOptions?.map(({ contributorId, lastContribution }) => [contributorId, lastContribution])).toEqual([
+      [work.contributions[0].contributorId, ''],
+      ['zero-titles', ''],
+      ['no-canonical', ''],
+      ['with-canonical', 'A Canonical Book'],
+    ]);
+
+    // Parsing and lookups stay read-only: nothing was created for this upload.
+    expect(mutations).toEqual([]);
+  });
+
+  it('still fails the parse when the contributor identity lookup genuinely rejects', async () => {
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    (graphqlService.query as ReturnType<typeof vi.fn>).mockRejectedValue(new Error('502 Bad Gateway'));
+    const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
+    const parser = new XMLParser(
+      xml,
+      [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
+      licenseOptions,
+      [],
+      new ContributorService(graphqlService),
+      { getInstitutions: async () => [] } as never,
+      languageOptions,
+      currencyOptions,
+    );
+
+    try {
+      const result = await parser.parse();
+
+      // A transport/server failure is not "no matches": the import must not continue into a
+      // state where it would offer to create duplicates of contributors it could not see.
+      expect(result.status).toBe('failed');
+      expect(result.issues).toContainEqual(expect.objectContaining({ code: 'onix.processing_failed' }));
+      expect(result.data.plan.works).toEqual([]);
+      expect(mutations).toEqual([]);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it('uploads, previews, confirms, and creates the missing series with its issues', async () => {
     const result = await parseUpload([foundations]);
 

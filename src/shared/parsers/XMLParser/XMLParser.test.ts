@@ -335,6 +335,60 @@ describe('XMLParser', () => {
       }
     });
 
+    it('keeps a matched contributor selectable when no latest-contribution hint is available', async () => {
+      // Issue #107: this is the lookup result for a contributor whose historical work has no
+      // canonical title. It used to never exist — the whole GetContributors operation rejected
+      // instead — and that rejection made a valid ONIX file fail before preview.
+      const contributorName = 'David Joseph Example';
+      const hintlessContributor = {
+        id: 'existing-hintless',
+        name: contributorName,
+        fullName: contributorName,
+        firstName: 'David Joseph',
+        lastName: 'Example',
+        orcid: '',
+        website: '',
+        updatedAt: '',
+        lastContributionTitle: '',
+      };
+      vi.mocked(mockContributorService.getContributors).mockResolvedValue([hintlessContributor]);
+      const xml: ExtendedONIXMessageRoot = {
+        ONIXMessage: {
+          Product: lookupProduct({
+            title: 'A valid book',
+            imprintName: imprints[0].label,
+            languageCode: languages[0].value,
+            contributorName,
+          }),
+        },
+      };
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencies,
+      );
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      expect(result.issues.filter(({ code }) => code === 'onix.processing_failed')).toEqual([]);
+
+      const [work] = result.data.plan.works;
+      const [options] = Object.values(result.data.contributorsForSelection[work.id]);
+
+      // The create-new default plus the matched existing identity, hint simply absent.
+      expect(options.map(({ selected, contributorId, lastContribution }) => ({ selected, contributorId, lastContribution }))).toEqual([
+        { selected: true, contributorId: work.contributions[0].contributorId, lastContribution: '' },
+        { selected: false, contributorId: 'existing-hintless', lastContribution: '' },
+      ]);
+      expect(options[1].fullName).toBe(contributorName);
+    });
+
     it('does not query institutions for absent or blank contributor and funding RORs', async () => {
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {

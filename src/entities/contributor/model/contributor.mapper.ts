@@ -11,7 +11,10 @@ export class ContributorDtoMapper implements BaseMapper<ContributorEntity, Contr
   toEntity(dto: ContributorDto): ContributorEntity {
     const { contributorId, fullName, orcid, updatedAt, lastName, firstName, website, contributions = [] } = dto;
 
-    const isLastContributionExists = contributions.length > 0;
+    // The hint is only a disambiguation aid: a historical work may hold zero titles or none
+    // marked canonical, and neither condition may cost the contributor their identity result.
+    const latestWorkTitles = contributions.length > 0 ? (contributions[0].work.titles ?? []) : [];
+    const canonicalTitle = latestWorkTitles.find((title) => title.canonical);
 
     return {
       id: contributorId,
@@ -22,7 +25,7 @@ export class ContributorDtoMapper implements BaseMapper<ContributorEntity, Contr
       fullName,
       firstName: firstName ?? '',
       website: website ?? '',
-      lastContributionTitle: isLastContributionExists ? contributions[0].work.title : '',
+      lastContributionTitle: canonicalTitle?.title ?? '',
     };
   }
 
