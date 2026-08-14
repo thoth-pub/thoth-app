@@ -36,5 +36,8 @@ export { default as EditWorkTitle } from './ui/EditWorkTitle/EditWorkTitle';
 export { default as EditWorkType } from './ui/EditWorkType/EditWorkType';
 export { default as WorkStatusChip } from './ui/WorkStatusChip/WorkStatusChip';
 
+// Model
+export { extractErrorMessage, ImportExecutionError } from './model/import-execution.error';
+
 // Store
 export * from './store/work.store';

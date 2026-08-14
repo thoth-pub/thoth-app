@@ -162,7 +162,8 @@ describe('XMLParse', () => {
       await userEvent.click(preview);
 
       // One plan, chapters and series membership intact, warnings beside it rather than in it.
-      expect(onPreview).toHaveBeenCalledWith(plan, [warning]);
+      // The source (ONIX, and the file's name) travels alongside, never in the plan.
+      expect(onPreview).toHaveBeenCalledWith(plan, [warning], { type: 'onix', filename: 'test.xml' });
       // A warning is not a validation failure, so the upload step never hears about it.
       expect(onValidationFailure).not.toHaveBeenCalled();
     });

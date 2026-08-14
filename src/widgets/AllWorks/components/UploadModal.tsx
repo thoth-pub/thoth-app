@@ -8,7 +8,7 @@ import { Activity, useState } from 'react';
 
 import FullScreenModal from '@/src/features/layout/FullScreenModal/FullScreenModal';
 import { ROUTES } from '@/src/shared/constants';
-import type { ImportIssue, ImportPlan } from '@/src/shared/types';
+import type { ImportIssue, ImportPlan, ImportSource } from '@/src/shared/types';
 import { ContentSection, Step, StepLabel, Stepper, TranslatedContent } from '@/src/shared/ui';
 import { createEmptyImportPlan } from '@/src/shared/utils';
 
@@ -49,17 +49,25 @@ export const UploadModal = (props: UploadModalProps) => {
   // Non-blocking findings from the parse: source metadata the import cannot represent. Kept
   // beside the plan rather than in it — they describe the file, not what will be created.
   const [warnings, setWarnings] = useState<ImportIssue[]>([]);
+  // Importer type and filename, held only so the running display and the failure report can name
+  // the file. Null until a file has been parsed; carries no file contents and never reaches the API.
+  const [source, setSource] = useState<ImportSource | null>(null);
+  // True only while a bulk import is actually running. It is what locks the modal's exits: an
+  // import runs in this tab and is not atomic, so it must not be dismissed out from under itself.
+  const [isImporting, setIsImporting] = useState(false);
 
   const isDataEmpty = plan.works.length === 0 && plan.chapters.length === 0;
 
-  const handlePreview = (plan: ImportPlan, warnings: ImportIssue[]) => {
+  const handlePreview = (plan: ImportPlan, warnings: ImportIssue[], source: ImportSource) => {
     setPlan(plan);
     setWarnings(warnings);
+    setSource(source);
   };
 
   const resetData = () => {
     setPlan(createEmptyImportPlan());
     setWarnings([]);
+    setSource(null);
   };
 
   const handleSubmit = () => {
@@ -73,6 +81,10 @@ export const UploadModal = (props: UploadModalProps) => {
   };
 
   const closeModal = () => {
+    // While a run is in flight the modal cannot be dismissed, so this never fires mid-import; the
+    // guard keeps that true even if a future caller wires a close path that ignores it.
+    if (isImporting) return;
+
     onClose();
     resetData();
   };
@@ -82,6 +94,7 @@ export const UploadModal = (props: UploadModalProps) => {
       title={<TranslatedContent content="bulk upload" />}
       isOpen={isOpen}
       isSubmitHidden
+      isDismissible={!isImporting}
       onClose={closeModal}
     >
       <ContentSection>
@@ -99,7 +112,13 @@ export const UploadModal = (props: UploadModalProps) => {
           <UploadStep onPreview={handlePreview} />
         </Activity>
         <Activity mode={!isDataEmpty ? 'visible' : 'hidden'}>
-          <PreviewStep plan={plan} warnings={warnings} onSubmit={handleSubmit} />
+          <PreviewStep
+            plan={plan}
+            warnings={warnings}
+            source={source}
+            onSubmit={handleSubmit}
+            onRunningChange={setIsImporting}
+          />
         </Activity>
       </ContentSection>
     </FullScreenModal>

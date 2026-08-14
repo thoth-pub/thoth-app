@@ -5,9 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const { mockBulkCreateWorks } = vi.hoisted(() => ({ mockBulkCreateWorks: vi.fn() }));
 
 /**
- * A finished preflight that found nothing, so these tests exercise the confirmation behaviour
- * they were written for. The preflight's own states — checking, failed, retried, and what a
- * finding looks like — are covered against the real hook in `__tests__/preview-step-preflight`.
+ * A finished preflight that found nothing, so these tests exercise the confirmation and execution
+ * behaviour they were written for. The preflight's own states — checking, failed, retried, and
+ * what a finding looks like — are covered against the real hook in `__tests__/preview-step-preflight`.
  */
 const emptyReport = {
   summary: {
@@ -25,6 +25,8 @@ const emptyReport = {
   duplicateFindings: [],
 };
 
+// Only the barrel's hooks are stubbed. `useBulkImportExecution` still runs for real, along with
+// the real ImportExecutionError it reads, which is imported from its own module below.
 vi.mock('@/src/entities/work', () => ({
   // eslint-disable-next-line @eslint-react/hooks-extra/no-unnecessary-use-prefix -- mocking a hook
   useBulkCreateWorks: () => ({ bulkCreateWorks: mockBulkCreateWorks, loading: false }),
@@ -52,17 +54,37 @@ vi.mock('@/src/shared/ui', () => ({
   TableRow: ({ children }: { children: React.ReactNode }) => <tr>{children}</tr>,
   TableCell: ({ children }: { children: React.ReactNode }) => <td>{children}</td>,
   TranslatedContent: ({ content }: { content: string }) => <span>{content}</span>,
-  Typography: ({ children }: { children: React.ReactNode }) => <p>{children}</p>,
+  Typography: ({
+    children,
+    id,
+    'data-testid': testId,
+  }: {
+    children: React.ReactNode;
+    id?: string;
+    'data-testid'?: string;
+  }) => (
+    <p id={id} data-testid={testId}>
+      {children}
+    </p>
+  ),
 }));
 
+import { ImportExecutionError } from '@/src/entities/work/model/import-execution.error';
 import { SeriesType } from '@/src/shared/constants/series';
-import type { ImportIssue, ImportPlan, SeriesImportPlan } from '@/src/shared/types';
+import type {
+  ImportExecutionProgress,
+  ImportIssue,
+  ImportPlan,
+  ImportSource,
+  SeriesImportPlan,
+} from '@/src/shared/types';
 import { getDefaultWork } from '@/src/shared/utils/work';
 
 import { PreviewStep } from './PreviewStep';
 
 describe('PreviewStep', () => {
   const works = [getDefaultWork({ id: 'work-1' })];
+  const source: ImportSource = { type: 'onix', filename: 'catalogue.xml' };
 
   const planOf = (series: SeriesImportPlan = [], chapters = []): ImportPlan => ({ works, chapters, series });
 
@@ -73,6 +95,29 @@ describe('PreviewStep', () => {
     source: { kind: 'onix', productIndex },
   });
 
+  /** A running reading with sensible defaults, so a test only names the fields it cares about. */
+  const progress = (overrides: Partial<ImportExecutionProgress> = {}): ImportExecutionProgress => ({
+    total: 3,
+    completed: 1,
+    current: { position: 2, title: 'Two', reference: '10/two', chapterCount: 0 },
+    stage: 'work',
+    ...overrides,
+  });
+
+  /** A mutation that emits one reading, then stays pending until the returned resolver is called. */
+  const pendingImport = (reading: ImportExecutionProgress) => {
+    let resolveImport: () => void = () => {};
+    mockBulkCreateWorks.mockImplementation(
+      (_plan: ImportPlan, observer: { onProgress?: (p: ImportExecutionProgress) => void }) => {
+        observer.onProgress?.(reading);
+        return new Promise<void>((resolve) => {
+          resolveImport = resolve;
+        });
+      },
+    );
+    return () => resolveImport();
+  };
+
   beforeEach(() => {
     mockBulkCreateWorks.mockReset();
   });
@@ -80,105 +125,186 @@ describe('PreviewStep', () => {
   // The project does not enable vitest globals, so RTL's auto-cleanup does not run.
   afterEach(cleanup);
 
-  const renderStep = (onSubmit: () => void) => render(<PreviewStep plan={planOf()} onSubmit={onSubmit} />);
+  const renderStep = (props: Partial<React.ComponentProps<typeof PreviewStep>> = {}) =>
+    render(<PreviewStep plan={planOf()} source={source} onSubmit={vi.fn()} {...props} />);
 
-  it('does not close or navigate before the import resolves', async () => {
-    let resolveImport: () => void = () => {};
-    mockBulkCreateWorks.mockImplementation(
-      () =>
-        new Promise<void>((resolve) => {
-          resolveImport = resolve;
-        }),
+  it('replaces the preview with a running state and prevents a second submission', async () => {
+    pendingImport(
+      progress({
+        total: 48,
+        completed: 11,
+        current: { position: 12, title: 'Mid', reference: '10/mid', chapterCount: 3 },
+        stage: 'chapters',
+      }),
     );
 
-    const onSubmit = vi.fn();
-    renderStep(onSubmit);
+    renderStep();
 
     await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
 
     await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledTimes(1));
-    // The import is still in flight: the preview must still be on screen.
-    expect(onSubmit).not.toHaveBeenCalled();
 
-    resolveImport();
+    // The running state is on screen, carrying the truthful top-level counts and current context.
+    expect(screen.getByRole('progressbar')).toBeInTheDocument();
+    expect(screen.getByTestId('import-progress-count')).toHaveTextContent('11 / 48');
+    expect(screen.getByTestId('import-current-position')).toHaveTextContent('12 / 48');
+    expect(screen.getByTestId('import-current-title')).toHaveTextContent('Mid');
+    expect(screen.getByTestId('import-current-stage')).toHaveTextContent('bulkImport.stage.chapters');
+    expect(screen.getByTestId('import-remaining')).toHaveTextContent('36');
+    expect(screen.getByText('bulkImport.running.keepOpen')).toBeInTheDocument();
 
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
+    // The Create button is gone, so there is nothing to press a second time.
+    expect(screen.queryByRole('button', { name: 'actions.create' })).not.toBeInTheDocument();
   });
 
-  it('closes and navigates once the import succeeds', async () => {
+  it('shows a success state before navigating, and continues to Works only when acknowledged', async () => {
     mockBulkCreateWorks.mockResolvedValue(undefined);
 
     const onSubmit = vi.fn();
-    renderStep(onSubmit);
+    renderStep({ onSubmit });
 
     await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
 
-    await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
-  });
-
-  it('cannot invoke the import a second time against the same plan after a failure', async () => {
-    mockBulkCreateWorks.mockRejectedValue(new Error('work creation failed'));
-
-    const onSubmit = vi.fn();
-    renderStep(onSubmit);
-
-    const create = screen.getByRole('button', { name: 'actions.create' });
-
-    await userEvent.click(create);
-    await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledTimes(1));
-
-    // The plan was built against the series Thoth had before the attempt, so a group still
-    // marked `proposed` may name a series the failed run already created. Re-confirming would
-    // create it twice; the file has to be parsed again instead.
-    await waitFor(() => expect(create).toBeDisabled());
-    expect(screen.getByText('bulk import did not finish')).toBeInTheDocument();
-
-    await userEvent.click(create);
-    expect(mockBulkCreateWorks).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.getByText('bulkImport.success.heading')).toBeInTheDocument());
+    // The completion state is shown first; navigation waits for the user to acknowledge it.
     expect(onSubmit).not.toHaveBeenCalled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'bulkImport.success.viewWorks' }));
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the preview open when the import fails, without an unhandled rejection', async () => {
+  it('keeps a persistent, contextual failure report after the mutation rejects, with no retry and no navigation', async () => {
     const unhandled = vi.fn();
     process.on('unhandledRejection', unhandled);
 
-    mockBulkCreateWorks.mockRejectedValue(new Error('work creation failed'));
+    mockBulkCreateWorks.mockImplementation(
+      (_plan: ImportPlan, observer: { onProgress?: (p: ImportExecutionProgress) => void }) => {
+        observer.onProgress?.(progress());
+        return Promise.reject(
+          new ImportExecutionError('Imprint "Unknown" not found', {
+            total: 3,
+            completed: 1,
+            current: { position: 2, title: 'Two', reference: '10/two', chapterCount: 0 },
+            stage: 'work',
+          }),
+        );
+      },
+    );
 
     const onSubmit = vi.fn();
-    renderStep(onSubmit);
+    renderStep({ onSubmit });
 
     await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
 
-    await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('bulkImport.failure.heading'));
+    // The original API message survives, attached to its execution context.
+    expect(screen.getByTestId('import-failure-message')).toHaveTextContent('Imprint "Unknown" not found');
+    expect(screen.getByTestId('import-failure-position')).toHaveTextContent('2 / 3');
+    expect(screen.getByTestId('import-failure-completed')).toHaveTextContent('1');
+    expect(screen.getByTestId('import-failure-not-started')).toHaveTextContent('1');
+    expect(screen.getByText('bulkImport.failure.partialWarning')).toBeInTheDocument();
 
-    // A bulk import is not atomic, so the user keeps the preview rather than being sent to the
-    // works list with no idea what was created.
+    // No navigation, no retry/resume, and no Create button to re-run the same non-idempotent plan.
     expect(onSubmit).not.toHaveBeenCalled();
-    expect(screen.getByRole('button', { name: 'actions.create' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /retry|resume/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'actions.create' })).not.toBeInTheDocument();
 
+    // The rejection is handled internally, so nothing escapes as an unhandled rejection.
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(unhandled).not.toHaveBeenCalled();
-
     process.off('unhandledRejection', unhandled);
   });
 
-  it('marks works headed for a series the import will create', () => {
-    render(
-      <PreviewStep
-        plan={planOf([
-          {
-            name: 'Arc Companions',
-            target: {
-              kind: 'proposed',
-              series: { name: 'Arc Companions', imprintId: 'imprint-1', type: SeriesType.enum.BookSeries },
-            },
-            // Membership is a reference to the plan's own work.
-            members: [{ workId: works[0].id, orderNumber: 1 }],
-          },
-        ])}
-        onSubmit={vi.fn()}
-      />,
+  it('registers a beforeunload guard while running and removes it once the run ends', async () => {
+    const addSpy = vi.spyOn(window, 'addEventListener');
+    const removeSpy = vi.spyOn(window, 'removeEventListener');
+
+    const finishImport = pendingImport(progress());
+
+    renderStep();
+
+    await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+    await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledTimes(1));
+
+    expect(addSpy).toHaveBeenCalledWith('beforeunload', expect.any(Function));
+    expect(removeSpy).not.toHaveBeenCalledWith('beforeunload', expect.any(Function));
+
+    finishImport();
+    await waitFor(() => expect(screen.getByText('bulkImport.success.heading')).toBeInTheDocument());
+
+    expect(removeSpy).toHaveBeenCalledWith('beforeunload', expect.any(Function));
+
+    addSpy.mockRestore();
+    removeSpy.mockRestore();
+  });
+
+  it('tells the parent when the run starts and stops, so the modal can lock its exits', async () => {
+    const finishImport = pendingImport(progress());
+    const onRunningChange = vi.fn();
+
+    renderStep({ onRunningChange });
+
+    await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+    await waitFor(() => expect(onRunningChange).toHaveBeenCalledWith(true));
+
+    finishImport();
+    await waitFor(() => expect(screen.getByText('bulkImport.success.heading')).toBeInTheDocument());
+
+    // The last thing the parent hears is that the run is over.
+    expect(onRunningChange.mock.calls.at(-1)?.[0]).toBe(false);
+  });
+
+  it('locks the modal synchronously with the Create press, before the first mutation runs', async () => {
+    // A single ordered log of both signals: when the parent is told the run is running, and when
+    // the mutation is actually dispatched. Their relative order is the whole point of the test.
+    const order: string[] = [];
+    const onRunningChange = vi.fn((running: boolean) => order.push(`running:${running}`));
+    mockBulkCreateWorks.mockImplementation(
+      (_plan: ImportPlan, observer: { onProgress?: (p: ImportExecutionProgress) => void }) => {
+        order.push('mutation');
+        observer.onProgress?.(progress());
+        // Stays pending, so the run sits in its running state for the assertions.
+        return new Promise<void>(() => {});
+      },
     );
+
+    renderStep({ onRunningChange });
+
+    // Ignore the mount reading; watch only what pressing Create sets in motion.
+    order.length = 0;
+    await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+    // The lock is the very first thing the click produces, and it lands before the mutation is
+    // dispatched. Were the lock left to the running-state effect, the mutation would be recorded
+    // first and the modal would still be dismissible for that render — this ordering forbids it.
+    expect(order[0]).toBe('running:true');
+    expect(order[1]).toBe('mutation');
+  });
+
+  it('does nothing when Create is pressed before a source is known', async () => {
+    mockBulkCreateWorks.mockResolvedValue(undefined);
+
+    renderStep({ source: null });
+
+    await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+
+    expect(mockBulkCreateWorks).not.toHaveBeenCalled();
+  });
+
+  it('marks works headed for a series the import will create', () => {
+    renderStep({
+      plan: planOf([
+        {
+          name: 'Arc Companions',
+          target: {
+            kind: 'proposed',
+            series: { name: 'Arc Companions', imprintId: 'imprint-1', type: SeriesType.enum.BookSeries },
+          },
+          // Membership is a reference to the plan's own work.
+          members: [{ workId: works[0].id, orderNumber: 1 }],
+        },
+      ]),
+    });
 
     expect(screen.getByText('Arc Companions')).toBeInTheDocument();
     expect(screen.getByText('will be created')).toBeInTheDocument();
@@ -187,34 +313,19 @@ describe('PreviewStep', () => {
   it("lists the plan's chapters alongside its works", () => {
     const chapter = { ...getDefaultWork({ id: 'chapter-1' }), relationId: 'work-1' };
 
-    render(<PreviewStep plan={{ works, chapters: [chapter], series: [] }} onSubmit={vi.fn()} />);
+    render(<PreviewStep plan={{ works, chapters: [chapter], series: [] }} source={source} onSubmit={vi.fn()} />);
 
     expect(screen.getAllByRole('row')).toHaveLength(3);
   });
 
   describe('warnings', () => {
-    const series: SeriesImportPlan = [
-      {
-        name: 'Arc Companions',
-        target: {
-          kind: 'proposed',
-          series: { name: 'Arc Companions', imprintId: 'imprint-1', type: SeriesType.enum.BookSeries },
-        },
-        members: [{ workId: works[0].id, orderNumber: 1 }],
-      },
-    ];
-
-    it('shows a warning without standing in the way of confirming', async () => {
-      mockBulkCreateWorks.mockResolvedValue(undefined);
-
-      const onSubmit = vi.fn();
-      const plan = planOf(series);
-
+    it('shows a warning without standing in the way of confirming', () => {
       render(
         <PreviewStep
-          plan={plan}
+          plan={planOf()}
+          source={source}
           warnings={[warning('Series "Editorial Studies" will not be created', 2)]}
-          onSubmit={onSubmit}
+          onSubmit={vi.fn()}
         />,
       );
 
@@ -222,18 +333,13 @@ describe('PreviewStep', () => {
       expect(screen.getByText('Series "Editorial Studies" will not be created')).toBeInTheDocument();
       // The preview is the acknowledgement: nothing to tick, nothing to dismiss.
       expect(screen.getByRole('button', { name: 'actions.create' })).not.toBeDisabled();
-
-      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
-
-      // The plan is the payload, exactly as the preview received it — and a warning is not in it.
-      await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledWith(plan));
-      await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     });
 
     it('shows several warnings in the order they were given', () => {
       render(
         <PreviewStep
           plan={planOf()}
+          source={source}
           warnings={[warning('second product', 2), warning('fourth product', 4)]}
           onSubmit={vi.fn()}
         />,
@@ -245,7 +351,7 @@ describe('PreviewStep', () => {
     });
 
     it('renders nothing extra when there is nothing to warn about', () => {
-      render(<PreviewStep plan={planOf()} warnings={[]} onSubmit={vi.fn()} />);
+      render(<PreviewStep plan={planOf()} source={source} warnings={[]} onSubmit={vi.fn()} />);
 
       expect(screen.queryByText('warnings')).not.toBeInTheDocument();
       expect(screen.queryAllByRole('listitem')).toHaveLength(0);

@@ -56,6 +56,38 @@
     "drop": "Drop an ONIX/XML or CSV file here",
     "instructions": "Drop an ONIX/XML or CSV file here or browse to select one"
   },
+  "bulkImport": {
+    "identifier": "Identifier",
+    "stageLabel": "Stage",
+    "stage": {
+      "work": "Creating the work",
+      "chapters": "Creating chapters",
+      "series": "Attaching series membership"
+    },
+    "running": {
+      "heading": "Import in progress",
+      "processed": "books fully processed",
+      "currentBook": "Currently processing book",
+      "starting": "Starting import…",
+      "remaining": "not yet started",
+      "keepOpen": "Keep this page open until the import finishes. Closing or reloading it can interrupt the import partway, and any books already created will not be undone."
+    },
+    "success": {
+      "heading": "Import complete",
+      "processed": "books fully processed",
+      "viewWorks": "view works"
+    },
+    "failure": {
+      "heading": "Import stopped",
+      "stoppedAt": "Stopped while processing book",
+      "processedBefore": "Fully processed before the failure",
+      "notStarted": "Not started",
+      "error": "Error",
+      "partialWarning": "The book above may be partially created — it was not rolled back. This import is not atomic, and re-running the same file is not a safe retry: open the Works list and resolve the partial import before trying again.",
+      "copyReport": "copy error report",
+      "copied": "Report copied"
+    }
+  },
   "title": "Title",
   "updated at": "Updated at",
   "type": "type",

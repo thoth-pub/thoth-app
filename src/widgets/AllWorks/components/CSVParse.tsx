@@ -9,7 +9,7 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { CSVParser, TranslateFunction } from '@/src/shared/parsers';
-import { ContributorsForSelection, ImportIssue, ImportPlan } from '@/src/shared/types';
+import { ContributorsForSelection, ImportIssue, ImportPlan, ImportSource } from '@/src/shared/types';
 import { CircularProgress } from '@/src/shared/ui';
 import { createEmptyImportPlan, isCsv } from '@/src/shared/utils';
 
@@ -20,7 +20,7 @@ type CSVParseProps = {
   file: File;
   imprints: FormFieldOption[];
   serieses: SeriesEntity[];
-  onPreview?: (plan: ImportPlan, warnings: ImportIssue[]) => void;
+  onPreview?: (plan: ImportPlan, warnings: ImportIssue[], source: ImportSource) => void;
   onValidationFailure?: (issues: ImportIssue[]) => void;
 };
 
@@ -84,7 +84,9 @@ export const CSVParse = (props: CSVParseProps) => {
   }, [file, isFileUploaded, isCsvFile]);
 
   const handleSubmit = (resolvedPlan: ImportPlan) => {
-    onPreview?.(resolvedPlan, warnings);
+    // The importer type and filename travel to the preview beside the plan, never in it: they
+    // are what the running display and any failure report name the source by.
+    onPreview?.(resolvedPlan, warnings, { type: 'csv', filename: file.name });
   };
 
   return (
