@@ -7,7 +7,7 @@ export type ContributorDto = Pick<
   Contributor,
   'contributorId' | 'fullName' | 'orcid' | 'updatedAt' | 'lastName' | 'website' | 'firstName'
 > & {
-  contributions: { work: { title: string } }[];
+  contributions: { work: { titles: { canonical: boolean; title: string }[] } }[];
 };
 
 export type ContributionId = string;

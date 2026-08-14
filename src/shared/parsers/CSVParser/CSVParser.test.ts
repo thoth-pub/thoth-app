@@ -1390,6 +1390,52 @@ describe('CSVParser', () => {
       expect(selectionOptions[0][1].selected).toBe(false);
     });
 
+    it('keeps a matched contributor selectable when no latest-contribution hint is available', async () => {
+      // Issue #107 regression for the shared lookup path: a matched identity whose historical
+      // work has no usable canonical title arrives with an empty hint, and the row still parses.
+      const hintlessContributor = {
+        id: 'contributor-hintless',
+        fullName: 'Jane Doe',
+        firstName: 'Jane',
+        lastName: 'Doe',
+        orcid: '',
+        website: '',
+        lastContributionTitle: '',
+      };
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+      });
+      const result = await makeParser(makeFile(csv), {
+        contributorResults: [hintlessContributor],
+      }).parse();
+      expect(result.status).toBe('success');
+      const workId = result.data.plan.works[0].id;
+      const selectionOptions = Object.values(result.data.contributorsForSelection[workId]);
+      expect(selectionOptions[0]).toHaveLength(2);
+      expect(selectionOptions[0][1].contributorId).toBe('contributor-hintless');
+      expect(selectionOptions[0][1].fullName).toBe('Jane Doe');
+      expect(selectionOptions[0][1].lastContribution).toBe('');
+    });
+
+    it('fails the parse when the contributor identity lookup genuinely rejects', async () => {
+      const getContributors = vi.fn().mockRejectedValue(new Error('502 Bad Gateway'));
+      const csv = buildCsv({
+        ...BASE,
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'AUTHOR',
+      });
+      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+      // A transport/server failure must stay a failure — not become "no existing contributors",
+      // which would invite creating duplicates of contributors the lookup could not see.
+      expect(result.status).toBe('failed');
+      expect(result.issues).toContainEqual(expect.objectContaining({ code: 'csv.parsing_failed' }));
+      expect(result.data.plan.works).toEqual([]);
+    });
+
     it('performs one lookup per distinct contributor filter and meaningful ROR across rows', async () => {
       const firstRor = 'https://ror.org/03vek6s52';
       const secondRor = 'https://ror.org/05dxps055';
