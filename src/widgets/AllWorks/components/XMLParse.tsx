@@ -11,10 +11,10 @@ import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { XMLParser } from '@/src/shared/parsers';
 import { ContributorsForSelection, ImportIssue, ImportPlan, ImportSource } from '@/src/shared/types';
-import { CircularProgress } from '@/src/shared/ui';
 import { createEmptyImportPlan } from '@/src/shared/utils';
 
 import { ContributorsSelection } from './ContributorsSelection';
+import { ImportPhaseStatus } from './ImportPhaseStatus';
 
 type XMLParseProps = {
   file: File;
@@ -106,7 +106,9 @@ export const XMLParse = (props: XMLParseProps) => {
   return (
     <>
       <Activity mode={isValidatingFile ? 'visible' : 'hidden'}>
-        <CircularProgress />
+        {/* Validating and parsing ONIX is indeterminate — no measurable numerator — so this labels
+            the phase without inventing a percentage. */}
+        <ImportPhaseStatus content="bulkImport.phase.parsingOnix" data-testid="import-phase-parsing" />
       </Activity>
       {!isDataEmpty && (
         <ContributorsSelection contributors={multipleFoundedContributors} plan={plan} onPreview={handleSubmit} />

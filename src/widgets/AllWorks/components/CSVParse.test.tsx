@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -120,6 +120,37 @@ describe('CSVParse', () => {
     await waitFor(() => expect(onValidationFailure).toHaveBeenCalledWith([error]));
     expect(onPreview).not.toHaveBeenCalled();
     expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+  });
+
+  describe('parsing phase', () => {
+    it('shows a truthful CSV parsing phase while validating, with no fabricated percentage', async () => {
+      let resolveParse: (result: unknown) => void = () => {};
+      mockParse.mockImplementation(() => new Promise((resolve) => (resolveParse = resolve)));
+
+      renderParse(vi.fn(), vi.fn());
+
+      const phase = await screen.findByTestId('import-phase-parsing');
+      expect(phase).toBeVisible();
+      expect(phase).toHaveTextContent('bulkImport.phase.parsingCsv');
+      expect(phase).toHaveAttribute('aria-busy', 'true');
+      // Parsing is indeterminate: no percentage is claimed anywhere in the phase.
+      expect(screen.queryByText(/\d+\s*%/)).not.toBeInTheDocument();
+
+      await act(async () => {
+        resolveParse({ status: 'success', data: { plan: planWith(), contributorsForSelection: {} }, issues: [] });
+      });
+    });
+
+    it('does not present the contributor step as background progress once parsing is done', async () => {
+      mockParse.mockResolvedValue({ status: 'success', data: { plan: planWith(), contributorsForSelection: {} }, issues: [] });
+
+      renderParse(vi.fn(), vi.fn());
+
+      // The interactive step is reachable, and the parsing phase is no longer shown over it.
+      const preview = await screen.findByRole('button', { name: 'preview' });
+      expect(preview).toBeEnabled();
+      expect(screen.getByTestId('import-phase-parsing')).not.toBeVisible();
+    });
   });
 
   it('reports nothing when a clean file parses', async () => {

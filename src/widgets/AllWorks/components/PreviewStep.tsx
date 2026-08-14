@@ -121,7 +121,7 @@ export const PreviewStep = (props: PreviewStepProps) => {
   // then either the success summary (acknowledged before navigating) or the failure report. There
   // is deliberately no path back to the Create button from a terminal state.
   if (hasStarted) {
-    return <ImportExecutionStatus state={state} onViewWorks={onSubmit} />;
+    return <ImportExecutionStatus state={state} plan={plan} onViewWorks={onSubmit} />;
   }
 
   return (
