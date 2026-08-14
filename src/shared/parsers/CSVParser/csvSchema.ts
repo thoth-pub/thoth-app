@@ -7,19 +7,25 @@ export type CsvFieldDisposition = 'imported' | 'compatibility-only';
 export type CsvRequiredErrorRule = 'fieldRequired';
 
 /**
- * How a field treats accidental leading/trailing whitespace, chosen by what the value *is*:
+ * How a field treats accidental leading/trailing whitespace.
  *
- * - `canonicalise` — the value names something (an identifier, an enum member, an imprint, a
- *   date): boundary whitespace is never part of it, so it is trimmed once during canonical-row
- *   construction. The trimmed value is then what every validator sees *and* what the ImportPlan
- *   carries, closing the historical gap where a rule validated a trimmed copy while the raw value
- *   flowed on into the plan.
- * - `report` — the value is an identity Thoth must not silently rewrite (a contributor's name):
- *   boundary whitespace or hidden characters are reported as an actionable preflight error
- *   instead, so the identity that is looked up is always exactly the identity that was validated.
+ * - `canonicalise` — permitted only where an existing authoritative Thoth contract already
+ *   performs the transformation, so preflight introduces no repair of its own: the DOI (whose
+ *   `canonicaliseDoi` contract trims before canonicalising) and the two series fields (which
+ *   `parseSeries` has always trimmed). The canonical value is then what every validator sees
+ *   *and* what the ImportPlan carries.
+ * - `report` — everywhere else that boundary whitespace or hidden characters change what the
+ *   value *is* (dates, imprint, license, ISBNs, currencies, languages, ORCID, ROR, contributor
+ *   names): the defect is reported as one actionable preflight error, never silently trimmed
+ *   away, so no value becomes valid merely because preflight repaired it and no identity is
+ *   rewritten before lookup.
  *
- * Fields with no policy (titles, abstracts, biographies, free prose) are never trimmed or
- * rewritten: publisher content is imported as supplied.
+ * Enum-backed fields (work type/status, roles, location platform) need no policy: the existing
+ * alias normalisation already resolves a whitespace-wrapped supported alias to its canonical
+ * member, exactly as on every previous release.
+ *
+ * Fields with no policy and no alias normalisation (titles, abstracts, biographies, free prose)
+ * are never trimmed or rewritten: publisher content is imported as supplied.
  */
 export type CsvBoundaryPolicy = 'canonicalise' | 'report';
 
@@ -96,7 +102,7 @@ const workFields = defineFields([
     aliases: [{ header: 'publisher', caseInsensitive: true }],
     validation: 'imprint',
     requiredError: 'fieldRequired',
-    boundary: 'canonicalise',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parseImprint / parseRow',
     destination: 'WorkEntity.imprintId / publisherName',
@@ -152,7 +158,7 @@ const workFields = defineFields([
     header: 'publication_date',
     key: 'publicationDate',
     required: false,
-    boundary: 'canonicalise',
+    boundary: 'report',
     preflight: 'isoDate',
     disposition: 'imported',
     consumer: 'parseRow',
@@ -162,7 +168,7 @@ const workFields = defineFields([
     header: 'withdrawn_date',
     key: 'withdrawnDate',
     required: false,
-    boundary: 'canonicalise',
+    boundary: 'report',
     preflight: 'isoDate',
     disposition: 'imported',
     consumer: 'parseRow',
@@ -254,7 +260,7 @@ const workFields = defineFields([
     key: 'license',
     required: false,
     validation: 'license',
-    boundary: 'canonicalise',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parseLicenseField',
     destination: 'WorkEntity.license',
@@ -322,7 +328,6 @@ const contributorFieldGroup = [
     keySuffix: 'Role',
     validation: 'contributorRole',
     normalise: { kind: 'enum', values: ContributionType },
-    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parseContributors',
     destination: 'WorkContribution.type',
@@ -340,7 +345,7 @@ const contributorFieldGroup = [
     constant: 'ORCID',
     headerSuffix: 'orcid',
     keySuffix: 'Orcid',
-    boundary: 'canonicalise',
+    boundary: 'report',
     preflight: 'orcid',
     disposition: 'imported',
     consumer: 'parseContributors',
@@ -375,7 +380,7 @@ const contributorFieldGroup = [
     constant: 'AFFILIATION_INSTITUTION_ROR',
     headerSuffix: 'affiliation_institution_ror',
     keySuffix: 'AffiliationInstitutionRor',
-    boundary: 'canonicalise',
+    boundary: 'report',
     preflight: 'ror',
     disposition: 'imported',
     notes: 'Canonicalised to the https://ror.org/ resolver form — the form institutions carry — during canonical-row construction.',
@@ -390,7 +395,7 @@ const trailingFields = defineFields([
     key: 'originalLanguage',
     required: false,
     validation: 'language',
-    boundary: 'canonicalise',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parseLanguages',
     destination: 'WorkEntity.languages[] (ORIGINAL)',
@@ -400,7 +405,7 @@ const trailingFields = defineFields([
     key: 'translatedFromLanguage',
     required: false,
     validation: 'language',
-    boundary: 'canonicalise',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parseLanguages',
     destination: 'WorkEntity.languages[] (TRANSLATED_FROM)',
@@ -410,7 +415,7 @@ const trailingFields = defineFields([
     key: 'translatedIntoLanguage',
     required: false,
     validation: 'language',
-    boundary: 'canonicalise',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parseLanguages',
     destination: 'WorkEntity.languages[] (TRANSLATED_INTO)',
@@ -461,7 +466,7 @@ const trailingFields = defineFields([
     key: 'publicationPaperbackIsbn',
     required: false,
     validation: 'isbn',
-    boundary: 'canonicalise',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.isbn (PAPERBACK)',
@@ -471,7 +476,7 @@ const trailingFields = defineFields([
     key: 'publicationPaperbackPrice1CurrencyCode',
     required: false,
     validation: 'currency',
-    boundary: 'canonicalise',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.prices[].currencyCode (PAPERBACK)',
@@ -490,7 +495,7 @@ const trailingFields = defineFields([
     key: 'publicationHardbackIsbn',
     required: false,
     validation: 'isbn',
-    boundary: 'canonicalise',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.isbn (HARDBACK)',
@@ -500,7 +505,7 @@ const trailingFields = defineFields([
     key: 'publicationHardbackPrice1CurrencyCode',
     required: false,
     validation: 'currency',
-    boundary: 'canonicalise',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.prices[].currencyCode (HARDBACK)',
@@ -519,7 +524,7 @@ const trailingFields = defineFields([
     key: 'publicationPdfIsbn',
     required: false,
     validation: 'isbn',
-    boundary: 'canonicalise',
+    boundary: 'report',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.isbn (PDF)',
@@ -546,7 +551,6 @@ const trailingFields = defineFields([
     required: false,
     validation: 'locationPlatform',
     normalise: { kind: 'enum', values: LocationPlatform },
-    boundary: 'canonicalise',
     disposition: 'imported',
     consumer: 'parsePublication',
     destination: 'PublicationEntity.locations[].locationPlatform (PDF)',

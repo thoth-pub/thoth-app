@@ -1506,9 +1506,14 @@ describe('CSVParser', () => {
       });
       const result = await makeParser(makeFile(csv), { getInstitutions }).parse();
 
-      expect(result.status).toBe('success');
+      // Whitespace where a ROR would go is a boundary defect the preflight reports — the old
+      // behaviour of quietly treating it as blank hid a formatting fault the user cannot see.
+      expect(result.status).toBe('failed');
+      expect(errorMessages(result)).toEqual([
+        'errors.csvFieldWhitespace:{"field":"contribution_1_affiliation_institution_ror","row":1}',
+      ]);
       expect(getInstitutions).not.toHaveBeenCalled();
-      expect(result.data.plan.works[0].contributions[0].affiliations).toEqual([]);
+      expect(result.data.plan.works).toEqual([]);
     });
 
     it('accepts institution name for compatibility without using it as an implicit lookup filter', async () => {
@@ -1596,7 +1601,9 @@ describe('CSVParser', () => {
       expect(result.data.plan.works[0].contributions[0].affiliations).toEqual([]);
     });
 
-    it('trims an explicit ROR before looking up its affiliation', async () => {
+    it('reports a whitespace-wrapped ROR instead of silently trimming it before lookup', async () => {
+      // The API's `Ror::from_str` anchors its pattern and accepts no boundary whitespace, so the
+      // preflight reports the defect rather than repairing a value the API contract rejects.
       const ror = 'https://ror.org/03vek6s52';
       const getInstitutions = vi.fn().mockResolvedValue([{ id: 'institution', name: 'Harvard University', ror }]);
       const csv = buildCsv({
@@ -1609,15 +1616,13 @@ describe('CSVParser', () => {
       });
       const result = await makeParser(makeFile(csv), { getInstitutions }).parse();
 
-      expect(result.status).toBe('success');
-      expect(getInstitutions).toHaveBeenCalledTimes(1);
-      expect(getInstitutions).toHaveBeenCalledWith(0, appConfig.data.maxItemsPerRequestLimit, ror);
-      expect(result.data.plan.works[0].contributions[0].affiliations[0]).toMatchObject({
-        institutionId: 'institution',
-        institutionName: 'Harvard University',
-        rorId: ror,
-        position: 'Professor',
-      });
+      expect(result.status).toBe('failed');
+      // One actionable finding: the residual value is a valid ROR, so no derivative
+      // "invalid ROR" error is added on top of the whitespace report.
+      expect(errorMessages(result)).toEqual([
+        'errors.csvFieldWhitespace:{"field":"contribution_1_affiliation_institution_ror","row":1}',
+      ]);
+      expect(getInstitutions).not.toHaveBeenCalled();
     });
   });
 

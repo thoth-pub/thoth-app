@@ -1,22 +1,19 @@
 import { canonicaliseDoi, canonicaliseRor, orcidValidation } from '../../utils/validations';
 import { normaliseImportedPlainText } from '../XMLParser/importedPlainText';
 import type { TranslateFunction } from './CSVParser';
-import { type CsvFieldDefinition, type CsvRow, csvSchema, normaliseCsvValue } from './csvSchema';
+import { type CsvFieldDefinition, type CsvFieldKey, type CsvRow, csvSchema, normaliseCsvValue } from './csvSchema';
 
 /**
  * The deterministic CSV preflight rules: the checks that can be answered from the canonical rows
  * alone, with no contributor/institution lookup and no mutation, implemented against the same
- * authoritative contracts the rest of the application uses (`canonicaliseDoi`, `orcidValidation`,
- * `rorValidation`, the backend markup subset).
+ * authoritative contracts the rest of the application uses (`canonicaliseDoi`, `canonicaliseRor`,
+ * `orcidValidation`, the existing plain-text representability helper).
  *
  * `csvSchema` names which rule applies to which field; this module only implements the rule
  * bodies, exactly as `getCsvConfig` implements the `csv-file-validator` rule names. Every finding
  * is independent and actionable: a rule reads one canonical cell and never a value another rule
  * has already rejected, so one broken value cannot fan out into derivative noise.
  */
-
-/** What one preflight rule found wrong with one canonical cell; `undefined` means the cell passed. */
-export type CsvPreflightFinding = { message: string };
 
 /**
  * A complete `YYYY-MM-DD` calendar date and nothing else. `dayjs`'s default parser is deliberately
@@ -46,8 +43,19 @@ export const isStrictIsoDate = (value: string): boolean => {
 // eslint-disable-next-line no-control-regex -- control characters are exactly what this detects
 const HIDDEN_CHARACTERS = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200D\u2060\uFEFF]/;
 
+// eslint-disable-next-line no-control-regex -- control characters are exactly what this removes
+const HIDDEN_CHARACTERS_EVERYWHERE = /[\u0000-\u0008\u000B-\u001F\u007F-\u009F\u200B-\u200D\u2060\uFEFF]/g;
+
 export const hasUnsafeBoundary = (value: string): boolean =>
   value.length > 0 && (value !== value.trim() || HIDDEN_CHARACTERS.test(value));
+
+/**
+ * The value with the whitespace/hidden-character defect removed — never imported, never shown;
+ * used only to ask whether anything would *still* be wrong once the user fixes the reported
+ * boundary defect. That question is what keeps one stray tab from producing both a whitespace
+ * error and a derivative "invalid identifier" error for the same keystroke.
+ */
+const withoutBoundaryDefect = (value: string): string => value.replace(HIDDEN_CHARACTERS_EVERYWHERE, '').trim();
 
 /**
  * The tag shape the backend's `looks_like_markup` matches (`thoth-api/src/markup/mod.rs`). It is
@@ -57,36 +65,29 @@ export const hasUnsafeBoundary = (value: string): boolean =>
 const LOOKS_LIKE_MARKUP = /<\/?[A-Za-z][^>]*>/;
 
 /**
- * The JATS elements `validate_jats_subset` accepts for abstracts and biographies, case-sensitive,
- * exactly as the backend lists them. Anything else — including every HTML spelling such as `<b>`,
- * `<i>`, `<em>`, `<br>`, `<div>` — is rejected by the API before any AST is built.
+ * The two markup structures this preflight rejects, and the only two.
+ *
+ * Both are named production regressions of this import path — the exact structures behind the
+ * "Abstracts and biographies cannot contain nested block elements inside paragraphs" and
+ * line-break API failures that motivated issue #110:
+ *
+ * - a line-break element (`<br>`, `<break>`): Thoth's abstract/biography model cannot hold a
+ *   line break in any input format, so the element is unrepresentable wherever it appears;
+ * - a block element (`p`, `list`, `list-item`) opening directly inside an open `<p>`.
+ *
+ * Deliberately NOT here: any general list of which elements Thoth accepts. That rulebook lives in
+ * the backend and only there; content this scan passes may still be refused by the API, and that
+ * remains the API's call. Keeping the check this narrow is what keeps it from becoming a second,
+ * drifting copy of backend markup policy.
  */
-const JATS_ABSTRACT_ELEMENTS = new Set([
-  'p',
-  'bold',
-  'italic',
-  'underline',
-  'strike',
-  'monospace',
-  'sup',
-  'sub',
-  'sc',
-  'list',
-  'list-item',
-  'ext-link',
-  'inline-formula',
-  'tex-math',
-  'email',
-  'uri',
-]);
+const LINE_BREAK_ELEMENTS = new Set(['br', 'break']);
 
-/** Block elements that may not open inside an open `<p>` (`validate_jats_subset`'s nesting rule). */
-const JATS_BLOCK_ELEMENTS = new Set(['p', 'list', 'list-item']);
+const BLOCK_ELEMENTS = new Set(['p', 'list', 'list-item']);
 
 /** One tag: optional `/` for closing, a name (namespace prefix allowed), optional `/>` self-close. */
 const TAG_PATTERN = /<(\/?)([A-Za-z][^\s/>]*)(?:[^>"']|"[^"]*"|'[^']*')*?(\/?)>/g;
 
-/** The local part of a possibly namespaced tag name, as the backend's `local_tag_name` resolves it. */
+/** The local part of a possibly namespaced tag name, as the backend resolves one. */
 const localTagName = (name: string): string => name.split(':').pop() ?? name;
 
 export type ImportedCsvTextProblem =
@@ -95,19 +96,17 @@ export type ImportedCsvTextProblem =
   | { kind: 'lineBreak' };
 
 /**
- * Whether one CSV abstract/biography cell can survive the mutation it is headed for.
+ * Whether one CSV abstract/biography cell exhibits one of the known deterministic structures the
+ * mutation it is headed for is certain to reject.
  *
- * The mutation path is fixed and known: content with no markup is sent as `PLAIN_TEXT`, where the
- * API turns any lone newline inside a paragraph into a `Break` it then rejects; content with
- * markup is sent as `JATS_XML`, where `validate_jats_subset` rejects any element outside the
- * abstract whitelist and any block element nested inside a paragraph. Those three deterministic
- * rejections — and only those — are detected here, so they surface in preflight instead of
- * failing at the API partway through a bulk import.
+ * Tag-free content is judged by the existing plain-text representability helper: the API's
+ * plain-text parser turns a lone newline inside a paragraph into a line break it then rejects,
+ * while blank-line paragraph separation is exactly what it stores. Tag-bearing content is scanned
+ * only for the two named structures of {@link LINE_BREAK_ELEMENTS} / {@link BLOCK_ELEMENTS}.
  *
- * Deliberately fail-open beyond that: this is a mirror of three named backend checks, not a
- * second markup implementation. Content these checks pass may still be refused by the API, and
- * that remains the API's call. Nothing is rewritten either — the cell the user wrote is the cell
- * that is validated and, when valid, imported.
+ * Everything else is deliberately left to the API — this is a regression check for structures
+ * already seen to break real imports, not an app-side markup validator. Nothing is rewritten:
+ * the cell the user wrote is the cell that is validated and, when valid, imported.
  */
 export const checkImportedCsvText = (content: string): ImportedCsvTextProblem | undefined => {
   if (!LOOKS_LIKE_MARKUP.test(content)) {
@@ -116,6 +115,11 @@ export const checkImportedCsvText = (content: string): ImportedCsvTextProblem | 
     return normaliseImportedPlainText('', content).kind === 'unrepresentable' ? { kind: 'lineBreak' } : undefined;
   }
 
+  /**
+   * Every element currently open, not only the tracked ones: whether a block element sits
+   * *directly* inside a `<p>` depends on what opened in between, so `<p><bold><list>` must not
+   * read as `list` directly inside `p`.
+   */
   const openElements: string[] = [];
 
   for (const match of content.matchAll(TAG_PATTERN)) {
@@ -129,9 +133,9 @@ export const checkImportedCsvText = (content: string): ImportedCsvTextProblem | 
       continue;
     }
 
-    if (!JATS_ABSTRACT_ELEMENTS.has(tag)) return { kind: 'unsupportedElement', tag };
+    if (LINE_BREAK_ELEMENTS.has(tag)) return { kind: 'unsupportedElement', tag };
 
-    if (JATS_BLOCK_ELEMENTS.has(tag) && openElements[openElements.length - 1] === 'p') {
+    if (BLOCK_ELEMENTS.has(tag) && openElements[openElements.length - 1] === 'p') {
       return { kind: 'nestedBlock' };
     }
 
@@ -143,14 +147,17 @@ export const checkImportedCsvText = (content: string): ImportedCsvTextProblem | 
 
 /**
  * One canonical cell: the exact string that is validated and, if the file passes, planned and
- * imported. Canonicalisation happens once, before any rule runs:
+ * imported. Canonicalisation happens once, before any rule runs, and only ever re-applies a
+ * transformation an existing authoritative contract already performs:
  *
- * - boundary-`canonicalise` fields lose accidental leading/trailing whitespace, so a rule can no
- *   longer pass a trimmed copy while the raw value flows into the plan;
+ * - boundary-`canonicalise` fields (DOI, the series fields) lose accidental leading/trailing
+ *   whitespace, exactly as `canonicaliseDoi` and `parseSeries` always have;
  * - enum-backed fields resolve their supported aliases to the canonical member, as before;
  * - a valid DOI or ROR in any form the Thoth contract accepts becomes its canonical resolver
  *   URL. An invalid one is left exactly as supplied — canonicalisation never manufactures a
  *   plausible identifier out of a broken one — and the matching rule reports it.
+ *
+ * Boundary-`report` fields are never repaired here: their defects are findings, not input.
  */
 export const toCanonicalCsvValue = (field: CsvFieldDefinition, value: string): string => {
   const bounded = field.boundary === 'canonicalise' ? value.trim() : value;
@@ -168,47 +175,39 @@ export const toCanonicalCsvValue = (field: CsvFieldDefinition, value: string): s
 };
 
 /**
- * Applies one schema-named preflight rule to one canonical cell.
+ * Applies one schema-named preflight rule to one value.
  *
  * Every rule skips the empty string: each of these fields is optional, and required-ness belongs
- * to the `csv-file-validator` layer. Because the cell is already canonical, no rule trims or
- * rewrites; what is judged here is what will be imported.
+ * to the `csv-file-validator` layer. No rule trims or rewrites; what is judged is what will be
+ * imported (or, for a value with an already-reported boundary defect, what would remain of it).
  */
 const evaluateRule = (
   field: CsvFieldDefinition,
   value: string,
   row: number,
   t: TranslateFunction,
-): CsvPreflightFinding | undefined => {
+): string | undefined => {
   if (field.preflight === undefined) return undefined;
 
   if (value.length === 0) return undefined;
 
   switch (field.preflight) {
     case 'isoDate':
-      return isStrictIsoDate(value)
-        ? undefined
-        : { message: t('errors.csvFieldNotIsoDate', { field: field.header, value, row }) };
+      return isStrictIsoDate(value) ? undefined : t('errors.csvFieldNotIsoDate', { field: field.header, value, row });
     case 'doi':
-      return canonicaliseDoi(value).length > 0
-        ? undefined
-        : { message: t('errors.csvDoiNotValid', { value, row }) };
+      return canonicaliseDoi(value).length > 0 ? undefined : t('errors.csvDoiNotValid', { value, row });
     case 'orcid':
       return orcidValidation.safeParse(value).success
         ? undefined
-        : { message: t('errors.csvOrcidNotValid', { field: field.header, value, row }) };
+        : t('errors.csvOrcidNotValid', { field: field.header, value, row });
     case 'ror':
       return canonicaliseRor(value).length > 0
         ? undefined
-        : { message: t('errors.csvRorNotValid', { field: field.header, value, row }) };
+        : t('errors.csvRorNotValid', { field: field.header, value, row });
     case 'integer':
-      return Number.isNaN(parseInt(value))
-        ? { message: t('errors.csvFieldNotNumber', { field: field.header, row }) }
-        : undefined;
+      return Number.isNaN(parseInt(value)) ? t('errors.csvFieldNotNumber', { field: field.header, row }) : undefined;
     case 'decimal':
-      return Number.isNaN(parseFloat(value))
-        ? { message: t('errors.csvFieldNotNumber', { field: field.header, row }) }
-        : undefined;
+      return Number.isNaN(parseFloat(value)) ? t('errors.csvFieldNotNumber', { field: field.header, row }) : undefined;
     case 'importedText': {
       const problem = checkImportedCsvText(value);
 
@@ -216,34 +215,76 @@ const evaluateRule = (
 
       switch (problem.kind) {
         case 'unsupportedElement':
-          return { message: t('errors.csvTextUnsupportedMarkup', { field: field.header, row, tag: problem.tag }) };
+          return t('errors.csvTextUnsupportedMarkup', { field: field.header, row, tag: problem.tag });
         case 'nestedBlock':
-          return { message: t('errors.csvTextNestedBlock', { field: field.header, row }) };
+          return t('errors.csvTextNestedBlock', { field: field.header, row });
         case 'lineBreak':
-          return { message: t('errors.csvTextLineBreak', { field: field.header, row }) };
+          return t('errors.csvTextLineBreak', { field: field.header, row });
       }
     }
   }
 };
 
+/** What the preflight needs to know beyond the rows themselves: the exact-match imprint labels. */
+export type CsvPreflightContext = { imprintLabels: readonly string[] };
+
+export type CsvRowPreflightFinding = {
+  message: string;
+  /**
+   * Set when this row/field also has a `csv-file-validator` finding that says nothing the
+   * boundary finding does not already say — the value fails the validator *only because* of the
+   * boundary defect reported here. The parser drops that validator finding, so one stray space
+   * reads as one actionable error rather than two phrasings of the same keystroke.
+   */
+  suppressValidatorFinding?: CsvFieldKey;
+};
+
 /**
  * Every deterministic finding for one canonical row, in schema field order — which is the order
  * the template lays the columns out in, so within a row the user reads findings left to right.
+ *
+ * Cascade suppression for boundary defects works in both directions. A field whose only problem
+ * is boundary whitespace gets exactly one finding: the rule check runs on the value with the
+ * defect removed, so no derivative "invalid identifier" is added — and where the (untrimmed)
+ * file validator would reject the same cell for the same reason, that finding is marked for
+ * suppression. A field whose value would still be invalid after the defect is fixed reports both
+ * findings, because they are two independent corrections the user has to make.
  */
-export const collectRowPreflightFindings = (row: CsvRow, rowNumber: number, t: TranslateFunction): string[] => {
-  const messages: string[] = [];
+export const collectRowPreflightFindings = (
+  row: CsvRow,
+  rowNumber: number,
+  t: TranslateFunction,
+  context: CsvPreflightContext,
+): CsvRowPreflightFinding[] => {
+  const findings: CsvRowPreflightFinding[] = [];
 
   for (const field of csvSchema) {
     const value = row[field.key];
 
     if (field.boundary === 'report' && hasUnsafeBoundary(value)) {
-      messages.push(t('errors.csvFieldWhitespace', { field: field.header, row: rowNumber }));
+      const residual = withoutBoundaryDefect(value);
+
+      // The imprint validator matches labels exactly, without trimming, so it would report this
+      // cell a second time for the same stray whitespace. Suppress that duplicate only when the
+      // defect is the whole story — an imprint that is also simply wrong keeps both findings.
+      const boundaryDefectOnly = field.validation === 'imprint' && context.imprintLabels.includes(residual);
+
+      findings.push({
+        message: t('errors.csvFieldWhitespace', { field: field.header, row: rowNumber }),
+        ...(boundaryDefectOnly ? { suppressValidatorFinding: field.key } : {}),
+      });
+
+      const independentDefect = evaluateRule(field, residual, rowNumber, t);
+
+      if (independentDefect) findings.push({ message: independentDefect });
+
+      continue;
     }
 
-    const finding = evaluateRule(field, value, rowNumber, t);
+    const message = evaluateRule(field, value, rowNumber, t);
 
-    if (finding) messages.push(finding.message);
+    if (message) findings.push({ message });
   }
 
-  return messages;
+  return findings;
 };

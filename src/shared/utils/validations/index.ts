@@ -146,9 +146,13 @@ const rorIdentifierPattern = /^0[a-hjkmnp-z0-9]{6}\d{2}$/;
  * `https://ror.org/…` URL, so a bare identifier that is never canonicalised can pass a shape
  * check and still match no institution. Canonicalising first means the value that is validated
  * is the value that is looked up and imported.
+ *
+ * Exact parity with `Ror::from_str`, which anchors its pattern at both ends: boundary whitespace
+ * is not accepted here either. A value the API parser would reject is not quietly repaired into
+ * one it would accept — whether whitespace is tolerable is its caller's policy, not this one's.
  */
 export const canonicaliseRor = (value: string): string => {
-  const identifier = value.trim().replace(rorResolverPattern, '');
+  const identifier = value.replace(rorResolverPattern, '');
 
   return rorIdentifierPattern.test(identifier) ? `${appConfig.validations.rorPrefix}${identifier}` : '';
 };

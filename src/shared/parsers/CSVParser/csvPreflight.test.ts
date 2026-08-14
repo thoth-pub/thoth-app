@@ -4,6 +4,7 @@ import { ContributorService } from '@/src/entities/contributor';
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { licenseOptions } from '@/src/shared/constants/formFields';
+import { canonicaliseRor } from '@/src/shared/utils/validations';
 
 import CSVParser from './CSVParser';
 import { getCsvConfig } from './getCsvConfig';
@@ -170,6 +171,177 @@ describe('CSV preflight: structural trust', () => {
     expect(result.status).toBe('failed');
     expect(result.issues).toEqual([FILE_LEVEL_FAILURE]);
   });
+
+  it('fails file-level on an unquoted delimiter instead of silently truncating the split cell', async () => {
+    // "War, Peace" without quotes parses as five cells against a four-column header. Mapping by
+    // header position would plan title="War" and discard " Peace" — silent metadata truncation.
+    const { parser, spies } = makeParser(
+      makeFile('imprint,work_type,work_status,title\nMy Publisher,MONOGRAPH,ACTIVE,War, Peace'),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toEqual([FILE_LEVEL_FAILURE]);
+    expect(result.data.plan.works).toHaveLength(0);
+    expect(spies.getContributors).not.toHaveBeenCalled();
+    expect(spies.getInstitutions).not.toHaveBeenCalled();
+  });
+
+  it('fails file-level on a too-short row instead of synthesizing its missing cells', async () => {
+    const { parser, spies } = makeParser(
+      makeFile('imprint,work_type,work_status,title\nMy Publisher,MONOGRAPH,ACTIVE'),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toEqual([FILE_LEVEL_FAILURE]);
+    expect(spies.getContributors).not.toHaveBeenCalled();
+    expect(spies.getInstitutions).not.toHaveBeenCalled();
+  });
+
+  it('fails file-level when two source columns resolve to the same canonical field', async () => {
+    // `publisher` is an alias of `imprint`: with both present there is no honest answer to which
+    // column holds the value, and last-header-wins would silently discard one of them.
+    const { parser } = makeParser(
+      makeFile('publisher,imprint,work_type,work_status,title\nA,My Publisher,MONOGRAPH,ACTIVE,Book'),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toEqual([FILE_LEVEL_FAILURE]);
+  });
+
+  it('fails file-level on a literally duplicated canonical header', async () => {
+    const { parser } = makeParser(
+      makeFile('imprint,imprint,work_type,work_status,title\nMy Publisher,Other,MONOGRAPH,ACTIVE,Book'),
+    );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.issues).toEqual([FILE_LEVEL_FAILURE]);
+  });
+
+  it('still allows duplicate unknown compatibility columns, which are ignored either way', async () => {
+    const { parser } = makeParser(
+      makeFile('imprint,work_type,work_status,title,custom,custom\nMy Publisher,MONOGRAPH,ACTIVE,Book,x,y'),
+    );
+
+    expect((await parser.parse()).status).toBe('success');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// canonicaliseRor: exact parity with the API's Ror::from_str
+// ---------------------------------------------------------------------------
+
+describe('canonicaliseRor', () => {
+  it('canonicalises the forms Ror::from_str accepts', () => {
+    expect(canonicaliseRor('03vek6s52')).toBe('https://ror.org/03vek6s52');
+    expect(canonicaliseRor('ror.org/03vek6s52')).toBe('https://ror.org/03vek6s52');
+    expect(canonicaliseRor('https://ror.org/03vek6s52')).toBe('https://ror.org/03vek6s52');
+    expect(canonicaliseRor('HTTPS://WWW.ROR.ORG/03vek6s52')).toBe('https://ror.org/03vek6s52');
+  });
+
+  it('rejects what Ror::from_str rejects, including boundary whitespace — no silent trim', () => {
+    expect(canonicaliseRor(' 03vek6s52')).toBe('');
+    expect(canonicaliseRor('03vek6s52 ')).toBe('');
+    expect(canonicaliseRor('not-a-ror')).toBe('');
+    expect(canonicaliseRor('3vek6s52')).toBe('');
+    expect(canonicaliseRor('')).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Boundary whitespace: reported, not repaired
+// ---------------------------------------------------------------------------
+
+describe('CSV preflight: boundary whitespace policy', () => {
+  it('does not let a whitespace-wrapped date become valid by trimming', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, publication_date: ' 2026-07-22' }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    // Exactly one finding: the residual date is valid, so no derivative format error is added.
+    expect(errorMessages(result)).toEqual([
+      'errors.csvFieldWhitespace:{"field":"publication_date","row":1}',
+    ]);
+  });
+
+  it('reports a trailing-whitespace date the same way', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, withdrawn_date: '2026-07-22 ' }])));
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvFieldWhitespace:{"field":"withdrawn_date","row":1}',
+    ]);
+  });
+
+  it('reports both findings when fixing the whitespace would still leave an invalid date', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, publication_date: ' 22.07.26' }])));
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvFieldWhitespace:{"field":"publication_date","row":1}',
+      'errors.csvFieldNotIsoDate:{"field":"publication_date","value":"22.07.26","row":1}',
+    ]);
+  });
+
+  it('reports a whitespace-wrapped imprint once, without the derivative options error', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, imprint: ' My Publisher' }])));
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual(['errors.csvFieldWhitespace:{"field":"imprint","row":1}']);
+  });
+
+  it('keeps both findings for an imprint that is wrong beyond its whitespace', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, imprint: ' No Such Publisher' }])));
+
+    const result = await parser.parse();
+    const messages = errorMessages(result);
+
+    expect(messages).toHaveLength(2);
+    expect(messages[0]).toContain('csvFieldNotValidOptions'); // the validator's finding, first
+    expect(messages[1]).toBe('errors.csvFieldWhitespace:{"field":"imprint","row":1}');
+  });
+
+  it('reports a whitespace-wrapped ORCID once, without a derivative invalid-ORCID error', async () => {
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          {
+            ...BASE,
+            contribution_1_first_name: 'A',
+            contribution_1_surname: 'B',
+            contribution_1_orcid: '0000-0002-1825-0097 ',
+          },
+        ]),
+      ),
+    );
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvFieldWhitespace:{"field":"contribution_1_orcid","row":1}',
+    ]);
+  });
+
+  it('reports both findings when the ORCID would still be malformed after the whitespace fix', async () => {
+    const { parser } = makeParser(
+      makeFile(
+        buildCsv([
+          { ...BASE, contribution_1_first_name: 'A', contribution_1_surname: 'B', contribution_1_orcid: ' 0000-0002' },
+        ]),
+      ),
+    );
+
+    expect(errorMessages(await parser.parse())).toEqual([
+      'errors.csvFieldWhitespace:{"field":"contribution_1_orcid","row":1}',
+      'errors.csvOrcidNotValid:{"field":"contribution_1_orcid","value":"0000-0002","row":1}',
+    ]);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -276,10 +448,25 @@ describe('CSV preflight: DOI', () => {
 // ---------------------------------------------------------------------------
 
 describe('CSV preflight: identifiers and whitespace', () => {
-  it('canonicalises an ISBN with a trailing tab so the validated value is the planned value', async () => {
+  it('reports an ISBN with a trailing tab: the authoritative ISBN contract does not trim', async () => {
+    // One actionable finding, not two: the file validator trims before checking, so it passes
+    // this cell, and the residual ISBN is valid, so no derivative "invalid ISBN" is added. The
+    // raw value can also no longer be validated in trimmed form and then planned raw — the
+    // boundary error blocks the import until the cell itself is fixed.
     const { parser } = makeParser(
       makeFile(buildCsv([{ ...BASE, publication_paperback_isbn: '978-3-16-148410-0\t' }])),
     );
+
+    const result = await parser.parse();
+
+    expect(result.status).toBe('failed');
+    expect(errorMessages(result)).toEqual([
+      'errors.csvFieldWhitespace:{"field":"publication_paperback_isbn","row":1}',
+    ]);
+  });
+
+  it('accepts a clean valid ISBN and plans it exactly as supplied', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, publication_paperback_isbn: '978-3-16-148410-0' }])));
 
     const result = await parser.parse();
 
@@ -483,12 +670,20 @@ describe('CSV preflight: text representability', () => {
     ]);
   });
 
-  it('rejects markup outside the JATS abstract subset, naming the offending tag', async () => {
-    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, short_abstract: '<p>Read <b>this</b></p>' }])));
+  it('rejects a line-break element, the known unrepresentable markup regression', async () => {
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, short_abstract: '<p>Read<br>this</p>' }])));
 
     expect(errorMessages(await parser.parse())).toEqual([
-      'errors.csvTextUnsupportedMarkup:{"field":"short_abstract","row":1,"tag":"b"}',
+      'errors.csvTextUnsupportedMarkup:{"field":"short_abstract","row":1,"tag":"br"}',
     ]);
+  });
+
+  it('leaves markup it does not recognise to the API instead of keeping a second rulebook', async () => {
+    // `<b>` is not in Thoth's JATS subset, but which elements are is backend policy: preflight
+    // checks only the named regression structures, so this passes and the API stays the judge.
+    const { parser } = makeParser(makeFile(buildCsv([{ ...BASE, short_abstract: '<p>Read <b>this</b></p>' }])));
+
+    expect((await parser.parse()).status).toBe('success');
   });
 
   it('rejects the known nested-block regression: a block element inside a paragraph', async () => {

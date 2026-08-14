@@ -157,15 +157,38 @@ export class CSVParser {
       // that the preflight rules validate and that a successful parse plans and imports.
       const csvParseResult = await CSVFileValidator<CsvValidatorRow>(canonicalFile, this.csvConfig);
 
-      // The file validator numbers its rows in more than one way and reports header problems
-      // that belong to no data row; `toValidatorIssues` normalises both onto this parser's own
-      // row numbering.
-      const validatorIssues = toValidatorIssues(csvParseResult.inValidData, this.csvConfig);
-
       // App-owned deterministic rules over the same canonical rows. An earlier validator finding
       // never suppresses these: they read different fields, so each is independently actionable.
+      // The reverse suppression does exist, and only for boundary defects: a cell the validator
+      // rejects *solely because of* stray whitespace already reported by the boundary rule keeps
+      // the one actionable finding rather than two phrasings of the same keystroke.
+      const context = { imprintLabels: this.imprints.map(({ label }) => label) };
+      const suppressedCells = new Set<string>();
+
       rows.forEach((row, index) =>
-        collectRowPreflightFindings(row, index + 1, this.t).forEach((message) => this.pushIssue(index + 1, message)),
+        collectRowPreflightFindings(row, index + 1, this.t, context).forEach(
+          ({ message, suppressValidatorFinding }) => {
+            this.pushIssue(index + 1, message);
+
+            if (suppressValidatorFinding) suppressedCells.add(`${index + 1}:${suppressValidatorFinding}`);
+          },
+        ),
+      );
+
+      // The file validator numbers its rows in more than one way and reports header problems
+      // that belong to no data row; `toValidatorIssues` normalises both onto this parser's own
+      // row numbering. A cell finding names its column, which — the canonical file being in
+      // schema order — is the schema position of the field, so it can be matched against the
+      // boundary-suppression set built above.
+      const validatorIssues = toValidatorIssues(
+        csvParseResult.inValidData.filter(({ rowIndex, columnIndex }) => {
+          if (rowIndex === undefined || columnIndex === undefined) return true;
+
+          const key = csvSchema[columnIndex - 1]?.key;
+
+          return key === undefined || !suppressedCells.has(`${rowIndex - 1}:${key}`);
+        }),
+        this.csvConfig,
       );
 
       // Series identity and numbering need no network either, so their findings belong in the
@@ -946,13 +969,15 @@ export class CSVParser {
   /**
    * Reads the source file into the one canonical representation everything downstream shares.
    *
-   * Trustworthy means Papa Parse read the bytes into rows without a structural complaint (broken
-   * quoting, inconsistent structure) and at least one of the canonical template columns was
-   * recognised in the header, after the usual alias and ordering normalisation. Only then are
-   * cell values worth judging: each is canonicalised once by `toCanonicalCsvValue`, and those
-   * exact strings feed the file validator, every preflight rule, and — when everything passes —
-   * the ImportPlan itself. Delimiter handling is unchanged: any delimiter Papa Parse can detect
-   * unambiguously is rewritten into the canonical comma-delimited form, as it always was.
+   * Trustworthy means all of: Papa Parse read the bytes into rows without a structural
+   * complaint (broken quoting); every data row has exactly the header row's width, so no cell
+   * has spilled across columns or gone missing; no two source columns resolve to the same
+   * canonical field after alias normalisation; and at least one canonical template column was
+   * recognised in the header. Only then are cell values worth judging: each is canonicalised
+   * once by `toCanonicalCsvValue`, and those exact strings feed the file validator, every
+   * preflight rule, and — when everything passes — the ImportPlan itself. Delimiter handling is
+   * unchanged: any delimiter Papa Parse can detect unambiguously is rewritten into the canonical
+   * comma-delimited form, as it always was.
    *
    * An untrustworthy source reports `unreadable` and is never guessed at: fabricating hundreds
    * of row findings from misidentified columns would bury the one problem the user can fix.
@@ -971,14 +996,41 @@ export class CSVParser {
 
         const [headerRow, ...dataRows] = parsed.data;
 
-        const normalizedHeaders = headerRow.map(normaliseCsvHeader);
-
-        const headerIndex = new Map<string, number>(normalizedHeaders.map((h, i) => [h, i]));
-
-        if (!csvSchema.some(({ header }) => headerIndex.has(header))) {
+        // A row wider or narrower than its own header is structural corruption — most often an
+        // unquoted delimiter inside a value. Mapping such a row by header positions would
+        // silently truncate the split cell and swallow the spilled remainder, so the source is
+        // untrustworthy as a whole: no cell of it is guessed at, validated, or planned.
+        if (dataRows.some((row) => row.length !== headerRow.length)) {
           resolve({ kind: 'unreadable' });
           return;
         }
+
+        const normalizedHeaders = headerRow.map(normaliseCsvHeader);
+
+        // Two source columns resolving to the same canonical field — `imprint` twice, or
+        // `publisher` alongside `imprint` — leave no honest answer to which column holds the
+        // value. Last-one-wins would silently discard a column the user typed, so the ambiguity
+        // is structural too.
+        const schemaHeaders = new Set<string>(csvSchema.map(({ header }) => header));
+        const seenSchemaHeaders = new Set<string>();
+
+        for (const header of normalizedHeaders) {
+          if (!schemaHeaders.has(header)) continue;
+
+          if (seenSchemaHeaders.has(header)) {
+            resolve({ kind: 'unreadable' });
+            return;
+          }
+
+          seenSchemaHeaders.add(header);
+        }
+
+        if (seenSchemaHeaders.size === 0) {
+          resolve({ kind: 'unreadable' });
+          return;
+        }
+
+        const headerIndex = new Map<string, number>(normalizedHeaders.map((h, i) => [h, i]));
 
         const rows = dataRows.map(
           (row) =>
