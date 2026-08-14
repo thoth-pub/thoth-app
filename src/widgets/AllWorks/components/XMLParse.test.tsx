@@ -1,5 +1,5 @@
 import type { ONIXMessageRoot } from '@5stones/onix/dist/interfaces';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -135,6 +135,31 @@ describe('XMLParse', () => {
         />,
       );
     };
+
+    it('shows a truthful ONIX parsing phase while validating, with no fabricated percentage', async () => {
+      mockValidateXml.mockResolvedValue({ status: 'success', data: parsedOnixData });
+      let resolveParse: (result: unknown) => void = () => {};
+      mockParse.mockImplementation(() => new Promise((resolve) => (resolveParse = resolve)));
+
+      render(
+        <XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={vi.fn()} onPreview={vi.fn()} />,
+      );
+
+      const phase = await screen.findByTestId('import-phase-parsing');
+      expect(phase).toBeVisible();
+      expect(phase).toHaveTextContent('bulkImport.phase.parsingOnix');
+      expect(phase).toHaveAttribute('aria-busy', 'true');
+      // Validating and parsing ONIX is indeterminate: no percentage is claimed.
+      expect(screen.queryByText(/\d+\s*%/)).not.toBeInTheDocument();
+
+      await act(async () => {
+        resolveParse({
+          status: 'success',
+          data: { plan: { works: [work], chapters: [], series: [] }, contributorsForSelection: {} },
+          issues: [],
+        });
+      });
+    });
 
     it('carries the plan, its chapters and its warnings through to the preview', async () => {
       const chapter = { ...getDefaultWork({ id: 'chapter-1' }), relationId: work.id };

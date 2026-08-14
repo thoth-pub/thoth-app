@@ -83,8 +83,33 @@
       "processedBefore": "Fully processed before the failure",
       "notStarted": "Not started",
       "error": "Error",
-      "partialWarning": "The book above may be partially created — it was not rolled back. This import is not atomic, and re-running the same file is not a safe retry: open the Works list and resolve the partial import before trying again.",
-      "copyReport": "copy error report",
+      "partialWarning": "The book above may be partially created — it was not rolled back. This import is not atomic, and re-running the same file is not a safe retry: open the Works list and resolve the partial import before trying again."
+    },
+    "phase": {
+      "parsingCsv": "Parsing CSV…",
+      "parsingOnix": "Parsing ONIX…",
+      "ready": "Ready to import"
+    },
+    "ledger": {
+      "heading": "Per-book status",
+      "columns": {
+        "position": "#",
+        "title": "Title",
+        "identifier": "Identifier",
+        "status": "Status",
+        "stage": "Stage"
+      },
+      "status": {
+        "pending": "Pending",
+        "importing": "Importing",
+        "completed": "Completed",
+        "failed": "Failed",
+        "notAttempted": "Not attempted"
+      }
+    },
+    "report": {
+      "copy": "Copy import report",
+      "download": "Download report",
       "copied": "Report copied"
     }
   },

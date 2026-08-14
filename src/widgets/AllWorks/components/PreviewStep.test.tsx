@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -78,7 +78,7 @@ import type {
   ImportSource,
   SeriesImportPlan,
 } from '@/src/shared/types';
-import { getDefaultWork } from '@/src/shared/utils/work';
+import { getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
 import { PreviewStep } from './PreviewStep';
 
@@ -157,6 +157,23 @@ describe('PreviewStep', () => {
     expect(screen.queryByRole('button', { name: 'actions.create' })).not.toBeInTheDocument();
   });
 
+  it('drops the ready-to-import phase the moment the run starts, replaced by the running state', async () => {
+    pendingImport(progress());
+
+    renderStep();
+
+    // The ready phase stands at the confirmation boundary before anything runs.
+    expect(screen.getByTestId('import-phase-ready')).toHaveTextContent('bulkImport.phase.ready');
+
+    await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+    await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledTimes(1));
+
+    // It is gone with the rest of the preview; the running state is now the authoritative
+    // "importing" phase, so there is no ready phase lingering beside it.
+    expect(screen.queryByTestId('import-phase-ready')).not.toBeInTheDocument();
+    expect(screen.getByText('bulkImport.running.keepOpen')).toBeInTheDocument();
+  });
+
   it('shows a success state before navigating, and continues to Works only when acknowledged', async () => {
     mockBulkCreateWorks.mockResolvedValue(undefined);
 
@@ -168,6 +185,8 @@ describe('PreviewStep', () => {
     await waitFor(() => expect(screen.getByText('bulkImport.success.heading')).toBeInTheDocument());
     // The completion state is shown first; navigation waits for the user to acknowledge it.
     expect(onSubmit).not.toHaveBeenCalled();
+    // The terminal success state carries no leftover ready phase.
+    expect(screen.queryByTestId('import-phase-ready')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'bulkImport.success.viewWorks' }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -203,6 +222,8 @@ describe('PreviewStep', () => {
     expect(screen.getByTestId('import-failure-completed')).toHaveTextContent('1');
     expect(screen.getByTestId('import-failure-not-started')).toHaveTextContent('1');
     expect(screen.getByText('bulkImport.failure.partialWarning')).toBeInTheDocument();
+    // The stopped terminal state carries no leftover ready phase.
+    expect(screen.queryByTestId('import-phase-ready')).not.toBeInTheDocument();
 
     // No navigation, no retry/resume, and no Create button to re-run the same non-idempotent plan.
     expect(onSubmit).not.toHaveBeenCalled();
@@ -316,6 +337,57 @@ describe('PreviewStep', () => {
     render(<PreviewStep plan={{ works, chapters: [chapter], series: [] }} source={source} onSubmit={vi.fn()} />);
 
     expect(screen.getAllByRole('row')).toHaveLength(3);
+  });
+
+  describe('session ledger', () => {
+    const titled = (title: string) => [{ ...getDefaultTitle(), canonical: true, title, fullTitle: title }];
+    const worksOf = (count: number) =>
+      Array.from({ length: count }, (_, index) =>
+        getDefaultWork({ id: `w${index + 1}`, titles: titled(`Book ${index + 1}`) }),
+      );
+    const ledgerStatus = (position: number) => screen.getByTestId(`ledger-status-${position}`);
+
+    it('shows and advances the per-book ledger as progress readings arrive, agreeing with the summary', async () => {
+      let observer: { onProgress?: (p: ImportExecutionProgress) => void } = {};
+      mockBulkCreateWorks.mockImplementation(
+        (_plan: ImportPlan, obs: { onProgress?: (p: ImportExecutionProgress) => void }) => {
+          observer = obs;
+          obs.onProgress?.({
+            total: 3,
+            completed: 0,
+            current: { position: 1, title: 'Book 1', chapterCount: 0 },
+            stage: 'work',
+          });
+          // Stays pending, so the run sits in its running state for the assertions.
+          return new Promise<void>(() => {});
+        },
+      );
+
+      render(<PreviewStep plan={{ works: worksOf(3), chapters: [], series: [] }} source={source} onSubmit={vi.fn()} />);
+
+      await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+      await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalled());
+
+      // First reading: book 1 in flight, the rest not yet started.
+      expect(ledgerStatus(1)).toHaveTextContent('bulkImport.ledger.status.importing');
+      expect(ledgerStatus(2)).toHaveTextContent('bulkImport.ledger.status.pending');
+      expect(ledgerStatus(3)).toHaveTextContent('bulkImport.ledger.status.pending');
+
+      // Advancing to book 2 marks only the proven prior book completed; the summary agrees.
+      act(() =>
+        observer.onProgress?.({
+          total: 3,
+          completed: 1,
+          current: { position: 2, title: 'Book 2', chapterCount: 0 },
+          stage: 'work',
+        }),
+      );
+
+      expect(ledgerStatus(1)).toHaveTextContent('bulkImport.ledger.status.completed');
+      expect(ledgerStatus(2)).toHaveTextContent('bulkImport.ledger.status.importing');
+      expect(ledgerStatus(3)).toHaveTextContent('bulkImport.ledger.status.pending');
+      expect(screen.getByTestId('import-current-position')).toHaveTextContent('2 / 3');
+    });
   });
 
   describe('warnings', () => {

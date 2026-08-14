@@ -34,13 +34,13 @@ export type ImportExecutionState =
       current: ImportExecutionWorkContext | null;
       stage: ImportExecutionStage | null;
     }
-  | { phase: 'succeeded'; source: ImportSource; summary: ImportExecutionSummary }
+  | { phase: 'succeeded'; source: ImportSource; summary: ImportExecutionSummary; occurredAt: string }
   | { phase: 'failed'; source: ImportSource; failure: ImportExecutionFailure; occurredAt: string };
 
 type ImportExecutionAction =
   | { type: 'start'; source: ImportSource; total: number }
   | { type: 'progress'; progress: ImportExecutionProgress }
-  | { type: 'succeed' }
+  | { type: 'succeed'; occurredAt: string }
   | { type: 'fail'; failure: ImportExecutionFailure; occurredAt: string }
   | { type: 'reset' };
 
@@ -67,7 +67,14 @@ const reducer = (state: ImportExecutionState, action: ImportExecutionAction): Im
     case 'succeed':
       if (state.phase !== 'running') return state;
 
-      return { phase: 'succeeded', source: state.source, summary: { total: state.total, completed: state.total } };
+      return {
+        phase: 'succeeded',
+        source: state.source,
+        summary: { total: state.total, completed: state.total },
+        // Captured once here, at the terminal transition, so the report timestamp is stable and
+        // does not move on every re-render the way `new Date()` in the view would.
+        occurredAt: action.occurredAt,
+      };
 
     case 'fail':
       if (state.phase !== 'running') return state;
@@ -124,7 +131,7 @@ export const useBulkImportExecution = () => {
 
     try {
       await bulkCreateWorks(plan, observer);
-      dispatch({ type: 'succeed' });
+      dispatch({ type: 'succeed', occurredAt: new Date().toISOString() });
     } catch (error) {
       // The rejection is handled here, so it never surfaces as an unhandled rejection; the
       // failure state is what the user sees, the toast from useBulkCreateWorks is supplementary.
