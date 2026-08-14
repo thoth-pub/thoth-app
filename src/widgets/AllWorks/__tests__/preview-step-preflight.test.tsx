@@ -1,6 +1,6 @@
 import { ThemeProvider } from '@mui/material';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { cleanup, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -113,6 +113,64 @@ describe('PreviewStep preflight', () => {
     renderPreview({ plan: plan([work('w1', { doi: 'https://doi.org/10.1234/one' })]) });
 
     expect(screen.getByText('importPreflight.checking')).toBeInTheDocument();
+    expect(createButton()).toBeDisabled();
+  });
+
+  it('does not offer the ready-to-import phase while the duplicate check is still running', async () => {
+    mocks.findExistingIdentifierMatches.mockReturnValue(new Promise(() => {}));
+
+    renderPreview({ plan: plan([work('w1', { doi: 'https://doi.org/10.1234/one' })]) });
+
+    // The checking phase is the one on screen; the ready phase is the frame *after* it, not now.
+    expect(screen.getByText('importPreflight.checking')).toBeInTheDocument();
+    expect(screen.queryByTestId('import-phase-ready')).not.toBeInTheDocument();
+    expect(screen.queryByText('bulkImport.phase.ready')).not.toBeInTheDocument();
+  });
+
+  it('marks the plan ready to import once the check finds nothing, without busy or spinner semantics', async () => {
+    renderPreview({ plan: plan([work('w1', { doi: 'https://doi.org/10.1234/one' })]) });
+
+    const ready = await screen.findByTestId('import-phase-ready');
+
+    expect(ready).toBeVisible();
+    expect(ready).toHaveTextContent('bulkImport.phase.ready');
+    // A still frame at the confirmation boundary: it does not claim the app is progressing on its
+    // own, so it is neither aria-busy nor accompanied by a spinner.
+    expect(ready).toHaveAttribute('aria-busy', 'false');
+    expect(within(ready).queryByRole('progressbar', { hidden: true })).not.toBeInTheDocument();
+    // It sits beside the preflight summary and the Create button, replacing neither.
+    expect(screen.getByText('importPreflight.summary')).toBeInTheDocument();
+    expect(createButton()).toBeEnabled();
+  });
+
+  it('still marks the plan ready to import when the check raises advisory duplicate findings', async () => {
+    mocks.findExistingIdentifierMatches.mockResolvedValue(
+      doiMatches('https://doi.org/10.1234/shared', [
+        existing('existing-1', 'An Existing Book', { doi: 'https://doi.org/10.1234/shared' }),
+      ]),
+    );
+
+    renderPreview({ plan: plan([work('w1', { title: 'Imported Book', doi: 'https://doi.org/10.1234/shared' })]) });
+
+    await waitFor(() => expect(screen.getByText('importPreflight.potentialDuplicates')).toBeInTheDocument());
+
+    // Findings are advisory and never block: the ready phase appears alongside them, not instead
+    // of them, and the Create button stays enabled.
+    expect(screen.getByTestId('import-phase-ready')).toBeVisible();
+    expect(screen.getByText('importPreflight.potentialDuplicates')).toBeInTheDocument();
+    expect(createButton()).toBeEnabled();
+  });
+
+  it('does not mark the plan ready to import when the check itself fails', async () => {
+    mocks.findExistingIdentifierMatches.mockRejectedValue(new Error('network down'));
+
+    renderPreview({ plan: plan([work('w1', { doi: 'https://doi.org/10.1234/one' })]) });
+
+    await waitFor(() => expect(screen.getByText('importPreflight.failed')).toBeInTheDocument());
+
+    // No ready phase over a failed check, and the existing failure/retry affordance is untouched.
+    expect(screen.queryByTestId('import-phase-ready')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'importPreflight.retry' })).toBeEnabled();
     expect(createButton()).toBeDisabled();
   });
 

@@ -157,6 +157,23 @@ describe('PreviewStep', () => {
     expect(screen.queryByRole('button', { name: 'actions.create' })).not.toBeInTheDocument();
   });
 
+  it('drops the ready-to-import phase the moment the run starts, replaced by the running state', async () => {
+    pendingImport(progress());
+
+    renderStep();
+
+    // The ready phase stands at the confirmation boundary before anything runs.
+    expect(screen.getByTestId('import-phase-ready')).toHaveTextContent('bulkImport.phase.ready');
+
+    await userEvent.click(screen.getByRole('button', { name: 'actions.create' }));
+    await waitFor(() => expect(mockBulkCreateWorks).toHaveBeenCalledTimes(1));
+
+    // It is gone with the rest of the preview; the running state is now the authoritative
+    // "importing" phase, so there is no ready phase lingering beside it.
+    expect(screen.queryByTestId('import-phase-ready')).not.toBeInTheDocument();
+    expect(screen.getByText('bulkImport.running.keepOpen')).toBeInTheDocument();
+  });
+
   it('shows a success state before navigating, and continues to Works only when acknowledged', async () => {
     mockBulkCreateWorks.mockResolvedValue(undefined);
 
@@ -168,6 +185,8 @@ describe('PreviewStep', () => {
     await waitFor(() => expect(screen.getByText('bulkImport.success.heading')).toBeInTheDocument());
     // The completion state is shown first; navigation waits for the user to acknowledge it.
     expect(onSubmit).not.toHaveBeenCalled();
+    // The terminal success state carries no leftover ready phase.
+    expect(screen.queryByTestId('import-phase-ready')).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'bulkImport.success.viewWorks' }));
     expect(onSubmit).toHaveBeenCalledTimes(1);
@@ -203,6 +222,8 @@ describe('PreviewStep', () => {
     expect(screen.getByTestId('import-failure-completed')).toHaveTextContent('1');
     expect(screen.getByTestId('import-failure-not-started')).toHaveTextContent('1');
     expect(screen.getByText('bulkImport.failure.partialWarning')).toBeInTheDocument();
+    // The stopped terminal state carries no leftover ready phase.
+    expect(screen.queryByTestId('import-phase-ready')).not.toBeInTheDocument();
 
     // No navigation, no retry/resume, and no Create button to re-run the same non-idempotent plan.
     expect(onSubmit).not.toHaveBeenCalled();

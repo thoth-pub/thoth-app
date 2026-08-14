@@ -17,6 +17,7 @@ import { convertOptionToString, getDisplayTitle } from '@/src/shared/utils';
 import { useBeforeUnloadGuard } from '../hooks/useBeforeUnloadGuard';
 import { useBulkImportExecution } from '../hooks/useBulkImportExecution';
 import { ImportExecutionStatus } from './ImportExecutionStatus';
+import { ImportPhaseStatus } from './ImportPhaseStatus';
 import { ImportPreflightReport } from './ImportPreflightReport';
 
 /** Stable identity, so a preview with nothing to warn about does not re-render on every pass. */
@@ -85,6 +86,15 @@ export const PreviewStep = (props: PreviewStepProps) => {
     hasFailed: preflightFailed,
     retry: retryPreflight,
   } = useImportPreflight(plan);
+
+  // The one truthful "ready" boundary: the preflight has finished and did not fail, so the plan
+  // has been described and checked and the only thing left is the user's decision to create it.
+  // Advisory duplicate findings do not unset this — they never block the import — and it says
+  // nothing is progressing (no spinner, not aria-busy), because at this point nothing is. It is a
+  // still frame between the preflight's own checking phase above and the running state that the
+  // execution status renders once Create is pressed, at which point `hasStarted` replaces this
+  // whole preview and the running state becomes the authoritative "importing" phase.
+  const isReadyToImport = !isCheckingDuplicates && !preflightFailed && preflightReport !== null;
 
   // Starting the import replaces this whole preview with the execution status below, so a second
   // press has nothing to press. The run is awaited inside the hook, which resolves the rejection
@@ -217,6 +227,16 @@ export const PreviewStep = (props: PreviewStepProps) => {
         two records are the same work is the user's call — there is deliberately no acknowledgement
         to tick and no row to remove first.
       */}
+      {/*
+        The explicit "ready to import" phase, completing the shared status language: parsing, then
+        checking, then this still, non-busy frame at the confirmation boundary. Shown only once the
+        preflight has answered without failing — never while it is still checking or after it
+        failed — so it stands beside the Create button it describes and disappears with the preview
+        the moment the run begins.
+      */}
+      {isReadyToImport && (
+        <ImportPhaseStatus content="bulkImport.phase.ready" busy={false} data-testid="import-phase-ready" />
+      )}
       <Button
         variant="contained"
         color="primary"

@@ -87,7 +87,8 @@
     },
     "phase": {
       "parsingCsv": "Parsing CSV…",
-      "parsingOnix": "Parsing ONIX…"
+      "parsingOnix": "Parsing ONIX…",
+      "ready": "Ready to import"
     },
     "ledger": {
       "heading": "Per-book status",
