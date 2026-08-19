@@ -245,4 +245,60 @@ describe('PublisherService', () => {
       );
     });
   });
+
+  describe('getPublisherServiceConfiguration', () => {
+    it('should query the protected configuration for the given publisher id', async () => {
+      const publisherId = faker.string.uuid();
+
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+        publisherServiceConfiguration: {
+          subscriptionPackage: 'SPHINX',
+          effectiveCapabilities: ['OAI_PMH'],
+          enabledDistributionPlatforms: [{ platform: 'OAPEN' }],
+        },
+      });
+
+      await service.getPublisherServiceConfiguration(publisherId);
+
+      expect(mockGraphqlService.query).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({ publisherId }),
+      );
+    });
+
+    it('should return the API-provided package, capabilities and enabled platforms unchanged', async () => {
+      const publisherId = faker.string.uuid();
+      const configuration = {
+        subscriptionPackage: 'PYRAMID',
+        effectiveCapabilities: ['OAI_PMH', 'METRICS_COLLECT'],
+        enabledDistributionPlatforms: [{ platform: 'OAPEN' }, { platform: 'INTERNET_ARCHIVE' }],
+      };
+
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+        publisherServiceConfiguration: configuration,
+      });
+
+      const result = await service.getPublisherServiceConfiguration(publisherId);
+
+      expect(result).toEqual(configuration);
+    });
+  });
+
+  describe('getDistributionPlatformOptions', () => {
+    it('should query and return the platform option metadata', async () => {
+      const options = [
+        { platform: 'OAPEN', displayLabel: 'OAPEN' },
+        { platform: 'INTERNET_ARCHIVE', displayLabel: 'Internet Archive' },
+      ];
+
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+        distributionPlatformOptions: options,
+      });
+
+      const result = await service.getDistributionPlatformOptions();
+
+      expect(mockGraphqlService.query).toHaveBeenCalled();
+      expect(result).toEqual(options);
+    });
+  });
 });
