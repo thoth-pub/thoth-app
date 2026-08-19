@@ -32,3 +32,27 @@ export const UPDATE_PUBLISHER = graphql(`
     }
   }
 `);
+
+// APP-01A read-only reads. Request only the fields this presentation needs; the
+// configuration version token (updatedAt) is intentionally omitted as it is only
+// used by the out-of-scope APP-01B replace mutation.
+export const GET_PUBLISHER_SERVICE_CONFIGURATION = graphql(`
+  query GetPublisherServiceConfiguration($publisherId: Uuid!) {
+    publisherServiceConfiguration(publisherId: $publisherId) {
+      subscriptionPackage
+      effectiveCapabilities
+      enabledDistributionPlatforms {
+        platform
+      }
+    }
+  }
+`);
+
+export const GET_DISTRIBUTION_PLATFORM_OPTIONS = graphql(`
+  query GetDistributionPlatformOptions {
+    distributionPlatformOptions {
+      platform
+      displayLabel
+    }
+  }
+`);

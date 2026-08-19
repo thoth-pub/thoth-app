@@ -28,7 +28,7 @@ export class EndorsementDtoMapper implements BaseMapper<EndorsementEntity, Endor
     return {
       endorsementId: id,
       workId,
-      authorName: emptyToNull(authorName),
+      authorName: emptyToNull(authorName) ?? '',
       authorOrcid: emptyToNull(authorOrcid),
       authorRole: emptyToNull(authorRole),
       authorInstitutionId: emptyToNull(authorInstitutionId),

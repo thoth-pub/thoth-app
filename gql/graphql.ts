@@ -258,6 +258,16 @@ export enum AwardRole {
   Winner = 'WINNER'
 }
 
+/** How a destination's existing back catalogue is handled. Newly activating a group that contains at least one AUTOMATIC_PUSH destination qualifies that activation for durable back-catalogue job creation; PULL_FEED and MANUAL create no automatic job. This classification itself performs no dissemination */
+export enum BackCatalogueBehaviour {
+  /** Thoth is expected to push records to the destination */
+  AutomaticPush = 'AUTOMATIC_PUSH',
+  /** Staff action or destination-specific coordination is required */
+  Manual = 'MANUAL',
+  /** The destination retrieves a Thoth feed */
+  PullFeed = 'PULL_FEED'
+}
+
 /** A biography associated with a work and contribution. */
 export type Biography = {
   __typename?: 'Biography';
@@ -366,6 +376,47 @@ export enum BookReviewField {
 export type BookReviewOrderBy = {
   direction: Direction;
   field: BookReviewField;
+};
+
+/** Which distribution job to cancel */
+export type CancelDistributionJobInput = {
+  distributionJobId: Scalars['Uuid']['input'];
+};
+
+/** Algorithm used to create file checksum */
+export enum ChecksumAlgorithm {
+  Md5 = 'MD5',
+  Sha1 = 'SHA1',
+  Sha256 = 'SHA256'
+}
+
+/** How many distribution jobs to claim, for how long, and of which kinds */
+export type ClaimDistributionJobsInput = {
+  /** If set, only claims jobs of these kinds. An empty list claims any kind */
+  kinds?: InputMaybe<Array<DistributionJobKind>>;
+  /** Requested lease duration in seconds, clamped to the range 60 to 3600 */
+  leaseSeconds?: InputMaybe<Scalars['Int']['input']>;
+  /** Maximum jobs to claim. Values above 50 are clamped to 50; values at or below 0 claim nothing */
+  limit?: InputMaybe<Scalars['Int']['input']>;
+};
+
+/** A distribution job together with the claim it was just granted. */
+export type ClaimedDistributionJob = {
+  __typename?: 'ClaimedDistributionJob';
+  /** Ordinal of the attempt this claim started */
+  attemptNumber: Scalars['Int']['output'];
+  /** Present this token to complete or fail the job. It is returned only here */
+  claimToken: Scalars['Uuid']['output'];
+  /** The claimed job */
+  job: DistributionJob;
+  /** When this claim's lease expires */
+  leaseExpiresAt: Scalars['Timestamp']['output'];
+};
+
+/** Which claimed distribution job succeeded, and under which claim */
+export type CompleteDistributionJobInput = {
+  claimToken: Scalars['Uuid']['input'];
+  distributionJobId: Scalars['Uuid']['input'];
 };
 
 /** Input for completing a file upload and promoting it to its final DOI-based location. */
@@ -1696,6 +1747,172 @@ export enum Direction {
   Desc = 'DESC'
 }
 
+/** A durable unit of distribution work. */
+export type DistributionJob = {
+  __typename?: 'DistributionJob';
+  /** Number of execution attempts started so far */
+  attemptCount: Scalars['Int']['output'];
+  /** Recorded execution attempts, most recent first. Bounded by the attempt budget */
+  attempts: Array<DistributionJobAttempt>;
+  /** Earliest time at which this job may be claimed */
+  availableAt: Scalars['Timestamp']['output'];
+  /** Why the job was cancelled, if it was */
+  cancellationReason?: Maybe<DistributionJobCancellationReason>;
+  /** When the current claim was granted, if the job is running */
+  claimedAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** When the job reached a terminal state, if it has */
+  completedAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Date and time at which the job was created */
+  createdAt: Scalars['Timestamp']['output'];
+  /** Thoth ID of the distribution job */
+  distributionJobId: Scalars['Uuid']['output'];
+  /** Kind of durable distribution work this job represents */
+  kind: DistributionJobKind;
+  /** Stable classification of the most recent worker-reported failure. Null if no worker has reported a failure. Not necessarily the newest attempt's outcome: read attempts for how the job ended */
+  lastErrorCode?: Maybe<Scalars['String']['output']>;
+  /** Bounded sanitized diagnostic for the most recent worker-reported failure. Null if no worker has reported a failure */
+  lastErrorDetail?: Maybe<Scalars['String']['output']>;
+  /** When the current claim's lease expires, if the job is running */
+  leaseExpiresAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Thoth ID of the publisher this job belongs to */
+  publisherId: Scalars['Uuid']['output'];
+  /** Current lifecycle state of the job */
+  status: DistributionJobStatus;
+  /** Destinations this job delivers to, in canonical platform order. Always at least one */
+  targets: Array<DistributionJobTarget>;
+  /** Date and time at which the job was last updated */
+  updatedAt: Scalars['Timestamp']['output'];
+  /** Reserved for future work-level jobs; always null for PUBLISHER_BACK_CATALOGUE */
+  workId?: Maybe<Scalars['Uuid']['output']>;
+};
+
+/** One recorded execution attempt of a distribution job. */
+export type DistributionJobAttempt = {
+  __typename?: 'DistributionJobAttempt';
+  /** Ordinal of this attempt within its job, starting at 1 */
+  attemptNumber: Scalars['Int']['output'];
+  /** Identity that held the claim for this attempt */
+  claimedBy: Scalars['String']['output'];
+  /** Worker-reported classification, present only on a failed attempt */
+  errorCode?: Maybe<Scalars['String']['output']>;
+  /** Bounded sanitized diagnostic, present only on a failed attempt */
+  errorDetail?: Maybe<Scalars['String']['output']>;
+  /** When the attempt was closed, if it has been */
+  finishedAt?: Maybe<Scalars['Timestamp']['output']>;
+  /** Null while the attempt is open */
+  result?: Maybe<DistributionJobAttemptResult>;
+  /** When the attempt started */
+  startedAt: Scalars['Timestamp']['output'];
+};
+
+/** How one recorded execution attempt ended */
+export enum DistributionJobAttemptResult {
+  /** The lease expired with no worker response */
+  Abandoned = 'ABANDONED',
+  /** A cancellation closed the attempt */
+  Cancelled = 'CANCELLED',
+  /** The worker reported a failure */
+  Failed = 'FAILED',
+  /** The worker reported success */
+  Succeeded = 'SUCCEEDED'
+}
+
+/** Why a distribution job was cancelled */
+export enum DistributionJobCancellationReason {
+  /** An operator cancelled the job deliberately */
+  Administrative = 'ADMINISTRATIVE',
+  /** The publisher's assignment for a destination of this job was disabled */
+  AssignmentDisabled = 'ASSIGNMENT_DISABLED'
+}
+
+/** Kind of durable distribution work a job represents */
+export enum DistributionJobKind {
+  /** Onboarding of a publisher's existing back catalogue to newly activated destinations */
+  PublisherBackCatalogue = 'PUBLISHER_BACK_CATALOGUE'
+}
+
+/** Lifecycle state of one durable distribution job */
+export enum DistributionJobStatus {
+  /** Terminal; withdrawn administratively or by assignment disable */
+  Cancelled = 'CANCELLED',
+  /** Terminal; a worker reported a non-retryable failure, or the attempt budget was exhausted */
+  Failed = 'FAILED',
+  /** Durable work exists and is not claimed */
+  Pending = 'PENDING',
+  /** Claimed by one worker under a live or expired lease */
+  Running = 'RUNNING',
+  /** Terminal; a worker reported success */
+  Succeeded = 'SUCCEEDED'
+}
+
+/** One destination of a distribution job. */
+export type DistributionJobTarget = {
+  __typename?: 'DistributionJobTarget';
+  /** Date and time at which the target was recorded */
+  createdAt: Scalars['Timestamp']['output'];
+  /** Distribution platform this job delivers to */
+  platform: DistributionPlatform;
+};
+
+/** Destination to which a publisher's works may be distributed */
+export enum DistributionPlatform {
+  /** Book Citation Index */
+  Bkci = 'BKCI',
+  /** Cambridge University Library */
+  CambridgeUniversityLibrary = 'CAMBRIDGE_UNIVERSITY_LIBRARY',
+  /** Crossref */
+  Crossref = 'CROSSREF',
+  /** Directory of Open Access Books; linked with OAPEN */
+  Doab = 'DOAB',
+  /** EBSCOHost */
+  EbscoHost = 'EBSCO_HOST',
+  /** Ex Libris Knowledge Base */
+  ExLibrisKb = 'EX_LIBRIS_KB',
+  /** Figshare */
+  Figshare = 'FIGSHARE',
+  /** Google Play Books */
+  GooglePlay = 'GOOGLE_PLAY',
+  /** Internet Archive */
+  InternetArchive = 'INTERNET_ARCHIVE',
+  /** Jisc NBK; included but currently inactive and non-assignable */
+  JiscNbk = 'JISC_NBK',
+  /** JSTOR */
+  Jstor = 'JSTOR',
+  /** OAPEN; linked with DOAB */
+  Oapen = 'OAPEN',
+  /** OCLC Knowledge Base */
+  OclcKb = 'OCLC_KB',
+  /** Project MUSE */
+  ProjectMuse = 'PROJECT_MUSE',
+  /** ProQuest Ebook Central */
+  ProquestEbookCentral = 'PROQUEST_EBOOK_CENTRAL',
+  /** ScienceOpen */
+  ScienceOpen = 'SCIENCE_OPEN',
+  /** Zenodo */
+  Zenodo = 'ZENODO'
+}
+
+/** Group of destinations whose assignments are enabled and disabled together */
+export enum DistributionPlatformGroup {
+  /** OAPEN and DOAB, which share one deposit and are enabled together */
+  OapenDoab = 'OAPEN_DOAB'
+}
+
+/** A distribution platform to which a publisher's works may be distributed, with its code-owned metadata. */
+export type DistributionPlatformOption = {
+  __typename?: 'DistributionPlatformOption';
+  /** Whether an assignment for this platform may currently be enabled for a publisher */
+  assignable: Scalars['Boolean']['output'];
+  /** How this platform is expected to receive a publisher's existing back catalogue */
+  backCatalogueBehaviour: BackCatalogueBehaviour;
+  /** Human-readable name of the distribution platform */
+  displayLabel: Scalars['String']['output'];
+  /** Group of platforms whose assignments are enabled and disabled together, if any */
+  linkedGroup?: Maybe<DistributionPlatformGroup>;
+  /** Stable code identifying the distribution platform */
+  platform: DistributionPlatform;
+};
+
 /** An endorsement linked to a work. */
 export type Endorsement = {
   __typename?: 'Endorsement';
@@ -1704,7 +1921,7 @@ export type Endorsement = {
   /** Thoth ID of the endorsement author's institution */
   authorInstitutionId?: Maybe<Scalars['Uuid']['output']>;
   /** Name of the endorsement author */
-  authorName?: Maybe<Scalars['String']['output']>;
+  authorName: Scalars['String']['output'];
   /** ORCID (Open Researcher and Contributor ID) of the endorsement author as full URL, using the HTTPS scheme and the orcid.org domain */
   authorOrcid?: Maybe<Scalars['Orcid']['output']>;
   /** Role of the endorsement author */
@@ -1764,6 +1981,18 @@ export enum Expression {
   /** Return only results with values which are less than the value supplied */
   LessThan = 'LESS_THAN'
 }
+
+/** Which claimed distribution job failed, how, and whether to retry it */
+export type FailDistributionJobInput = {
+  claimToken: Scalars['Uuid']['input'];
+  distributionJobId: Scalars['Uuid']['input'];
+  /** Stable machine-readable classification, matching ^[A-Z][A-Z0-9_]*$, at most 64 characters. A value outside that shape is rejected with INVALID_DISTRIBUTION_JOB_ERROR_CODE and changes no job or attempt state */
+  errorCode: Scalars['String']['input'];
+  /** Bounded human-readable diagnostic, truncated to 2048 characters. Must contain no credential, token, signed URL, response body or personal data */
+  errorDetail?: InputMaybe<Scalars['String']['input']>;
+  /** Whether the failure may be retried. A retryable failure returns the job to PENDING until the attempt budget is exhausted */
+  retryable?: Scalars['Boolean']['input'];
+};
 
 /** A file stored in the system (publication file, front cover, additional resource, or featured video). */
 export type File = {
@@ -4288,6 +4517,10 @@ export type Location = {
   __typename?: 'Location';
   /** Whether this is the canonical location for this specific publication (e.g. the main platform on which the print version is sold, or the official version of record hosted on the publisher's own web server) */
   canonical: Scalars['Boolean']['output'];
+  /** Checksum of the full text file as returned by the platform */
+  checksum?: Maybe<Scalars['String']['output']>;
+  /** Algorithm used to generate the checksum (MD5, SHA-256 or SHA-1) */
+  checksumAlgorithm?: Maybe<ChecksumAlgorithm>;
   /** Date and time at which the location record was created */
   createdAt: Scalars['Timestamp']['output'];
   /** Direct link to the full text file */
@@ -4309,6 +4542,8 @@ export type Location = {
 /** Field to use when sorting locations list */
 export enum LocationField {
   Canonical = 'CANONICAL',
+  Checksum = 'CHECKSUM',
+  ChecksumAlgorithm = 'CHECKSUM_ALGORITHM',
   CreatedAt = 'CREATED_AT',
   FullTextUrl = 'FULL_TEXT_URL',
   LandingPage = 'LANDING_PAGE',
@@ -4388,6 +4623,12 @@ export type Me = {
 
 export type MutationRoot = {
   __typename?: 'MutationRoot';
+  /** Cancel a pending or running distribution job. Superuser only. This does not undo any external delivery already performed. */
+  cancelDistributionJob: DistributionJob;
+  /** Claim a bounded batch of due distribution jobs. Requires the DISSEMINATION_WORKER role. */
+  claimDistributionJobs: Array<ClaimedDistributionJob>;
+  /** Record successful completion of a claimed distribution job. Requires the DISSEMINATION_WORKER role. */
+  completeDistributionJob: DistributionJob;
   /** Complete a file upload, validate it, and promote it to its final DOI-based location. */
   completeFileUpload: File;
   /** Create a new abstract with the specified values */
@@ -4494,9 +4735,11 @@ export type MutationRoot = {
   deleteWorkFeaturedVideo: WorkFeaturedVideo;
   /** Delete a single work relation using its ID */
   deleteWorkRelation: WorkRelation;
+  /** Record failure of a claimed distribution job, optionally scheduling a retry. Requires the DISSEMINATION_WORKER role. */
+  failDistributionJob: DistributionJob;
   /** Start uploading a file for an additional resource. Supported resource types include AUDIO, VIDEO, IMAGE, DOCUMENT, DATASET, and SPREADSHEET. */
   initAdditionalResourceFileUpload: FileUploadResponse;
-  /** Start uploading a front cover image for a given work. Returns an upload session ID, a presigned S3 PUT URL, and required PUT headers. */
+  /** Start uploading a front cover image for a given work. Front covers must be JPEG ('image/jpeg', '.jpg' or '.jpeg' filenames); the hosted cover is stored under a canonical '.jpg' key. Returns an upload session ID, a presigned S3 PUT URL, and required PUT headers. */
   initFrontcoverFileUpload: FileUploadResponse;
   /** Start uploading a publication file (e.g. PDF, EPUB, XML) for a given publication. Returns an upload session ID, a presigned S3 PUT URL, and required PUT headers. */
   initPublicationFileUpload: FileUploadResponse;
@@ -4522,6 +4765,8 @@ export type MutationRoot = {
   moveSubject: Subject;
   /** Change the ordering of a work relation within a work */
   moveWorkRelation: WorkRelation;
+  /** Replace a publisher's complete desired service configuration under optimistic concurrency control. Superuser only. Newly activating an AUTOMATIC_PUSH destination also creates that activation's durable distribution job and targets atomically in the same transaction, while automatic distribution job creation is enabled; while it is disabled such a replacement fails and rolls back in full rather than committing the activation without its job. No other change creates a job, and this mutation performs no dissemination. */
+  replacePublisherServiceConfiguration: PublisherServiceConfiguration;
   /** Update an existing abstract with the specified values */
   updateAbstract: Abstract;
   /** Update an existing additional resource with the specified values */
@@ -4574,6 +4819,21 @@ export type MutationRoot = {
   updateWorkFeaturedVideo: WorkFeaturedVideo;
   /** Update an existing work relation with the specified values */
   updateWorkRelation: WorkRelation;
+};
+
+
+export type MutationRootCancelDistributionJobArgs = {
+  data: CancelDistributionJobInput;
+};
+
+
+export type MutationRootClaimDistributionJobsArgs = {
+  data: ClaimDistributionJobsInput;
+};
+
+
+export type MutationRootCompleteDistributionJobArgs = {
+  data: CompleteDistributionJobInput;
 };
 
 
@@ -4850,6 +5110,11 @@ export type MutationRootDeleteWorkRelationArgs = {
 };
 
 
+export type MutationRootFailDistributionJobArgs = {
+  data: FailDistributionJobInput;
+};
+
+
 export type MutationRootInitAdditionalResourceFileUploadArgs = {
   data: NewAdditionalResourceFileUpload;
 };
@@ -4927,6 +5192,11 @@ export type MutationRootMoveSubjectArgs = {
 export type MutationRootMoveWorkRelationArgs = {
   newOrdinal: Scalars['Int']['input'];
   workRelationId: Scalars['Uuid']['input'];
+};
+
+
+export type MutationRootReplacePublisherServiceConfigurationArgs = {
+  data: ReplacePublisherServiceConfigurationInput;
 };
 
 
@@ -5182,7 +5452,7 @@ export type NewContributor = {
 /** Set of values required to define a new endorsement linked to a work */
 export type NewEndorsement = {
   authorInstitutionId?: InputMaybe<Scalars['Uuid']['input']>;
-  authorName?: InputMaybe<Scalars['String']['input']>;
+  authorName: Scalars['String']['input'];
   authorOrcid?: InputMaybe<Scalars['Orcid']['input']>;
   authorRole?: InputMaybe<Scalars['String']['input']>;
   endorsementOrdinal: Scalars['Int']['input'];
@@ -5191,11 +5461,11 @@ export type NewEndorsement = {
   workId: Scalars['Uuid']['input'];
 };
 
-/** Input for starting a front cover upload for a work. */
+/** Input for starting a front cover upload for a work. Front covers must be JPEG images: the declared MIME type must be 'image/jpeg' and the declared extension must be 'jpg' or 'jpeg'. The hosted cover is always stored under a canonical '.jpg' key. */
 export type NewFrontcoverFileUpload = {
-  /** File extension to use in the final canonical key, e.g. 'jpg', 'png', 'webp'. */
+  /** File extension of the original file; must be 'jpg' or 'jpeg' (case-insensitive). The hosted object always uses the canonical '.jpg' extension. */
   declaredExtension: Scalars['String']['input'];
-  /** MIME type declared by the client (e.g. 'image/jpeg'). */
+  /** MIME type declared by the client; must be 'image/jpeg'. */
   declaredMimeType: Scalars['String']['input'];
   /** SHA-256 checksum of the file, hex-encoded. */
   declaredSha256: Scalars['String']['input'];
@@ -5253,6 +5523,8 @@ export type NewLanguage = {
 /** Set of values required to define a new location (such as a web shop or distribution platform) where a publication can be acquired or viewed */
 export type NewLocation = {
   canonical: Scalars['Boolean']['input'];
+  checksum?: InputMaybe<Scalars['String']['input']>;
+  checksumAlgorithm?: InputMaybe<ChecksumAlgorithm>;
   fullTextUrl?: InputMaybe<Scalars['String']['input']>;
   landingPage?: InputMaybe<Scalars['String']['input']>;
   locationPlatform: LocationPlatform;
@@ -5399,7 +5671,7 @@ export type NewWork = {
 /** Set of values required to define a new featured video linked to a work */
 export type NewWorkFeaturedVideo = {
   height: Scalars['Int']['input'];
-  title?: InputMaybe<Scalars['String']['input']>;
+  title: Scalars['String']['input'];
   url?: InputMaybe<Scalars['String']['input']>;
   width: Scalars['Int']['input'];
   workId: Scalars['Uuid']['input'];
@@ -5537,7 +5809,7 @@ export type PatchContributor = {
 /** Set of values required to update an existing endorsement */
 export type PatchEndorsement = {
   authorInstitutionId?: InputMaybe<Scalars['Uuid']['input']>;
-  authorName?: InputMaybe<Scalars['String']['input']>;
+  authorName: Scalars['String']['input'];
   authorOrcid?: InputMaybe<Scalars['Orcid']['input']>;
   authorRole?: InputMaybe<Scalars['String']['input']>;
   endorsementId: Scalars['Uuid']['input'];
@@ -5602,6 +5874,8 @@ export type PatchLanguage = {
 /** Set of values required to update an existing location (such as a web shop or distribution platform) where a publication can be acquired or viewed */
 export type PatchLocation = {
   canonical: Scalars['Boolean']['input'];
+  checksum?: InputMaybe<Scalars['String']['input']>;
+  checksumAlgorithm?: InputMaybe<ChecksumAlgorithm>;
   fullTextUrl?: InputMaybe<Scalars['String']['input']>;
   landingPage?: InputMaybe<Scalars['String']['input']>;
   locationId: Scalars['Uuid']['input'];
@@ -5745,7 +6019,7 @@ export type PatchWork = {
 /** Set of values required to update an existing featured video */
 export type PatchWorkFeaturedVideo = {
   height: Scalars['Int']['input'];
-  title?: InputMaybe<Scalars['String']['input']>;
+  title: Scalars['String']['input'];
   url?: InputMaybe<Scalars['String']['input']>;
   width: Scalars['Int']['input'];
   workFeaturedVideoId: Scalars['Uuid']['input'];
@@ -5946,6 +6220,8 @@ export type Publisher = {
   contacts: Array<Contact>;
   /** Date and time at which the publisher record was created */
   createdAt: Scalars['Timestamp']['output'];
+  /** Get the distribution platforms currently enabled for this publisher. Retained disabled assignments are excluded */
+  distributionPlatforms: Array<PublisherDistributionPlatformAssignment>;
   /** Get imprints linked to this publisher */
   imprints: Array<Imprint>;
   /** Thoth ID of the publisher */
@@ -5980,10 +6256,35 @@ export type PublisherImprintsArgs = {
   order?: InputMaybe<ImprintOrderBy>;
 };
 
+/** Capability that a subscription package may grant to a publisher. A capability permits a feature but does not configure or activate it */
+export enum PublisherCapability {
+  /** Thoth-managed drivers may collect and retain canonical metrics when a source account and platform/measure configuration are enabled */
+  MetricsCollect = 'METRICS_COLLECT',
+  /** A Thoth-owned authenticated service may serve publisher dashboard metrics */
+  MetricsDashboard = 'METRICS_DASHBOARD',
+  /** Publisher users may submit approved publisher-controlled usage or sales reports */
+  MetricsImport = 'METRICS_IMPORT',
+  /** Eligible finalized canonical metrics may create and deliver OPERAS export claims */
+  MetricsOperasExport = 'METRICS_OPERAS_EXPORT',
+  /** A Thoth-owned authenticated service may serve bounded work-level widget metrics */
+  MetricsWidget = 'METRICS_WIDGET',
+  /** Publisher works may be considered for OAI-PMH after work-level open-licence and lifecycle checks */
+  OaiPmh = 'OAI_PMH'
+}
+
 export type PublisherContext = {
   __typename?: 'PublisherContext';
   permissions: PublisherPermissions;
   publisher: Publisher;
+};
+
+/** An enabled assignment of a publisher to a distribution platform. */
+export type PublisherDistributionPlatformAssignment = {
+  __typename?: 'PublisherDistributionPlatformAssignment';
+  /** Date and time at which the platform's current activation for this publisher began */
+  enabledAt: Scalars['Timestamp']['output'];
+  /** Distribution platform enabled for the publisher */
+  platform: DistributionPlatform;
 };
 
 /** Field to use when sorting publishers list */
@@ -6010,6 +6311,51 @@ export type PublisherPermissions = {
   cdnWrite: Scalars['Boolean']['output'];
   publisherAdmin: Scalars['Boolean']['output'];
   workLifecycle: Scalars['Boolean']['output'];
+};
+
+/** The desired service configuration of one publisher. */
+export type PublisherServiceConfiguration = {
+  __typename?: 'PublisherServiceConfiguration';
+  /** Capabilities the current subscription package grants this publisher, in canonical capability order. Derived from the package; a capability permits a feature but does not configure or activate it */
+  effectiveCapabilities: Array<PublisherCapability>;
+  /** Distribution platforms currently enabled for the publisher, in canonical platform order */
+  enabledDistributionPlatforms: Array<PublisherDistributionPlatformAssignment>;
+  /** The publisher this configuration belongs to */
+  publisher: Publisher;
+  /** Subscription package currently assigned to the publisher */
+  subscriptionPackage: ThothPackage;
+  /** Version token of this configuration; supply it as expectedUpdatedAt to replace the configuration */
+  updatedAt: Scalars['Timestamp']['output'];
+};
+
+/** Metadata of one recorded service-configuration change. The before and after states themselves are not exposed. */
+export type PublisherServiceConfigurationChange = {
+  __typename?: 'PublisherServiceConfigurationChange';
+  /** Identity that made the change: the account identifier for SUPERUSER_API, or the authorized control identity for a controlled backfill */
+  actor: Scalars['String']['output'];
+  /** When the change was committed */
+  changedAt: Scalars['Timestamp']['output'];
+  /** How the change entered the system */
+  source: PublisherServiceConfigurationSource;
+};
+
+/** How a recorded service-configuration change entered the system */
+export enum PublisherServiceConfigurationSource {
+  /** A separately approved controlled historical backfill; the actor is the authorized control identity */
+  MigrationBackfill = 'MIGRATION_BACKFILL',
+  /** A committed superuser replacePublisherServiceConfiguration call; the actor is the authenticated account identifier */
+  SuperuserApi = 'SUPERUSER_API'
+}
+
+/** A publisher's service configuration together with its latest change metadata. */
+export type PublisherServiceConfigurationSummary = {
+  __typename?: 'PublisherServiceConfigurationSummary';
+  /** The publisher's desired service configuration */
+  configuration: PublisherServiceConfiguration;
+  /** Metadata of the most recent recorded configuration change, or null if none has been recorded */
+  lastChange?: Maybe<PublisherServiceConfigurationChange>;
+  /** Most recent publisher back-catalogue distribution job, or null if none exists */
+  latestBackCatalogueJob?: Maybe<DistributionJob>;
 };
 
 export type QueryRoot = {
@@ -6076,6 +6422,8 @@ export type QueryRoot = {
   contributorCount: Scalars['Int']['output'];
   /** Query the full list of contributors */
   contributors: Array<Contributor>;
+  /** Query the full list of distribution platforms and their metadata. This list is code-owned and identical for every publisher */
+  distributionPlatformOptions: Array<DistributionPlatformOption>;
   /** Query a single endorsement using its ID */
   endorsement: Endorsement;
   /** Get the total number of endorsements */
@@ -6138,8 +6486,18 @@ export type QueryRoot = {
   publisher: Publisher;
   /** Get the total number of publishers */
   publisherCount: Scalars['Int']['output'];
+  /** Get the total number of publishers with an enabled assignment for a distribution platform */
+  publisherCountByDistributionPlatform: Scalars['Int']['output'];
+  /** Query the protected desired service configuration of one publisher. Readable only by a superuser or by a PUBLISHER_USER of that publisher */
+  publisherServiceConfiguration: PublisherServiceConfiguration;
+  /** Get the total number of publishers matching a protected service configuration report filter. Superuser only */
+  publisherServiceConfigurationCount: Scalars['Int']['output'];
+  /** Query the protected desired service configuration of every publisher, with the metadata of its latest recorded change. Superuser only */
+  publisherServiceConfigurations: Array<PublisherServiceConfigurationSummary>;
   /** Query the full list of publishers */
   publishers: Array<Publisher>;
+  /** Query the list of publishers with an enabled assignment for a distribution platform */
+  publishersByDistributionPlatform: Array<Publisher>;
   /** Query a single reference using its ID */
   reference: Reference;
   /** Get the total number of references */
@@ -6551,12 +6909,51 @@ export type QueryRootPublisherCountArgs = {
 };
 
 
+export type QueryRootPublisherCountByDistributionPlatformArgs = {
+  platform: DistributionPlatform;
+};
+
+
+export type QueryRootPublisherServiceConfigurationArgs = {
+  publisherId: Scalars['Uuid']['input'];
+};
+
+
+export type QueryRootPublisherServiceConfigurationCountArgs = {
+  enabledPlatforms?: InputMaybe<Array<DistributionPlatform>>;
+  jobStatuses?: InputMaybe<Array<DistributionJobStatus>>;
+  packages?: InputMaybe<Array<ThothPackage>>;
+  publishers?: InputMaybe<Array<Scalars['Uuid']['input']>>;
+  withoutBackCatalogueJob?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+
+export type QueryRootPublisherServiceConfigurationsArgs = {
+  enabledPlatforms?: InputMaybe<Array<DistributionPlatform>>;
+  jobStatuses?: InputMaybe<Array<DistributionJobStatus>>;
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order?: InputMaybe<PublisherOrderBy>;
+  packages?: InputMaybe<Array<ThothPackage>>;
+  publishers?: InputMaybe<Array<Scalars['Uuid']['input']>>;
+  withoutBackCatalogueJob?: InputMaybe<Scalars['Boolean']['input']>;
+};
+
+
 export type QueryRootPublishersArgs = {
   filter?: InputMaybe<Scalars['String']['input']>;
   limit?: InputMaybe<Scalars['Int']['input']>;
   offset?: InputMaybe<Scalars['Int']['input']>;
   order?: InputMaybe<PublisherOrderBy>;
   publishers?: InputMaybe<Array<Scalars['Uuid']['input']>>;
+};
+
+
+export type QueryRootPublishersByDistributionPlatformArgs = {
+  limit?: InputMaybe<Scalars['Int']['input']>;
+  offset?: InputMaybe<Scalars['Int']['input']>;
+  order?: InputMaybe<PublisherOrderBy>;
+  platform: DistributionPlatform;
 };
 
 
@@ -6793,6 +7190,14 @@ export enum RelationType {
   Replaces = 'REPLACES'
 }
 
+/** Complete desired service configuration to store for a publisher. This is a replace, not a patch: the platform list is the complete desired enabled set, and an empty list means no destination is enabled */
+export type ReplacePublisherServiceConfigurationInput = {
+  enabledDistributionPlatforms: Array<DistributionPlatform>;
+  expectedUpdatedAt: Scalars['Timestamp']['input'];
+  publisherId: Scalars['Uuid']['input'];
+  subscriptionPackage: ThothPackage;
+};
+
 /** Type of additional resource */
 export enum ResourceType {
   Article = 'ARTICLE',
@@ -6929,6 +7334,18 @@ export enum SubjectType {
   Keyword = 'KEYWORD',
   Lcc = 'LCC',
   Thema = 'THEMA'
+}
+
+/** Subscription package determining which publisher services a publisher is entitled to */
+export enum ThothPackage {
+  /** Default package, with no publisher-service capabilities */
+  Oasis = 'OASIS',
+  /** Package permitting OAI-PMH eligibility and private managed metrics collection */
+  Obelisk = 'OBELISK',
+  /** Package permitting OAI-PMH eligibility and all initial metrics capabilities */
+  Pyramid = 'PYRAMID',
+  /** Package permitting OAI-PMH eligibility and all initial metrics capabilities */
+  Sphinx = 'SPHINX'
 }
 
 /** Timestamp and choice out of greater than/less than to use when filtering by a time field (e.g. updated_at) */
@@ -7263,7 +7680,7 @@ export type WorkFeaturedVideo = {
   /** Rendered height of the featured video embed */
   height: Scalars['Int']['output'];
   /** Title or caption of the featured video */
-  title?: Maybe<Scalars['String']['output']>;
+  title: Scalars['String']['output'];
   /** Date and time at which the featured video record was last updated */
   updatedAt: Scalars['Timestamp']['output'];
   /** CDN URL of the featured video */
@@ -7809,7 +8226,7 @@ export type CreateEndorsementMutationVariables = Exact<{
 }>;
 
 
-export type CreateEndorsementMutation = { __typename?: 'MutationRoot', createEndorsement: { __typename?: 'Endorsement', endorsementId: any, workId: any, authorName?: string | null, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null } };
+export type CreateEndorsementMutation = { __typename?: 'MutationRoot', createEndorsement: { __typename?: 'Endorsement', endorsementId: any, workId: any, authorName: string, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null } };
 
 export type UpdateEndorsementMutationVariables = Exact<{
   markupFormat?: InputMaybe<MarkupFormat>;
@@ -7817,14 +8234,14 @@ export type UpdateEndorsementMutationVariables = Exact<{
 }>;
 
 
-export type UpdateEndorsementMutation = { __typename?: 'MutationRoot', updateEndorsement: { __typename?: 'Endorsement', endorsementId: any, workId: any, authorName?: string | null, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null } };
+export type UpdateEndorsementMutation = { __typename?: 'MutationRoot', updateEndorsement: { __typename?: 'Endorsement', endorsementId: any, workId: any, authorName: string, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null } };
 
 export type DeleteEndorsementMutationVariables = Exact<{
   endorsementId: Scalars['Uuid']['input'];
 }>;
 
 
-export type DeleteEndorsementMutation = { __typename?: 'MutationRoot', deleteEndorsement: { __typename?: 'Endorsement', endorsementId: any, workId: any, authorName?: string | null, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null } };
+export type DeleteEndorsementMutation = { __typename?: 'MutationRoot', deleteEndorsement: { __typename?: 'Endorsement', endorsementId: any, workId: any, authorName: string, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null } };
 
 export type MoveEndorsementMutationVariables = Exact<{
   endorsementId: Scalars['Uuid']['input'];
@@ -7832,7 +8249,7 @@ export type MoveEndorsementMutationVariables = Exact<{
 }>;
 
 
-export type MoveEndorsementMutation = { __typename?: 'MutationRoot', moveEndorsement: { __typename?: 'Endorsement', endorsementId: any, workId: any, authorName?: string | null, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null } };
+export type MoveEndorsementMutation = { __typename?: 'MutationRoot', moveEndorsement: { __typename?: 'Endorsement', endorsementId: any, workId: any, authorName: string, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null } };
 
 export type CreateWorkFeaturedVideoMutationVariables = Exact<{
   data: NewWorkFeaturedVideo;
@@ -8141,6 +8558,18 @@ export type UpdatePublisherMutation = { __typename?: 'MutationRoot', updatePubli
     { __typename?: 'Publisher' }
     & { ' $fragmentRefs'?: { 'PublisherFragmentFragment': PublisherFragmentFragment } }
   ) };
+
+export type GetPublisherServiceConfigurationQueryVariables = Exact<{
+  publisherId: Scalars['Uuid']['input'];
+}>;
+
+
+export type GetPublisherServiceConfigurationQuery = { __typename?: 'QueryRoot', publisherServiceConfiguration: { __typename?: 'PublisherServiceConfiguration', subscriptionPackage: ThothPackage, effectiveCapabilities: Array<PublisherCapability>, enabledDistributionPlatforms: Array<{ __typename?: 'PublisherDistributionPlatformAssignment', platform: DistributionPlatform }> } };
+
+export type GetDistributionPlatformOptionsQueryVariables = Exact<{ [key: string]: never; }>;
+
+
+export type GetDistributionPlatformOptionsQuery = { __typename?: 'QueryRoot', distributionPlatformOptions: Array<{ __typename?: 'DistributionPlatformOption', platform: DistributionPlatform, displayLabel: string }> };
 
 export type CreateReferenceMutationVariables = Exact<{
   data: NewReference;
@@ -8615,9 +9044,9 @@ export type ContributionFragmentFragment = { __typename?: 'Contribution', workId
 
 export type ContributorFragmentFragment = { __typename?: 'Contributor', contributorId: any, firstName?: string | null, fullName: string, lastName: string, updatedAt: any, orcid?: any | null, website?: string | null } & { ' $fragmentName'?: 'ContributorFragmentFragment' };
 
-export type EndorsementFragmentFragment = { __typename?: 'Endorsement', endorsementId: any, workId: any, authorName?: string | null, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null } & { ' $fragmentName'?: 'EndorsementFragmentFragment' };
+export type EndorsementFragmentFragment = { __typename?: 'Endorsement', endorsementId: any, workId: any, authorName: string, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null } & { ' $fragmentName'?: 'EndorsementFragmentFragment' };
 
-export type WorkFeaturedVideoFragmentFragment = { __typename?: 'WorkFeaturedVideo', workFeaturedVideoId: any, workId: any, title?: string | null, url?: string | null, width: number, height: number, file?: { __typename?: 'File', cdnUrl: string } | null } & { ' $fragmentName'?: 'WorkFeaturedVideoFragmentFragment' };
+export type WorkFeaturedVideoFragmentFragment = { __typename?: 'WorkFeaturedVideo', workFeaturedVideoId: any, workId: any, title: string, url?: string | null, width: number, height: number, file?: { __typename?: 'File', cdnUrl: string } | null } & { ' $fragmentName'?: 'WorkFeaturedVideoFragmentFragment' };
 
 export type FundingFragmentFragment = { __typename?: 'Funding', fundingId: any, grantNumber?: string | null, institutionId: any, program?: string | null, projectName?: string | null, projectShortname?: string | null, institution: { __typename?: 'Institution', institutionName: string, ror?: any | null } } & { ' $fragmentName'?: 'FundingFragmentFragment' };
 
@@ -8639,7 +9068,7 @@ export type SubjectFragmentFragment = { __typename?: 'Subject', subjectId: any, 
 
 export type TitleFragmentFragment = { __typename?: 'Title', canonical: boolean, fullTitle: string, localeCode: LocaleCode, subtitle?: string | null, title: string, titleId: any } & { ' $fragmentName'?: 'TitleFragmentFragment' };
 
-export type WorkFragmentFragment = { __typename?: 'Work', doi?: any | null, lccn?: string | null, oclc?: string | null, workId: any, bibliographyNote?: string | null, generalNote?: string | null, workType: WorkType, updatedAt: any, publicationDate?: any | null, withdrawnDate?: any | null, place?: string | null, reference?: string | null, imprintId: any, workStatus: WorkStatus, edition?: number | null, license?: string | null, copyrightHolder?: string | null, landingPage?: string | null, coverUrl?: string | null, pageCount?: number | null, pageBreakdown?: string | null, imageCount?: number | null, tableCount?: number | null, audioCount?: number | null, videoCount?: number | null, firstPage?: string | null, lastPage?: string | null, titles: Array<{ __typename?: 'Title', canonical: boolean, fullTitle: string, localeCode: LocaleCode, subtitle?: string | null, title: string, titleId: any }>, abstracts: Array<{ __typename?: 'Abstract', abstractId: any, abstractType: AbstractType, canonical: boolean, content: string, localeCode: LocaleCode }>, imprint: { __typename?: 'Imprint', imprintName: string, publisher: { __typename?: 'Publisher', publisherName: string } }, contributions: Array<{ __typename?: 'Contribution', fullName: string, lastName: string, firstName?: string | null, contributionId: any, contributorId: any, contributionType: ContributionType, mainContribution: boolean, contributionOrdinal: number, biographies: Array<{ __typename?: 'Biography', biographyId: any, canonical: boolean, content: string, localeCode: LocaleCode, contributionId: any }>, contributor: { __typename?: 'Contributor', orcid?: any | null, website?: string | null }, affiliations: Array<{ __typename?: 'Affiliation', position?: string | null, affiliationId: any, affiliationOrdinal: number, institution: { __typename?: 'Institution', ror?: any | null, institutionName: string, institutionId: any } }> }>, languages: Array<{ __typename?: 'Language', languageCode: LanguageCode, languageRelation: LanguageRelation, languageId: any }>, fundings: Array<{ __typename?: 'Funding', fundingId: any, grantNumber?: string | null, institutionId: any, program?: string | null, projectName?: string | null, projectShortname?: string | null, institution: { __typename?: 'Institution', institutionName: string, ror?: any | null } }>, publications: Array<{ __typename?: 'Publication', publicationId: any, isbn?: any | null, publicationType: PublicationType, updatedAt: any, accessibilityAdditionalStandard?: AccessibilityStandard | null, accessibilityException?: AccessibilityException | null, accessibilityReportUrl?: string | null, accessibilityStandard?: AccessibilityStandard | null, weightG?: number | null, weightOz?: number | null, widthMm?: number | null, widthIn?: number | null, heightMm?: number | null, heightIn?: number | null, depthMm?: number | null, depthIn?: number | null, work: { __typename?: 'Work', doi?: any | null, title: string, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } } }, prices: Array<{ __typename?: 'Price', unitPrice: number, priceId: any, currencyCode: CurrencyCode }>, locations: Array<{ __typename?: 'Location', canonical: boolean, fullTextUrl?: string | null, landingPage?: string | null, locationPlatform: LocationPlatform, locationId: any }>, file?: { __typename?: 'File', cdnUrl: string } | null }>, references: Array<{ __typename?: 'Reference', doi?: any | null, referenceId: any, referenceOrdinal: number, journalTitle?: string | null, articleTitle?: string | null, seriesTitle?: string | null, volumeTitle?: string | null, unstructuredCitation?: string | null, url?: string | null }>, subjects: Array<{ __typename?: 'Subject', subjectId: any, subjectCode: string, subjectType: SubjectType, subjectOrdinal: number }>, issues: Array<{ __typename?: 'Issue', issueId: any, issueOrdinal: number, series: { __typename?: 'Series', seriesId: any, seriesName: string } }>, awards: Array<{ __typename?: 'Award', awardId: any, workId: any, title: string, url?: string | null, category?: string | null, role?: AwardRole | null, prizeStatement?: string | null, awardOrdinal: number, jury?: string | null, year?: string | null, country?: CountryCode | null }>, additionalResources: Array<{ __typename?: 'WorkResource', workResourceId: any, workId: any, title: string, description?: string | null, attribution?: string | null, resourceType: string, doi?: any | null, handle?: string | null, url?: string | null, resourceOrdinal: number, file?: { __typename?: 'File', cdnUrl: string } | null }>, bookReviews: Array<{ __typename?: 'BookReview', bookReviewId: any, workId: any, title?: string | null, authorName?: string | null, reviewerOrcid?: any | null, reviewerInstitutionId?: any | null, url?: string | null, doi?: any | null, reviewDate?: any | null, journalName?: string | null, journalVolume?: string | null, journalNumber?: string | null, journalIssn?: string | null, pageRange?: string | null, text?: string | null, reviewOrdinal: number, reviewerInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null }>, endorsements: Array<{ __typename?: 'Endorsement', endorsementId: any, workId: any, authorName?: string | null, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null }>, featuredVideo?: { __typename?: 'WorkFeaturedVideo', workFeaturedVideoId: any, workId: any, title?: string | null, url?: string | null, width: number, height: number, file?: { __typename?: 'File', cdnUrl: string } | null } | null } & { ' $fragmentName'?: 'WorkFragmentFragment' };
+export type WorkFragmentFragment = { __typename?: 'Work', doi?: any | null, lccn?: string | null, oclc?: string | null, workId: any, bibliographyNote?: string | null, generalNote?: string | null, workType: WorkType, updatedAt: any, publicationDate?: any | null, withdrawnDate?: any | null, place?: string | null, reference?: string | null, imprintId: any, workStatus: WorkStatus, edition?: number | null, license?: string | null, copyrightHolder?: string | null, landingPage?: string | null, coverUrl?: string | null, pageCount?: number | null, pageBreakdown?: string | null, imageCount?: number | null, tableCount?: number | null, audioCount?: number | null, videoCount?: number | null, firstPage?: string | null, lastPage?: string | null, titles: Array<{ __typename?: 'Title', canonical: boolean, fullTitle: string, localeCode: LocaleCode, subtitle?: string | null, title: string, titleId: any }>, abstracts: Array<{ __typename?: 'Abstract', abstractId: any, abstractType: AbstractType, canonical: boolean, content: string, localeCode: LocaleCode }>, imprint: { __typename?: 'Imprint', imprintName: string, publisher: { __typename?: 'Publisher', publisherName: string } }, contributions: Array<{ __typename?: 'Contribution', fullName: string, lastName: string, firstName?: string | null, contributionId: any, contributorId: any, contributionType: ContributionType, mainContribution: boolean, contributionOrdinal: number, biographies: Array<{ __typename?: 'Biography', biographyId: any, canonical: boolean, content: string, localeCode: LocaleCode, contributionId: any }>, contributor: { __typename?: 'Contributor', orcid?: any | null, website?: string | null }, affiliations: Array<{ __typename?: 'Affiliation', position?: string | null, affiliationId: any, affiliationOrdinal: number, institution: { __typename?: 'Institution', ror?: any | null, institutionName: string, institutionId: any } }> }>, languages: Array<{ __typename?: 'Language', languageCode: LanguageCode, languageRelation: LanguageRelation, languageId: any }>, fundings: Array<{ __typename?: 'Funding', fundingId: any, grantNumber?: string | null, institutionId: any, program?: string | null, projectName?: string | null, projectShortname?: string | null, institution: { __typename?: 'Institution', institutionName: string, ror?: any | null } }>, publications: Array<{ __typename?: 'Publication', publicationId: any, isbn?: any | null, publicationType: PublicationType, updatedAt: any, accessibilityAdditionalStandard?: AccessibilityStandard | null, accessibilityException?: AccessibilityException | null, accessibilityReportUrl?: string | null, accessibilityStandard?: AccessibilityStandard | null, weightG?: number | null, weightOz?: number | null, widthMm?: number | null, widthIn?: number | null, heightMm?: number | null, heightIn?: number | null, depthMm?: number | null, depthIn?: number | null, work: { __typename?: 'Work', doi?: any | null, title: string, imprint: { __typename?: 'Imprint', publisher: { __typename?: 'Publisher', publisherName: string } } }, prices: Array<{ __typename?: 'Price', unitPrice: number, priceId: any, currencyCode: CurrencyCode }>, locations: Array<{ __typename?: 'Location', canonical: boolean, fullTextUrl?: string | null, landingPage?: string | null, locationPlatform: LocationPlatform, locationId: any }>, file?: { __typename?: 'File', cdnUrl: string } | null }>, references: Array<{ __typename?: 'Reference', doi?: any | null, referenceId: any, referenceOrdinal: number, journalTitle?: string | null, articleTitle?: string | null, seriesTitle?: string | null, volumeTitle?: string | null, unstructuredCitation?: string | null, url?: string | null }>, subjects: Array<{ __typename?: 'Subject', subjectId: any, subjectCode: string, subjectType: SubjectType, subjectOrdinal: number }>, issues: Array<{ __typename?: 'Issue', issueId: any, issueOrdinal: number, series: { __typename?: 'Series', seriesId: any, seriesName: string } }>, awards: Array<{ __typename?: 'Award', awardId: any, workId: any, title: string, url?: string | null, category?: string | null, role?: AwardRole | null, prizeStatement?: string | null, awardOrdinal: number, jury?: string | null, year?: string | null, country?: CountryCode | null }>, additionalResources: Array<{ __typename?: 'WorkResource', workResourceId: any, workId: any, title: string, description?: string | null, attribution?: string | null, resourceType: string, doi?: any | null, handle?: string | null, url?: string | null, resourceOrdinal: number, file?: { __typename?: 'File', cdnUrl: string } | null }>, bookReviews: Array<{ __typename?: 'BookReview', bookReviewId: any, workId: any, title?: string | null, authorName?: string | null, reviewerOrcid?: any | null, reviewerInstitutionId?: any | null, url?: string | null, doi?: any | null, reviewDate?: any | null, journalName?: string | null, journalVolume?: string | null, journalNumber?: string | null, journalIssn?: string | null, pageRange?: string | null, text?: string | null, reviewOrdinal: number, reviewerInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null }>, endorsements: Array<{ __typename?: 'Endorsement', endorsementId: any, workId: any, authorName: string, authorOrcid?: any | null, authorRole?: string | null, authorInstitutionId?: any | null, url?: string | null, text?: string | null, endorsementOrdinal: number, authorInstitution?: { __typename?: 'Institution', institutionId: any, institutionName: string, ror?: any | null } | null }>, featuredVideo?: { __typename?: 'WorkFeaturedVideo', workFeaturedVideoId: any, workId: any, title: string, url?: string | null, width: number, height: number, file?: { __typename?: 'File', cdnUrl: string } | null } | null } & { ' $fragmentName'?: 'WorkFragmentFragment' };
 
 export type InitFrontcoverFileUploadMutationVariables = Exact<{
   data: NewFrontcoverFileUpload;
@@ -8771,6 +9200,8 @@ export const GetPublishersDocument = {"kind":"Document","definitions":[{"kind":"
 export const GetPublisherDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPublisher"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publisherId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publisherId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publisherId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"PublisherFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PublisherFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Publisher"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherId"}},{"kind":"Field","name":{"kind":"Name","value":"publisherName"}},{"kind":"Field","name":{"kind":"Name","value":"publisherShortname"}},{"kind":"Field","name":{"kind":"Name","value":"publisherUrl"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStatement"}},{"kind":"Field","name":{"kind":"Name","value":"contacts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contactId"}},{"kind":"Field","name":{"kind":"Name","value":"contactType"}},{"kind":"Field","name":{"kind":"Name","value":"email"}}]}}]}}]} as unknown as DocumentNode<GetPublisherQuery, GetPublisherQueryVariables>;
 export const GetPublisherAdminDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPublisherAdmin"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publisherId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisher"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publisherId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publisherId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"PublisherFragment"}},{"kind":"Field","name":{"kind":"Name","value":"zitadelId"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PublisherFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Publisher"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherId"}},{"kind":"Field","name":{"kind":"Name","value":"publisherName"}},{"kind":"Field","name":{"kind":"Name","value":"publisherShortname"}},{"kind":"Field","name":{"kind":"Name","value":"publisherUrl"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStatement"}},{"kind":"Field","name":{"kind":"Name","value":"contacts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contactId"}},{"kind":"Field","name":{"kind":"Name","value":"contactType"}},{"kind":"Field","name":{"kind":"Name","value":"email"}}]}}]}}]} as unknown as DocumentNode<GetPublisherAdminQuery, GetPublisherAdminQueryVariables>;
 export const UpdatePublisherDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdatePublisher"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchPublisher"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updatePublisher"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"PublisherFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"PublisherFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Publisher"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherId"}},{"kind":"Field","name":{"kind":"Name","value":"publisherName"}},{"kind":"Field","name":{"kind":"Name","value":"publisherShortname"}},{"kind":"Field","name":{"kind":"Name","value":"publisherUrl"}},{"kind":"Field","name":{"kind":"Name","value":"updatedAt"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityReportUrl"}},{"kind":"Field","name":{"kind":"Name","value":"accessibilityStatement"}},{"kind":"Field","name":{"kind":"Name","value":"contacts"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"contactId"}},{"kind":"Field","name":{"kind":"Name","value":"contactType"}},{"kind":"Field","name":{"kind":"Name","value":"email"}}]}}]}}]} as unknown as DocumentNode<UpdatePublisherMutation, UpdatePublisherMutationVariables>;
+export const GetPublisherServiceConfigurationDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetPublisherServiceConfiguration"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"publisherId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"publisherServiceConfiguration"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"publisherId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"publisherId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"subscriptionPackage"}},{"kind":"Field","name":{"kind":"Name","value":"effectiveCapabilities"}},{"kind":"Field","name":{"kind":"Name","value":"enabledDistributionPlatforms"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"platform"}}]}}]}}]}}]} as unknown as DocumentNode<GetPublisherServiceConfigurationQuery, GetPublisherServiceConfigurationQueryVariables>;
+export const GetDistributionPlatformOptionsDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"query","name":{"kind":"Name","value":"GetDistributionPlatformOptions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"distributionPlatformOptions"},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"platform"}},{"kind":"Field","name":{"kind":"Name","value":"displayLabel"}}]}}]}}]} as unknown as DocumentNode<GetDistributionPlatformOptionsQuery, GetDistributionPlatformOptionsQueryVariables>;
 export const CreateReferenceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"CreateReference"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"NewReference"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"createReference"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ReferenceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<CreateReferenceMutation, CreateReferenceMutationVariables>;
 export const UpdateReferenceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"UpdateReference"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"data"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"PatchReference"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"updateReference"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"data"},"value":{"kind":"Variable","name":{"kind":"Name","value":"data"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ReferenceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<UpdateReferenceMutation, UpdateReferenceMutationVariables>;
 export const DeleteReferenceDocument = {"kind":"Document","definitions":[{"kind":"OperationDefinition","operation":"mutation","name":{"kind":"Name","value":"DeleteReference"},"variableDefinitions":[{"kind":"VariableDefinition","variable":{"kind":"Variable","name":{"kind":"Name","value":"referenceId"}},"type":{"kind":"NonNullType","type":{"kind":"NamedType","name":{"kind":"Name","value":"Uuid"}}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"deleteReference"},"arguments":[{"kind":"Argument","name":{"kind":"Name","value":"referenceId"},"value":{"kind":"Variable","name":{"kind":"Name","value":"referenceId"}}}],"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"FragmentSpread","name":{"kind":"Name","value":"ReferenceFragment"}}]}}]}},{"kind":"FragmentDefinition","name":{"kind":"Name","value":"ReferenceFragment"},"typeCondition":{"kind":"NamedType","name":{"kind":"Name","value":"Reference"}},"selectionSet":{"kind":"SelectionSet","selections":[{"kind":"Field","name":{"kind":"Name","value":"doi"}},{"kind":"Field","name":{"kind":"Name","value":"referenceId"}},{"kind":"Field","name":{"kind":"Name","value":"referenceOrdinal"}},{"kind":"Field","name":{"kind":"Name","value":"unstructuredCitation"}},{"kind":"Field","name":{"kind":"Name","value":"journalTitle"}},{"kind":"Field","name":{"kind":"Name","value":"articleTitle"}},{"kind":"Field","name":{"kind":"Name","value":"seriesTitle"}},{"kind":"Field","name":{"kind":"Name","value":"volumeTitle"}},{"kind":"Field","name":{"kind":"Name","value":"url"}}]}}]} as unknown as DocumentNode<DeleteReferenceMutation, DeleteReferenceMutationVariables>;

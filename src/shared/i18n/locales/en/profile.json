@@ -1,5 +1,12 @@
 {
   "settings": "settings",
   "language": "language",
-  "currency": "currency"
+  "currency": "currency",
+  "serviceConfiguration": "service configuration",
+  "subscriptionPackage": "subscription package",
+  "capabilities": "capabilities",
+  "distributionPlatforms": "distribution platforms",
+  "noCapabilities": "no capabilities",
+  "noDistributionPlatforms": "no distribution platforms enabled",
+  "serviceConfigurationUnavailable": "service configuration unavailable"
 }

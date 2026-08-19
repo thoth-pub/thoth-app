@@ -11,6 +11,7 @@ import {
   EditStatement,
   EditUrl,
   EditZitadelId,
+  PublisherServiceConfiguration,
 } from '@/src/entities/publisher';
 import { useUser } from '@/src/entities/user';
 import { ImprintsList } from '@/src/features';
@@ -38,6 +39,12 @@ const Profile = () => {
         <Activity mode={isSettingsDisabled ? 'hidden' : 'visible'}>
           <EditZitadelId isDisabled={isSettingsDisabled} />
         </Activity>
+      </ContentSection>
+      <ContentSection>
+        <Typography component="h2" variant="h2" className="pl-4">
+          <TranslatedContent content="serviceConfiguration" namespace={NAMESPACES.enum.profile} />
+        </Typography>
+        <PublisherServiceConfiguration />
       </ContentSection>
       <ContentSection>
         <Typography component="h2" variant="h2" className="pl-4">

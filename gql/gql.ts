@@ -88,6 +88,8 @@ type Documents = {
     "\n  query GetPublisher($publisherId: Uuid!) {\n    publisher(publisherId: $publisherId) {\n      ...PublisherFragment\n    }\n  }\n": typeof types.GetPublisherDocument,
     "\n  query GetPublisherAdmin($publisherId: Uuid!) {\n    publisher(publisherId: $publisherId) {\n      ...PublisherFragment\n      zitadelId\n    }\n  }\n": typeof types.GetPublisherAdminDocument,
     "\n  mutation UpdatePublisher($data: PatchPublisher!) {\n    updatePublisher(data: $data) {\n      ...PublisherFragment\n    }\n  }\n": typeof types.UpdatePublisherDocument,
+    "\n  query GetPublisherServiceConfiguration($publisherId: Uuid!) {\n    publisherServiceConfiguration(publisherId: $publisherId) {\n      subscriptionPackage\n      effectiveCapabilities\n      enabledDistributionPlatforms {\n        platform\n      }\n    }\n  }\n": typeof types.GetPublisherServiceConfigurationDocument,
+    "\n  query GetDistributionPlatformOptions {\n    distributionPlatformOptions {\n      platform\n      displayLabel\n    }\n  }\n": typeof types.GetDistributionPlatformOptionsDocument,
     "\n  mutation CreateReference($data: NewReference!) {\n    createReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": typeof types.CreateReferenceDocument,
     "\n  mutation UpdateReference($data: PatchReference!) {\n    updateReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": typeof types.UpdateReferenceDocument,
     "\n  mutation DeleteReference($referenceId: Uuid!) {\n    deleteReference(referenceId: $referenceId) {\n      ...ReferenceFragment\n    }\n  }\n": typeof types.DeleteReferenceDocument,
@@ -236,6 +238,8 @@ const documents: Documents = {
     "\n  query GetPublisher($publisherId: Uuid!) {\n    publisher(publisherId: $publisherId) {\n      ...PublisherFragment\n    }\n  }\n": types.GetPublisherDocument,
     "\n  query GetPublisherAdmin($publisherId: Uuid!) {\n    publisher(publisherId: $publisherId) {\n      ...PublisherFragment\n      zitadelId\n    }\n  }\n": types.GetPublisherAdminDocument,
     "\n  mutation UpdatePublisher($data: PatchPublisher!) {\n    updatePublisher(data: $data) {\n      ...PublisherFragment\n    }\n  }\n": types.UpdatePublisherDocument,
+    "\n  query GetPublisherServiceConfiguration($publisherId: Uuid!) {\n    publisherServiceConfiguration(publisherId: $publisherId) {\n      subscriptionPackage\n      effectiveCapabilities\n      enabledDistributionPlatforms {\n        platform\n      }\n    }\n  }\n": types.GetPublisherServiceConfigurationDocument,
+    "\n  query GetDistributionPlatformOptions {\n    distributionPlatformOptions {\n      platform\n      displayLabel\n    }\n  }\n": types.GetDistributionPlatformOptionsDocument,
     "\n  mutation CreateReference($data: NewReference!) {\n    createReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": types.CreateReferenceDocument,
     "\n  mutation UpdateReference($data: PatchReference!) {\n    updateReference(data: $data) {\n      ...ReferenceFragment\n    }\n  }\n": types.UpdateReferenceDocument,
     "\n  mutation DeleteReference($referenceId: Uuid!) {\n    deleteReference(referenceId: $referenceId) {\n      ...ReferenceFragment\n    }\n  }\n": types.DeleteReferenceDocument,
@@ -620,6 +624,14 @@ export function graphql(source: "\n  query GetPublisherAdmin($publisherId: Uuid!
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */
 export function graphql(source: "\n  mutation UpdatePublisher($data: PatchPublisher!) {\n    updatePublisher(data: $data) {\n      ...PublisherFragment\n    }\n  }\n"): (typeof documents)["\n  mutation UpdatePublisher($data: PatchPublisher!) {\n    updatePublisher(data: $data) {\n      ...PublisherFragment\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GetPublisherServiceConfiguration($publisherId: Uuid!) {\n    publisherServiceConfiguration(publisherId: $publisherId) {\n      subscriptionPackage\n      effectiveCapabilities\n      enabledDistributionPlatforms {\n        platform\n      }\n    }\n  }\n"): (typeof documents)["\n  query GetPublisherServiceConfiguration($publisherId: Uuid!) {\n    publisherServiceConfiguration(publisherId: $publisherId) {\n      subscriptionPackage\n      effectiveCapabilities\n      enabledDistributionPlatforms {\n        platform\n      }\n    }\n  }\n"];
+/**
+ * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
+ */
+export function graphql(source: "\n  query GetDistributionPlatformOptions {\n    distributionPlatformOptions {\n      platform\n      displayLabel\n    }\n  }\n"): (typeof documents)["\n  query GetDistributionPlatformOptions {\n    distributionPlatformOptions {\n      platform\n      displayLabel\n    }\n  }\n"];
 /**
  * The graphql function is used to parse GraphQL queries into a document that can be used by GraphQL clients.
  */

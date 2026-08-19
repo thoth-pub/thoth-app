@@ -1,0 +1,4628 @@
+schema {
+  query: QueryRoot
+  mutation: MutationRoot
+}
+
+"Field to use when sorting abstract list"
+enum AbstractField {
+  ABSTRACT_ID
+  WORK_ID
+  CONTENT
+  LOCALE_CODE
+  ABSTRACT_TYPE
+  CANONICAL
+}
+
+"BCP-47 code representing locale"
+enum AbstractType {
+  "Short" SHORT
+  "Long" LONG
+}
+
+"Reason for publication not being required to comply with accessibility standards"
+enum AccessibilityException {
+  "Publisher is a micro-enterprise" MICRO_ENTERPRISES
+  "Making the publication accessible would financially overburden the publisher" DISPROPORTIONATE_BURDEN
+  "Making the publication accessible would fundamentally modify the nature of it" FUNDAMENTAL_ALTERATION
+}
+
+"Standardised specification for accessibility to which a publication may conform"
+enum AccessibilityStandard {
+  "WCAG 2.1 AA" WCAG21AA
+  "WCAG 2.1 AAA" WCAG21AAA
+  "WCAG 2.2 AA" WCAG22AA
+  "WCAG 2.2 AAA" WCAG22AAA
+  "EPUB Accessibility Specification 1.0 AA" EPUB_A11Y10AA
+  "EPUB Accessibility Specification 1.0 AAA" EPUB_A11Y10AAA
+  "EPUB Accessibility Specification 1.1 AA" EPUB_A11Y11AA
+  "EPUB Accessibility Specification 1.1 AAA" EPUB_A11Y11AAA
+  "PDF/UA-1" PDF_UA1
+  "PDF/UA-2" PDF_UA2
+}
+
+"Field to use when sorting additional resources list"
+enum AdditionalResourceField {
+  ADDITIONAL_RESOURCE_ID
+  WORK_ID
+  RESOURCE_ORDINAL
+  TITLE
+  ATTRIBUTION
+  RESOURCE_TYPE
+  DOI
+  HANDLE
+  URL
+  DATE
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Field to use when sorting affiliations list"
+enum AffiliationField {
+  AFFILIATION_ID
+  CONTRIBUTION_ID
+  INSTITUTION_ID
+  AFFILIATION_ORDINAL
+  POSITION
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Field to use when sorting awards list"
+enum AwardField {
+  AWARD_ID
+  WORK_ID
+  AWARD_ORDINAL
+  TITLE
+  CATEGORY
+  YEAR
+  JURY
+  COUNTRY
+  ROLE
+  URL
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Role of the work in an award"
+enum AwardRole {
+  SHORT_LISTED
+  WINNER
+  LONG_LISTED
+  COMMENDED
+  RUNNER_UP
+  JOINT_WINNER
+  NOMINATED
+}
+
+"How a destination's existing back catalogue is handled. Newly activating a group that contains at least one AUTOMATIC_PUSH destination qualifies that activation for durable back-catalogue job creation; PULL_FEED and MANUAL create no automatic job. This classification itself performs no dissemination"
+enum BackCatalogueBehaviour {
+  "Thoth is expected to push records to the destination" AUTOMATIC_PUSH
+  "The destination retrieves a Thoth feed" PULL_FEED
+  "Staff action or destination-specific coordination is required" MANUAL
+}
+
+"Field to use when sorting biography list"
+enum BiographyField {
+  BIOGRAPHY_ID
+  CONTRIBUTION_ID
+  CONTENT
+  CANONICAL
+  LOCALE_CODE
+}
+
+"Field to use when sorting book reviews list"
+enum BookReviewField {
+  BOOK_REVIEW_ID
+  WORK_ID
+  REVIEW_ORDINAL
+  TITLE
+  AUTHOR_NAME
+  JOURNAL_NAME
+  REVIEW_DATE
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Algorithm used to create file checksum"
+enum ChecksumAlgorithm {
+  MD5
+  SHA256
+  SHA1
+}
+
+"Field to use when sorting contacts list"
+enum ContactField {
+  CONTACT_ID
+  PUBLISHER_ID
+  CONTACT_TYPE
+  EMAIL
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Type of a contact"
+enum ContactType {
+  "Contact for accessibility queries" ACCESSIBILITY
+}
+
+"Field to use when sorting contributions list"
+enum ContributionField {
+  CONTRIBUTION_ID
+  WORK_ID
+  CONTRIBUTOR_ID
+  CONTRIBUTION_TYPE
+  MAIN_CONTRIBUTION
+  BIOGRAPHY
+  CREATED_AT
+  UPDATED_AT
+  FIRST_NAME
+  LAST_NAME
+  FULL_NAME
+  CONTRIBUTION_ORDINAL
+}
+
+"Role describing the type of contribution to the work"
+enum ContributionType {
+  "Author of the work" AUTHOR
+  "Editor of the work" EDITOR
+  "Translator of the work" TRANSLATOR
+  "Photographer when named as the primary creator of, eg, a book of photographs" PHOTOGRAPHER
+  "Artist when named as the creator of artwork which illustrates a work" ILLUSTRATOR
+  "Person responsible for editing any piece of music referenced in the work" MUSIC_EDITOR
+  "Author of foreword" FOREWORD_BY
+  "Author of introduction" INTRODUCTION_BY
+  "Author of afterword" AFTERWORD_BY
+  "Author of preface" PREFACE_BY
+  "Writer of computer programs ancillary to the work" SOFTWARE_BY
+  "Person responsible for performing research on which the work is based" RESEARCH_BY
+  "Author of additional contributions to the work" CONTRIBUTIONS_BY
+  "Compiler of index" INDEXER
+}
+
+"Field to use when sorting contributors list"
+enum ContributorField {
+  CONTRIBUTOR_ID
+  FIRST_NAME
+  LAST_NAME
+  FULL_NAME
+  ORCID
+  WEBSITE
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Three-letter ISO 3166-1 code representing a country"
+enum CountryCode {
+  "Afghanistan" AFG
+  "Åland Islands" ALA
+  "Albania" ALB
+  "Algeria" DZA
+  "American Samoa" ASM
+  "Andorra" AND
+  "Angola" AGO
+  "Anguilla" AIA
+  "Antarctica" ATA
+  "Antigua and Barbuda" ATG
+  "Argentina" ARG
+  "Armenia" ARM
+  "Aruba" ABW
+  "Australia" AUS
+  "Austria" AUT
+  "Azerbaijan" AZE
+  "Bahamas" BHS
+  "Bahrain" BHR
+  "Bangladesh" BGD
+  "Barbados" BRB
+  "Belarus" BLR
+  "Belgium" BEL
+  "Belize" BLZ
+  "Benin" BEN
+  "Bermuda" BMU
+  "Bhutan" BTN
+  "Bolivia" BOL
+  "Bonaire, Sint Eustatius and Saba" BES
+  "Bosnia and Herzegovina" BIH
+  "Botswana" BWA
+  "Bouvet Island" BVT
+  "Brazil" BRA
+  "British Indian Ocean Territory" IOT
+  "Brunei" BRN
+  "Bulgaria" BGR
+  "Burkina Faso" BFA
+  "Burundi" BDI
+  "Cabo Verde" CPV
+  "Cambodia" KHM
+  "Cameroon" CMR
+  "Canada" CAN
+  "Cayman Islands" CYM
+  "Central African Republic" CAF
+  "Chad" TCD
+  "Chile" CHL
+  "China" CHN
+  "Christmas Island" CXR
+  "Cocos (Keeling) Islands" CCK
+  "Colombia" COL
+  "Comoros" COM
+  "Cook Islands" COK
+  "Costa Rica" CRI
+  "Côte d'Ivoire" CIV
+  "Croatia" HRV
+  "Cuba" CUB
+  "Curaçao" CUW
+  "Cyprus" CYP
+  "Czechia" CZE
+  "Democratic Republic of the Congo" COD
+  "Denmark" DNK
+  "Djibouti" DJI
+  "Dominica" DMA
+  "Dominican Republic" DOM
+  "Ecuador" ECU
+  "Egypt" EGY
+  "El Salvador" SLV
+  "Equatorial Guinea" GNQ
+  "Eritrea" ERI
+  "Estonia" EST
+  "Eswatini" SWZ
+  "Ethiopia" ETH
+  "Falkland Islands" FLK
+  "Faroe Islands" FRO
+  "Fiji" FJI
+  "Finland" FIN
+  "France" FRA
+  "French Guiana" GUF
+  "French Polynesia" PYF
+  "French Southern Territories" ATF
+  "Gabon" GAB
+  "Gambia" GMB
+  "Georgia" GEO
+  "Germany" DEU
+  "Ghana" GHA
+  "Gibraltar" GIB
+  "Greece" GRC
+  "Greenland" GRL
+  "Grenada" GRD
+  "Guadeloupe" GLP
+  "Guam" GUM
+  "Guatemala" GTM
+  "Guernsey" GGY
+  "Guinea" GIN
+  "Guinea-Bissau" GNB
+  "Guyana" GUY
+  "Haiti" HTI
+  "Heard Island and McDonald Islands" HMD
+  "Honduras" HND
+  "Hong Kong" HKG
+  "Hungary" HUN
+  "Iceland" ISL
+  "India" IND
+  "Indonesia" IDN
+  "Iran" IRN
+  "Iraq" IRQ
+  "Ireland" IRL
+  "Isle of Man" IMN
+  "Israel" ISR
+  "Italy" ITA
+  "Jamaica" JAM
+  "Japan" JPN
+  "Jersey" JEY
+  "Jordan" JOR
+  "Kazakhstan" KAZ
+  "Kenya" KEN
+  "Kiribati" KIR
+  "Kuwait" KWT
+  "Kyrgyzstan" KGZ
+  "Laos" LAO
+  "Latvia" LVA
+  "Lebanon" LBN
+  "Lesotho" LSO
+  "Liberia" LBR
+  "Libya" LBY
+  "Liechtenstein" LIE
+  "Lithuania" LTU
+  "Luxembourg" LUX
+  "Macao" MAC
+  "Madagascar" MDG
+  "Malawi" MWI
+  "Malaysia" MYS
+  "Maldives" MDV
+  "Mali" MLI
+  "Malta" MLT
+  "Marshall Islands" MHL
+  "Martinique" MTQ
+  "Mauritania" MRT
+  "Mauritius" MUS
+  "Mayotte" MYT
+  "Mexico" MEX
+  "Micronesia" FSM
+  "Moldova" MDA
+  "Monaco" MCO
+  "Mongolia" MNG
+  "Montenegro" MNE
+  "Montserrat" MSR
+  "Morocco" MAR
+  "Mozambique" MOZ
+  "Myanmar" MMR
+  "Namibia" NAM
+  "Nauru" NRU
+  "Nepal" NPL
+  "Netherlands" NLD
+  "New Caledonia" NCL
+  "New Zealand" NZL
+  "Nicaragua" NIC
+  "Niger" NER
+  "Nigeria" NGA
+  "Niue" NIU
+  "Norfolk Island" NFK
+  "North Korea" PRK
+  "North Macedonia" MKD
+  "Northern Mariana Islands" MNP
+  "Norway" NOR
+  "Oman" OMN
+  "Pakistan" PAK
+  "Palau" PLW
+  "Palestine" PSE
+  "Panama" PAN
+  "Papua New Guinea" PNG
+  "Paraguay" PRY
+  "Peru" PER
+  "Philippines" PHL
+  "Pitcairn" PCN
+  "Poland" POL
+  "Portugal" PRT
+  "Puerto Rico" PRI
+  "Qatar" QAT
+  "Republic of the Congo" COG
+  "Réunion" REU
+  "Romania" ROU
+  "Russia" RUS
+  "Rwanda" RWA
+  "Saint Barthélemy" BLM
+  "Saint Helena, Ascension and Tristan da Cunha" SHN
+  "Saint Kitts and Nevis" KNA
+  "Saint Lucia" LCA
+  "Saint Martin" MAF
+  "Saint Pierre and Miquelon" SPM
+  "Saint Vincent and the Grenadines" VCT
+  "Samoa" WSM
+  "San Marino" SMR
+  "Sao Tome and Principe" STP
+  "Saudi Arabia" SAU
+  "Senegal" SEN
+  "Serbia" SRB
+  "Seychelles" SYC
+  "Sierra Leone" SLE
+  "Singapore" SGP
+  "Sint Maarten" SXM
+  "Slovakia" SVK
+  "Slovenia" SVN
+  "Solomon Islands" SLB
+  "Somalia" SOM
+  "South Africa" ZAF
+  "South Georgia and the South Sandwich Islands" SGS
+  "South Korea" KOR
+  "South Sudan" SSD
+  "Spain" ESP
+  "Sri Lanka" LKA
+  "Sudan" SDN
+  "Suriname" SUR
+  "Svalbard and Jan Mayen" SJM
+  "Sweden" SWE
+  "Switzerland" CHE
+  "Syria" SYR
+  "Taiwan" TWN
+  "Tajikistan" TJK
+  "Tanzania" TZA
+  "Thailand" THA
+  "Timor-Leste" TLS
+  "Togo" TGO
+  "Tokelau" TKL
+  "Tonga" TON
+  "Trinidad and Tobago" TTO
+  "Tunisia" TUN
+  "Turkey" TUR
+  "Turkmenistan" TKM
+  "Turks and Caicos Islands" TCA
+  "Tuvalu" TUV
+  "Uganda" UGA
+  "Ukraine" UKR
+  "United Arab Emirates" ARE
+  "United Kingdom" GBR
+  "United States Minor Outlying Islands" UMI
+  "United States of America" USA
+  "Uruguay" URY
+  "Uzbekistan" UZB
+  "Vanuatu" VUT
+  "Vatican City" VAT
+  "Venezuela" VEN
+  "Viet Nam" VNM
+  "Virgin Islands (British)" VGB
+  "Virgin Islands (U.S.)" VIR
+  "Wallis and Futuna" WLF
+  "Western Sahara" ESH
+  "Yemen" YEM
+  "Zambia" ZMB
+  "Zimbabwe" ZWE
+}
+
+"Three-letter ISO 4217 code representing a currency"
+enum CurrencyCode {
+  "Andorran peseta" ADP
+  "United Arab Emirates dirham" AED
+  "Afghan afghani (first)" AFA
+  "Afghan afghani" AFN
+  "Old Albanian lek" ALK
+  "Albanian lek" ALL
+  "Armenian dram" AMD
+  "Netherlands Antillean guilder" ANG
+  "Angolan kwanza" AOA
+  "Angolan kwanza (first)" AOK
+  "Angolan novo kwanza" AON
+  "Angolan kwanza reajustado" AOR
+  "Argentine austral" ARA
+  "Argentine peso argentino" ARP
+  "Argentine peso" ARS
+  "Argentine peso ley" ARY
+  "Austrian schilling" ATS
+  "Australian dollar" AUD
+  "Aruban florin" AWG
+  "Azerbaijani manat (first)" AYM
+  "Azerbaijani manat (second)" AZM
+  "Azerbaijani manat" AZN
+  "Bosnia and Herzegovina dinar" BAD
+  "Bosnia and Herzegovina convertible mark" BAM
+  "Barbados dollar" BBD
+  "Bangladeshi taka" BDT
+  "Belgian convertible franc" BEC
+  "Belgian franc" BEF
+  "Belgian financial franc" BEL
+  "Bulgarian lev (first)" BGJ
+  "Bulgarian lev (second)" BGK
+  "Bulgarian lev (third)" BGL
+  "Bulgarian lev" BGN
+  "Bahraini dinar" BHD
+  "Burundian franc" BIF
+  "Bermudian dollar" BMD
+  "Brunei dollar" BND
+  "Boliviano" BOB
+  "Bolivian peso" BOP
+  "Bolivian Mvdol" BOV
+  "Brazilian cruzeiro (1967-1986)" BRB
+  "Brazilian cruzado" BRC
+  "Brazilian cruzeiro (1990–1993)" BRE
+  "Brazilian real" BRL
+  "Brazilian cruzado novo" BRN
+  "Brazilian cruzeiro real" BRR
+  "Bahamian dollar" BSD
+  "Bhutanese ngultrum" BTN
+  "Burmese kyat" BUK
+  "Botswana pula" BWP
+  "Belarusian ruble (first)" BYB
+  "Belarusian ruble" BYN
+  "Belarusian ruble (second)" BYR
+  "Belize dollar" BZD
+  "Canadian dollar" CAD
+  "Congolese franc" CDF
+  "WIR franc (for electronic currency)" CHC
+  "WIR euro" CHE
+  "Swiss franc" CHF
+  "WIR franc" CHW
+  "Unidad de Fomento" CLF
+  "Chilean peso" CLP
+  "Renminbi" CNY
+  "Colombian peso" COP
+  "Unidad de Valor Real (UVR)" COU
+  "Costa Rican colon" CRC
+  "Serbian dinar" CSD
+  "Czechoslovak koruna (second)" CSJ
+  "Czechoslovak koruna" CSK
+  "Cuban convertible peso" CUC
+  "Cuban peso" CUP
+  "Cape Verdean escudo" CVE
+  "Cypriot pound" CYP
+  "Czech koruna" CZK
+  "East German mark" DDM
+  "German mark" DEM
+  "Djiboutian franc" DJF
+  "Danish krone" DKK
+  "Dominican peso" DOP
+  "Algerian dinar" DZD
+  "Ecuadorian sucre" ECS
+  "Ecuador Unidad de Valor Constante" ECV
+  "Estonian kroon" EEK
+  "Egyptian pound" EGP
+  "Eritrean nakfa" ERN
+  "Spanish peseta (account A)" ESA
+  "Spanish peseta (account B)" ESB
+  "Spanish peseta" ESP
+  "Ethiopian birr" ETB
+  "Euro" EUR
+  "Finnish markka" FIM
+  "Fiji dollar" FJD
+  "Falkland Islands pound" FKP
+  "French franc" FRF
+  "Pound sterling" GBP
+  "Georgian kuponi" GEK
+  "Georgian lari" GEL
+  "Ghanaian cedi (second)" GHC
+  "Ghanaian cedi (first)" GHP
+  "Ghanaian cedi" GHS
+  "Gibraltar pound" GIP
+  "Gambian dalasi" GMD
+  "Guinean syli (first)" GNE
+  "Guinean franc" GNF
+  "Guinean syli (second)" GNS
+  "Equatorial Guinean ekwele" GQE
+  "Greek drachma" GRD
+  "Guatemalan quetzal" GTQ
+  "Guinean escudo" GWE
+  "Guinea-Bissau peso" GWP
+  "Guyanese dollar" GYD
+  "Hong Kong dollar" HKD
+  "Honduran lempira" HNL
+  "Croatian dinar" HRD
+  "Croatian kuna" HRK
+  "Haitian gourde" HTG
+  "Hungarian forint" HUF
+  "Indonesian rupiah" IDR
+  "Irish pound" IEP
+  "Israeli pound" ILP
+  "Israeli shekel" ILR
+  "Israeli new shekel" ILS
+  "Indian rupee" INR
+  "Iraqi dinar" IQD
+  "Iranian rial" IRR
+  "Icelandic króna (first)" ISJ
+  "Icelandic króna" ISK
+  "Italian lira" ITL
+  "Jamaican dollar" JMD
+  "Jordanian dinar" JOD
+  "Japanese yen" JPY
+  "Kenyan shilling" KES
+  "Kyrgyzstani som" KGS
+  "Cambodian riel" KHR
+  "Comoro franc" KMF
+  "North Korean won" KPW
+  "South Korean won" KRW
+  "Kuwaiti dinar" KWD
+  "Cayman Islands dollar" KYD
+  "Kazakhstani tenge" KZT
+  "Pathet Lao kip" LAJ
+  "Lao kip" LAK
+  "Lebanese pound" LBP
+  "Sri Lankan rupee" LKR
+  "Liberian dollar" LRD
+  "Lesotho loti" LSL
+  "Lesotho loti (historic code)" LSM
+  "Lithuanian litas" LTL
+  "Lithuanian talonas" LTT
+  "Luxembourg convertible franc" LUC
+  "Luxembourg franc" LUF
+  "Luxembourg financial franc" LUL
+  "Latvian lats" LVL
+  "Latvian rublis" LVR
+  "Libyan dinar" LYD
+  "Moroccan dirham" MAD
+  "Moldovan leu" MDL
+  "Malagasy ariary" MGA
+  "Malagasy franc" MGF
+  "Macedonian denar" MKD
+  "Malian franc" MLF
+  "Myanmar kyat" MMK
+  "Mongolian tögrög" MNT
+  "Macanese pataca" MOP
+  "Mauritanian ouguiya (first)" MRO
+  "Mauritanian ouguiya" MRU
+  "Maltese lira" MTL
+  "Maltese pound" MTP
+  "Mauritian rupee" MUR
+  "Maldivian rupee" MVQ
+  "Maldivian rufiyaa" MVR
+  "Malawian kwacha" MWK
+  "Mexican peso" MXN
+  "Mexican peso (first)" MXP
+  "Mexican Unidad de Inversion (UDI)" MXV
+  "Malaysian ringgit" MYR
+  "Mozambican escudo" MZE
+  "Mozambican metical (first)" MZM
+  "Mozambican metical" MZN
+  "Namibian dollar" NAD
+  "Nigerian naira" NGN
+  "Nicaraguan córdoba (second)" NIC
+  "Nicaraguan córdoba" NIO
+  "Dutch guilder" NLG
+  "Norwegian krone" NOK
+  "Nepalese rupee" NPR
+  "New Zealand dollar" NZD
+  "Omani rial" OMR
+  "Panamanian balboa" PAB
+  "Peruvian old sol" PEH
+  "Peruvian inti" PEI
+  "Peruvian sol" PEN
+  "Peruvian sol (historic code)" PES
+  "Papua New Guinean kina" PGK
+  "Philippine peso" PHP
+  "Pakistani rupee" PKR
+  "Polish złoty" PLN
+  "Polish złoty (third)" PLZ
+  "Portuguese escudo" PTE
+  "Paraguayan guaraní" PYG
+  "Qatari riyal" QAR
+  "Rhodesian dollar (historic code)" RHD
+  "Romanian leu (second)" ROK
+  "Romanian leu (third)" ROL
+  "Romanian leu" RON
+  "Serbian dinar" RSD
+  "Russian ruble" RUB
+  "Russian ruble (old)" RUR
+  "Rwandan franc" RWF
+  "Saudi riyal" SAR
+  "Solomon Islands dollar" SBD
+  "Seychelles rupee" SCR
+  "Sudanese dinar" SDD
+  "Sudanese pound" SDG
+  "Sudanese old pound" SDP
+  "Swedish krona" SEK
+  "Singapore dollar" SGD
+  "Saint Helena pound" SHP
+  "Slovenian tolar" SIT
+  "Slovak koruna" SKK
+  "Sierra Leonean leone (old leone)" SLL
+  "Somalian shilling" SOS
+  "Surinamese dollar" SRD
+  "Surinamese guilder" SRG
+  "South Sudanese pound" SSP
+  "São Tomé and Príncipe dobra (first)" STD
+  "São Tomé and Príncipe dobra" STN
+  "Soviet Union ruble" SUR
+  "Salvadoran colón" SVC
+  "Syrian pound" SYP
+  "Swazi lilangeni" SZL
+  "Thai baht" THB
+  "Tajikistani ruble" TJR
+  "Tajikistani somoni" TJS
+  "Turkmenistani manat (first)" TMM
+  "Turkmenistani manat" TMT
+  "Tunisian dinar" TND
+  "Tongan paʻanga" TOP
+  "Portuguese Timorese escudo" TPE
+  "Turkish lira (first)" TRL
+  "Turkish lira" TRY
+  "Trinidad and Tobago dollar" TTD
+  "New Taiwan dollar" TWD
+  "Tanzanian shilling" TZS
+  "Ukrainian hryvnia" UAH
+  "Ukrainian karbovanets" UAK
+  "Ugandan shilling" UGS
+  "Old Shilling" UGW
+  "Ugandan shilling" UGX
+  "United States dollar" USD
+  "United States dollar (next day)" USN
+  "United States dollar (same day)" USS
+  "Uruguay Peso en Unidades Indexadas (URUIURUI)" UYI
+  "Uruguayan peso (gold standard)" UYN
+  "Uruguayan nuevo peso" UYP
+  "Uruguayan peso" UYU
+  "Unidad previsional" UYW
+  "Uzbekistani sum" UZS
+  "Venezuelan bolívar" VEB
+  "Venezuelan bolívar fuerte" VEF
+  "Venezuelan sovereign bolívar" VES
+  "Old Vietnamese dong" VNC
+  "Vietnamese đồng" VND
+  "Vanuatu vatu" VUV
+  "Samoan tala" WST
+  "CFA franc BEAC" XAF
+  "Silver" XAG
+  "Gold" XAU
+  "European Composite Unit" XBA
+  "European Monetary Unit" XBB
+  "European Unit of Account 9" XBC
+  "European Unit of Account 17" XBD
+  "East Caribbean dollar" XCD
+  "Special drawing rights" XDR
+  "European Currency Unit" XEU
+  "Gold franc" XFO
+  "UIC franc" XFU
+  "CFA franc BCEAO" XOF
+  "Palladium" XPD
+  "CFP franc (franc Pacifique)" XPF
+  "Platinum" XPT
+  "RINET funds code" XRE
+  "SUCRE" XSU
+  "Code reserved for testing" XTS
+  "ADB Unit of Account" XUA
+  "No currency" XXX
+  "South Yemeni dinar" YDD
+  "Yemeni rial" YER
+  "Yugoslav dinar (hard)" YUD
+  "Yugoslav dinar (Novi)" YUM
+  "Yugoslav dinar (convertible)" YUN
+  "South African financial rand" ZAL
+  "South African rand" ZAR
+  "Zambian kwacha" ZMK
+  "Zambian new kwacha" ZMW
+  "Zairean new zaire" ZRN
+  "Zairean zaire" ZRZ
+  "Rhodesian dollar" ZWC
+  "Zimbabwean dollar (first)" ZWD
+  "Zimbabwean dollar" ZWL
+  "Zimbabwean dollar (second)" ZWN
+  "Zimbabwean dollar (third)" ZWR
+}
+
+"Order in which to sort query results"
+enum Direction {
+  "Ascending order" ASC
+  "Descending order" DESC
+}
+
+"How one recorded execution attempt ended"
+enum DistributionJobAttemptResult {
+  "The worker reported success" SUCCEEDED
+  "The worker reported a failure" FAILED
+  "A cancellation closed the attempt" CANCELLED
+  "The lease expired with no worker response" ABANDONED
+}
+
+"Why a distribution job was cancelled"
+enum DistributionJobCancellationReason {
+  "An operator cancelled the job deliberately" ADMINISTRATIVE
+  "The publisher's assignment for a destination of this job was disabled" ASSIGNMENT_DISABLED
+}
+
+"Kind of durable distribution work a job represents"
+enum DistributionJobKind {
+  "Onboarding of a publisher's existing back catalogue to newly activated destinations" PUBLISHER_BACK_CATALOGUE
+}
+
+"Lifecycle state of one durable distribution job"
+enum DistributionJobStatus {
+  "Durable work exists and is not claimed" PENDING
+  "Claimed by one worker under a live or expired lease" RUNNING
+  "Terminal; a worker reported success" SUCCEEDED
+  "Terminal; a worker reported a non-retryable failure, or the attempt budget was exhausted" FAILED
+  "Terminal; withdrawn administratively or by assignment disable" CANCELLED
+}
+
+"Destination to which a publisher's works may be distributed"
+enum DistributionPlatform {
+  "Internet Archive" INTERNET_ARCHIVE
+  "OAPEN; linked with DOAB" OAPEN
+  "Directory of Open Access Books; linked with OAPEN" DOAB
+  "ScienceOpen" SCIENCE_OPEN
+  "Cambridge University Library" CAMBRIDGE_UNIVERSITY_LIBRARY
+  "Crossref" CROSSREF
+  "Figshare" FIGSHARE
+  "Zenodo" ZENODO
+  "Project MUSE" PROJECT_MUSE
+  "JSTOR" JSTOR
+  "EBSCOHost" EBSCO_HOST
+  "ProQuest Ebook Central" PROQUEST_EBOOK_CENTRAL
+  "Google Play Books" GOOGLE_PLAY
+  "Book Citation Index" BKCI
+  "OCLC Knowledge Base" OCLC_KB
+  "Ex Libris Knowledge Base" EX_LIBRIS_KB
+  "Jisc NBK; included but currently inactive and non-assignable" JISC_NBK
+}
+
+"Group of destinations whose assignments are enabled and disabled together"
+enum DistributionPlatformGroup {
+  "OAPEN and DOAB, which share one deposit and are enabled together" OAPEN_DOAB
+}
+
+"Field to use when sorting endorsements list"
+enum EndorsementField {
+  ENDORSEMENT_ID
+  WORK_ID
+  ENDORSEMENT_ORDINAL
+  AUTHOR_NAME
+  AUTHOR_ROLE
+  URL
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Expression to use when filtering by numeric value"
+enum Expression {
+  "Return only results with values which are greater than the value supplied" GREATER_THAN
+  "Return only results with values which are less than the value supplied" LESS_THAN
+}
+
+"Type of file being uploaded"
+enum FileType {
+  "Publication file (PDF, EPUB, XML, etc.)" PUBLICATION
+  "Front cover image" FRONTCOVER
+  "Additional resource file (audio, video, image, spreadsheet, etc.)" ADDITIONAL_RESOURCE
+  "Featured video file hosted on CDN" WORK_FEATURED_VIDEO
+}
+
+"Field to use when sorting fundings list"
+enum FundingField {
+  INSTITUTION_ID
+  WORK_ID
+  FUNDING_ID
+  PROGRAM
+  PROJECT_NAME
+  PROJECT_SHORTNAME
+  GRANT_NUMBER
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Field to use when sorting imprints list"
+enum ImprintField {
+  IMPRINT_ID
+  IMPRINT_NAME
+  IMPRINT_URL
+  CROSSMARK_DOI
+  DEFAULT_CURRENCY
+  DEFAULT_PLACE
+  DEFAULT_LOCALE
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Field to use when sorting institutions list"
+enum InstitutionField {
+  INSTITUTION_ID
+  INSTITUTION_NAME
+  INSTITUTION_DOI
+  ROR
+  COUNTRY_CODE
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Field to use when sorting issues list"
+enum IssueField {
+  ISSUE_ID
+  SERIES_ID
+  WORK_ID
+  ISSUE_ORDINAL
+  ISSUE_NUMBER
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Three-letter ISO 639 code representing a language"
+enum LanguageCode {
+  "Afar" AAR
+  "Abkhazian" ABK
+  "Achinese" ACE
+  "Acoli" ACH
+  "Adangme" ADA
+  "Adyghe" ADY
+  "Afro-Asiatic languages" AFA
+  "Afrihili" AFH
+  "Afrikaans" AFR
+  "Ainu (Japan)" AIN
+  "Akan" AKA
+  "Akkadian" AKK
+  "Albanian" ALB
+  "Aleut" ALE
+  "Algonquian languages" ALG
+  "Southern Altai" ALT
+  "Amharic" AMH
+  "Old English (ca. 450-1100)" ANG
+  "Angika" ANP
+  "Apache languages" APA
+  "Arabic" ARA
+  "Official Aramaic (700-300 BCE)" ARC
+  "Aragonese" ARG
+  "Armenian" ARM
+  "Mapudungun" ARN
+  "Arapaho" ARP
+  "Artificial languages" ART
+  "Arawak" ARW
+  "Assamese" ASM
+  "Asturian" AST
+  "Athapascan languages" ATH
+  "Australian languages" AUS
+  "Avaric" AVA
+  "Avestan" AVE
+  "Awadhi" AWA
+  "Aymara" AYM
+  "Azerbaijani" AZE
+  "Banda languages" BAD
+  "Bamileke languages" BAI
+  "Bashkir" BAK
+  "Baluchi" BAL
+  "Bambara" BAM
+  "Balinese" BAN
+  "Basque" BAQ
+  "Basa (Cameroon)" BAS
+  "Baltic languages" BAT
+  "Beja" BEJ
+  "Belarusian" BEL
+  "Bemba (Zambia)" BEM
+  "Bengali" BEN
+  "Berber languages" BER
+  "Bhojpuri" BHO
+  "Bihari languages" BIH
+  "Bikol" BIK
+  "Bini" BIN
+  "Bislama" BIS
+  "Siksika" BLA
+  "Bantu languages" BNT
+  "Bosnian" BOS
+  "Braj" BRA
+  "Breton" BRE
+  "Batak languages" BTK
+  "Buriat" BUA
+  "Buginese" BUG
+  "Bulgarian" BUL
+  "Burmese" BUR
+  "Bilin" BYN
+  "Caddo" CAD
+  "Central American Indian languages" CAI
+  "Galibi Carib" CAR
+  "Catalan" CAT
+  "Caucasian languages" CAU
+  "Cebuano" CEB
+  "Celtic languages" CEL
+  "Chamorro" CHA
+  "Chibcha" CHB
+  "Chechen" CHE
+  "Chagatai" CHG
+  "Chinese" CHI
+  "Chuukese" CHK
+  "Mari (Russia)" CHM
+  "Chinook jargon" CHN
+  "Choctaw" CHO
+  "Chipewyan" CHP
+  "Cherokee" CHR
+  "Church Slavic" CHU
+  "Chuvash" CHV
+  "Cheyenne" CHY
+  "Chamic languages" CMC
+  "Montenegrin" CNR
+  "Coptic" COP
+  "Cornish" COR
+  "Corsican" COS
+  "Creoles and pidgins, English‑based" CPE
+  "Creoles and pidgins, French‑based" CPF
+  "Creoles and pidgins, Portuguese-based" CPP
+  "Cree" CRE
+  "Crimean Tatar" CRH
+  "Creoles and pidgins" CRP
+  "Kashubian" CSB
+  "Cushitic languages" CUS
+  "Czech" CZE
+  "Dakota" DAK
+  "Danish" DAN
+  "Dargwa" DAR
+  "Land Dayak languages" DAY
+  "Delaware" DEL
+  "Slave (Athapascan)" DEN
+  "Tlicho" DGR
+  "Dinka" DIN
+  "Dhivehi" DIV
+  "Dogri (macrolanguage)" DOI
+  "Dravidian languages" DRA
+  "Lower Sorbian" DSB
+  "Duala" DUA
+  "Middle Dutch (ca. 1050-1350)" DUM
+  "Dutch" DUT
+  "Dyula" DYU
+  "Dzongkha" DZO
+  "Efik" EFI
+  "Egyptian (Ancient)" EGY
+  "Ekajuk" EKA
+  "Elamite" ELX
+  "English" ENG
+  "Middle English (1100-1500)" ENM
+  "Esperanto" EPO
+  "Estonian" EST
+  "Ewe" EWE
+  "Ewondo" EWO
+  "Fang (Equatorial Guinea)" FAN
+  "Faroese" FAO
+  "Fanti" FAT
+  "Fijian" FIJ
+  "Filipino" FIL
+  "Finnish" FIN
+  "Finno-Ugrian languages" FIU
+  "Fon" FON
+  "French" FRE
+  "Middle French (ca. 1400-1600)" FRM
+  "Old French (842-ca. 1400)" FRO
+  "Northern Frisian" FRR
+  "Eastern Frisian" FRS
+  "Western Frisian" FRY
+  "Fulah" FUL
+  "Friulian" FUR
+  "Ga" GAA
+  "Gayo" GAY
+  "Gbaya (Central African Republic)" GBA
+  "Germanic languages" GEM
+  "Georgian" GEO
+  "German" GER
+  "Geez" GEZ
+  "Gilbertese" GIL
+  "Scottish Gaelic" GLA
+  "Irish" GLE
+  "Galician" GLG
+  "Manx" GLV
+  "Middle High German (ca. 1050-1500)" GMH
+  "Old High German (ca. 750-1050)" GOH
+  "Gondi" GON
+  "Gorontalo" GOR
+  "Gothic" GOT
+  "Grebo" GRB
+  "Ancient Greek (to 1453)" GRC
+  "Modern Greek (1453-)" GRE
+  "Guarani" GRN
+  "Swiss German" GSW
+  "Gujarati" GUJ
+  "Gwichʼin" GWI
+  "Haida" HAI
+  "Haitian" HAT
+  "Hausa" HAU
+  "Hawaiian" HAW
+  "Hebrew" HEB
+  "Herero" HER
+  "Hiligaynon" HIL
+  "Himachali languages" HIM
+  "Hindi" HIN
+  "Hittite" HIT
+  "Hmong" HMN
+  "Hiri Motu" HMO
+  "Croatian" HRV
+  "Upper Sorbian" HSB
+  "Hungarian" HUN
+  "Hupa" HUP
+  "Iban" IBA
+  "Igbo" IBO
+  "Icelandic" ICE
+  "Ido" IDO
+  "Sichuan Yi" III
+  "Ijo languages" IJO
+  "Inuktitut" IKU
+  "Interlingue" ILE
+  "Iloko" ILO
+  "Interlingua (International Auxiliary Language Association)" INA
+  "Indic languages" INC
+  "Indonesian" IND
+  "Indo-European languages" INE
+  "Ingush" INH
+  "Inupiaq" IPK
+  "Iranian languages" IRA
+  "Iroquoian languages" IRO
+  "Italian" ITA
+  "Javanese" JAV
+  "Lojban" JBO
+  "Japanese" JPN
+  "Judeo-Persian" JPR
+  "Judeo-Arabic" JRB
+  "Kara-Kalpak" KAA
+  "Kabyle" KAB
+  "Kachin" KAC
+  "Kalaallisut" KAL
+  "Kamba (Kenya)" KAM
+  "Kannada" KAN
+  "Karen languages" KAR
+  "Kashmiri" KAS
+  "Kanuri" KAU
+  "Kawi" KAW
+  "Kazakh" KAZ
+  "Kabardian" KBD
+  "Khasi" KHA
+  "Khoisan languages" KHI
+  "Khmer" KHM
+  "Khotanese" KHO
+  "Kikuyu" KIK
+  "Kinyarwanda" KIN
+  "Kirghiz" KIR
+  "Kimbundu" KMB
+  "Konkani (macrolanguage)" KOK
+  "Komi" KOM
+  "Kongo" KON
+  "Korean" KOR
+  "Kosraean" KOS
+  "Kpelle" KPE
+  "Karachay-Balkar" KRC
+  "Karelian" KRL
+  "Kru languages" KRO
+  "Kurukh" KRU
+  "Kuanyama" KUA
+  "Kumyk" KUM
+  "Kurdish" KUR
+  "Kutenai" KUT
+  "Ladino" LAD
+  "Lahnda" LAH
+  "Lamba" LAM
+  "Lao" LAO
+  "Latin" LAT
+  "Latvian" LAV
+  "Lezghian" LEZ
+  "Limburgan" LIM
+  "Lingala" LIN
+  "Lithuanian" LIT
+  "Mongo" LOL
+  "Lozi" LOZ
+  "Luxembourgish" LTZ
+  "Luba-Lulua" LUA
+  "Luba-Katanga" LUB
+  "Ganda" LUG
+  "Luiseno" LUI
+  "Lunda" LUN
+  "Luo (Kenya and Tanzania)" LUO
+  "Lushai" LUS
+  "Macedonian" MAC
+  "Madurese" MAD
+  "Magahi" MAG
+  "Marshallese" MAH
+  "Maithili" MAI
+  "Makasar" MAK
+  "Malayalam" MAL
+  "Mandingo" MAN
+  "Maori" MAO
+  "Austronesian languages" MAP
+  "Marathi" MAR
+  "Masai" MAS
+  "Malay (macrolanguage)" MAY
+  "Moksha" MDF
+  "Mandar" MDR
+  "Mende (Sierra Leone)" MEN
+  "Middle Irish (900-1200)" MGA
+  "Mi'kmaq" MIC
+  "Minangkabau" MIN
+  "Uncoded languages" MIS
+  "Mon-Khmer languages" MKH
+  "Malagasy" MLG
+  "Maltese" MLT
+  "Manchu" MNC
+  "Manipuri" MNI
+  "Manobo languages" MNO
+  "Mohawk" MOH
+  "Mongolian" MON
+  "Mossi" MOS
+  "Multiple languages" MUL
+  "Munda languages" MUN
+  "Creek" MUS
+  "Mirandese" MWL
+  "Marwari" MWR
+  "Mayan languages" MYN
+  "Erzya" MYV
+  "Nahuatl languages" NAH
+  "North American Indian languages" NAI
+  "Neapolitan" NAP
+  "Nauru" NAU
+  "Navajo" NAV
+  "South Ndebele" NBL
+  "North Ndebele" NDE
+  "Ndonga" NDO
+  "Low German" NDS
+  "Nepali (macrolanguage)" NEP
+  "Newari" NEW
+  "Nias" NIA
+  "Niger-Kordofanian languages" NIC
+  "Niuean" NIU
+  "Norwegian Nynorsk" NNO
+  "Norwegian Bokmål" NOB
+  "Nogai" NOG
+  "Old Norse" NON
+  "Norwegian" NOR
+  "N'Ko" NQO
+  "Pedi" NSO
+  "Nubian languages" NUB
+  "Classical Newari" NWC
+  "Nyanja" NYA
+  "Nyamwezi" NYM
+  "Nyankole" NYN
+  "Nyoro" NYO
+  "Nzima" NZI
+  "Occitan (post 1500)" OCI
+  "Ojibwa" OJI
+  "Oriya (macrolanguage)" ORI
+  "Oromo" ORM
+  "Osage" OSA
+  "Ossetian" OSS
+  "Ottoman Turkish (1500-1928)" OTA
+  "Otomian languages" OTO
+  "Papuan languages" PAA
+  "Pangasinan" PAG
+  "Pahlavi" PAL
+  "Pampanga" PAM
+  "Panjabi" PAN
+  "Papiamento" PAP
+  "Palauan" PAU
+  "Old Persian (ca. 600-400 B.C.)" PEO
+  "Persian" PER
+  "Philippine languages" PHI
+  "Phoenician" PHN
+  "Pali" PLI
+  "Polish" POL
+  "Pohnpeian" PON
+  "Portuguese" POR
+  "Prakrit languages" PRA
+  "Old Provençal (to 1500)" PRO
+  "Pushto" PUS
+  "Reserved for local use" QAA
+  "Quechua" QUE
+  "Rajasthani" RAJ
+  "Rapanui" RAP
+  "Rarotongan" RAR
+  "Romance languages" ROA
+  "Romansh" ROH
+  "Romany" ROM
+  "Romanian" RUM
+  "Rundi" RUN
+  "Macedo-Romanian" RUP
+  "Russian" RUS
+  "Sandawe" SAD
+  "Sango" SAG
+  "Yakut" SAH
+  "South American Indian languages" SAI
+  "Salishan languages" SAL
+  "Samaritan Aramaic" SAM
+  "Sanskrit" SAN
+  "Sasak" SAS
+  "Santali" SAT
+  "Sicilian" SCN
+  "Scots" SCO
+  "Selkup" SEL
+  "Semitic languages" SEM
+  "Old Irish (to 900)" SGA
+  "sign languages" SGN
+  "Shan" SHN
+  "Sidamo" SID
+  "Sinhala" SIN
+  "Siouan languages" SIO
+  "Sino-Tibetan languages" SIT
+  "Slavic languages" SLA
+  "Slovak" SLO
+  "Slovenian" SLV
+  "Southern Sami" SMA
+  "Northern Sami" SME
+  "Sami languages" SMI
+  "Lule Sami" SMJ
+  "Inari Sami" SMN
+  "Samoan" SMO
+  "Skolt Sami" SMS
+  "Shona" SNA
+  "Sindhi" SND
+  "Soninke" SNK
+  "Sogdian" SOG
+  "Somali" SOM
+  "Songhai languages" SON
+  "Southern Sotho" SOT
+  "Spanish" SPA
+  "Sardinian" SRD
+  "Sranan Tongo" SRN
+  "Serbian" SRP
+  "Serer" SRR
+  "Nilo-Saharan languages" SSA
+  "Swati" SSW
+  "Sukuma" SUK
+  "Sundanese" SUN
+  "Susu" SUS
+  "Sumerian" SUX
+  "Swahili (macrolanguage)" SWA
+  "Swedish" SWE
+  "Classical Syriac" SYC
+  "Syriac" SYR
+  "Tahitian" TAH
+  "Tai languages" TAI
+  "Tamil" TAM
+  "Tatar" TAT
+  "Telugu" TEL
+  "Timne" TEM
+  "Tereno" TER
+  "Tetum" TET
+  "Tajik" TGK
+  "Tagalog" TGL
+  "Thai" THA
+  "Tibetan" TIB
+  "Tigre" TIG
+  "Tigrinya" TIR
+  "Tiv" TIV
+  "Tokelau" TKL
+  "Klingon" TLH
+  "Tlingit" TLI
+  "Tamashek" TMH
+  "Tonga (Nyasa)" TOG
+  "Tonga (Tonga Islands)" TON
+  "Tok Pisin" TPI
+  "Tsimshian" TSI
+  "Tswana" TSN
+  "Tsonga" TSO
+  "Turkmen" TUK
+  "Tumbuka" TUM
+  "Tupi languages" TUP
+  "Turkish" TUR
+  "Altaic languages" TUT
+  "Tuvalu" TVL
+  "Twi" TWI
+  "Tuvinian" TYV
+  "Udmurt" UDM
+  "Ugaritic" UGA
+  "Uighur" UIG
+  "Ukrainian" UKR
+  "Umbundu" UMB
+  "Undetermined" UND
+  "Urdu" URD
+  "Uzbek" UZB
+  "Vai" VAI
+  "Venda" VEN
+  "Vietnamese" VIE
+  "Volapük" VOL
+  "Votic" VOT
+  "Wakashan languages" WAK
+  "Wolaytta" WAL
+  "Waray (Philippines)" WAR
+  "Washo" WAS
+  "Welsh" WEL
+  "Sorbian languages" WEN
+  "Walloon" WLN
+  "Wolof" WOL
+  "Kalmyk" XAL
+  "Xhosa" XHO
+  "Yao" YAO
+  "Yapese" YAP
+  "Yiddish" YID
+  "Yoruba" YOR
+  "Yupik languages" YPK
+  "Zapotec" ZAP
+  "Blissymbols" ZBL
+  "Zenaga" ZEN
+  "Standard Moroccan Tamazight" ZGH
+  "Zhuang" ZHA
+  "Zande languages" ZND
+  "Zulu" ZUL
+  "Zuni" ZUN
+  "No linguistic content" ZXX
+  "Zaza" ZZA
+}
+
+"Field to use when sorting languages list"
+enum LanguageField {
+  LANGUAGE_ID
+  WORK_ID
+  LANGUAGE_CODE
+  LANGUAGE_RELATION
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Relation between a language listed for a work and the original language of the work's text"
+enum LanguageRelation {
+  "Original language of the text" ORIGINAL
+  "Language from which the text was translated" TRANSLATED_FROM
+  "Language into which the text has been translated" TRANSLATED_INTO
+}
+
+"Unit of measurement for physical Work dimensions (mm, cm or in)"
+enum LengthUnit {
+  "Millimetres" MM
+  "Centimetres" CM
+  "Inches" IN
+}
+
+"BCP-47 code representing locale"
+enum LocaleCode {
+  "English" EN
+  "Afrikaans (af)" AF
+  "Afrikaans (Namibia) (af-NA)" AF_NA
+  "Afrikaans (South Africa) (af-ZA)" AF_ZA
+  "Aghem (agq)" AGQ
+  "Aghem (Cameroon) (agq-CM)" AGQ_CM
+  "Akan (ak)" AK
+  "Akan (Ghana) (ak-GH)" AK_GH
+  "Albanian (sq)" SQ
+  "Albanian (Albania) (sq-AL)" SQ_AL
+  "Amharic (am)" AM
+  "Amharic (Ethiopia) (am-ET)" AM_ET
+  "Antigua and Barbuda Creole English" AIG
+  "Arabic (ar)" AR
+  "Arabic (Algeria) (ar-DZ)" AR_DZ
+  "Arabic (Bahrain) (ar-BH)" AR_BH
+  "Arabic (Egypt) (ar-EG)" AR_EG
+  "Arabic (Iraq) (ar-IQ)" AR_IQ
+  "Arabic (Jordan) (ar-JO)" AR_JO
+  "Arabic (Kuwait) (ar-KW)" AR_KW
+  "Arabic (Lebanon) (ar-LB)" AR_LB
+  "Arabic (Libya) (ar-LY)" AR_LY
+  "Arabic (Morocco) (ar-MA)" AR_MA
+  "Arabic (Oman) (ar-OM)" AR_OM
+  "Arabic (Qatar) (ar-QA)" AR_QA
+  "Arabic (Saudi Arabia) (ar-SA)" AR_SA
+  "Arabic (Sudan) (ar-SD)" AR_SD
+  "Arabic (Syria) (ar-SY)" AR_SY
+  "Arabic (Tunisia) (ar-TN)" AR_TN
+  "Arabic (United Arab Emirates) (ar-AE)" AR_AE
+  "Arabic (World) (ar-001)" AR001
+  "Arabic (Yemen) (ar-YE)" AR_YE
+  "Armenian (hy)" HY
+  "Armenian (Armenia) (hy-AM)" HY_AM
+  "Assamese (as)" AS
+  "Assamese (India) (as-IN)" AS_IN
+  "Asturian (ast)" AST
+  "Asturian (Spain) (ast-ES)" AST_ES
+  "Asu (asa)" ASA
+  "Asu (Tanzania) (asa-TZ)" ASA_TZ
+  "Azerbaijani (az)" AZ
+  "Azerbaijani (Cyrillic) (az-Cyrl)" AZ_CYRL
+  "Azerbaijani (Cyrillic, Azerbaijan) (az-Cyrl-AZ)" AZ_CYRL_AZ
+  "Azerbaijani (Latin) (az-Latn)" AZ_LATN
+  "Azerbaijani (Latin, Azerbaijan) (az-Latn-AZ)" AZ_LATN_AZ
+  "Bafia (ksf)" KSF
+  "Bafia (Cameroon) (ksf-CM)" KSF_CM
+  "Bahamas Creole English" BAH
+  "Bambara (bm)" BM
+  "Bambara (Mali) (bm-ML)" BM_ML
+  "Basaa (bas)" BAS
+  "Basaa (Cameroon) (bas-CM)" BAS_CM
+  "Basque (eu)" EU
+  "Basque (Spain) (eu-ES)" EU_ES
+  "Belarusian (be)" BE
+  "Belarusian (Belarus) (be-BY)" BE_BY
+  "Bemba (bem)" BEM
+  "Bemba (Zambia) (bem-ZM)" BEM_ZM
+  "Bena (bez)" BEZ
+  "Bena (Tanzania) (bez-TZ)" BEZ_TZ
+  "Bengali (bn)" BN
+  "Bengali (Bangladesh) (bn-BD)" BN_BD
+  "Bengali (India) (bn-IN)" BN_IN
+  "Bodo (brx)" BRX
+  "Bodo (India) (brx-IN)" BRX_IN
+  "Bosnian (bs)" BS
+  "Bosnian (Bosnia and Herzegovina) (bs-BA)" BS_BA
+  "Breton (br)" BR
+  "Breton (France) (br-FR)" BR_FR
+  "Bulgarian (bg)" BG
+  "Bulgarian (Bulgaria) (bg-BG)" BG_BG
+  "Burmese (my)" MY
+  "Burmese (Myanmar [Burma]) (my-MM)" MY_MM
+  "Catalan (ca)" CA
+  "Catalan (Spain) (ca-ES)" CA_ES
+  "Central Kurdish (ckb)" CKB
+  "Northern Kurdish (kmr)" KMR
+  "Southern Kurdish (sdh)" SDH
+  "Central Morocco Tamazight (tzm)" TZM
+  "Central Morocco Tamazight (Latin) (tzm-Latn)" TZM_LATN
+  "Central Morocco Tamazight (Latin, Morocco) (tzm-Latn-MA) " TZM_LATN_MA
+  "Cherokee (chr)" CHR
+  "Cherokee (United States) (chr-US)" CHR_US
+  "Chiga (cgg)" CGG
+  "Chiga (Uganda) (cgg-UG)" CGG_UG
+  "Chinese (zh)" ZH
+  "Chinese (Simplified) (zh-Hans)" ZH_HANS
+  "Chinese (Simplified, China) (zh-CN)" ZH_CN
+  "Chinese (Simplified, China) (zh-Hans-CN)" ZH_HANS_CN
+  "Chinese (Simplified, Hong Kong SAR China) (zh-Hans-HK)" ZH_HANS_HK
+  "Chinese (Simplified, Macau SAR China) (zh-Hans-MO) " ZH_HANS_MO
+  "Chinese (Simplified, Singapore) (zh-Hans-SG)" ZH_HANS_SG
+  "Chinese (Traditional) (zh-Hant)" ZH_HANT
+  "Chinese (Traditional, Hong Kong SAR China) (zh-Hant-HK) " ZH_HANT_HK
+  "Chinese (Traditional, Macau SAR China) (zh-Hant-MO) " ZH_HANT_MO
+  "Chinese (Traditional, Taiwan) (zh-Hant-TW)" ZH_HANT_TW
+  "Congo Swahili (swc)" SWC
+  "Congo Swahili (Congo - Kinshasa) (swc-CD)" SWC_CD
+  "Cornish (kw)" KW
+  "Cornish (United Kingdom) (kw-GB)" KW_GB
+  "Croatian (hr)" HR
+  "Croatian (Croatia) (hr-HR)" HR_HR
+  "Czech (cs)" CS
+  "Czech (Czech Republic) (cs-CZ)" CS_CZ
+  "Danish (da)" DA
+  "Danish (Denmark) (da-DK)" DA_DK
+  "Duala (dua)" DUA
+  "Duala (Cameroon) (dua-CM)" DUA_CM
+  "Dhivehi (Maldives)" DV
+  "Dutch (nl)" NL
+  "Dutch (Aruba) (nl-AW)" NL_AW
+  "Dutch (Belgium) (nl-BE)" NL_BE
+  "Dutch (Curaçao) (nl-CW)" NL_CW
+  "Dutch (Netherlands) (nl-NL)" NL_NL
+  "Dutch (Sint Maarten) (nl-SX)" NL_SX
+  "Embu (ebu)" EBU
+  "Embu (Kenya) (ebu-KE)" EBU_KE
+  "English (Anguilla) (en-AI)" EN_AI
+  "English (American Samoa) (en-AS)" EN_AS
+  "English (Australia) (en-AU)" EN_AU
+  "English (Austria) (en-AT)" EN_AT
+  "English (Barbados) (en-BB)" EN_BB
+  "English (Belgium) (en-BE)" EN_BE
+  "English (Belize) (en-BZ)" EN_BZ
+  "English (Bermuda) (en-BM)" EN_BM
+  "English (Botswana) (en-BW)" EN_BW
+  "English (British Indian Ocean Territory) (en-IO)" EN_IO
+  "English (Burundi) (en-BI)" EN_BI
+  "English (Cameroon) (en-CM)" EN_CM
+  "English (Canada) (en-CA)" EN_CA
+  "English (Cayman Islands) (en-KY)" EN_KY
+  "English (Christmas Island) (en-CX)" EN_CX
+  "English (Cocos [Keeling] Islands) (en-CC)" EN_CC
+  "English (Cook Islands) (en-CK)" EN_CK
+  "English (Cyprus) (en-CY)" EN_CY
+  "English (Denmark) (en-DK)" EN_DK
+  "English (Diego Garcia) (en-DG)" EN_DG
+  "English (Dominica) (en-DM)" EN_DM
+  "English (Egypt) (en-EG)" EN_EG
+  "English (Eritrea) (en-ER)" EN_ER
+  "English (Europe) (en-EU)" EN_EU
+  "English (Falkland Islands) (en-FK)" EN_FK
+  "English (Fiji) (en-FJ)" EN_FJ
+  "English (Finland) (en-FI)" EN_FI
+  "English (Gambia) (en-GM)" EN_GM
+  "English (Germany) (en-DE)" EN_DE
+  "English (Ghana) (en-GH)" EN_GH
+  "English (Gibraltar) (en-GI)" EN_GI
+  "English (Grenada) (en-GD)" EN_GD
+  "English (Guam) (en-GU)" EN_GU
+  "English (Guernsey) (en-GG)" EN_GG
+  "English (Guyana) (en-GY)" EN_GY
+  "English (Hong Kong SAR China) (en-HK)" EN_HK
+  "English (India) (en-IN)" EN_IN
+  "English (Ireland) (en-IE)" EN_IE
+  "English (Isle of Man) (en-IM)" EN_IM
+  "English (Israel) (en-IL)" EN_IL
+  "English (Jamaica) (en-JM)" EN_JM
+  "English (Jersey) (en-JE)" EN_JE
+  "English (Kenya) (en-KE)" EN_KE
+  "English (Kiribati) (en-KI)" EN_KI
+  "English (Kuwait) (en-KW)" EN_KW
+  "English (Lesotho) (en-LS)" EN_LS
+  "English (Macao SAR China) (en-MO)" EN_MO
+  "English (Madagascar) (en-MG)" EN_MG
+  "English (Malawi) (en-MW)" EN_MW
+  "English (Malaysia) (en-MY)" EN_MY
+  "English (Malta) (en-MT)" EN_MT
+  "English (Marshall Islands) (en-MH)" EN_MH
+  "English (Mauritius) (en-MU)" EN_MU
+  "English (Micronesia) (en-FM)" EN_FM
+  "English (Montserrat) (en-MS)" EN_MS
+  "English (Namibia) (en-NA)" EN_NA
+  "English (Nauru) (en-NR)" EN_NR
+  "English (Netherlands) (en-NL)" EN_NL
+  "English (New Zealand) (en-NZ)" EN_NZ
+  "English (Nigeria) (en-NG)" EN_NG
+  "English (Niue) (en-NU)" EN_NU
+  "English (Norfolk Island) (en-NF)" EN_NF
+  "English (Northern Mariana Islands) (en-MP)" EN_MP
+  "English (Norway) (en-NO)" EN_NO
+  "English (Panama) (en-PA)" EN_PA
+  "English (Pakistan) (en-PK)" EN_PK
+  "English (Palau) (en-PW)" EN_PW
+  "English (Papua New Guinea) (en-PG)" EN_PG
+  "English (Philippines) (en-PH)" EN_PH
+  "English (Pitcairn Islands) (en-PN)" EN_PN
+  "English (Puerto Rico) (en-PR)" EN_PR
+  "English (Rwanda) (en-RW)" EN_RW
+  "English (Samoa) (en-WS)" EN_WS
+  "English (Saudi Arabia) (en-SA)" EN_SA
+  "English (Seychelles) (en-SC)" EN_SC
+  "English (Sierra Leone) (en-SL)" EN_SL
+  "English (Singapore) (en-SG)" EN_SG
+  "English (Sint Maarten) (en-SX)" EN_SX
+  "English (Slovenia) (en-SI)" EN_SI
+  "English (Solomon Islands) (en-SB)" EN_SB
+  "English (South Sudan) (en-SS)" EN_SS
+  "English (St Helena) (en-SH)" EN_SH
+  "English (St Kitts & Nevis) (en-KN)" EN_KN
+  "English (St Lucia) (en-LC)" EN_LC
+  "Vincentian Creole English" SVC
+  "Virgin Islands Creole English" VIC
+  "English (Sudan) (en-SD)" EN_SD
+  "English (Swaziland) (en-SZ)" EN_SZ
+  "English (Sweden) (en-SE)" EN_SE
+  "English (Switzerland) (en-CH)" EN_CH
+  "English (Tanzania) (en-TZ)" EN_TZ
+  "English (Tokelau) (en-TK)" EN_TK
+  "English (Tonga) (en-TO)" EN_TO
+  "English (Trinidad and Tobago) (en-TT)" EN_TT
+  "English (Tuvalu) (en-TV)" EN_TV
+  "English (South Africa) (en-ZA)" EN_ZA
+  "English (U.A.E.) (en-AE)" EN_AE
+  "English (U.S. Minor Outlying Islands) (en-UM)" EN_UM
+  "English (U.S. Virgin Islands) (en-VI)" EN_VI
+  "English (U.S., Computer) (en-US-POSIX)" EN_US_POSIX
+  "English (Uganda) (en-UG)" EN_UG
+  "English (United Kingdom) (en-GB)" EN_GB
+  "English (United States) (en-US)" EN_US
+  "English (Vanuatu) (en-VU)" EN_VU
+  "English (Zambia) (en-ZM)" EN_ZM
+  "English (Zimbabwe) (en-ZW)" EN_ZW
+  "Esperanto (eo)" EO
+  "Estonian (et)" ET
+  "Estonian (Estonia) (et-EE)" ET_EE
+  "Ewe (ee)" EE
+  "Ewe (Ghana) (ee-GH)" EE_GH
+  "Ewe (Togo) (ee-TG)" EE_TG
+  "Ewondo (ewo)" EWO
+  "Ewondo (Cameroon) (ewo-CM)" EWO_CM
+  "Faroese (fo)" FO
+  "Faroese (Faroe Islands) (fo-FO)" FO_FO
+  "Filipino (fil)" FIL
+  "Filipino (Philippines) (fil-PH)" FIL_PH
+  "Finnish (fi)" FI
+  "Finnish (Finland) (fi-FI)" FI_FI
+  "French (fr)" FR
+  "French (Belgium) (fr-BE)" FR_BE
+  "French (Benin) (fr-BJ)" FR_BJ
+  "French (Burkina Faso) (fr-BF)" FR_BF
+  "French (Burundi) (fr-BI)" FR_BI
+  "French (Cameroon) (fr-CM)" FR_CM
+  "French (Canada) (fr-CA)" FR_CA
+  "French (Central African Republic) (fr-CF)" FR_CF
+  "French (Chad) (fr-TD)" FR_TD
+  "French (Comoros) (fr-KM)" FR_KM
+  "French (Congo - Brazzaville) (fr-CG)" FR_CG
+  "French (Congo - Kinshasa) (fr-CD)" FR_CD
+  "French (Côte d'Ivoire) (fr-CI)" FR_CI
+  "French (Djibouti) (fr-DJ)" FR_DJ
+  "French (Equatorial Guinea) (fr-GQ)" FR_GQ
+  "French (France) (fr-FR)" FR_FR
+  "French (French Guiana) (fr-GF)" FR_GF
+  "French (Gabon) (fr-GA)" FR_GA
+  "French (Guadeloupe) (fr-GP)" FR_GP
+  "French (Guinea) (fr-GN)" FR_GN
+  "French (Luxembourg) (fr-LU)" FR_LU
+  "French (Madagascar) (fr-MG)" FR_MG
+  "French (Mali) (fr-ML)" FR_ML
+  "French (Martinique) (fr-MQ)" FR_MQ
+  "French (Mayotte) (fr-YT)" FR_YT
+  "French (Monaco) (fr-MC)" FR_MC
+  "French (Niger) (fr-NE)" FR_NE
+  "French (Rwanda) (fr-RW)" FR_RW
+  "French (Réunion) (fr-RE)" FR_RE
+  "French (Saint Barthélemy) (fr-BL)" FR_BL
+  "French (Saint Martin) (fr-MF)" FR_MF
+  "French (Mauritius) (fr-MU)" FR_MU
+  "French (Senegal) (fr-SN)" FR_SN
+  "French (Switzerland) (fr-CH)" FR_CH
+  "French (Togo) (fr-TG)" FR_TG
+  "Fulah (ff)" FF
+  "Fulah (Senegal) (ff-SN)" FF_SN
+  "Galician (gl)" GL
+  "Galician (Spain) (gl-ES)" GL_ES
+  "Laotian (Laos) (lao)" LAO
+  "Ganda (lg)" LG
+  "Ganda (Uganda) (lg-UG)" LG_UG
+  "Georgian (ka)" KA
+  "Georgian (Georgia) (ka-GE)" KA_GE
+  "German (de)" DE
+  "German (Austria) (de-AT)" DE_AT
+  "German (Belgium) (de-BE)" DE_BE
+  "German (Germany) (de-DE)" DE_DE
+  "German (Liechtenstein) (de-LI)" DE_LI
+  "German (Luxembourg) (de-LU)" DE_LU
+  "German (Switzerland) (de-CH)" DE_CH
+  "Greek (el)" EL
+  "Greek (Cyprus) (el-CY)" EL_CY
+  "Greek (Greece) (el-GR)" EL_GR
+  "Gujarati (gu)" GU
+  "Gujarati (India) (gu-IN)" GU_IN
+  "Gusii (guz)" GUZ
+  "Gusii (Kenya) (guz-KE)" GUZ_KE
+  "Hausa (ha)" HA
+  "Hausa (Latin) (ha-Latn)" HA_LATN
+  "Hausa (Latin, Ghana) (ha-Latn-GH)" HA_LATN_GH
+  "Hausa (Latin, Niger) (ha-Latn-NE)" HA_LATN_NE
+  "Hausa (Latin, Nigeria) (ha-Latn-NG)" HA_LATN_NG
+  "Hawaiian (haw)" HAW
+  "Hawaiian (United States) (haw-US)" HAW_US
+  "Hebrew (he)" HE
+  "Hebrew (Israel) (he-IL)" HE_IL
+  "Hindi (hi)" HI
+  "Hindi (India) (hi-IN)" HI_IN
+  "Hungarian (hu)" HU
+  "Hungarian (Hungary) (hu-HU)" HU_HU
+  "Icelandic (is)" IS
+  "Icelandic (Iceland) (is-IS)" IS_IS
+  "Igbo (ig)" IG
+  "Igbo (Nigeria) (ig-NG)" IG_NG
+  "Inari Sami" SMN
+  "Inari Sami (Finland)" SMN_FI
+  "Indonesian (id)" ID
+  "Indonesian (Indonesia) (id-ID)" ID_ID
+  "Irish (ga)" GA
+  "Irish (Ireland) (ga-IE)" GA_IE
+  "Italian (it)" IT
+  "Italian (Italy) (it-IT)" IT_IT
+  "Italian (Switzerland) (it-CH)" IT_CH
+  "Japanese (ja)" JA
+  "Japanese (Japan) (ja-JP)" JA_JP
+  "Jola-Fonyi (dyo)" DYO
+  "Jola-Fonyi (Senegal) (dyo-SN)" DYO_SN
+  "Kabuverdianu (kea)" KEA
+  "Kabuverdianu (Cape Verde) (kea-CV)" KEA_CV
+  "Kabyle (kab)" KAB
+  "Kabyle (Algeria) (kab-DZ)" KAB_DZ
+  "Kalaallisut (kl)" KL
+  "Kalaallisut (Greenland) (kl-GL)" KL_GL
+  "Kalenjin (kln)" KLN
+  "Kalenjin (Kenya) (kln-KE)" KLN_KE
+  "Kamba (kam)" KAM
+  "Kamba (Kenya) (kam-KE)" KAM_KE
+  "Kannada (kn)" KN
+  "Kannada (India) (kn-IN)" KN_IN
+  "Kara-Kalpak (kaa)" KAA
+  "Kazakh (kk)" KK
+  "Kazakh (Cyrillic) (kk-Cyrl)" KK_CYRL
+  "Kazakh (Cyrillic, Kazakhstan) (kk-Cyrl-KZ)" KK_CYRL_KZ
+  "Khmer (km)" KM
+  "Khmer (Cambodia) (km-KH)" KM_KH
+  "Kikuyu (ki)" KI
+  "Kikuyu (Kenya) (ki-KE)" KI_KE
+  "Kinyarwanda (rw)" RW
+  "Kinyarwanda (Rwanda) (rw-RW)" RW_RW
+  "Konkani (kok)" KOK
+  "Konkani (India) (kok-IN)" KOK_IN
+  "Korean (ko)" KO
+  "Korean (South Korea) (ko-KR)" KO_KR
+  "Koyra Chiini (khq)" KHQ
+  "Koyra Chiini (Mali) (khq-ML)" KHQ_ML
+  "Koyraboro Senni (ses)" SES
+  "Koyraboro Senni (Mali) (ses-ML)" SES_ML
+  "Kwasio (nmg)" NMG
+  "Kwasio (Cameroon) (nmg-CM)" NMG_CM
+  "Kyrgyz (ky)" KY
+  "Langi (lag)" LAG
+  "Langi (Tanzania) (lag-TZ)" LAG_TZ
+  "Latvian (lv)" LV
+  "Latvian (Latvia) (lv-LV)" LV_LV
+  "Liberian English" LIR
+  "Lingala (ln)" LN
+  "Lingala (Congo - Brazzaville) (ln-CG)" LN_CG
+  "Lingala (Congo - Kinshasa) (ln-CD)" LN_CD
+  "Lithuanian (lt)" LT
+  "Lithuanian (Lithuania) (lt-LT)" LT_LT
+  "Luba-Katanga (lu)" LU
+  "Luba-Katanga (Congo - Kinshasa) (lu-CD)" LU_CD
+  "Luo (luo)" LUO
+  "Luo (Kenya) (luo-KE)" LUO_KE
+  "Luyia (luy)" LUY
+  "Luyia (Kenya) (luy-KE)" LUY_KE
+  "Macedonian (mk)" MK
+  "Macedonian (Macedonia) (mk-MK)" MK_MK
+  "Machame (jmc)" JMC
+  "Machame (Tanzania) (jmc-TZ)" JMC_TZ
+  "Makhuwa-Meetto (mgh)" MGH
+  "Makhuwa-Meetto (Mozambique) (mgh-MZ)" MGH_MZ
+  "Makonde (kde)" KDE
+  "Makonde (Tanzania) (kde-TZ)" KDE_TZ
+  "Malagasy (mg)" MG
+  "Malagasy (Madagascar) (mg-MG)" MG_MG
+  "Malay (ms)" MS
+  "Malay (Brunei) (ms-BN)" MS_BN
+  "Malay (Malaysia) (ms-MY)" MS_MY
+  "Malayalam (ml)" ML
+  "Malayalam (India) (ml-IN)" ML_IN
+  "Maltese (mt)" MT
+  "Maltese (Malta) (mt-MT)" MT_MT
+  "Manx (gv)" GV
+  "Manx (United Kingdom) (gv-GB)" GV_GB
+  "Marathi (mr)" MR
+  "Marathi (India) (mr-IN)" MR_IN
+  "Masai (mas)" MAS
+  "Masai (Kenya) (mas-KE)" MAS_KE
+  "Masai (Tanzania) (mas-TZ)" MAS_TZ
+  "Meru (mer)" MER
+  "Meru (Kenya) (mer-KE)" MER_KE
+  "Mongolian (mn)" MN
+  "Morisyen (mfe)" MFE
+  "Morisyen (Mauritius) (mfe-MU)" MFE_MU
+  "Mundang (mua)" MUA
+  "Mundang (Cameroon) (mua-CM)" MUA_CM
+  "Nama (naq)" NAQ
+  "Nama (Namibia) (naq-NA)" NAQ_NA
+  "Nepali (ne)" NE
+  "Nepali (India) (ne-IN)" NE_IN
+  "Nepali (Nepal) (ne-NP)" NE_NP
+  "Northern Sami" SE
+  "Northern Sami (Finland)" SE_FI
+  "Northern Sami (Norway)" SE_NO
+  "Northern Sami (Sweden)" SE_SE
+  "North Ndebele (nd)" ND
+  "North Ndebele (Zimbabwe) (nd-ZW)" ND_ZW
+  "Norwegian Bokmål (nb)" NB
+  "Norwegian Bokmål (Norway) (nb-NO)" NB_NO
+  "Norwegian Nynorsk (nn)" NN
+  "Norwegian Nynorsk (Norway) (nn-NO)" NN_NO
+  "Nuer (nus)" NUS
+  "Nuer (Sudan) (nus-SD)" NUS_SD
+  "Nyankole (nyn)" NYN
+  "Nyankole (Uganda) (nyn-UG)" NYN_UG
+  "Oriya (or)" OR
+  "Oriya (India) (or-IN)" OR_IN
+  "Oromo (om)" OM
+  "Oromo (Ethiopia) (om-ET)" OM_ET
+  "Oromo (Kenya) (om-KE)" OM_KE
+  "Pashto (ps)" PS
+  "Pashto (Afghanistan) (ps-AF)" PS_AF
+  "Persian (fa)" FA
+  "Persian (Afghanistan) (fa-AF)" FA_AF
+  "Persian (Iran) (fa-IR)" FA_IR
+  "Polish (pl)" PL
+  "Polish (Poland) (pl-PL)" PL_PL
+  "Portuguese (pt)" PT
+  "Portuguese (Angola) (pt-AO)" PT_AO
+  "Portuguese (Brazil) (pt-BR)" PT_BR
+  "Portuguese (Guinea-Bissau) (pt-GW)" PT_GW
+  "Portuguese (Mozambique) (pt-MZ)" PT_MZ
+  "Portuguese (Portugal) (pt-PT)" PT_PT
+  "Portuguese (São Tomé and Príncipe) (pt-ST)" PT_ST
+  "Punjabi (pa)" PA
+  "Punjabi (Arabic) (pa-Arab)" PA_ARAB
+  "Punjabi (Arabic, Pakistan) (pa-Arab-PK)" PA_ARAB_PK
+  "Punjabi (Gurmukhi) (pa-Guru)" PA_GURU
+  "Punjabi (Gurmukhi, India) (pa-Guru-IN)" PA_GURU_IN
+  "Romanian (ro)" RO
+  "Romanian (Moldova) (ro-MD)" RO_MD
+  "Romanian (Romania) (ro-RO)" RO_RO
+  "Romansh (rm)" RM
+  "Romansh (Switzerland) (rm-CH)" RM_CH
+  "Rombo (rof)" ROF
+  "Rombo (Tanzania) (rof-TZ)" ROF_TZ
+  "Rundi (rn)" RN
+  "Rundi (Burundi) (rn-BI)" RN_BI
+  "Russian (ru)" RU
+  "Russian (Moldova) (ru-MD)" RU_MD
+  "Russian (Russia) (ru-RU)" RU_RU
+  "Russian (Ukraine) (ru-UA)" RU_UA
+  "Rwa (rwk)" RWK
+  "Rwa (Tanzania) (rwk-TZ)" RWK_TZ
+  "Samburu (saq)" SAQ
+  "Samburu (Kenya) (saq-KE)" SAQ_KE
+  "Sango (sg)" SG
+  "Sango (Central African Republic) (sg-CF)" SG_CF
+  "Sangu (sbp)" SBP
+  "Sangu (Tanzania) (sbp-TZ)" SBP_TZ
+  "Sanskrit (sa)" SA
+  "Scottish Gaelic (gd)" GD
+  "Scottish Gaelic (United Kingdom)" GD_GB
+  "Sena (seh)" SEH
+  "Sena (Mozambique) (seh-MZ)" SEH_MZ
+  "Serbian (sr)" SR
+  "Serbian (Cyrillic) (sr-Cyrl)" SR_CYRL
+  "Serbian (Cyrillic, Bosnia and Herzegovina)(sr-Cyrl-BA) " SR_CYRL_BA
+  "Serbian (Cyrillic, Montenegro) (sr-Cyrl-ME)" SR_CYRL_ME
+  "Serbian (Cyrillic, Serbia) (sr-Cyrl-RS)" SR_CYRL_RS
+  "Serbian (Latin) (sr-Latn)" SR_LATN
+  "Serbian (Latin, Bosnia and Herzegovina) (sr-Latn-BA) " SR_LATN_BA
+  "Serbian (Latin, Montenegro) (sr-Latn-ME)" SR_LATN_ME
+  "Serbian (Latin, Serbia) (sr-Latn-RS)" SR_LATN_RS
+  "Shambala (ksb)" KSB
+  "Shambala (Tanzania) (ksb-TZ)" KSB_TZ
+  "Shona (sn)" SN
+  "Shona (Zimbabwe) (sn-ZW)" SN_ZW
+  "Sichuan Yi (ii)" II
+  "Sichuan Yi (China) (ii-CN)" II_CN
+  "Sinhala (si)" SI
+  "Sinhala (Sri Lanka) (si-LK)" SI_LK
+  "Slovak (sk)" SK
+  "Slovak (Slovakia) (sk-SK)" SK_SK
+  "Slovenian (sl)" SL
+  "Slovenian (Slovenia) (sl-SI)" SL_SI
+  "Soga (xog)" XOG
+  "Soga (Uganda) (xog-UG)" XOG_UG
+  "Somali (so)" SO
+  "Somali (Djibouti) (so-DJ)" SO_DJ
+  "Somali (Ethiopia) (so-ET)" SO_ET
+  "Somali (Kenya) (so-KE)" SO_KE
+  "Somali (Somalia) (so-SO)" SO_SO
+  "Spanish (es)" ES
+  "Spanish (Argentina) (es-AR)" ES_AR
+  "Spanish (Bolivia) (es-BO)" ES_BO
+  "Spanish (Chile) (es-CL)" ES_CL
+  "Spanish (Colombia) (es-CO)" ES_CO
+  "Spanish (Costa Rica) (es-CR)" ES_CR
+  "Spanish (Dominican Republic) (es-DO)" ES_DO
+  "Spanish (Ecuador) (es-EC)" ES_EC
+  "Spanish (El Salvador) (es-SV)" ES_SV
+  "Spanish (Equatorial Guinea) (es-GQ)" ES_GQ
+  "Spanish (Guatemala) (es-GT)" ES_GT
+  "Spanish (Honduras) (es-HN)" ES_HN
+  "Spanish (Latin America) (es-419)" ES419
+  "Spanish (Mexico) (es-MX)" ES_MX
+  "Spanish (Nicaragua) (es-NI)" ES_NI
+  "Spanish (Panama) (es-PA)" ES_PA
+  "Spanish (Paraguay) (es-PY)" ES_PY
+  "Spanish (Peru) (es-PE)" ES_PE
+  "Spanish (Puerto Rico) (es-PR)" ES_PR
+  "Spanish (Spain) (es-ES)" ES_ES
+  "Spanish (United States) (es-US)" ES_US
+  "Spanish (Uruguay) (es-UY)" ES_UY
+  "Spanish (Venezuela) (es-VE)" ES_VE
+  "Swahili (sw)" SW
+  "Swahili (Kenya) (sw-KE)" SW_KE
+  "Swahili (Tanzania) (sw-TZ)" SW_TZ
+  "Swedish (sv)" SV
+  "Swedish (Finland) (sv-FI)" SV_FI
+  "Swedish (Sweden) (sv-SE)" SV_SE
+  "Swiss German (gsw)" GSW
+  "Swiss German (Switzerland) (gsw-CH)" GSW_CH
+  "Tachelhit (shi)" SHI
+  "Tachelhit (Latin) (shi-Latn)" SHI_LATN
+  "Tachelhit (Latin, Morocco) (shi-Latn-MA)" SHI_LATN_MA
+  "Tachelhit (Tifinagh) (shi-Tfng)" SHI_TFNG
+  "Tachelhit (Tifinagh, Morocco) (shi-Tfng-MA)" SHI_TFNG_MA
+  "Taita (dav)" DAV
+  "Taita (Kenya) (dav-KE)" DAV_KE
+  "Tajik (tg)" TG
+  "Tamil (ta)" TA
+  "Tamil (India) (ta-IN)" TA_IN
+  "Tamil (Sri Lanka) (ta-LK)" TA_LK
+  "Tasawaq (twq)" TWQ
+  "Tasawaq (Niger) (twq-NE)" TWQ_NE
+  "Te Reo Māori (mi)" MI
+  "Telugu (te)" TE
+  "Telugu (India) (te-IN)" TE_IN
+  "Teso (teo)" TEO
+  "Teso (Kenya) (teo-KE)" TEO_KE
+  "Teso (Uganda) (teo-UG)" TEO_UG
+  "Thai (th)" TH
+  "Thai (Thailand) (th-TH)" TH_TH
+  "Tibetan (bo)" BO
+  "Tibetan (China) (bo-CN)" BO_CN
+  "Tibetan (India) (bo-IN)" BO_IN
+  "Tigrinya (ti)" TI
+  "Tigrinya (Eritrea) (ti-ER)" TI_ER
+  "Tigrinya (Ethiopia) (ti-ET)" TI_ET
+  "Tongan (to)" TO
+  "Tongan (Tonga) (to-TO)" TO_TO
+  "Turkish (tr)" TR
+  "Turkmen (tk)" TK
+  "Turkish (Turkey) (tr-TR)" TR_TR
+  "Turks And Caicos Creole English" TCH
+  "Ukrainian (uk)" UK
+  "Ukrainian (Ukraine) (uk-UA)" UK_UA
+  "Urdu (ur)" UR
+  "Urdu (India) (ur-IN)" UR_IN
+  "Urdu (Pakistan) (ur-PK)" UR_PK
+  "Uyghur" UG
+  "Uyghur (China)" UG_CN
+  "Uzbek (uz)" UZ
+  "Uzbek (Arabic) (uz-Arab)" UZ_ARAB
+  "Uzbek (Arabic, Afghanistan) (uz-Arab-AF)" UZ_ARAB_AF
+  "Uzbek (Cyrillic) (uz-Cyrl)" UZ_CYRL
+  "Uzbek (Cyrillic, Uzbekistan) (uz-Cyrl-UZ)" UZ_CYRL_UZ
+  "Uzbek (Latin) (uz-Latn)" UZ_LATN
+  "Uzbek (Latin, Uzbekistan) (uz-Latn-UZ)" UZ_LATN_UZ
+  "Vai (vai)" VAI
+  "Vai (Latin) (vai-Latn)" VAI_LATN
+  "Vai (Latin, Liberia) (vai-Latn-LR)" VAI_LATN_LR
+  "Vai (Vai) (vai-Vaii)" VAI_VAII
+  "Vai (Vai, Liberia) (vai-Vaii-LR)" VAI_VAII_LR
+  "Valencian (val)" VAL
+  "Valencian (Spain) (val-ES)" VAL_ES
+  "Valencian (Spain Catalan) (ca-ES-valencia)" CA_ES_VALENCIA
+  "Venda (ve)" VE
+  "Venda (South Africa) (ve-ZA)" VE_ZA
+  "Vietnamese (vi)" VI
+  "Vietnamese (Vietnam) (vi-VN)" VI_VN
+  "Vunjo (vun)" VUN
+  "Vunjo (Tanzania) (vun-TZ)" VUN_TZ
+  "Welsh (cy)" CY
+  "Welsh (United Kingdom) (cy-GB)" CY_GB
+  "Wolof (wo)" WO
+  "Xhosa (xh)" XH
+  "Yangben (yav)" YAV
+  "Yangben (Cameroon) (yav-CM)" YAV_CM
+  "Yoruba (yo)" YO
+  "Yoruba (Nigeria) (yo-NG)" YO_NG
+  "Zarma (dje)" DJE
+  "Zarma (Niger) (dje-NE)" DJE_NE
+  "Zulu (zu)" ZU
+  "Zulu (South Africa) (zu-ZA)" ZU_ZA
+}
+
+"Field to use when sorting locations list"
+enum LocationField {
+  LOCATION_ID
+  PUBLICATION_ID
+  LANDING_PAGE
+  FULL_TEXT_URL
+  LOCATION_PLATFORM
+  CANONICAL
+  CHECKSUM
+  CHECKSUM_ALGORITHM
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Platform where a publication is hosted or can be acquired"
+enum LocationPlatform {
+  "Project MUSE: https://muse.jhu.edu" PROJECT_MUSE
+  "OAPEN (Open Access Publishing in European Networks): https://oapen.org" OAPEN
+  "DOAB (Directory of Open Access Books): https://doabooks.org" DOAB
+  "JSTOR: https://jstor.org" JSTOR
+  "EBSCO Host" EBSCO_HOST
+  "OCLC Knowledge Base" OCLC_KB
+  "ProQuest Knowledge Base" PROQUEST_KB
+  "ProQuest ExLibris" PROQUEST_EXLIBRIS
+  "EBSCO Knowledge Base" EBSCO_KB
+  "JISC Knowledge Base" JISC_KB
+  "Google Books: https://books.google.com" GOOGLE_BOOKS
+  "Internet Archive: https://archive.org" INTERNET_ARCHIVE
+  "ScienceOpen: https://scienceopen.com" SCIENCE_OPEN
+  "SciELO (Scientific Electronic Library Online) Books: https://books.scielo.org" SCIELO_BOOKS
+  "Zenodo: https://zenodo.org" ZENODO
+  "Publisher's own website" PUBLISHER_WEBSITE
+  "Publisher CDN hosted by Thoth" THOTH
+  "Another platform not listed above" OTHER
+}
+
+"Allowed markup formats for text fields that support structured content"
+enum MarkupFormat {
+  "HTML format" HTML
+  "Markdown format" MARKDOWN
+  "Plain text format" PLAIN_TEXT
+  "JATS XML format" JATS_XML
+}
+
+"Field to use when sorting prices list"
+enum PriceField {
+  PRICE_ID
+  PUBLICATION_ID
+  CURRENCY_CODE
+  UNIT_PRICE
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Field to use when sorting publications list"
+enum PublicationField {
+  PUBLICATION_ID
+  PUBLICATION_TYPE
+  WORK_ID
+  ISBN
+  CREATED_AT
+  UPDATED_AT
+  WIDTH_MM
+  WIDTH_IN
+  HEIGHT_MM
+  HEIGHT_IN
+  DEPTH_MM
+  DEPTH_IN
+  WEIGHT_G
+  WEIGHT_OZ
+  ACCESSIBILITY_STANDARD
+  ACCESSIBILITY_ADDITIONAL_STANDARD
+  ACCESSIBILITY_EXCEPTION
+  ACCESSIBILITY_REPORT_URL
+}
+
+"Format of a publication"
+enum PublicationType {
+  "Paperback print format" PAPERBACK
+  "Hardback print format" HARDBACK
+  "PDF ebook format" PDF
+  "HTML ebook format" HTML
+  "XML ebook format" XML
+  "Epub ebook format" EPUB
+  "Mobipocket (.mobi) ebook format" MOBI
+  "Kindle version 8 (.azw3) ebook format" AZW3
+  "Microsoft Word (.docx) ebook format" DOCX
+  "FictionBook (.fb2, .fb3, .fbz) ebook format" FICTION_BOOK
+  "MP3 audiobook format" MP3
+  "WAV audiobook format" WAV
+}
+
+"Capability that a subscription package may grant to a publisher. A capability permits a feature but does not configure or activate it"
+enum PublisherCapability {
+  "Publisher works may be considered for OAI-PMH after work-level open-licence and lifecycle checks" OAI_PMH
+  "Thoth-managed drivers may collect and retain canonical metrics when a source account and platform/measure configuration are enabled" METRICS_COLLECT
+  "Publisher users may submit approved publisher-controlled usage or sales reports" METRICS_IMPORT
+  "A Thoth-owned authenticated service may serve publisher dashboard metrics" METRICS_DASHBOARD
+  "A Thoth-owned authenticated service may serve bounded work-level widget metrics" METRICS_WIDGET
+  "Eligible finalized canonical metrics may create and deliver OPERAS export claims" METRICS_OPERAS_EXPORT
+}
+
+"Field to use when sorting publishers list"
+enum PublisherField {
+  PUBLISHER_ID
+  PUBLISHER_NAME
+  PUBLISHER_SHORTNAME
+  PUBLISHER_URL
+  ZITADEL_ID
+  ACCESSIBILITY_STATEMENT
+  ACCESSIBILITY_REPORT_URL
+  CREATED_AT
+  UPDATED_AT
+}
+
+"How a recorded service-configuration change entered the system"
+enum PublisherServiceConfigurationSource {
+  "A committed superuser replacePublisherServiceConfiguration call; the actor is the authenticated account identifier" SUPERUSER_API
+  "A separately approved controlled historical backfill; the actor is the authorized control identity" MIGRATION_BACKFILL
+}
+
+"Field to use when sorting references list"
+enum ReferenceField {
+  REFERENCE_ID
+  WORK_ID
+  REFERENCE_ORDINAL
+  DOI
+  UNSTRUCTURED_CITATION
+  ISSN
+  ISBN
+  JOURNAL_TITLE
+  ARTICLE_TITLE
+  SERIES_TITLE
+  VOLUME_TITLE
+  EDITION
+  AUTHOR
+  VOLUME
+  ISSUE
+  FIRST_PAGE
+  COMPONENT_NUMBER
+  STANDARD_DESIGNATOR
+  STANDARDS_BODY_NAME
+  STANDARDS_BODY_ACRONYM
+  URL
+  PUBLICATION_DATE
+  RETRIEVAL_DATE
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Nature of a relationship between works"
+enum RelationType {
+  "The work to which this relation belongs replaces the other work in the relationship" REPLACES
+  "The work to which this relation belongs is translated by the other work in the relationship" HAS_TRANSLATION
+  "The work to which this relation belongs contains the other work (part) in the relationship" HAS_PART
+  "The work to which this relation belongs contains the other work (chapter) in the relationship" HAS_CHILD
+  "The work to which this relation belongs is replaced by the other work in the relationship" IS_REPLACED_BY
+  "The work to which this relation belongs is a translation of the other work in the relationship" IS_TRANSLATION_OF
+  "The work to which this relation belongs is a component (part) of the other work in the relationship" IS_PART_OF
+  "The work to which this relation belongs is a component (chapter) of the other work in the relationship" IS_CHILD_OF
+}
+
+"Type of additional resource"
+enum ResourceType {
+  AUDIO
+  VIDEO
+  IMAGE
+  BLOG
+  WEBSITE
+  DOCUMENT
+  BOOK
+  ARTICLE
+  MAP
+  SOURCE
+  DATASET
+  SPREADSHEET
+  OTHER
+}
+
+"Field to use when sorting series list"
+enum SeriesField {
+  SERIES_ID
+  SERIES_TYPE
+  SERIES_NAME
+  ISSN_PRINT
+  ISSN_DIGITAL
+  SERIES_URL
+  CREATED_AT
+  UPDATED_AT
+  SERIES_DESCRIPTION
+  SERIES_CFP_URL
+}
+
+"Type of a series"
+enum SeriesType {
+  "A set of collections of articles on a specific topic, published periodically" JOURNAL
+  "A set of related books, published periodically" BOOK_SERIES
+}
+
+"Field to use when sorting subjects list"
+enum SubjectField {
+  SUBJECT_ID
+  WORK_ID
+  SUBJECT_TYPE
+  SUBJECT_CODE
+  SUBJECT_ORDINAL
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Type of a subject (e.g. the subject category scheme being used)"
+enum SubjectType {
+  BIC
+  BISAC
+  THEMA
+  LCC
+  CUSTOM
+  KEYWORD
+}
+
+"Subscription package determining which publisher services a publisher is entitled to"
+enum ThothPackage {
+  "Default package, with no publisher-service capabilities" OASIS
+  "Package permitting OAI-PMH eligibility and private managed metrics collection" OBELISK
+  "Package permitting OAI-PMH eligibility and all initial metrics capabilities" SPHINX
+  "Package permitting OAI-PMH eligibility and all initial metrics capabilities" PYRAMID
+}
+
+"Field to use when sorting title list"
+enum TitleField {
+  TITLE_ID
+  WORK_ID
+  FULL_TITLE
+  TITLE
+  SUBTITLE
+  CANONICAL
+  LOCALE_CODE
+}
+
+"Unit of measurement for physical Work weight (grams or ounces)"
+enum WeightUnit {
+  "Grams" G
+  "Ounces" OZ
+}
+
+"Field to use when sorting featured videos list"
+enum WorkFeaturedVideoField {
+  WORK_FEATURED_VIDEO_ID
+  WORK_ID
+  TITLE
+  URL
+  WIDTH
+  HEIGHT
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Field to use when sorting works list"
+enum WorkField {
+  WORK_ID
+  WORK_TYPE
+  WORK_STATUS
+  FULL_TITLE
+  TITLE
+  SUBTITLE
+  REFERENCE
+  EDITION
+  DOI
+  PUBLICATION_DATE
+  WITHDRAWN_DATE
+  PLACE
+  PAGE_COUNT
+  PAGE_BREAKDOWN
+  IMAGE_COUNT
+  TABLE_COUNT
+  AUDIO_COUNT
+  VIDEO_COUNT
+  LICENSE
+  COPYRIGHT_HOLDER
+  LANDING_PAGE
+  LCCN
+  OCLC
+  SHORT_ABSTRACT
+  LONG_ABSTRACT
+  GENERAL_NOTE
+  BIBLIOGRAPHY_NOTE
+  TOC
+  RESOURCES_DESCRIPTION
+  COVER_URL
+  COVER_CAPTION
+  CREATED_AT
+  UPDATED_AT
+  FIRST_PAGE
+  LAST_PAGE
+  PAGE_INTERVAL
+  UPDATED_AT_WITH_RELATIONS
+}
+
+"Field to use when sorting work relations list"
+enum WorkRelationField {
+  WORK_RELATION_ID
+  RELATOR_WORK_ID
+  RELATED_WORK_ID
+  RELATION_TYPE
+  RELATION_ORDINAL
+  CREATED_AT
+  UPDATED_AT
+}
+
+"Publication status of a work throughout its lifecycle. For a visual representation of the workflow, refer to the work status flowchart https://github.com/thoth-pub/thoth/wiki/Thoth_Works#work-status-flowchart"
+enum WorkStatus {
+  "The work is in progress and is expected to be published. This is the typical status for a work that has not yet been released but is planned for publication." FORTHCOMING
+  "The work is published and currently available. This status indicates that the work is officially released." ACTIVE
+  "The work has been withdrawn from publication and will be removed from all distribution channels. This status indicates that the work is no longer available for sale or distribution and will no longer be accessible." WITHDRAWN
+  "The work has been replaced by a new edition, with the previous edition now considered outdated. The two editions should be linked using a `WorkRelation` of type `REPLACES`/`IS_REPLACED_BY`." SUPERSEDED
+  "The work's release has been delayed indefinitely. It may be resumed at a later time, but currently, no publication date is set." POSTPONED_INDEFINITELY
+  "The work has been permanently cancelled and will not be published." CANCELLED
+}
+
+"Type of a work"
+enum WorkType {
+  "Section of a larger parent work" BOOK_CHAPTER
+  "Long-form work on a single theme, by a small number of authors" MONOGRAPH
+  "Collection of short works by different authors on a single theme" EDITED_BOOK
+  "Work used for educational purposes" TEXTBOOK
+  "Single publication within a series of collections of related articles" JOURNAL_ISSUE
+  "Group of volumes published together forming a single work" BOOK_SET
+}
+
+"Field and order to use when sorting titles list"
+input AbstractOrderBy {
+  field: AbstractField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting additional resources list"
+input AdditionalResourceOrderBy {
+  field: AdditionalResourceField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting affiliations list"
+input AffiliationOrderBy {
+  field: AffiliationField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting awards list"
+input AwardOrderBy {
+  field: AwardField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting biography list"
+input BiographyOrderBy {
+  field: BiographyField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting book reviews list"
+input BookReviewOrderBy {
+  field: BookReviewField!
+  direction: Direction!
+}
+
+"Which distribution job to cancel"
+input CancelDistributionJobInput {
+  distributionJobId: Uuid!
+}
+
+"How many distribution jobs to claim, for how long, and of which kinds"
+input ClaimDistributionJobsInput {
+  "Maximum jobs to claim. Values above 50 are clamped to 50; values at or below 0 claim nothing" limit: Int = 10
+  "Requested lease duration in seconds, clamped to the range 60 to 3600" leaseSeconds: Int = 900
+  "If set, only claims jobs of these kinds. An empty list claims any kind" kinds: [DistributionJobKind!] = []
+}
+
+"Which claimed distribution job succeeded, and under which claim"
+input CompleteDistributionJobInput {
+  distributionJobId: Uuid!
+  claimToken: Uuid!
+}
+
+"Input for completing a file upload and promoting it to its final DOI-based location."
+input CompleteFileUpload {
+  "ID of the upload session to complete." fileUploadId: Uuid!
+}
+
+"Field and order to use when sorting contacts list"
+input ContactOrderBy {
+  field: ContactField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting contributions list"
+input ContributionOrderBy {
+  field: ContributionField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting contributors list"
+input ContributorOrderBy {
+  field: ContributorField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting endorsements list"
+input EndorsementOrderBy {
+  field: EndorsementField!
+  direction: Direction!
+}
+
+"Which claimed distribution job failed, how, and whether to retry it"
+input FailDistributionJobInput {
+  distributionJobId: Uuid!
+  claimToken: Uuid!
+  "Stable machine-readable classification, matching ^[A-Z][A-Z0-9_]*$, at most 64 characters. A value outside that shape is rejected with INVALID_DISTRIBUTION_JOB_ERROR_CODE and changes no job or attempt state" errorCode: String!
+  "Bounded human-readable diagnostic, truncated to 2048 characters. Must contain no credential, token, signed URL, response body or personal data" errorDetail: String
+  "Whether the failure may be retried. A retryable failure returns the job to PENDING until the attempt budget is exhausted" retryable: Boolean! = true
+}
+
+"Field and order to use when sorting fundings list"
+input FundingOrderBy {
+  field: FundingField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting imprints list"
+input ImprintOrderBy {
+  field: ImprintField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting institutions list"
+input InstitutionOrderBy {
+  field: InstitutionField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting issues list"
+input IssueOrderBy {
+  field: IssueField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting languages list"
+input LanguageOrderBy {
+  field: LanguageField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting locations list"
+input LocationOrderBy {
+  field: LocationField!
+  direction: Direction!
+}
+
+"Set of values required to define a new work's abstract"
+input NewAbstract {
+  workId: Uuid!
+  content: String!
+  localeCode: LocaleCode!
+  abstractType: AbstractType!
+  canonical: Boolean!
+}
+
+"Set of values required to define a new additional resource linked to a work"
+input NewAdditionalResource {
+  workId: Uuid!
+  title: String!
+  description: String
+  attribution: String
+  resourceType: ResourceType!
+  doi: Doi
+  handle: String
+  url: String
+  date: Date
+  resourceOrdinal: Int!
+}
+
+"Input for starting an upload for an additional resource asset."
+input NewAdditionalResourceFileUpload {
+  "Thoth ID of the additional resource linked to this file." additionalResourceId: Uuid!
+  "MIME type declared by the client (used for validation and in the presigned URL)." declaredMimeType: String!
+  "File extension to use in the final canonical key, e.g. 'jpg', 'png', 'mp4', 'xlsx'." declaredExtension: String!
+  "SHA-256 checksum of the file, hex-encoded." declaredSha256: String!
+}
+
+"Set of values required to define a new association between a person and an institution for a specific contribution"
+input NewAffiliation {
+  contributionId: Uuid!
+  institutionId: Uuid!
+  affiliationOrdinal: Int!
+  position: String
+}
+
+"Set of values required to define a new award linked to a work"
+input NewAward {
+  workId: Uuid!
+  title: String!
+  url: String
+  category: String
+  year: String
+  jury: String
+  country: CountryCode
+  prizeStatement: String
+  role: AwardRole
+  awardOrdinal: Int!
+}
+
+"Set of values required to define a new work's biography"
+input NewBiography {
+  contributionId: Uuid!
+  content: String!
+  canonical: Boolean!
+  localeCode: LocaleCode!
+}
+
+"Set of values required to define a new book review linked to a work"
+input NewBookReview {
+  workId: Uuid!
+  title: String
+  authorName: String
+  reviewerOrcid: Orcid
+  reviewerInstitutionId: Uuid
+  url: String
+  doi: Doi
+  reviewDate: Date
+  journalName: String
+  journalVolume: String
+  journalNumber: String
+  journalIssn: String
+  pageRange: String
+  text: String
+  reviewOrdinal: Int!
+}
+
+"Set of values required to define a new way of getting in touch with a publisher"
+input NewContact {
+  publisherId: Uuid!
+  contactType: ContactType!
+  email: String!
+}
+
+"Set of values required to define a new individual involvement in the production of a work"
+input NewContribution {
+  workId: Uuid!
+  contributorId: Uuid!
+  contributionType: ContributionType!
+  mainContribution: Boolean!
+  firstName: String
+  lastName: String!
+  fullName: String!
+  contributionOrdinal: Int!
+}
+
+"Set of values required to define a new individual involved in the production of works"
+input NewContributor {
+  firstName: String
+  lastName: String!
+  fullName: String!
+  orcid: Orcid
+  website: String
+}
+
+"Set of values required to define a new endorsement linked to a work"
+input NewEndorsement {
+  workId: Uuid!
+  authorName: String!
+  authorRole: String
+  authorOrcid: Orcid
+  authorInstitutionId: Uuid
+  url: String
+  text: String
+  endorsementOrdinal: Int!
+}
+
+"Input for starting a front cover upload for a work. Front covers must be JPEG images: the declared MIME type must be 'image/jpeg' and the declared extension must be 'jpg' or 'jpeg'. The hosted cover is always stored under a canonical '.jpg' key."
+input NewFrontcoverFileUpload {
+  "Thoth ID of the work this front cover belongs to." workId: Uuid!
+  "MIME type declared by the client; must be 'image/jpeg'." declaredMimeType: String!
+  "File extension of the original file; must be 'jpg' or 'jpeg' (case-insensitive). The hosted object always uses the canonical '.jpg' extension." declaredExtension: String!
+  "SHA-256 checksum of the file, hex-encoded." declaredSha256: String!
+}
+
+"Set of values required to define a new grant awarded for the publication of a work by an institution"
+input NewFunding {
+  workId: Uuid!
+  institutionId: Uuid!
+  program: String
+  projectName: String
+  projectShortname: String
+  grantNumber: String
+}
+
+"Set of values required to define a new brand under which a publisher issues works"
+input NewImprint {
+  publisherId: Uuid!
+  imprintName: String!
+  imprintUrl: String
+  crossmarkDoi: Doi
+  s3Bucket: String
+  cdnDomain: String
+  cloudfrontDistId: String
+  defaultCurrency: CurrencyCode
+  defaultPlace: String
+  defaultLocale: LocaleCode
+}
+
+"Set of values required to define a new organisation with which contributors may be affiliated or by which works may be funded"
+input NewInstitution {
+  institutionName: String!
+  institutionDoi: Doi
+  ror: Ror
+  countryCode: CountryCode
+}
+
+"Set of values required to define a new work published as a number in a periodical"
+input NewIssue {
+  seriesId: Uuid!
+  workId: Uuid!
+  issueOrdinal: Int!
+  issueNumber: Int
+}
+
+"Set of values required to define a new description of a work's language"
+input NewLanguage {
+  workId: Uuid!
+  languageCode: LanguageCode!
+  languageRelation: LanguageRelation!
+}
+
+"Set of values required to define a new location (such as a web shop or distribution platform) where a publication can be acquired or viewed"
+input NewLocation {
+  publicationId: Uuid!
+  landingPage: String
+  fullTextUrl: String
+  locationPlatform: LocationPlatform!
+  canonical: Boolean!
+  checksum: String
+  checksumAlgorithm: ChecksumAlgorithm
+}
+
+"Set of values required to define a new amount of money that a publication costs"
+input NewPrice {
+  publicationId: Uuid!
+  currencyCode: CurrencyCode!
+  unitPrice: Float!
+}
+
+"Set of values required to define a new manifestation of a written text"
+input NewPublication {
+  publicationType: PublicationType!
+  workId: Uuid!
+  isbn: Isbn
+  widthMm: Float
+  widthIn: Float
+  heightMm: Float
+  heightIn: Float
+  depthMm: Float
+  depthIn: Float
+  weightG: Float
+  weightOz: Float
+  accessibilityStandard: AccessibilityStandard
+  accessibilityAdditionalStandard: AccessibilityStandard
+  accessibilityException: AccessibilityException
+  accessibilityReportUrl: String
+}
+
+"Input for starting a publication file upload (PDF, EPUB, XML, etc.)."
+input NewPublicationFileUpload {
+  "Thoth ID of the publication linked to this file." publicationId: Uuid!
+  "MIME type declared by the client (used for validation and in the presigned URL)." declaredMimeType: String!
+  "File extension to use in the final canonical key, e.g. 'pdf', 'epub', 'xml'." declaredExtension: String!
+  "SHA-256 checksum of the file, hex-encoded." declaredSha256: String!
+}
+
+"Set of values required to define a new organisation that produces and distributes works"
+input NewPublisher {
+  publisherName: String!
+  publisherShortname: String
+  publisherUrl: String
+  zitadelId: String
+  accessibilityStatement: String
+  accessibilityReportUrl: String
+}
+
+"Set of values required to define a new citation to a written text"
+input NewReference {
+  workId: Uuid!
+  referenceOrdinal: Int!
+  doi: Doi
+  unstructuredCitation: String
+  issn: String
+  isbn: Isbn
+  journalTitle: String
+  articleTitle: String
+  seriesTitle: String
+  volumeTitle: String
+  edition: Int
+  author: String
+  volume: String
+  issue: String
+  firstPage: String
+  componentNumber: String
+  standardDesignator: String
+  standardsBodyName: String
+  standardsBodyAcronym: String
+  url: String
+  publicationDate: Date
+  retrievalDate: Date
+}
+
+"Set of values required to define a new periodical of publications"
+input NewSeries {
+  seriesType: SeriesType!
+  seriesName: String!
+  issnPrint: String
+  issnDigital: String
+  seriesUrl: String
+  seriesDescription: String
+  seriesCfpUrl: String
+  imprintId: Uuid!
+}
+
+"Set of values required to define a new significant discipline or term related to a work"
+input NewSubject {
+  workId: Uuid!
+  subjectType: SubjectType!
+  subjectCode: String!
+  subjectOrdinal: Int!
+}
+
+"Set of values required to define a new work's title"
+input NewTitle {
+  workId: Uuid!
+  localeCode: LocaleCode!
+  fullTitle: String!
+  title: String!
+  subtitle: String
+  canonical: Boolean!
+}
+
+"Set of values required to define a new written text that can be published"
+input NewWork {
+  workType: WorkType!
+  workStatus: WorkStatus!
+  reference: String
+  edition: Int
+  imprintId: Uuid!
+  doi: Doi
+  publicationDate: Date
+  withdrawnDate: Date
+  place: String
+  pageCount: Int
+  pageBreakdown: String
+  imageCount: Int
+  tableCount: Int
+  audioCount: Int
+  videoCount: Int
+  license: String
+  copyrightHolder: String
+  landingPage: String
+  lccn: String
+  oclc: String
+  generalNote: String
+  bibliographyNote: String
+  toc: String
+  resourcesDescription: String
+  coverUrl: String
+  coverCaption: String
+  firstPage: String
+  lastPage: String
+  pageInterval: String
+}
+
+"Set of values required to define a new featured video linked to a work"
+input NewWorkFeaturedVideo {
+  workId: Uuid!
+  title: String!
+  url: String
+  width: Int!
+  height: Int!
+}
+
+"Input for starting an upload for a work featured video."
+input NewWorkFeaturedVideoFileUpload {
+  "Thoth ID of the work featured video linked to this file." workFeaturedVideoId: Uuid!
+  "MIME type declared by the client (used for validation and in the presigned URL)." declaredMimeType: String!
+  "File extension to use in the final canonical key, e.g. 'mp4', 'webm', 'mov'." declaredExtension: String!
+  "SHA-256 checksum of the file, hex-encoded." declaredSha256: String!
+}
+
+"Set of values required to define a new relationship between two works"
+input NewWorkRelation {
+  relatorWorkId: Uuid!
+  relatedWorkId: Uuid!
+  relationType: RelationType!
+  relationOrdinal: Int!
+}
+
+"Set of values required to update an existing work's abstract"
+input PatchAbstract {
+  abstractId: Uuid!
+  workId: Uuid!
+  content: String!
+  localeCode: LocaleCode!
+  abstractType: AbstractType!
+  canonical: Boolean!
+}
+
+"Set of values required to update an existing additional resource"
+input PatchAdditionalResource {
+  additionalResourceId: Uuid!
+  workId: Uuid!
+  title: String!
+  description: String
+  attribution: String
+  resourceType: ResourceType!
+  doi: Doi
+  handle: String
+  url: String
+  date: Date
+  resourceOrdinal: Int!
+}
+
+"Set of values required to update an existing association between a person and an institution for a specific contribution"
+input PatchAffiliation {
+  affiliationId: Uuid!
+  contributionId: Uuid!
+  institutionId: Uuid!
+  affiliationOrdinal: Int!
+  position: String
+}
+
+"Set of values required to update an existing award"
+input PatchAward {
+  awardId: Uuid!
+  workId: Uuid!
+  title: String!
+  url: String
+  category: String
+  year: String
+  jury: String
+  country: CountryCode
+  prizeStatement: String
+  role: AwardRole
+  awardOrdinal: Int!
+}
+
+"Set of values required to update an existing work's biography"
+input PatchBiography {
+  biographyId: Uuid!
+  contributionId: Uuid!
+  content: String!
+  canonical: Boolean!
+  localeCode: LocaleCode!
+}
+
+"Set of values required to update an existing book review"
+input PatchBookReview {
+  bookReviewId: Uuid!
+  workId: Uuid!
+  title: String
+  authorName: String
+  reviewerOrcid: Orcid
+  reviewerInstitutionId: Uuid
+  url: String
+  doi: Doi
+  reviewDate: Date
+  journalName: String
+  journalVolume: String
+  journalNumber: String
+  journalIssn: String
+  pageRange: String
+  text: String
+  reviewOrdinal: Int!
+}
+
+"Set of values required to update an existing way of getting in touch with a publisher"
+input PatchContact {
+  contactId: Uuid!
+  publisherId: Uuid!
+  contactType: ContactType!
+  email: String!
+}
+
+"Set of values required to update an individual involvement in the production of a work"
+input PatchContribution {
+  contributionId: Uuid!
+  workId: Uuid!
+  contributorId: Uuid!
+  contributionType: ContributionType!
+  mainContribution: Boolean!
+  firstName: String
+  lastName: String!
+  fullName: String!
+  contributionOrdinal: Int!
+}
+
+"Set of values required to update an existing individual involved in the production of works"
+input PatchContributor {
+  contributorId: Uuid!
+  firstName: String
+  lastName: String!
+  fullName: String!
+  orcid: Orcid
+  website: String
+}
+
+"Set of values required to update an existing endorsement"
+input PatchEndorsement {
+  endorsementId: Uuid!
+  workId: Uuid!
+  authorName: String!
+  authorRole: String
+  authorOrcid: Orcid
+  authorInstitutionId: Uuid
+  url: String
+  text: String
+  endorsementOrdinal: Int!
+}
+
+"Set of values required to update an existing grant awarded for the publication of a work by an institution"
+input PatchFunding {
+  fundingId: Uuid!
+  workId: Uuid!
+  institutionId: Uuid!
+  program: String
+  projectName: String
+  projectShortname: String
+  grantNumber: String
+}
+
+"Set of values required to update an existing brand under which a publisher issues works"
+input PatchImprint {
+  imprintId: Uuid!
+  publisherId: Uuid!
+  imprintName: String!
+  imprintUrl: String
+  crossmarkDoi: Doi
+  s3Bucket: String
+  cdnDomain: String
+  cloudfrontDistId: String
+  defaultCurrency: CurrencyCode
+  defaultPlace: String
+  defaultLocale: LocaleCode
+}
+
+"Set of values required to update an existing organisation with which contributors may be affiliated or by which works may be funded"
+input PatchInstitution {
+  institutionId: Uuid!
+  institutionName: String!
+  institutionDoi: Doi
+  ror: Ror
+  countryCode: CountryCode
+}
+
+"Set of values required to update an existing work published as a number in a periodical"
+input PatchIssue {
+  issueId: Uuid!
+  seriesId: Uuid!
+  workId: Uuid!
+  issueOrdinal: Int!
+  issueNumber: Int
+}
+
+"Set of values required to update an existing description of a work's language"
+input PatchLanguage {
+  languageId: Uuid!
+  workId: Uuid!
+  languageCode: LanguageCode!
+  languageRelation: LanguageRelation!
+}
+
+"Set of values required to update an existing location (such as a web shop or distribution platform) where a publication can be acquired or viewed"
+input PatchLocation {
+  locationId: Uuid!
+  publicationId: Uuid!
+  landingPage: String
+  fullTextUrl: String
+  locationPlatform: LocationPlatform!
+  canonical: Boolean!
+  checksum: String
+  checksumAlgorithm: ChecksumAlgorithm
+}
+
+"Set of values required to update an existing amount of money that a publication costs"
+input PatchPrice {
+  priceId: Uuid!
+  publicationId: Uuid!
+  currencyCode: CurrencyCode!
+  unitPrice: Float!
+}
+
+"Set of values required to update an existing manifestation of a written text"
+input PatchPublication {
+  publicationId: Uuid!
+  publicationType: PublicationType!
+  workId: Uuid!
+  isbn: Isbn
+  widthMm: Float
+  widthIn: Float
+  heightMm: Float
+  heightIn: Float
+  depthMm: Float
+  depthIn: Float
+  weightG: Float
+  weightOz: Float
+  accessibilityStandard: AccessibilityStandard
+  accessibilityAdditionalStandard: AccessibilityStandard
+  accessibilityException: AccessibilityException
+  accessibilityReportUrl: String
+}
+
+"Set of values required to update an existing organisation that produces and distributes works"
+input PatchPublisher {
+  publisherId: Uuid!
+  publisherName: String!
+  publisherShortname: String
+  publisherUrl: String
+  zitadelId: String
+  accessibilityStatement: String
+  accessibilityReportUrl: String
+}
+
+"Set of values required to update an existing citation to a written text"
+input PatchReference {
+  referenceId: Uuid!
+  workId: Uuid!
+  referenceOrdinal: Int!
+  doi: Doi
+  unstructuredCitation: String
+  issn: String
+  isbn: Isbn
+  journalTitle: String
+  articleTitle: String
+  seriesTitle: String
+  volumeTitle: String
+  edition: Int
+  author: String
+  volume: String
+  issue: String
+  firstPage: String
+  componentNumber: String
+  standardDesignator: String
+  standardsBodyName: String
+  standardsBodyAcronym: String
+  url: String
+  publicationDate: Date
+  retrievalDate: Date
+}
+
+"Set of values required to update an existing periodical of publications"
+input PatchSeries {
+  seriesId: Uuid!
+  seriesType: SeriesType!
+  seriesName: String!
+  issnPrint: String
+  issnDigital: String
+  seriesUrl: String
+  seriesDescription: String
+  seriesCfpUrl: String
+  imprintId: Uuid!
+}
+
+"Set of values required to update an existing significant discipline or term related to a work"
+input PatchSubject {
+  subjectId: Uuid!
+  workId: Uuid!
+  subjectType: SubjectType!
+  subjectCode: String!
+  subjectOrdinal: Int!
+}
+
+"Set of values required to update an existing work's title"
+input PatchTitle {
+  titleId: Uuid!
+  workId: Uuid!
+  localeCode: LocaleCode!
+  fullTitle: String!
+  title: String!
+  subtitle: String
+  canonical: Boolean!
+}
+
+"Set of values required to update an existing written text that can be published"
+input PatchWork {
+  workId: Uuid!
+  workType: WorkType!
+  workStatus: WorkStatus!
+  reference: String
+  edition: Int
+  imprintId: Uuid!
+  doi: Doi
+  publicationDate: Date
+  withdrawnDate: Date
+  place: String
+  pageCount: Int
+  pageBreakdown: String
+  imageCount: Int
+  tableCount: Int
+  audioCount: Int
+  videoCount: Int
+  license: String
+  copyrightHolder: String
+  landingPage: String
+  lccn: String
+  oclc: String
+  generalNote: String
+  bibliographyNote: String
+  toc: String
+  resourcesDescription: String
+  coverUrl: String
+  coverCaption: String
+  firstPage: String
+  lastPage: String
+  pageInterval: String
+}
+
+"Set of values required to update an existing featured video"
+input PatchWorkFeaturedVideo {
+  workFeaturedVideoId: Uuid!
+  workId: Uuid!
+  title: String!
+  url: String
+  width: Int!
+  height: Int!
+}
+
+"Set of values required to update an existing relationship between two works"
+input PatchWorkRelation {
+  workRelationId: Uuid!
+  relatorWorkId: Uuid!
+  relatedWorkId: Uuid!
+  relationType: RelationType!
+  relationOrdinal: Int!
+}
+
+"Field and order to use when sorting prices list"
+input PriceOrderBy {
+  field: PriceField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting publications list"
+input PublicationOrderBy {
+  field: PublicationField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting publishers list"
+input PublisherOrderBy {
+  field: PublisherField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting references list"
+input ReferenceOrderBy {
+  field: ReferenceField!
+  direction: Direction!
+}
+
+"Complete desired service configuration to store for a publisher. This is a replace, not a patch: the platform list is the complete desired enabled set, and an empty list means no destination is enabled"
+input ReplacePublisherServiceConfigurationInput {
+  publisherId: Uuid!
+  subscriptionPackage: ThothPackage!
+  enabledDistributionPlatforms: [DistributionPlatform!]!
+  expectedUpdatedAt: Timestamp!
+}
+
+"Field and order to use when sorting serieses list"
+input SeriesOrderBy {
+  field: SeriesField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting subjects list"
+input SubjectOrderBy {
+  field: SubjectField!
+  direction: Direction!
+}
+
+"Timestamp and choice out of greater than/less than to use when filtering by a time field (e.g. updated_at)"
+input TimeExpression {
+  timestamp: Timestamp!
+  expression: Expression!
+}
+
+"Field and order to use when sorting titles list"
+input TitleOrderBy {
+  field: TitleField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting featured videos list"
+input WorkFeaturedVideoOrderBy {
+  field: WorkFeaturedVideoField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting works list"
+input WorkOrderBy {
+  field: WorkField!
+  direction: Direction!
+}
+
+"Field and order to use when sorting work relations list"
+input WorkRelationOrderBy {
+  field: WorkRelationField!
+  direction: Direction!
+}
+
+"""
+  Date in the proleptic Gregorian calendar (without time zone).
+
+  Represents a description of the date (as used for birthdays, for example).
+  It cannot represent an instant on the time-line.
+
+  [`Date` scalar][1] compliant.
+
+  See also [`chrono::NaiveDate`][2] for details.
+
+  [1]: https://graphql-scalars.dev/docs/scalars/date
+  [2]: https://docs.rs/chrono/latest/chrono/naive/struct.NaiveDate.html
+"""
+scalar Date
+
+"Digital Object Identifier. Expressed as `^https:\\/\\/doi\\.org\\/10\\.\\d{4,9}\\/[-._;()\\/:a-zA-Z0-9<>+\\[\\]]+$`"
+scalar Doi
+
+"13-digit International Standard Book Number, with its parts separated by hyphens"
+scalar Isbn
+
+"ORCID (Open Researcher and Contributor ID) identifier. Expressed as `^https:\\/\\/orcid\\.org\\/\\d{4}-\\d{4}-\\d{4}-\\d{3}[\\dX]$`"
+scalar Orcid
+
+"ROR (Research Organization Registry) identifier. Expressed as `^https:\\/\\/ror\\.org\\/0[a-hjkmnp-z0-9]{6}\\d{2}$`"
+scalar Ror
+
+"RFC 3339 combined date and time in UTC time zone (e.g. \"1999-12-31T23:59:00Z\")"
+scalar Timestamp
+
+scalar Uuid
+
+"An abstract associated with a work."
+type Abstract {
+  "Thoth ID of the abstract"
+  abstractId: Uuid!
+  "Thoth ID of the work to which the abstract is linked"
+  workId: Uuid!
+  "Locale code of the abstract"
+  localeCode: LocaleCode!
+  "Content of the abstract"
+  content: String!
+  "Whether this is the canonical abstract for the work"
+  canonical: Boolean!
+  "Type of the abstract"
+  abstractType: AbstractType!
+  "Get the work to which the abstract is linked"
+  work: Work!
+}
+
+"An association between a person and an institution for a specific contribution."
+type Affiliation {
+  "Thoth ID of the affiliation"
+  affiliationId: Uuid!
+  "Thoth ID of the contribution linked to this affiliation"
+  contributionId: Uuid!
+  "Thoth ID of the institution linked to this affiliation"
+  institutionId: Uuid!
+  "Number representing this affiliation's position in an ordered list of affiliations within the contribution"
+  affiliationOrdinal: Int!
+  "Position of the contributor at the institution at the time of contribution"
+  position: String
+  "Date and time at which the affiliation record was created"
+  createdAt: Timestamp!
+  "Date and time at which the affiliation record was last updated"
+  updatedAt: Timestamp!
+  "Get the institution linked to this affiliation"
+  institution: Institution!
+  "Get the contribution linked to this affiliation"
+  contribution: Contribution!
+}
+
+"An award linked to a work."
+type Award {
+  "Thoth ID of the award"
+  awardId: Uuid!
+  "Thoth ID of the work to which this award belongs"
+  workId: Uuid!
+  "Title of the award"
+  title("Markup format used for rendering title" markupFormat: MarkupFormat = "JATS_XML"): String!
+  "URL of the award page"
+  url: String
+  "Category of the award"
+  category: String
+  "Year or year span associated with the award"
+  year: String
+  "Jury associated with the award"
+  jury: String
+  "Country associated with the award"
+  country: CountryCode
+  "Role of the work in this award"
+  role: AwardRole
+  "Prize statement for this award"
+  prizeStatement("Markup format used for rendering prize statement" markupFormat: MarkupFormat = "JATS_XML"): String
+  "Number representing this award's position in an ordered list of awards within the work"
+  awardOrdinal: Int!
+  "Date and time at which the award record was created"
+  createdAt: Timestamp!
+  "Date and time at which the award record was last updated"
+  updatedAt: Timestamp!
+  "Get the work linked to this award"
+  work: Work!
+}
+
+"A biography associated with a work and contribution."
+type Biography {
+  "Thoth ID of the biography"
+  biographyId: Uuid!
+  "Thoth ID of the contribution to which the biography is linked"
+  contributionId: Uuid!
+  "Locale code of the biography"
+  localeCode: LocaleCode!
+  "Content of the biography"
+  content: String!
+  "Whether this is the canonical biography for the contribution/work"
+  canonical: Boolean!
+  "Get the work to which the biography is linked via contribution"
+  work: Work!
+  "Get the contribution to which the biography is linked"
+  contribution: Contribution!
+}
+
+"A review of a work."
+type BookReview {
+  "Thoth ID of the book review"
+  bookReviewId: Uuid!
+  "Thoth ID of the work to which this review belongs"
+  workId: Uuid!
+  "Title of the review"
+  title("Markup format used for rendering review title" markupFormat: MarkupFormat = "JATS_XML"): String
+  "Name of the review author"
+  authorName: String
+  "ORCID (Open Researcher and Contributor ID) of the reviewer as full URL, using the HTTPS scheme and the orcid.org domain"
+  reviewerOrcid: Orcid
+  "Thoth ID of the reviewer's institution"
+  reviewerInstitutionId: Uuid
+  "URL of the review publication"
+  url: String
+  "DOI of the review as full URL, using the HTTPS scheme and the doi.org domain"
+  doi: Doi
+  "Publication date of the review"
+  reviewDate: Date
+  "Name of the journal where the review was published"
+  journalName: String
+  "Volume of the journal where the review was published"
+  journalVolume: String
+  "Number of the journal where the review was published"
+  journalNumber: String
+  "ISSN of the journal where the review was published"
+  journalIssn: String
+  "Page range of the review"
+  pageRange: String
+  "Text of the review"
+  text("Markup format used for rendering review text" markupFormat: MarkupFormat = "JATS_XML"): String
+  "Number representing this review's position in an ordered list of reviews within the work"
+  reviewOrdinal: Int!
+  "Date and time at which the review record was created"
+  createdAt: Timestamp!
+  "Date and time at which the review record was last updated"
+  updatedAt: Timestamp!
+  "Get the work linked to this review"
+  work: Work!
+  "Get the reviewer's institution"
+  reviewerInstitution: Institution
+}
+
+"A distribution job together with the claim it was just granted."
+type ClaimedDistributionJob {
+  "The claimed job"
+  job: DistributionJob!
+  "Present this token to complete or fail the job. It is returned only here"
+  claimToken: Uuid!
+  "When this claim's lease expires"
+  leaseExpiresAt: Timestamp!
+  "Ordinal of the attempt this claim started"
+  attemptNumber: Int!
+}
+
+"A way to get in touch with a publisher."
+type Contact {
+  "Thoth ID of the contact"
+  contactId: Uuid!
+  "Thoth ID of the publisher to which this contact belongs"
+  publisherId: Uuid!
+  "Type of the contact"
+  contactType: ContactType!
+  "Email address of the contact"
+  email: String!
+  "Date and time at which the contact record was created"
+  createdAt: Timestamp!
+  "Date and time at which the contact record was last updated"
+  updatedAt: Timestamp!
+  "Get the publisher to which this contact belongs"
+  publisher: Publisher!
+}
+
+"A person's involvement in the production of a written text."
+type Contribution {
+  "Thoth ID of the contribution"
+  contributionId: Uuid!
+  "Thoth ID of the contributor who created the contribution"
+  contributorId: Uuid!
+  "Thoth ID of the work in which the contribution appears"
+  workId: Uuid!
+  "Nature of the contribution"
+  contributionType: ContributionType!
+  "Whether this is a main contribution to the work (e.g. contributor credited on title page)"
+  mainContribution: Boolean!
+  "Query the full list of biographies"
+  biographies("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on title_, subtitle, full_title fields" filter: String = "", "The order in which to sort the results" order: BiographyOrderBy = {direction: "DESC", field: "CANONICAL"}, "If set, only shows results with these locale codes" localeCodes: [LocaleCode!] = [], "If set, only shows results with this markup format" markupFormat: MarkupFormat = "JATS_XML"): [Biography!]!
+  "Biography of the contributor at the time of contribution"
+  biography: String @deprecated(reason: "Please use Contribution `biographies` field instead to get the correct biography in a multilingual manner")
+  "Date and time at which the contribution record was created"
+  createdAt: Timestamp!
+  "Date and time at which the contribution record was last updated"
+  updatedAt: Timestamp!
+  "Given or first name(s) of the contributor, as credited in this contribution"
+  firstName: String
+  "Family or surname of the contributor, as credited in this contribution"
+  lastName: String!
+  "Full, serialized name of the contributor, as credited in this contribution"
+  fullName: String!
+  "Number representing this contribution's position in an ordered list of contributions within the work"
+  contributionOrdinal: Int!
+  "Get the work in which the contribution appears"
+  work: Work!
+  "Get the contributor who created the contribution"
+  contributor: Contributor!
+  "Get affiliations linked to this contribution"
+  affiliations("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: AffiliationOrderBy = {direction: "ASC", field: "AFFILIATION_ORDINAL"}): [Affiliation!]!
+}
+
+"A person who has been involved in the production of a written text."
+type Contributor {
+  "Thoth ID of the contributor"
+  contributorId: Uuid!
+  "Given or first name(s) of the contributor"
+  firstName: String
+  "Family or surname of the contributor"
+  lastName: String!
+  "Full, serialized name of the contributor. Serialization is often culturally determined."
+  fullName: String!
+  "ORCID (Open Researcher and Contributor ID) of the contributor as full URL, using the HTTPS scheme and the orcid.org domain (e.g. https://orcid.org/0000-0002-1825-0097)"
+  orcid: Orcid
+  "URL of the contributor's website"
+  website: String
+  "Date and time at which the contributor record was created"
+  createdAt: Timestamp!
+  "Date and time at which the contributor record was last updated"
+  updatedAt: Timestamp!
+  "Get contributions linked to this contributor"
+  contributions("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: ContributionOrderBy = {direction: "ASC", field: "CONTRIBUTION_TYPE"}, "Specific types to filter by" contributionTypes: [ContributionType!] = []): [Contribution!]!
+}
+
+"A durable unit of distribution work."
+type DistributionJob {
+  "Thoth ID of the distribution job"
+  distributionJobId: Uuid!
+  "Kind of durable distribution work this job represents"
+  kind: DistributionJobKind!
+  "Thoth ID of the publisher this job belongs to"
+  publisherId: Uuid!
+  "Reserved for future work-level jobs; always null for PUBLISHER_BACK_CATALOGUE"
+  workId: Uuid
+  "Current lifecycle state of the job"
+  status: DistributionJobStatus!
+  "Number of execution attempts started so far"
+  attemptCount: Int!
+  "Earliest time at which this job may be claimed"
+  availableAt: Timestamp!
+  "Destinations this job delivers to, in canonical platform order. Always at least one"
+  targets: [DistributionJobTarget!]!
+  "Recorded execution attempts, most recent first. Bounded by the attempt budget"
+  attempts: [DistributionJobAttempt!]!
+  "When the current claim was granted, if the job is running"
+  claimedAt: Timestamp
+  "When the current claim's lease expires, if the job is running"
+  leaseExpiresAt: Timestamp
+  "When the job reached a terminal state, if it has"
+  completedAt: Timestamp
+  "Why the job was cancelled, if it was"
+  cancellationReason: DistributionJobCancellationReason
+  "Stable classification of the most recent worker-reported failure. Null if no worker has reported a failure. Not necessarily the newest attempt's outcome: read attempts for how the job ended"
+  lastErrorCode: String
+  "Bounded sanitized diagnostic for the most recent worker-reported failure. Null if no worker has reported a failure"
+  lastErrorDetail: String
+  "Date and time at which the job was created"
+  createdAt: Timestamp!
+  "Date and time at which the job was last updated"
+  updatedAt: Timestamp!
+}
+
+"One recorded execution attempt of a distribution job."
+type DistributionJobAttempt {
+  "Ordinal of this attempt within its job, starting at 1"
+  attemptNumber: Int!
+  "Identity that held the claim for this attempt"
+  claimedBy: String!
+  "When the attempt started"
+  startedAt: Timestamp!
+  "When the attempt was closed, if it has been"
+  finishedAt: Timestamp
+  "Null while the attempt is open"
+  result: DistributionJobAttemptResult
+  "Worker-reported classification, present only on a failed attempt"
+  errorCode: String
+  "Bounded sanitized diagnostic, present only on a failed attempt"
+  errorDetail: String
+}
+
+"One destination of a distribution job."
+type DistributionJobTarget {
+  "Distribution platform this job delivers to"
+  platform: DistributionPlatform!
+  "Date and time at which the target was recorded"
+  createdAt: Timestamp!
+}
+
+"A distribution platform to which a publisher's works may be distributed, with its code-owned metadata."
+type DistributionPlatformOption {
+  "Stable code identifying the distribution platform"
+  platform: DistributionPlatform!
+  "Human-readable name of the distribution platform"
+  displayLabel: String!
+  "Group of platforms whose assignments are enabled and disabled together, if any"
+  linkedGroup: DistributionPlatformGroup
+  "How this platform is expected to receive a publisher's existing back catalogue"
+  backCatalogueBehaviour: BackCatalogueBehaviour!
+  "Whether an assignment for this platform may currently be enabled for a publisher"
+  assignable: Boolean!
+}
+
+"An endorsement linked to a work."
+type Endorsement {
+  "Thoth ID of the endorsement"
+  endorsementId: Uuid!
+  "Thoth ID of the work to which this endorsement belongs"
+  workId: Uuid!
+  "Name of the endorsement author"
+  authorName: String!
+  "Role of the endorsement author"
+  authorRole("Markup format used for rendering endorsement author role" markupFormat: MarkupFormat = "JATS_XML"): String
+  "ORCID (Open Researcher and Contributor ID) of the endorsement author as full URL, using the HTTPS scheme and the orcid.org domain"
+  authorOrcid: Orcid
+  "Thoth ID of the endorsement author's institution"
+  authorInstitutionId: Uuid
+  "URL associated with this endorsement"
+  url: String
+  "Text of the endorsement"
+  text("Markup format used for rendering endorsement text" markupFormat: MarkupFormat = "JATS_XML"): String
+  "Number representing this endorsement's position in an ordered list of endorsements within the work"
+  endorsementOrdinal: Int!
+  "Date and time at which the endorsement record was created"
+  createdAt: Timestamp!
+  "Date and time at which the endorsement record was last updated"
+  updatedAt: Timestamp!
+  "Get the work linked to this endorsement"
+  work: Work!
+  "Get the endorsement author's institution"
+  authorInstitution: Institution
+}
+
+"A file stored in the system (publication file, front cover, additional resource, or featured video)."
+type File {
+  "Thoth ID of the file"
+  fileId: Uuid!
+  "Type of file (publication, frontcover, additional_resource, or work_featured_video)"
+  fileType: FileType!
+  "Thoth ID of the work (for frontcovers)"
+  workId: Uuid
+  "Thoth ID of the publication (for publication files)"
+  publicationId: Uuid
+  "Thoth ID of the additional resource (for additional resource files)"
+  additionalResourceId: Uuid
+  "Thoth ID of the featured video (for featured video files)"
+  workFeaturedVideoId: Uuid
+  "S3 object key (canonical DOI-based path)"
+  objectKey: String!
+  "Public CDN URL"
+  cdnUrl: String!
+  "MIME type used when serving the file"
+  mimeType: String!
+  "Size of the file in bytes"
+  bytes: Int!
+  "SHA-256 checksum of the stored file"
+  sha256: String!
+  "Date and time at which the file record was created"
+  createdAt: Timestamp!
+  "Date and time at which the file record was last updated"
+  updatedAt: Timestamp!
+}
+
+"Response from initiating a file upload, containing the upload URL and expiration time."
+type FileUploadResponse {
+  "ID of the upload session."
+  fileUploadId: Uuid!
+  "Presigned S3 PUT URL for uploading the file."
+  uploadUrl: String!
+  "Headers that must be sent with the HTTP PUT request to uploadUrl."
+  uploadHeaders: [UploadRequestHeader!]!
+  "Time when the upload URL expires."
+  expiresAt: Timestamp!
+}
+
+"A grant awarded for the publication of a work by an institution."
+type Funding {
+  "Thoth ID of the funding"
+  fundingId: Uuid!
+  "Thoth ID of the funded work"
+  workId: Uuid!
+  "Thoth ID of the funding institution"
+  institutionId: Uuid!
+  "Name of the funding program"
+  program: String
+  "Name of the funding project"
+  projectName: String
+  "Short name of the funding project"
+  projectShortname: String
+  "Grant number of the award"
+  grantNumber: String
+  "Date and time at which the funding record was created"
+  createdAt: Timestamp!
+  "Date and time at which the funding record was last updated"
+  updatedAt: Timestamp!
+  "Get the funded work"
+  work: Work!
+  "Get the funding institution"
+  institution: Institution!
+}
+
+"The brand under which a publisher issues works."
+type Imprint {
+  "Thoth ID of the imprint"
+  imprintId: Uuid!
+  "Thoth ID of the publisher to which this imprint belongs"
+  publisherId: Uuid!
+  "Name of the imprint"
+  imprintName: String!
+  "URL of the imprint's landing page"
+  imprintUrl: String
+  """
+    DOI of the imprint's Crossmark policy page, if publisher participates. Crossmark 'gives readers quick and easy access to the
+        current status of an item of content, including any corrections, retractions, or updates'. More: https://www.crossref.org/services/crossmark/
+  """
+  crossmarkDoi: Doi
+  "S3 bucket used for files belonging to this imprint"
+  s3Bucket: String
+  "CDN domain used for files belonging to this imprint"
+  cdnDomain: String
+  "CloudFront distribution ID used for files belonging to this imprint"
+  cloudfrontDistId: String
+  "Default currency code for works under this imprint"
+  defaultCurrency: CurrencyCode
+  "Default publication place for works under this imprint"
+  defaultPlace: String
+  "Default locale code for works under this imprint"
+  defaultLocale: LocaleCode
+  "Date and time at which the imprint record was created"
+  createdAt: Timestamp!
+  "Date and time at which the imprint record was last updated"
+  updatedAt: Timestamp!
+  "Get the publisher to which this imprint belongs"
+  publisher: Publisher!
+  "Get works linked to this imprint"
+  works("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on full_title, doi, reference, short_abstract, long_abstract, and landing_page" filter: String = "", "The order in which to sort the results" order: WorkOrderBy = {direction: "ASC", field: "FULL_TITLE"}, "Specific types to filter by" workTypes: [WorkType!] = [], "(deprecated) A specific status to filter by" workStatus: WorkStatus, "Specific statuses to filter by" workStatuses: [WorkStatus!] = [], "Only show results updated either before (less than) or after (greater than) the specified timestamp" publicationDate: TimeExpression, "Only show results with a publication date either before (less than) or after (greater than) the specified timestamp" updatedAtWithRelations: TimeExpression): [Work!]!
+}
+
+"An organisation with which contributors may be affiliated or by which works may be funded."
+type Institution {
+  "Thoth ID of the institution"
+  institutionId: Uuid!
+  "Name of the institution"
+  institutionName: String!
+  "Digital Object Identifier of the organisation as full URL, using the HTTPS scheme and the doi.org domain (e.g. https://doi.org/10.13039/100014013)"
+  institutionDoi: Doi
+  "Three-letter ISO 3166-1 code representing the country where this institution is based"
+  countryCode: CountryCode
+  "Research Organisation Registry identifier of the organisation as full URL, using the HTTPS scheme and the ror.org domain (e.g. https://ror.org/051z6e826)"
+  ror: Ror
+  "Date and time at which the institution record was created"
+  createdAt: Timestamp!
+  "Date and time at which the institution record was last updated"
+  updatedAt: Timestamp!
+  "Get fundings linked to this institution"
+  fundings("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: FundingOrderBy = {direction: "ASC", field: "PROGRAM"}): [Funding!]!
+  "Get affiliations linked to this institution"
+  affiliations("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: AffiliationOrderBy = {direction: "ASC", field: "AFFILIATION_ORDINAL"}): [Affiliation!]!
+}
+
+"A work published as a number in a periodical."
+type Issue {
+  "Thoth ID of the issue"
+  issueId: Uuid!
+  "Thoth ID of the work represented by the issue"
+  workId: Uuid!
+  "Thoth ID of the series to which the issue belongs"
+  seriesId: Uuid!
+  "Number representing this issue's position in an ordered list of issues within the series (does not have to correspond to published issue number)"
+  issueOrdinal: Int!
+  "Published issue number given to this issue within the series, if any"
+  issueNumber: Int
+  "Date and time at which the issue record was created"
+  createdAt: Timestamp!
+  "Date and time at which the issue record was last updated"
+  updatedAt: Timestamp!
+  "Get the series to which the issue belongs"
+  series: Series!
+  "Get the work represented by the issue"
+  work: Work!
+}
+
+"Description of a work's language."
+type Language {
+  "Thoth ID of the language"
+  languageId: Uuid!
+  "Thoth ID of the work which has this language"
+  workId: Uuid!
+  "Three-letter ISO 639 code representing the language"
+  languageCode: LanguageCode!
+  "Relation between this language and the original language of the text"
+  languageRelation: LanguageRelation!
+  "Date and time at which the language record was created"
+  createdAt: Timestamp!
+  "Date and time at which the language record was last updated"
+  updatedAt: Timestamp!
+  "Get the work which has this language"
+  work: Work!
+}
+
+"A location, such as a web shop or distribution platform, where a publication can be acquired or viewed."
+type Location {
+  "Thoth ID of the location"
+  locationId: Uuid!
+  "Thoth ID of the publication linked to this location"
+  publicationId: Uuid!
+  "Public-facing URL via which the publication can be accessed"
+  landingPage: String
+  "Direct link to the full text file"
+  fullTextUrl: String
+  "Platform where the publication is hosted or can be acquired"
+  locationPlatform: LocationPlatform!
+  "Whether this is the canonical location for this specific publication (e.g. the main platform on which the print version is sold, or the official version of record hosted on the publisher's own web server)"
+  canonical: Boolean!
+  "Checksum of the full text file as returned by the platform"
+  checksum: String
+  "Algorithm used to generate the checksum (MD5, SHA-256 or SHA-1)"
+  checksumAlgorithm: ChecksumAlgorithm
+  "Date and time at which the location record was created"
+  createdAt: Timestamp!
+  "Date and time at which the location record was last updated"
+  updatedAt: Timestamp!
+  "Get the publication linked to this location"
+  publication: Publication!
+}
+
+type Me {
+  userId: String!
+  email: String
+  firstName: String
+  lastName: String
+  isSuperuser: Boolean!
+  publisherContexts: [PublisherContext!]!
+}
+
+type MutationRoot {
+  "Create a new work with the specified values"
+  createWork("Values for work to be created" data: NewWork!): Work!
+  "Create a new publisher with the specified values"
+  createPublisher("Values for publisher to be created" data: NewPublisher!): Publisher!
+  "Replace a publisher's complete desired service configuration under optimistic concurrency control. Superuser only. Newly activating an AUTOMATIC_PUSH destination also creates that activation's durable distribution job and targets atomically in the same transaction, while automatic distribution job creation is enabled; while it is disabled such a replacement fails and rolls back in full rather than committing the activation without its job. No other change creates a job, and this mutation performs no dissemination."
+  replacePublisherServiceConfiguration("Complete desired service configuration to store" data: ReplacePublisherServiceConfigurationInput!): PublisherServiceConfiguration!
+  "Claim a bounded batch of due distribution jobs. Requires the DISSEMINATION_WORKER role."
+  claimDistributionJobs("How many jobs to claim, for how long, and of which kinds" data: ClaimDistributionJobsInput!): [ClaimedDistributionJob!]!
+  "Record successful completion of a claimed distribution job. Requires the DISSEMINATION_WORKER role."
+  completeDistributionJob("Which claimed job succeeded, and under which claim" data: CompleteDistributionJobInput!): DistributionJob!
+  "Record failure of a claimed distribution job, optionally scheduling a retry. Requires the DISSEMINATION_WORKER role."
+  failDistributionJob("Which claimed job failed, how, and whether to retry it" data: FailDistributionJobInput!): DistributionJob!
+  "Cancel a pending or running distribution job. Superuser only. This does not undo any external delivery already performed."
+  cancelDistributionJob("Which job to cancel" data: CancelDistributionJobInput!): DistributionJob!
+  "Create a new imprint with the specified values"
+  createImprint("Values for imprint to be created" data: NewImprint!): Imprint!
+  "Create a new contributor with the specified values"
+  createContributor("Values for contributor to be created" data: NewContributor!): Contributor!
+  "Create a new contribution with the specified values"
+  createContribution("Values for contribution to be created" data: NewContribution!): Contribution!
+  "Create a new publication with the specified values"
+  createPublication("Values for publication to be created" data: NewPublication!): Publication!
+  "Create a new series with the specified values"
+  createSeries("The markup format of the series description" markupFormat: MarkupFormat, "Values for series to be created" data: NewSeries!): Series!
+  "Create a new issue with the specified values"
+  createIssue("Values for issue to be created" data: NewIssue!): Issue!
+  "Create a new language with the specified values"
+  createLanguage("Values for language to be created" data: NewLanguage!): Language!
+  "Create a new title with the specified values"
+  createTitle("The markup format of the title" markupFormat: MarkupFormat, "Values for title to be created" data: NewTitle!): Title!
+  "Create a new abstract with the specified values"
+  createAbstract("The markup format of the abstract" markupFormat: MarkupFormat, "Values for abstract to be created" data: NewAbstract!): Abstract!
+  "Create a new biography with the specified values"
+  createBiography("The markup format of the biography" markupFormat: MarkupFormat, "Values for biography to be created" data: NewBiography!): Biography!
+  "Create a new institution with the specified values"
+  createInstitution("Values for institution to be created" data: NewInstitution!): Institution!
+  "Create a new funding with the specified values"
+  createFunding("Values for funding to be created" data: NewFunding!): Funding!
+  "Create a new location with the specified values"
+  createLocation("Values for location to be created" data: NewLocation!): Location!
+  "Create a new price with the specified values"
+  createPrice("Values for price to be created" data: NewPrice!): Price!
+  "Create a new subject with the specified values"
+  createSubject("Values for subject to be created" data: NewSubject!): Subject!
+  "Create a new affiliation with the specified values"
+  createAffiliation("Values for affiliation to be created" data: NewAffiliation!): Affiliation!
+  "Create a new work relation with the specified values"
+  createWorkRelation("Values for work relation to be created" data: NewWorkRelation!): WorkRelation!
+  "Create a new reference with the specified values"
+  createReference("Values for reference to be created" data: NewReference!): Reference!
+  "Create a new additional resource with the specified values"
+  createAdditionalResource("The markup format of the additional resource text fields" markupFormat: MarkupFormat, "Values for additional resource to be created" data: NewAdditionalResource!): WorkResource!
+  "Create a new award with the specified values"
+  createAward("The markup format of the award text fields" markupFormat: MarkupFormat, "Values for award to be created" data: NewAward!): Award!
+  "Create a new endorsement with the specified values"
+  createEndorsement("The markup format of the endorsement rich-text fields" markupFormat: MarkupFormat, "Values for endorsement to be created" data: NewEndorsement!): Endorsement!
+  "Create a new book review with the specified values"
+  createBookReview("The markup format of the book review text field" markupFormat: MarkupFormat, "Values for book review to be created" data: NewBookReview!): BookReview!
+  "Create a new featured video with the specified values"
+  createWorkFeaturedVideo("Values for featured video to be created" data: NewWorkFeaturedVideo!): WorkFeaturedVideo!
+  "Create a new contact with the specified values"
+  createContact("Values for contact to be created" data: NewContact!): Contact!
+  "Update an existing work with the specified values"
+  updateWork("Values to apply to existing work" data: PatchWork!): Work!
+  "Update an existing publisher with the specified values"
+  updatePublisher("Values to apply to existing publisher" data: PatchPublisher!): Publisher!
+  "Update an existing imprint with the specified values"
+  updateImprint("Values to apply to existing imprint" data: PatchImprint!): Imprint!
+  "Update an existing contributor with the specified values"
+  updateContributor("Values to apply to existing contributor" data: PatchContributor!): Contributor!
+  "Update an existing contribution with the specified values"
+  updateContribution("Values to apply to existing contribution" data: PatchContribution!): Contribution!
+  "Update an existing publication with the specified values"
+  updatePublication("Values to apply to existing publication" data: PatchPublication!): Publication!
+  "Update an existing series with the specified values"
+  updateSeries("The markup format of the series description" markupFormat: MarkupFormat, "Values to apply to existing series" data: PatchSeries!): Series!
+  "Update an existing issue with the specified values"
+  updateIssue("Values to apply to existing issue" data: PatchIssue!): Issue!
+  "Update an existing language with the specified values"
+  updateLanguage("Values to apply to existing language" data: PatchLanguage!): Language!
+  "Update an existing institution with the specified values"
+  updateInstitution("Values to apply to existing institution" data: PatchInstitution!): Institution!
+  "Update an existing funding with the specified values"
+  updateFunding("Values to apply to existing funding" data: PatchFunding!): Funding!
+  "Update an existing location with the specified values"
+  updateLocation("Values to apply to existing location" data: PatchLocation!): Location!
+  "Update an existing price with the specified values"
+  updatePrice("Values to apply to existing price" data: PatchPrice!): Price!
+  "Update an existing subject with the specified values"
+  updateSubject("Values to apply to existing subject" data: PatchSubject!): Subject!
+  "Update an existing affiliation with the specified values"
+  updateAffiliation("Values to apply to existing affiliation" data: PatchAffiliation!): Affiliation!
+  "Update an existing work relation with the specified values"
+  updateWorkRelation("Values to apply to existing work relation" data: PatchWorkRelation!): WorkRelation!
+  "Update an existing reference with the specified values"
+  updateReference("Values to apply to existing reference" data: PatchReference!): Reference!
+  "Update an existing additional resource with the specified values"
+  updateAdditionalResource("The markup format of the additional resource text fields" markupFormat: MarkupFormat, "Values to apply to existing additional resource" data: PatchAdditionalResource!): WorkResource!
+  "Update an existing award with the specified values"
+  updateAward("The markup format of the award text fields" markupFormat: MarkupFormat, "Values to apply to existing award" data: PatchAward!): Award!
+  "Update an existing endorsement with the specified values"
+  updateEndorsement("The markup format of the endorsement rich-text fields" markupFormat: MarkupFormat, "Values to apply to existing endorsement" data: PatchEndorsement!): Endorsement!
+  "Update an existing book review with the specified values"
+  updateBookReview("The markup format of the book review text field" markupFormat: MarkupFormat, "Values to apply to existing book review" data: PatchBookReview!): BookReview!
+  "Update an existing featured video with the specified values"
+  updateWorkFeaturedVideo("Values to apply to existing featured video" data: PatchWorkFeaturedVideo!): WorkFeaturedVideo!
+  "Update an existing contact with the specified values"
+  updateContact("Values to apply to existing contact" data: PatchContact!): Contact!
+  "Update an existing title with the specified values"
+  updateTitle("The markup format of the title" markupFormat: MarkupFormat, "Values to apply to existing title" data: PatchTitle!): Title!
+  "Update an existing abstract with the specified values"
+  updateAbstract("The markup format of the abstract" markupFormat: MarkupFormat, "Values to apply to existing abstract" data: PatchAbstract!): Abstract!
+  "Update an existing biography with the specified values"
+  updateBiography("The markup format of the biography" markupFormat: MarkupFormat, "Values to apply to existing biography" data: PatchBiography!): Biography!
+  "Delete a single work using its ID"
+  deleteWork("Thoth ID of work to be deleted" workId: Uuid!): Work!
+  "Delete a single publisher using its ID"
+  deletePublisher("Thoth ID of publisher to be deleted" publisherId: Uuid!): Publisher!
+  "Delete a single imprint using its ID"
+  deleteImprint("Thoth ID of imprint to be deleted" imprintId: Uuid!): Imprint!
+  "Delete a single contributor using its ID"
+  deleteContributor("Thoth ID of contributor to be deleted" contributorId: Uuid!): Contributor!
+  "Delete a single contribution using its ID"
+  deleteContribution("Thoth ID of contribution to be deleted" contributionId: Uuid!): Contribution!
+  "Delete a single publication using its ID"
+  deletePublication("Thoth ID of publication to be deleted" publicationId: Uuid!): Publication!
+  "Delete a single series using its ID"
+  deleteSeries("Thoth ID of series to be deleted" seriesId: Uuid!): Series!
+  "Delete a single issue using its ID"
+  deleteIssue("Thoth ID of issue to be deleted" issueId: Uuid!): Issue!
+  "Delete a single language using its ID"
+  deleteLanguage("Thoth ID of language to be deleted" languageId: Uuid!): Language!
+  "Delete a single title using its ID"
+  deleteTitle("Thoth ID of title to be deleted" titleId: Uuid!): Title!
+  "Delete a single institution using its ID"
+  deleteInstitution("Thoth ID of institution to be deleted" institutionId: Uuid!): Institution!
+  "Delete a single funding using its ID"
+  deleteFunding("Thoth ID of funding to be deleted" fundingId: Uuid!): Funding!
+  "Delete a single location using its ID"
+  deleteLocation("Thoth ID of location to be deleted" locationId: Uuid!): Location!
+  "Delete a single price using its ID"
+  deletePrice("Thoth ID of price to be deleted" priceId: Uuid!): Price!
+  "Delete a single subject using its ID"
+  deleteSubject("Thoth ID of subject to be deleted" subjectId: Uuid!): Subject!
+  "Delete a single affiliation using its ID"
+  deleteAffiliation("Thoth ID of affiliation to be deleted" affiliationId: Uuid!): Affiliation!
+  "Delete a single work relation using its ID"
+  deleteWorkRelation("Thoth ID of work relation to be deleted" workRelationId: Uuid!): WorkRelation!
+  "Delete a single reference using its ID"
+  deleteReference("Thoth ID of reference to be deleted" referenceId: Uuid!): Reference!
+  "Delete a single additional resource using its ID"
+  deleteAdditionalResource("Thoth ID of additional resource to be deleted" additionalResourceId: Uuid!): WorkResource!
+  "Delete a single award using its ID"
+  deleteAward("Thoth ID of award to be deleted" awardId: Uuid!): Award!
+  "Delete a single endorsement using its ID"
+  deleteEndorsement("Thoth ID of endorsement to be deleted" endorsementId: Uuid!): Endorsement!
+  "Delete a single book review using its ID"
+  deleteBookReview("Thoth ID of book review to be deleted" bookReviewId: Uuid!): BookReview!
+  "Delete a single featured video using its ID"
+  deleteWorkFeaturedVideo("Thoth ID of featured video to be deleted" workFeaturedVideoId: Uuid!): WorkFeaturedVideo!
+  "Delete a single abstract using its ID"
+  deleteAbstract("Thoth ID of abstract to be deleted" abstractId: Uuid!): Abstract!
+  "Delete a single biography using its ID"
+  deleteBiography("Thoth ID of biography to be deleted" biographyId: Uuid!): Biography!
+  "Change the ordering of an affiliation within a contribution"
+  moveAffiliation("Thoth ID of affiliation to be moved" affiliationId: Uuid!, "Ordinal representing position to which affiliation should be moved" newOrdinal: Int!): Affiliation!
+  "Change the ordering of a contribution within a work"
+  moveContribution("Thoth ID of contribution to be moved" contributionId: Uuid!, "Ordinal representing position to which contribution should be moved" newOrdinal: Int!): Contribution!
+  "Change the ordering of an issue within a series"
+  moveIssue("Thoth ID of issue to be moved" issueId: Uuid!, "Ordinal representing position to which issue should be moved" newOrdinal: Int!): Issue!
+  "Change the ordering of a reference within a work"
+  moveReference("Thoth ID of reference to be moved" referenceId: Uuid!, "Ordinal representing position to which reference should be moved" newOrdinal: Int!): Reference!
+  "Change the ordering of an additional resource within a work"
+  moveAdditionalResource("Thoth ID of additional resource to be moved" additionalResourceId: Uuid!, "Ordinal representing position to which additional resource should be moved" newOrdinal: Int!): WorkResource!
+  "Change the ordering of an award within a work"
+  moveAward("Thoth ID of award to be moved" awardId: Uuid!, "Ordinal representing position to which award should be moved" newOrdinal: Int!): Award!
+  "Change the ordering of an endorsement within a work"
+  moveEndorsement("Thoth ID of endorsement to be moved" endorsementId: Uuid!, "Ordinal representing position to which endorsement should be moved" newOrdinal: Int!): Endorsement!
+  "Change the ordering of a book review within a work"
+  moveBookReview("Thoth ID of book review to be moved" bookReviewId: Uuid!, "Ordinal representing position to which book review should be moved" newOrdinal: Int!): BookReview!
+  "Change the ordering of a subject within a work"
+  moveSubject("Thoth ID of subject to be moved" subjectId: Uuid!, "Ordinal representing position to which subject should be moved" newOrdinal: Int!): Subject!
+  "Change the ordering of a work relation within a work"
+  moveWorkRelation("Thoth ID of work relation to be moved" workRelationId: Uuid!, "Ordinal representing position to which work relation should be moved" newOrdinal: Int!): WorkRelation!
+  "Start uploading a publication file (e.g. PDF, EPUB, XML) for a given publication. Returns an upload session ID, a presigned S3 PUT URL, and required PUT headers."
+  initPublicationFileUpload("Input for starting a publication file upload" data: NewPublicationFileUpload!): FileUploadResponse!
+  "Start uploading a front cover image for a given work. Front covers must be JPEG ('image/jpeg', '.jpg' or '.jpeg' filenames); the hosted cover is stored under a canonical '.jpg' key. Returns an upload session ID, a presigned S3 PUT URL, and required PUT headers."
+  initFrontcoverFileUpload("Input for starting a front cover upload" data: NewFrontcoverFileUpload!): FileUploadResponse!
+  "Start uploading a file for an additional resource. Supported resource types include AUDIO, VIDEO, IMAGE, DOCUMENT, DATASET, and SPREADSHEET."
+  initAdditionalResourceFileUpload("Input for starting an additional resource upload" data: NewAdditionalResourceFileUpload!): FileUploadResponse!
+  "Start uploading a hosted featured video for a work. The uploaded file is promoted to a DOI-scoped resource path."
+  initWorkFeaturedVideoFileUpload("Input for starting a featured video upload" data: NewWorkFeaturedVideoFileUpload!): FileUploadResponse!
+  "Complete a file upload, validate it, and promote it to its final DOI-based location."
+  completeFileUpload("Input for completing a file upload" data: CompleteFileUpload!): File!
+  "Delete a single contact using its ID"
+  deleteContact("Thoth ID of contact to be deleted" contactId: Uuid!): Contact!
+}
+
+"The amount of money, in any currency, that a publication costs."
+type Price {
+  "Thoth ID of the price"
+  priceId: Uuid!
+  "Thoth ID of the publication linked to this price"
+  publicationId: Uuid!
+  "Three-letter ISO 4217 code representing the currency used in this price"
+  currencyCode: CurrencyCode!
+  "Value of the publication in the specified currency"
+  unitPrice: Float!
+  "Date and time at which the price record was created"
+  createdAt: Timestamp!
+  "Date and time at which the price record was last updated"
+  updatedAt: Timestamp!
+  "Get the publication linked to this price"
+  publication: Publication!
+}
+
+"A manifestation of a written text"
+type Publication {
+  "Thoth ID of the publication"
+  publicationId: Uuid!
+  "Format of this publication"
+  publicationType: PublicationType!
+  "Thoth ID of the work to which this publication belongs"
+  workId: Uuid!
+  "International Standard Book Number of the publication, in ISBN-13 format"
+  isbn: Isbn
+  "Date and time at which the publication record was created"
+  createdAt: Timestamp!
+  "Date and time at which the publication record was last updated"
+  updatedAt: Timestamp!
+  "Width of the physical Publication (in mm, cm or in) (only applicable to non-Chapter Paperbacks and Hardbacks)"
+  width("Unit of measurement in which to represent the width (mm, cm or in)" units: LengthUnit! = "MM"): Float
+  "Height of the physical Publication (in mm, cm or in) (only applicable to non-Chapter Paperbacks and Hardbacks)"
+  height("Unit of measurement in which to represent the height (mm, cm or in)" units: LengthUnit! = "MM"): Float
+  "Depth of the physical Publication (in mm, cm or in) (only applicable to non-Chapter Paperbacks and Hardbacks)"
+  depth("Unit of measurement in which to represent the depth (mm, cm or in)" units: LengthUnit! = "MM"): Float
+  "Weight of the physical Publication (in g or oz) (only applicable to non-Chapter Paperbacks and Hardbacks)"
+  weight("Unit of measurement in which to represent the weight (grams or ounces)" units: WeightUnit! = "G"): Float
+  "WCAG standard accessibility level met by this publication (if any)"
+  accessibilityStandard: AccessibilityStandard
+  "EPUB- or PDF-specific standard accessibility level met by this publication, if applicable"
+  accessibilityAdditionalStandard: AccessibilityStandard
+  "Reason for this publication not being required to comply with accessibility standards (if any)"
+  accessibilityException: AccessibilityException
+  "Link to a web page showing detailed accessibility information for this publication"
+  accessibilityReportUrl: String
+  "Get prices linked to this publication"
+  prices("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: PriceOrderBy = {direction: "ASC", field: "CURRENCY_CODE"}, "Specific currencies to filter by" currencyCodes: [CurrencyCode!] = []): [Price!]!
+  "Get locations linked to this publication"
+  locations("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: LocationOrderBy = {direction: "ASC", field: "LOCATION_PLATFORM"}, "Specific platforms to filter by" locationPlatforms: [LocationPlatform!] = []): [Location!]!
+  "Get the publication file for this publication"
+  file: File
+  "Get the work to which this publication belongs"
+  work: Work!
+}
+
+"An organisation that produces and distributes written texts."
+type Publisher {
+  "Thoth ID of the publisher"
+  publisherId: Uuid!
+  "Name of the publisher"
+  publisherName: String!
+  "Short name of the publisher, if any (e.g. an abbreviation)"
+  publisherShortname: String
+  "URL of the publisher's website"
+  publisherUrl: String
+  "Zitadel organisation ID associated with the publisher"
+  zitadelId: String
+  "Statement from the publisher on the accessibility of its texts for readers with impairments"
+  accessibilityStatement: String
+  "URL of the publisher's report on the accessibility of its texts for readers with impairments"
+  accessibilityReportUrl: String
+  "Date and time at which the publisher record was created"
+  createdAt: Timestamp!
+  "Date and time at which the publisher record was last updated"
+  updatedAt: Timestamp!
+  "Get imprints linked to this publisher"
+  imprints("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on imprint_name and imprint_url" filter: String = "", "The order in which to sort the results" order: ImprintOrderBy = {direction: "ASC", field: "IMPRINT_NAME"}): [Imprint!]!
+  "Get contacts linked to this publisher"
+  contacts("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: ContactOrderBy = {direction: "ASC", field: "EMAIL"}, "Specific types to filter by" contactTypes: [ContactType!] = []): [Contact!]!
+  "Get the distribution platforms currently enabled for this publisher. Retained disabled assignments are excluded"
+  distributionPlatforms: [PublisherDistributionPlatformAssignment!]!
+}
+
+type PublisherContext {
+  publisher: Publisher!
+  permissions: PublisherPermissions!
+}
+
+"An enabled assignment of a publisher to a distribution platform."
+type PublisherDistributionPlatformAssignment {
+  "Distribution platform enabled for the publisher"
+  platform: DistributionPlatform!
+  "Date and time at which the platform's current activation for this publisher began"
+  enabledAt: Timestamp!
+}
+
+type PublisherPermissions {
+  publisherAdmin: Boolean!
+  workLifecycle: Boolean!
+  cdnWrite: Boolean!
+}
+
+"The desired service configuration of one publisher."
+type PublisherServiceConfiguration {
+  "The publisher this configuration belongs to"
+  publisher: Publisher!
+  "Subscription package currently assigned to the publisher"
+  subscriptionPackage: ThothPackage!
+  "Capabilities the current subscription package grants this publisher, in canonical capability order. Derived from the package; a capability permits a feature but does not configure or activate it"
+  effectiveCapabilities: [PublisherCapability!]!
+  "Distribution platforms currently enabled for the publisher, in canonical platform order"
+  enabledDistributionPlatforms: [PublisherDistributionPlatformAssignment!]!
+  "Version token of this configuration; supply it as expectedUpdatedAt to replace the configuration"
+  updatedAt: Timestamp!
+}
+
+"Metadata of one recorded service-configuration change. The before and after states themselves are not exposed."
+type PublisherServiceConfigurationChange {
+  "When the change was committed"
+  changedAt: Timestamp!
+  "Identity that made the change: the account identifier for SUPERUSER_API, or the authorized control identity for a controlled backfill"
+  actor: String!
+  "How the change entered the system"
+  source: PublisherServiceConfigurationSource!
+}
+
+"A publisher's service configuration together with its latest change metadata."
+type PublisherServiceConfigurationSummary {
+  "The publisher's desired service configuration"
+  configuration: PublisherServiceConfiguration!
+  "Metadata of the most recent recorded configuration change, or null if none has been recorded"
+  lastChange: PublisherServiceConfigurationChange
+  "Most recent publisher back-catalogue distribution job, or null if none exists"
+  latestBackCatalogueJob: DistributionJob
+}
+
+type QueryRoot {
+  "Query the full list of works"
+  works("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on full_title, doi, reference, short_abstract, long_abstract, and landing_page" filter: String = "", "The order in which to sort the results" order: WorkOrderBy = {direction: "ASC", field: "FULL_TITLE"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific types to filter by" workTypes: [WorkType!] = [], "(deprecated) A specific status to filter by" workStatus: WorkStatus, "Specific statuses to filter by" workStatuses: [WorkStatus!] = [], "Only show results with a publication date either before (less than) or after (greater than) the specified timestamp" publicationDate: TimeExpression, "Only show results updated either before (less than) or after (greater than) the specified timestamp" updatedAtWithRelations: TimeExpression): [Work!]!
+  "Query a single work using its ID"
+  work("Thoth work ID to search on" workId: Uuid!): Work!
+  "Query a single work using its DOI"
+  workByDoi("Work DOI to search on" doi: Doi!): Work!
+  "Get the total number of works"
+  workCount("A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on full_title, doi, reference, short_abstract, long_abstract, and landing_page" filter: String = "", "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific types to filter by" workTypes: [WorkType!] = [], "(deprecated) A specific status to filter by" workStatus: WorkStatus, "Specific statuses to filter by" workStatuses: [WorkStatus!] = [], "Only show results with a publication date either before (less than) or after (greater than) the specified timestamp" publicationDate: TimeExpression, "Only show results updated either before (less than) or after (greater than) the specified timestamp" updatedAtWithRelations: TimeExpression): Int!
+  "Query the full list of books (a subset of the full list of works)"
+  books("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on full_title, doi, reference, short_abstract, long_abstract, and landing_page" filter: String = "", "The order in which to sort the results" order: WorkOrderBy = {direction: "ASC", field: "FULL_TITLE"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "(deprecated) A specific status to filter by" workStatus: WorkStatus, "Specific statuses to filter by" workStatuses: [WorkStatus!] = [], "Only show results with a publication date either before (less than) or after (greater than) the specified timestamp" publicationDate: TimeExpression, "Only show results updated either before (less than) or after (greater than) the specified timestamp" updatedAtWithRelations: TimeExpression): [Work!]!
+  "Query a single book using its DOI"
+  bookByDoi("Book DOI to search on" doi: Doi!): Work!
+  "Get the total number of books (a subset of the total number of works)"
+  bookCount("A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on full_title, doi, reference, short_abstract, long_abstract, and landing_page" filter: String = "", "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "(deprecated) A specific status to filter by" workStatus: WorkStatus, "Specific statuses to filter by" workStatuses: [WorkStatus!] = [], "Only show results with a publication date either before (less than) or after (greater than) the specified timestamp" publicationDate: TimeExpression, "Only show results updated either before (less than) or after (greater than) the specified timestamp" updatedAtWithRelations: TimeExpression): Int!
+  "Query the full list of chapters (a subset of the full list of works)"
+  chapters("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on full_title, doi, reference, short_abstract, long_abstract, and landing_page" filter: String = "", "The order in which to sort the results" order: WorkOrderBy = {direction: "ASC", field: "FULL_TITLE"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "(deprecated) A specific status to filter by" workStatus: WorkStatus, "Specific statuses to filter by" workStatuses: [WorkStatus!] = [], "Only show results with a publication date either before (less than) or after (greater than) the specified timestamp" publicationDate: TimeExpression, "Only show results updated either before (less than) or after (greater than) the specified timestamp" updatedAtWithRelations: TimeExpression): [Work!]!
+  "Query a single chapter using its DOI"
+  chapterByDoi("Chapter DOI to search on" doi: Doi!): Work!
+  "Get the total number of chapters (a subset of the total number of works)"
+  chapterCount("A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on full_title, doi, reference, short_abstract, long_abstract, and landing_page" filter: String = "", "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "(deprecated) A specific status to filter by" workStatus: WorkStatus, "Specific statuses to filter by" workStatuses: [WorkStatus!] = [], "Only show results with a publication date either before (less than) or after (greater than) the specified timestamp" publicationDate: TimeExpression, "Only show results updated either before (less than) or after (greater than) the specified timestamp" updatedAtWithRelations: TimeExpression): Int!
+  "Query the full list of publications"
+  publications("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on isbn" filter: String = "", "The order in which to sort the results" order: PublicationOrderBy = {direction: "ASC", field: "PUBLICATION_TYPE"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific types to filter by" publicationTypes: [PublicationType!] = []): [Publication!]!
+  "Query a single publication using its ID"
+  publication("Thoth publication ID to search on" publicationId: Uuid!): Publication!
+  "Query a single file using its ID"
+  file("Thoth file ID to search on" fileId: Uuid!): File!
+  "Get the total number of publications"
+  publicationCount("A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on isbn" filter: String = "", "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific types to filter by" publicationTypes: [PublicationType!] = []): Int!
+  "Query the full list of publishers"
+  publishers("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on publisher_name and publisher_shortname" filter: String = "", "The order in which to sort the results" order: PublisherOrderBy = {direction: "ASC", field: "PUBLISHER_NAME"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [Publisher!]!
+  "Query a single publisher using its ID"
+  publisher("Thoth publisher ID to search on" publisherId: Uuid!): Publisher!
+  "Get the total number of publishers"
+  publisherCount("A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on publisher_name and publisher_shortname" filter: String = "", "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): Int!
+  "Query the full list of distribution platforms and their metadata. This list is code-owned and identical for every publisher"
+  distributionPlatformOptions: [DistributionPlatformOption!]!
+  "Query the list of publishers with an enabled assignment for a distribution platform"
+  publishersByDistributionPlatform("Distribution platform to search on" platform: DistributionPlatform!, "The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results. Results are always additionally sorted by publisher ID ascending, so pagination is deterministic" order: PublisherOrderBy = {direction: "ASC", field: "PUBLISHER_NAME"}): [Publisher!]!
+  "Get the total number of publishers with an enabled assignment for a distribution platform"
+  publisherCountByDistributionPlatform("Distribution platform to search on" platform: DistributionPlatform!): Int!
+  "Query the protected desired service configuration of one publisher. Readable only by a superuser or by a PUBLISHER_USER of that publisher"
+  publisherServiceConfiguration("Thoth publisher ID to search on" publisherId: Uuid!): PublisherServiceConfiguration!
+  "Query the protected desired service configuration of every publisher, with the metadata of its latest recorded change. Superuser only"
+  publisherServiceConfigurations("If set, only shows results for publishers with these IDs" publishers: [Uuid!] = [], "If set, only shows results for publishers with these subscription packages" packages: [ThothPackage!] = [], "If set, only shows results for publishers that have every one of these distribution platforms enabled. Multiple values narrow the results rather than widening them" enabledPlatforms: [DistributionPlatform!] = [], "If set, only shows results whose latest publisher back-catalogue job has one of these statuses. Multiple values widen the results" jobStatuses: [DistributionJobStatus!] = [], "If set to true, only shows publishers with no publisher back-catalogue job at all; if false, only publishers that have at least one" withoutBackCatalogueJob: Boolean, "The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results. Results are always additionally sorted by publisher ID ascending, so pagination is deterministic" order: PublisherOrderBy = {direction: "ASC", field: "PUBLISHER_NAME"}): [PublisherServiceConfigurationSummary!]!
+  "Get the total number of publishers matching a protected service configuration report filter. Superuser only"
+  publisherServiceConfigurationCount("If set, only counts publishers with these IDs" publishers: [Uuid!] = [], "If set, only counts publishers with these subscription packages" packages: [ThothPackage!] = [], "If set, only counts publishers that have every one of these distribution platforms enabled. Multiple values narrow the results rather than widening them" enabledPlatforms: [DistributionPlatform!] = [], "If set, only counts publishers whose latest publisher back-catalogue job has one of these statuses. Multiple values widen the results" jobStatuses: [DistributionJobStatus!] = [], "If set to true, only counts publishers with no publisher back-catalogue job at all; if false, only publishers that have at least one" withoutBackCatalogueJob: Boolean): Int!
+  "Query the full list of imprints"
+  imprints("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on imprint_name and imprint_url" filter: String = "", "The order in which to sort the results" order: ImprintOrderBy = {direction: "ASC", field: "IMPRINT_NAME"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [Imprint!]!
+  "Query a single imprint using its ID"
+  imprint("Thoth imprint ID to search on" imprintId: Uuid!): Imprint!
+  "Get the total number of imprints"
+  imprintCount("A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on imprint_name and imprint_url" filter: String = "", "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): Int!
+  "Query the full list of contributors"
+  contributors("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on full_name, last_name and orcid" filter: String = "", "The order in which to sort the results" order: ContributorOrderBy = {direction: "ASC", field: "FULL_NAME"}): [Contributor!]!
+  "Query a single contributor using its ID"
+  contributor("Thoth contributor ID to search on" contributorId: Uuid!): Contributor!
+  "Get the total number of contributors"
+  contributorCount("A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on full_name, last_name and orcid" filter: String = ""): Int!
+  "Query the full list of contributions"
+  contributions("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: ContributionOrderBy = {direction: "ASC", field: "CONTRIBUTION_TYPE"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific types to filter by" contributionTypes: [ContributionType!] = []): [Contribution!]!
+  "Query a single contribution using its ID"
+  contribution("Thoth contribution ID to search on" contributionId: Uuid!): Contribution!
+  "Get the total number of contributions"
+  contributionCount("Specific types to filter by" contributionTypes: [ContributionType!] = []): Int!
+  "Query the full list of series"
+  serieses("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on series_name, issn_print, issn_digital, series_url and series_description" filter: String = "", "The order in which to sort the results" order: SeriesOrderBy = {direction: "ASC", field: "SERIES_NAME"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific types to filter by" seriesTypes: [SeriesType!] = []): [Series!]!
+  "Query a single series using its ID"
+  series("Thoth series ID to search on" seriesId: Uuid!): Series!
+  "Get the total number of series"
+  seriesCount("A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on series_name, issn_print, issn_digital, series_url and series_description" filter: String = "", "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific types to filter by" seriesTypes: [SeriesType!] = []): Int!
+  "Query the full list of issues"
+  issues("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: IssueOrderBy = {direction: "ASC", field: "ISSUE_ORDINAL"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [Issue!]!
+  "Query a single issue using its ID"
+  issue("Thoth issue ID to search on" issueId: Uuid!): Issue!
+  "Get the total number of issues"
+  issueCount: Int!
+  "Query the full list of languages"
+  languages("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: LanguageOrderBy = {direction: "ASC", field: "LANGUAGE_CODE"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific languages to filter by" languageCodes: [LanguageCode!] = [], "(deprecated) A specific relation to filter by" languageRelation: LanguageRelation, "Specific relations to filter by" languageRelations: [LanguageRelation!] = []): [Language!]!
+  "Query a single language using its ID"
+  language("Thoth language ID to search on" languageId: Uuid!): Language!
+  "Get the total number of languages associated to works"
+  languageCount("Specific languages to filter by" languageCodes: [LanguageCode!] = [], "(deprecated) A specific relation to filter by" languageRelation: LanguageRelation, "Specific relations to filter by" languageRelations: [LanguageRelation!] = []): Int!
+  "Query the full list of locations"
+  locations("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: LocationOrderBy = {direction: "ASC", field: "LOCATION_PLATFORM"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific platforms to filter by" locationPlatforms: [LocationPlatform!] = []): [Location!]!
+  "Query a single location using its ID"
+  location("Thoth location ID to search on" locationId: Uuid!): Location!
+  "Get the total number of locations associated to works"
+  locationCount("Specific platforms to filter by" locationPlatforms: [LocationPlatform!] = []): Int!
+  "Query the full list of prices"
+  prices("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: PriceOrderBy = {direction: "ASC", field: "CURRENCY_CODE"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific currencies to filter by" currencyCodes: [CurrencyCode!] = []): [Price!]!
+  "Query a single price using its ID"
+  price("Thoth price ID to search on" priceId: Uuid!): Price!
+  "Get the total number of prices associated to works"
+  priceCount("Specific currencies to filter by" currencyCodes: [CurrencyCode!] = []): Int!
+  "Query the full list of subjects"
+  subjects("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on subject_code" filter: String = "", "The order in which to sort the results" order: SubjectOrderBy = {direction: "ASC", field: "SUBJECT_TYPE"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific types to filter by" subjectTypes: [SubjectType!] = [], "Specific statuses to filter by" workStatuses: [WorkStatus!] = []): [Subject!]!
+  "Query a single subject using its ID"
+  subject("Thoth subject ID to search on" subjectId: Uuid!): Subject!
+  "Get the total number of subjects associated to works"
+  subjectCount("A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on subject_code" filter: String = "", "Specific types to filter by" subjectTypes: [SubjectType!] = [], "Specific statuses to filter by" workStatuses: [WorkStatus!] = []): Int!
+  "Query the full list of institutions"
+  institutions("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on institution_name, ror and institution_doi" filter: String = "", "The order in which to sort the results" order: InstitutionOrderBy = {direction: "ASC", field: "INSTITUTION_NAME"}): [Institution!]!
+  "Query a single institution using its ID"
+  institution("Thoth institution ID to search on" institutionId: Uuid!): Institution!
+  "Get the total number of institutions"
+  institutionCount("A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on institution_name, ror and institution_doi" filter: String = ""): Int!
+  "Query the full list of fundings"
+  fundings("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: FundingOrderBy = {direction: "ASC", field: "PROGRAM"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [Funding!]!
+  "Query a single funding using its ID"
+  funding("Thoth funding ID to search on" fundingId: Uuid!): Funding!
+  "Get the total number of funding instances associated to works"
+  fundingCount: Int!
+  "Query the full list of affiliations"
+  affiliations("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: AffiliationOrderBy = {direction: "ASC", field: "AFFILIATION_ORDINAL"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [Affiliation!]!
+  "Query a single affiliation using its ID"
+  affiliation("Thoth affiliation ID to search on" affiliationId: Uuid!): Affiliation!
+  "Get the total number of affiliations"
+  affiliationCount: Int!
+  "Query the full list of references"
+  references("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: ReferenceOrderBy = {direction: "ASC", field: "REFERENCE_ORDINAL"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [Reference!]!
+  "Query a single reference using its ID"
+  reference("Thoth reference ID to search on" referenceId: Uuid!): Reference!
+  "Get the total number of references"
+  referenceCount: Int!
+  "Query the full list of additional resources"
+  additionalResources("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: AdditionalResourceOrderBy = {direction: "ASC", field: "RESOURCE_ORDINAL"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [WorkResource!]!
+  "Query a single additional resource using its ID"
+  additionalResource("Thoth additional resource ID to search on" additionalResourceId: Uuid!): WorkResource!
+  "Get the total number of additional resources"
+  additionalResourceCount: Int!
+  "Query the full list of awards"
+  awards("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: AwardOrderBy = {direction: "ASC", field: "AWARD_ORDINAL"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [Award!]!
+  "Query a single award using its ID"
+  award("Thoth award ID to search on" awardId: Uuid!): Award!
+  "Get the total number of awards"
+  awardCount: Int!
+  "Query the full list of endorsements"
+  endorsements("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: EndorsementOrderBy = {direction: "ASC", field: "ENDORSEMENT_ORDINAL"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [Endorsement!]!
+  "Query a single endorsement using its ID"
+  endorsement("Thoth endorsement ID to search on" endorsementId: Uuid!): Endorsement!
+  "Get the total number of endorsements"
+  endorsementCount: Int!
+  "Query the full list of book reviews"
+  bookReviews("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: BookReviewOrderBy = {direction: "ASC", field: "REVIEW_ORDINAL"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [BookReview!]!
+  "Query a single book review using its ID"
+  bookReview("Thoth book review ID to search on" bookReviewId: Uuid!): BookReview!
+  "Get the total number of book reviews"
+  bookReviewCount: Int!
+  "Query the full list of featured videos"
+  workFeaturedVideos("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: WorkFeaturedVideoOrderBy = {direction: "ASC", field: "UPDATED_AT"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = []): [WorkFeaturedVideo!]!
+  "Query a single featured video using its ID"
+  workFeaturedVideo("Thoth featured video ID to search on" workFeaturedVideoId: Uuid!): WorkFeaturedVideo!
+  "Get the total number of featured videos"
+  workFeaturedVideoCount: Int!
+  "Query a title by its ID"
+  title(titleId: Uuid!, markupFormat: MarkupFormat): Title!
+  "Query the full list of titles"
+  titles("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on title_, subtitle, full_title fields" filter: String = "", "The order in which to sort the results" order: TitleOrderBy = {direction: "DESC", field: "CANONICAL"}, "If set, only shows results with these locale codes" localeCodes: [LocaleCode!] = [], "If set shows result with this markup format" markupFormat: MarkupFormat = "JATS_XML"): [Title!]!
+  "Query an abstract by its ID"
+  abstract(abstractId: Uuid!, "If set shows results with this markup format" markupFormat: MarkupFormat = "JATS_XML"): Abstract!
+  "Query the full list of abstracts"
+  abstracts("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on content fields" filter: String = "", "The order in which to sort the results" order: AbstractOrderBy = {direction: "DESC", field: "CANONICAL"}, "If set only shows results with these locale codes" localeCodes: [LocaleCode!] = [], "If set shows result with this markup format" markupFormat: MarkupFormat = "JATS_XML"): [Abstract!]!
+  "Query an biography by it's ID"
+  biography(biographyId: Uuid!, "If set shows result with this markup format" markupFormat: MarkupFormat = "JATS_XML"): Biography!
+  "Query biographies by work ID"
+  biographies("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on content fields" filter: String = "", "The order in which to sort the results" order: BiographyOrderBy = {direction: "DESC", field: "CANONICAL"}, "If set, only shows results with these locale codes" localeCodes: [LocaleCode!] = [], "If set shows result with this markup format" markupFormat: MarkupFormat = "JATS_XML"): [Biography!]!
+  "Query the full list of contacts"
+  contacts("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: ContactOrderBy = {direction: "ASC", field: "EMAIL"}, "If set, only shows results connected to publishers with these IDs" publishers: [Uuid!] = [], "Specific types to filter by" contactTypes: [ContactType!] = []): [Contact!]!
+  "Query a single contact using its ID"
+  contact("Thoth contact ID to search on" contactId: Uuid!): Contact!
+  "Get the total number of contacts"
+  contactCount("Specific types to filter by" contactTypes: [ContactType!] = []): Int!
+  "Get the total number of contacts"
+  me: Me!
+}
+
+"A citation to a written text. References must always include the DOI of the cited work, the unstructured citation, or both."
+type Reference {
+  "UUID of the reference."
+  referenceId: Uuid!
+  "UUID of the citing work."
+  workId: Uuid!
+  "Number used to order references within a work's bibliography."
+  referenceOrdinal: Int!
+  "Digital Object Identifier of the cited work as full URL."
+  doi: Doi
+  "Full reference text. When the DOI of the cited work is not known this field is required, and may be used in conjunction with other structured data to help identify the cited work."
+  unstructuredCitation: String
+  "ISSN of a series."
+  issn: String
+  "Book ISBN, when the cited work is a book or a chapter."
+  isbn: Isbn
+  "Title of a journal, when the cited work is an article."
+  journalTitle: String
+  "Journal article, conference paper, or book chapter title."
+  articleTitle: String
+  "Title of a book or conference series."
+  seriesTitle: String
+  "Title of a book or conference proceeding."
+  volumeTitle: String
+  "Book edition number."
+  edition: Int
+  "First author of the cited work."
+  author: String
+  "Volume number of a journal or book set."
+  volume: String
+  "Journal issue, when the cited work is an article."
+  issue: String
+  "First page of the cited page range."
+  firstPage: String
+  "The chapter, section or part number, when the cited work is a component of a book."
+  componentNumber: String
+  "Standard identifier (e.g. \"14064-1\"), when the cited work is a standard."
+  standardDesignator: String
+  "Full name of the standards organisation (e.g. \"International Organization for Standardization\"), when the cited work is a standard."
+  standardsBodyName: String
+  "Acronym of the standards organisation (e.g. \"ISO\"), when the cited work is a standard."
+  standardsBodyAcronym: String
+  "URL of the cited work."
+  url: String
+  "Publication date of the cited work. Day and month should be set to \"01\" when only the publication year is known."
+  publicationDate: Date
+  "Date the cited work was accessed, when citing a website or online article."
+  retrievalDate: Date
+  "Timestamp of the creation of this record within Thoth."
+  createdAt: Timestamp!
+  "Timestamp of the last update to this record within Thoth."
+  updatedAt: Timestamp!
+  "The citing work."
+  work: Work!
+}
+
+"A periodical of publications about a particular subject."
+type Series {
+  "Thoth ID of the series"
+  seriesId: Uuid!
+  "Type of the series"
+  seriesType: SeriesType!
+  "Name of the series"
+  seriesName: String!
+  "Print ISSN (International Standard Serial Number) of the series. This represents the print media version."
+  issnPrint: String
+  "Electronic ISSN (International Standard Serial Number) of the series. This represents the online version."
+  issnDigital: String
+  "URL of the series' landing page"
+  seriesUrl: String
+  "Description of the series"
+  seriesDescription("Markup format used for rendering series description" markupFormat: MarkupFormat = "JATS_XML"): String
+  "URL of the series' call for proposals page"
+  seriesCfpUrl: String
+  "Thoth ID of the imprint to which this series belongs"
+  imprintId: Uuid!
+  "Date and time at which the series record was created"
+  createdAt: Timestamp!
+  "Date and time at which the series record was last updated"
+  updatedAt: Timestamp!
+  "Get the imprint linked to this series"
+  imprint: Imprint!
+  "Get issues linked to this series"
+  issues("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: IssueOrderBy = {direction: "ASC", field: "ISSUE_ORDINAL"}): [Issue!]!
+}
+
+"A significant discipline or term related to a work."
+type Subject {
+  "Thoth ID of the subject"
+  subjectId: Uuid!
+  "Thoth ID of the work to which the subject is linked"
+  workId: Uuid!
+  "Type of the subject (e.g. the subject category scheme being used)"
+  subjectType: SubjectType!
+  "Code representing the subject within the specified type"
+  subjectCode: String!
+  "Number representing this subject's position in an ordered list of subjects of the same type within the work (subjects of equal prominence can have the same number)"
+  subjectOrdinal: Int!
+  "Date and time at which the subject record was created"
+  createdAt: Timestamp!
+  "Date and time at which the subject record was last updated"
+  updatedAt: Timestamp!
+  "Get the work to which the subject is linked"
+  work: Work!
+}
+
+"A title associated with a work."
+type Title {
+  "Thoth ID of the title"
+  titleId: Uuid!
+  "Thoth ID of the work to which the title is linked"
+  workId: Uuid!
+  "Locale code of the title"
+  localeCode: LocaleCode!
+  "Full title including subtitle"
+  fullTitle: String!
+  "Main title (excluding subtitle)"
+  title: String!
+  "Subtitle of the work"
+  subtitle: String
+  "Whether this is the canonical title for the work"
+  canonical: Boolean!
+  "Get the work to which the title is linked"
+  work: Work!
+}
+
+"Single required HTTP header for presigned file upload."
+type UploadRequestHeader {
+  "HTTP header name."
+  name: String!
+  "HTTP header value."
+  value: String!
+}
+
+"A written text that can be published"
+type Work {
+  "Thoth ID of the work"
+  workId: Uuid!
+  "Type of the work"
+  workType: WorkType!
+  "Publication status of the work"
+  workStatus: WorkStatus!
+  "Concatenation of title and subtitle with punctuation mark"
+  fullTitle: String! @deprecated(reason: "Please use Work `titles` field instead to get the correct full title in a multilingual manner")
+  "Main title of the work (excluding subtitle)"
+  title: String! @deprecated(reason: "Please use Work `titles` field instead to get the correct title in a multilingual manner")
+  "Secondary title of the work (excluding main title)"
+  subtitle: String @deprecated(reason: "Please use Work `titles` field instead to get the correct sub_title in a multilingual manner")
+  "Short abstract of the work. Where a work has two different versions of the abstract, the truncated version should be entered here. Otherwise, it can be left blank. This field is not output in metadata formats; where relevant, Long Abstract is used instead."
+  shortAbstract: String @deprecated(reason: "Please use Work `abstracts` field instead to get the correct short abstract in a multilingual manner")
+  "Abstract of the work. Where a work has only one abstract, it should be entered here, and Short Abstract can be left blank. Long Abstract is output in metadata formats, and Short Abstract is not."
+  longAbstract: String @deprecated(reason: "Please use Work `abstracts` field instead to get the correct long abstract in a multilingual manner")
+  "Query titles by work ID"
+  titles("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on title_, subtitle, full_title fields" filter: String = "", "The order in which to sort the results" order: TitleOrderBy = {direction: "DESC", field: "CANONICAL"}, "If set, only shows results with these locale codes" localeCodes: [LocaleCode!] = [], "If set, only shows results with this markup format" markupFormat: MarkupFormat = "JATS_XML"): [Title!]!
+  "Query abstracts by work ID"
+  abstracts("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on title_, subtitle, full_title fields" filter: String = "", "The order in which to sort the results" order: AbstractOrderBy = {direction: "DESC", field: "CANONICAL"}, "If set, only shows results with these locale codes" localeCodes: [LocaleCode!] = [], "If set, only shows results with this markup format" markupFormat: MarkupFormat = "JATS_XML"): [Abstract!]!
+  "Internal reference code"
+  reference: String
+  "Edition number of the work (not applicable to chapters)"
+  edition: Int
+  "Thoth ID of the work's imprint"
+  imprintId: Uuid!
+  "Digital Object Identifier of the work as full URL, using the HTTPS scheme and the doi.org domain (e.g. https://doi.org/10.11647/obp.0001)"
+  doi: Doi
+  "Date the work was published"
+  publicationDate: Date
+  "Date the work was withdrawn from publication. Only applies to out of print and withdrawn works."
+  withdrawnDate: Date
+  "Place of publication of the work"
+  place: String
+  "Total number of pages in the work. In most cases, unnumbered pages (e.g. endpapers) should be omitted from this count."
+  pageCount: Int
+  "Breakdown of work's page count into front matter, main content, and/or back matter (e.g. 'xi + 140')"
+  pageBreakdown: String
+  "Total number of images in the work"
+  imageCount: Int
+  "Total number of tables in the work"
+  tableCount: Int
+  "Total number of audio fragments in the work"
+  audioCount: Int
+  "Total number of video fragments in the work"
+  videoCount: Int
+  "URL of the license which applies to this work (frequently a Creative Commons license for open-access works)"
+  license: String
+  "Copyright holder of the work"
+  copyrightHolder: String
+  "URL of the web page of the work"
+  landingPage: String
+  "Library of Congress Control Number of the work (not applicable to chapters)"
+  lccn: String
+  "OCLC (WorldCat) Control Number of the work (not applicable to chapters)"
+  oclc: String
+  "A general-purpose field used to include information that does not have a specific designated field"
+  generalNote: String
+  "Indicates that the work contains a bibliography or other similar information"
+  bibliographyNote: String
+  "Table of contents of the work (not applicable to chapters)"
+  toc: String
+  "Description of additional resources linked to this work"
+  resourcesDescription("Markup format used for rendering resources description" markupFormat: MarkupFormat = "JATS_XML"): String
+  "URL of the work's cover image"
+  coverUrl: String
+  "Caption describing the work's cover image"
+  coverCaption: String
+  "Date and time at which the work record was created"
+  createdAt: Timestamp!
+  "Date and time at which the work record was last updated"
+  updatedAt: Timestamp!
+  "Page number on which the work begins (only applicable to chapters)"
+  firstPage: String
+  "Page number on which the work ends (only applicable to chapters)"
+  lastPage: String
+  "Concatenation of first page and last page with dash (only applicable to chapters)"
+  pageInterval: String
+  "Date and time at which the work record or any of its linked records was last updated"
+  updatedAtWithRelations: Timestamp!
+  "Get this work's imprint"
+  imprint: Imprint!
+  "Get contributions linked to this work"
+  contributions("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: ContributionOrderBy = {direction: "ASC", field: "CONTRIBUTION_TYPE"}, "Specific types to filter by" contributionTypes: [ContributionType!] = []): [Contribution!]!
+  "Get languages linked to this work"
+  languages("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: LanguageOrderBy = {direction: "ASC", field: "LANGUAGE_CODE"}, "Specific languages to filter by" languageCodes: [LanguageCode!] = [], "(deprecated) A specific relation to filter by" languageRelation: LanguageRelation, "Specific relations to filter by" languageRelations: [LanguageRelation!] = []): [Language!]!
+  "Get publications linked to this work"
+  publications("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on isbn" filter: String = "", "The order in which to sort the results" order: PublicationOrderBy = {direction: "ASC", field: "PUBLICATION_TYPE"}, "Specific types to filter by" publicationTypes: [PublicationType!] = []): [Publication!]!
+  "Get subjects linked to this work"
+  subjects("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on subject_code" filter: String = "", "The order in which to sort the results" order: SubjectOrderBy = {direction: "ASC", field: "SUBJECT_TYPE"}, "Specific types to filter by" subjectTypes: [SubjectType!] = []): [Subject!]!
+  "Get fundings linked to this work"
+  fundings("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: FundingOrderBy = {direction: "ASC", field: "PROGRAM"}): [Funding!]!
+  "Get issues linked to this work"
+  issues("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: IssueOrderBy = {direction: "ASC", field: "ISSUE_ORDINAL"}): [Issue!]!
+  "Get other works related to this work"
+  relations("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "The order in which to sort the results" order: WorkRelationOrderBy = {direction: "ASC", field: "RELATION_TYPE"}, "Specific types to filter by" relationTypes: [RelationType!] = []): [WorkRelation!]!
+  "Get the front cover file for this work"
+  frontcover: File
+  "Get references cited by this work"
+  references("The number of items to return" limit: Int = 100, "The number of items to skip" offset: Int = 0, "A query string to search. This argument is a test, do not rely on it. At present it simply searches for case insensitive literals on doi, unstructured_citation, issn, isbn, journal_title, article_title, series_title, volume_title, author, standard_designator, standards_body_name, and standards_body_acronym" filter: String = "", "The order in which to sort the results" order: ReferenceOrderBy = {direction: "ASC", field: "REFERENCE_ORDINAL"}): [Reference!]!
+  "Get additional resources linked to this work"
+  additionalResources("The number of items to return" limit: Int = 50, "The number of items to skip" offset: Int = 0, "Markup format used for rendering textual fields" markupFormat: MarkupFormat = "JATS_XML"): [WorkResource!]!
+  "Get awards linked to this work"
+  awards("The number of items to return" limit: Int = 50, "The number of items to skip" offset: Int = 0): [Award!]!
+  "Get endorsements linked to this work"
+  endorsements("The number of items to return" limit: Int = 50, "The number of items to skip" offset: Int = 0): [Endorsement!]!
+  "Get book reviews linked to this work"
+  bookReviews("The number of items to return" limit: Int = 50, "The number of items to skip" offset: Int = 0): [BookReview!]!
+  "Get the featured video linked to this work"
+  featuredVideo: WorkFeaturedVideo
+}
+
+"A featured video linked to a work."
+type WorkFeaturedVideo {
+  "Thoth ID of the featured video"
+  workFeaturedVideoId: Uuid!
+  "Thoth ID of the work to which this featured video belongs"
+  workId: Uuid!
+  "Title or caption of the featured video"
+  title: String!
+  "CDN URL of the featured video"
+  url: String
+  "Rendered width of the featured video embed"
+  width: Int!
+  "Rendered height of the featured video embed"
+  height: Int!
+  "Date and time at which the featured video record was created"
+  createdAt: Timestamp!
+  "Date and time at which the featured video record was last updated"
+  updatedAt: Timestamp!
+  "Get the work linked to this featured video"
+  work: Work!
+  "Get the hosted file linked to this featured video"
+  file: File
+}
+
+"A relationship between two works, e.g. a book and one of its chapters, or an original and its translation."
+type WorkRelation {
+  "Thoth ID of the work relation"
+  workRelationId: Uuid!
+  "Thoth ID of the work to which this work relation belongs"
+  relatorWorkId: Uuid!
+  "Thoth ID of the other work in the relationship"
+  relatedWorkId: Uuid!
+  "Nature of the relationship"
+  relationType: RelationType!
+  "Number representing this work relation's position in an ordered list of relations of the same type within the work"
+  relationOrdinal: Int!
+  "Date and time at which the work relation record was created"
+  createdAt: Timestamp!
+  "Date and time at which the work relation record was last updated"
+  updatedAt: Timestamp!
+  "Get the other work in the relationship"
+  relatedWork: Work!
+}
+
+"A resource linked to a work but not embedded in the work text."
+type WorkResource {
+  "Thoth ID of the work resource"
+  workResourceId: Uuid!
+  "Thoth ID of the work to which this resource belongs"
+  workId: Uuid!
+  "Title of the additional resource"
+  title("Markup format used for rendering title" markupFormat: MarkupFormat): String!
+  "Description of the additional resource"
+  description("Markup format used for rendering description" markupFormat: MarkupFormat): String
+  "Attribution for the resource source/author"
+  attribution: String
+  "Type of additional resource"
+  resourceType: String!
+  "DOI of the resource as full URL, using the HTTPS scheme and the doi.org domain"
+  doi: Doi
+  "Handle identifier of the resource"
+  handle: String
+  "URL of the additional resource"
+  url: String
+  "Date associated with the additional resource"
+  date: Date
+  "Number representing this resource's position in an ordered list of resources within the work"
+  resourceOrdinal: Int!
+  "Date and time at which the resource record was created"
+  createdAt: Timestamp!
+  "Date and time at which the resource record was last updated"
+  updatedAt: Timestamp!
+  "Get the work linked to this resource"
+  work: Work!
+  "Get the hosted file linked to this resource"
+  file: File
+}

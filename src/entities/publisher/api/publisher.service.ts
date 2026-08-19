@@ -3,7 +3,14 @@ import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublisherDtoMapper } from '../model/publisher.mapper';
 import { CREATE_CONTACT, CREATE_PUBLISHER, DELETE_CONTACT, UPDATE_CONTACT } from '../model/publisher.mutations';
-import { GET_PUBLISHER, GET_PUBLISHER_ADMIN, GET_PUBLISHERS, UPDATE_PUBLISHER } from '../model/publisher.schema';
+import {
+  GET_DISTRIBUTION_PLATFORM_OPTIONS,
+  GET_PUBLISHER,
+  GET_PUBLISHER_ADMIN,
+  GET_PUBLISHER_SERVICE_CONFIGURATION,
+  GET_PUBLISHERS,
+  UPDATE_PUBLISHER,
+} from '../model/publisher.schema';
 import type { ContactEntity, ContactId, PublisherDto, PublisherEntity, PublisherId } from '../model/publisher.types';
 
 export class PublisherService extends BaseService<PublisherEntity, PublisherDto, PublisherDtoMapper> {
@@ -89,5 +96,25 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     await this.graphqlService.mutation(DELETE_CONTACT, {
       contactId,
     });
+  }
+
+  // APP-01A: read-only. Reads the protected desired service configuration for a
+  // single publisher. The backend authorizes the read; this returns exactly what
+  // the API provides and never synthesises a configuration.
+  async getPublisherServiceConfiguration(publisherId: PublisherId) {
+    const { publisherServiceConfiguration } = await this.graphqlService.query(GET_PUBLISHER_SERVICE_CONFIGURATION, {
+      publisherId,
+    });
+
+    return publisherServiceConfiguration;
+  }
+
+  // APP-01A: read-only. The distribution-platform option list is code-owned and
+  // identical for every publisher; it supplies backend display labels for the
+  // enabled platforms rather than any frontend label/policy table.
+  async getDistributionPlatformOptions() {
+    const { distributionPlatformOptions } = await this.graphqlService.query(GET_DISTRIBUTION_PLATFORM_OPTIONS, {});
+
+    return distributionPlatformOptions;
   }
 }

@@ -1,5 +1,12 @@
 {
   "settings": "configurações",
   "language": "idioma",
-  "currency": "moeda"
+  "currency": "moeda",
+  "serviceConfiguration": "configuração do serviço",
+  "subscriptionPackage": "pacote de assinatura",
+  "capabilities": "capacidades",
+  "distributionPlatforms": "plataformas de distribuição",
+  "noCapabilities": "sem capacidades",
+  "noDistributionPlatforms": "nenhuma plataforma de distribuição ativada",
+  "serviceConfigurationUnavailable": "configuração do serviço indisponível"
 }
