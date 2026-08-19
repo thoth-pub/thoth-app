@@ -16,6 +16,62 @@ jobs:
           node-version: '22'
           cache: 'npm'
 
-      - run: npm ci
+      - name: Install dependencies
+        id: install
+        run: npm ci
 
-      - run: npm test -- --run --coverage
+      # Lint runs before the tests and the production build on purpose:
+      # generated `coverage/` output is inside current ESLint discovery, so
+      # running it afterwards would add environment-generated diagnostics that
+      # are not repository debt.
+      #
+      # The repository carries historical lint debt (CTRL-APP-CI-01). This gate
+      # is a no-new-debt ratchet against `scripts/ci/eslint-baseline.json`, not
+      # a demand for a green `npm run lint`.
+      - name: Lint (no-new-debt ratchet)
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          report="${RUNNER_TEMP}/eslint-report.json"
+
+          set +e
+          npx eslint --format json --output-file "${report}"
+          eslint_status=$?
+          set -e
+
+          # 0 = no diagnostics, 1 = diagnostics for the ratchet to evaluate.
+          # Anything higher is an ESLint configuration/execution failure and is
+          # a real CI failure that must not be swallowed.
+          if [ "${eslint_status}" -gt 1 ]; then
+            echo "::error::ESLint failed to run (exit ${eslint_status})."
+            exit "${eslint_status}"
+          fi
+
+          node scripts/ci/eslint-ratchet.mjs check --report "${report}"
+
+      - name: Tests and coverage
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm test -- --run --coverage
+
+      - name: Production build
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: npm run build
+
+      # Generation consumes the pinned local `graphql/schema.v1.7.0.graphql`
+      # snapshot (see `codegen.ts`), never a live endpoint, so the result is
+      # deterministic. Committed `gql/` must already match it.
+      - name: GraphQL codegen consistency
+        if: ${{ !cancelled() && steps.install.outcome == 'success' }}
+        run: |
+          set -euo pipefail
+          npm run generate
+
+          changes="$(git status --porcelain --untracked-files=all -- gql/)"
+          if [ -n "${changes}" ]; then
+            echo "::error::Committed gql/ output is not consistent with the pinned schema and the GraphQL documents. Run 'npm run generate' and commit the result."
+            echo "${changes}"
+            git --no-pager diff -- gql/
+            exit 1
+          fi
+
+          echo "gql/ is consistent with graphql/schema.v1.7.0.graphql."
