@@ -19,5 +19,18 @@
   "distributionPlatformNotAssignable": "não atribuível atualmente",
   "linkedGroupLabel": "grupo ligado",
   "linkedGroupNotice": "as plataformas ligadas são ativadas e desativadas em conjunto pelo thoth. a sua seleção é submetida tal como está e o resultado guardado é o que o servidor devolver.",
-  "backCatalogueBehaviour": "catálogo anterior"
+  "backCatalogueBehaviour": "catálogo anterior",
+  "latestBackCatalogueJob": "último trabalho de distribuição do catálogo anterior",
+  "backCatalogueJobUnavailable": "estado do trabalho do catálogo anterior indisponível",
+  "noBackCatalogueJobRecorded": "nenhum trabalho de integração do catálogo anterior está registado.",
+  "backCatalogueJobDeliveryDisclaimer": "o estado do trabalho é o que o worker de distribuição comunicou para este trabalho durável. não é confirmação de que alguma plataforma de destino recebeu, aceitou ou publicou os dados.",
+  "backCatalogueJobStatus": "estado",
+  "backCatalogueJobTargets": "destinos do trabalho",
+  "backCatalogueJobAttemptCount": "tentativas de execução iniciadas",
+  "backCatalogueJobCancellationReason": "motivo do cancelamento",
+  "backCatalogueJobLastErrorCode": "código da falha mais recente comunicada pelo worker",
+  "backCatalogueJobLastErrorDetail": "detalhe da falha mais recente comunicada pelo worker",
+  "backCatalogueJobCreatedAt": "criado",
+  "backCatalogueJobUpdatedAt": "última atualização",
+  "backCatalogueJobCompletedAt": "concluído"
 }

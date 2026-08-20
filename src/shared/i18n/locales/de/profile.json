@@ -19,5 +19,18 @@
   "distributionPlatformNotAssignable": "derzeit nicht zuweisbar",
   "linkedGroupLabel": "verknüpfte Gruppe",
   "linkedGroupNotice": "verknüpfte Plattformen werden von Thoth gemeinsam aktiviert und deaktiviert. Ihre Auswahl wird unverändert übermittelt und das gespeicherte Ergebnis ist das, was der Server zurückgibt.",
-  "backCatalogueBehaviour": "Backkatalog"
+  "backCatalogueBehaviour": "Backkatalog",
+  "latestBackCatalogueJob": "neuester Backkatalog-Vertriebsauftrag",
+  "backCatalogueJobUnavailable": "Status des Backkatalog-Auftrags nicht verfügbar",
+  "noBackCatalogueJobRecorded": "kein Backkatalog-Onboarding-Auftrag ist verzeichnet.",
+  "backCatalogueJobDeliveryDisclaimer": "der Auftragsstatus ist das, was der Vertriebs-Worker für diesen dauerhaften Auftrag gemeldet hat. er ist keine Bestätigung, dass eine Zielplattform die Daten empfangen, akzeptiert oder veröffentlicht hat.",
+  "backCatalogueJobStatus": "Status",
+  "backCatalogueJobTargets": "Auftragsziele",
+  "backCatalogueJobAttemptCount": "gestartete Ausführungsversuche",
+  "backCatalogueJobCancellationReason": "Stornierungsgrund",
+  "backCatalogueJobLastErrorCode": "Code des zuletzt vom Worker gemeldeten Fehlers",
+  "backCatalogueJobLastErrorDetail": "Details des zuletzt vom Worker gemeldeten Fehlers",
+  "backCatalogueJobCreatedAt": "erstellt",
+  "backCatalogueJobUpdatedAt": "zuletzt aktualisiert",
+  "backCatalogueJobCompletedAt": "abgeschlossen"
 }

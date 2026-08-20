@@ -26,6 +26,7 @@ const mockServices = {
   publisherService: {
     getPublisherServiceConfiguration: vi.fn(),
     getDistributionPlatformOptions: vi.fn(),
+    getPublisherBackCatalogueJobReport: vi.fn(),
     replacePublisherServiceConfiguration: vi.fn(),
   },
 };
@@ -35,6 +36,7 @@ vi.mock('@/src/shared/context', () => ({
 }));
 
 import useDistributionPlatformOptions from '../useDistributionPlatformOptions';
+import usePublisherBackCatalogueJob, { PUBLISHER_BACK_CATALOGUE_JOB_QUERY_KEY } from '../usePublisherBackCatalogueJob';
 import usePublisherServiceConfiguration from '../usePublisherServiceConfiguration';
 import useReplacePublisherServiceConfiguration, {
   DISTRIBUTION_JOB_CREATION_DISABLED,
@@ -125,6 +127,80 @@ describe('useDistributionPlatformOptions', () => {
     await lastOptions().queryFn();
 
     expect(mockServices.publisherService.getDistributionPlatformOptions).toHaveBeenCalled();
+  });
+});
+
+describe('usePublisherBackCatalogueJob', () => {
+  it('scopes the query key to the publisher id, from the exported stable base', () => {
+    usePublisherBackCatalogueJob('pub-A', true);
+
+    expect(lastOptions().queryKey).toEqual([PUBLISHER_BACK_CATALOGUE_JOB_QUERY_KEY, 'pub-A']);
+    expect(lastOptions().queryKey).toEqual(['publisherBackCatalogueJob', 'pub-A']);
+  });
+
+  it('uses a distinct cache key per publisher so job state cannot be reused across publishers', () => {
+    usePublisherBackCatalogueJob('pub-A', true);
+    const keyA = lastOptions().queryKey;
+
+    usePublisherBackCatalogueJob('pub-B', true);
+    const keyB = lastOptions().queryKey;
+
+    expect(keyA).toEqual(['publisherBackCatalogueJob', 'pub-A']);
+    expect(keyB).toEqual(['publisherBackCatalogueJob', 'pub-B']);
+    expect(keyA).not.toEqual(keyB);
+  });
+
+  it('reads the report for the exact publisher via the service', async () => {
+    usePublisherBackCatalogueJob('pub-A', true);
+
+    await lastOptions().queryFn();
+
+    expect(mockServices.publisherService.getPublisherBackCatalogueJobReport).toHaveBeenCalledWith('pub-A');
+  });
+
+  it('disables the report request when there is no publisher id, even for a superuser', () => {
+    usePublisherBackCatalogueJob('', true);
+
+    expect(lastOptions().enabled).toBe(false);
+  });
+
+  it('disables the report request without superuser presentation eligibility', () => {
+    usePublisherBackCatalogueJob('pub-A', false);
+
+    expect(lastOptions().enabled).toBe(false);
+  });
+
+  it('enables the report request only with both a publisher id and superuser eligibility', () => {
+    usePublisherBackCatalogueJob('pub-A', true);
+
+    expect(lastOptions().enabled).toBe(true);
+  });
+
+  it('exposes the API report unchanged, preserving a null job inside a valid summary', () => {
+    const report = {
+      configuration: { publisher: { publisherId: 'pub-A' } },
+      latestBackCatalogueJob: null,
+    };
+    useQueryMock.mockReturnValue({ data: report, isLoading: false, error: null });
+
+    const result = usePublisherBackCatalogueJob('pub-A', true);
+
+    expect(result.report).toBe(report);
+    expect(result.report?.latestBackCatalogueJob).toBeNull();
+  });
+
+  it('exposes a missing/mismatched summary as null, distinguishable from a summary with a null job', () => {
+    useQueryMock.mockReturnValue({ data: null, isLoading: false, error: null });
+
+    const result = usePublisherBackCatalogueJob('pub-A', true);
+
+    expect(result.report).toBeNull();
+  });
+
+  it('configures no polling interval', () => {
+    usePublisherBackCatalogueJob('pub-A', true);
+
+    expect(lastOptions()).not.toHaveProperty('refetchInterval');
   });
 });
 
@@ -268,5 +344,81 @@ describe('useReplacePublisherServiceConfiguration', () => {
 
     expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherServiceConfiguration', 'pub-A'] });
     expect(setQueryDataMock).not.toHaveBeenCalled();
+  });
+
+  // APP-01C: a replace can change durable back-catalogue job state, so the
+  // publisher-scoped job report is reconciled from the API around mutation
+  // outcomes - always for the mutation attempt's own publisher and never by
+  // constructing job state locally.
+  describe('back-catalogue job report reconciliation (APP-01C)', () => {
+    it('refetches the job report for the mutation input publisher after a successful replace', async () => {
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onSuccess(serverConfiguration, input);
+
+      expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: [PUBLISHER_BACK_CATALOGUE_JOB_QUERY_KEY, 'pub-A'] });
+    });
+
+    it('creates no job locally on success: the only cache write is the configuration response', async () => {
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onSuccess(serverConfiguration, input);
+
+      expect(setQueryDataMock).toHaveBeenCalledTimes(1);
+      expect(setQueryDataMock).toHaveBeenCalledWith(['publisherServiceConfiguration', 'pub-A'], serverConfiguration);
+    });
+
+    it('scopes success job reconciliation to the publisherId of the exact mutation attempt', async () => {
+      // The hook takes no publisher argument, so a mid-flight active-publisher
+      // switch can never redirect which publisher's job report is reconciled.
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onSuccess(serverConfiguration, { ...input, publisherId: 'pub-B' });
+
+      expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherBackCatalogueJob', 'pub-B'] });
+      expect(refetchQueriesMock).not.toHaveBeenCalledWith({ queryKey: ['publisherBackCatalogueJob', 'pub-A'] });
+    });
+
+    it('reconciles both the configuration and the job report on an ambiguous unclassified failure', async () => {
+      // The replace may have committed despite the lost response, which would
+      // also have created a job; both server truths are refetched.
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onError(new Error('Network error'), input);
+
+      expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherServiceConfiguration', 'pub-A'] });
+      expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherBackCatalogueJob', 'pub-A'] });
+      expect(setQueryDataMock).not.toHaveBeenCalled();
+    });
+
+    it('scopes failure job reconciliation to the publisherId of the exact mutation attempt', async () => {
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onError(new Error('Network error'), { ...input, publisherId: 'pub-B' });
+
+      expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherBackCatalogueJob', 'pub-B'] });
+      expect(refetchQueriesMock).not.toHaveBeenCalledWith({ queryKey: ['publisherBackCatalogueJob', 'pub-A'] });
+    });
+
+    it('creates no synthetic job on a stale write: a conservative API refetch only', async () => {
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onError(new GraphqlError('changed', { type: 'STALE_SERVICE_CONFIGURATION' }), input);
+
+      expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherBackCatalogueJob', 'pub-A'] });
+      expect(setQueryDataMock).not.toHaveBeenCalled();
+    });
+
+    it('creates no synthetic job when job creation is disabled: a conservative API refetch only', async () => {
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onError(
+        new GraphqlError('disabled', { type: 'DISTRIBUTION_JOB_CREATION_DISABLED' }),
+        input,
+      );
+
+      expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherBackCatalogueJob', 'pub-A'] });
+      expect(setQueryDataMock).not.toHaveBeenCalled();
+    });
   });
 });

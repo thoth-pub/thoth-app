@@ -49,6 +49,38 @@ export const GET_PUBLISHER_SERVICE_CONFIGURATION = graphql(`
   }
 `);
 
+// Superuser-only report read of one publisher's latest back-catalogue
+// distribution job (APP-01C). The report filter is bound to exactly one
+// publisher ID, and the summary's own publisher identity is requested solely so
+// the result can be verified against the requested publisher. Only the bounded
+// latest-job facts approved for staff presentation are selected: no attempt
+// history, claim/lease internals or worker controls.
+export const GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT = graphql(`
+  query GetPublisherBackCatalogueJobReport($publisherId: Uuid!) {
+    publisherServiceConfigurations(publishers: [$publisherId], limit: 1) {
+      configuration {
+        publisher {
+          publisherId
+        }
+      }
+      latestBackCatalogueJob {
+        distributionJobId
+        status
+        attemptCount
+        targets {
+          platform
+        }
+        cancellationReason
+        lastErrorCode
+        lastErrorDetail
+        createdAt
+        updatedAt
+        completedAt
+      }
+    }
+  }
+`);
+
 // Code-owned platform metadata. `assignable`, `linkedGroup` and
 // `backCatalogueBehaviour` are backend descriptors consumed as-is by the APP-01B
 // editor; the client holds no platform-policy table of its own.
