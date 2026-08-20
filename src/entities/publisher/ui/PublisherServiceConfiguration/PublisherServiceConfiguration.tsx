@@ -30,24 +30,30 @@ import useReplacePublisherServiceConfiguration, {
   getServiceConfigurationErrorType,
   STALE_SERVICE_CONFIGURATION,
 } from '../../api/hooks/useReplacePublisherServiceConfiguration';
+import type { PublisherId } from '../../model/publisher.types';
 import usePublisherStateMachine from '../../store/hooks/usePublisherStateMachine';
 
 const SUBSCRIPTION_PACKAGE_FIELD_ID = 'publisher_subscription_package';
 
-// One edit attempt. `expectedUpdatedAt` is the exact version token of the
-// configuration the session was initialized from and is never recomputed,
-// defaulted or reused across attempts.
+// One edit attempt, bound to the exact publisher it was initialized from.
+// `expectedUpdatedAt` is the exact version token of that publisher's loaded
+// configuration and is never recomputed, defaulted or reused across attempts;
+// the session's values may only ever be submitted with the session's own
+// `publisherId`.
 type EditSession = {
+  publisherId: PublisherId;
   expectedUpdatedAt: ReplacePublisherServiceConfigurationInput['expectedUpdatedAt'];
   subscriptionPackage: ThothPackage;
   enabledPlatforms: DistributionPlatform[];
 };
 
+// The result of one save attempt, bound to the publisher it was attempted for so
+// it can never be presented against a different publisher.
 type SaveOutcome =
-  | { kind: 'saved' }
-  | { kind: 'stale' }
-  | { kind: 'jobCreationDisabled' }
-  | { kind: 'failed'; message: string };
+  | { publisherId: PublisherId; kind: 'saved' }
+  | { publisherId: PublisherId; kind: 'stale' }
+  | { publisherId: PublisherId; kind: 'jobCreationDisabled' }
+  | { publisherId: PublisherId; kind: 'failed'; message: string };
 
 type PlatformRow = {
   platform: DistributionPlatform;
@@ -72,10 +78,26 @@ const PublisherServiceConfiguration = () => {
   const { serviceConfiguration, isLoading, error } = usePublisherServiceConfiguration(publisherId);
   const { distributionPlatformOptions } = useDistributionPlatformOptions();
   const { user } = useUser();
-  const { replaceServiceConfiguration, loading } = useReplacePublisherServiceConfiguration(publisherId);
+  const { replaceServiceConfiguration, loading } = useReplacePublisherServiceConfiguration();
 
   const [editSession, setEditSession] = useState<EditSession | null>(null);
   const [outcome, setOutcome] = useState<SaveOutcome | null>(null);
+  const [statePublisherId, setStatePublisherId] = useState(publisherId);
+
+  // A change of active publisher invalidates everything captured for the
+  // previous one: the edit session (its token and selections belong to the other
+  // publisher's configuration) and any earlier save outcome. Discarding during
+  // render means state from the previous publisher is never painted for the new
+  // one.
+  if (statePublisherId !== publisherId) {
+    setStatePublisherId(publisherId);
+    setEditSession(null);
+    setOutcome(null);
+  }
+
+  // An outcome is only ever presented to the publisher whose save produced it; a
+  // mutation settling after a publisher switch stays invisible.
+  const visibleOutcome = outcome !== null && outcome.publisherId === publisherId ? outcome : null;
 
   if (!activePublisher) return null;
 
@@ -121,6 +143,7 @@ const PublisherServiceConfiguration = () => {
   const handleEdit = () => {
     setOutcome(null);
     setEditSession({
+      publisherId,
       expectedUpdatedAt: updatedAt,
       subscriptionPackage,
       enabledPlatforms: [...enabledPlatforms],
@@ -155,31 +178,49 @@ const PublisherServiceConfiguration = () => {
   };
 
   const handleSave = async () => {
-    if (!editSession) return;
+    const session = editSession;
+
+    if (!session) return;
+
+    // Fail closed: a session initialized for another publisher must never be
+    // submitted, whatever state the component reached. The render-time discard
+    // above makes this unreachable through the UI; it is kept as a hard
+    // guarantee that no mutation can combine one publisher's token or
+    // selections with another publisher's ID.
+    if (session.publisherId !== publisherId) {
+      setEditSession((current) => (current === session ? null : current));
+
+      return;
+    }
 
     setOutcome(null);
 
+    // Settlement below only ever discards this exact attempt's session, so a
+    // session legitimately started for another publisher while this mutation is
+    // in flight is never touched.
+    const discardThisSession = () => setEditSession((current) => (current === session ? null : current));
+
     try {
       await replaceServiceConfiguration({
-        publisherId,
-        subscriptionPackage: editSession.subscriptionPackage,
-        enabledDistributionPlatforms: editSession.enabledPlatforms,
-        expectedUpdatedAt: editSession.expectedUpdatedAt,
+        publisherId: session.publisherId,
+        subscriptionPackage: session.subscriptionPackage,
+        enabledDistributionPlatforms: session.enabledPlatforms,
+        expectedUpdatedAt: session.expectedUpdatedAt,
       });
 
       // Success is reported only once the mutation has resolved. The displayed
       // configuration comes from the query state the hook replaced with the exact
       // server-normalized response, never from this edit session.
-      setEditSession(null);
-      setOutcome({ kind: 'saved' });
+      discardThisSession();
+      setOutcome({ publisherId: session.publisherId, kind: 'saved' });
     } catch (saveError) {
       const errorType = getServiceConfigurationErrorType(saveError);
 
       // The configuration moved on since it was loaded. The hook has refetched it;
       // discard this session so a new one must be started against the fresh token.
       if (errorType === STALE_SERVICE_CONFIGURATION) {
-        setEditSession(null);
-        setOutcome({ kind: 'stale' });
+        discardThisSession();
+        setOutcome({ publisherId: session.publisherId, kind: 'stale' });
 
         return;
       }
@@ -187,15 +228,23 @@ const PublisherServiceConfiguration = () => {
       // The backend rolled the whole activation back and created no job. Nothing
       // was saved, and no pending or synthetic job state may be shown.
       if (errorType === DISTRIBUTION_JOB_CREATION_DISABLED) {
-        setEditSession(null);
-        setOutcome({ kind: 'jobCreationDisabled' });
+        discardThisSession();
+        setOutcome({ publisherId: session.publisherId, kind: 'jobCreationDisabled' });
 
         return;
       }
 
-      // Unclassified failure: nothing was written to the cache, so the last
-      // server-backed configuration remains displayed and authoritative.
-      setOutcome({ kind: 'failed', message: saveError instanceof Error ? saveError.message : '' });
+      // Unclassified failure: the outcome is ambiguous - the server may have
+      // committed the replace without the response arriving. The hook has
+      // refetched the protected configuration; discard this session so the
+      // display returns to server truth and any new attempt starts deliberately
+      // from the refetched token, never from this attempt's expectedUpdatedAt.
+      discardThisSession();
+      setOutcome({
+        publisherId: session.publisherId,
+        kind: 'failed',
+        message: saveError instanceof Error ? saveError.message : '',
+      });
     }
   };
 
@@ -333,24 +382,24 @@ const PublisherServiceConfiguration = () => {
             </Button>
           )}
 
-          {outcome && (
+          {visibleOutcome && (
             <Typography role="status">
-              {outcome.kind === 'saved' && (
+              {visibleOutcome.kind === 'saved' && (
                 <TranslatedContent content="serviceConfigurationSaved" namespace={NAMESPACES.enum.profile} />
               )}
-              {outcome.kind === 'stale' && (
+              {visibleOutcome.kind === 'stale' && (
                 <TranslatedContent content="serviceConfigurationStale" namespace={NAMESPACES.enum.profile} />
               )}
-              {outcome.kind === 'jobCreationDisabled' && (
+              {visibleOutcome.kind === 'jobCreationDisabled' && (
                 <TranslatedContent
                   content="serviceConfigurationJobCreationDisabled"
                   namespace={NAMESPACES.enum.profile}
                 />
               )}
-              {outcome.kind === 'failed' && (
+              {visibleOutcome.kind === 'failed' && (
                 <>
                   <TranslatedContent content="serviceConfigurationSaveFailed" namespace={NAMESPACES.enum.profile} />
-                  {outcome.message.length > 0 && `: ${outcome.message}`}
+                  {visibleOutcome.message.length > 0 && `: ${visibleOutcome.message}`}
                 </>
               )}
             </Typography>

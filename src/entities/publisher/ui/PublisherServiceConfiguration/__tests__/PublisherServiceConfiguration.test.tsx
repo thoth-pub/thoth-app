@@ -1,5 +1,5 @@
 import { ThemeProvider } from '@mui/material';
-import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import { act, cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
@@ -39,6 +39,7 @@ vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({
 import PublisherServiceConfiguration from '../PublisherServiceConfiguration';
 
 const LOADED_UPDATED_AT = '2026-08-01T10:00:00Z';
+const PUBLISHER_B_UPDATED_AT = '2026-08-05T09:00:00Z';
 
 function renderComponent() {
   return render(
@@ -47,6 +48,29 @@ function renderComponent() {
     </ThemeProvider>,
   );
 }
+
+const rerenderComponent = (rerender: ReturnType<typeof render>['rerender']) =>
+  rerender(
+    <ThemeProvider theme={theme}>
+      <PublisherServiceConfiguration />
+    </ThemeProvider>,
+  );
+
+// Simulates the persistent-navigation publisher selector: the active publisher
+// and its protected configuration change while the component stays mounted.
+const switchActivePublisherToB = () => {
+  stateMachineMock.mockReturnValue({ activePublisher: { id: 'pub-2' } });
+  serviceConfigurationMock.mockReturnValue({
+    serviceConfiguration: {
+      subscriptionPackage: 'PYRAMID',
+      effectiveCapabilities: ['OAI_PMH'],
+      enabledDistributionPlatforms: [{ platform: 'OAPEN' }],
+      updatedAt: PUBLISHER_B_UPDATED_AT,
+    },
+    isLoading: false,
+    error: null,
+  });
+};
 
 const asSuperuser = () => useUserMock.mockReturnValue({ user: { isSuperuser: true } });
 
@@ -561,20 +585,226 @@ describe('PublisherServiceConfiguration superuser editing', () => {
     });
   });
 
-  it('leaves server-backed state authoritative on a generic failure', async () => {
-    asSuperuser();
-    replaceServiceConfigurationMock.mockRejectedValue(new Error('Network error'));
+  describe('generic/unclassified failure', () => {
+    beforeEach(() => {
+      replaceServiceConfigurationMock.mockRejectedValue(new Error('Network error'));
+    });
 
-    renderComponent();
+    it('shows the preserved failure message, no success, and never auto-retries', async () => {
+      asSuperuser();
+      renderComponent();
 
-    await startEditing();
-    await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
-    await save();
+      await startEditing();
+      await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
+      await save();
 
-    await waitFor(() => expect(screen.getByText(/serviceConfigurationSaveFailed/)).toBeInTheDocument());
-    expect(screen.queryByText('serviceConfigurationSaved')).not.toBeInTheDocument();
-    expect(replaceServiceConfigurationMock).toHaveBeenCalledTimes(1);
-    // The read-only configuration still shows the last server-backed platforms.
-    expect(screen.getByRole('checkbox', { name: 'Internet Archive' })).toBeChecked();
+      await waitFor(() =>
+        expect(screen.getByRole('status')).toHaveTextContent('serviceConfigurationSaveFailed: Network error'),
+      );
+      expect(screen.queryByText('serviceConfigurationSaved')).not.toBeInTheDocument();
+      expect(replaceServiceConfigurationMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('discards the failed draft and returns the display to server-backed state', async () => {
+      asSuperuser();
+      renderComponent();
+
+      await startEditing();
+      await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
+      await save();
+
+      await waitFor(() => expect(screen.getByText(/serviceConfigurationSaveFailed/)).toBeInTheDocument());
+
+      // The attempt's outcome is ambiguous (the server may have committed), so
+      // its local draft is discarded: the editor is closed, the unsaved OAPEN
+      // activation is not displayed, and only the server-backed configuration
+      // the hook reconciled is shown.
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+      expect(screen.queryByText('OAPEN')).not.toBeInTheDocument();
+      expect(screen.getByText('Internet Archive')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'editServiceConfiguration' })).toBeInTheDocument();
+    });
+
+    it("initializes a subsequent edit from the reconciled state, never the failed attempt's token", async () => {
+      asSuperuser();
+      const { rerender } = renderComponent();
+
+      await startEditing();
+      await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
+      await save();
+
+      await waitFor(() => expect(screen.getByText(/serviceConfigurationSaveFailed/)).toBeInTheDocument());
+
+      // The hook reconciled the protected configuration; the query now reports
+      // what the server actually holds - here the ambiguous replace did commit -
+      // under a fresh version token.
+      serviceConfigurationMock.mockReturnValue({
+        serviceConfiguration: {
+          subscriptionPackage: 'SPHINX',
+          effectiveCapabilities: ['OAI_PMH'],
+          enabledDistributionPlatforms: [{ platform: 'INTERNET_ARCHIVE' }, { platform: 'OAPEN' }],
+          updatedAt: '2026-08-02T09:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+      });
+      replaceServiceConfigurationMock.mockResolvedValue({
+        subscriptionPackage: 'SPHINX',
+        effectiveCapabilities: ['OAI_PMH'],
+        enabledDistributionPlatforms: [{ platform: 'INTERNET_ARCHIVE' }, { platform: 'OAPEN' }],
+        updatedAt: '2026-08-02T10:00:00Z',
+      });
+      rerenderComponent(rerender);
+
+      // A deliberate new edit/save, initialized from the freshly fetched state.
+      await startEditing();
+      await save();
+
+      expect(replaceServiceConfigurationMock.mock.calls[1][0].expectedUpdatedAt).toBe('2026-08-02T09:00:00Z');
+      expect(replaceServiceConfigurationMock.mock.calls[1][0].expectedUpdatedAt).not.toBe(LOADED_UPDATED_AT);
+      expect(replaceServiceConfigurationMock.mock.calls[1][0].enabledDistributionPlatforms).toEqual([
+        'INTERNET_ARCHIVE',
+        'OAPEN',
+      ]);
+    });
+  });
+
+  describe('active publisher switching', () => {
+    it("discards publisher A's edit session and resets to B's server-backed state on switch", async () => {
+      asSuperuser();
+      const { rerender } = renderComponent();
+
+      await startEditing();
+      await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
+
+      switchActivePublisherToB();
+      rerenderComponent(rerender);
+
+      // A's edit session is gone without any mutation being constructed: the
+      // editor is closed and nothing was submitted.
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'saveServiceConfiguration' })).not.toBeInTheDocument();
+      expect(replaceServiceConfigurationMock).not.toHaveBeenCalled();
+
+      // B's server-backed configuration is displayed read-only.
+      expect(screen.getByText('PYRAMID')).toBeInTheDocument();
+      expect(screen.getByText('OAPEN')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'editServiceConfiguration' })).toBeInTheDocument();
+    });
+
+    it("submits nothing of A's edit state or token when a new edit is made on B", async () => {
+      asSuperuser();
+      const { rerender } = renderComponent();
+
+      // A's session diverges from A's server state before the switch.
+      await startEditing();
+      await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
+
+      switchActivePublisherToB();
+      rerenderComponent(rerender);
+
+      // A deliberate new edit for B initializes from B's own configuration.
+      await startEditing();
+
+      expect(screen.getByRole('combobox')).toHaveValue('PYRAMID');
+      expect(screen.getByRole('checkbox', { name: 'OAPEN' })).toBeChecked();
+      expect(screen.getByRole('checkbox', { name: 'Internet Archive' })).not.toBeChecked();
+
+      await save();
+
+      // The only mutation ever sent carries B's id, B's token and B's state -
+      // none of A's session (its package, its platform set or LOADED_UPDATED_AT).
+      expect(replaceServiceConfigurationMock).toHaveBeenCalledTimes(1);
+      expect(sentInput()).toEqual({
+        publisherId: 'pub-2',
+        subscriptionPackage: 'PYRAMID',
+        enabledDistributionPlatforms: ['OAPEN'],
+        expectedUpdatedAt: PUBLISHER_B_UPDATED_AT,
+      });
+    });
+
+    it("clears a previous publisher's save outcome when the active publisher changes", async () => {
+      asSuperuser();
+      replaceServiceConfigurationMock.mockRejectedValue(new Error('Network error'));
+      const { rerender } = renderComponent();
+
+      await startEditing();
+      await save();
+
+      await waitFor(() => expect(screen.getByText(/serviceConfigurationSaveFailed/)).toBeInTheDocument());
+
+      switchActivePublisherToB();
+      rerenderComponent(rerender);
+
+      expect(screen.queryByText(/serviceConfigurationSaveFailed/)).not.toBeInTheDocument();
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    });
+
+    it('never presents a save that settles after a publisher switch against the new publisher', async () => {
+      asSuperuser();
+      let resolveMutation: (value: unknown) => void = () => {};
+      replaceServiceConfigurationMock.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveMutation = resolve;
+          }),
+      );
+      const { rerender } = renderComponent();
+
+      await startEditing();
+      await save();
+
+      switchActivePublisherToB();
+      rerenderComponent(rerender);
+
+      // A's replace resolves only now, while B is the active publisher.
+      await act(async () => {
+        resolveMutation({
+          subscriptionPackage: 'SPHINX',
+          effectiveCapabilities: ['OAI_PMH', 'METRICS_COLLECT'],
+          enabledDistributionPlatforms: [{ platform: 'INTERNET_ARCHIVE' }],
+          updatedAt: '2026-08-01T11:00:00Z',
+        });
+      });
+
+      // No success belonging to A is shown against B; B's read-only server
+      // state remains displayed.
+      expect(screen.queryByText('serviceConfigurationSaved')).not.toBeInTheDocument();
+      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+      expect(screen.getByText('PYRAMID')).toBeInTheDocument();
+    });
+
+    it("leaves B's new edit session untouched when A's failure settles after the switch", async () => {
+      asSuperuser();
+      let rejectMutation: (reason?: unknown) => void = () => {};
+      replaceServiceConfigurationMock.mockImplementationOnce(
+        () =>
+          new Promise((_resolve, reject) => {
+            rejectMutation = reject;
+          }),
+      );
+      const { rerender } = renderComponent();
+
+      await startEditing();
+      await save();
+
+      switchActivePublisherToB();
+      rerenderComponent(rerender);
+
+      // A fresh session for B is already open when A's failure finally lands.
+      await startEditing();
+
+      await act(async () => {
+        rejectMutation(new Error('Network error'));
+      });
+
+      // Only the exact failed attempt's session may be discarded: B's session
+      // stays open and no failure belonging to A is presented against B.
+      expect(screen.getByRole('combobox')).toHaveValue('PYRAMID');
+      expect(screen.getByRole('checkbox', { name: 'OAPEN' })).toBeChecked();
+      expect(screen.queryByText(/serviceConfigurationSaveFailed/)).not.toBeInTheDocument();
+    });
   });
 });

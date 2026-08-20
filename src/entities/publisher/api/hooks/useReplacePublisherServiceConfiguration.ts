@@ -6,7 +6,6 @@ import type { ReplacePublisherServiceConfigurationInput } from '@/gql/graphql';
 import { GraphqlError } from '@/src/shared/api/graphqlService';
 import { useServices } from '@/src/shared/context';
 
-import type { PublisherId } from '../../model/publisher.types';
 import { PUBLISHER_SERVICE_CONFIGURATION_QUERY_KEY } from './usePublisherServiceConfiguration';
 
 // Stable backend classifications published by the Thoth v1.7 API under
@@ -31,32 +30,32 @@ export const getServiceConfigurationErrorType = (error: unknown): ServiceConfigu
   return undefined;
 };
 
-// APP-01B: replaces the active publisher's service configuration.
+// APP-01B: replaces a publisher's service configuration.
 //
 // Success is only ever reported after the mutation resolves, and the exact
 // server-normalized response - not a locally assumed state - replaces the
-// publisher-scoped configuration cache. On failure nothing is written to the
-// cache, so the last server-backed state stays authoritative. Stale and
-// job-creation-disabled failures additionally refetch the protected configuration
-// so the user sees current server truth before deciding to edit again. Retries are
-// disabled: both conditions require a deliberate new attempt.
-const useReplacePublisherServiceConfiguration = (publisherId: PublisherId) => {
+// publisher-scoped configuration cache. Cache writes and refetches are keyed by
+// the publisherId of the exact mutation attempt's input, never by whichever
+// publisher is active when the mutation settles, so a publisher switch while a
+// mutation is in flight can never write or refetch another publisher's cache.
+// On failure nothing is written to the cache, and the protected configuration is
+// refetched regardless of classification: after a complete replace, a transport
+// failure is ambiguous (the server may have committed without the response
+// arriving), so displayed state must be re-anchored to server truth. Retries are
+// disabled: every failure requires a deliberate new attempt.
+const useReplacePublisherServiceConfiguration = () => {
   const { publisherService } = useServices();
   const queryClient = useQueryClient();
-
-  const configurationQueryKey = [PUBLISHER_SERVICE_CONFIGURATION_QUERY_KEY, publisherId];
 
   const { mutateAsync, isPending } = useMutation({
     retry: false,
     mutationFn: (input: ReplacePublisherServiceConfigurationInput) =>
       publisherService.replacePublisherServiceConfiguration(input),
-    onSuccess: (configuration) => {
-      queryClient.setQueryData(configurationQueryKey, configuration);
+    onSuccess: (configuration, input) => {
+      queryClient.setQueryData([PUBLISHER_SERVICE_CONFIGURATION_QUERY_KEY, input.publisherId], configuration);
     },
-    onError: async (error: unknown) => {
-      if (!getServiceConfigurationErrorType(error)) return;
-
-      await queryClient.refetchQueries({ queryKey: configurationQueryKey });
+    onError: async (_error: unknown, input) => {
+      await queryClient.refetchQueries({ queryKey: [PUBLISHER_SERVICE_CONFIGURATION_QUERY_KEY, input.publisherId] });
     },
   });
 

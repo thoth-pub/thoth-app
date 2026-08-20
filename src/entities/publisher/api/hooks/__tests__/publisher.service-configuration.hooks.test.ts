@@ -51,8 +51,8 @@ type UseQueryOptions = {
 type UseMutationOptions = {
   retry?: boolean | number;
   mutationFn: (input: unknown) => unknown;
-  onSuccess: (data: unknown) => unknown;
-  onError: (error: unknown) => unknown;
+  onSuccess: (data: unknown, input: unknown) => unknown;
+  onError: (error: unknown, input: unknown) => unknown;
 };
 
 const lastOptions = (): UseQueryOptions => useQueryMock.mock.calls.at(-1)?.[0] as UseQueryOptions;
@@ -172,7 +172,7 @@ describe('useReplacePublisherServiceConfiguration', () => {
   };
 
   it('passes the exact replace input, including expectedUpdatedAt, to the service', async () => {
-    useReplacePublisherServiceConfiguration('pub-A');
+    useReplacePublisherServiceConfiguration();
 
     await lastMutationOptions().mutationFn(input);
 
@@ -180,69 +180,93 @@ describe('useReplacePublisherServiceConfiguration', () => {
   });
 
   it('never auto-retries a failed replace', () => {
-    useReplacePublisherServiceConfiguration('pub-A');
+    useReplacePublisherServiceConfiguration();
 
     expect(lastMutationOptions().retry).toBe(false);
   });
 
   it('replaces the publisher-scoped configuration cache with the exact server response', () => {
-    useReplacePublisherServiceConfiguration('pub-A');
+    useReplacePublisherServiceConfiguration();
 
-    lastMutationOptions().onSuccess(serverConfiguration);
+    lastMutationOptions().onSuccess(serverConfiguration, input);
 
     expect(setQueryDataMock).toHaveBeenCalledWith(['publisherServiceConfiguration', 'pub-A'], serverConfiguration);
   });
 
   it('writes no locally derived state to the cache', () => {
-    useReplacePublisherServiceConfiguration('pub-A');
+    useReplacePublisherServiceConfiguration();
 
-    lastMutationOptions().onSuccess(serverConfiguration);
+    lastMutationOptions().onSuccess(serverConfiguration, input);
 
     // The cached value is the mutation response object itself, not a merge of the
     // submitted input with anything the client assumed.
     expect(setQueryDataMock.mock.calls[0][1]).toBe(serverConfiguration);
   });
 
-  it('scopes the cache write to the publisher being edited', () => {
-    useReplacePublisherServiceConfiguration('pub-B');
+  it('scopes the success cache write to the publisherId of the exact mutation attempt', () => {
+    // The hook takes no publisher argument at all: the only publisher the
+    // lifecycle can see is the one inside the attempt's own input, so an active
+    // publisher changing mid-flight can never redirect the cache write.
+    useReplacePublisherServiceConfiguration();
 
-    lastMutationOptions().onSuccess(serverConfiguration);
+    lastMutationOptions().onSuccess(serverConfiguration, { ...input, publisherId: 'pub-B' });
 
     expect(setQueryDataMock).toHaveBeenCalledWith(['publisherServiceConfiguration', 'pub-B'], serverConfiguration);
+    expect(setQueryDataMock).not.toHaveBeenCalledWith(['publisherServiceConfiguration', 'pub-A'], serverConfiguration);
   });
 
   it('refetches the protected configuration after a stale write', async () => {
-    useReplacePublisherServiceConfiguration('pub-A');
+    useReplacePublisherServiceConfiguration();
 
-    await lastMutationOptions().onError(new GraphqlError('changed', { type: 'STALE_SERVICE_CONFIGURATION' }));
+    await lastMutationOptions().onError(new GraphqlError('changed', { type: 'STALE_SERVICE_CONFIGURATION' }), input);
 
     expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherServiceConfiguration', 'pub-A'] });
     expect(setQueryDataMock).not.toHaveBeenCalled();
   });
 
   it('refetches the protected configuration when job creation is disabled', async () => {
-    useReplacePublisherServiceConfiguration('pub-A');
+    useReplacePublisherServiceConfiguration();
 
-    await lastMutationOptions().onError(new GraphqlError('disabled', { type: 'DISTRIBUTION_JOB_CREATION_DISABLED' }));
+    await lastMutationOptions().onError(
+      new GraphqlError('disabled', { type: 'DISTRIBUTION_JOB_CREATION_DISABLED' }),
+      input,
+    );
 
     expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherServiceConfiguration', 'pub-A'] });
     expect(setQueryDataMock).not.toHaveBeenCalled();
   });
 
-  it('leaves the server-backed cache untouched on an unclassified failure', async () => {
-    useReplacePublisherServiceConfiguration('pub-A');
+  it('reconciles the protected configuration on an unclassified failure without writing the cache', async () => {
+    // A transport/network failure after a complete replace is ambiguous: the
+    // server may have committed even though no response arrived. The publisher's
+    // protected configuration is therefore refetched, and nothing locally
+    // assumed is ever written to the cache.
+    useReplacePublisherServiceConfiguration();
 
-    await lastMutationOptions().onError(new Error('Network error'));
+    await lastMutationOptions().onError(new Error('Network error'), input);
 
+    expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherServiceConfiguration', 'pub-A'] });
     expect(setQueryDataMock).not.toHaveBeenCalled();
-    expect(refetchQueriesMock).not.toHaveBeenCalled();
   });
 
-  it('does not reconcile on a message that merely names a classification', async () => {
-    useReplacePublisherServiceConfiguration('pub-A');
+  it('scopes failure reconciliation to the publisherId of the exact mutation attempt', async () => {
+    useReplacePublisherServiceConfiguration();
 
-    await lastMutationOptions().onError(new GraphqlError('STALE_SERVICE_CONFIGURATION'));
+    await lastMutationOptions().onError(new Error('Network error'), { ...input, publisherId: 'pub-B' });
 
-    expect(refetchQueriesMock).not.toHaveBeenCalled();
+    expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherServiceConfiguration', 'pub-B'] });
+    expect(refetchQueriesMock).not.toHaveBeenCalledWith({ queryKey: ['publisherServiceConfiguration', 'pub-A'] });
+  });
+
+  it('reconciles a message that merely names a classification as any other unclassified failure', async () => {
+    // Messages are never parsed: classification comes from `extensions.type`
+    // alone (proven above for getServiceConfigurationErrorType), and every
+    // failure - classified or not - reconciles the same publisher-scoped key.
+    useReplacePublisherServiceConfiguration();
+
+    await lastMutationOptions().onError(new GraphqlError('STALE_SERVICE_CONFIGURATION'), input);
+
+    expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherServiceConfiguration', 'pub-A'] });
+    expect(setQueryDataMock).not.toHaveBeenCalled();
   });
 });
