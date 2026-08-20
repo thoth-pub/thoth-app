@@ -1,4 +1,10 @@
-import type { ReplacePublisherServiceConfigurationInput } from '@/gql/graphql';
+import type {
+  DistributionJobStatus,
+  DistributionPlatform,
+  PublisherOrderBy,
+  ReplacePublisherServiceConfigurationInput,
+  ThothPackage,
+} from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
@@ -16,10 +22,45 @@ import {
   GET_PUBLISHER_ADMIN,
   GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT,
   GET_PUBLISHER_SERVICE_CONFIGURATION,
+  GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT,
+  GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT_COUNT,
   GET_PUBLISHERS,
   UPDATE_PUBLISHER,
 } from '../model/publisher.schema';
 import type { ContactEntity, ContactId, PublisherDto, PublisherEntity, PublisherId } from '../model/publisher.types';
+
+// APP-02A: the one semantic filter model shared by the staff report list and its
+// count. Every dimension is passed through to the backend contract unchanged:
+// `publishers`/`packages` select exact values, `enabledPlatforms` is conjunctive
+// (every requested platform must be enabled), `jobStatuses` is disjunctive (the
+// latest job may match any requested status), and `withoutBackCatalogueJob` is
+// tri-state (null means unfiltered job presence). Empty arrays mean the
+// dimension is unfiltered, matching the contract defaults.
+export type PublisherServiceConfigurationReportFilters = {
+  publishers: PublisherId[];
+  packages: ThothPackage[];
+  enabledPlatforms: DistributionPlatform[];
+  jobStatuses: DistributionJobStatus[];
+  withoutBackCatalogueJob: boolean | null;
+};
+
+export type PublisherServiceConfigurationReportPage = {
+  filters: PublisherServiceConfigurationReportFilters;
+  limit: number;
+  offset: number;
+  order: PublisherOrderBy;
+};
+
+// Single mapping from the shared filter model to report variables. Both report
+// reads below build their variables through this function, so the list and the
+// count cannot silently drift onto different filter semantics.
+const toReportFilterVariables = (filters: PublisherServiceConfigurationReportFilters) => ({
+  publishers: filters.publishers,
+  packages: filters.packages,
+  enabledPlatforms: filters.enabledPlatforms,
+  jobStatuses: filters.jobStatuses,
+  withoutBackCatalogueJob: filters.withoutBackCatalogueJob,
+});
 
 export class PublisherService extends BaseService<PublisherEntity, PublisherDto, PublisherDtoMapper> {
   constructor(graphqlService: GraphqlService, mapper = new PublisherDtoMapper()) {
@@ -146,6 +187,36 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     );
 
     return summary ?? null;
+  }
+
+  // APP-02A: read-only, superuser-only consolidated report read. One bounded
+  // page of publisher service-configuration summaries is the row authority for
+  // the staff index; rows are returned exactly as the API provides them, so a
+  // summary whose `latestBackCatalogueJob` is null stays null (meaning only: no
+  // back-catalogue job is recorded) and a request error propagates as an error.
+  async getPublisherServiceConfigurationReport(page: PublisherServiceConfigurationReportPage) {
+    const { publisherServiceConfigurations } = await this.graphqlService.query(
+      GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT,
+      {
+        ...toReportFilterVariables(page.filters),
+        limit: page.limit,
+        offset: page.offset,
+        order: page.order,
+      },
+    );
+
+    return publisherServiceConfigurations;
+  }
+
+  // APP-02A: matching total for the report above, computed by the backend from
+  // exactly the same semantic filters (never from pagination or ordering).
+  async getPublisherServiceConfigurationReportCount(filters: PublisherServiceConfigurationReportFilters) {
+    const { publisherServiceConfigurationCount } = await this.graphqlService.query(
+      GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT_COUNT,
+      toReportFilterVariables(filters),
+    );
+
+    return publisherServiceConfigurationCount;
   }
 
   // APP-01B: replaces the publisher's complete desired service configuration. The

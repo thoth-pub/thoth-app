@@ -10,7 +10,7 @@ import { Activity, useState } from 'react';
 
 import { AddNewPublisher } from '@/src/entities/publisher';
 import { useUser } from '@/src/entities/user';
-import { PAGES, ROUTES } from '@/src/shared/constants';
+import { PAGES, ROUTES, SUPERUSER_PAGES } from '@/src/shared/constants';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { useUIContext } from '@/src/shared/store';
 import { IconButton, Paper, TranslatedContent, Typography } from '@/src/shared/ui';
@@ -22,12 +22,18 @@ import { ChangeActivePublisher } from '../../publisher';
 const Navigation = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  const { user } = useUser();
+  const { user, isAuthoritative } = useUser();
   const { isExpanded, updateIsExpanded } = useUIContext();
 
   const handleUserMenuOpen = () => {
     setIsUserMenuOpen((prev) => !prev);
   };
+
+  // APP-02A: staff entries appear only once authoritative user state confirms a
+  // superuser, so an ordinary publisher - or a not-yet-loaded identity - never
+  // sees them, not even as a flash. This gating is presentation only; the
+  // backend stays the authorization boundary for everything the entries reach.
+  const visiblePages = isAuthoritative && user.isSuperuser ? [...PAGES, ...SUPERUSER_PAGES] : PAGES;
 
   return (
     <Paper
@@ -76,7 +82,7 @@ const Navigation = () => {
 
         <nav>
           <ul className="flex flex-col rounded-(--border-nav-radius) border border-(--color-nav-border)">
-            {PAGES.map(({ name, href, icon: Icon }) => (
+            {visiblePages.map(({ name, href, icon: Icon }) => (
               <li key={href} className={`py-2 duration-300 hover:bg-(--color-hover) ${isExpanded ? 'px-4' : 'px-1.5'}`}>
                 <Link href={href} className="flex shrink-0 items-center gap-2">
                   <Icon color="primary" className={`${!isExpanded && 'm-auto'}`} />
