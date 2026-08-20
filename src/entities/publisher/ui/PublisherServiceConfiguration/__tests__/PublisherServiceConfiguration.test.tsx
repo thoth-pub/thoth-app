@@ -1,12 +1,16 @@
 import { ThemeProvider } from '@mui/material';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { GraphqlError } from '@/src/shared/api/graphqlService';
 import { theme } from '@/src/shared/theme';
 
 const stateMachineMock = vi.fn();
 const serviceConfigurationMock = vi.fn();
 const platformOptionsMock = vi.fn();
+const useUserMock = vi.fn();
+const replaceServiceConfigurationMock = vi.fn();
 
 vi.mock('../../../store/hooks/usePublisherStateMachine', () => ({
   default: () => stateMachineMock(),
@@ -17,12 +21,24 @@ vi.mock('../../../api/hooks/usePublisherServiceConfiguration', () => ({
 vi.mock('../../../api/hooks/useDistributionPlatformOptions', () => ({
   default: () => platformOptionsMock(),
 }));
+// Only the mutation hook itself is replaced. The real classification helper and
+// classification constants are kept so these tests exercise the same
+// `extensions.type` reading the component ships with.
+vi.mock('../../../api/hooks/useReplacePublisherServiceConfiguration', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('../../../api/hooks/useReplacePublisherServiceConfiguration')>()),
+  default: () => ({ replaceServiceConfiguration: replaceServiceConfigurationMock, loading: false }),
+}));
+vi.mock('@/src/entities/user', () => ({
+  useUser: () => useUserMock(),
+}));
 // Render translation keys verbatim so label/state assertions are deterministic.
 vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({
   default: () => ({ t: (key: string) => key }),
 }));
 
 import PublisherServiceConfiguration from '../PublisherServiceConfiguration';
+
+const LOADED_UPDATED_AT = '2026-08-01T10:00:00Z';
 
 function renderComponent() {
   return render(
@@ -32,13 +48,58 @@ function renderComponent() {
   );
 }
 
+const asSuperuser = () => useUserMock.mockReturnValue({ user: { isSuperuser: true } });
+
+const startEditing = async () => {
+  await userEvent.click(screen.getByRole('button', { name: 'editServiceConfiguration' }));
+};
+
+const save = async () => {
+  await userEvent.click(screen.getByRole('button', { name: 'saveServiceConfiguration' }));
+};
+
+const sentInput = () => replaceServiceConfigurationMock.mock.calls[0][0];
+
 beforeEach(() => {
   vi.clearAllMocks();
   stateMachineMock.mockReturnValue({ activePublisher: { id: 'pub-1' } });
+  useUserMock.mockReturnValue({ user: { isSuperuser: false } });
+  replaceServiceConfigurationMock.mockResolvedValue({
+    subscriptionPackage: 'SPHINX',
+    effectiveCapabilities: ['OAI_PMH', 'METRICS_COLLECT'],
+    enabledDistributionPlatforms: [{ platform: 'INTERNET_ARCHIVE' }],
+    updatedAt: '2026-08-01T11:00:00Z',
+  });
   platformOptionsMock.mockReturnValue({
     distributionPlatformOptions: [
-      { platform: 'OAPEN', displayLabel: 'OAPEN' },
-      { platform: 'INTERNET_ARCHIVE', displayLabel: 'Internet Archive' },
+      {
+        platform: 'OAPEN',
+        displayLabel: 'OAPEN',
+        assignable: true,
+        linkedGroup: 'OAPEN_DOAB',
+        backCatalogueBehaviour: 'AUTOMATIC_PUSH',
+      },
+      {
+        platform: 'DOAB',
+        displayLabel: 'DOAB',
+        assignable: true,
+        linkedGroup: 'OAPEN_DOAB',
+        backCatalogueBehaviour: 'AUTOMATIC_PUSH',
+      },
+      {
+        platform: 'INTERNET_ARCHIVE',
+        displayLabel: 'Internet Archive',
+        assignable: true,
+        linkedGroup: null,
+        backCatalogueBehaviour: 'AUTOMATIC_PUSH',
+      },
+      {
+        platform: 'JISC_NBK',
+        displayLabel: 'Jisc NBK',
+        assignable: false,
+        linkedGroup: null,
+        backCatalogueBehaviour: 'MANUAL',
+      },
     ],
     isLoading: false,
     error: null,
@@ -48,6 +109,7 @@ beforeEach(() => {
       subscriptionPackage: 'SPHINX',
       effectiveCapabilities: ['OAI_PMH', 'METRICS_COLLECT'],
       enabledDistributionPlatforms: [{ platform: 'INTERNET_ARCHIVE' }],
+      updatedAt: LOADED_UPDATED_AT,
     },
     isLoading: false,
     error: null,
@@ -98,12 +160,17 @@ describe('PublisherServiceConfiguration', () => {
     expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 
-  it('remains read-only with no edit controls for superusers', () => {
-    // The component does not branch on superuser state, so it stays read-only.
+  it('offers superusers an edit affordance without changing the read-only default view', () => {
+    asSuperuser();
+
     renderComponent();
 
-    expect(screen.queryByRole('button')).not.toBeInTheDocument();
-    expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+    // APP-01B: the only control before an edit session starts is Edit; the
+    // configuration itself is still rendered read-only.
+    expect(screen.getByRole('button', { name: 'editServiceConfiguration' })).toBeInTheDocument();
+    expect(screen.queryByRole('combobox')).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByText('SPHINX')).toBeInTheDocument();
   });
 
   it('does not fabricate configuration when the protected read fails', () => {
@@ -156,5 +223,358 @@ describe('PublisherServiceConfiguration', () => {
     expect(screen.getByText('OASIS')).toBeInTheDocument();
     expect(screen.getByText('noCapabilities')).toBeInTheDocument();
     expect(screen.getByText('noDistributionPlatforms')).toBeInTheDocument();
+  });
+});
+
+describe('PublisherServiceConfiguration superuser editing', () => {
+  it('initializes the edit session from the loaded API configuration', async () => {
+    asSuperuser();
+    renderComponent();
+
+    await startEditing();
+
+    expect(screen.getByRole('combobox')).toHaveValue('SPHINX');
+    expect(screen.getByRole('checkbox', { name: 'Internet Archive' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'OAPEN' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'DOAB' })).not.toBeChecked();
+  });
+
+  it('sends the exact updatedAt loaded for the session as expectedUpdatedAt', async () => {
+    asSuperuser();
+    renderComponent();
+
+    await startEditing();
+    await save();
+
+    expect(sentInput()).toEqual({
+      publisherId: 'pub-1',
+      subscriptionPackage: 'SPHINX',
+      enabledDistributionPlatforms: ['INTERNET_ARCHIVE'],
+      expectedUpdatedAt: LOADED_UPDATED_AT,
+    });
+  });
+
+  it('leaves platform selection untouched when the package changes', async () => {
+    asSuperuser();
+    renderComponent();
+
+    await startEditing();
+    await userEvent.selectOptions(screen.getByRole('combobox'), 'PYRAMID');
+
+    expect(screen.getByRole('checkbox', { name: 'Internet Archive' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'OAPEN' })).not.toBeChecked();
+
+    await save();
+
+    expect(sentInput().subscriptionPackage).toBe('PYRAMID');
+    expect(sentInput().enabledDistributionPlatforms).toEqual(['INTERNET_ARCHIVE']);
+  });
+
+  it('offers every package from the generated contract enum', async () => {
+    asSuperuser();
+    renderComponent();
+
+    await startEditing();
+
+    const values = Array.from(screen.getByRole('combobox').querySelectorAll('option')).map((option) => option.value);
+
+    expect(values).toEqual(expect.arrayContaining(['OASIS', 'OBELISK', 'SPHINX', 'PYRAMID']));
+  });
+
+  it('cannot newly select an absent platform the backend marks non-assignable', async () => {
+    asSuperuser();
+    renderComponent();
+
+    await startEditing();
+
+    const nonAssignable = screen.getByRole('checkbox', { name: 'Jisc NBK' });
+
+    expect(nonAssignable).toBeDisabled();
+    expect(nonAssignable).not.toBeChecked();
+    expect(screen.getAllByText('distributionPlatformNotAssignable').length).toBeGreaterThan(0);
+  });
+
+  it('can remove an already-enabled platform that is now non-assignable, and cannot re-add it', async () => {
+    serviceConfigurationMock.mockReturnValue({
+      serviceConfiguration: {
+        subscriptionPackage: 'SPHINX',
+        effectiveCapabilities: ['OAI_PMH'],
+        enabledDistributionPlatforms: [{ platform: 'JISC_NBK' }],
+        updatedAt: LOADED_UPDATED_AT,
+      },
+      isLoading: false,
+      error: null,
+    });
+    asSuperuser();
+    renderComponent();
+
+    await startEditing();
+
+    const nonAssignable = screen.getByRole('checkbox', { name: 'Jisc NBK' });
+
+    expect(nonAssignable).toBeEnabled();
+    expect(nonAssignable).toBeChecked();
+
+    await userEvent.click(nonAssignable);
+
+    // Once removed it is no longer selectable, because the backend still says it
+    // may not be assigned.
+    expect(screen.getByRole('checkbox', { name: 'Jisc NBK' })).not.toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'Jisc NBK' })).toBeDisabled();
+
+    await save();
+
+    expect(sentInput().enabledDistributionPlatforms).toEqual([]);
+  });
+
+  it('applies no local linked-group closure when a linked platform is toggled', async () => {
+    asSuperuser();
+    renderComponent();
+
+    await startEditing();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
+
+    // OAPEN and DOAB share a linked group, but only the toggled platform changes.
+    expect(screen.getByRole('checkbox', { name: 'OAPEN' })).toBeChecked();
+    expect(screen.getByRole('checkbox', { name: 'DOAB' })).not.toBeChecked();
+
+    await save();
+
+    expect(sentInput().enabledDistributionPlatforms).toEqual(['INTERNET_ARCHIVE', 'OAPEN']);
+  });
+
+  it('explains linked-group ownership without acting on it', async () => {
+    asSuperuser();
+    renderComponent();
+
+    await startEditing();
+
+    expect(screen.getByText('linkedGroupNotice')).toBeInTheDocument();
+    expect(screen.getAllByText(/linkedGroupLabel/).length).toBeGreaterThan(0);
+  });
+
+  it('shows the server-normalized configuration, not the submitted selection, after a save', async () => {
+    asSuperuser();
+    // The server normalizes the desired set by adding the linked DOAB member and
+    // issues a fresh version token; the hook writes that to the query cache.
+    const normalized = {
+      subscriptionPackage: 'SPHINX',
+      effectiveCapabilities: ['OAI_PMH', 'METRICS_COLLECT'],
+      enabledDistributionPlatforms: [{ platform: 'INTERNET_ARCHIVE' }, { platform: 'OAPEN' }, { platform: 'DOAB' }],
+      updatedAt: '2026-08-01T11:00:00Z',
+    };
+    replaceServiceConfigurationMock.mockImplementation(async () => {
+      serviceConfigurationMock.mockReturnValue({ serviceConfiguration: normalized, isLoading: false, error: null });
+
+      return normalized;
+    });
+
+    renderComponent();
+
+    await startEditing();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
+    await save();
+
+    await waitFor(() => expect(screen.getByText('serviceConfigurationSaved')).toBeInTheDocument());
+
+    // DOAB was never selected locally but is displayed because the server said so.
+    expect(screen.getByText('DOAB')).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+  });
+
+  it('reports success only after the mutation resolves', async () => {
+    asSuperuser();
+    let resolveMutation: (value: unknown) => void = () => {};
+    replaceServiceConfigurationMock.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveMutation = resolve;
+        }),
+    );
+
+    renderComponent();
+
+    await startEditing();
+    await save();
+
+    expect(screen.queryByText('serviceConfigurationSaved')).not.toBeInTheDocument();
+
+    resolveMutation({ subscriptionPackage: 'SPHINX', effectiveCapabilities: [], enabledDistributionPlatforms: [] });
+
+    await waitFor(() => expect(screen.getByText('serviceConfigurationSaved')).toBeInTheDocument());
+  });
+
+  it('discards the edit session on cancel without calling the mutation', async () => {
+    asSuperuser();
+    renderComponent();
+
+    await startEditing();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
+    await userEvent.click(screen.getByRole('button', { name: 'cancelServiceConfigurationEdit' }));
+
+    expect(replaceServiceConfigurationMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+    expect(screen.getByText('Internet Archive')).toBeInTheDocument();
+  });
+
+  describe('STALE_SERVICE_CONFIGURATION', () => {
+    beforeEach(() => {
+      replaceServiceConfigurationMock.mockRejectedValue(
+        new GraphqlError('anything at all', { type: 'STALE_SERVICE_CONFIGURATION' }),
+      );
+    });
+
+    it('shows no success, explains the change and discards the stale session', async () => {
+      asSuperuser();
+      renderComponent();
+
+      await startEditing();
+      await save();
+
+      await waitFor(() => expect(screen.getByText('serviceConfigurationStale')).toBeInTheDocument());
+      expect(screen.queryByText('serviceConfigurationSaved')).not.toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'editServiceConfiguration' })).toBeInTheDocument();
+    });
+
+    it('never auto-retries the stale write', async () => {
+      asSuperuser();
+      renderComponent();
+
+      await startEditing();
+      await save();
+
+      await waitFor(() => expect(screen.getByText('serviceConfigurationStale')).toBeInTheDocument());
+      expect(replaceServiceConfigurationMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('never reuses the stale token: a new edit uses the refetched updatedAt', async () => {
+      asSuperuser();
+      const { rerender } = renderComponent();
+
+      await startEditing();
+      await save();
+
+      await waitFor(() => expect(screen.getByText('serviceConfigurationStale')).toBeInTheDocument());
+
+      // The hook refetched the protected configuration; the query now reports the
+      // server's newer token and its newer platform set.
+      serviceConfigurationMock.mockReturnValue({
+        serviceConfiguration: {
+          subscriptionPackage: 'SPHINX',
+          effectiveCapabilities: ['OAI_PMH'],
+          enabledDistributionPlatforms: [{ platform: 'OAPEN' }],
+          updatedAt: '2026-08-02T09:00:00Z',
+        },
+        isLoading: false,
+        error: null,
+      });
+      replaceServiceConfigurationMock.mockResolvedValue({
+        subscriptionPackage: 'SPHINX',
+        effectiveCapabilities: ['OAI_PMH'],
+        enabledDistributionPlatforms: [{ platform: 'OAPEN' }],
+        updatedAt: '2026-08-02T10:00:00Z',
+      });
+      rerender(
+        <ThemeProvider theme={theme}>
+          <PublisherServiceConfiguration />
+        </ThemeProvider>,
+      );
+
+      // A deliberate new edit/save, initialized from the freshly fetched state.
+      await startEditing();
+      await save();
+
+      expect(replaceServiceConfigurationMock.mock.calls[1][0].expectedUpdatedAt).toBe('2026-08-02T09:00:00Z');
+      expect(replaceServiceConfigurationMock.mock.calls[1][0].expectedUpdatedAt).not.toBe(LOADED_UPDATED_AT);
+      expect(replaceServiceConfigurationMock.mock.calls[1][0].enabledDistributionPlatforms).toEqual(['OAPEN']);
+    });
+
+    it('classifies from extensions.type, not from the message', async () => {
+      asSuperuser();
+      // Same message, no extensions: this must fall through to the generic path.
+      replaceServiceConfigurationMock.mockRejectedValue(new GraphqlError('STALE_SERVICE_CONFIGURATION'));
+
+      renderComponent();
+
+      await startEditing();
+      await save();
+
+      await waitFor(() => expect(screen.getByText(/serviceConfigurationSaveFailed/)).toBeInTheDocument());
+      expect(screen.queryByText('serviceConfigurationStale')).not.toBeInTheDocument();
+    });
+  });
+
+  describe('DISTRIBUTION_JOB_CREATION_DISABLED', () => {
+    beforeEach(() => {
+      replaceServiceConfigurationMock.mockRejectedValue(
+        new GraphqlError('anything at all', { type: 'DISTRIBUTION_JOB_CREATION_DISABLED' }),
+      );
+    });
+
+    it('reports the change as not saved and resets to server state', async () => {
+      asSuperuser();
+      renderComponent();
+
+      await startEditing();
+      await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
+      await save();
+
+      await waitFor(() => expect(screen.getByText('serviceConfigurationJobCreationDisabled')).toBeInTheDocument());
+      expect(screen.queryByText('serviceConfigurationSaved')).not.toBeInTheDocument();
+      expect(screen.queryByRole('checkbox')).not.toBeInTheDocument();
+      // The unsaved OAPEN activation is gone; only server state is displayed.
+      expect(screen.queryByText('OAPEN')).not.toBeInTheDocument();
+      expect(screen.getByText('Internet Archive')).toBeInTheDocument();
+    });
+
+    it('never auto-retries and creates no synthetic job state', async () => {
+      asSuperuser();
+      renderComponent();
+
+      await startEditing();
+      await save();
+
+      await waitFor(() => expect(screen.getByText('serviceConfigurationJobCreationDisabled')).toBeInTheDocument());
+      expect(replaceServiceConfigurationMock).toHaveBeenCalledTimes(1);
+
+      // The only thing reported is the failure itself: no pending, queued or
+      // otherwise synthesised job representation is rendered.
+      const statuses = screen.getAllByRole('status');
+
+      expect(statuses).toHaveLength(1);
+      expect(statuses[0]).toHaveTextContent('serviceConfigurationJobCreationDisabled');
+      expect(screen.queryByText(/pending|queued|in progress|created/i)).toBeNull();
+    });
+
+    it('classifies from extensions.type, not from the message', async () => {
+      asSuperuser();
+      replaceServiceConfigurationMock.mockRejectedValue(new GraphqlError('DISTRIBUTION_JOB_CREATION_DISABLED'));
+
+      renderComponent();
+
+      await startEditing();
+      await save();
+
+      await waitFor(() => expect(screen.getByText(/serviceConfigurationSaveFailed/)).toBeInTheDocument());
+      expect(screen.queryByText('serviceConfigurationJobCreationDisabled')).not.toBeInTheDocument();
+    });
+  });
+
+  it('leaves server-backed state authoritative on a generic failure', async () => {
+    asSuperuser();
+    replaceServiceConfigurationMock.mockRejectedValue(new Error('Network error'));
+
+    renderComponent();
+
+    await startEditing();
+    await userEvent.click(screen.getByRole('checkbox', { name: 'OAPEN' }));
+    await save();
+
+    await waitFor(() => expect(screen.getByText(/serviceConfigurationSaveFailed/)).toBeInTheDocument());
+    expect(screen.queryByText('serviceConfigurationSaved')).not.toBeInTheDocument();
+    expect(replaceServiceConfigurationMock).toHaveBeenCalledTimes(1);
+    // The read-only configuration still shows the last server-backed platforms.
+    expect(screen.getByRole('checkbox', { name: 'Internet Archive' })).toBeChecked();
   });
 });

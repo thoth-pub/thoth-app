@@ -1,8 +1,15 @@
+import type { ReplacePublisherServiceConfigurationInput } from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 import { BaseService } from '@/src/shared/interfaces/services';
 
 import { PublisherDtoMapper } from '../model/publisher.mapper';
-import { CREATE_CONTACT, CREATE_PUBLISHER, DELETE_CONTACT, UPDATE_CONTACT } from '../model/publisher.mutations';
+import {
+  CREATE_CONTACT,
+  CREATE_PUBLISHER,
+  DELETE_CONTACT,
+  REPLACE_PUBLISHER_SERVICE_CONFIGURATION,
+  UPDATE_CONTACT,
+} from '../model/publisher.mutations';
 import {
   GET_DISTRIBUTION_PLATFORM_OPTIONS,
   GET_PUBLISHER,
@@ -116,5 +123,18 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     const { distributionPlatformOptions } = await this.graphqlService.query(GET_DISTRIBUTION_PLATFORM_OPTIONS, {});
 
     return distributionPlatformOptions;
+  }
+
+  // APP-01B: replaces the publisher's complete desired service configuration. The
+  // caller's input - including the edit session's exact `expectedUpdatedAt` token -
+  // is passed through unchanged, and the server-normalized result is returned
+  // unchanged. Authorization, normalization and concurrency remain backend-owned.
+  async replacePublisherServiceConfiguration(input: ReplacePublisherServiceConfigurationInput) {
+    const { replacePublisherServiceConfiguration } = await this.graphqlService.mutation(
+      REPLACE_PUBLISHER_SERVICE_CONFIGURATION,
+      { data: input },
+    );
+
+    return replacePublisherServiceConfiguration;
   }
 }

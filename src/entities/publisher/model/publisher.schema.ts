@@ -33,9 +33,9 @@ export const UPDATE_PUBLISHER = graphql(`
   }
 `);
 
-// APP-01A read-only reads. Request only the fields this presentation needs; the
-// configuration version token (updatedAt) is intentionally omitted as it is only
-// used by the out-of-scope APP-01B replace mutation.
+// Protected read of the publisher's desired service configuration. `updatedAt` is
+// the backend's optimistic-concurrency version token: APP-01B sends the exact
+// value loaded for an edit session back as `expectedUpdatedAt`.
 export const GET_PUBLISHER_SERVICE_CONFIGURATION = graphql(`
   query GetPublisherServiceConfiguration($publisherId: Uuid!) {
     publisherServiceConfiguration(publisherId: $publisherId) {
@@ -44,15 +44,22 @@ export const GET_PUBLISHER_SERVICE_CONFIGURATION = graphql(`
       enabledDistributionPlatforms {
         platform
       }
+      updatedAt
     }
   }
 `);
 
+// Code-owned platform metadata. `assignable`, `linkedGroup` and
+// `backCatalogueBehaviour` are backend descriptors consumed as-is by the APP-01B
+// editor; the client holds no platform-policy table of its own.
 export const GET_DISTRIBUTION_PLATFORM_OPTIONS = graphql(`
   query GetDistributionPlatformOptions {
     distributionPlatformOptions {
       platform
       displayLabel
+      assignable
+      linkedGroup
+      backCatalogueBehaviour
     }
   }
 `);

@@ -1,6 +1,7 @@
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { DistributionPlatform, type ReplacePublisherServiceConfigurationInput, ThothPackage } from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 
 import { PublisherDtoMapper } from '../model/publisher.mapper';
@@ -255,6 +256,7 @@ describe('PublisherService', () => {
           subscriptionPackage: 'SPHINX',
           effectiveCapabilities: ['OAI_PMH'],
           enabledDistributionPlatforms: [{ platform: 'OAPEN' }],
+          updatedAt: '2026-08-01T10:00:00Z',
         },
       });
 
@@ -272,6 +274,7 @@ describe('PublisherService', () => {
         subscriptionPackage: 'PYRAMID',
         effectiveCapabilities: ['OAI_PMH', 'METRICS_COLLECT'],
         enabledDistributionPlatforms: [{ platform: 'OAPEN' }, { platform: 'INTERNET_ARCHIVE' }],
+        updatedAt: '2026-08-01T10:00:00Z',
       };
 
       (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -287,8 +290,20 @@ describe('PublisherService', () => {
   describe('getDistributionPlatformOptions', () => {
     it('should query and return the platform option metadata', async () => {
       const options = [
-        { platform: 'OAPEN', displayLabel: 'OAPEN' },
-        { platform: 'INTERNET_ARCHIVE', displayLabel: 'Internet Archive' },
+        {
+          platform: 'OAPEN',
+          displayLabel: 'OAPEN',
+          assignable: true,
+          linkedGroup: 'OAPEN_DOAB',
+          backCatalogueBehaviour: 'AUTOMATIC_PUSH',
+        },
+        {
+          platform: 'INTERNET_ARCHIVE',
+          displayLabel: 'Internet Archive',
+          assignable: true,
+          linkedGroup: null,
+          backCatalogueBehaviour: 'AUTOMATIC_PUSH',
+        },
       ];
 
       (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
@@ -299,6 +314,101 @@ describe('PublisherService', () => {
 
       expect(mockGraphqlService.query).toHaveBeenCalled();
       expect(result).toEqual(options);
+    });
+
+    it('should return backend assignability and linkage metadata unchanged', async () => {
+      const options = [
+        {
+          platform: 'JISC_NBK',
+          displayLabel: 'Jisc NBK',
+          assignable: false,
+          linkedGroup: null,
+          backCatalogueBehaviour: 'MANUAL',
+        },
+      ];
+
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+        distributionPlatformOptions: options,
+      });
+
+      const result = await service.getDistributionPlatformOptions();
+
+      expect(result).toBe(options);
+    });
+  });
+
+  describe('replacePublisherServiceConfiguration', () => {
+    const createInput = (
+      overrides?: Partial<ReplacePublisherServiceConfigurationInput>,
+    ): ReplacePublisherServiceConfigurationInput => ({
+      publisherId: faker.string.uuid(),
+      subscriptionPackage: ThothPackage.Sphinx,
+      enabledDistributionPlatforms: [DistributionPlatform.Oapen, DistributionPlatform.InternetArchive],
+      expectedUpdatedAt: '2026-08-01T10:00:00Z',
+      ...overrides,
+    });
+
+    it('should send the exact replace input, including expectedUpdatedAt, unchanged', async () => {
+      const input = createInput();
+
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+        replacePublisherServiceConfiguration: {
+          subscriptionPackage: 'SPHINX',
+          effectiveCapabilities: ['OAI_PMH'],
+          enabledDistributionPlatforms: [{ platform: 'OAPEN' }],
+          updatedAt: '2026-08-01T11:00:00Z',
+        },
+      });
+
+      await service.replacePublisherServiceConfiguration(input);
+
+      expect(mockGraphqlService.mutation).toHaveBeenCalledWith(expect.anything(), { data: input });
+      expect((mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mock.calls[0][1].data.expectedUpdatedAt).toBe(
+        input.expectedUpdatedAt,
+      );
+    });
+
+    it('should not add, drop or reorder any part of the desired platform set', async () => {
+      const input = createInput({ enabledDistributionPlatforms: [DistributionPlatform.Oapen] });
+
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+        replacePublisherServiceConfiguration: { enabledDistributionPlatforms: [] },
+      });
+
+      await service.replacePublisherServiceConfiguration(input);
+
+      const sentData = (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mock.calls[0][1].data;
+
+      expect(sentData.enabledDistributionPlatforms).toEqual([DistributionPlatform.Oapen]);
+    });
+
+    it('should return the server-normalized configuration unchanged', async () => {
+      // The server may normalize the desired set (for example by adding a linked
+      // platform). The service returns exactly what it was given.
+      const serverConfiguration = {
+        subscriptionPackage: 'PYRAMID',
+        effectiveCapabilities: ['OAI_PMH', 'METRICS_COLLECT'],
+        enabledDistributionPlatforms: [{ platform: 'OAPEN' }, { platform: 'DOAB' }],
+        updatedAt: '2026-08-01T11:00:00Z',
+      };
+
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+        replacePublisherServiceConfiguration: serverConfiguration,
+      });
+
+      const result = await service.replacePublisherServiceConfiguration(
+        createInput({ enabledDistributionPlatforms: [DistributionPlatform.Oapen] }),
+      );
+
+      expect(result).toBe(serverConfiguration);
+    });
+
+    it('should propagate mutation failures instead of reporting a save', async () => {
+      const failure = new Error('Configuration changed');
+
+      (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockRejectedValue(failure);
+
+      await expect(service.replacePublisherServiceConfiguration(createInput())).rejects.toBe(failure);
     });
   });
 });

@@ -3,6 +3,26 @@ import request, { ClientError, RequestDocument, Variables } from 'graphql-reques
 
 import { getAuthorizationHeaders } from '../utils';
 
+// Opaque, server-returned GraphQL error extensions. This transport layer never
+// interprets them: it only carries them so a feature-specific caller can read a
+// stable backend classification (e.g. `extensions.type`) instead of parsing a
+// human-readable message.
+export type GraphqlErrorExtensions = Record<string, unknown>;
+
+// Backwards-compatible error for GraphQL responses that carry errors. It keeps
+// the first error's message, which is what every existing caller already relies
+// on, and remains an `Error`. Nothing about the request (URL, headers, bearer
+// token, variables or full payload) is captured or logged here.
+export class GraphqlError extends Error {
+  readonly extensions?: GraphqlErrorExtensions;
+
+  constructor(message: string, extensions?: GraphqlErrorExtensions) {
+    super(message);
+    this.name = 'GraphqlError';
+    this.extensions = extensions;
+  }
+}
+
 export class GraphqlService {
   constructor(private readonly token: string) {
     this.token = token;
@@ -46,8 +66,10 @@ export class GraphqlService {
 
   private handleError(error: unknown): never {
     if (error instanceof ClientError) {
-      const message = error.response.errors?.[0]?.message ?? error.message;
-      throw new Error(message);
+      const firstError = error.response.errors?.[0];
+      const message = firstError?.message ?? error.message;
+
+      throw new GraphqlError(message, firstError?.extensions as GraphqlErrorExtensions | undefined);
     }
 
     throw error;

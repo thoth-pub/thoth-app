@@ -8,5 +8,16 @@
   "distributionPlatforms": "plataformas de distribución",
   "noCapabilities": "sin capacidades",
   "noDistributionPlatforms": "no hay plataformas de distribución habilitadas",
-  "serviceConfigurationUnavailable": "configuración del servicio no disponible"
+  "serviceConfigurationUnavailable": "configuración del servicio no disponible",
+  "editServiceConfiguration": "editar configuración del servicio",
+  "saveServiceConfiguration": "guardar",
+  "cancelServiceConfigurationEdit": "cancelar",
+  "serviceConfigurationSaved": "configuración del servicio guardada",
+  "serviceConfigurationSaveFailed": "configuración del servicio no guardada",
+  "serviceConfigurationStale": "esta configuración cambió desde que se cargó. se ha recargado la configuración actual; inicie una nueva edición para aplicar sus cambios.",
+  "serviceConfigurationJobCreationDisabled": "no guardada: la creación automática de trabajos de distribución está deshabilitada, por lo que la activación solicitada se revirtió y no se creó ningún trabajo.",
+  "distributionPlatformNotAssignable": "no asignable actualmente",
+  "linkedGroupLabel": "grupo vinculado",
+  "linkedGroupNotice": "las plataformas vinculadas son habilitadas y deshabilitadas conjuntamente por thoth. su selección se envía tal cual y el resultado guardado es el que devuelve el servidor.",
+  "backCatalogueBehaviour": "catálogo retrospectivo"
 }

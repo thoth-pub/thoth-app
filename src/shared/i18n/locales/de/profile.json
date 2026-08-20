@@ -8,5 +8,16 @@
   "distributionPlatforms": "Vertriebsplattformen",
   "noCapabilities": "keine Funktionen",
   "noDistributionPlatforms": "keine Vertriebsplattformen aktiviert",
-  "serviceConfigurationUnavailable": "Servicekonfiguration nicht verfügbar"
+  "serviceConfigurationUnavailable": "Servicekonfiguration nicht verfügbar",
+  "editServiceConfiguration": "Servicekonfiguration bearbeiten",
+  "saveServiceConfiguration": "speichern",
+  "cancelServiceConfigurationEdit": "abbrechen",
+  "serviceConfigurationSaved": "Servicekonfiguration gespeichert",
+  "serviceConfigurationSaveFailed": "Servicekonfiguration nicht gespeichert",
+  "serviceConfigurationStale": "diese Konfiguration hat sich seit dem Laden geändert. die aktuelle Konfiguration wurde neu geladen; beginnen Sie eine neue Bearbeitung, um Ihre Änderungen anzuwenden.",
+  "serviceConfigurationJobCreationDisabled": "nicht gespeichert: die automatische Erstellung von Vertriebsaufträgen ist deaktiviert, daher wurde die angeforderte Aktivierung zurückgenommen und kein Auftrag erstellt.",
+  "distributionPlatformNotAssignable": "derzeit nicht zuweisbar",
+  "linkedGroupLabel": "verknüpfte Gruppe",
+  "linkedGroupNotice": "verknüpfte Plattformen werden von Thoth gemeinsam aktiviert und deaktiviert. Ihre Auswahl wird unverändert übermittelt und das gespeicherte Ergebnis ist das, was der Server zurückgibt.",
+  "backCatalogueBehaviour": "Backkatalog"
 }

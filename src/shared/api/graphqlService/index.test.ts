@@ -1,3 +1,4 @@
+import type { TypedDocumentNode } from '@graphql-typed-document-node/core';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const mockRequest = vi.fn();
@@ -5,15 +6,15 @@ vi.mock('graphql-request', () => ({
   default: mockRequest,
   request: mockRequest,
   ClientError: class ClientError extends Error {
-    response: { errors?: Array<{ message: string }> };
-    constructor(message: string) {
+    response: { errors?: Array<{ message: string; extensions?: Record<string, unknown> }> };
+    constructor(message: string, extensions?: Record<string, unknown>) {
       super(message);
-      this.response = { errors: [{ message }] };
+      this.response = { errors: [{ message, ...(extensions ? { extensions } : {}) }] };
     }
   },
 }));
 
-const { GraphqlService } = await import('./index');
+const { GraphqlError, GraphqlService } = await import('./index');
 
 describe('GraphqlService', () => {
   let service: GraphqlService;
@@ -78,6 +79,81 @@ describe('GraphqlService', () => {
         { Authorization: 'Bearer test-token', 'Content-Type': 'application/json' },
       );
       expect(result).toBe(expectedData);
+    });
+  });
+
+  // The transport carries the first GraphQL error's server-returned extensions so
+  // feature code can read a stable backend classification instead of parsing a
+  // message. It never interprets them itself.
+  describe('structured GraphQL errors', () => {
+    const replaceDocument = 'mutation { replace }' as unknown as TypedDocumentNode<
+      unknown,
+      { data: { secret: string } }
+    >;
+
+    const rejectWith = async (error: unknown) => {
+      mockRequest.mockRejectedValue(error);
+
+      return service.mutation(replaceDocument, { data: { secret: 'variable-value' } }).catch((thrown) => thrown);
+    };
+
+    it('remains instanceof Error so existing callers keep working', async () => {
+      const { ClientError } = await import('graphql-request');
+
+      const thrown = await rejectWith(new ClientError('Not allowed'));
+
+      expect(thrown).toBeInstanceOf(Error);
+      expect(thrown).toBeInstanceOf(GraphqlError);
+    });
+
+    it('preserves the first GraphQL error message', async () => {
+      const { ClientError } = await import('graphql-request');
+
+      const thrown = await rejectWith(new ClientError('Not allowed'));
+
+      expect(thrown.message).toBe('Not allowed');
+    });
+
+    it('retains the first error extensions verbatim without interpreting them', async () => {
+      const { ClientError } = await import('graphql-request');
+      const extensions = { type: 'STALE_SERVICE_CONFIGURATION', anythingElse: { nested: true } };
+
+      const thrown = await rejectWith(new ClientError('Configuration changed', extensions));
+
+      expect(thrown.extensions).toEqual(extensions);
+      expect(thrown.extensions?.type).toBe('STALE_SERVICE_CONFIGURATION');
+    });
+
+    it('leaves extensions undefined when the GraphQL error carries none', async () => {
+      const { ClientError } = await import('graphql-request');
+
+      const thrown = await rejectWith(new ClientError('Not allowed'));
+
+      expect(thrown.extensions).toBeUndefined();
+    });
+
+    it('exposes no token, headers, variables or request payload', async () => {
+      const { ClientError } = await import('graphql-request');
+
+      const thrown = await rejectWith(new ClientError('Not allowed', { type: 'SOMETHING' }));
+
+      expect(thrown).not.toHaveProperty('request');
+      expect(thrown).not.toHaveProperty('headers');
+      expect(thrown).not.toHaveProperty('variables');
+      expect(thrown).not.toHaveProperty('response');
+      const carried = JSON.stringify({ message: thrown.message, extensions: thrown.extensions });
+
+      expect(carried).not.toContain('test-token');
+      expect(carried).not.toContain('variable-value');
+    });
+
+    it('rethrows a non-GraphQL error unchanged', async () => {
+      const networkError = new Error('Network error');
+
+      const thrown = await rejectWith(networkError);
+
+      expect(thrown).toBe(networkError);
+      expect(thrown).not.toBeInstanceOf(GraphqlError);
     });
   });
 });
