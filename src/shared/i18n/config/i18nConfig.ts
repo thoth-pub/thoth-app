@@ -15,6 +15,7 @@ import markdownDe from '../locales/de/markdown';
 import navigationDe from '../locales/de/navigation.json';
 import notificationsDe from '../locales/de/notifications.json';
 import profileDe from '../locales/de/profile.json';
+import publishersDe from '../locales/de/publishers.json';
 import seriesDe from '../locales/de/series.json';
 import setsDe from '../locales/de/sets.json';
 import warningsDe from '../locales/de/warnings.json';
@@ -28,6 +29,7 @@ import markdownEn from '../locales/en/markdown';
 import navigationEn from '../locales/en/navigation.json';
 import notificationsEn from '../locales/en/notifications.json';
 import profileEn from '../locales/en/profile.json';
+import publishersEn from '../locales/en/publishers.json';
 import seriesEn from '../locales/en/series.json';
 import setsEn from '../locales/en/sets.json';
 import warningsEn from '../locales/en/warnings.json';
@@ -41,6 +43,7 @@ import markdownEs from '../locales/es/markdown';
 import navigationEs from '../locales/es/navigation.json';
 import notificationsEs from '../locales/es/notifications.json';
 import profileEs from '../locales/es/profile.json';
+import publishersEs from '../locales/es/publishers.json';
 import seriesEs from '../locales/es/series.json';
 import setsEs from '../locales/es/sets.json';
 import warningsEs from '../locales/es/warnings.json';
@@ -54,6 +57,7 @@ import markdownPt from '../locales/pt/markdown';
 import navigationPt from '../locales/pt/navigation.json';
 import notificationsPt from '../locales/pt/notifications.json';
 import profilePt from '../locales/pt/profile.json';
+import publishersPt from '../locales/pt/publishers.json';
 import seriesPt from '../locales/pt/series.json';
 import setsPt from '../locales/pt/sets.json';
 import warningsPt from '../locales/pt/warnings.json';
@@ -75,6 +79,7 @@ i18n
         sets: setsEn,
         series: seriesEn,
         works: worksEn,
+        publishers: publishersEn,
         warnings: warningsEn,
         notifications: notificationsEn,
       },
@@ -88,6 +93,7 @@ i18n
         sets: setsPt,
         series: seriesPt,
         works: worksPt,
+        publishers: publishersPt,
         warnings: warningsPt,
         notifications: notificationsPt,
       },
@@ -101,6 +107,7 @@ i18n
         sets: setsEs,
         series: seriesEs,
         works: worksEs,
+        publishers: publishersEs,
         warnings: warningsEs,
         notifications: notificationsEs,
       },
@@ -114,6 +121,7 @@ i18n
         sets: setsDe,
         series: seriesDe,
         works: worksDe,
+        publishers: publishersDe,
         warnings: warningsDe,
         notifications: notificationsDe,
       },

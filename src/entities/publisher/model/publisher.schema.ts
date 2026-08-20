@@ -81,6 +81,79 @@ export const GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT = graphql(`
   }
 `);
 
+// Superuser-only consolidated publisher administration report (APP-02A). One
+// paginated read is the row authority for the whole staff index: no per-row
+// protected configuration or job reads. Every semantic filter, the page bounds
+// and the ordering are explicit non-null variables, so the request never leans
+// on an implicit backend default. Only the bounded fields the index presents
+// are selected: no attempt history, claim/lease internals or worker controls.
+export const GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT = graphql(`
+  query GetPublisherServiceConfigurationReport(
+    $publishers: [Uuid!]!
+    $packages: [ThothPackage!]!
+    $enabledPlatforms: [DistributionPlatform!]!
+    $jobStatuses: [DistributionJobStatus!]!
+    $withoutBackCatalogueJob: Boolean
+    $limit: Int!
+    $offset: Int!
+    $order: PublisherOrderBy!
+  ) {
+    publisherServiceConfigurations(
+      publishers: $publishers
+      packages: $packages
+      enabledPlatforms: $enabledPlatforms
+      jobStatuses: $jobStatuses
+      withoutBackCatalogueJob: $withoutBackCatalogueJob
+      limit: $limit
+      offset: $offset
+      order: $order
+    ) {
+      configuration {
+        publisher {
+          publisherId
+          publisherName
+        }
+        subscriptionPackage
+        enabledDistributionPlatforms {
+          platform
+        }
+      }
+      lastChange {
+        changedAt
+      }
+      latestBackCatalogueJob {
+        distributionJobId
+        status
+        targets {
+          platform
+        }
+        updatedAt
+      }
+    }
+  }
+`);
+
+// Matching count for the APP-02A report. It takes exactly the report's semantic
+// filter dimensions and nothing else - no pagination, no order - so the total
+// always describes the same filtered population as the list above.
+export const GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT_COUNT = graphql(`
+  query GetPublisherServiceConfigurationReportCount(
+    $publishers: [Uuid!]!
+    $packages: [ThothPackage!]!
+    $enabledPlatforms: [DistributionPlatform!]!
+    $jobStatuses: [DistributionJobStatus!]!
+    $withoutBackCatalogueJob: Boolean
+  ) {
+    publisherServiceConfigurationCount(
+      publishers: $publishers
+      packages: $packages
+      enabledPlatforms: $enabledPlatforms
+      jobStatuses: $jobStatuses
+      withoutBackCatalogueJob: $withoutBackCatalogueJob
+    )
+  }
+`);
+
 // Code-owned platform metadata. `assignable`, `linkedGroup` and
 // `backCatalogueBehaviour` are backend descriptors consumed as-is by the APP-01B
 // editor; the client holds no platform-policy table of its own.

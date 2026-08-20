@@ -1,0 +1,247 @@
+'use client';
+
+import type { GetPublisherServiceConfigurationReportQuery } from '@/gql/graphql';
+import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
+import {
+  Chip,
+  ContentSection,
+  Pagination,
+  Skeleton,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TableWrapper,
+  TranslatedContent,
+  Typography,
+} from '@/src/shared/ui';
+
+import PublisherAdministrationHeader from './PublisherAdministrationHeader';
+import usePublisherAdministration from './usePublisherAdministration';
+
+type ReportSummary = GetPublisherServiceConfigurationReportQuery['publisherServiceConfigurations'][number];
+
+// APP-02A: read-only consolidated superuser publisher administration index.
+//
+// Every presented fact is an API fact from the one paginated report read: row
+// identity and name come from `configuration.publisher`, the package is the
+// exact `subscriptionPackage`, platform membership comes only from
+// `enabledDistributionPlatforms` (option metadata supplies display labels and
+// nothing else), the latest job is shown exactly as reported (a null job means
+// only that no back-catalogue job is recorded, and a report error is shown as
+// unavailable, never as "no job"), and the last configuration change comes only
+// from `lastChange`. There is no edit, mutation or active-publisher switching
+// behavior anywhere in this widget.
+const PublisherAdministration = () => {
+  const {
+    viewState,
+    summaries,
+    countError,
+    totalPagesCount,
+    activePage,
+    changePage,
+    selectedPublisherIds,
+    changeSelectedPublisherIds,
+    selectedPackages,
+    changeSelectedPackages,
+    selectedPlatforms,
+    changeSelectedPlatforms,
+    selectedJobStatuses,
+    changeSelectedJobStatuses,
+    jobPresence,
+    changeJobPresence,
+    publisherFilterOptions,
+    packageFilterOptions,
+    platformFilterOptions,
+    jobStatusFilterOptions,
+    getPlatformDisplayLabel,
+  } = usePublisherAdministration();
+
+  // User identity is not authoritative yet: nothing staff-only is presented and
+  // no report request has been started.
+  if (viewState === 'identityPending') {
+    return (
+      <ContentSection>
+        <Skeleton variant="rounded" height={96} />
+      </ContentSection>
+    );
+  }
+
+  // Authoritative non-superuser: bounded fail-closed presentation. No report or
+  // count request was executed and no staff report data exists to expose.
+  if (viewState === 'notAuthorized') {
+    return (
+      <ContentSection>
+        <Typography>
+          <TranslatedContent content="notAuthorized" namespace={NAMESPACES.enum.publishers} />
+        </Typography>
+      </ContentSection>
+    );
+  }
+
+  const renderLatestJobCell = (summary: ReportSummary) => {
+    const latestJob = summary.latestBackCatalogueJob;
+
+    // A valid summary with a null job means only that no back-catalogue
+    // onboarding job is recorded - no success, failure, requirement or
+    // dissemination state is implied or displayed.
+    if (!latestJob) {
+      return (
+        <Typography variant="body2">
+          <TranslatedContent content="noBackCatalogueJobRecorded" namespace={NAMESPACES.enum.publishers} />
+        </Typography>
+      );
+    }
+
+    return (
+      <div className="flex flex-col gap-1">
+        {/* The exact API status string; never derived from configuration and
+            never presented as observed remote delivery. */}
+        <Typography variant="body2">{latestJob.status}</Typography>
+        <div className="flex flex-wrap gap-1">
+          {/* Target membership comes only from the job's own targets; option
+              metadata supplies display labels and nothing else. */}
+          {latestJob.targets.map((target) => (
+            <Chip key={target.platform} size="small" label={getPlatformDisplayLabel(target.platform)} />
+          ))}
+        </div>
+        <Typography variant="caption">
+          <TranslatedContent content="jobUpdatedAt" namespace={NAMESPACES.enum.publishers} />
+          {`: ${latestJob.updatedAt}`}
+        </Typography>
+      </div>
+    );
+  };
+
+  const renderRow = (summary: ReportSummary) => {
+    const { publisher, subscriptionPackage, enabledDistributionPlatforms } = summary.configuration;
+
+    return (
+      // Row identity is the publisher's own ID from the report configuration -
+      // never row position, never the global active publisher.
+      <TableRow key={publisher.publisherId}>
+        <TableCell>
+          <Typography variant="body2">{publisher.publisherName}</Typography>
+        </TableCell>
+        <TableCell>
+          <Typography variant="body2">{subscriptionPackage}</Typography>
+        </TableCell>
+        <TableCell>
+          {enabledDistributionPlatforms.length > 0 ? (
+            <div className="flex flex-wrap gap-1">
+              {enabledDistributionPlatforms.map((assignment) => (
+                <Chip key={assignment.platform} size="small" label={getPlatformDisplayLabel(assignment.platform)} />
+              ))}
+            </div>
+          ) : (
+            <Typography variant="body2">
+              <TranslatedContent content="noDistributionPlatforms" namespace={NAMESPACES.enum.publishers} />
+            </Typography>
+          )}
+        </TableCell>
+        <TableCell>{renderLatestJobCell(summary)}</TableCell>
+        <TableCell>
+          {/* Last-change facts come only from the report's `lastChange` audit
+              metadata; nothing is synthesized from configuration or publisher
+              timestamps. */}
+          {summary.lastChange ? (
+            <Typography variant="body2">{summary.lastChange.changedAt}</Typography>
+          ) : (
+            <Typography variant="body2">
+              <TranslatedContent content="noLastChangeRecorded" namespace={NAMESPACES.enum.publishers} />
+            </Typography>
+          )}
+        </TableCell>
+      </TableRow>
+    );
+  };
+
+  return (
+    <div className="flex flex-col gap-4">
+      <PublisherAdministrationHeader
+        selectedPublisherIds={selectedPublisherIds}
+        changeSelectedPublisherIds={changeSelectedPublisherIds}
+        selectedPackages={selectedPackages}
+        changeSelectedPackages={changeSelectedPackages}
+        selectedPlatforms={selectedPlatforms}
+        changeSelectedPlatforms={changeSelectedPlatforms}
+        selectedJobStatuses={selectedJobStatuses}
+        changeSelectedJobStatuses={changeSelectedJobStatuses}
+        jobPresence={jobPresence}
+        changeJobPresence={changeJobPresence}
+        publisherFilterOptions={publisherFilterOptions}
+        packageFilterOptions={packageFilterOptions}
+        platformFilterOptions={platformFilterOptions}
+        jobStatusFilterOptions={jobStatusFilterOptions}
+        getPlatformDisplayLabel={getPlatformDisplayLabel}
+      />
+
+      <ContentSection>
+        {viewState === 'reportLoading' && <Skeleton variant="rounded" height={192} />}
+
+        {/* Truthful failure state: a failed report shows unavailable - it is
+            never rendered as an empty result or as "no job" rows. */}
+        {viewState === 'reportError' && (
+          <Typography>
+            <TranslatedContent content="reportUnavailable" namespace={NAMESPACES.enum.publishers} />
+          </Typography>
+        )}
+
+        {/* A valid empty page: no publishers match the current filters. */}
+        {viewState === 'emptyReport' && (
+          <Typography>
+            <TranslatedContent content="emptyReport" namespace={NAMESPACES.enum.publishers} />
+          </Typography>
+        )}
+
+        {viewState === 'rows' && summaries && (
+          <>
+            {/* Durable job state is worker-reported; even SUCCEEDED is not
+                evidence that any destination received or accepted anything. */}
+            <Typography variant="body2">
+              <TranslatedContent content="jobDeliveryDisclaimer" namespace={NAMESPACES.enum.publishers} />
+            </Typography>
+            <TableWrapper>
+              <TableHead>
+                <TableRow>
+                  <TableCell>
+                    <TranslatedContent content="publisherColumn" namespace={NAMESPACES.enum.publishers} />
+                  </TableCell>
+                  <TableCell>
+                    <TranslatedContent content="packageColumn" namespace={NAMESPACES.enum.publishers} />
+                  </TableCell>
+                  <TableCell>
+                    <TranslatedContent content="platformsColumn" namespace={NAMESPACES.enum.publishers} />
+                  </TableCell>
+                  <TableCell>
+                    <TranslatedContent content="latestJobColumn" namespace={NAMESPACES.enum.publishers} />
+                  </TableCell>
+                  <TableCell>
+                    <TranslatedContent content="lastChangeColumn" namespace={NAMESPACES.enum.publishers} />
+                  </TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>{summaries.map(renderRow)}</TableBody>
+            </TableWrapper>
+
+            {/* Pagination is server-backed and count-derived. If the count read
+                failed, that is reported instead of estimating page numbers. */}
+            {countError ? (
+              <Typography variant="caption">
+                <TranslatedContent content="totalCountUnavailable" namespace={NAMESPACES.enum.publishers} />
+              </Typography>
+            ) : (
+              totalPagesCount > 1 && (
+                <div className="flex justify-center">
+                  <Pagination count={totalPagesCount} page={activePage} onChange={(_, page) => changePage(page)} />
+                </div>
+              )
+            )}
+          </>
+        )}
+      </ContentSection>
+    </div>
+  );
+};
+
+export default PublisherAdministration;
