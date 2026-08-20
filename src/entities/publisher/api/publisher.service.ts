@@ -14,6 +14,7 @@ import {
   GET_DISTRIBUTION_PLATFORM_OPTIONS,
   GET_PUBLISHER,
   GET_PUBLISHER_ADMIN,
+  GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT,
   GET_PUBLISHER_SERVICE_CONFIGURATION,
   GET_PUBLISHERS,
   UPDATE_PUBLISHER,
@@ -123,6 +124,28 @@ export class PublisherService extends BaseService<PublisherEntity, PublisherDto,
     const { distributionPlatformOptions } = await this.graphqlService.query(GET_DISTRIBUTION_PLATFORM_OPTIONS, {});
 
     return distributionPlatformOptions;
+  }
+
+  // APP-01C: read-only, superuser-only report read of one publisher's latest
+  // back-catalogue distribution job. The report is requested for exactly the
+  // given publisher and the returned summary is verified to belong to it. The
+  // matched summary is returned unchanged, so a valid summary whose
+  // `latestBackCatalogueJob` is null stays null (meaning only: no job is
+  // recorded). A response with no summary for the requested publisher returns
+  // null instead, so the caller can tell "no/mismatched summary" apart from
+  // "valid summary with no recorded job"; nothing is ever fabricated, and a
+  // request error propagates as an error.
+  async getPublisherBackCatalogueJobReport(publisherId: PublisherId) {
+    const { publisherServiceConfigurations } = await this.graphqlService.query(
+      GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT,
+      { publisherId },
+    );
+
+    const summary = publisherServiceConfigurations.find(
+      (candidate) => candidate.configuration.publisher.publisherId === publisherId,
+    );
+
+    return summary ?? null;
   }
 
   // APP-01B: replaces the publisher's complete desired service configuration. The

@@ -24,6 +24,7 @@ import {
 } from '@/src/shared/ui';
 
 import useDistributionPlatformOptions from '../../api/hooks/useDistributionPlatformOptions';
+import usePublisherBackCatalogueJob from '../../api/hooks/usePublisherBackCatalogueJob';
 import usePublisherServiceConfiguration from '../../api/hooks/usePublisherServiceConfiguration';
 import useReplacePublisherServiceConfiguration, {
   DISTRIBUTION_JOB_CREATION_DISABLED,
@@ -79,6 +80,16 @@ const PublisherServiceConfiguration = () => {
   const { distributionPlatformOptions } = useDistributionPlatformOptions();
   const { user } = useUser();
   const { replaceServiceConfiguration, loading } = useReplacePublisherServiceConfiguration();
+
+  // APP-01C: superuser-only latest back-catalogue job report for the active
+  // publisher. The hook is always invoked; the staff report request itself is
+  // suppressed via its `enabled` mechanism for ordinary publishers, so they
+  // execute no report query and get no job section below.
+  const {
+    report: jobReport,
+    isLoading: isJobReportLoading,
+    error: jobReportError,
+  } = usePublisherBackCatalogueJob(publisherId, user.isSuperuser);
 
   const [editSession, setEditSession] = useState<EditSession | null>(null);
   const [outcome, setOutcome] = useState<SaveOutcome | null>(null);
@@ -403,6 +414,99 @@ const PublisherServiceConfiguration = () => {
                 </>
               )}
             </Typography>
+          )}
+        </ContentWrapper>
+      )}
+
+      {/* APP-01C: staff-only latest back-catalogue job report. Everything shown
+          is an API fact from the superuser report read: the section never derives
+          job state from the configuration above, never infers why a job is
+          absent, and renders an error/missing summary as unavailable rather than
+          as "no job". */}
+      {isSuperuser && (
+        <ContentWrapper>
+          <FormFieldLabel component="div" label="latestBackCatalogueJob" namespace={NAMESPACES.enum.profile} />
+          {isJobReportLoading ? (
+            <Skeleton variant="rounded" height={64} />
+          ) : jobReportError || !jobReport ? (
+            <Typography>
+              <TranslatedContent content="backCatalogueJobUnavailable" namespace={NAMESPACES.enum.profile} />
+            </Typography>
+          ) : !jobReport.latestBackCatalogueJob ? (
+            // A valid summary with a null job means only that no job is recorded:
+            // no status, outcome or reason for the absence is displayed.
+            <Typography>
+              <TranslatedContent content="noBackCatalogueJobRecorded" namespace={NAMESPACES.enum.profile} />
+            </Typography>
+          ) : (
+            <div className="flex flex-col gap-2">
+              {/* Durable job state is worker-reported; it is not evidence that
+                  any destination received or accepted anything. */}
+              <Typography variant="body2">
+                <TranslatedContent content="backCatalogueJobDeliveryDisclaimer" namespace={NAMESPACES.enum.profile} />
+              </Typography>
+              <Typography>
+                <TranslatedContent content="backCatalogueJobStatus" namespace={NAMESPACES.enum.profile} />
+                {`: ${jobReport.latestBackCatalogueJob.status}`}
+              </Typography>
+              <div className="flex flex-col gap-1">
+                <Typography variant="body2">
+                  <TranslatedContent content="backCatalogueJobTargets" namespace={NAMESPACES.enum.profile} />
+                </Typography>
+                <div className="flex flex-wrap gap-2">
+                  {/* Target membership comes only from the job's own targets;
+                      option metadata supplies display labels and nothing else. */}
+                  {jobReport.latestBackCatalogueJob.targets.map((target) => {
+                    const displayLabel =
+                      platformOptions.find((option) => option.platform === target.platform)?.displayLabel ??
+                      target.platform;
+
+                    return <Chip key={target.platform} label={displayLabel} />;
+                  })}
+                </div>
+              </div>
+              <Typography>
+                <TranslatedContent content="backCatalogueJobAttemptCount" namespace={NAMESPACES.enum.profile} />
+                {`: ${jobReport.latestBackCatalogueJob.attemptCount}`}
+              </Typography>
+              {jobReport.latestBackCatalogueJob.cancellationReason && (
+                <Typography>
+                  <TranslatedContent
+                    content="backCatalogueJobCancellationReason"
+                    namespace={NAMESPACES.enum.profile}
+                  />
+                  {`: ${jobReport.latestBackCatalogueJob.cancellationReason}`}
+                </Typography>
+              )}
+              {/* Most recent worker-reported failure information. Legitimately
+                  absent even for a FAILED job; nothing is invented in its place. */}
+              {jobReport.latestBackCatalogueJob.lastErrorCode && (
+                <Typography>
+                  <TranslatedContent content="backCatalogueJobLastErrorCode" namespace={NAMESPACES.enum.profile} />
+                  {`: ${jobReport.latestBackCatalogueJob.lastErrorCode}`}
+                </Typography>
+              )}
+              {jobReport.latestBackCatalogueJob.lastErrorDetail && (
+                <Typography>
+                  <TranslatedContent content="backCatalogueJobLastErrorDetail" namespace={NAMESPACES.enum.profile} />
+                  {`: ${jobReport.latestBackCatalogueJob.lastErrorDetail}`}
+                </Typography>
+              )}
+              <Typography variant="body2">
+                <TranslatedContent content="backCatalogueJobCreatedAt" namespace={NAMESPACES.enum.profile} />
+                {`: ${jobReport.latestBackCatalogueJob.createdAt}`}
+              </Typography>
+              <Typography variant="body2">
+                <TranslatedContent content="backCatalogueJobUpdatedAt" namespace={NAMESPACES.enum.profile} />
+                {`: ${jobReport.latestBackCatalogueJob.updatedAt}`}
+              </Typography>
+              {jobReport.latestBackCatalogueJob.completedAt && (
+                <Typography variant="body2">
+                  <TranslatedContent content="backCatalogueJobCompletedAt" namespace={NAMESPACES.enum.profile} />
+                  {`: ${jobReport.latestBackCatalogueJob.completedAt}`}
+                </Typography>
+              )}
+            </div>
           )}
         </ContentWrapper>
       )}

@@ -11,6 +11,7 @@ const serviceConfigurationMock = vi.fn();
 const platformOptionsMock = vi.fn();
 const useUserMock = vi.fn();
 const replaceServiceConfigurationMock = vi.fn();
+const backCatalogueJobMock = vi.fn();
 
 vi.mock('../../../store/hooks/usePublisherStateMachine', () => ({
   default: () => stateMachineMock(),
@@ -20,6 +21,12 @@ vi.mock('../../../api/hooks/usePublisherServiceConfiguration', () => ({
 }));
 vi.mock('../../../api/hooks/useDistributionPlatformOptions', () => ({
   default: () => platformOptionsMock(),
+}));
+// The arguments are captured so the tests can prove the component wires the
+// exact active publisher and its superuser presentation eligibility into the
+// report hook, whose `enabled` mechanism is what suppresses the staff request.
+vi.mock('../../../api/hooks/usePublisherBackCatalogueJob', () => ({
+  default: (publisherId: string, isSuperuser: boolean) => backCatalogueJobMock(publisherId, isSuperuser),
 }));
 // Only the mutation hook itself is replaced. The real classification helper and
 // classification constants are kept so these tests exercise the same
@@ -88,6 +95,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   stateMachineMock.mockReturnValue({ activePublisher: { id: 'pub-1' } });
   useUserMock.mockReturnValue({ user: { isSuperuser: false } });
+  backCatalogueJobMock.mockReturnValue({ report: undefined, isLoading: false, error: null });
   replaceServiceConfigurationMock.mockResolvedValue({
     subscriptionPackage: 'SPHINX',
     effectiveCapabilities: ['OAI_PMH', 'METRICS_COLLECT'],
@@ -806,5 +814,273 @@ describe('PublisherServiceConfiguration superuser editing', () => {
       expect(screen.getByRole('checkbox', { name: 'OAPEN' })).toBeChecked();
       expect(screen.queryByText(/serviceConfigurationSaveFailed/)).not.toBeInTheDocument();
     });
+  });
+});
+
+describe('PublisherServiceConfiguration latest back-catalogue job (APP-01C)', () => {
+  const createJob = (overrides?: Record<string, unknown>) => ({
+    distributionJobId: 'job-1',
+    status: 'SUCCEEDED',
+    attemptCount: 3,
+    targets: [{ platform: 'INTERNET_ARCHIVE' }],
+    cancellationReason: null,
+    lastErrorCode: null,
+    lastErrorDetail: null,
+    createdAt: '2026-08-10T10:00:00Z',
+    updatedAt: '2026-08-11T11:00:00Z',
+    completedAt: null,
+    ...overrides,
+  });
+
+  const withJobReport = (latestBackCatalogueJob: ReturnType<typeof createJob> | null, publisherId = 'pub-1') =>
+    backCatalogueJobMock.mockReturnValue({
+      report: { configuration: { publisher: { publisherId } }, latestBackCatalogueJob },
+      isLoading: false,
+      error: null,
+    });
+
+  it('passes the active publisher and non-superuser eligibility to the report hook for ordinary users', () => {
+    renderComponent();
+
+    // Suppression of the staff request lives in the hook's `enabled` mechanism;
+    // the component's part is to wire eligibility through truthfully.
+    expect(backCatalogueJobMock).toHaveBeenCalledWith('pub-1', false);
+  });
+
+  it('passes superuser eligibility and the active publisher to the report hook', () => {
+    asSuperuser();
+
+    renderComponent();
+
+    expect(backCatalogueJobMock).toHaveBeenCalledWith('pub-1', true);
+  });
+
+  it('renders no job section for ordinary publishers even when report data would exist', () => {
+    withJobReport(createJob());
+
+    renderComponent();
+
+    expect(screen.queryByText('latestBackCatalogueJob')).not.toBeInTheDocument();
+    expect(screen.queryByText(/SUCCEEDED/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/backCatalogueJob/)).not.toBeInTheDocument();
+  });
+
+  it('shows a bounded loading state without fabricating job state', () => {
+    asSuperuser();
+    backCatalogueJobMock.mockReturnValue({ report: undefined, isLoading: true, error: null });
+
+    const { container } = renderComponent();
+
+    expect(screen.getByText('latestBackCatalogueJob')).toBeInTheDocument();
+    expect(container.querySelector('.MuiSkeleton-root')).toBeInTheDocument();
+    expect(screen.queryByText('noBackCatalogueJobRecorded')).not.toBeInTheDocument();
+    expect(screen.queryByText('backCatalogueJobUnavailable')).not.toBeInTheDocument();
+  });
+
+  it('renders a report error as unavailable, never as no job', () => {
+    asSuperuser();
+    backCatalogueJobMock.mockReturnValue({ report: undefined, isLoading: false, error: new Error('FORBIDDEN') });
+
+    renderComponent();
+
+    expect(screen.getByText('backCatalogueJobUnavailable')).toBeInTheDocument();
+    expect(screen.queryByText('noBackCatalogueJobRecorded')).not.toBeInTheDocument();
+  });
+
+  it('renders a missing/mismatched summary as unavailable, never as no job', () => {
+    asSuperuser();
+    backCatalogueJobMock.mockReturnValue({ report: null, isLoading: false, error: null });
+
+    renderComponent();
+
+    expect(screen.getByText('backCatalogueJobUnavailable')).toBeInTheDocument();
+    expect(screen.queryByText('noBackCatalogueJobRecorded')).not.toBeInTheDocument();
+  });
+
+  it('renders a valid null job as the explicit no-recorded-job state, with no status', () => {
+    asSuperuser();
+    withJobReport(null);
+
+    renderComponent();
+
+    expect(screen.getByText('noBackCatalogueJobRecorded')).toBeInTheDocument();
+    expect(screen.queryByText('backCatalogueJobUnavailable')).not.toBeInTheDocument();
+    expect(screen.queryByText(/backCatalogueJobStatus/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/PENDING|RUNNING|SUCCEEDED|FAILED|CANCELLED/)).not.toBeInTheDocument();
+  });
+
+  it('displays the exact API status, not one derived from enabled platforms', () => {
+    asSuperuser();
+    // The configuration has INTERNET_ARCHIVE enabled, yet the job is FAILED with
+    // a different target: everything shown comes from the job itself.
+    withJobReport(createJob({ status: 'FAILED', targets: [{ platform: 'OAPEN' }] }));
+
+    renderComponent();
+
+    expect(screen.getByText(/backCatalogueJobStatus/)).toHaveTextContent('backCatalogueJobStatus: FAILED');
+    expect(screen.queryByText(/SUCCEEDED/)).not.toBeInTheDocument();
+  });
+
+  it('takes target membership only from the job targets, with backend display labels', () => {
+    asSuperuser();
+    // Enabled configuration platform: JISC_NBK. Job target: INTERNET_ARCHIVE.
+    serviceConfigurationMock.mockReturnValue({
+      serviceConfiguration: {
+        subscriptionPackage: 'SPHINX',
+        effectiveCapabilities: ['OAI_PMH'],
+        enabledDistributionPlatforms: [{ platform: 'JISC_NBK' }],
+        updatedAt: LOADED_UPDATED_AT,
+      },
+      isLoading: false,
+      error: null,
+    });
+    withJobReport(createJob({ targets: [{ platform: 'INTERNET_ARCHIVE' }] }));
+
+    renderComponent();
+
+    // The job target renders via its backend display label, not the raw code.
+    expect(screen.getAllByText('Internet Archive')).toHaveLength(1);
+    expect(screen.queryByText('INTERNET_ARCHIVE')).not.toBeInTheDocument();
+    // The enabled-but-untargeted platform appears only in the configuration
+    // section; the label lookup never adds it to the job's target set.
+    expect(screen.getAllByText('Jisc NBK')).toHaveLength(1);
+  });
+
+  it('falls back to the raw platform code without changing target membership when metadata is missing', () => {
+    asSuperuser();
+    withJobReport(createJob({ targets: [{ platform: 'OAPEN' }, { platform: 'FUTURE_PLATFORM' }] }));
+
+    renderComponent();
+
+    expect(screen.getByText('OAPEN')).toBeInTheDocument();
+    expect(screen.getByText('FUTURE_PLATFORM')).toBeInTheDocument();
+  });
+
+  it('displays the exact attempt count and infers no retry budget or outcome', () => {
+    asSuperuser();
+    withJobReport(createJob({ attemptCount: 7 }));
+
+    renderComponent();
+
+    expect(screen.getByText(/backCatalogueJobAttemptCount/)).toHaveTextContent('backCatalogueJobAttemptCount: 7');
+    expect(screen.queryByText(/remaining|retry|maximum|budget/i)).not.toBeInTheDocument();
+  });
+
+  it('shows worker-reported failure fields only when supplied, under worker-reported labels', () => {
+    asSuperuser();
+    withJobReport(
+      createJob({ status: 'FAILED', lastErrorCode: 'DESTINATION_REJECTED', lastErrorDetail: 'bounded detail' }),
+    );
+
+    renderComponent();
+
+    expect(screen.getByText(/backCatalogueJobLastErrorCode/)).toHaveTextContent(
+      'backCatalogueJobLastErrorCode: DESTINATION_REJECTED',
+    );
+    expect(screen.getByText(/backCatalogueJobLastErrorDetail/)).toHaveTextContent(
+      'backCatalogueJobLastErrorDetail: bounded detail',
+    );
+  });
+
+  it('invents no failure reason for a failed job with null failure fields', () => {
+    asSuperuser();
+    withJobReport(createJob({ status: 'FAILED', lastErrorCode: null, lastErrorDetail: null }));
+
+    renderComponent();
+
+    expect(screen.getByText(/backCatalogueJobStatus/)).toHaveTextContent('backCatalogueJobStatus: FAILED');
+    expect(screen.queryByText(/backCatalogueJobLastErrorCode/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/backCatalogueJobLastErrorDetail/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/unknown/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the cancellation reason only when the API provides it', () => {
+    asSuperuser();
+    withJobReport(createJob({ status: 'CANCELLED', cancellationReason: 'ASSIGNMENT_DISABLED' }));
+
+    renderComponent();
+
+    expect(screen.getByText(/backCatalogueJobCancellationReason/)).toHaveTextContent(
+      'backCatalogueJobCancellationReason: ASSIGNMENT_DISABLED',
+    );
+  });
+
+  it('omits the cancellation reason when the API provides none', () => {
+    asSuperuser();
+    withJobReport(createJob({ status: 'CANCELLED', cancellationReason: null }));
+
+    renderComponent();
+
+    expect(screen.queryByText(/backCatalogueJobCancellationReason/)).not.toBeInTheDocument();
+  });
+
+  it('renders only API timestamps and gives a null completedAt no extra meaning', () => {
+    asSuperuser();
+    withJobReport(createJob({ completedAt: null }));
+
+    renderComponent();
+
+    expect(screen.getByText(/backCatalogueJobCreatedAt/)).toHaveTextContent(
+      'backCatalogueJobCreatedAt: 2026-08-10T10:00:00Z',
+    );
+    expect(screen.getByText(/backCatalogueJobUpdatedAt/)).toHaveTextContent(
+      'backCatalogueJobUpdatedAt: 2026-08-11T11:00:00Z',
+    );
+    expect(screen.queryByText(/backCatalogueJobCompletedAt/)).not.toBeInTheDocument();
+  });
+
+  it('renders completedAt from the API when present', () => {
+    asSuperuser();
+    withJobReport(createJob({ completedAt: '2026-08-12T12:00:00Z' }));
+
+    renderComponent();
+
+    expect(screen.getByText(/backCatalogueJobCompletedAt/)).toHaveTextContent(
+      'backCatalogueJobCompletedAt: 2026-08-12T12:00:00Z',
+    );
+  });
+
+  it('presents SUCCEEDED with the delivery disclaimer and no observed-delivery claim', () => {
+    asSuperuser();
+    withJobReport(createJob({ status: 'SUCCEEDED', completedAt: '2026-08-12T12:00:00Z' }));
+
+    renderComponent();
+
+    expect(screen.getByText(/backCatalogueJobStatus/)).toHaveTextContent('backCatalogueJobStatus: SUCCEEDED');
+    // The staff-facing statement that durable job state is not confirmation of
+    // observed remote delivery accompanies every real job presentation.
+    expect(screen.getByText('backCatalogueJobDeliveryDisclaimer')).toBeInTheDocument();
+    expect(screen.queryByText(/delivered|disseminated|accepted by/i)).not.toBeInTheDocument();
+  });
+
+  it("replaces publisher A's job presentation with publisher B's own query state on switch", () => {
+    asSuperuser();
+    // The hook resolves per publisher, as the publisher-scoped query key does:
+    // A has a FAILED job; B's report is still loading.
+    backCatalogueJobMock.mockImplementation((publisherId: string) =>
+      publisherId === 'pub-1'
+        ? {
+            report: {
+              configuration: { publisher: { publisherId: 'pub-1' } },
+              latestBackCatalogueJob: createJob({ status: 'FAILED' }),
+            },
+            isLoading: false,
+            error: null,
+          }
+        : { report: undefined, isLoading: true, error: null },
+    );
+
+    const { rerender } = renderComponent();
+
+    expect(screen.getByText(/backCatalogueJobStatus/)).toHaveTextContent('backCatalogueJobStatus: FAILED');
+
+    switchActivePublisherToB();
+    rerenderComponent(rerender);
+
+    // Nothing of A's job survives the switch: B renders its own (loading) query
+    // state, never A's cached presentation.
+    expect(backCatalogueJobMock).toHaveBeenLastCalledWith('pub-2', true);
+    expect(screen.queryByText(/backCatalogueJobStatus/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/FAILED/)).not.toBeInTheDocument();
   });
 });

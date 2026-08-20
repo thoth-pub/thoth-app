@@ -1,10 +1,12 @@
 import { faker } from '@faker-js/faker';
+import { print } from 'graphql';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { DistributionPlatform, type ReplacePublisherServiceConfigurationInput, ThothPackage } from '@/gql/graphql';
 import { GraphqlService } from '@/src/shared/api/graphqlService';
 
 import { PublisherDtoMapper } from '../model/publisher.mapper';
+import { GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT } from '../model/publisher.schema';
 import type { ContactEntity, PublisherEntity } from '../model/publisher.types';
 import { PublisherService } from './publisher.service';
 
@@ -334,6 +336,107 @@ describe('PublisherService', () => {
       const result = await service.getDistributionPlatformOptions();
 
       expect(result).toBe(options);
+    });
+  });
+
+  describe('getPublisherBackCatalogueJobReport', () => {
+    const createJob = () => ({
+      distributionJobId: faker.string.uuid(),
+      status: 'FAILED',
+      attemptCount: 3,
+      targets: [{ platform: 'OAPEN' }],
+      cancellationReason: null,
+      lastErrorCode: 'TRANSPORT',
+      lastErrorDetail: 'connection reset',
+      createdAt: '2026-08-10T10:00:00Z',
+      updatedAt: '2026-08-11T10:00:00Z',
+      completedAt: null,
+    });
+
+    const createSummary = (publisherId: string, latestBackCatalogueJob: ReturnType<typeof createJob> | null) => ({
+      configuration: { publisher: { publisherId } },
+      latestBackCatalogueJob,
+    });
+
+    it('should request the report bound to exactly the requested publisher', async () => {
+      const publisherId = faker.string.uuid();
+
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+        publisherServiceConfigurations: [],
+      });
+
+      await service.getPublisherBackCatalogueJobReport(publisherId);
+
+      expect(mockGraphqlService.query).toHaveBeenCalledWith(GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT, { publisherId });
+    });
+
+    it('should use a report document whose publisher filter is the single requested publisher variable', () => {
+      const document = print(GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT);
+
+      expect(document).toContain('publishers: [$publisherId]');
+      expect(document).toContain('latestBackCatalogueJob');
+      // Bounded to the approved latest-job facts: no attempt history and no
+      // worker claim/lease internals are requested.
+      expect(document).not.toContain('attempts {');
+      expect(document).not.toContain('claimedAt');
+      expect(document).not.toContain('leaseExpiresAt');
+    });
+
+    it('should return the matching summary unchanged, preserving a null job as null', async () => {
+      const publisherId = faker.string.uuid();
+      const summary = createSummary(publisherId, null);
+
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+        publisherServiceConfigurations: [summary],
+      });
+
+      const result = await service.getPublisherBackCatalogueJobReport(publisherId);
+
+      expect(result).toBe(summary);
+      expect(result?.latestBackCatalogueJob).toBeNull();
+    });
+
+    it('should return the API-provided job facts unchanged when a job exists', async () => {
+      const publisherId = faker.string.uuid();
+      const summary = createSummary(publisherId, createJob());
+
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+        publisherServiceConfigurations: [summary],
+      });
+
+      const result = await service.getPublisherBackCatalogueJobReport(publisherId);
+
+      expect(result?.latestBackCatalogueJob).toBe(summary.latestBackCatalogueJob);
+    });
+
+    it('should return null (no summary) when the report contains no summaries', async () => {
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+        publisherServiceConfigurations: [],
+      });
+
+      const result = await service.getPublisherBackCatalogueJobReport(faker.string.uuid());
+
+      expect(result).toBeNull();
+    });
+
+    it("should return null rather than another publisher's summary or a fabricated null job on mismatch", async () => {
+      const mismatched = createSummary(faker.string.uuid(), createJob());
+
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+        publisherServiceConfigurations: [mismatched],
+      });
+
+      const result = await service.getPublisherBackCatalogueJobReport(faker.string.uuid());
+
+      expect(result).toBeNull();
+    });
+
+    it('should propagate report request failures instead of converting them into a no-job state', async () => {
+      const failure = new Error('FORBIDDEN');
+
+      (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockRejectedValue(failure);
+
+      await expect(service.getPublisherBackCatalogueJobReport(faker.string.uuid())).rejects.toBe(failure);
     });
   });
 

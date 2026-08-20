@@ -6,6 +6,7 @@ import type { ReplacePublisherServiceConfigurationInput } from '@/gql/graphql';
 import { GraphqlError } from '@/src/shared/api/graphqlService';
 import { useServices } from '@/src/shared/context';
 
+import { PUBLISHER_BACK_CATALOGUE_JOB_QUERY_KEY } from './usePublisherBackCatalogueJob';
 import { PUBLISHER_SERVICE_CONFIGURATION_QUERY_KEY } from './usePublisherServiceConfiguration';
 
 // Stable backend classifications published by the Thoth v1.7 API under
@@ -43,6 +44,14 @@ export const getServiceConfigurationErrorType = (error: unknown): ServiceConfigu
 // failure is ambiguous (the server may have committed without the response
 // arriving), so displayed state must be re-anchored to server truth. Retries are
 // disabled: every failure requires a deliberate new attempt.
+//
+// APP-01C: a replace can also change durable back-catalogue job state, so the
+// same publisher's job report is reconciled from the API alongside the
+// configuration - refetched after success (a committed replace may have created
+// a job) and after every failure (an ambiguous failure may have committed;
+// stale/job-disabled outcomes get a conservative refetch that claims nothing).
+// No job is ever constructed locally, and both keys are scoped to the exact
+// mutation attempt's `input.publisherId`.
 const useReplacePublisherServiceConfiguration = () => {
   const { publisherService } = useServices();
   const queryClient = useQueryClient();
@@ -51,11 +60,15 @@ const useReplacePublisherServiceConfiguration = () => {
     retry: false,
     mutationFn: (input: ReplacePublisherServiceConfigurationInput) =>
       publisherService.replacePublisherServiceConfiguration(input),
-    onSuccess: (configuration, input) => {
+    onSuccess: async (configuration, input) => {
       queryClient.setQueryData([PUBLISHER_SERVICE_CONFIGURATION_QUERY_KEY, input.publisherId], configuration);
+      await queryClient.refetchQueries({ queryKey: [PUBLISHER_BACK_CATALOGUE_JOB_QUERY_KEY, input.publisherId] });
     },
     onError: async (_error: unknown, input) => {
-      await queryClient.refetchQueries({ queryKey: [PUBLISHER_SERVICE_CONFIGURATION_QUERY_KEY, input.publisherId] });
+      await Promise.all([
+        queryClient.refetchQueries({ queryKey: [PUBLISHER_SERVICE_CONFIGURATION_QUERY_KEY, input.publisherId] }),
+        queryClient.refetchQueries({ queryKey: [PUBLISHER_BACK_CATALOGUE_JOB_QUERY_KEY, input.publisherId] }),
+      ]);
     },
   });
 

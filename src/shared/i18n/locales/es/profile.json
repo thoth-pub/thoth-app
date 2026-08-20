@@ -19,5 +19,18 @@
   "distributionPlatformNotAssignable": "no asignable actualmente",
   "linkedGroupLabel": "grupo vinculado",
   "linkedGroupNotice": "las plataformas vinculadas son habilitadas y deshabilitadas conjuntamente por thoth. su selección se envía tal cual y el resultado guardado es el que devuelve el servidor.",
-  "backCatalogueBehaviour": "catálogo retrospectivo"
+  "backCatalogueBehaviour": "catálogo retrospectivo",
+  "latestBackCatalogueJob": "último trabajo de distribución del catálogo retrospectivo",
+  "backCatalogueJobUnavailable": "estado del trabajo del catálogo retrospectivo no disponible",
+  "noBackCatalogueJobRecorded": "no hay registrado ningún trabajo de incorporación del catálogo retrospectivo.",
+  "backCatalogueJobDeliveryDisclaimer": "el estado del trabajo es lo que el worker de distribución informó para este trabajo duradero. no es confirmación de que ninguna plataforma de destino haya recibido, aceptado o publicado los datos.",
+  "backCatalogueJobStatus": "estado",
+  "backCatalogueJobTargets": "destinos del trabajo",
+  "backCatalogueJobAttemptCount": "intentos de ejecución iniciados",
+  "backCatalogueJobCancellationReason": "motivo de cancelación",
+  "backCatalogueJobLastErrorCode": "código del fallo más reciente informado por el worker",
+  "backCatalogueJobLastErrorDetail": "detalle del fallo más reciente informado por el worker",
+  "backCatalogueJobCreatedAt": "creado",
+  "backCatalogueJobUpdatedAt": "última actualización",
+  "backCatalogueJobCompletedAt": "completado"
 }
