@@ -35,3 +35,20 @@ export const CREATE_PUBLISHER = graphql(`
     }
   }
 `);
+
+// APP-01B: complete replace of a publisher's desired service configuration, not a
+// patch. `expectedUpdatedAt` is the version token read for the edit session, and
+// the response is the server-normalized configuration that becomes the new client
+// truth (including its fresh `updatedAt`).
+export const REPLACE_PUBLISHER_SERVICE_CONFIGURATION = graphql(`
+  mutation ReplacePublisherServiceConfiguration($data: ReplacePublisherServiceConfigurationInput!) {
+    replacePublisherServiceConfiguration(data: $data) {
+      subscriptionPackage
+      effectiveCapabilities
+      enabledDistributionPlatforms {
+        platform
+      }
+      updatedAt
+    }
+  }
+`);

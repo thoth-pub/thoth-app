@@ -8,5 +8,16 @@
   "distributionPlatforms": "distribution platforms",
   "noCapabilities": "no capabilities",
   "noDistributionPlatforms": "no distribution platforms enabled",
-  "serviceConfigurationUnavailable": "service configuration unavailable"
+  "serviceConfigurationUnavailable": "service configuration unavailable",
+  "editServiceConfiguration": "edit service configuration",
+  "saveServiceConfiguration": "save",
+  "cancelServiceConfigurationEdit": "cancel",
+  "serviceConfigurationSaved": "service configuration saved",
+  "serviceConfigurationSaveFailed": "service configuration not saved",
+  "serviceConfigurationStale": "this configuration changed since it was loaded. the current configuration has been reloaded; start a new edit to apply your changes.",
+  "serviceConfigurationJobCreationDisabled": "not saved: automatic distribution job creation is disabled, so the requested activation was rolled back and no job was created.",
+  "distributionPlatformNotAssignable": "not currently assignable",
+  "linkedGroupLabel": "linked group",
+  "linkedGroupNotice": "linked platforms are enabled and disabled together by thoth. your selection is submitted as it stands and the saved result is whatever the server returns.",
+  "backCatalogueBehaviour": "back catalogue"
 }
