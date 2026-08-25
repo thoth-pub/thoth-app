@@ -95,6 +95,11 @@ const createHookState = (overrides?: Record<string, unknown>) => ({
   platformFilterOptions: [DistributionPlatform.Oapen, DistributionPlatform.Doab],
   jobStatusFilterOptions: ['PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELLED'],
   getPlatformDisplayLabel: (platform: DistributionPlatform) => DISPLAY_LABELS[platform] ?? platform,
+  canExport: true,
+  isExporting: false,
+  exportError: null,
+  startExport: vi.fn(),
+  dismissExportError: vi.fn(),
   editSession: null,
   editPlatformRows: [],
   isSavingEdit: false,
@@ -281,6 +286,135 @@ describe('PublisherAdministration', () => {
 
     expect(screen.getByText('totalCountUnavailable')).toBeInTheDocument();
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  });
+
+  // APP-02C: explicit filtered-total presentation, superuser-only CSV export and
+  // the local row-affordance correction on this same index.
+  describe('filtered total (APP-02C)', () => {
+    it('presents the authoritative API count, never the number of rows on the page', () => {
+      // 42 matching publishers, but only a couple are on the visible page.
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          summaries: [createSummary(), createSummary({ publisherId: 'pub-2', publisherName: 'Publisher Two' })],
+          totalCount: 42,
+        }),
+      );
+
+      renderWidget();
+
+      expect(screen.getByText(/^42\s+matchingPublishers$/)).toBeInTheDocument();
+    });
+
+    it('shows a real zero as the count, distinct from loading and unavailable', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({ viewState: 'emptyReport', summaries: [], totalCount: 0 }),
+      );
+
+      renderWidget();
+
+      expect(screen.getByText(/^0\s+matchingPublishers$/)).toBeInTheDocument();
+      expect(screen.queryByText('countLoading')).not.toBeInTheDocument();
+      expect(screen.queryByText('totalCountUnavailable')).not.toBeInTheDocument();
+    });
+
+    it('shows a loading count without a number, never mistaken for zero', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({ viewState: 'reportLoading', summaries: undefined, totalCount: undefined }),
+      );
+
+      renderWidget();
+
+      expect(screen.getByText('countLoading')).toBeInTheDocument();
+      expect(screen.queryByText(/matchingPublishers$/)).not.toBeInTheDocument();
+    });
+
+    it('reports an unavailable count exactly once, never substituting a row count', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({ countError: new Error('FORBIDDEN'), totalCount: undefined }),
+      );
+
+      renderWidget();
+
+      // Consolidated in the toolbar: reported once, and no number is shown.
+      expect(screen.getAllByText('totalCountUnavailable')).toHaveLength(1);
+      expect(screen.queryByText(/matchingPublishers$/)).not.toBeInTheDocument();
+    });
+  });
+
+  describe('CSV export action (APP-02C)', () => {
+    it('offers the export action to an authoritative superuser and triggers it', async () => {
+      const startExport = vi.fn();
+      usePublisherAdministrationMock.mockReturnValue(createHookState({ startExport }));
+
+      renderWidget();
+
+      const exportButton = screen.getByRole('button', { name: 'exportCsv' });
+      expect(exportButton).toBeEnabled();
+
+      await userEvent.click(exportButton);
+
+      expect(startExport).toHaveBeenCalledTimes(1);
+    });
+
+    it('withholds the export action entirely while user identity is pending', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({ viewState: 'identityPending', summaries: undefined }),
+      );
+
+      renderWidget();
+
+      expect(screen.queryByText('exportCsv')).not.toBeInTheDocument();
+    });
+
+    it('withholds the export action from an authoritative non-superuser', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({ viewState: 'notAuthorized', summaries: undefined, canExport: false }),
+      );
+
+      renderWidget();
+
+      expect(screen.getByText('notAuthorized')).toBeInTheDocument();
+      expect(screen.queryByText('exportCsv')).not.toBeInTheDocument();
+    });
+
+    it('disables the action and shows in-progress copy while an export runs', () => {
+      usePublisherAdministrationMock.mockReturnValue(createHookState({ canExport: false, isExporting: true }));
+
+      renderWidget();
+
+      const exportButton = screen.getByRole('button', { name: 'exportInProgress' });
+      expect(exportButton).toBeDisabled();
+    });
+
+    it('presents a bounded, retryable failure and no download, leaving the table intact', () => {
+      usePublisherAdministrationMock.mockReturnValue(createHookState({ exportError: 'countDrift' }));
+
+      renderWidget();
+
+      expect(screen.getByRole('alert')).toHaveTextContent('exportUnavailable');
+      // The normal report table is still usable.
+      expect(screen.getByRole('table')).toBeInTheDocument();
+    });
+  });
+
+  describe('row interaction correction (APP-02C)', () => {
+    it('does not treat the row body as a whole-row action; only the explicit Edit button acts', async () => {
+      const startEdit = vi.fn();
+      const rowOne = createSummary();
+      usePublisherAdministrationMock.mockReturnValue(createHookState({ summaries: [rowOne], startEdit }));
+
+      renderWidget();
+
+      // Clicking the row body (a data cell) does nothing: there is no whole-row
+      // click affordance.
+      await userEvent.click(screen.getByText('Publisher One'));
+      expect(startEdit).not.toHaveBeenCalled();
+
+      // The explicit Edit action remains the interaction.
+      await userEvent.click(screen.getByRole('button', { name: 'editAction: Publisher One' }));
+      expect(startEdit).toHaveBeenCalledTimes(1);
+      expect(startEdit).toHaveBeenCalledWith(rowOne);
+    });
   });
 
   // APP-02B: the bounded single-publisher edit affordance on this same index.

@@ -24,6 +24,19 @@ import usePublisherAdministration from './usePublisherAdministration';
 
 type ReportSummary = GetPublisherServiceConfigurationReportQuery['publisherServiceConfigurations'][number];
 
+// APP-02C local interaction fix. The application-wide table theme sets
+// `cursor: pointer` on any table body row on hover, which implies the whole row
+// is clickable. These rows have no whole-row action - the only interaction is
+// the explicit per-row Edit button - so that inherited affordance is misleading
+// here. The pointer is neutralized back to the default cursor for these rows
+// only, using a higher-specificity local rule (repeated `&` raises specificity
+// above the themed selector) so no global theme or shared Table component is
+// touched. No row onClick is added to justify the old pointer; the app-wide
+// table-row convention is the separate follow-up #133.
+const NEUTRALIZE_ROW_POINTER_SX = {
+  '&&&&:hover': { cursor: 'default' },
+} as const;
+
 // APP-02A: consolidated superuser publisher administration index.
 //
 // Every presented fact is an API fact from the one paginated report read: row
@@ -46,10 +59,15 @@ const PublisherAdministration = () => {
   const {
     viewState,
     summaries,
+    totalCount,
     countError,
     totalPagesCount,
     activePage,
     changePage,
+    canExport,
+    isExporting,
+    exportError,
+    startExport,
     selectedPublisherIds,
     changeSelectedPublisherIds,
     selectedPackages,
@@ -144,8 +162,10 @@ const PublisherAdministration = () => {
 
     return (
       // Row identity is the publisher's own ID from the report configuration -
-      // never row position, never the global active publisher.
-      <TableRow key={publisher.publisherId}>
+      // never row position, never the global active publisher. The row carries
+      // no whole-row action: the misleading themed hover pointer is neutralized
+      // locally and the only interaction remains the explicit Edit button below.
+      <TableRow key={publisher.publisherId} sx={NEUTRALIZE_ROW_POINTER_SX}>
         <TableCell>
           <Typography variant="body2">{publisher.publisherName}</Typography>
         </TableCell>
@@ -217,6 +237,57 @@ const PublisherAdministration = () => {
         jobStatusFilterOptions={jobStatusFilterOptions}
         getPlatformDisplayLabel={getPlatformDisplayLabel}
       />
+
+      {/* Report toolbar: the authoritative filtered total and the superuser-only
+          full-population CSV export. Only an authoritative superuser reaches this
+          return at all (identityPending/notAuthorized return early above), so the
+          export control is structurally withheld from ordinary and not-yet-known
+          identities; the export controller additionally refuses to start unless
+          the authoritative superuser flag is set and no attempt is running. */}
+      <ContentSection>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {/* The filtered total is the exact API count for the active filters. It
+              is never derived from the number of rows on the visible page, and
+              count-loading and count-unavailable are each distinct from a real
+              zero. */}
+          <div aria-live="polite">
+            {countError ? (
+              <Typography variant="body2">
+                <TranslatedContent content="totalCountUnavailable" namespace={NAMESPACES.enum.publishers} />
+              </Typography>
+            ) : totalCount === undefined ? (
+              <Typography variant="body2">
+                <TranslatedContent content="countLoading" namespace={NAMESPACES.enum.publishers} />
+              </Typography>
+            ) : (
+              <Typography variant="body2">
+                {totalCount}{' '}
+                <TranslatedContent content="matchingPublishers" namespace={NAMESPACES.enum.publishers} />
+              </Typography>
+            )}
+          </div>
+
+          {/* One export attempt at a time: the control is disabled while an
+              attempt runs, and the controller captures an immutable filter/order
+              snapshot at click time so later filter/page changes cannot retarget
+              it. */}
+          <Button size="small" onClick={startExport} disabled={!canExport}>
+            <TranslatedContent
+              content={isExporting ? 'exportInProgress' : 'exportCsv'}
+              namespace={NAMESPACES.enum.publishers}
+            />
+          </Button>
+        </div>
+
+        {/* Fail-closed: a failed count/page read or a failed consistency check
+            produces no file at all. The error is bounded and retryable, and the
+            normal report/table state is left intact. */}
+        {exportError && (
+          <Typography role="alert" variant="body2">
+            <TranslatedContent content="exportUnavailable" namespace={NAMESPACES.enum.publishers} />
+          </Typography>
+        )}
+      </ContentSection>
 
       <ContentSection>
         {/* The outcome of the last save attempt, presented outside the table and
@@ -293,18 +364,13 @@ const PublisherAdministration = () => {
               <TableBody>{summaries.map(renderRow)}</TableBody>
             </TableWrapper>
 
-            {/* Pagination is server-backed and count-derived. If the count read
-                failed, that is reported instead of estimating page numbers. */}
-            {countError ? (
-              <Typography variant="caption">
-                <TranslatedContent content="totalCountUnavailable" namespace={NAMESPACES.enum.publishers} />
-              </Typography>
-            ) : (
-              totalPagesCount > 1 && (
-                <div className="flex justify-center">
-                  <Pagination count={totalPagesCount} page={activePage} onChange={(_, page) => changePage(page)} />
-                </div>
-              )
+            {/* Pagination is server-backed and count-derived. A failed count read
+                is reported once by the filtered-total display in the toolbar
+                above; here it simply means no page numbers are estimated. */}
+            {!countError && totalPagesCount > 1 && (
+              <div className="flex justify-center">
+                <Pagination count={totalPagesCount} page={activePage} onChange={(_, page) => changePage(page)} />
+              </div>
             )}
           </>
         )}

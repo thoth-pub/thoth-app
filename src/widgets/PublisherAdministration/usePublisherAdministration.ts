@@ -19,6 +19,7 @@ import { appConfig } from '@/src/shared/config';
 import { getPagesCount } from '@/src/shared/utils';
 
 import usePublisherAdministrationEditor from './usePublisherAdministrationEditor';
+import usePublisherAdministrationExport from './usePublisherAdministrationExport';
 
 // Bounded tri-state job-presence filter. It maps explicitly to the report's
 // nullable `withoutBackCatalogueJob` argument: `all` omits the dimension
@@ -102,6 +103,18 @@ const usePublisherAdministration = () => {
   const editor = usePublisherAdministrationEditor({
     isEligible: isReportEligible,
     distributionPlatformOptions,
+  });
+
+  // APP-02C: the superuser-only full-population CSV export. It is handed exactly
+  // the same semantic filter model and deterministic order the visible report
+  // and count use, and the same authoritative-superuser eligibility, so the
+  // export can never target a different population than the one on screen. It
+  // captures its own immutable snapshot of those inputs when an attempt starts
+  // and, like the report, never consults the global active publisher.
+  const exporter = usePublisherAdministrationExport({
+    filters,
+    order: REPORT_ORDER,
+    isEligible: isReportEligible,
   });
 
   // Every filter change returns to the first page, so a page number from one
@@ -237,6 +250,15 @@ const usePublisherAdministration = () => {
 
     // Display metadata (labels only, never membership)
     getPlatformDisplayLabel,
+
+    // APP-02C full-population CSV export controller. It shares the report's
+    // filter model, order and superuser eligibility, and owns its own immutable
+    // export snapshot; nothing here is derived from the active publisher.
+    canExport: exporter.canExport,
+    isExporting: exporter.isExporting,
+    exportError: exporter.exportError,
+    startExport: exporter.startExport,
+    dismissExportError: exporter.dismissExportError,
 
     // APP-02B staff edit session (identity, token and selections are the
     // editor's own; nothing here is derived from the active publisher)
