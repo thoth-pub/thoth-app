@@ -8,7 +8,7 @@ exports[`ChapterTableRow > renders selected state > ChapterTableRow - selected 1
         aria-describedby=""
         aria-disabled="false"
         aria-roledescription="sortable"
-        class="MuiTableRow-root group css-1rpcg5g-MuiTableRow-root"
+        class="MuiTableRow-root MuiTableRow-hover group css-1rpcg5g-MuiTableRow-root"
         role="button"
         tabindex="0"
       >
@@ -144,7 +144,7 @@ exports[`ChapterTableRow > renders snapshot > ChapterTableRow 1`] = `
         aria-describedby=""
         aria-disabled="false"
         aria-roledescription="sortable"
-        class="MuiTableRow-root group css-1rpcg5g-MuiTableRow-root"
+        class="MuiTableRow-root MuiTableRow-hover group css-1rpcg5g-MuiTableRow-root"
         role="button"
         tabindex="0"
       >

@@ -351,7 +351,12 @@ export const theme = createTheme({
             padding: '12px',
           },
           '& .MuiTableBody-root': {
-            '& .MuiTableRow-root:hover': {
+            // Interactive row treatment is opt-in and code-visible: only a row
+            // that sets MUI's `hover` prop - and so carries `MuiTableRow-hover`
+            // - claims to be interactive. A body row is otherwise informational
+            // or a container for its own explicit controls, and must not
+            // advertise a whole-row action it does not have (#133).
+            '& .MuiTableRow-root.MuiTableRow-hover:hover': {
               backgroundColor: 'var(--color-table-row-hover-background)',
               cursor: 'pointer',
             },

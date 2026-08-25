@@ -1,9 +1,9 @@
-import { render, screen, within } from '@testing-library/react';
+import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ThemeProvider } from '@mui/material';
+import type { WorkEntity } from '@/src/entities/work/model/work.types';
 import { theme } from '@/src/shared/theme';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup } from '@testing-library/react';
 
 vi.mock('@/src/shared/config', () => ({
   appConfig: {
@@ -89,13 +89,17 @@ describe('ChapterTableRow row-interaction semantics', () => {
     cleanup();
   });
 
+  // Typed once here rather than re-casting per render, so these assertions add
+  // no further `any` to the file's recorded lint debt.
+  const chapterFixture = mockChapter as unknown as WorkEntity;
+
   const renderRow = (overrides?: { onEdit?: (id: string) => void }) =>
     render(
       <Wrapper>
         <table>
           <tbody>
             <ChapterTableRow
-              chapter={mockChapter as any}
+              chapter={chapterFixture}
               selected={false}
               isButtonsDisabled={false}
               totalChaptersCount={3}
