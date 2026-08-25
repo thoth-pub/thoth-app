@@ -240,6 +240,168 @@ describe('usePublisherAdministration', () => {
     expect(result.current.totalPagesCount).toBe(3);
   });
 
+  // A staff edit (APP-02B) can change a publisher's filter membership, so the
+  // authoritative filtered population - and with it the valid page range - can
+  // shrink underneath the page staff are on when the report and count refetch.
+  describe('page normalization against the authoritative count (APP-02B)', () => {
+    const PAGE_SIZE = 20;
+
+    const createRow = (index: number) => ({
+      configuration: {
+        publisher: { publisherId: `pub-${index}`, publisherName: `Publisher ${index}` },
+        subscriptionPackage: ThothPackage.Sphinx,
+        enabledDistributionPlatforms: [{ platform: DistributionPlatform.Oapen }],
+        updatedAt: '2026-08-01T10:00:00Z',
+      },
+      lastChange: null,
+      latestBackCatalogueJob: null,
+    });
+
+    // A report that answers the offset it is actually asked for, so a page that
+    // no longer exists genuinely comes back with no rows.
+    const reportPopulationOf = (totalCount: number) => {
+      reportHookMock.mockImplementation((props: ReportHookProps) => ({
+        ...idleReport,
+        totalCount,
+        summaries: Array.from({ length: Math.max(0, Math.min(PAGE_SIZE, totalCount - props.offset)) }, (_, index) =>
+          createRow(props.offset + index),
+        ),
+      }));
+    };
+
+    it('clamps to the last valid page when a mutation-driven count refresh removes the current page', () => {
+      // 21 matching publishers: page 2 exists and holds exactly one row.
+      reportPopulationOf(21);
+
+      const { result, rerender } = renderHook(() => usePublisherAdministration());
+
+      act(() => result.current.changePage(2));
+
+      expect(result.current.activePage).toBe(2);
+      expect(lastReportProps().offset).toBe(20);
+      expect(result.current.summaries).toHaveLength(1);
+
+      // The edited publisher no longer matches the active filters, so the
+      // reconciled report and count come back describing 20 publishers. Page 2
+      // no longer exists.
+      reportPopulationOf(20);
+      rerender();
+
+      // The page is normalized and the report is read at the valid offset...
+      expect(result.current.activePage).toBe(1);
+      expect(lastReportProps().offset).toBe(0);
+      // ...so the 20 publishers that still match are presented as rows, and the
+      // out-of-range empty page is never reported as an empty filtered
+      // population.
+      expect(result.current.viewState).toBe('rows');
+      expect(result.current.viewState).not.toBe('emptyReport');
+      expect(result.current.summaries).toHaveLength(20);
+      expect(result.current.totalPagesCount).toBe(1);
+    });
+
+    it('retains the current page when the refreshed count leaves it valid', () => {
+      reportPopulationOf(60);
+
+      const { result, rerender } = renderHook(() => usePublisherAdministration());
+
+      act(() => result.current.changePage(3));
+
+      expect(lastReportProps().offset).toBe(40);
+
+      // 45 still spans three pages: page 3 remains valid and must not be reset.
+      reportPopulationOf(45);
+      rerender();
+
+      expect(result.current.activePage).toBe(3);
+      expect(lastReportProps().offset).toBe(40);
+      expect(result.current.viewState).toBe('rows');
+    });
+
+    it('clamps only as far as the new last valid page, never back to the first page', () => {
+      reportPopulationOf(100);
+
+      const { result, rerender } = renderHook(() => usePublisherAdministration());
+
+      act(() => result.current.changePage(5));
+
+      expect(lastReportProps().offset).toBe(80);
+
+      // 50 spans three pages, so page 5 clamps to page 3 - not to page 1.
+      reportPopulationOf(50);
+      rerender();
+
+      expect(result.current.activePage).toBe(3);
+      expect(lastReportProps().offset).toBe(40);
+      expect(result.current.viewState).toBe('rows');
+    });
+
+    it('normalizes safely to page one when the refreshed count is zero, and then reports a truthful empty result', () => {
+      reportPopulationOf(40);
+
+      const { result, rerender } = renderHook(() => usePublisherAdministration());
+
+      act(() => result.current.changePage(2));
+
+      expect(lastReportProps().offset).toBe(20);
+
+      reportPopulationOf(0);
+      rerender();
+
+      expect(result.current.activePage).toBe(1);
+      expect(lastReportProps().offset).toBe(0);
+      expect(result.current.totalPagesCount).toBe(0);
+      // Genuinely empty at a valid page: this is the one case where "no
+      // publishers match the current filters" is the truthful state.
+      expect(result.current.viewState).toBe('emptyReport');
+    });
+
+    it('does not treat a still-loading count as evidence that the current page is invalid', () => {
+      // The count has not resolved yet, so the valid range is unknown.
+      reportHookMock.mockImplementation(() => ({ ...idleReport, summaries: [], totalCount: undefined }));
+
+      const { result, rerender } = renderHook(() => usePublisherAdministration());
+
+      act(() => result.current.changePage(4));
+      rerender();
+
+      expect(result.current.activePage).toBe(4);
+      expect(lastReportProps().offset).toBe(60);
+    });
+
+    it('does not force page one when the count read failed', () => {
+      reportHookMock.mockImplementation(() => ({
+        ...idleReport,
+        summaries: [],
+        totalCount: undefined,
+        countError: new Error('FORBIDDEN'),
+      }));
+
+      const { result, rerender } = renderHook(() => usePublisherAdministration());
+
+      act(() => result.current.changePage(4));
+      rerender();
+
+      expect(result.current.activePage).toBe(4);
+      expect(lastReportProps().offset).toBe(60);
+    });
+
+    it('leaves a page alone when a count change grows the valid range', () => {
+      reportPopulationOf(40);
+
+      const { result, rerender } = renderHook(() => usePublisherAdministration());
+
+      act(() => result.current.changePage(2));
+
+      expect(lastReportProps().offset).toBe(20);
+
+      reportPopulationOf(100);
+      rerender();
+
+      expect(result.current.activePage).toBe(2);
+      expect(lastReportProps().offset).toBe(20);
+    });
+  });
+
   it('offers linked publishers as filter-control options only, without them driving the report rows', () => {
     const { result } = renderHook(() => usePublisherAdministration());
 

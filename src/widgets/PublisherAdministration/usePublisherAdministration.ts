@@ -160,10 +160,36 @@ const usePublisherAdministration = () => {
 
   const totalPagesCount = getPagesCount(totalCount ?? 0);
 
+  // A staff service-configuration edit (APP-02B) can change a publisher's
+  // filter membership, so the authoritative filtered population can shrink
+  // underneath the page staff are currently on. Left alone, the report would
+  // then be read at an offset past the end of the result set and come back
+  // empty - which is a different fact from "nothing matches these filters", and
+  // would strand staff on a page with no pagination control to leave it.
+  //
+  // The page is therefore normalized during render rather than in an effect, so
+  // the out-of-range frame is never committed: React discards this pass and
+  // re-runs with the corrected page, and the report request itself is issued at
+  // the corresponding valid offset. `activePage` remains the single source of
+  // pagination state - no second copy of it is introduced.
+  //
+  // Only an authoritative count normalizes anything. While the count is loading
+  // or unavailable it is `undefined`, the valid range is unknown, and the
+  // current page is left exactly as it is rather than being forced back to page
+  // one. A page that is still valid is never reset either, so a count change
+  // that does not invalidate the current page leaves it alone. With no results
+  // at all the only valid page is page one.
+  const lastValidPage = Math.max(totalPagesCount, 1);
+
+  if (totalCount !== undefined && activePage > lastValidPage) {
+    setActivePage(lastValidPage);
+  }
+
   // A valid empty page is distinguished from an error: `summaries` only holds a
   // value once the report actually loaded, and a failed replacement query never
   // leaves a previous page presented as current (no previous-data carry-over is
-  // configured on the report hook).
+  // configured on the report hook). An out-of-range page can never reach this
+  // classification, because it has already been normalized above.
   const viewState: PublisherAdministrationViewState = !isAuthoritative
     ? 'identityPending'
     : !user.isSuperuser
