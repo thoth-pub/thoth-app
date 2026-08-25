@@ -33,6 +33,26 @@ type PublisherAdministrationHeaderProps = {
   getPlatformDisplayLabel: (platform: DistributionPlatform) => string;
 };
 
+// APP-02C local presentation fix. On the Publishers surface the multiple-select
+// filter controls showed their selected value chips misaligned and clipped
+// within the field. Centring the input row's items, letting the chips wrap onto
+// further lines, and spacing them with a uniform gap - instead of the default
+// per-chip margins that produced the offset - makes multiple selected values sit
+// evenly and stay readable, while the field's label, clear control and dropdown
+// affordance stay aligned. This is scoped to these Autocomplete instances only:
+// it changes no shared TextField, Autocomplete, Chip or global theme, and no
+// filter behaviour.
+const MULTISELECT_SX = {
+  '& .MuiAutocomplete-inputRoot': {
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: '4px',
+  },
+  '& .MuiAutocomplete-inputRoot .MuiChip-root': {
+    margin: 0,
+  },
+} as const;
+
 const JOB_PRESENCE_VALUES: JobPresenceFilter[] = ['all', 'withoutJob', 'withJob'];
 
 const JOB_PRESENCE_LABEL_KEYS: Record<JobPresenceFilter, string> = {
@@ -88,6 +108,7 @@ const PublisherAdministrationHeader = (props: PublisherAdministrationHeaderProps
           onChange={(_, value) => changeSelectedPublisherIds(value.map((option) => option.id))}
           renderInput={(params) => <TextField {...params} label={t('filterPublisher')} />}
           size="small"
+          sx={MULTISELECT_SX}
         />
 
         <Autocomplete
@@ -97,6 +118,7 @@ const PublisherAdministrationHeader = (props: PublisherAdministrationHeaderProps
           onChange={(_, value) => changeSelectedPackages(value)}
           renderInput={(params) => <TextField {...params} label={t('filterPackages')} />}
           size="small"
+          sx={MULTISELECT_SX}
         />
 
         <div className="flex flex-col gap-1">
@@ -108,6 +130,7 @@ const PublisherAdministrationHeader = (props: PublisherAdministrationHeaderProps
             onChange={(_, value) => changeSelectedPlatforms(value)}
             renderInput={(params) => <TextField {...params} label={t('filterEnabledPlatforms')} />}
             size="small"
+            sx={MULTISELECT_SX}
           />
           <Typography variant="caption">
             <TranslatedContent content="filterEnabledPlatformsHint" namespace={NAMESPACES.enum.publishers} />
@@ -122,6 +145,7 @@ const PublisherAdministrationHeader = (props: PublisherAdministrationHeaderProps
             onChange={(_, value) => changeSelectedJobStatuses(value)}
             renderInput={(params) => <TextField {...params} label={t('filterJobStatuses')} />}
             size="small"
+            sx={MULTISELECT_SX}
           />
           <Typography variant="caption">
             <TranslatedContent content="filterJobStatusesHint" namespace={NAMESPACES.enum.publishers} />

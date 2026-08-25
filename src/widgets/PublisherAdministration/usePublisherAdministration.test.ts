@@ -9,6 +9,7 @@ const useUserMock = vi.fn();
 const reportHookMock = vi.fn();
 const platformOptionsMock = vi.fn();
 const editorHookMock = vi.fn();
+const exportHookMock = vi.fn();
 // Spy proving global active-publisher isolation: the staff index hook must
 // never consult the active-publisher state machine for anything.
 const stateMachineSpy = vi.fn();
@@ -24,6 +25,9 @@ vi.mock('@/src/entities/publisher/api/hooks/useDistributionPlatformOptions', () 
 }));
 vi.mock('./usePublisherAdministrationEditor', () => ({
   default: (props: unknown) => editorHookMock(props),
+}));
+vi.mock('./usePublisherAdministrationExport', () => ({
+  default: (props: unknown) => exportHookMock(props),
 }));
 vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
   default: () => stateMachineSpy(),
@@ -50,6 +54,22 @@ const lastReportProps = (): ReportHookProps => reportHookMock.mock.calls.at(-1)?
 type EditorHookProps = { isEligible: boolean; distributionPlatformOptions: unknown };
 
 const lastEditorProps = (): EditorHookProps => editorHookMock.mock.calls.at(-1)?.[0] as EditorHookProps;
+
+type ExportHookProps = {
+  filters: ReportHookProps['filters'];
+  order: { field: string; direction: string };
+  isEligible: boolean;
+};
+
+const lastExportProps = (): ExportHookProps => exportHookMock.mock.calls.at(-1)?.[0] as ExportHookProps;
+
+const idleExport = {
+  canExport: true,
+  isExporting: false,
+  exportError: null,
+  startExport: vi.fn(),
+  dismissExportError: vi.fn(),
+};
 
 const idleEditor = {
   session: null,
@@ -92,6 +112,7 @@ beforeEach(() => {
   reportHookMock.mockReturnValue(idleReport);
   platformOptionsMock.mockReturnValue({ distributionPlatformOptions: undefined });
   editorHookMock.mockReturnValue(idleEditor);
+  exportHookMock.mockReturnValue(idleExport);
 });
 
 describe('usePublisherAdministration', () => {
@@ -463,6 +484,83 @@ describe('usePublisherAdministration', () => {
     act(() => result.current.changePage(2));
 
     expect(stateMachineSpy).not.toHaveBeenCalled();
+  });
+
+  // APP-02C: the full-population CSV export controller shares one filter model
+  // with the visible report and count, so they can never target different
+  // populations.
+  describe('CSV export controller (APP-02C)', () => {
+    it('hands the export controller exactly the report/count semantic filters, order and eligibility', () => {
+      renderHook(() => usePublisherAdministration());
+
+      // Same semantic filter model as the visible report and count...
+      expect(lastExportProps().filters).toEqual(lastReportProps().filters);
+      // ...the same explicit deterministic order...
+      expect(lastExportProps().order).toEqual(lastReportProps().order);
+      expect(lastExportProps().order).toEqual({ field: PublisherField.PublisherName, direction: Direction.Asc });
+      // ...and the same authoritative-superuser eligibility gate.
+      expect(lastExportProps().isEligible).toBe(lastReportProps().isEligible);
+      expect(lastExportProps().isEligible).toBe(true);
+    });
+
+    it('propagates every filter change to the export controller, so export can never lag the report', () => {
+      const { result } = renderHook(() => usePublisherAdministration());
+
+      act(() =>
+        result.current.changeSelectedPlatforms([DistributionPlatform.Oapen, DistributionPlatform.Doab]),
+      );
+      expect(lastExportProps().filters.enabledPlatforms).toEqual([DistributionPlatform.Oapen, DistributionPlatform.Doab]);
+      expect(lastExportProps().filters).toEqual(lastReportProps().filters);
+
+      act(() => result.current.changeSelectedJobStatuses([DistributionJobStatus.Pending]));
+      expect(lastExportProps().filters.jobStatuses).toEqual([DistributionJobStatus.Pending]);
+
+      act(() => result.current.changeJobPresence('withoutJob'));
+      expect(lastExportProps().filters.withoutBackCatalogueJob).toBe(true);
+      expect(lastExportProps().filters).toEqual(lastReportProps().filters);
+    });
+
+    it('denies export eligibility to an authoritative non-superuser', () => {
+      useUserMock.mockReturnValue({
+        user: { isSuperuser: false, linkedPublishers: [] },
+        isAuthoritative: true,
+      });
+
+      renderHook(() => usePublisherAdministration());
+
+      expect(lastExportProps().isEligible).toBe(false);
+    });
+
+    it('denies export eligibility while user identity is not yet authoritative', () => {
+      useUserMock.mockReturnValue({
+        user: { isSuperuser: true, linkedPublishers: [] },
+        isAuthoritative: false,
+      });
+
+      renderHook(() => usePublisherAdministration());
+
+      expect(lastExportProps().isEligible).toBe(false);
+    });
+
+    it('exposes the export controller state and actions without reinterpreting them', () => {
+      const startExport = vi.fn();
+      const dismissExportError = vi.fn();
+      exportHookMock.mockReturnValue({
+        canExport: false,
+        isExporting: true,
+        exportError: 'countDrift',
+        startExport,
+        dismissExportError,
+      });
+
+      const { result } = renderHook(() => usePublisherAdministration());
+
+      expect(result.current.canExport).toBe(false);
+      expect(result.current.isExporting).toBe(true);
+      expect(result.current.exportError).toBe('countDrift');
+      expect(result.current.startExport).toBe(startExport);
+      expect(result.current.dismissExportError).toBe(dismissExportError);
+    });
   });
 
   // APP-02B: the staff edit session is a bounded addition to this same index.
