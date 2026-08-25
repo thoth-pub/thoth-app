@@ -1,11 +1,14 @@
 import { act, renderHook } from '@testing-library/react';
+import { print } from 'graphql';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { Direction, DistributionJobStatus, DistributionPlatform, PublisherField, ThothPackage } from '@/gql/graphql';
+import { GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT } from '@/src/entities/publisher/model/publisher.schema';
 
 const useUserMock = vi.fn();
 const reportHookMock = vi.fn();
 const platformOptionsMock = vi.fn();
+const editorHookMock = vi.fn();
 // Spy proving global active-publisher isolation: the staff index hook must
 // never consult the active-publisher state machine for anything.
 const stateMachineSpy = vi.fn();
@@ -18,6 +21,9 @@ vi.mock('@/src/entities/publisher/api/hooks/usePublisherServiceConfigurationRepo
 }));
 vi.mock('@/src/entities/publisher/api/hooks/useDistributionPlatformOptions', () => ({
   default: () => platformOptionsMock(),
+}));
+vi.mock('./usePublisherAdministrationEditor', () => ({
+  default: (props: unknown) => editorHookMock(props),
 }));
 vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
   default: () => stateMachineSpy(),
@@ -40,6 +46,25 @@ type ReportHookProps = {
 };
 
 const lastReportProps = (): ReportHookProps => reportHookMock.mock.calls.at(-1)?.[0] as ReportHookProps;
+
+type EditorHookProps = { isEligible: boolean; distributionPlatformOptions: unknown };
+
+const lastEditorProps = (): EditorHookProps => editorHookMock.mock.calls.at(-1)?.[0] as EditorHookProps;
+
+const idleEditor = {
+  session: null,
+  isEditing: false,
+  isSaving: false,
+  canStartEdit: true,
+  canCancel: false,
+  outcome: null,
+  platformRows: [],
+  startEdit: vi.fn(),
+  cancelEdit: vi.fn(),
+  changePackage: vi.fn(),
+  togglePlatform: vi.fn(),
+  save: vi.fn(),
+};
 
 const superuser = {
   user: {
@@ -66,6 +91,7 @@ beforeEach(() => {
   useUserMock.mockReturnValue(superuser);
   reportHookMock.mockReturnValue(idleReport);
   platformOptionsMock.mockReturnValue({ distributionPlatformOptions: undefined });
+  editorHookMock.mockReturnValue(idleEditor);
 });
 
 describe('usePublisherAdministration', () => {
@@ -275,5 +301,116 @@ describe('usePublisherAdministration', () => {
     act(() => result.current.changePage(2));
 
     expect(stateMachineSpy).not.toHaveBeenCalled();
+  });
+
+  // APP-02B: the staff edit session is a bounded addition to this same index.
+  describe('staff edit session (APP-02B)', () => {
+    it('supplies the concurrency token from the report itself, not from an extra read', () => {
+      const document = print(GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT);
+
+      // `configuration.updatedAt` is selected on the row the index already
+      // reads, so package, platform set and version token come from one
+      // internally consistent report row.
+      expect(document).toMatch(/configuration \{[\s\S]*updatedAt[\s\S]*\}/);
+      // Still exactly one consolidated read: no per-row or editor-open
+      // single-publisher protected configuration request was added.
+      expect(document).toContain('publisherServiceConfigurations(');
+      expect(document).not.toContain('publisherServiceConfiguration(');
+    });
+
+    it('gates the edit session on exactly the same authoritative-superuser eligibility as the report', () => {
+      renderHook(() => usePublisherAdministration());
+
+      expect(lastEditorProps().isEligible).toBe(true);
+      expect(lastEditorProps().isEligible).toBe(lastReportProps().isEligible);
+    });
+
+    it('denies the edit session to an authoritative non-superuser', () => {
+      useUserMock.mockReturnValue({
+        user: { isSuperuser: false, linkedPublishers: [] },
+        isAuthoritative: true,
+      });
+
+      renderHook(() => usePublisherAdministration());
+
+      expect(lastEditorProps().isEligible).toBe(false);
+    });
+
+    it('denies the edit session while user identity is not yet authoritative', () => {
+      useUserMock.mockReturnValue({
+        user: { isSuperuser: true, linkedPublishers: [] },
+        isAuthoritative: false,
+      });
+
+      renderHook(() => usePublisherAdministration());
+
+      expect(lastEditorProps().isEligible).toBe(false);
+    });
+
+    it('hands the editor the same backend platform metadata the index uses, and nothing else', () => {
+      const distributionPlatformOptions = [
+        { platform: DistributionPlatform.Oapen, displayLabel: 'OAPEN Library', assignable: true },
+      ];
+      platformOptionsMock.mockReturnValue({ distributionPlatformOptions });
+
+      renderHook(() => usePublisherAdministration());
+
+      expect(lastEditorProps().distributionPlatformOptions).toBe(distributionPlatformOptions);
+    });
+
+    it('exposes the editor session state without reinterpreting it', () => {
+      const session = {
+        snapshot: {
+          publisherId: 'pub-1',
+          publisherName: 'Publisher One',
+          expectedUpdatedAt: '2026-08-01T10:00:00Z',
+          subscriptionPackage: ThothPackage.Sphinx,
+          enabledPlatforms: [DistributionPlatform.Oapen],
+        },
+        draft: { subscriptionPackage: ThothPackage.Sphinx, enabledPlatforms: [DistributionPlatform.Oapen] },
+      };
+      const outcome = { publisherId: 'pub-1', publisherName: 'Publisher One', kind: 'saved' as const };
+      editorHookMock.mockReturnValue({ ...idleEditor, session, outcome, isEditing: true, canStartEdit: false });
+
+      const { result } = renderHook(() => usePublisherAdministration());
+
+      expect(result.current.editSession).toBe(session);
+      expect(result.current.saveOutcome).toBe(outcome);
+      expect(result.current.canStartEdit).toBe(false);
+    });
+
+    it('does not clear or retarget an open edit session when the report page changes underneath it', () => {
+      const session = {
+        snapshot: {
+          publisherId: 'pub-1',
+          publisherName: 'Publisher One',
+          expectedUpdatedAt: '2026-08-01T10:00:00Z',
+          subscriptionPackage: ThothPackage.Sphinx,
+          enabledPlatforms: [DistributionPlatform.Oapen],
+        },
+        draft: { subscriptionPackage: ThothPackage.Sphinx, enabledPlatforms: [DistributionPlatform.Oapen] },
+      };
+      editorHookMock.mockReturnValue({ ...idleEditor, session, isEditing: true });
+
+      const { result } = renderHook(() => usePublisherAdministration());
+
+      act(() => result.current.changePage(3));
+      act(() => result.current.changeSelectedPackages([ThothPackage.Pyramid]));
+
+      // Nothing in the index's filter/pagination state feeds the session: the
+      // hook only passes it through.
+      expect(result.current.editSession).toBe(session);
+      expect(idleEditor.cancelEdit).not.toHaveBeenCalled();
+    });
+
+    it('exposes no bulk or multi-publisher mutation affordance', () => {
+      const { result } = renderHook(() => usePublisherAdministration());
+
+      const api = Object.keys(result.current);
+
+      expect(api.filter((key) => /bulk|selectRow|selectedRows|applyToAll/i.test(key))).toEqual([]);
+      // The only mutation entry point takes exactly one report summary.
+      expect(result.current.startEdit).toBe(idleEditor.startEdit);
+    });
   });
 });

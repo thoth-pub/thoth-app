@@ -18,6 +18,8 @@ import { useUser } from '@/src/entities/user';
 import { appConfig } from '@/src/shared/config';
 import { getPagesCount } from '@/src/shared/utils';
 
+import usePublisherAdministrationEditor from './usePublisherAdministrationEditor';
+
 // Bounded tri-state job-presence filter. It maps explicitly to the report's
 // nullable `withoutBackCatalogueJob` argument: `all` omits the dimension
 // (null), `withoutJob` requests publishers with no recorded back-catalogue job
@@ -88,9 +90,19 @@ const usePublisherAdministration = () => {
     isEligible: isReportEligible,
   });
 
-  // Code-owned platform metadata, used for display labels and filter-control
-  // options only; it never adds or removes platform membership on a row.
+  // Code-owned platform metadata, used for display labels, filter-control
+  // options and the editor's own platform rows; it never adds or removes
+  // platform membership on a row.
   const { distributionPlatformOptions } = useDistributionPlatformOptions();
+
+  // APP-02B: the bounded single-publisher edit session. It is seeded only by an
+  // explicit Edit on one report row, so a report refetch above can never
+  // replace an open session's captured token or selections, and it is gated on
+  // exactly the same authoritative-superuser eligibility as the report itself.
+  const editor = usePublisherAdministrationEditor({
+    isEligible: isReportEligible,
+    distributionPlatformOptions,
+  });
 
   // Every filter change returns to the first page, so a page number from one
   // filter identity is never applied to another.
@@ -199,6 +211,20 @@ const usePublisherAdministration = () => {
 
     // Display metadata (labels only, never membership)
     getPlatformDisplayLabel,
+
+    // APP-02B staff edit session (identity, token and selections are the
+    // editor's own; nothing here is derived from the active publisher)
+    editSession: editor.session,
+    editPlatformRows: editor.platformRows,
+    isSavingEdit: editor.isSaving,
+    canStartEdit: editor.canStartEdit,
+    canCancelEdit: editor.canCancel,
+    saveOutcome: editor.outcome,
+    startEdit: editor.startEdit,
+    cancelEdit: editor.cancelEdit,
+    changeEditPackage: editor.changePackage,
+    toggleEditPlatform: editor.togglePlatform,
+    saveEdit: editor.save,
   };
 };
 

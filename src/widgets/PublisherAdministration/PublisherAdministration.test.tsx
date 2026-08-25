@@ -3,7 +3,7 @@ import { cleanup, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { DistributionPlatform } from '@/gql/graphql';
+import { DistributionPlatform, ThothPackage } from '@/gql/graphql';
 import { theme } from '@/src/shared/theme';
 
 const usePublisherAdministrationMock = vi.fn();
@@ -16,6 +16,12 @@ vi.mock('./usePublisherAdministration', () => ({
 // Render translation keys verbatim so copy/state assertions are deterministic.
 vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({
   default: () => ({ t: (key: string) => key }),
+}));
+// Spy proving global active-publisher isolation: nothing in this widget - index
+// or editor - may consult the active-publisher state machine.
+const stateMachineSpy = vi.fn();
+vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
+  default: () => stateMachineSpy(),
 }));
 
 import PublisherAdministration from './PublisherAdministration';
@@ -32,6 +38,7 @@ const createSummary = (overrides?: {
   publisherName?: string;
   subscriptionPackage?: string;
   platforms?: DistributionPlatform[];
+  updatedAt?: string;
   lastChange?: { changedAt: string } | null;
   latestBackCatalogueJob?: {
     distributionJobId: string;
@@ -49,6 +56,8 @@ const createSummary = (overrides?: {
     enabledDistributionPlatforms: (overrides?.platforms ?? [DistributionPlatform.Oapen]).map((platform) => ({
       platform,
     })),
+    // APP-02B: the version token the row carries into an edit session.
+    updatedAt: overrides?.updatedAt ?? '2026-08-12T09:00:00Z',
   },
   lastChange: overrides?.lastChange !== undefined ? overrides.lastChange : { changedAt: '2026-08-12T09:00:00Z' },
   latestBackCatalogueJob:
@@ -86,7 +95,29 @@ const createHookState = (overrides?: Record<string, unknown>) => ({
   platformFilterOptions: [DistributionPlatform.Oapen, DistributionPlatform.Doab],
   jobStatusFilterOptions: ['PENDING', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELLED'],
   getPlatformDisplayLabel: (platform: DistributionPlatform) => DISPLAY_LABELS[platform] ?? platform,
+  editSession: null,
+  editPlatformRows: [],
+  isSavingEdit: false,
+  canStartEdit: true,
+  canCancelEdit: false,
+  saveOutcome: null,
+  startEdit: vi.fn(),
+  cancelEdit: vi.fn(),
+  changeEditPackage: vi.fn(),
+  toggleEditPlatform: vi.fn(),
+  saveEdit: vi.fn(),
   ...overrides,
+});
+
+const createSession = (overrides?: { publisherId?: string; publisherName?: string; updatedAt?: string }) => ({
+  snapshot: {
+    publisherId: overrides?.publisherId ?? 'pub-1',
+    publisherName: overrides?.publisherName ?? 'Publisher One',
+    expectedUpdatedAt: overrides?.updatedAt ?? '2026-08-12T09:00:00Z',
+    subscriptionPackage: ThothPackage.Sphinx,
+    enabledPlatforms: [DistributionPlatform.Oapen],
+  },
+  draft: { subscriptionPackage: ThothPackage.Sphinx, enabledPlatforms: [DistributionPlatform.Oapen] },
 });
 
 const renderWidget = () =>
@@ -209,12 +240,25 @@ describe('PublisherAdministration', () => {
     expect(screen.queryByText('reportUnavailable')).not.toBeInTheDocument();
   });
 
-  it('contains no mutation or edit affordance in the report table', () => {
+  it('offers exactly one bounded Edit action per row, and no bulk affordance', () => {
+    usePublisherAdministrationMock.mockReturnValue(
+      createHookState({
+        summaries: [createSummary(), createSummary({ publisherId: 'pub-2', publisherName: 'Publisher Two' })],
+        totalCount: 2,
+      }),
+    );
+
     renderWidget();
 
-    expect(within(screen.getByRole('table')).queryAllByRole('button')).toHaveLength(0);
-    expect(screen.queryByText('editServiceConfiguration')).not.toBeInTheDocument();
-    expect(screen.queryByText('saveServiceConfiguration')).not.toBeInTheDocument();
+    const table = screen.getByRole('table');
+
+    // One control per row and nothing else: no row checkboxes, no select-all,
+    // no apply-to-many action.
+    expect(within(table).getAllByRole('button')).toHaveLength(2);
+    expect(within(table).queryAllByRole('checkbox')).toHaveLength(0);
+    expect(within(table).getByRole('button', { name: 'editAction: Publisher One' })).toBeInTheDocument();
+    expect(within(table).getByRole('button', { name: 'editAction: Publisher Two' })).toBeInTheDocument();
+    expect(within(table).getByText('actionsColumn')).toBeInTheDocument();
   });
 
   it('drives count-derived pagination through the page-change handler', async () => {
@@ -237,5 +281,195 @@ describe('PublisherAdministration', () => {
 
     expect(screen.getByText('totalCountUnavailable')).toBeInTheDocument();
     expect(screen.queryByRole('navigation')).not.toBeInTheDocument();
+  });
+
+  // APP-02B: the bounded single-publisher edit affordance on this same index.
+  describe('staff edit action (APP-02B)', () => {
+    it('never consults the global active-publisher state machine', () => {
+      usePublisherAdministrationMock.mockReturnValue(createHookState({ editSession: createSession() }));
+
+      renderWidget();
+
+      expect(stateMachineSpy).not.toHaveBeenCalled();
+    });
+
+    it('shows no Edit affordance at all while user identity is pending', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({ viewState: 'identityPending', summaries: undefined }),
+      );
+
+      renderWidget();
+
+      expect(screen.queryByText('editAction')).not.toBeInTheDocument();
+      expect(screen.queryByText('actionsColumn')).not.toBeInTheDocument();
+    });
+
+    it('shows no Edit affordance to an authoritative non-superuser', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({ viewState: 'notAuthorized', summaries: undefined, canStartEdit: false }),
+      );
+
+      renderWidget();
+
+      expect(screen.getByText('notAuthorized')).toBeInTheDocument();
+      expect(screen.queryByText('editAction')).not.toBeInTheDocument();
+      expect(screen.queryByText('editorTitle')).not.toBeInTheDocument();
+    });
+
+    it('starts an edit with that exact row own summary, so identity is the row publisher', async () => {
+      const startEdit = vi.fn();
+      const rowOne = createSummary();
+      const rowTwo = createSummary({
+        publisherId: 'pub-2',
+        publisherName: 'Publisher Two',
+        updatedAt: '2026-08-19T07:00:00Z',
+      });
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({ summaries: [rowOne, rowTwo], totalCount: 2, startEdit }),
+      );
+
+      renderWidget();
+
+      await userEvent.click(screen.getByRole('button', { name: 'editAction: Publisher Two' }));
+
+      // The whole row summary is handed over - its own publisher ID, package,
+      // platform set and updatedAt token together - not an index or a name.
+      expect(startEdit).toHaveBeenCalledTimes(1);
+      expect(startEdit).toHaveBeenCalledWith(rowTwo);
+      expect(startEdit.mock.calls[0][0].configuration.publisher.publisherId).toBe('pub-2');
+      expect(startEdit.mock.calls[0][0].configuration.updatedAt).toBe('2026-08-19T07:00:00Z');
+    });
+
+    it('withholds every row Edit control while a session is open, so no second row can start one', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          summaries: [createSummary(), createSummary({ publisherId: 'pub-2', publisherName: 'Publisher Two' })],
+          totalCount: 2,
+          canStartEdit: false,
+          editSession: createSession(),
+        }),
+      );
+
+      // Queried through the container rather than by role: the mounted modal
+      // marks the page content aria-hidden, and the row controls are asserted
+      // here regardless of that.
+      const { container } = renderWidget();
+
+      const editButtons = Array.from(container.querySelectorAll('table button'));
+
+      expect(editButtons).toHaveLength(2);
+      editButtons.forEach((button) => expect(button).toBeDisabled());
+    });
+
+    it('mounts exactly one editor, bound to the session own snapshot', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          summaries: [createSummary(), createSummary({ publisherId: 'pub-2', publisherName: 'Publisher Two' })],
+          totalCount: 2,
+          canStartEdit: false,
+          canCancelEdit: true,
+          editSession: createSession({ publisherId: 'pub-2', publisherName: 'Publisher Two' }),
+        }),
+      );
+
+      renderWidget();
+
+      expect(screen.getAllByText('editorTitle')).toHaveLength(1);
+      // The editor names the session's publisher, which need not be the first
+      // row and is never the active publisher.
+      expect(screen.getByText('pub-2')).toBeInTheDocument();
+    });
+
+    it('mounts no editor when there is no session', () => {
+      renderWidget();
+
+      expect(screen.queryByText('editorTitle')).not.toBeInTheDocument();
+    });
+
+    it('presents a successful save against the attempted publisher, not against a table row', () => {
+      // The edited publisher no longer matches the active filters after the
+      // save, so the reconciled report legitimately came back empty. The
+      // outcome must still be presented, and no stale row may be kept for it.
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          viewState: 'emptyReport',
+          summaries: [],
+          totalCount: 0,
+          saveOutcome: { publisherId: 'pub-1', publisherName: 'Publisher One', kind: 'saved' },
+        }),
+      );
+
+      renderWidget();
+
+      expect(screen.getByRole('status')).toHaveTextContent('editorOutcomeSaved');
+      expect(screen.getByRole('status')).toHaveTextContent('Publisher One');
+      expect(screen.getByText('emptyReport')).toBeInTheDocument();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    });
+
+    it('presents a stale write as not saved', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          saveOutcome: { publisherId: 'pub-1', publisherName: 'Publisher One', kind: 'stale' },
+        }),
+      );
+
+      renderWidget();
+
+      expect(screen.getByRole('status')).toHaveTextContent('editorOutcomeStale');
+      expect(screen.queryByText('editorOutcomeSaved')).not.toBeInTheDocument();
+      // A new edit has to be started deliberately: no editor is left open.
+      expect(screen.queryByText('editorTitle')).not.toBeInTheDocument();
+    });
+
+    it('presents a disabled job-creation outcome as not saved, with no job claim', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          saveOutcome: { publisherId: 'pub-1', publisherName: 'Publisher One', kind: 'jobCreationDisabled' },
+        }),
+      );
+
+      renderWidget();
+
+      expect(screen.getByRole('status')).toHaveTextContent('editorOutcomeJobCreationDisabled');
+      expect(screen.queryByText('editorOutcomeSaved')).not.toBeInTheDocument();
+      expect(screen.queryByText('editorTitle')).not.toBeInTheDocument();
+    });
+
+    it('presents an ambiguous failure as an uncertain outcome, never as success', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          saveOutcome: {
+            publisherId: 'pub-1',
+            publisherName: 'Publisher One',
+            kind: 'failed',
+            message: 'Network error',
+          },
+        }),
+      );
+
+      renderWidget();
+
+      expect(screen.getByRole('status')).toHaveTextContent('editorOutcomeFailed');
+      expect(screen.getByRole('status')).toHaveTextContent('Network error');
+      expect(screen.queryByText('editorOutcomeSaved')).not.toBeInTheDocument();
+      expect(screen.queryByText('editorTitle')).not.toBeInTheDocument();
+    });
+
+    it('shows a report failure as unavailable even after a save outcome, never as saved rows', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          viewState: 'reportError',
+          summaries: undefined,
+          error: new Error('FORBIDDEN'),
+          saveOutcome: { publisherId: 'pub-1', publisherName: 'Publisher One', kind: 'saved' },
+        }),
+      );
+
+      renderWidget();
+
+      expect(screen.getByText('reportUnavailable')).toBeInTheDocument();
+      expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    });
   });
 });

@@ -87,6 +87,13 @@ export const GET_PUBLISHER_BACK_CATALOGUE_JOB_REPORT = graphql(`
 // and the ordering are explicit non-null variables, so the request never leans
 // on an implicit backend default. Only the bounded fields the index presents
 // are selected: no attempt history, claim/lease internals or worker controls.
+//
+// APP-02B adds `configuration.updatedAt` - the backend's optimistic-concurrency
+// version token - to this same selection so a staff edit session can snapshot
+// the package, the enabled-platform set and the token that versions them from
+// one internally consistent report row. It is deliberately taken from the row
+// that is already being read rather than from an extra per-row or
+// editor-open single-publisher configuration request.
 export const GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT = graphql(`
   query GetPublisherServiceConfigurationReport(
     $publishers: [Uuid!]!
@@ -117,6 +124,7 @@ export const GET_PUBLISHER_SERVICE_CONFIGURATION_REPORT = graphql(`
         enabledDistributionPlatforms {
           platform
         }
+        updatedAt
       }
       lastChange {
         changedAt

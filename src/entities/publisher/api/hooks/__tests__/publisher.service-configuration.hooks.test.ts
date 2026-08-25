@@ -28,6 +28,8 @@ const mockServices = {
     getDistributionPlatformOptions: vi.fn(),
     getPublisherBackCatalogueJobReport: vi.fn(),
     replacePublisherServiceConfiguration: vi.fn(),
+    getPublisherServiceConfigurationReport: vi.fn(),
+    getPublisherServiceConfigurationReportCount: vi.fn(),
   },
 };
 
@@ -38,6 +40,10 @@ vi.mock('@/src/shared/context', () => ({
 import useDistributionPlatformOptions from '../useDistributionPlatformOptions';
 import usePublisherBackCatalogueJob, { PUBLISHER_BACK_CATALOGUE_JOB_QUERY_KEY } from '../usePublisherBackCatalogueJob';
 import usePublisherServiceConfiguration from '../usePublisherServiceConfiguration';
+import {
+  PUBLISHER_SERVICE_CONFIGURATION_REPORT_COUNT_QUERY_KEY,
+  PUBLISHER_SERVICE_CONFIGURATION_REPORT_QUERY_KEY,
+} from '../usePublisherServiceConfigurationReport';
 import useReplacePublisherServiceConfiguration, {
   DISTRIBUTION_JOB_CREATION_DISABLED,
   getServiceConfigurationErrorType,
@@ -418,6 +424,99 @@ describe('useReplacePublisherServiceConfiguration', () => {
       );
 
       expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherBackCatalogueJob', 'pub-A'] });
+      expect(setQueryDataMock).not.toHaveBeenCalled();
+    });
+  });
+
+  // APP-02B: the same replace is reachable from the staff publisher
+  // administration index, where a change can move the publisher between filter
+  // identities and change the filtered total. The report and count families are
+  // therefore reconciled as whole families - never patched locally - after
+  // every outcome.
+  describe('staff report and count reconciliation (APP-02B)', () => {
+    const staffReportInvalidations = () =>
+      invalidateQueriesMock.mock.calls.map((call) => call[0]?.queryKey).filter(Boolean);
+
+    const expectStaffReportReconciled = () => {
+      // Prefix-only keys: every cached report and count identity matches,
+      // whatever filters, page or ordering it was cached under, so none of them
+      // stays authoritative and the mounted ones refetch from API truth.
+      expect(invalidateQueriesMock).toHaveBeenCalledWith({
+        queryKey: [PUBLISHER_SERVICE_CONFIGURATION_REPORT_QUERY_KEY],
+      });
+      expect(invalidateQueriesMock).toHaveBeenCalledWith({
+        queryKey: [PUBLISHER_SERVICE_CONFIGURATION_REPORT_COUNT_QUERY_KEY],
+      });
+      expect(staffReportInvalidations()).toEqual([
+        ['publisherServiceConfigurationReport'],
+        ['publisherServiceConfigurationReportCount'],
+      ]);
+    };
+
+    it('reconciles the staff report and count after a successful replace', async () => {
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onSuccess(serverConfiguration, input);
+
+      expectStaffReportReconciled();
+    });
+
+    it('reconciles the staff report and count after a stale write', async () => {
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onError(new GraphqlError('changed', { type: 'STALE_SERVICE_CONFIGURATION' }), input);
+
+      expectStaffReportReconciled();
+    });
+
+    it('reconciles the staff report and count when job creation is disabled', async () => {
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onError(
+        new GraphqlError('disabled', { type: 'DISTRIBUTION_JOB_CREATION_DISABLED' }),
+        input,
+      );
+
+      expectStaffReportReconciled();
+    });
+
+    it('reconciles the staff report and count after an ambiguous unclassified failure', async () => {
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onError(new Error('Network error'), input);
+
+      expectStaffReportReconciled();
+    });
+
+    it('does not scope staff reconciliation to the attempted publisher, unlike the protected reads', async () => {
+      // The single-publisher configuration and job caches stay bound to the
+      // attempt's own publisherId; the staff families deliberately do not,
+      // because a membership or count change can affect any cached page.
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onSuccess(serverConfiguration, input);
+
+      expect(invalidateQueriesMock).not.toHaveBeenCalledWith({
+        queryKey: [PUBLISHER_SERVICE_CONFIGURATION_REPORT_QUERY_KEY, 'pub-A'],
+      });
+      expect(refetchQueriesMock).toHaveBeenCalledWith({ queryKey: ['publisherBackCatalogueJob', 'pub-A'] });
+      expect(refetchQueriesMock).not.toHaveBeenCalledWith({ queryKey: ['publisherBackCatalogueJob', 'pub-B'] });
+    });
+
+    it('writes no staff report row or count locally on any outcome', async () => {
+      useReplacePublisherServiceConfiguration();
+
+      await lastMutationOptions().onSuccess(serverConfiguration, input);
+
+      // The only cache write anywhere is the protected configuration, and its
+      // value is the server response object itself.
+      expect(setQueryDataMock).toHaveBeenCalledTimes(1);
+      expect(setQueryDataMock).toHaveBeenCalledWith(['publisherServiceConfiguration', 'pub-A'], serverConfiguration);
+
+      setQueryDataMock.mockClear();
+
+      await lastMutationOptions().onError(new Error('Network error'), input);
+
       expect(setQueryDataMock).not.toHaveBeenCalled();
     });
   });
