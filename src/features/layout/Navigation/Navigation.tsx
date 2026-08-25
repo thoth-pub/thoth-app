@@ -1,16 +1,17 @@
 'use client';
 
+import type { SvgIconComponent } from '@mui/icons-material';
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
 import ArrowDropDownRoundedIcon from '@mui/icons-material/ArrowDropDownRounded';
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Activity, useState } from 'react';
+import { Activity, type ReactNode, useState } from 'react';
 
-import { AddNewPublisher } from '@/src/entities/publisher';
 import { useUser } from '@/src/entities/user';
 import { PAGES, ROUTES, SUPERUSER_PAGES } from '@/src/shared/constants';
+import useTypedTranslation from '@/src/shared/hooks/useTypedTranslation';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { useUIContext } from '@/src/shared/store';
 import { IconButton, Paper, TranslatedContent, Typography } from '@/src/shared/ui';
@@ -19,11 +20,64 @@ import { SignOutButton } from '../../auth';
 import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
 
+type NavigationGroupProps = {
+  label: string;
+  pages: { name: string; href: string; icon: SvgIconComponent }[];
+  isExpanded: boolean;
+  children?: ReactNode;
+};
+
+// APP-SHELL-SU-01: one labelled application-shell navigation group.
+//
+// Expanded, the group carries a visible section heading so publisher-context
+// workflows and staff workflows read as two distinct concepts instead of one
+// mixed list. Collapsed, the heading is not rendered at all, so the compact
+// shell shows no clipped or empty label block; the group's accessible name is
+// carried by the navigation landmark itself, so the grouping survives in both
+// states without depending on visual styling.
+//
+// The destinations, their routes, ordering and semantics are exactly the
+// collections passed in - this component groups presentation only and decides
+// nothing about which pages exist or who may reach them.
+const NavigationGroup = ({ label, pages, isExpanded, children }: NavigationGroupProps) => (
+  <div className="flex flex-col gap-2">
+    {isExpanded && (
+      <Typography color="primary" component="h2" variant="body2" className="px-1 font-semibold tracking-wide uppercase">
+        {label}
+      </Typography>
+    )}
+
+    {children}
+
+    <nav aria-label={label}>
+      <ul className="flex flex-col rounded-(--border-nav-radius) border border-(--color-nav-border)">
+        {pages.map(({ name, href, icon: Icon }) => (
+          <li key={href} className={`py-2 duration-300 hover:bg-(--color-hover) ${isExpanded ? 'px-4' : 'px-1.5'}`}>
+            <Link href={href} className="flex shrink-0 items-center gap-2">
+              <Icon color="primary" className={`${!isExpanded && 'm-auto'}`} />
+              {isExpanded && (
+                <Typography
+                  color="primary"
+                  component="span"
+                  className="capitalize opacity-100 transition-opacity duration-300"
+                >
+                  <TranslatedContent content={name} namespace={NAMESPACES.enum.navigation} />
+                </Typography>
+              )}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+);
+
 const Navigation = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const { user, isAuthoritative } = useUser();
   const { isExpanded, updateIsExpanded } = useUIContext();
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.navigation });
 
   const handleUserMenuOpen = () => {
     setIsUserMenuOpen((prev) => !prev);
@@ -33,7 +87,11 @@ const Navigation = () => {
   // superuser, so an ordinary publisher - or a not-yet-loaded identity - never
   // sees them, not even as a flash. This gating is presentation only; the
   // backend stays the authorization boundary for everything the entries reach.
-  const visiblePages = isAuthoritative && user.isSuperuser ? [...PAGES, ...SUPERUSER_PAGES] : PAGES;
+  //
+  // APP-SHELL-SU-01 keeps that exact condition and only stops concatenating the
+  // two collections, so staff destinations are rendered as their own group
+  // rather than as a tail of the publisher-context list.
+  const canSeeStaffNavigation = isAuthoritative && user.isSuperuser;
 
   return (
     <Paper
@@ -77,29 +135,19 @@ const Navigation = () => {
           </IconButton>
         </div>
 
-        <ChangeActivePublisher isHidden={!isExpanded} />
-        {user.isSuperuser && <AddNewPublisher className={`w-[240px] shrink-0 ${isExpanded ? 'px-3.5' : 'gap-3'}`} />}
+        {/* Publisher context: the active-publisher switcher and the destinations
+            that operate against it. The switcher stays mounted in both states so
+            its existing initialisation/persistence seam is untouched; it hides
+            itself when collapsed exactly as before. */}
+        <NavigationGroup label={t('publisherContext')} pages={PAGES} isExpanded={isExpanded}>
+          <ChangeActivePublisher isHidden={!isExpanded} />
+        </NavigationGroup>
 
-        <nav>
-          <ul className="flex flex-col rounded-(--border-nav-radius) border border-(--color-nav-border)">
-            {visiblePages.map(({ name, href, icon: Icon }) => (
-              <li key={href} className={`py-2 duration-300 hover:bg-(--color-hover) ${isExpanded ? 'px-4' : 'px-1.5'}`}>
-                <Link href={href} className="flex shrink-0 items-center gap-2">
-                  <Icon color="primary" className={`${!isExpanded && 'm-auto'}`} />
-                  {isExpanded && (
-                    <Typography
-                      color="primary"
-                      component="span"
-                      className={`capitalize transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
-                    >
-                      <TranslatedContent content={name} namespace={NAMESPACES.enum.navigation} />
-                    </Typography>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+        {/* Staff: destinations that are independent of the active publisher.
+            Presentation gating only - see canSeeStaffNavigation above. */}
+        {canSeeStaffNavigation && (
+          <NavigationGroup label={t('staff')} pages={SUPERUSER_PAGES} isExpanded={isExpanded} />
+        )}
 
         {isExpanded && (
           <div
