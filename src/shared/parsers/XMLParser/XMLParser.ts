@@ -97,6 +97,7 @@ import {
   resolveOnixContributorOrder,
   resolveOnixTextMarkup,
   selectCanonicalDoi,
+  selectOnixOrcid,
   selectPublicationOrderSequence,
   selectPublishingDate,
   selectRelatedIdentifier,
@@ -1676,7 +1677,10 @@ class XMLParser {
       const fullName = contributor.PersonName ?? '';
       const lastName = contributor.KeyNames ?? '';
       const firstName = contributor.NamesBeforeKey ?? '';
-      const orcid = contributor.NameIdentifier?.IDValue ?? '';
+      // By declared scheme, not by shape: NameIdentifier is repeatable and only NameIDType 21 is
+      // an ORCID, so a proprietary key never becomes identity and an ORCID behind one is still
+      // found. Already in Thoth's hyphenated form, whichever way the file encoded it.
+      const orcid = selectOnixOrcid(contributor.NameIdentifier);
       const website = contributor.Website?.WebsiteLink ?? '';
       const affiliationPosition = contributor.ProfessionalAffiliation?.ProfessionalPosition ?? '';
       const affiliationInstitutionRor = contributor.ProfessionalAffiliation?.AffiliationIdentifier?.IDValue;
@@ -1685,9 +1689,7 @@ class XMLParser {
       const [foundedInstitution, foundedContributors, orcidMatch] = await Promise.all([
         this.lookupCoordinator.findInstitutionByRor(affiliationInstitutionRor),
         this.lookupCoordinator.findContributors(fullName),
-        // `NameIdentifier/IDValue` is whatever identifier scheme the file used, so this resolves
-        // an identity only when the value really is an ORCID and Thoth really holds it.
-        this.lookupCoordinator.findContributorByOrcid(orcid ? `${orcid}` : ''),
+        this.lookupCoordinator.findContributorByOrcid(orcid),
       ]);
 
       const affiliation = foundedInstitution
@@ -1710,7 +1712,7 @@ class XMLParser {
         // with "A contribution with this ordinal number already exists."
         orderNumber,
         biographies,
-        orcidId: orcid ? `${orcid}` : '',
+        orcidId: orcid,
         website: website ? `${website}` : '',
         contributorId: this.defaultId,
         affiliations: affiliation ? [affiliation] : [],
