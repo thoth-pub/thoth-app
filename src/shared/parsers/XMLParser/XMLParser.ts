@@ -1682,9 +1682,12 @@ class XMLParser {
       const affiliationInstitutionRor = contributor.ProfessionalAffiliation?.AffiliationIdentifier?.IDValue;
       const biographies = this.parseBiographies(contributor, product, index);
 
-      const [foundedInstitution, foundedContributors] = await Promise.all([
+      const [foundedInstitution, foundedContributors, orcidMatch] = await Promise.all([
         this.lookupCoordinator.findInstitutionByRor(affiliationInstitutionRor),
         this.lookupCoordinator.findContributors(fullName),
+        // `NameIdentifier/IDValue` is whatever identifier scheme the file used, so this resolves
+        // an identity only when the value really is an ORCID and Thoth really holds it.
+        this.lookupCoordinator.findContributorByOrcid(orcid ? `${orcid}` : ''),
       ]);
 
       const affiliation = foundedInstitution
@@ -1713,14 +1716,43 @@ class XMLParser {
         affiliations: affiliation ? [affiliation] : [],
       });
 
+      const multipleContributionsItemId = this.generateId();
+
+      // An exact ORCID settles the identity of this occurrence, so the plan reuses that
+      // contributor instead of holding a create intent the ORCID unique index would reject
+      // (issue #135) — the same rule CSV applies, over the same shared lookup. The resolved
+      // ordinal, role and biographies stay exactly as this file supplied them; only who the
+      // contribution points at comes from Thoth.
+      if (orcidMatch) {
+        const resolvedContribution = getDefaultContribution({
+          fullName: orcidMatch.fullName,
+          lastName: orcidMatch.lastName,
+          firstName: orcidMatch.firstName,
+          contributorId: orcidMatch.id,
+          type: role,
+          isMain: true,
+          orderNumber,
+          biographies,
+          orcidId: orcidMatch.orcid,
+          website: orcidMatch.website,
+          affiliations: affiliation ? [affiliation] : [],
+        });
+
+        workContributions.push(resolvedContribution);
+
+        multipleContributions[workId][multipleContributionsItemId] = [
+          { ...resolvedContribution, selected: true, lastContribution: orcidMatch.lastContributionTitle },
+        ];
+
+        continue;
+      }
+
       // The ImportPlan holds exactly one contribution per source contributor: the default
       // "create a new contributor" intent. Existing-contributor matches are alternatives the user
       // may substitute, so they belong only in contributorsForSelection — the same split CSV
       // makes. Pushing every match here as well planned several contributions for one author, all
       // sharing an ordinal, which is a second way to collide on the same constraint.
       workContributions.push(contributionWithNewContributor);
-
-      const multipleContributionsItemId = this.generateId();
 
       multipleContributions[workId][multipleContributionsItemId] = [
         { ...contributionWithNewContributor, selected: true, lastContribution: '' },

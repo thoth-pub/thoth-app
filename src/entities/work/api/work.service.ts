@@ -48,6 +48,7 @@ import {
   UPDATE_WORK,
 } from '../model/work.schema';
 import type { WorkDto, WorkEntity, WorkId } from '../model/work.types';
+import { ImportContributorRegistry } from './importContributorRegistry';
 
 type WorkServiceDependencies = {
   graphqlService: GraphqlService;
@@ -132,7 +133,14 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return all;
   }
 
-  async createWork(data: WorkEntity): Promise<WorkEntity> {
+  /**
+   * `contributorRegistry` is threaded in by {@link bulkCreateWorks} alone, and only far enough to
+   * reach {@link ContributionService.createContribution}: contributions are created here with
+   * `Promise.all`, so two occurrences of one ORCID on this work start concurrently and the
+   * registry is what keeps them to a single contributor creation. Every other caller passes
+   * nothing and gets exactly the behaviour it had before.
+   */
+  async createWork(data: WorkEntity, contributorRegistry?: ImportContributorRegistry): Promise<WorkEntity> {
     const { workId: _, ...dto } = this.dtoMapper.toDto(data) as WorkDto;
 
     const response = await this.graphqlService.mutation(CREATE_WORK, {
@@ -172,7 +180,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       work.fundings = createdFundings;
 
       const createdContributions = await Promise.all(
-        data.contributions.map((contribution) => this.contributionService.createContribution(contribution, work.id)),
+        data.contributions.map((contribution) =>
+          this.contributionService.createContribution(contribution, work.id, contributorRegistry),
+        ),
       );
       createdContributions.forEach((contribution) =>
         transactions.onRollback(() => this.contributionService.deleteContribution(contribution.id)),
@@ -220,8 +230,13 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     return response.createWorkRelation;
   }
 
-  createChapter = async (chapter: WorkEntity, relatedWorkId: WorkId, ordinal: number) => {
-    const createdChapter = await this.createWork(chapter);
+  createChapter = async (
+    chapter: WorkEntity,
+    relatedWorkId: WorkId,
+    ordinal: number,
+    contributorRegistry?: ImportContributorRegistry,
+  ) => {
+    const createdChapter = await this.createWork(chapter, contributorRegistry);
 
     await this.createWorkRelation(createdChapter.id, relatedWorkId, ordinal, RelationType.IsChildOf);
 
@@ -510,6 +525,9 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
     const { works, chapters, series } = plan;
     const total = works.length;
     const resolvedSeriesIds = new Map<SeriesImportGroup, SeriesId>();
+    // New for this run and owned by it: contributor ids created here are facts about this
+    // execution only, and no later import may inherit them. See ImportContributorRegistry.
+    const contributorRegistry = new ImportContributorRegistry();
 
     // Built once, before any work is created: the plan says which series each work belongs to
     // and with which ordinal, and looking that up per work used to mean scanning every group's
@@ -549,7 +567,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
       try {
         WorkService.reportProgress(observer, { total, completed, current, stage });
 
-        const createdWork = await this.createWork(work);
+        const createdWork = await this.createWork(work, contributorRegistry);
 
         if (foundedChapters.length > 0) {
           stage = 'chapters';
@@ -557,7 +575,7 @@ export class WorkService extends BaseService<WorkEntity, WorkDto, WorkDtoMapper>
 
           await Promise.all(
             foundedChapters.map((chapter, chapterIndex) =>
-              this.createChapter(chapter, createdWork.id, chapterIndex + 1),
+              this.createChapter(chapter, createdWork.id, chapterIndex + 1, contributorRegistry),
             ),
           );
         }

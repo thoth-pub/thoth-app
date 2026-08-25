@@ -1749,3 +1749,271 @@ describe('CSVParser', () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Contributor identity by ORCID (issue #135)
+// ---------------------------------------------------------------------------
+
+/**
+ * ORCID is the one deterministic contributor identity a CSV can supply, and until #135 the
+ * import ignored it: it searched by full name, so an existing ORCID was missed whenever the
+ * spelling differed, and a repeated new ORCID planned a fresh contributor per row — which the
+ * backend's ORCID unique index then rejected partway through execution.
+ */
+describe('CSV contributor identity by ORCID', () => {
+  const ORCID = '0000-0001-6365-5189';
+  const CANONICAL_ORCID = `https://orcid.org/${ORCID}`;
+  const OTHER_ORCID = '0000-0002-1825-0097';
+
+  const existing = (overrides: Record<string, string>) => ({
+    id: 'existing-contributor',
+    fullName: 'J. A. Doe-Smith',
+    firstName: 'J. A.',
+    lastName: 'Doe-Smith',
+    orcid: CANONICAL_ORCID,
+    website: 'https://stored.example',
+    lastContributionTitle: 'An Earlier Book',
+    ...overrides,
+  });
+
+  /** Answers a name search and an ORCID search differently, as the backend filter would. */
+  const byFilter = (results: Record<string, object[]>) =>
+    vi.fn((filter: string) => Promise.resolve(results[filter] ?? []));
+
+  const contributorRow = (values: Record<string, string>) => ({
+    ...BASE,
+    contribution_1_role: 'AUTHOR',
+    ...values,
+  });
+
+  const plannedContributions = (result: Awaited<ReturnType<CSVParser['parse']>>) =>
+    result.data.plan.works.map((work) => work.contributions[0]);
+
+  it('resolves an existing ORCID even when the source name would never have found it', async () => {
+    // The name search returns nothing at all — the stored spelling is materially different —
+    // and the ORCID still settles the identity.
+    const getContributors = byFilter({ [ORCID]: [existing({})] });
+    const csv = buildCsv(
+      contributorRow({
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: ORCID,
+      }),
+    );
+
+    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+    expect(result.status).toBe('success');
+    expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(
+      expect.arrayContaining(['Jane Doe', ORCID]),
+    );
+
+    const [contribution] = plannedContributions(result);
+
+    expect(contribution.contributorId).toBe('existing-contributor');
+    expect(contribution.fullName).toBe('J. A. Doe-Smith');
+    // No impossible create intent is left anywhere for this occurrence.
+    const options = Object.values(result.data.contributorsForSelection[result.data.plan.works[0].id])[0];
+
+    expect(options).toHaveLength(1);
+    expect(options[0]).toMatchObject({ selected: true, contributorId: 'existing-contributor' });
+    expect(options.some(({ contributorId }) => contributorId === appConfig.defaultId)).toBe(false);
+  });
+
+  it('keeps the source role, ordinal and biography while sharing the resolved identity', async () => {
+    const getContributors = byFilter({ [ORCID]: [existing({})] });
+    const csv = buildCsv(
+      contributorRow({
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_role: 'EDITOR',
+        contribution_1_orcid: ORCID,
+        contribution_1_biography: 'Writes about arcs.',
+      }),
+    );
+
+    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+    const [contribution] = plannedContributions(result);
+
+    expect(contribution).toMatchObject({ contributorId: 'existing-contributor', type: 'EDITOR', orderNumber: 1 });
+    expect(contribution.biographies.map(({ content }) => content)).toEqual(['Writes about arcs.']);
+  });
+
+  it('prefers the exact ORCID over the name-only candidates for the same occurrence', async () => {
+    // A name search that would otherwise offer two people to choose between. The ORCID is not
+    // ambiguous, so it decides, and the ambiguity never reaches the user.
+    const getContributors = byFilter({
+      'Jane Doe': [
+        { ...existing({ id: 'namesake-one', fullName: 'Jane Doe', orcid: '' }) },
+        { ...existing({ id: 'namesake-two', fullName: 'Jane Doe', orcid: `https://orcid.org/${OTHER_ORCID}` }) },
+      ],
+      [ORCID]: [existing({ id: 'orcid-holder' })],
+    });
+    const csv = buildCsv(
+      contributorRow({
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: ORCID,
+      }),
+    );
+
+    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+    expect(plannedContributions(result)[0].contributorId).toBe('orcid-holder');
+
+    const options = Object.values(result.data.contributorsForSelection[result.data.plan.works[0].id])[0];
+
+    expect(options.map(({ contributorId }) => contributorId)).toEqual(['orcid-holder']);
+  });
+
+  it('never turns a substring ORCID candidate into an identity', async () => {
+    // The backend filter is a substring search, so it may legitimately return a longer ORCID
+    // that merely contains the search string.
+    const getContributors = byFilter({
+      [ORCID]: [existing({ id: 'substring-holder', orcid: `https://orcid.org/${ORCID}0` })],
+    });
+    const csv = buildCsv(
+      contributorRow({
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: ORCID,
+      }),
+    );
+
+    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+    expect(plannedContributions(result)[0].contributorId).toBe(appConfig.defaultId);
+  });
+
+  it('plans one shared identity for a repeated previously unseen ORCID across rows', async () => {
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const csv = buildCsvRows([
+      contributorRow({
+        title: 'First book',
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: ORCID,
+      }),
+      contributorRow({
+        title: 'Second book',
+        // Deliberately a different spelling of the same person, as the Tilburg source had.
+        contribution_1_first_name: 'J.',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: CANONICAL_ORCID,
+      }),
+    ]);
+
+    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+    expect(result.status).toBe('success');
+
+    const contributions = plannedContributions(result);
+
+    // Both still plan a new contributor — Thoth holds none — but they carry the one ORCID the
+    // execution registry keys on, so exactly one contributor is created for the pair.
+    expect(contributions.map(({ contributorId }) => contributorId)).toEqual([
+      appConfig.defaultId,
+      appConfig.defaultId,
+    ]);
+    expect(contributions.map(({ orcidId }) => orcidId)).toEqual([ORCID, CANONICAL_ORCID]);
+    // One identity lookup for the ORCID across the whole parse, in either representation.
+    expect(getContributors.mock.calls.filter(([filter]) => filter === ORCID)).toHaveLength(1);
+  });
+
+  it('keeps two same-name contributors with different ORCIDs distinct', async () => {
+    const getContributors = byFilter({
+      'Jane Doe': [existing({ id: 'namesake', fullName: 'Jane Doe' })],
+      [ORCID]: [existing({ id: 'holder-one' })],
+      [OTHER_ORCID]: [existing({ id: 'holder-two', orcid: `https://orcid.org/${OTHER_ORCID}` })],
+    });
+    const csv = buildCsvRows([
+      contributorRow({
+        title: 'First book',
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: ORCID,
+      }),
+      contributorRow({
+        title: 'Second book',
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: OTHER_ORCID,
+      }),
+    ]);
+
+    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+    expect(plannedContributions(result).map(({ contributorId }) => contributorId)).toEqual([
+      'holder-one',
+      'holder-two',
+    ]);
+  });
+
+  it('leaves name-based selection exactly as it was when no ORCID matches', async () => {
+    const getContributors = byFilter({
+      'Jane Doe': [existing({ id: 'name-candidate', fullName: 'Jane Doe', orcid: '' })],
+    });
+    const csv = buildCsv(
+      contributorRow({
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: ORCID,
+      }),
+    );
+
+    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+    // Unchanged shape: the create intent selected, the name candidate offered beside it.
+    const options = Object.values(result.data.contributorsForSelection[result.data.plan.works[0].id])[0];
+
+    expect(options).toHaveLength(2);
+    expect(options.map(({ selected }) => selected)).toEqual([true, false]);
+    expect(options[0].contributorId).toBe(appConfig.defaultId);
+    expect(options[1].contributorId).toBe('name-candidate');
+    expect(plannedContributions(result)[0].contributorId).toBe(appConfig.defaultId);
+  });
+
+  it('makes no identity decision, and no ORCID lookup, for a blank ORCID', async () => {
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const csv = buildCsvRows([
+      contributorRow({
+        title: 'First book',
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+      }),
+      contributorRow({
+        title: 'Second book',
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+      }),
+    ]);
+
+    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+    // Only the name search ran, and both rows keep the create intent: a shared name is not a
+    // shared identity, which is exactly what the contributor-selection step exists to resolve.
+    expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(['Jane Doe']);
+    expect(plannedContributions(result).map(({ contributorId }) => contributorId)).toEqual([
+      appConfig.defaultId,
+      appConfig.defaultId,
+    ]);
+  });
+
+  it('fails the parse when the ORCID identity lookup genuinely rejects', async () => {
+    const getContributors = vi.fn((filter: string) =>
+      filter === ORCID ? Promise.reject(new Error('502 Bad Gateway')) : Promise.resolve([]),
+    );
+    const csv = buildCsv(
+      contributorRow({
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: ORCID,
+      }),
+    );
+
+    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+  });
+});

@@ -885,9 +885,10 @@ export class CSVParser {
         website,
       } = filteredContributors[i];
 
-      const [foundedContributors, institution] = await Promise.all([
+      const [foundedContributors, institution, orcidMatch] = await Promise.all([
         this.lookupCoordinator.findContributors(fullName),
         this.lookupCoordinator.findInstitutionByRor(affiliationInstitutionRor),
+        this.lookupCoordinator.findContributorByOrcid(orcid),
       ]);
 
       const affiliation = institution
@@ -929,6 +930,36 @@ export class CSVParser {
       });
 
       const contributorsForSelectionItemId = this.generateId();
+
+      // An exact ORCID settles the identity of this occurrence, so the plan reuses that
+      // contributor instead of holding a create intent the ORCID unique index would reject
+      // (issue #135). It is the whole answer for this occurrence: no create alternative to fall
+      // back to — that is the impossible intent — and no name candidates to choose between,
+      // since a name is ambiguous and this is not. Only the identity fields come from Thoth;
+      // everything the source said about the contribution itself is untouched below.
+      if (orcidMatch) {
+        const resolvedContribution = getDefaultContribution({
+          fullName: orcidMatch.fullName,
+          lastName: orcidMatch.lastName,
+          firstName: orcidMatch.firstName,
+          contributorId: orcidMatch.id,
+          type: type as ContributionType,
+          isMain: true,
+          orderNumber,
+          biographies,
+          orcidId: orcidMatch.orcid,
+          website: orcidMatch.website,
+          affiliations: affiliation ? [affiliation] : [],
+        });
+
+        contributorsForSelection[workId][contributorsForSelectionItemId] = [
+          { ...resolvedContribution, selected: true, lastContribution: orcidMatch.lastContributionTitle },
+        ];
+
+        workContributions.push(resolvedContribution);
+
+        continue;
+      }
 
       contributorsForSelection[workId][contributorsForSelectionItemId] = [
         { ...contributionWithNewContributor, selected: true, lastContribution: '' },
