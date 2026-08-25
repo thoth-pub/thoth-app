@@ -5,6 +5,7 @@ import {
   LanguageRole,
   MeasureType,
   MeasureUnit,
+  NameIdentifierType,
   ProductForm,
   ProductIdentifierType,
   PublishingDateRole,
@@ -18,6 +19,7 @@ import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ContributorService } from '@/src/entities/contributor';
+import type { ContributorEntity } from '@/src/entities/contributor/model/contributor.types';
 import { InstitutionService } from '@/src/entities/institution';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 
@@ -47,7 +49,9 @@ import {
   ExtendedProduct,
   ExtendedProductSupply,
   ExtendedPublishingDetail,
+  OnixRepeatable,
   OnixSubject,
+  OnixText,
 } from './interfaces';
 import { toOnixArray } from './onix';
 import XMLParser, { ONIX_PROCESSING_FAILURE_MESSAGE } from './XMLParser';
@@ -2947,7 +2951,10 @@ describe('XMLParser', () => {
       const contributorLastName = faker.person.fullName();
       const contributorFirstName = faker.person.fullName();
       const contributorFullName = faker.person.fullName();
-      const contributorOrcid = faker.string.sample();
+      // A declared ORCID, as ONIX defines one. This used to be an undeclared `faker.string.sample()`
+      // read straight out of the first NameIdentifier, which asserted that any identifier of any
+      // scheme became the contributor's ORCID — the misreading issue #135's review corrected.
+      const contributorOrcid = '0000-0001-6365-5189';
       const contributorWebsite = faker.internet.url();
       const biography = faker.lorem.sentence();
       const xml: ExtendedONIXMessageRoot = {
@@ -2965,6 +2972,7 @@ describe('XMLParser', () => {
                     KeyNames: contributorLastName,
                     NamesBeforeKey: contributorFirstName,
                     NameIdentifier: {
+                      NameIDType: NameIdentifierType._21,
                       IDValue: contributorOrcid,
                     },
                     Website: {
@@ -7813,5 +7821,372 @@ Professor Emerita of English.</BiographicalNote>`),
         ]);
       });
     });
+  });
+});
+
+/**
+ * Issue #135, ONIX side. CSV and ONIX go through the same shared lookup, so the identity rule
+ * has to read identically from both: an exact ORCID resolves an existing contributor whatever
+ * the name says, and a repeated previously unseen ORCID stays one identity for execution —
+ * including between a product and its chapters, which are created concurrently.
+ */
+describe('ONIX contributor identity by ORCID (issue #135)', () => {
+  const ORCID = '0000-0001-6365-5189';
+  const CANONICAL_ORCID = `https://orcid.org/${ORCID}`;
+
+  let mockContributorService: ContributorService;
+  let mockInstitutionService: InstitutionService;
+  let imprints: Array<{ label: string; value: string }>;
+  let languages: Array<{ label: string; value: string }>;
+
+  const stored = (overrides: Partial<ContributorEntity> = {}): ContributorEntity => ({
+    id: 'existing-contributor',
+    name: 'J. A. Doe-Smith',
+    fullName: 'J. A. Doe-Smith',
+    firstName: 'J. A.',
+    lastName: 'Doe-Smith',
+    orcid: CANONICAL_ORCID,
+    website: 'https://stored.example',
+    updatedAt: '',
+    lastContributionTitle: 'An Earlier Book',
+    ...overrides,
+  });
+
+  /** Answers a name search and an ORCID search differently, as the backend filter would. */
+  const byFilter = (results: Record<string, ContributorEntity[]>) =>
+    vi.fn((filter: string) => Promise.resolve(results[filter] ?? []));
+
+  /**
+   * One NameIdentifier composite, with its scheme declared as ONIX requires. Real files always
+   * carry a NameIDType; a helper that omitted it would test a shape ONIX does not define.
+   */
+  const identifier = (nameIdType: OnixText, idValue: string) => ({
+    NameIDType: nameIdType,
+    IDValue: idValue,
+  });
+
+  const orcidIdentifier = (value: string) => identifier(NameIdentifierType._21, value);
+  const proprietaryIdentifier = (value: string) => identifier(NameIdentifierType._01, value);
+
+  /**
+   * `identifiers` is passed through exactly as given: a single composite stays a bare object and
+   * several stay an array, which is precisely what fast-xml-parser emits for a repeatable
+   * element. Flattening it here would hide the repeat this parser has to handle.
+   */
+  const onixContributor = (
+    fullName: string,
+    identifiers?: OnixRepeatable<ReturnType<typeof identifier>>,
+    role = 'A01',
+  ) => ({
+    ContributorRole: role,
+    PersonName: fullName,
+    KeyNames: fullName.split(' ').slice(-1)[0],
+    NamesBeforeKey: fullName.split(' ')[0],
+    NameIdentifier: identifiers,
+  });
+
+  const product = (
+    title: string,
+    contributors: ReturnType<typeof onixContributor>[],
+    chapters?: { title: string; contributors: ReturnType<typeof onixContributor>[] }[],
+  ): ExtendedProduct =>
+    ({
+      DescriptiveDetail: {
+        ProductForm: ProductForm._BC,
+        TitleDetail: { TitleElement: { TitleText: title } },
+        Language: { LanguageCode: languages[0].value },
+        Contributor: contributors,
+      } as ExtendedDescriptiveDetail,
+      PublishingDetail: {
+        Imprint: { ImprintName: imprints[0].label },
+        PublishingStatus: '04',
+      } as ExtendedPublishingDetail,
+      ContentDetail: chapters
+        ? {
+            ContentItem: chapters.map((chapter, index) => ({
+              LevelSequenceNumber: `${index + 1}`,
+              TitleDetail: { TitleElement: { TitleText: chapter.title } },
+              Contributor: chapter.contributors,
+            })) as unknown as ExtendedCollection[],
+          }
+        : undefined,
+    }) as ExtendedProduct;
+
+  const parseProducts = (products: ExtendedProduct[]) =>
+    new XMLParser(
+      { ONIXMessage: { Product: products } },
+      imprints,
+      licenseOptions,
+      [],
+      mockContributorService,
+      mockInstitutionService,
+      languages,
+      currencyOptions,
+    ).parse();
+
+  beforeEach(() => {
+    mockContributorService = { getContributors: vi.fn().mockResolvedValue([]) } as unknown as ContributorService;
+    mockInstitutionService = { getInstitutions: vi.fn().mockResolvedValue([]) } as unknown as InstitutionService;
+    imprints = [{ label: faker.company.name(), value: faker.string.uuid() }];
+    languages = languageOptions;
+  });
+
+  it('resolves an existing ORCID even when the ONIX PersonName would never have found it', async () => {
+    mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+
+    const result = await parseProducts([product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))])]);
+
+    expect(result.status).toBe('success');
+
+    const [contribution] = result.data.plan.works[0].contributions;
+
+    expect(contribution.contributorId).toBe('existing-contributor');
+    expect(contribution.fullName).toBe('J. A. Doe-Smith');
+
+    const options = Object.values(result.data.contributorsForSelection[result.data.plan.works[0].id])[0];
+
+    // Nothing left for the user to resolve, and no create intent the ORCID index would reject.
+    expect(options).toHaveLength(1);
+    expect(options[0]).toMatchObject({ selected: true, contributorId: 'existing-contributor' });
+  });
+
+  it('keeps the ONIX role and resolved ordinal while sharing the resolved identity', async () => {
+    mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+
+    const result = await parseProducts([
+      product('A book', [onixContributor('Someone Else', undefined, 'A01'), onixContributor('Jane Doe', orcidIdentifier(ORCID), 'B01')]),
+    ]);
+
+    const [, resolved] = result.data.plan.works[0].contributions;
+
+    expect(resolved).toMatchObject({ contributorId: 'existing-contributor', type: 'EDITOR', orderNumber: 2 });
+  });
+
+  it('rejects a substring ORCID candidate rather than treating it as identity', async () => {
+    mockContributorService.getContributors = byFilter({
+      [ORCID]: [stored({ id: 'substring-holder', orcid: `${CANONICAL_ORCID}0` })],
+    });
+
+    const result = await parseProducts([product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))])]);
+
+    expect(result.data.plan.works[0].contributions[0].contributorId).toBe(appConfig.defaultId);
+  });
+
+  it('plans one shared identity for a repeated previously unseen ORCID across products', async () => {
+    const getContributors = vi.fn().mockResolvedValue([]);
+    mockContributorService.getContributors = getContributors;
+
+    const result = await parseProducts([
+      product('First book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))]),
+      product('Second book', [onixContributor('J. Doe', orcidIdentifier(CANONICAL_ORCID))]),
+    ]);
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.works.map((work) => work.contributions[0].contributorId)).toEqual([
+      appConfig.defaultId,
+      appConfig.defaultId,
+    ]);
+    // Both occurrences carry the one ORCID the execution registry keys on, and the identity
+    // lookup itself ran once for the whole parse.
+    expect(getContributors.mock.calls.filter(([filter]) => filter === ORCID)).toHaveLength(1);
+  });
+
+  it('plans one shared identity for an ORCID repeated between a product and its chapters', async () => {
+    const getContributors = vi.fn().mockResolvedValue([]);
+    mockContributorService.getContributors = getContributors;
+
+    const result = await parseProducts([
+      product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))], [
+        { title: 'Chapter one', contributors: [onixContributor('Jane Doe', orcidIdentifier(ORCID))] },
+        { title: 'Chapter two', contributors: [onixContributor('J. Doe', orcidIdentifier(CANONICAL_ORCID))] },
+      ]),
+    ]);
+
+    expect(result.status).toBe('success');
+    expect(result.data.plan.chapters).toHaveLength(2);
+
+    const everyContribution = [...result.data.plan.works, ...result.data.plan.chapters].flatMap(
+      (work) => work.contributions,
+    );
+
+    expect(everyContribution).toHaveLength(3);
+    // Chapters are created concurrently with each other and inside one top-level work, which is
+    // exactly why execution keys on the ORCID rather than on completion order.
+    expect(everyContribution.every(({ contributorId }) => contributorId === appConfig.defaultId)).toBe(true);
+    expect(getContributors.mock.calls.filter(([filter]) => filter === ORCID)).toHaveLength(1);
+  });
+
+  it('resolves the same existing ORCID for a chapter contributor as for the product', async () => {
+    mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+
+    const result = await parseProducts([
+      product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))], [
+        { title: 'Chapter one', contributors: [onixContributor('Someone Different', orcidIdentifier(ORCID))] },
+      ]),
+    ]);
+
+    expect(result.data.plan.works[0].contributions[0].contributorId).toBe('existing-contributor');
+    expect(result.data.plan.chapters[0].contributions[0].contributorId).toBe('existing-contributor');
+  });
+
+  it('leaves name-only behaviour untouched where the file supplies no ORCID', async () => {
+    const getContributors = byFilter({ 'Jane Doe': [stored({ id: 'name-candidate', orcid: '' })] });
+    mockContributorService.getContributors = getContributors;
+
+    const result = await parseProducts([product('A book', [onixContributor('Jane Doe')])]);
+
+    const options = Object.values(result.data.contributorsForSelection[result.data.plan.works[0].id])[0];
+
+    expect(options).toHaveLength(2);
+    expect(options.map(({ selected }) => selected)).toEqual([true, false]);
+    expect(options[0].contributorId).toBe(appConfig.defaultId);
+    expect(options[1].contributorId).toBe('name-candidate');
+    // Only the name search ran: a missing identifier is not an identity question to ask.
+    expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(['Jane Doe']);
+  });
+
+  /**
+   * ONIX NameIdentifier is a repeatable composite whose NameIDType (List 44) declares the
+   * scheme, and `21` is ORCID. Reading `IDValue` off the first composite and judging it by shape
+   * gets all three of those wrong: it misses an ORCID sitting behind another identifier, it
+   * mistakes an ORCID-shaped proprietary key for an ORCID, and it never converts ONIX's normal
+   * hyphenless encoding into the form Thoth stores.
+   */
+  describe('NameIdentifier scheme and representation', () => {
+    const HYPHENLESS_ORCID = '0000000163655189';
+
+    it('finds the ORCID behind another identifier scheme', async () => {
+      mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+
+      const result = await parseProducts([
+        product('A book', [
+          onixContributor('Jane Doe', [proprietaryIdentifier('PUB-AUTHOR-99'), orcidIdentifier(ORCID)]),
+        ]),
+      ]);
+
+      // The ORCID is not the first composite, and a first-identifier read would never see it —
+      // leaving the #135 duplicate-creation failure fully reachable through ONIX.
+      expect(result.data.plan.works[0].contributions[0].contributorId).toBe('existing-contributor');
+    });
+
+    it('reads NameIDType through the ONIX text helper when it carries attributes', async () => {
+      mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+
+      const result = await parseProducts([
+        product('A book', [onixContributor('Jane Doe', identifier({ '#text': '21' }, ORCID))]),
+      ]);
+
+      expect(result.data.plan.works[0].contributions[0].contributorId).toBe('existing-contributor');
+    });
+
+    it('never treats a declared non-ORCID identifier as ORCID identity, however it is shaped', async () => {
+      // A proprietary key that happens to be a syntactically valid ORCID. Its NameIDType says it
+      // is not one, and the declaration wins over the shape.
+      const getContributors = byFilter({
+        'Jane Doe': [stored({ id: 'name-candidate', orcid: '' })],
+        [ORCID]: [stored({ id: 'orcid-holder' })],
+      });
+      mockContributorService.getContributors = getContributors;
+
+      const result = await parseProducts([
+        product('A book', [onixContributor('Jane Doe', proprietaryIdentifier(ORCID))]),
+      ]);
+
+      const [contribution] = result.data.plan.works[0].contributions;
+
+      // Name-based behaviour stays authoritative, and nothing carries the misread identifier
+      // forward as an ORCID — least of all into contributor creation.
+      expect(contribution.contributorId).toBe(appConfig.defaultId);
+      expect(contribution.orcidId).toBe('');
+      expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(['Jane Doe']);
+
+      const options = Object.values(result.data.contributorsForSelection[result.data.plan.works[0].id])[0];
+
+      expect(options.map(({ contributorId }) => contributorId)).toEqual([appConfig.defaultId, 'name-candidate']);
+    });
+
+    it('converts a hyphenless ONIX ORCID into the form Thoth stores', async () => {
+      const getContributors = byFilter({ [ORCID]: [stored()] });
+      mockContributorService.getContributors = getContributors;
+
+      const result = await parseProducts([
+        product('A book', [onixContributor('Jane Doe', orcidIdentifier(HYPHENLESS_ORCID))]),
+      ]);
+
+      // `0000000163655189` is the normal ONIX encoding of `0000-0001-6365-5189`, and only the
+      // latter is what Thoth stores, what the exact lookup can match, and what the API accepts.
+      expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(
+        expect.arrayContaining([ORCID]),
+      );
+      expect(result.data.plan.works[0].contributions[0].contributorId).toBe('existing-contributor');
+    });
+
+    it('plans the Thoth-form ORCID for a new contributor sent hyphenless', async () => {
+      mockContributorService.getContributors = vi.fn().mockResolvedValue([]);
+
+      const result = await parseProducts([
+        product('A book', [onixContributor('Jane Doe', orcidIdentifier(HYPHENLESS_ORCID))]),
+      ]);
+
+      const [contribution] = result.data.plan.works[0].contributions;
+
+      // What execution will send to createContributor, so it may not be the ONIX encoding.
+      expect(contribution.contributorId).toBe(appConfig.defaultId);
+      expect(contribution.orcidId).toBe(ORCID);
+    });
+
+    it('keeps a repeated hyphenless ORCID one identity across products and chapters', async () => {
+      const getContributors = vi.fn().mockResolvedValue([]);
+      mockContributorService.getContributors = getContributors;
+
+      const result = await parseProducts([
+        product('First book', [onixContributor('Jane Doe', orcidIdentifier(HYPHENLESS_ORCID))], [
+          { title: 'Chapter one', contributors: [onixContributor('J. Doe', orcidIdentifier(ORCID))] },
+        ]),
+        product('Second book', [onixContributor('Jane Doe', orcidIdentifier(HYPHENLESS_ORCID))]),
+      ]);
+
+      const everyContribution = [...result.data.plan.works, ...result.data.plan.chapters].flatMap(
+        (work) => work.contributions,
+      );
+
+      expect(everyContribution).toHaveLength(3);
+      // One normalized ORCID across all three occurrences is what lets the execution registry
+      // key them together and create the contributor exactly once.
+      expect(new Set(everyContribution.map(({ orcidId }) => orcidId))).toEqual(new Set([ORCID]));
+      expect(getContributors.mock.calls.filter(([filter]) => filter === ORCID)).toHaveLength(1);
+    });
+
+    it('still accepts a NameIDType 21 identifier already written with hyphens', async () => {
+      // The form `public/templates/template.xml` itself demonstrates, so files written against
+      // the repository's own template keep working exactly as before.
+      const getContributors = byFilter({ [ORCID]: [stored()] });
+      mockContributorService.getContributors = getContributors;
+
+      const result = await parseProducts([
+        product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))]),
+      ]);
+
+      expect(result.data.plan.works[0].contributions[0].contributorId).toBe('existing-contributor');
+    });
+
+    it('leaves a contributor with no identifier at all untouched', async () => {
+      mockContributorService.getContributors = vi.fn().mockResolvedValue([]);
+
+      const result = await parseProducts([product('A book', [onixContributor('Jane Doe')])]);
+
+      expect(result.data.plan.works[0].contributions[0].orcidId).toBe('');
+    });
+  });
+
+  it('makes no identity decision from a proprietary NameIdentifier', async () => {
+    // ONIX NameIdentifier carries whatever scheme the file used; only an actual ORCID decides.
+    const getContributors = vi.fn().mockResolvedValue([]);
+    mockContributorService.getContributors = getContributors;
+
+    const result = await parseProducts([product('A book', [onixContributor('Jane Doe', proprietaryIdentifier('PROPRIETARY-1234'))])]);
+
+    expect(result.data.plan.works[0].contributions[0].contributorId).toBe(appConfig.defaultId);
+    expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(['Jane Doe']);
   });
 });

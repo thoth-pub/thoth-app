@@ -1,5 +1,11 @@
 import { parse } from '@5stones/onix';
-import { CollectionSequenceType, CollectionType, TitleElementLevel, TitleType } from '@5stones/onix/dist/enums';
+import {
+  CollectionSequenceType,
+  CollectionType,
+  NameIdentifierType,
+  TitleElementLevel,
+  TitleType,
+} from '@5stones/onix/dist/enums';
 import { describe, expect, it } from 'vitest';
 
 import { MarkupFormat } from '@/gql/graphql';
@@ -7,6 +13,7 @@ import { MarkupFormat } from '@/gql/graphql';
 import type {
   ExtendedCollection,
   ExtendedONIXMessageRoot,
+  OnixNameIdentifier,
   OnixPublishingDate,
   OnixRelatedIdentifier,
   OnixText,
@@ -25,6 +32,7 @@ import {
   resolveOnixContributorOrder,
   resolveOnixTextMarkup,
   selectCanonicalDoi,
+  selectOnixOrcid,
   selectPublicationOrderSequence,
   selectPublishingDate,
   selectRelatedIdentifier,
@@ -1256,5 +1264,71 @@ describe('resolveOnixContributorOrder', () => {
 
       expect(ordinals).toEqual([1, 2, 3]);
     }
+  });
+});
+
+describe('selectOnixOrcid', () => {
+  const ORCID = '0000-0001-6365-5189';
+  const identifier = (nameIdType: OnixText | undefined, idValue: string): OnixNameIdentifier => ({
+    NameIDType: nameIdType,
+    IDValue: idValue,
+  });
+  const orcid = (value: string) => identifier(NameIdentifierType._21, value);
+
+  it('reads a single declared ORCID', () => {
+    expect(selectOnixOrcid(orcid(ORCID))).toBe(ORCID);
+  });
+
+  it('converts ONIX\'s hyphenless encoding into the form Thoth stores', () => {
+    expect(selectOnixOrcid(orcid('0000000163655189'))).toBe(ORCID);
+    // The check character is the only letter an ORCID can end in, and Thoth stores it upper case.
+    expect(selectOnixOrcid(orcid('000000015109376x'))).toBe('0000-0001-5109-376X');
+  });
+
+  it('leaves an already-hyphenated identifier alone', () => {
+    // The form public/templates/template.xml demonstrates, so files written against the
+    // repository's own template are unaffected.
+    expect(selectOnixOrcid(orcid('0000-0001-2345-678X'))).toBe('0000-0001-2345-678X');
+  });
+
+  it('finds the ORCID wherever it sits among repeated identifiers', () => {
+    const identifiers = [
+      identifier(NameIdentifierType._01, 'PUB-AUTHOR-99'),
+      identifier(NameIdentifierType._16, '0000000121032683'),
+      orcid(ORCID),
+    ];
+
+    expect(selectOnixOrcid(identifiers)).toBe(ORCID);
+  });
+
+  it('ignores every other scheme, however ORCID-shaped its value is', () => {
+    // An ISNI is sixteen digits too, and a proprietary key can be anything at all. Only the
+    // declared NameIDType decides, never the shape.
+    expect(selectOnixOrcid(identifier(NameIdentifierType._16, '0000000121032683'))).toBe('');
+    expect(selectOnixOrcid(identifier(NameIdentifierType._01, ORCID))).toBe('');
+    expect(selectOnixOrcid(identifier(undefined, ORCID))).toBe('');
+  });
+
+  it('reads a NameIDType that carries XML attributes', () => {
+    expect(selectOnixOrcid(identifier({ '#text': '21' }, ORCID))).toBe(ORCID);
+  });
+
+  it('has no ORCID to report when none is declared', () => {
+    expect(selectOnixOrcid(undefined)).toBe('');
+    expect(selectOnixOrcid(null)).toBe('');
+    expect(selectOnixOrcid([])).toBe('');
+    expect(selectOnixOrcid(orcid(''))).toBe('');
+  });
+
+  it('passes an unrecognised representation through untouched rather than guessing', () => {
+    // Left exactly as the file wrote it, for the shared ORCID validation to accept or reject.
+    expect(selectOnixOrcid(orcid('https://orcid.org/0000-0001-6365-5189'))).toBe(
+      'https://orcid.org/0000-0001-6365-5189',
+    );
+    expect(selectOnixOrcid(orcid('not-an-orcid'))).toBe('not-an-orcid');
+  });
+
+  it('takes the first when a contributor somehow declares two ORCIDs', () => {
+    expect(selectOnixOrcid([orcid(ORCID), orcid('0000-0002-1825-0097')])).toBe(ORCID);
   });
 });

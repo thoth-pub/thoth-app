@@ -2,6 +2,7 @@ import {
   CollectionSequenceType,
   CollectionType,
   DateFormat,
+  NameIdentifierType,
   TextFormat,
   TitleElementLevel,
   TitleType,
@@ -14,8 +15,10 @@ import { canonicaliseDoi } from '../../utils/validations';
 import type {
   OnixCollectionLike,
   OnixCollectionSequence,
+  OnixNameIdentifier,
   OnixPublishingDate,
   OnixRelatedIdentifier,
+  OnixRepeatable,
   OnixText,
   OnixTitleDetail,
   OnixTitleElement,
@@ -108,6 +111,56 @@ export const getOnixTextFormat = (value: OnixText | undefined | null): string =>
   const textFormat = value['@_textformat'];
 
   return typeof textFormat === 'string' ? textFormat.trim() : '';
+};
+
+/**
+ * An ORCID as ONIX normally encodes it: the sixteen characters with no hyphens, the last of
+ * which may be the check character `X`.
+ */
+const ONIX_ORCID_IDENTIFIER = /^\d{15}[\dX]$/;
+
+/**
+ * One declared ORCID in the single form Thoth stores.
+ *
+ * ONIX's normal encoding of an ORCID is the bare sixteen characters — `0000000163655189` — while
+ * Thoth stores, and its API accepts, the hyphenated `0000-0001-6365-5189`. Converting here keeps
+ * the ONIX representation inside the ONIX adapter: the app's shared ORCID contract is not
+ * widened to understand an encoding only ONIX uses.
+ *
+ * Any other representation is returned untouched rather than guessed at. A correctly hyphenated
+ * identifier — the form `public/templates/template.xml` demonstrates — survives unchanged, and
+ * anything that is neither is left for the shared ORCID validation to accept or reject.
+ */
+const toThothOrcid = (value: string): string => {
+  const identifier = value.replace(/-/g, '').toUpperCase();
+
+  if (!ONIX_ORCID_IDENTIFIER.test(identifier)) return value;
+
+  // Safe by construction: the pattern above fixes the length at sixteen, so this is four groups.
+  return (identifier.match(/.{4}/g) as string[]).join('-');
+};
+
+/**
+ * The ORCID a contributor declares, in Thoth's form, or an empty string when it declares none.
+ *
+ * NameIdentifier is repeatable and each occurrence declares its own scheme in NameIDType (ONIX
+ * List 44), of which only `21` is ORCID. Reading `IDValue` off the first occurrence gets this
+ * wrong in both directions: it misses an ORCID that sits behind a publisher's own author key,
+ * and it promotes an ISNI or proprietary key to an ORCID whenever its value happens to be
+ * ORCID-shaped. Identity here is deterministic, so it is taken from what the file declares, not
+ * from what a value looks like.
+ *
+ * A contributor should not declare two ORCIDs; if one somehow does, the first is used, which is
+ * the same first-wins rule the surrounding parser applies to every other repeatable identifier.
+ */
+export const selectOnixOrcid = (nameIdentifier: OnixRepeatable<OnixNameIdentifier> | undefined | null): string => {
+  const declaredOrcid = toOnixArray(nameIdentifier)
+    .filter((identifier) => !!identifier)
+    .filter((identifier) => getOnixText(identifier.NameIDType) === NameIdentifierType._21)
+    .map((identifier) => getOnixText(identifier.IDValue))
+    .find((value) => value.length > 0);
+
+  return declaredOrcid ? toThothOrcid(declaredOrcid) : '';
 };
 
 /**

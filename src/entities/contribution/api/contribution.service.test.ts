@@ -9,6 +9,7 @@ import type { LocaleCodeType } from '@/src/shared/types';
 
 import { AffiliationService } from '../../affiliation/api/affiliation.service';
 import { ContributorService } from '../../contributor/api/contributor.service';
+import type { ImportContributorRegistry } from '../../work/api/importContributorRegistry';
 import { BiographyDtoMapper } from '../model/contribution.mapper';
 import type { BiographyDto, BiographyEntity, WorkContribution } from '../model/contribution.types';
 import { ContributionService } from './contribution.service';
@@ -131,6 +132,128 @@ describe('ContributionService', () => {
       expect(mockContributorService.createContributor).toHaveBeenCalledTimes(1);
       // …and nothing deletes it: the service exposes no contributor-cleanup path to call.
       expect(mockContributorService).not.toHaveProperty('deleteContributor');
+    });
+
+    /**
+     * Issue #135. A bulk import hands in a registry so that repeated occurrences of one ORCID
+     * resolve to a single created contributor. It reaches this method and no further, and it is
+     * the only thing about contributor creation that an import changes.
+     */
+    describe('with an import contributor registry', () => {
+      const ORCID = 'https://orcid.org/0000-0001-6365-5189';
+
+      it('resolves the contributor through the registry instead of creating one directly', async () => {
+        const contribution = createContribution({ contributorId: appConfig.defaultId, orcidId: ORCID });
+        const registry = { resolve: vi.fn().mockResolvedValue('shared-contributor') };
+
+        (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+          createContribution: { contributionId: faker.string.uuid() },
+        });
+
+        const result = await service.createContribution(
+          contribution,
+          'work-1',
+          registry as unknown as ImportContributorRegistry,
+        );
+
+        expect(registry.resolve).toHaveBeenCalledWith(ORCID, expect.any(Function));
+        // The registry decided identity, so this call created no contributor of its own.
+        expect(mockContributorService.createContributor).not.toHaveBeenCalled();
+        expect(result.contributorId).toBe('shared-contributor');
+      });
+
+      it('still writes this occurrence own role, ordinal and names to the contribution', async () => {
+        const contribution = createContribution({
+          contributorId: appConfig.defaultId,
+          orcidId: ORCID,
+          type: 'EDITOR' as WorkContribution['type'],
+          orderNumber: 4,
+        });
+        const registry = { resolve: vi.fn().mockResolvedValue('shared-contributor') };
+
+        (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+          createContribution: { contributionId: faker.string.uuid() },
+        });
+
+        await service.createContribution(contribution, 'work-1', registry as unknown as ImportContributorRegistry);
+
+        expect(mockGraphqlService.mutation).toHaveBeenCalledWith(
+          expect.anything(),
+          expect.objectContaining({
+            data: expect.objectContaining({
+              workId: 'work-1',
+              contributorId: 'shared-contributor',
+              contributionType: 'EDITOR',
+              contributionOrdinal: 4,
+              fullName: contribution.fullName,
+            }),
+          }),
+        );
+      });
+
+      it('hands the registry a creation that produces the contributor it always would have', async () => {
+        const contribution = createContribution({ contributorId: appConfig.defaultId, orcidId: ORCID });
+        // A registry with no entry for this key runs the creation it was given.
+        const registry = {
+          resolve: vi.fn((_orcid: string, create: () => Promise<string>) => create()),
+        };
+        const newContributorId = faker.string.uuid();
+
+        (mockContributorService.createContributor as ReturnType<typeof vi.fn>).mockResolvedValue({
+          id: newContributorId,
+        });
+        (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+          createContribution: { contributionId: faker.string.uuid() },
+        });
+
+        const result = await service.createContribution(
+          contribution,
+          'work-1',
+          registry as unknown as ImportContributorRegistry,
+        );
+
+        expect(mockContributorService.createContributor).toHaveBeenCalledWith(
+          expect.objectContaining({
+            fullName: contribution.fullName,
+            lastName: contribution.lastName,
+            firstName: contribution.firstName,
+            orcid: ORCID,
+            website: contribution.website,
+          }),
+        );
+        expect(result.contributorId).toBe(newContributorId);
+      });
+
+      it('never consults the registry for a contribution that already has a contributor', async () => {
+        const contributorId = faker.string.uuid();
+        const contribution = createContribution({ contributorId, orcidId: ORCID });
+        const registry = { resolve: vi.fn() };
+
+        (mockGraphqlService.mutation as ReturnType<typeof vi.fn>).mockResolvedValue({
+          createContribution: { contributionId: faker.string.uuid() },
+        });
+
+        const result = await service.createContribution(
+          contribution,
+          'work-1',
+          registry as unknown as ImportContributorRegistry,
+        );
+
+        expect(registry.resolve).not.toHaveBeenCalled();
+        expect(result.contributorId).toBe(contributorId);
+      });
+
+      it('propagates a registry rejection rather than falling back to a direct create', async () => {
+        const failure = new Error('A contributor with this ORCID ID already exists.');
+        const contribution = createContribution({ contributorId: appConfig.defaultId, orcidId: ORCID });
+        const registry = { resolve: vi.fn().mockRejectedValue(failure) };
+
+        await expect(
+          service.createContribution(contribution, 'work-1', registry as unknown as ImportContributorRegistry),
+        ).rejects.toBe(failure);
+        expect(mockContributorService.createContributor).not.toHaveBeenCalled();
+        expect(mockGraphqlService.mutation).not.toHaveBeenCalled();
+      });
     });
 
     it('should use the existing contributorId when not the default', async () => {
