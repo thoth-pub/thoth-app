@@ -1,8 +1,10 @@
 'use client';
 
 import type { GetPublisherServiceConfigurationReportQuery } from '@/gql/graphql';
+import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
+  Button,
   Chip,
   ContentSection,
   Pagination,
@@ -16,12 +18,13 @@ import {
   Typography,
 } from '@/src/shared/ui';
 
+import PublisherAdministrationEditor from './PublisherAdministrationEditor';
 import PublisherAdministrationHeader from './PublisherAdministrationHeader';
 import usePublisherAdministration from './usePublisherAdministration';
 
 type ReportSummary = GetPublisherServiceConfigurationReportQuery['publisherServiceConfigurations'][number];
 
-// APP-02A: read-only consolidated superuser publisher administration index.
+// APP-02A: consolidated superuser publisher administration index.
 //
 // Every presented fact is an API fact from the one paginated report read: row
 // identity and name come from `configuration.publisher`, the package is the
@@ -30,8 +33,15 @@ type ReportSummary = GetPublisherServiceConfigurationReportQuery['publisherServi
 // nothing else), the latest job is shown exactly as reported (a null job means
 // only that no back-catalogue job is recorded, and a report error is shown as
 // unavailable, never as "no job"), and the last configuration change comes only
-// from `lastChange`. There is no edit, mutation or active-publisher switching
-// behavior anywhere in this widget.
+// from `lastChange`.
+//
+// APP-02B adds exactly one bounded write affordance: a per-row Edit that opens
+// the focused single-publisher service-configuration editor. It carries the
+// row's own summary - and therefore that row's publisher ID, package, platform
+// set and version token - into the edit session; it never switches, reads or
+// depends on the global active publisher. At most one row's editor is open at a
+// time, and every Edit control is withheld while a session or a save is
+// outstanding.
 const PublisherAdministration = () => {
   const {
     viewState,
@@ -55,7 +65,23 @@ const PublisherAdministration = () => {
     platformFilterOptions,
     jobStatusFilterOptions,
     getPlatformDisplayLabel,
+    editSession,
+    editPlatformRows,
+    isSavingEdit,
+    canStartEdit,
+    canCancelEdit,
+    saveOutcome,
+    startEdit,
+    cancelEdit,
+    changeEditPackage,
+    toggleEditPlatform,
+    saveEdit,
   } = usePublisherAdministration();
+
+  // Each row's Edit control gets an accessible name that identifies the exact
+  // publisher it edits, so the affordance is never ambiguous between rows.
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.publishers });
+  const editActionLabel = t('editAction');
 
   // User identity is not authoritative yet: nothing staff-only is presented and
   // no report request has been started.
@@ -152,6 +178,22 @@ const PublisherAdministration = () => {
             </Typography>
           )}
         </TableCell>
+        <TableCell>
+          {/* One row, one bounded edit. The whole summary is handed over so the
+              session snapshots this row's own publisher ID, package, platform
+              set and version token together; the control is disabled whenever a
+              session or a save is already outstanding, so a second publisher's
+              edit cannot start and a pending attempt cannot be retargeted.
+              There is no multi-row selection and no bulk action anywhere. */}
+          <Button
+            size="small"
+            disabled={!canStartEdit}
+            onClick={() => startEdit(summary)}
+            aria-label={`${editActionLabel}: ${publisher.publisherName}`}
+          >
+            <TranslatedContent content="editAction" namespace={NAMESPACES.enum.publishers} />
+          </Button>
+        </TableCell>
       </TableRow>
     );
   };
@@ -177,6 +219,30 @@ const PublisherAdministration = () => {
       />
 
       <ContentSection>
+        {/* The outcome of the last save attempt, presented outside the table and
+            named from the attempt's own captured publisher. A successful edit
+            may legitimately move the publisher out of the active filters, so
+            this must not depend on the row still being on the page - and no
+            stale row is kept behind just to host it. */}
+        {saveOutcome && (
+          <Typography role="status">
+            {saveOutcome.kind === 'saved' && (
+              <TranslatedContent content="editorOutcomeSaved" namespace={NAMESPACES.enum.publishers} />
+            )}
+            {saveOutcome.kind === 'stale' && (
+              <TranslatedContent content="editorOutcomeStale" namespace={NAMESPACES.enum.publishers} />
+            )}
+            {saveOutcome.kind === 'jobCreationDisabled' && (
+              <TranslatedContent content="editorOutcomeJobCreationDisabled" namespace={NAMESPACES.enum.publishers} />
+            )}
+            {saveOutcome.kind === 'failed' && (
+              <TranslatedContent content="editorOutcomeFailed" namespace={NAMESPACES.enum.publishers} />
+            )}
+            {` (${saveOutcome.publisherName})`}
+            {saveOutcome.kind === 'failed' && saveOutcome.message ? `: ${saveOutcome.message}` : ''}
+          </Typography>
+        )}
+
         {viewState === 'reportLoading' && <Skeleton variant="rounded" height={192} />}
 
         {/* Truthful failure state: a failed report shows unavailable - it is
@@ -219,6 +285,9 @@ const PublisherAdministration = () => {
                   <TableCell>
                     <TranslatedContent content="lastChangeColumn" namespace={NAMESPACES.enum.publishers} />
                   </TableCell>
+                  <TableCell>
+                    <TranslatedContent content="actionsColumn" namespace={NAMESPACES.enum.publishers} />
+                  </TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>{summaries.map(renderRow)}</TableBody>
@@ -240,6 +309,21 @@ const PublisherAdministration = () => {
           </>
         )}
       </ContentSection>
+
+      {/* Exactly one focused editor, mounted only for an open session and bound
+          entirely to that session's own snapshot. */}
+      {editSession && (
+        <PublisherAdministrationEditor
+          session={editSession}
+          platformRows={editPlatformRows}
+          isSaving={isSavingEdit}
+          canCancel={canCancelEdit}
+          changePackage={changeEditPackage}
+          togglePlatform={toggleEditPlatform}
+          save={saveEdit}
+          cancelEdit={cancelEdit}
+        />
+      )}
     </div>
   );
 };

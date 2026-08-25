@@ -18,6 +18,8 @@ import { useUser } from '@/src/entities/user';
 import { appConfig } from '@/src/shared/config';
 import { getPagesCount } from '@/src/shared/utils';
 
+import usePublisherAdministrationEditor from './usePublisherAdministrationEditor';
+
 // Bounded tri-state job-presence filter. It maps explicitly to the report's
 // nullable `withoutBackCatalogueJob` argument: `all` omits the dimension
 // (null), `withoutJob` requests publishers with no recorded back-catalogue job
@@ -88,9 +90,19 @@ const usePublisherAdministration = () => {
     isEligible: isReportEligible,
   });
 
-  // Code-owned platform metadata, used for display labels and filter-control
-  // options only; it never adds or removes platform membership on a row.
+  // Code-owned platform metadata, used for display labels, filter-control
+  // options and the editor's own platform rows; it never adds or removes
+  // platform membership on a row.
   const { distributionPlatformOptions } = useDistributionPlatformOptions();
+
+  // APP-02B: the bounded single-publisher edit session. It is seeded only by an
+  // explicit Edit on one report row, so a report refetch above can never
+  // replace an open session's captured token or selections, and it is gated on
+  // exactly the same authoritative-superuser eligibility as the report itself.
+  const editor = usePublisherAdministrationEditor({
+    isEligible: isReportEligible,
+    distributionPlatformOptions,
+  });
 
   // Every filter change returns to the first page, so a page number from one
   // filter identity is never applied to another.
@@ -148,10 +160,36 @@ const usePublisherAdministration = () => {
 
   const totalPagesCount = getPagesCount(totalCount ?? 0);
 
+  // A staff service-configuration edit (APP-02B) can change a publisher's
+  // filter membership, so the authoritative filtered population can shrink
+  // underneath the page staff are currently on. Left alone, the report would
+  // then be read at an offset past the end of the result set and come back
+  // empty - which is a different fact from "nothing matches these filters", and
+  // would strand staff on a page with no pagination control to leave it.
+  //
+  // The page is therefore normalized during render rather than in an effect, so
+  // the out-of-range frame is never committed: React discards this pass and
+  // re-runs with the corrected page, and the report request itself is issued at
+  // the corresponding valid offset. `activePage` remains the single source of
+  // pagination state - no second copy of it is introduced.
+  //
+  // Only an authoritative count normalizes anything. While the count is loading
+  // or unavailable it is `undefined`, the valid range is unknown, and the
+  // current page is left exactly as it is rather than being forced back to page
+  // one. A page that is still valid is never reset either, so a count change
+  // that does not invalidate the current page leaves it alone. With no results
+  // at all the only valid page is page one.
+  const lastValidPage = Math.max(totalPagesCount, 1);
+
+  if (totalCount !== undefined && activePage > lastValidPage) {
+    setActivePage(lastValidPage);
+  }
+
   // A valid empty page is distinguished from an error: `summaries` only holds a
   // value once the report actually loaded, and a failed replacement query never
   // leaves a previous page presented as current (no previous-data carry-over is
-  // configured on the report hook).
+  // configured on the report hook). An out-of-range page can never reach this
+  // classification, because it has already been normalized above.
   const viewState: PublisherAdministrationViewState = !isAuthoritative
     ? 'identityPending'
     : !user.isSuperuser
@@ -199,6 +237,20 @@ const usePublisherAdministration = () => {
 
     // Display metadata (labels only, never membership)
     getPlatformDisplayLabel,
+
+    // APP-02B staff edit session (identity, token and selections are the
+    // editor's own; nothing here is derived from the active publisher)
+    editSession: editor.session,
+    editPlatformRows: editor.platformRows,
+    isSavingEdit: editor.isSaving,
+    canStartEdit: editor.canStartEdit,
+    canCancelEdit: editor.canCancel,
+    saveOutcome: editor.outcome,
+    startEdit: editor.startEdit,
+    cancelEdit: editor.cancelEdit,
+    changeEditPackage: editor.changePackage,
+    toggleEditPlatform: editor.togglePlatform,
+    saveEdit: editor.save,
   };
 };
 
