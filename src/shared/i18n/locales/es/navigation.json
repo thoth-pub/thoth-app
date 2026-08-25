@@ -7,5 +7,8 @@
   "home": "inicio",
   "edit book": "Editar libro",
   "publisher": "Editor",
-  "publishers": "editoriales"
+  "publishers": "editoriales",
+  "publisherContext": "Contexto de editorial",
+  "staff": "Personal",
+  "currentPublisher": "Editorial actual"
 }

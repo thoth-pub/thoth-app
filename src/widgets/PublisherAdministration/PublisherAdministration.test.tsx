@@ -17,11 +17,33 @@ vi.mock('./usePublisherAdministration', () => ({
 vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({
   default: () => ({ t: (key: string) => key }),
 }));
-// Spy proving global active-publisher isolation: nothing in this widget - index
-// or editor - may consult the active-publisher state machine.
+// Spy proving global active-publisher isolation: no report, filter, export or
+// edit path in this widget may consult the active-publisher state machine.
+//
+// APP-SHELL-SU-01 note: the separate, explicit Add Publisher workflow relocated
+// into this page's header legitimately owns its own active-publisher transition
+// - that is the long-standing `useAddNewPublisher` behaviour, unchanged by this
+// task. Its hook is stubbed below, so the spy keeps measuring exactly what it
+// was written to measure: that browsing, filtering, exporting and editing the
+// staff report never depend on or disturb the global active publisher.
 const stateMachineSpy = vi.fn();
 vi.mock('@/src/entities/publisher/store/hooks/usePublisherStateMachine', () => ({
   default: () => stateMachineSpy(),
+}));
+// The real AddNewPublisher component is rendered - only its existing creation
+// seam is stubbed - so this file proves the relocated affordance really is
+// mounted on the staff surface and really is that component.
+const useAddNewPublisherMock = vi.fn(() => ({
+  isOpen: false,
+  control: {},
+  submitDisabled: false,
+  openModal: vi.fn(),
+  closeModal: vi.fn(),
+  createNewPublisher: vi.fn(),
+  handleSubmit: vi.fn(() => vi.fn()),
+}));
+vi.mock('@/src/entities/publisher/ui/AddNewPublisher/useAddNewPublisher', () => ({
+  useAddNewPublisher: () => useAddNewPublisherMock(),
 }));
 
 import PublisherAdministration from './PublisherAdministration';
@@ -604,6 +626,68 @@ describe('PublisherAdministration', () => {
 
       expect(screen.getByText('reportUnavailable')).toBeInTheDocument();
       expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    });
+  });
+
+  // APP-SHELL-SU-01: Add Publisher was removed from the application shell and
+  // relocated here as this staff surface's primary action. Its visibility is
+  // structural, riding on the authoritative-superuser gate this widget already
+  // enforced - no second authorization rule was added, and the backend remains
+  // the authorization boundary for the creation itself.
+  describe('staff Add Publisher action (APP-SHELL-SU-01)', () => {
+    const addPublisherAction = () => screen.queryByRole('button', { name: /actions\.addPublisher/ });
+
+    it('offers Add Publisher to an authoritative superuser, in the page header', () => {
+      usePublisherAdministrationMock.mockReturnValue(createHookState());
+
+      renderWidget();
+
+      const action = addPublisherAction();
+
+      expect(action).toBeInTheDocument();
+      // It is the existing component, not a re-implementation: its own icon and
+      // its own creation hook are what render and run.
+      expect(screen.getByTestId('PersonAddIcon')).toBeInTheDocument();
+      expect(useAddNewPublisherMock).toHaveBeenCalled();
+    });
+
+    it('exposes no Add Publisher control to an authoritative ordinary publisher', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({ viewState: 'notAuthorized', summaries: undefined }),
+      );
+
+      renderWidget();
+
+      expect(addPublisherAction()).not.toBeInTheDocument();
+      expect(useAddNewPublisherMock).not.toHaveBeenCalled();
+      expect(screen.getByText('notAuthorized')).toBeInTheDocument();
+    });
+
+    it('exposes no Add Publisher control while user identity is still pending', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({ viewState: 'identityPending', summaries: undefined }),
+      );
+
+      renderWidget();
+
+      expect(addPublisherAction()).not.toBeInTheDocument();
+      expect(useAddNewPublisherMock).not.toHaveBeenCalled();
+    });
+
+    it('does not make the report depend on it: rows, filters and export are unchanged around it', () => {
+      const state = createHookState();
+      usePublisherAdministrationMock.mockReturnValue(state);
+
+      renderWidget();
+
+      // The creation affordance sits alongside the report; it selects no row,
+      // drives no filter and starts no export.
+      expect(screen.getByRole('table')).toBeInTheDocument();
+      expect(screen.getByRole('combobox', { name: 'filterPublisher' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'exportCsv' })).toBeInTheDocument();
+      expect(state.startExport).not.toHaveBeenCalled();
+      expect(state.startEdit).not.toHaveBeenCalled();
+      expect(state.changeSelectedPublisherIds).not.toHaveBeenCalled();
     });
   });
 });
