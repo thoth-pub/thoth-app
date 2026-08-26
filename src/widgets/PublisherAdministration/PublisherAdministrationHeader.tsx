@@ -34,9 +34,9 @@ type PublisherAdministrationHeaderProps = {
   getPlatformDisplayLabel: (platform: DistributionPlatform) => string;
 };
 
-// APP-02C / APP-PUBLISHER-FILTER-ALIGN-01 local presentation fix. On the
-// Publishers surface the multiple-select filter controls showed their selected
-// value chips vertically offset and clipped within the field.
+// APP-02C / APP-PUBLISHER-FILTER-ALIGN-01 / -02 local presentation fixes. On
+// the Publishers surface the multiple-select filter controls showed their
+// selected value chips vertically offset and clipped within the field.
 //
 // The shared TextField theme sizes a field by giving both the input row and the
 // `.MuiInputBase-input` inside it the whole control height - 2rem, 2.75rem from
@@ -52,9 +52,14 @@ type PublisherAdministrationHeaderProps = {
 // content, with the shared control height kept as a floor rather than as a
 // fixed height - an empty or single-row control still looks like every other
 // small field, and only a genuinely wrapped selection grows it. The inner text
-// input takes its content height, so it stops distorting the row. Both
-// selectors name one extra MUI class so they outrank the shared theme's own
-// field-height rules; neither introduces fixed positioning or offsets.
+// input takes its content height, so it stops distorting the row. The retained
+// MUI small outlined root padding is asymmetric but still totals 12px: moving
+// 2.5px from the top to the bottom aligns the content with the notched
+// outline's measured visual centre (`top: -5px; bottom: 0`). The end adornment
+// uses the same derived 2.5px shift because MUI otherwise centres it on the
+// geometric input root. The row selectors name one extra MUI class so they
+// outrank the shared theme's own field-height rules; no negative margins,
+// repositioning transforms or fixed positioning are introduced.
 //
 // This changes no shared TextField, Autocomplete, Chip or global theme, no other
 // field on this page - the native back-catalogue job select included - and no
@@ -66,6 +71,8 @@ const MULTISELECT_SX = {
     gap: '4px',
     height: 'auto',
     minHeight: '2rem',
+    paddingTop: '3.5px',
+    paddingBottom: '8.5px',
 
     '@media (min-width: 1280px)': {
       minHeight: '2.75rem',
@@ -76,6 +83,9 @@ const MULTISELECT_SX = {
   },
   '& .MuiAutocomplete-inputRoot .MuiAutocomplete-input': {
     height: 'auto',
+  },
+  '& .MuiAutocomplete-endAdornment': {
+    top: 'calc(50% - 2.5px)',
   },
 } as const;
 
