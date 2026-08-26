@@ -34,23 +34,48 @@ type PublisherAdministrationHeaderProps = {
   getPlatformDisplayLabel: (platform: DistributionPlatform) => string;
 };
 
-// APP-02C local presentation fix. On the Publishers surface the multiple-select
-// filter controls showed their selected value chips misaligned and clipped
-// within the field. Centring the input row's items, letting the chips wrap onto
-// further lines, and spacing them with a uniform gap - instead of the default
-// per-chip margins that produced the offset - makes multiple selected values sit
-// evenly and stay readable, while the field's label, clear control and dropdown
-// affordance stay aligned. This is scoped to these Autocomplete instances only:
-// it changes no shared TextField, Autocomplete, Chip or global theme, and no
+// APP-02C / APP-PUBLISHER-FILTER-ALIGN-01 local presentation fix. On the
+// Publishers surface the multiple-select filter controls showed their selected
+// value chips vertically offset and clipped within the field.
+//
+// The shared TextField theme sizes a field by giving both the input row and the
+// `.MuiInputBase-input` inside it the whole control height - 2rem, 2.75rem from
+// 1280px. That is right for a single-line field, where the input *is* the row.
+// In a multiple Autocomplete the input is instead one flex sibling among the
+// selected chips, so a sibling carrying the whole control height out-sizes the
+// row it sits in, and a row fixed to that height cannot grow for the chips
+// either: between them that is what pushed the chips off-centre and clipped
+// them.
+//
+// So, locally and only for these filters: the row keeps its centred, wrapping,
+// evenly spaced chips (which carry no margins of their own) and is sized by its
+// content, with the shared control height kept as a floor rather than as a
+// fixed height - an empty or single-row control still looks like every other
+// small field, and only a genuinely wrapped selection grows it. The inner text
+// input takes its content height, so it stops distorting the row. Both
+// selectors name one extra MUI class so they outrank the shared theme's own
+// field-height rules; neither introduces fixed positioning or offsets.
+//
+// This changes no shared TextField, Autocomplete, Chip or global theme, no other
+// field on this page - the native back-catalogue job select included - and no
 // filter behaviour.
 const MULTISELECT_SX = {
-  '& .MuiAutocomplete-inputRoot': {
+  '& .MuiAutocomplete-inputRoot.MuiInputBase-root': {
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: '4px',
+    height: 'auto',
+    minHeight: '2rem',
+
+    '@media (min-width: 1280px)': {
+      minHeight: '2.75rem',
+    },
   },
   '& .MuiAutocomplete-inputRoot .MuiChip-root': {
     margin: 0,
+  },
+  '& .MuiAutocomplete-inputRoot .MuiAutocomplete-input': {
+    height: 'auto',
   },
 } as const;
 
