@@ -630,14 +630,19 @@ describe('PublisherAdministration', () => {
   });
 
   // APP-SHELL-SU-01: Add Publisher was removed from the application shell and
-  // relocated here as this staff surface's primary action. Its visibility is
+  // relocated here as this surface's primary action. Its visibility is
   // structural, riding on the authoritative-superuser gate this widget already
   // enforced - no second authorization rule was added, and the backend remains
   // the authorization boundary for the creation itself.
-  describe('staff Add Publisher action (APP-SHELL-SU-01)', () => {
-    const addPublisherAction = () => screen.queryByRole('button', { name: /actions\.addPublisher/ });
+  //
+  // APP-SHELL-SU-02 changes only how that action is presented: it is now the
+  // single action of the fixed publisher speed dial rather than an inline
+  // button, so it is matched here as a `menuitem`. What it is gated on, and what
+  // activating it does, are unchanged.
+  describe('Add Publisher action (APP-SHELL-SU-01, presented per APP-SHELL-SU-02)', () => {
+    const addPublisherAction = () => screen.queryByRole('menuitem', { name: /actions\.addPublisher/ });
 
-    it('offers Add Publisher to an authoritative superuser, in the page header', () => {
+    it('offers Add Publisher to an authoritative superuser, on the page', () => {
       usePublisherAdministrationMock.mockReturnValue(createHookState());
 
       renderWidget();
