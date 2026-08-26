@@ -5,7 +5,9 @@ export const GET_CONTRIBUTORS = graphql(`
     contributors(filter: $filter) {
       orcid
       fullName
+      firstName
       lastName
+      website
       updatedAt
       contributorId
       contributions(order: { field: UPDATED_AT, direction: DESC }, limit: 1) {

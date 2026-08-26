@@ -1812,6 +1812,13 @@ describe('CSV contributor identity by ORCID', () => {
 
     expect(contribution.contributorId).toBe('existing-contributor');
     expect(contribution.fullName).toBe('J. A. Doe-Smith');
+    // The stored identity fields, all of them: the reuse consumes firstName and website off the
+    // looked-up contributor, and GET_CONTRIBUTORS omitting them once turned both into '' on the
+    // real query -> mapper path (issue #144). The source spelling must not leak in either.
+    expect(contribution.firstName).toBe('J. A.');
+    expect(contribution.lastName).toBe('Doe-Smith');
+    expect(contribution.website).toBe('https://stored.example');
+    expect(contribution.orcidId).toBe(CANONICAL_ORCID);
     // No impossible create intent is left anywhere for this occurrence.
     const options = Object.values(result.data.contributorsForSelection[result.data.plan.works[0].id])[0];
 
@@ -1820,8 +1827,10 @@ describe('CSV contributor identity by ORCID', () => {
     expect(options.some(({ contributorId }) => contributorId === appConfig.defaultId)).toBe(false);
   });
 
-  it('keeps the source role, ordinal and biography while sharing the resolved identity', async () => {
+  it('keeps the source role, ordinal, biography and affiliation while sharing the resolved identity', async () => {
+    const ror = 'https://ror.org/03vek6s52';
     const getContributors = byFilter({ [ORCID]: [existing({})] });
+    const getInstitutions = vi.fn().mockResolvedValue([{ id: 'institution', name: 'Harvard University', ror }]);
     const csv = buildCsv(
       contributorRow({
         contribution_1_first_name: 'Jane',
@@ -1829,14 +1838,25 @@ describe('CSV contributor identity by ORCID', () => {
         contribution_1_role: 'EDITOR',
         contribution_1_orcid: ORCID,
         contribution_1_biography: 'Writes about arcs.',
+        contribution_1_affiliation_position: 'Professor',
+        contribution_1_affiliation_institution_ror: ror,
       }),
     );
 
-    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+    const result = await makeParser(makeFile(csv), { getContributors, getInstitutions }).parse();
     const [contribution] = plannedContributions(result);
 
+    // Who the contribution points at is Thoth's stored identity; everything the file said about
+    // the contribution itself stays the file's.
     expect(contribution).toMatchObject({ contributorId: 'existing-contributor', type: 'EDITOR', orderNumber: 1 });
+    expect(contribution.firstName).toBe('J. A.');
     expect(contribution.biographies.map(({ content }) => content)).toEqual(['Writes about arcs.']);
+    expect(contribution.affiliations[0]).toMatchObject({
+      institutionId: 'institution',
+      institutionName: 'Harvard University',
+      rorId: ror,
+      position: 'Professor',
+    });
   });
 
   it('prefers the exact ORCID over the name-only candidates for the same occurrence', async () => {
