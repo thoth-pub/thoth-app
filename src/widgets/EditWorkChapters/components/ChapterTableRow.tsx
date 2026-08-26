@@ -58,7 +58,19 @@ export const ChapterTableRow = (props: TableRowProps) => {
   return (
     <DraggableComponent id={id}>
       {({ attributes, listeners, style, ref }) => (
-        <TableRow ref={ref} style={style} onDoubleClick={() => onEdit?.(id)} className="group" {...attributes}>
+        // `hover` is the explicit, code-visible opt-in for the shared
+        // interactive-row treatment (#133). This row earns it: it has a real
+        // double-click edit shortcut and a real drag/drop integration. It is
+        // deliberately not a single-click control - the explicit Edit button
+        // below remains the keyboard-accessible edit path.
+        <TableRow
+          ref={ref}
+          hover
+          style={style}
+          onDoubleClick={() => onEdit?.(id)}
+          className="group"
+          {...attributes}
+        >
           <TableCell className="firstCell normal-case">
             <div className="flex items-center gap-1 group-hover:gap-2">
               <DragAndDropListener

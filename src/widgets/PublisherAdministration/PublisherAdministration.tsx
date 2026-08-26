@@ -24,19 +24,6 @@ import usePublisherAdministration from './usePublisherAdministration';
 
 type ReportSummary = GetPublisherServiceConfigurationReportQuery['publisherServiceConfigurations'][number];
 
-// APP-02C local interaction fix. The application-wide table theme sets
-// `cursor: pointer` on any table body row on hover, which implies the whole row
-// is clickable. These rows have no whole-row action - the only interaction is
-// the explicit per-row Edit button - so that inherited affordance is misleading
-// here. The pointer is neutralized back to the default cursor for these rows
-// only, using a higher-specificity local rule (repeated `&` raises specificity
-// above the themed selector) so no global theme or shared Table component is
-// touched. No row onClick is added to justify the old pointer; the app-wide
-// table-row convention is the separate follow-up #133.
-const NEUTRALIZE_ROW_POINTER_SX = {
-  '&&&&:hover': { cursor: 'default' },
-} as const;
-
 // APP-02A: consolidated superuser publisher administration index.
 //
 // Every presented fact is an API fact from the one paginated report read: row
@@ -163,9 +150,10 @@ const PublisherAdministration = () => {
     return (
       // Row identity is the publisher's own ID from the report configuration -
       // never row position, never the global active publisher. The row carries
-      // no whole-row action: the misleading themed hover pointer is neutralized
-      // locally and the only interaction remains the explicit Edit button below.
-      <TableRow key={publisher.publisherId} sx={NEUTRALIZE_ROW_POINTER_SX}>
+      // no whole-row action, so it deliberately does not opt into the shared
+      // interactive-row treatment (#133): the only interaction remains the
+      // explicit Edit button below.
+      <TableRow key={publisher.publisherId}>
         <TableCell>
           <Typography variant="body2">{publisher.publisherName}</Typography>
         </TableCell>

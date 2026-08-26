@@ -690,4 +690,77 @@ describe('PublisherAdministration', () => {
       expect(state.changeSelectedPublisherIds).not.toHaveBeenCalled();
     });
   });
+
+  // APP-TABLE-UX-01. These rows are nested-controls-only: the explicit per-row
+  // Edit button is the sole interaction. The shared theme no longer presents
+  // every table-body row as clickable, so the APP-02C local `sx` cursor
+  // workaround is gone and the row must not opt back in via MUI's `hover`
+  // marker. No row onClick is introduced to justify the old pointer.
+  describe('row-interaction semantics', () => {
+    const publisherRows = () => {
+      const table = screen.getByRole('table');
+      const body = table.querySelector('tbody') as HTMLTableSectionElement;
+      return Array.from(body.querySelectorAll('tr'));
+    };
+
+    it('does not opt publisher rows into the explicit interactive hover treatment', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          summaries: [createSummary(), createSummary({ publisherId: 'pub-2', publisherName: 'Publisher Two' })],
+          totalCount: 2,
+        }),
+      );
+
+      renderWidget();
+
+      const rows = publisherRows();
+
+      expect(rows).toHaveLength(2);
+      rows.forEach((row) => {
+        expect(row).not.toHaveClass('MuiTableRow-hover');
+      });
+    });
+
+    it('ships no local cursor-neutralisation workaround now the shared theme is correct', () => {
+      renderWidget();
+
+      // The APP-02C stopgap injected a local `cursor: default` override on the
+      // row itself to beat the old unconditional themed pointer. With the
+      // shared root cause fixed, no table-row rule may neutralise a cursor any
+      // more. Only row-targeting rules are inspected, so unrelated MUI base
+      // styles (a disabled icon button, for instance) cannot mask a regression.
+      const injectedCss = Array.from(document.querySelectorAll('style'))
+        .map((styleTag) => styleTag.textContent ?? '')
+        .join('\n');
+
+      const nonInteractiveRowRules = Array.from(injectedCss.matchAll(/([^{}]+)\{([^{}]*)\}/g)).filter(
+        ([, selector]) => selector.includes('MuiTableRow-root') && !selector.includes('MuiTableRow-hover'),
+      );
+
+      expect(nonInteractiveRowRules.length).toBeGreaterThan(0);
+      nonInteractiveRowRules.forEach(([, , declarations]) => {
+        expect(declarations).not.toContain('cursor:');
+      });
+    });
+
+    it('keeps the explicit Edit button as the only row interaction', async () => {
+      const startEdit = vi.fn();
+      usePublisherAdministrationMock.mockReturnValue(createHookState({ startEdit }));
+
+      renderWidget();
+
+      const [row] = publisherRows();
+
+      // Clicking row content is inert: no row-level handler exists.
+      await userEvent.click(within(row).getByText('Publisher One'));
+      await userEvent.dblClick(within(row).getByText('SPHINX'));
+
+      expect(startEdit).not.toHaveBeenCalled();
+
+      // The explicit control is still the interaction.
+      await userEvent.click(within(row).getByRole('button', { name: 'editAction: Publisher One' }));
+
+      expect(startEdit).toHaveBeenCalledTimes(1);
+    });
+  });
 });
