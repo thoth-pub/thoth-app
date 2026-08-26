@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 
 import { useContributionStateMachine } from '@/src/entities/contribution';
 import { useFundingStateMachine } from '@/src/entities/funding/store/funding.store';
+import { useReferenceStateMachine } from '@/src/entities/reference';
 import { useWorkChaptersStateMachine } from '@/src/entities/work/store/hooks/useWorkChaptersStateMachine';
 import { QueryKeys } from '@/src/shared/constants';
 import type { BaseEditSectionProps } from '@/src/shared/types';
@@ -16,6 +17,7 @@ import EditContributors from '../EditContributors/EditContributors';
 import EditDescriptions from '../EditDescriptions/EditDescriptions';
 import EditFundings from '../EditFundings/EditFundings';
 import EditPublications from '../EditPublications/EditPublications';
+import EditReferences from '../EditReferences/EditReferences';
 
 type EditChapterModalProps = Omit<BaseEditSectionProps, 'workId'> & {
   onDone?: () => void;
@@ -28,14 +30,16 @@ const EditChapterModal = (props: EditChapterModalProps) => {
   const { activeWorkChapters, isSingleChapterSelected, finishEditing } = useWorkChaptersStateMachine();
   const { finishEditing: finishEditingContribution } = useContributionStateMachine();
   const { finishEditing: finishEditingFunding } = useFundingStateMachine();
+  const { finishEditing: finishEditingReference } = useReferenceStateMachine();
 
   useEffect(() => {
     return () => {
       finishEditing();
       finishEditingContribution();
       finishEditingFunding();
+      finishEditingReference();
     };
-  }, [finishEditing, finishEditingContribution, finishEditingFunding]);
+  }, [finishEditing, finishEditingContribution, finishEditingFunding, finishEditingReference]);
 
   if (!activeWorkChapters || activeWorkChapters.length === 0) return null;
 
@@ -50,6 +54,7 @@ const EditChapterModal = (props: EditChapterModalProps) => {
     finishEditing();
     finishEditingContribution();
     finishEditingFunding();
+    finishEditingReference();
     invalidateChapters();
   };
 
@@ -59,6 +64,7 @@ const EditChapterModal = (props: EditChapterModalProps) => {
       isOpen={isSingleChapterSelected}
       onClose={() => {
         finishEditing();
+        finishEditingReference();
         invalidateChapters();
       }}
       onDone={handleDone}
@@ -68,6 +74,7 @@ const EditChapterModal = (props: EditChapterModalProps) => {
       <EditContributors workId={chapter.id} />
       <EditPublications workId={chapter.id} />
       <EditFundings workId={chapter.id} />
+      <EditReferences workId={chapter.id} />
     </FullScreenModal>
   );
 };
