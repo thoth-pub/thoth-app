@@ -11,8 +11,8 @@ import { theme } from '@/src/shared/theme';
 vi.mock('@/src/shared/hooks/useTypedTranslation', () => ({
   default: () => ({ t: (key: string) => key }),
 }));
-// APP-SHELL-SU-01: the relocated Add Publisher action is the existing
-// `AddNewPublisher` component, rendered for real here. Only its existing
+// The publisher creation affordance is the existing `AddNewPublisher`
+// component, rendered for real here through the speed dial. Only its existing
 // `useAddNewPublisher` seam is stubbed - the same seam the component already
 // owned - so this file proves the header reuses that component and delegates to
 // that hook, without reaching for a query client, the publisher state machine or
@@ -127,18 +127,34 @@ describe('PublisherAdministrationHeader (APP-02C local multi-select correction)'
   });
 });
 
-// APP-SHELL-SU-01: Add Publisher left the application shell and became this
-// staff surface's primary action.
-describe('PublisherAdministrationHeader Add Publisher action (APP-SHELL-SU-01)', () => {
-  it('presents Add Publisher as a button in the title/action row', () => {
+// APP-SHELL-SU-02: the title row keeps only the page title. The publisher
+// creation affordance is now the fixed speed dial, mounted from this header so
+// it stays behind the existing authoritative-superuser gate.
+describe('PublisherAdministrationHeader publisher creation affordance (APP-SHELL-SU-02)', () => {
+  it('keeps the Publishers page title', () => {
     renderHeader();
 
-    const action = screen.getByRole('button', { name: /actions\.addPublisher/ });
+    expect(screen.getByRole('heading', { name: 'title' })).toBeInTheDocument();
+  });
+
+  it('renders no inline Add Publisher button in the title row', () => {
+    renderHeader();
+
     const title = screen.getByRole('heading', { name: 'title' });
 
-    expect(action).toBeInTheDocument();
-    // Same row as the page title, not appended somewhere below the filters.
-    expect(title.parentElement?.contains(action)).toBe(true);
+    expect(screen.queryByRole('button', { name: /actions\.addPublisher/ })).not.toBeInTheDocument();
+    expect(title.parentElement?.querySelector('button')).toBeNull();
+  });
+
+  it('mounts the publisher speed dial with its single Add Publisher action', () => {
+    renderHeader();
+
+    expect(screen.getByRole('button', { name: 'Publishers SpeedDial' })).toBeInTheDocument();
+
+    const actions = screen.getAllByRole('menuitem');
+
+    expect(actions).toHaveLength(1);
+    expect(actions[0]).toHaveAccessibleName('actions.addPublisher');
   });
 
   it('reuses the existing AddNewPublisher component and its creation hook', () => {
@@ -153,12 +169,13 @@ describe('PublisherAdministrationHeader Add Publisher action (APP-SHELL-SU-01)',
   it('delegates activation to the existing hook rather than re-implementing it', async () => {
     renderHeader();
 
-    await userEvent.click(screen.getByRole('button', { name: /actions\.addPublisher/ }));
+    await userEvent.hover(screen.getByRole('button', { name: 'Publishers SpeedDial' }));
+    await userEvent.click(screen.getByRole('menuitem'));
 
     expect(openModalMock).toHaveBeenCalledTimes(1);
   });
 
-  it('leaves every filter control untouched by the added action', () => {
+  it('leaves every filter control untouched by the affordance change', () => {
     renderHeader();
 
     expect(screen.getByRole('combobox', { name: 'filterPublisher' })).toBeInTheDocument();
