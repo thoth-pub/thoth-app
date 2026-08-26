@@ -7942,6 +7942,13 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
 
     expect(contribution.contributorId).toBe('existing-contributor');
     expect(contribution.fullName).toBe('J. A. Doe-Smith');
+    // The stored identity fields, all of them: the reuse consumes firstName and website off the
+    // looked-up contributor, and GET_CONTRIBUTORS omitting them once turned both into '' on the
+    // real query -> mapper path (issue #144). The ONIX name parts must not leak in either.
+    expect(contribution.firstName).toBe('J. A.');
+    expect(contribution.lastName).toBe('Doe-Smith');
+    expect(contribution.website).toBe('https://stored.example');
+    expect(contribution.orcidId).toBe(CANONICAL_ORCID);
 
     const options = Object.values(result.data.contributorsForSelection[result.data.plan.works[0].id])[0];
 
@@ -7950,16 +7957,41 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
     expect(options[0]).toMatchObject({ selected: true, contributorId: 'existing-contributor' });
   });
 
-  it('keeps the ONIX role and resolved ordinal while sharing the resolved identity', async () => {
+  it('keeps the ONIX role, ordinal, biography and affiliation while sharing the resolved identity', async () => {
+    const ror = 'https://ror.org/03vek6s52';
+
     mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+    mockInstitutionService.getInstitutions = vi
+      .fn()
+      .mockResolvedValue([{ id: 'institution', name: 'Harvard University', ror }]);
 
     const result = await parseProducts([
-      product('A book', [onixContributor('Someone Else', undefined, 'A01'), onixContributor('Jane Doe', orcidIdentifier(ORCID), 'B01')]),
+      product('A book', [
+        onixContributor('Someone Else', undefined, 'A01'),
+        {
+          ...onixContributor('Jane Doe', orcidIdentifier(ORCID), 'B01'),
+          BiographicalNote: 'Writes about arcs.',
+          ProfessionalAffiliation: {
+            ProfessionalPosition: 'Professor',
+            AffiliationIdentifier: { IDValue: ror },
+          },
+        },
+      ]),
     ]);
 
     const [, resolved] = result.data.plan.works[0].contributions;
 
+    // Who the contribution points at is Thoth's stored identity; everything the file said about
+    // the contribution itself stays the file's.
     expect(resolved).toMatchObject({ contributorId: 'existing-contributor', type: 'EDITOR', orderNumber: 2 });
+    expect(resolved.firstName).toBe('J. A.');
+    expect(resolved.biographies.map(({ content }) => content)).toEqual(['Writes about arcs.']);
+    expect(resolved.affiliations[0]).toMatchObject({
+      institutionId: 'institution',
+      institutionName: 'Harvard University',
+      rorId: ror,
+      position: 'Professor',
+    });
   });
 
   it('rejects a substring ORCID candidate rather than treating it as identity', async () => {
