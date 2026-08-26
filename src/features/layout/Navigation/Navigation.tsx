@@ -22,6 +22,7 @@ import { ChangeActivePublisher } from '../../publisher';
 
 type NavigationGroupProps = {
   label: string;
+  hasVisibleHeading?: boolean;
   pages: { name: string; href: string; icon: SvgIconComponent }[];
   isExpanded: boolean;
   children?: ReactNode;
@@ -29,19 +30,23 @@ type NavigationGroupProps = {
 
 // APP-SHELL-SU-01: one labelled application-shell navigation group.
 //
-// Expanded, the group carries a visible section heading so publisher-context
-// workflows and staff workflows read as two distinct concepts instead of one
-// mixed list. Collapsed, the heading is not rendered at all, so the compact
-// shell shows no clipped or empty label block; the group's accessible name is
-// carried by the navigation landmark itself, so the grouping survives in both
-// states without depending on visual styling.
+// The group's accessible name is carried by the navigation landmark itself, so
+// the grouping survives in every state without depending on visual styling.
+// Collapsed, no heading is rendered at all, so the compact shell shows no
+// clipped or empty label block.
+//
+// APP-SHELL-SU-02 makes the *visible* heading independent of that accessible
+// name. A group can therefore stay a distinct, named landmark while showing no
+// section heading at all - which is what the publisher-context group now does,
+// after CTO review found its heading redundant above the publisher switcher it
+// already sits under. Groups that do want a heading keep one by default.
 //
 // The destinations, their routes, ordering and semantics are exactly the
 // collections passed in - this component groups presentation only and decides
 // nothing about which pages exist or who may reach them.
-const NavigationGroup = ({ label, pages, isExpanded, children }: NavigationGroupProps) => (
+const NavigationGroup = ({ label, hasVisibleHeading = true, pages, isExpanded, children }: NavigationGroupProps) => (
   <div className="flex flex-col gap-2">
-    {isExpanded && (
+    {isExpanded && hasVisibleHeading && (
       <Typography color="primary" component="h2" variant="body2" className="px-1 font-semibold tracking-wide uppercase">
         {label}
       </Typography>
@@ -83,15 +88,16 @@ const Navigation = () => {
     setIsUserMenuOpen((prev) => !prev);
   };
 
-  // APP-02A: staff entries appear only once authoritative user state confirms a
+  // APP-02A: admin entries appear only once authoritative user state confirms a
   // superuser, so an ordinary publisher - or a not-yet-loaded identity - never
   // sees them, not even as a flash. This gating is presentation only; the
   // backend stays the authorization boundary for everything the entries reach.
   //
   // APP-SHELL-SU-01 keeps that exact condition and only stops concatenating the
-  // two collections, so staff destinations are rendered as their own group
-  // rather than as a tail of the publisher-context list.
-  const canSeeStaffNavigation = isAuthoritative && user.isSuperuser;
+  // two collections, so these destinations are rendered as their own group
+  // rather than as a tail of the publisher-context list. APP-SHELL-SU-02 renames
+  // the group from Staff to Admin and changes this condition not at all.
+  const canSeeAdminNavigation = isAuthoritative && user.isSuperuser;
 
   return (
     <Paper
@@ -138,15 +144,25 @@ const Navigation = () => {
         {/* Publisher context: the active-publisher switcher and the destinations
             that operate against it. The switcher stays mounted in both states so
             its existing initialisation/persistence seam is untouched; it hides
-            itself when collapsed exactly as before. */}
-        <NavigationGroup label={t('publisherContext')} pages={PAGES} isExpanded={isExpanded}>
+            itself when collapsed exactly as before.
+
+            APP-SHELL-SU-02 drops the visible heading here only. The landmark
+            keeps its accessible name, so the group remains distinct to assistive
+            technology while the expanded shell reads as the switcher and the
+            destinations that follow from it. */}
+        <NavigationGroup
+          label={t('publisherContext')}
+          hasVisibleHeading={false}
+          pages={PAGES}
+          isExpanded={isExpanded}
+        >
           <ChangeActivePublisher isHidden={!isExpanded} />
         </NavigationGroup>
 
-        {/* Staff: destinations that are independent of the active publisher.
-            Presentation gating only - see canSeeStaffNavigation above. */}
-        {canSeeStaffNavigation && (
-          <NavigationGroup label={t('staff')} pages={SUPERUSER_PAGES} isExpanded={isExpanded} />
+        {/* Admin: destinations that are independent of the active publisher.
+            Presentation gating only - see canSeeAdminNavigation above. */}
+        {canSeeAdminNavigation && (
+          <NavigationGroup label={t('admin')} pages={SUPERUSER_PAGES} isExpanded={isExpanded} />
         )}
 
         {isExpanded && (

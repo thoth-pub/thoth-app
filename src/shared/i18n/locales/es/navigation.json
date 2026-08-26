@@ -9,6 +9,6 @@
   "publisher": "Editor",
   "publishers": "editoriales",
   "publisherContext": "Contexto de editorial",
-  "staff": "Personal",
+  "admin": "Administración",
   "currentPublisher": "Editorial actual"
 }

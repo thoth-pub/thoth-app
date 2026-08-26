@@ -9,6 +9,6 @@
   "publisher": "publisher",
   "publishers": "publishers",
   "publisherContext": "Publisher context",
-  "staff": "Staff",
+  "admin": "Admin",
   "currentPublisher": "Current publisher"
 }

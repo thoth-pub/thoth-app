@@ -4,11 +4,11 @@ import { Autocomplete } from '@mui/material';
 
 import type { DistributionJobStatus, DistributionPlatform, ThothPackage } from '@/gql/graphql';
 import type { PublisherId } from '@/src/entities/publisher/model/publisher.types';
-import AddNewPublisher from '@/src/entities/publisher/ui/AddNewPublisher/AddNewPublisher';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { ContentSection, TextField, TranslatedContent, Typography } from '@/src/shared/ui';
 
+import PublisherAdministrationSpeedDial from './PublisherAdministrationSpeedDial';
 import type { JobPresenceFilter } from './usePublisherAdministration';
 
 type PublisherFilterOption = {
@@ -93,27 +93,23 @@ const PublisherAdministrationHeader = (props: PublisherAdministrationHeaderProps
 
   return (
     <ContentSection>
-      {/* APP-SHELL-SU-01: the staff primary action. Add Publisher used to sit as
-          a large persistent control in the application shell; it belongs to this
-          staff surface, so the existing affordance is mounted here in the
-          title/action row instead. The component and its `useAddNewPublisher`
-          hook are reused exactly as they are - no modal, form, mutation or state
-          logic is duplicated or altered here, so creating a publisher still
-          creates its initial imprint, refetches the user, rebuilds linked
-          publisher state, makes the new publisher active and navigates to
-          /admin/publisher.
+      {/* APP-SHELL-SU-02: the title row carries the page title and nothing else.
+          Publisher creation is the fixed speed dial below, matching the
+          interaction convention already established on /admin/works.
 
-          Visibility is structural, not a second authorization rule: this header
-          only renders once PublisherAdministration has passed the existing
-          authoritative-superuser gate, so ordinary and not-yet-authoritative
-          users never reach it. The backend remains the authorization boundary
-          for the creation itself. */}
+          The speed dial is mounted from this header, not from the widget, so its
+          visibility stays structural rather than a second authorization rule:
+          this header only renders once PublisherAdministration has passed the
+          existing authoritative-superuser gate, so ordinary and
+          not-yet-authoritative users never reach it. The backend remains the
+          authorization boundary for the creation itself. */}
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Typography variant="h1" component="h1">
           <TranslatedContent content="title" namespace={NAMESPACES.enum.publishers} />
         </Typography>
-        <AddNewPublisher />
       </div>
+
+      <PublisherAdministrationSpeedDial />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <Autocomplete
