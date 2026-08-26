@@ -185,3 +185,150 @@ describe('PublisherAdministrationHeader publisher creation affordance (APP-SHELL
     expect(screen.getByLabelText('filterJobPresence')).toBeInTheDocument();
   });
 });
+
+// APP-PUBLISHER-FILTER-ALIGN-01. jsdom cannot measure pixels, and its cascade is
+// source-order only rather than specificity-aware, so any computed geometry read
+// here would not describe a browser. What it can hold honestly is the *style
+// contract* these filters emit: the local `sx` rules Emotion scopes to the
+// Autocomplete root element. These tests pin that contract - the tag row is
+// content-sized with the shared field height only as a floor, and the inner text
+// input no longer carries the shared TextField's whole control height. Actual
+// vertical alignment remains a browser-verification gate.
+type LocalStyleRule = {
+  selector: string;
+  media: string;
+  style: CSSStyleDeclaration;
+};
+
+// Matches a selector whose last compound is the tag row itself
+// (`.MuiAutocomplete-inputRoot`, optionally with further classes on the same
+// element), and never one that descends into a child of it.
+const TAG_ROW_SELECTOR = /\.MuiAutocomplete-inputRoot[\w.-]*$/;
+// Matches a selector whose last compound is the inner text input. The negative
+// lookahead keeps `.MuiAutocomplete-inputRoot` from matching as a prefix.
+const TAG_ROW_INPUT_SELECTOR = /\.MuiAutocomplete-input(?![\w-])[\w.-]*$/;
+const DESKTOP_MEDIA = 'min-width';
+
+const emotionClassesOf = (element: HTMLElement): string[] =>
+  Array.from(element.classList).filter((className) => className.startsWith('css-'));
+
+const autocompleteRootFor = (filterLabel: string): HTMLElement => {
+  const root = screen.getByRole('combobox', { name: filterLabel }).closest('.MuiAutocomplete-root');
+
+  if (!(root instanceof HTMLElement)) {
+    throw new Error(`No Autocomplete root rendered for "${filterLabel}"`);
+  }
+
+  return root;
+};
+
+// Every CSS rule in the document that is scoped to this element's own Emotion
+// class - that is, the local `sx` contract plus MUI's own root styles, and
+// nothing from the shared theme.
+const localStyleRulesFor = (element: HTMLElement): LocalStyleRule[] => {
+  const scopedClasses = emotionClassesOf(element);
+  const collected: LocalStyleRule[] = [];
+
+  const visit = (rules: CSSRuleList, media: string) => {
+    Array.from(rules).forEach((rule) => {
+      if ('cssRules' in rule && 'media' in rule) {
+        const mediaRule = rule as CSSMediaRule;
+        visit(mediaRule.cssRules, mediaRule.media.mediaText);
+        return;
+      }
+
+      const { selectorText, style } = rule as CSSStyleRule;
+
+      if (typeof selectorText === 'string' && scopedClasses.some((name) => selectorText.includes(name))) {
+        collected.push({ selector: selectorText, media, style });
+      }
+    });
+  };
+
+  Array.from(document.styleSheets).forEach((sheet) => visit(sheet.cssRules, ''));
+
+  return collected;
+};
+
+const declaredValue = (
+  rules: LocalStyleRule[],
+  selector: RegExp,
+  property: string,
+  mediaFragment = '',
+): string => {
+  const matching = rules.filter(
+    (rule) => (mediaFragment ? rule.media.includes(mediaFragment) : rule.media === '') && selector.test(rule.selector),
+  );
+
+  // Same scope and same specificity, so the last declaration is the effective one.
+  return matching.map((rule) => rule.style.getPropertyValue(property)).filter(Boolean).at(-1) ?? '';
+};
+
+const MULTIPLE_FILTER_LABELS = ['filterPublisher', 'filterPackages', 'filterEnabledPlatforms', 'filterJobStatuses'];
+
+const renderWithSelections = () =>
+  renderHeader({
+    selectedPublisherIds: ['pub-1', 'pub-2'],
+    selectedPackages: [ThothPackage.Oasis],
+  });
+
+describe('PublisherAdministrationHeader multi-select geometry (APP-PUBLISHER-FILTER-ALIGN-01)', () => {
+  it('applies one shared local treatment to every multiple filter', () => {
+    renderWithSelections();
+
+    const treatments = MULTIPLE_FILTER_LABELS.map((label) => emotionClassesOf(autocompleteRootFor(label)).join(' '));
+
+    expect(treatments.every((treatment) => treatment !== '')).toBe(true);
+    expect(new Set(treatments).size).toBe(1);
+  });
+
+  it.each(MULTIPLE_FILTER_LABELS)(
+    'stops %s inheriting the shared TextField control height on its inner text input',
+    (label) => {
+      renderWithSelections();
+
+      const rules = localStyleRulesFor(autocompleteRootFor(label));
+
+      // The inner input is a flex sibling of the chips. Left at the shared
+      // TextField height (2rem, 2.75rem at desktop) it out-sizes the tag row and
+      // pushes the chips off-centre and out of the outline.
+      expect(declaredValue(rules, TAG_ROW_INPUT_SELECTOR, 'height')).toBe('auto');
+    },
+  );
+
+  it.each(MULTIPLE_FILTER_LABELS)('lets %s grow only when its chips genuinely wrap', (label) => {
+    renderWithSelections();
+
+    const rules = localStyleRulesFor(autocompleteRootFor(label));
+
+    // Content-sized, so a wrapped selection grows the field...
+    expect(declaredValue(rules, TAG_ROW_SELECTOR, 'height')).toBe('auto');
+    // ...but never below the shared small-field height at either breakpoint, so
+    // an empty or single-row control still looks like every other small field.
+    expect(declaredValue(rules, TAG_ROW_SELECTOR, 'min-height')).toBe('2rem');
+    expect(declaredValue(rules, TAG_ROW_SELECTOR, 'min-height', DESKTOP_MEDIA)).toBe('2.75rem');
+  });
+
+  it.each(MULTIPLE_FILTER_LABELS)('keeps the existing centred, wrapping, evenly spaced chip row on %s', (label) => {
+    renderWithSelections();
+
+    const rules = localStyleRulesFor(autocompleteRootFor(label));
+
+    expect(declaredValue(rules, TAG_ROW_SELECTOR, 'align-items')).toBe('center');
+    expect(declaredValue(rules, TAG_ROW_SELECTOR, 'flex-wrap')).toBe('wrap');
+    expect(declaredValue(rules, TAG_ROW_SELECTOR, 'gap')).toBe('4px');
+    expect(declaredValue(rules, /\.MuiChip-root$/, 'margin')).toBe('0px');
+  });
+
+  it('leaves the native back-catalogue job select outside that local treatment', () => {
+    renderWithSelections();
+
+    const jobPresence = screen.getByLabelText('filterJobPresence');
+    const multiSelectClasses = emotionClassesOf(autocompleteRootFor('filterPublisher'));
+
+    expect(jobPresence.closest('.MuiAutocomplete-root')).toBeNull();
+    expect(
+      multiSelectClasses.some((name) => jobPresence.closest('.MuiFormControl-root')?.classList.contains(name)),
+    ).toBe(false);
+  });
+});
