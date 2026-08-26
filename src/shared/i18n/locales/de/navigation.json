@@ -6,5 +6,9 @@
   "profile": "Profil",
   "home": "Startseite",
   "edit book": "Titel bearbeiten",
-  "publisher": "Verlag"
+  "publisher": "Verlag",
+  "publishers": "Verlage",
+  "publisherContext": "Verlagskontext",
+  "admin": "Verwaltung",
+  "currentPublisher": "Aktueller Verlag"
 }

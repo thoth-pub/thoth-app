@@ -136,7 +136,9 @@ This repository is a **consumer** of the Thoth GraphQL schema owned by
 
 Verified codegen setup (`codegen.ts`):
 
-- schema source: `https://api.test.thoth.pub/graphql`;
+- schema source: the pinned local SDL snapshot `graphql/schema.v1.7.0.graphql`
+  (SHA-256 `521fba3b438c0013f21bfcbff62a24a3349cdd394738a40fd62e8f76fbf14226`),
+  not a live endpoint;
 - documents: `app/**/*.{ts,tsx}` and `src/**/*.{ts,tsx}`;
 - output: `./gql/` using the GraphQL Code Generator `client` preset.
 
@@ -232,22 +234,39 @@ on:
   pull_request:
 ```
 
-and the job runs, on Node 22:
+The single `test` job runs on Node 22. After `npm ci` it attempts, in this
+order:
 
-```bash
-npm ci
-npm test -- --run --coverage
-```
+1. **Lint - no-new-debt ratchet.** ESLint writes a JSON report to the runner
+   temporary directory, then `scripts/ci/eslint-ratchet.mjs check` compares that
+   report against `scripts/ci/eslint-baseline.json`. An ESLint exit code above
+   `1` is treated as a configuration/execution failure, not as diagnostics.
+2. **Tests and coverage** - `npm test -- --run --coverage`.
+3. **Production build** - `npm run build`.
+4. **GraphQL codegen consistency** - `npm run generate` against the pinned local
+   SDL (section 5), failing if anything under `gql/` changes, including
+   untracked generated files.
 
-That is the whole of current GitHub CI for this repository.
+Lint runs before the tests because generated `coverage/` output is inside
+current ESLint discovery and would otherwise contribute diagnostics that are not
+repository debt.
 
-**Lint, the production build and codegen consistency are NOT current GitHub CI
-gates.** They must be run locally when the change needs them (section 7). Green
-CI therefore does not evidence lint cleanliness, a working production build, or
-that `gql/` matches the schema and documents.
+Each gate after installation is attempted even when an earlier gate failed, so
+one failure does not hide the remaining evidence. Nothing runs after a failed
+`npm ci`.
 
-Closing that gap is separate, separately authorized work. Do not modify
-workflows to fix it as part of an unrelated task.
+The lint gate is a **regression** gate, not a cleanliness gate. This repository
+carries historical ESLint debt, recorded with its provenance in
+`scripts/ci/eslint-baseline.json`. CI fails when a diagnostic fingerprint -
+repository-relative file, severity, rule id (or a stable synthetic identity when
+ESLint reports none), message, and the number of occurrences - is new, or occurs
+more often than the baseline records. Fewer occurrences, and removed
+diagnostics, pass. A green run therefore evidences **no new lint debt**; it does
+not evidence a green `npm run lint`.
+
+Raising the committed baseline is not authorized by an ordinary product task:
+fix the new diagnostics instead. The checker's `write` mode exists only for
+separately authorized baseline maintenance, and CI runs `check` only.
 
 ## 9. Deployment and provider boundary
 

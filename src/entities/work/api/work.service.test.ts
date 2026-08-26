@@ -2,7 +2,8 @@ import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GraphqlService } from '@/src/shared/api/graphqlService';
-import { SubjectTypes } from '@/src/shared/constants';
+import { appConfig } from '@/src/shared/config';
+import { ContributorTypes, SubjectTypes } from '@/src/shared/constants';
 import { getDefaultContribution } from '@/src/shared/constants/contributions';
 import { SeriesType as SeriesTypes } from '@/src/shared/constants/series';
 import type { ImportExecutionProgress, ImportPlan, ProposedSeries, SeriesImportPlan } from '@/src/shared/types';
@@ -11,7 +12,10 @@ import { getDefaultPublication } from '@/src/shared/utils/publications';
 import { getDefaultAbstract, getDefaultTitle, getDefaultWork } from '@/src/shared/utils/work';
 
 import { AbstractService } from '../../abstract/api/abstract.service';
+import { AffiliationService } from '../../affiliation/api/affiliation.service';
 import { ContributionService } from '../../contribution/api/contribution.service';
+import type { WorkContribution } from '../../contribution/model/contribution.types';
+import { ContributorService } from '../../contributor/api/contributor.service';
 import { FundingService } from '../../funding/api/funding.service';
 import { LanguageService } from '../../language/api/language.service';
 import { PublicationService } from '../../publication/api/publication.service';
@@ -874,5 +878,256 @@ describe('bulkCreateWorks execution observer', () => {
     expect(consoleSpy).toHaveBeenCalled();
 
     consoleSpy.mockRestore();
+  });
+});
+
+/**
+ * Issue #135. A bulk import may carry the same ORCID on several source occurrences: the same
+ * author on two books, on two chapters of one book, or in two roles on one work. The backend
+ * protects `contributor.orcid` with a unique index, so the app may only ever attempt one
+ * creation per ORCID per import — and, because works create their contributions concurrently
+ * and chapters run concurrently too, "one attempt" has to hold for simultaneous occurrences as
+ * well as for later books.
+ *
+ * These run the real ContributionService against a mocked API so the assertions are about the
+ * mutations an import would actually send.
+ */
+describe('bulkCreateWorks contributor identity (issue #135)', () => {
+  const ORCID = 'https://orcid.org/0000-0001-6365-5189';
+  const OTHER_ORCID = 'https://orcid.org/0000-0002-1825-0097';
+
+  let workService: WorkService;
+  let contributionService: ContributionService;
+  let mockContributorService: ContributorService;
+  let mockGraphqlService: GraphqlService;
+  let createdContributions: Array<{ workId: string; contributorId: string; contributionType: string }>;
+
+  /** A planned contribution the parser could not resolve to an existing contributor. */
+  const newContributorContribution = (overrides?: Partial<WorkContribution>): WorkContribution =>
+    getDefaultContribution({
+      contributorId: appConfig.defaultId,
+      fullName: 'Jane Doe',
+      lastName: 'Doe',
+      firstName: 'Jane',
+      orcidId: ORCID,
+      ...overrides,
+    });
+
+  const planOf = (works: WorkEntity[], chapters: WorkEntity[] = []): ImportPlan => ({
+    works,
+    chapters,
+    series: [],
+  });
+
+  beforeEach(() => {
+    createdContributions = [];
+    let contributorSequence = 0;
+
+    mockContributorService = {
+      createContributor: vi.fn().mockImplementation(async (data: { orcid: string }) => {
+        contributorSequence += 1;
+
+        // A real create is not instantaneous: the gap is where a completed-value-only cache
+        // would let a second occurrence start its own create before the first one landed.
+        await new Promise((resolve) => setTimeout(resolve, 5));
+
+        return { id: `contributor-${contributorSequence}`, orcid: data.orcid };
+      }),
+    } as unknown as ContributorService;
+
+    mockGraphqlService = {
+      query: vi.fn(),
+      mutation: vi.fn().mockImplementation(async (_document: unknown, variables: Record<string, never>) => {
+        const data = (variables as { data?: Record<string, string> }).data ?? {};
+
+        if ('contributionType' in data) {
+          createdContributions.push({
+            workId: data.workId,
+            contributorId: data.contributorId,
+            contributionType: data.contributionType,
+          });
+
+          return { createContribution: { contributionId: `contribution-${createdContributions.length}` } };
+        }
+
+        return { createWork: { workId: `created-${createdContributions.length}-${Math.random()}` } };
+      }),
+    } as unknown as GraphqlService;
+
+    contributionService = new ContributionService({
+      graphqlService: mockGraphqlService,
+      contributorService: mockContributorService,
+      affiliationService: { createAffiliation: vi.fn() } as unknown as AffiliationService,
+    });
+
+    const mapper = new WorkDtoMapper();
+    vi.spyOn(mapper, 'toDto').mockImplementation((entity: WorkEntity) => ({ workId: entity.id }) as unknown as WorkDto);
+    vi.spyOn(mapper, 'toEntity').mockImplementation((dto: WorkDto) => getDefaultWork({ id: dto.workId }));
+
+    workService = new WorkService({
+      graphqlService: mockGraphqlService,
+      fundingService: {} as unknown as FundingService,
+      subjectService: {} as unknown as SubjectService,
+      contributionService,
+      publicationService: {} as unknown as PublicationService,
+      languageService: {} as unknown as LanguageService,
+      seriesService: {} as unknown as SeriesService,
+      referenceService: {} as unknown as ReferenceService,
+      titleService: { createTitles: vi.fn().mockResolvedValue([]) } as unknown as TitleService,
+      abstractService: {} as unknown as AbstractService,
+    });
+  });
+
+  it('creates one contributor for the same new ORCID across sequential top-level works', async () => {
+    // The reported Tilburg failure in miniature: book 1 creates the contributor, and book 2
+    // used to try to create the same ORCID again, which the unique index correctly rejected.
+    const works = [
+      getDefaultWork({ id: 'w1', contributions: [newContributorContribution()] }),
+      getDefaultWork({ id: 'w2', contributions: [newContributorContribution()] }),
+    ];
+
+    await workService.bulkCreateWorks(planOf(works));
+
+    expect(mockContributorService.createContributor).toHaveBeenCalledTimes(1);
+    expect(createdContributions).toHaveLength(2);
+    expect(new Set(createdContributions.map(({ contributorId }) => contributorId)).size).toBe(1);
+    expect(createdContributions[0].contributorId).toBe('contributor-1');
+  });
+
+  it('shares one in-flight creation between concurrent same-ORCID contributions of one work', async () => {
+    // Distinct roles: two contributions of the same type on one work collide on a different
+    // constraint entirely, so this stays a test about contributor identity.
+    const work = getDefaultWork({
+      id: 'w1',
+      contributions: [
+        newContributorContribution({ type: ContributorTypes.enum.Author, orderNumber: 1 }),
+        newContributorContribution({ type: ContributorTypes.enum.Editor, orderNumber: 2 }),
+      ],
+    });
+
+    await workService.bulkCreateWorks(planOf([work]));
+
+    expect(mockContributorService.createContributor).toHaveBeenCalledTimes(1);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
+      'contributor-1',
+      'contributor-1',
+    ]);
+    expect(createdContributions.map(({ contributionType }) => contributionType)).toEqual([
+      ContributorTypes.enum.Author,
+      ContributorTypes.enum.Editor,
+    ]);
+  });
+
+  it('shares the registry between concurrent chapter paths of one top-level work', async () => {
+    const works = [getDefaultWork({ id: 'w1', contributions: [] })];
+    const chapters = [
+      getDefaultWork({ id: 'c1', relationId: 'w1', contributions: [newContributorContribution()] }),
+      getDefaultWork({ id: 'c2', relationId: 'w1', contributions: [newContributorContribution()] }),
+    ];
+
+    await workService.bulkCreateWorks(planOf(works, chapters));
+
+    expect(mockContributorService.createContributor).toHaveBeenCalledTimes(1);
+    expect(new Set(createdContributions.map(({ contributorId }) => contributorId)).size).toBe(1);
+  });
+
+  it('creates distinct contributors for different ORCIDs carrying the same name', async () => {
+    const works = [
+      getDefaultWork({ id: 'w1', contributions: [newContributorContribution()] }),
+      getDefaultWork({ id: 'w2', contributions: [newContributorContribution({ orcidId: OTHER_ORCID })] }),
+    ];
+
+    await workService.bulkCreateWorks(planOf(works));
+
+    expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
+      'contributor-1',
+      'contributor-2',
+    ]);
+  });
+
+  it('never deduplicates blank-ORCID contributors through the registry', async () => {
+    // Two people can share a name. Without an ORCID the import has no identity signal at all,
+    // and inferring one from the name is exactly what this task must not do.
+    const works = [
+      getDefaultWork({ id: 'w1', contributions: [newContributorContribution({ orcidId: '' })] }),
+      getDefaultWork({ id: 'w2', contributions: [newContributorContribution({ orcidId: '' })] }),
+    ];
+
+    await workService.bulkCreateWorks(planOf(works));
+
+    expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
+      'contributor-1',
+      'contributor-2',
+    ]);
+  });
+
+  it('leaves an existing contributor id alone: no creation, no registry entry', async () => {
+    const works = [
+      getDefaultWork({
+        id: 'w1',
+        contributions: [newContributorContribution({ contributorId: 'existing-contributor' })],
+      }),
+      getDefaultWork({
+        id: 'w2',
+        contributions: [newContributorContribution({ contributorId: 'existing-contributor' })],
+      }),
+    ];
+
+    await workService.bulkCreateWorks(planOf(works));
+
+    expect(mockContributorService.createContributor).not.toHaveBeenCalled();
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
+      'existing-contributor',
+      'existing-contributor',
+    ]);
+  });
+
+  it('fails the import when the shared contributor creation genuinely rejects', async () => {
+    const failure = new Error('A contributor with this ORCID ID already exists.');
+    vi.mocked(mockContributorService.createContributor).mockRejectedValue(failure);
+
+    const works = [
+      getDefaultWork({ id: 'w1', contributions: [newContributorContribution()] }),
+      getDefaultWork({ id: 'w2', contributions: [newContributorContribution()] }),
+    ];
+
+    await expect(workService.bulkCreateWorks(planOf(works))).rejects.toBeInstanceOf(ImportExecutionError);
+    // Stopped on the first work, exactly as a failed creation always did: sharing identity must
+    // not convert a rejection into a reusable success.
+    expect(createdContributions).toHaveLength(0);
+  });
+
+  it('starts every bulk import with a fresh registry', async () => {
+    const first = [getDefaultWork({ id: 'w1', contributions: [newContributorContribution()] })];
+    const second = [getDefaultWork({ id: 'w2', contributions: [newContributorContribution()] })];
+
+    await workService.bulkCreateWorks(planOf(first));
+    await workService.bulkCreateWorks(planOf(second));
+
+    // A contributor id cached in memory from an earlier import says nothing about what exists
+    // now, so the second import resolves the ORCID through its own creation.
+    expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
+    expect(createdContributions.map(({ contributorId }) => contributorId)).toEqual([
+      'contributor-1',
+      'contributor-2',
+    ]);
+  });
+
+  it('leaves ordinary non-bulk work creation without any registry', async () => {
+    const work = getDefaultWork({
+      id: 'w1',
+      contributions: [
+        newContributorContribution({ type: ContributorTypes.enum.Author, orderNumber: 1 }),
+        newContributorContribution({ type: ContributorTypes.enum.Editor, orderNumber: 2 }),
+      ],
+    });
+
+    await workService.createWork(work);
+
+    // Outside an import there is no execution to scope a registry to, so both occurrences
+    // create independently — the behaviour this path has always had.
+    expect(mockContributorService.createContributor).toHaveBeenCalledTimes(2);
   });
 });

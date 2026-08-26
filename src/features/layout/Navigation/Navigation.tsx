@@ -1,16 +1,17 @@
 'use client';
 
+import type { SvgIconComponent } from '@mui/icons-material';
 import ArrowBackIosNewRoundedIcon from '@mui/icons-material/ArrowBackIosNewRounded';
 import ArrowDropDownRoundedIcon from '@mui/icons-material/ArrowDropDownRounded';
 import ArrowForwardIosRoundedIcon from '@mui/icons-material/ArrowForwardIosRounded';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { Activity, useState } from 'react';
+import { Activity, type ReactNode, useState } from 'react';
 
-import { AddNewPublisher } from '@/src/entities/publisher';
 import { useUser } from '@/src/entities/user';
-import { PAGES, ROUTES } from '@/src/shared/constants';
+import { PAGES, ROUTES, SUPERUSER_PAGES } from '@/src/shared/constants';
+import useTypedTranslation from '@/src/shared/hooks/useTypedTranslation';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { useUIContext } from '@/src/shared/store';
 import { IconButton, Paper, TranslatedContent, Typography } from '@/src/shared/ui';
@@ -19,15 +20,84 @@ import { SignOutButton } from '../../auth';
 import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
 
+type NavigationGroupProps = {
+  label: string;
+  hasVisibleHeading?: boolean;
+  pages: { name: string; href: string; icon: SvgIconComponent }[];
+  isExpanded: boolean;
+  children?: ReactNode;
+};
+
+// APP-SHELL-SU-01: one labelled application-shell navigation group.
+//
+// The group's accessible name is carried by the navigation landmark itself, so
+// the grouping survives in every state without depending on visual styling.
+// Collapsed, no heading is rendered at all, so the compact shell shows no
+// clipped or empty label block.
+//
+// APP-SHELL-SU-02 makes the *visible* heading independent of that accessible
+// name. A group can therefore stay a distinct, named landmark while showing no
+// section heading at all - which is what the publisher-context group now does,
+// after CTO review found its heading redundant above the publisher switcher it
+// already sits under. Groups that do want a heading keep one by default.
+//
+// The destinations, their routes, ordering and semantics are exactly the
+// collections passed in - this component groups presentation only and decides
+// nothing about which pages exist or who may reach them.
+const NavigationGroup = ({ label, hasVisibleHeading = true, pages, isExpanded, children }: NavigationGroupProps) => (
+  <div className="flex flex-col gap-2">
+    {isExpanded && hasVisibleHeading && (
+      <Typography color="primary" component="h2" variant="body2" className="px-1 font-semibold tracking-wide uppercase">
+        {label}
+      </Typography>
+    )}
+
+    {children}
+
+    <nav aria-label={label}>
+      <ul className="flex flex-col rounded-(--border-nav-radius) border border-(--color-nav-border)">
+        {pages.map(({ name, href, icon: Icon }) => (
+          <li key={href} className={`py-2 duration-300 hover:bg-(--color-hover) ${isExpanded ? 'px-4' : 'px-1.5'}`}>
+            <Link href={href} className="flex shrink-0 items-center gap-2">
+              <Icon color="primary" className={`${!isExpanded && 'm-auto'}`} />
+              {isExpanded && (
+                <Typography
+                  color="primary"
+                  component="span"
+                  className="capitalize opacity-100 transition-opacity duration-300"
+                >
+                  <TranslatedContent content={name} namespace={NAMESPACES.enum.navigation} />
+                </Typography>
+              )}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </nav>
+  </div>
+);
+
 const Navigation = () => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
-  const { user } = useUser();
+  const { user, isAuthoritative } = useUser();
   const { isExpanded, updateIsExpanded } = useUIContext();
+  const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.navigation });
 
   const handleUserMenuOpen = () => {
     setIsUserMenuOpen((prev) => !prev);
   };
+
+  // APP-02A: admin entries appear only once authoritative user state confirms a
+  // superuser, so an ordinary publisher - or a not-yet-loaded identity - never
+  // sees them, not even as a flash. This gating is presentation only; the
+  // backend stays the authorization boundary for everything the entries reach.
+  //
+  // APP-SHELL-SU-01 keeps that exact condition and only stops concatenating the
+  // two collections, so these destinations are rendered as their own group
+  // rather than as a tail of the publisher-context list. APP-SHELL-SU-02 renames
+  // the group from Staff to Admin and changes this condition not at all.
+  const canSeeAdminNavigation = isAuthoritative && user.isSuperuser;
 
   return (
     <Paper
@@ -71,29 +141,29 @@ const Navigation = () => {
           </IconButton>
         </div>
 
-        <ChangeActivePublisher isHidden={!isExpanded} />
-        {user.isSuperuser && <AddNewPublisher className={`w-[240px] shrink-0 ${isExpanded ? 'px-3.5' : 'gap-3'}`} />}
+        {/* Publisher context: the active-publisher switcher and the destinations
+            that operate against it. The switcher stays mounted in both states so
+            its existing initialisation/persistence seam is untouched; it hides
+            itself when collapsed exactly as before.
 
-        <nav>
-          <ul className="flex flex-col rounded-(--border-nav-radius) border border-(--color-nav-border)">
-            {PAGES.map(({ name, href, icon: Icon }) => (
-              <li key={href} className={`py-2 duration-300 hover:bg-(--color-hover) ${isExpanded ? 'px-4' : 'px-1.5'}`}>
-                <Link href={href} className="flex shrink-0 items-center gap-2">
-                  <Icon color="primary" className={`${!isExpanded && 'm-auto'}`} />
-                  {isExpanded && (
-                    <Typography
-                      color="primary"
-                      component="span"
-                      className={`capitalize transition-opacity duration-300 ${isExpanded ? 'opacity-100' : 'opacity-0'}`}
-                    >
-                      <TranslatedContent content={name} namespace={NAMESPACES.enum.navigation} />
-                    </Typography>
-                  )}
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </nav>
+            APP-SHELL-SU-02 drops the visible heading here only. The landmark
+            keeps its accessible name, so the group remains distinct to assistive
+            technology while the expanded shell reads as the switcher and the
+            destinations that follow from it. */}
+        <NavigationGroup
+          label={t('publisherContext')}
+          hasVisibleHeading={false}
+          pages={PAGES}
+          isExpanded={isExpanded}
+        >
+          <ChangeActivePublisher isHidden={!isExpanded} />
+        </NavigationGroup>
+
+        {/* Admin: destinations that are independent of the active publisher.
+            Presentation gating only - see canSeeAdminNavigation above. */}
+        {canSeeAdminNavigation && (
+          <NavigationGroup label={t('admin')} pages={SUPERUSER_PAGES} isExpanded={isExpanded} />
+        )}
 
         {isExpanded && (
           <div

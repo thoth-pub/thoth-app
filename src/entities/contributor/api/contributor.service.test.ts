@@ -153,6 +153,46 @@ describe('ContributorService', () => {
         expect(printed).toMatch(/titles\s*\{\s*canonical\s+title\s*\}/);
       });
     });
+
+    /**
+     * Issue #144: the exact-ORCID reuse path (issue #135) builds the planned contribution from
+     * the looked-up contributor's firstName and website, but GET_CONTRIBUTORS never projected
+     * either field, so the mapper's '' defaults silently replaced the stored values. Parser tests
+     * mock fully hydrated entities and cannot see this, so the document projection is asserted
+     * here, against the query that actually runs.
+     */
+    describe('existing-contributor hydration (issue #144)', () => {
+      it('projects the identity fields the ORCID-reuse path consumes', () => {
+        const printed = print(GET_CONTRIBUTORS as unknown as DocumentNode);
+
+        expect(printed).toMatch(/\bfirstName\b/);
+        expect(printed).toMatch(/\bwebsite\b/);
+      });
+
+      it('returns backend-provided firstName and website through the real mapper', async () => {
+        const serviceWithRealMapper = new ContributorService(mockGraphqlService);
+
+        (mockGraphqlService.query as ReturnType<typeof vi.fn>).mockResolvedValue({
+          contributors: [
+            {
+              contributorId: 'stored-contributor',
+              fullName: 'Jane Doe',
+              lastName: 'Doe',
+              firstName: 'Jane',
+              website: 'https://stored.example',
+              orcid: null,
+              updatedAt: '2024-01-01T00:00:00Z',
+              contributions: [],
+            },
+          ],
+        });
+
+        const [entity] = await serviceWithRealMapper.getContributors('Jane Doe');
+
+        expect(entity.firstName).toBe('Jane');
+        expect(entity.website).toBe('https://stored.example');
+      });
+    });
   });
 
   describe('getContributor', () => {

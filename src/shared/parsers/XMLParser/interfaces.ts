@@ -144,6 +144,21 @@ export interface OnixTextItem {
 }
 
 /**
+ * An identifier of a contributor. Repeatable, and repeatable at runtime: one person may be given
+ * a publisher's own author key, an ISNI and an ORCID in the same Contributor composite.
+ *
+ * NameIDType is ONIX List 44, in which `21` is ORCID. It is what declares the scheme, so it — not
+ * the shape of IDValue — decides whether a value is an ORCID at all. A proprietary key that
+ * happens to look like an ORCID is still a proprietary key, and an ORCID that is not the first
+ * identifier is still the contributor's ORCID.
+ */
+export interface OnixNameIdentifier {
+  NameIDType?: OnixText;
+  IDTypeName?: OnixText;
+  IDValue?: OnixText;
+}
+
+/**
  * One PublishingDate. `Date` is a text element carrying a `dateformat` attribute, so it arrives
  * as a bare string when the attribute is absent and as an object when it is not — upstream's
  * `DateClass` only describes the second case.
@@ -181,9 +196,7 @@ export interface ExtendedContributor extends Omit<Contributor, 'BiographicalNote
   PersonName?: string;
   KeyNames?: string;
   NamesBeforeKey?: string;
-  NameIdentifier?: {
-    IDValue?: string;
-  };
+  NameIdentifier?: OnixRepeatable<OnixNameIdentifier>;
   Website?: {
     WebsiteLink?: string;
     WebsiteRole?: string;

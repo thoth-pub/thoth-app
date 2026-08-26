@@ -15,6 +15,7 @@ export const ROUTES = {
   WORKS: '/admin/works',
   SERIES: '/admin/series',
   PUBLISHER: '/admin/publisher',
+  PUBLISHERS: '/admin/publishers',
   NOT_FOUND: '/not-found',
   BOOKS_SETS: '/admin/sets',
   METADATA_FORMATS: '/api/metadata/formats',

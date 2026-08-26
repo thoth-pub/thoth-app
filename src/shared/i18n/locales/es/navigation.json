@@ -6,5 +6,9 @@
   "profile": "perfil",
   "home": "inicio",
   "edit book": "Editar libro",
-  "publisher": "Editor"
+  "publisher": "Editor",
+  "publishers": "editoriales",
+  "publisherContext": "Contexto de editorial",
+  "admin": "Administración",
+  "currentPublisher": "Editorial actual"
 }

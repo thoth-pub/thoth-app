@@ -1,0 +1,1560 @@
+{
+  "task": "CTRL-APP-CI-01",
+  "description": "Deterministic ESLint no-new-debt baseline. Historical debt only; must not be raised by ordinary product tasks.",
+  "provenance": {
+    "repository": "thoth-pub/thoth-app",
+    "baseBranch": "dev",
+    "baseSha": "27a7cc0de538a86041055dc72f8a0bc188ab3e3e",
+    "baseTree": "b25c2aa09288980a5a45412cfa9ff8ab89fe97a5",
+    "command": "npx eslint --format json",
+    "note": "Measured with ESLint v9.39.1 on Node v22.20.0 at the authorized base; local-only .claude/ worktree and stale coverage/ output excluded from discovery (neither exists in a CI checkout)."
+  },
+  "totals": {
+    "errors": 227,
+    "warnings": 98,
+    "total": 325,
+    "affectedFiles": 169
+  },
+  "fingerprints": [
+    {
+      "file": "app/actions/__tests__/validateXml.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "app/admin/dashboard/page.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "app/admin/publisher/page.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "app/admin/series/page.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "app/admin/sets/page.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "app/admin/works/copy/page.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "app/admin/works/new/page.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "app/admin/works/page.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "app/api/metadata/formats/route.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "app/api/metadata/specifications/[specification]/work/[workId]/route.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/abstract/api/hooks/__tests__/abstract.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/abstract/api/hooks/__tests__/abstract.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/additional-resource/api/hooks/__tests__/additional-resource.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/additional-resource/api/hooks/__tests__/additional-resource.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/additional-resource/ui/AdditionalResourcesList/__tests__/AdditionalResourcesList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/affiliation/api/hooks/__tests__/affiliation.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/affiliation/api/hooks/__tests__/affiliation.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/affiliation/ui/__tests__/useAffiliationsForm.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/affiliation/ui/__tests__/useAffiliationsForm.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 3
+    },
+    {
+      "file": "src/entities/award/api/award.service.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/award/api/hooks/__tests__/award.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 3
+    },
+    {
+      "file": "src/entities/award/api/hooks/__tests__/award.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/award/ui/__tests__/EditAwardFields.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/award/ui/AwardsList/__tests__/AwardsList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/book-review/api/hooks/__tests__/book-review.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/book-review/api/hooks/__tests__/book-review.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/book-review/ui/__tests__/EditBookReviewFields.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/book-review/ui/BookReviewsList/__tests__/BookReviewsList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/book/api/hooks/__tests__/book.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/contribution/api/contribution.service.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/contribution/api/hooks/__tests__/contribution.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/contribution/api/hooks/__tests__/contribution.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/contribution/ui/ChaptersContributionsList/__tests__/ChaptersContributionsList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/contribution/ui/ContributionForms/__tests__/ContributionForms.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/contribution/ui/WorkContributionsList/__tests__/WorkContributionsList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/contributor/api/contributor.service.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/contributor/api/hooks/__tests__/contributor.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/contributor/api/hooks/__tests__/contributor.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/contributor/ui/EditOrcid/__tests__/EditOrcid.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/endorsement/api/endorsement.service.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/endorsement/api/hooks/__tests__/endorsement.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/endorsement/api/hooks/__tests__/endorsement.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/endorsement/ui/__tests__/EditEndorsementFields.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/endorsement/ui/EndorsementsList/__tests__/EndorsementsList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/featured-video/api/hooks/__tests__/featured-video.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/featured-video/api/hooks/__tests__/featured-video.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/funding/api/hooks/__tests__/funding.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/funding/api/hooks/__tests__/funding.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/funding/ui/EditGrantNumberForm/__tests__/EditGrantNumberForm.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/funding/ui/EditProgramForm/__tests__/EditProgramForm.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/funding/ui/EditProjectNameForm/__tests__/EditProjectNameForm.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/funding/ui/FundingsList/__tests__/FundingsList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/imprint/api/hooks/__tests__/imprint.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/imprint/api/hooks/__tests__/imprint.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/imprint/api/imprint.service.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 2
+    },
+    {
+      "file": "src/entities/imprint/ui/EditImprint/__tests__/EditImprint.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 2
+    },
+    {
+      "file": "src/entities/imprint/ui/EditImprint/__tests__/EditImprint.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/institution/ui/EditInstitutionForm/__tests__/EditInstitutionForm.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/language/api/hooks/__tests__/language.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/language/api/hooks/__tests__/language.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/language/ui/LanguagesForm/__tests__/LanguagesForm.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/locations/api/hooks/__tests__/location.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/locations/api/hooks/__tests__/location.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/metadata/api/hooks/__tests__/metadata.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/metadata/ui/MetadataModal/__tests__/MetadataModal.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/price/api/hooks/__tests__/price.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/price/api/hooks/__tests__/price.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/price/ui/EditPrice/__tests__/EditPrice.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/publication/api/hooks/__tests__/publication.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/publication/api/hooks/__tests__/publication.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/publication/ui/DownloadPublication/__tests__/DownloadPublication.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'vi' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/publication/ui/DownloadPublication/__tests__/DownloadPublication.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/publication/ui/PublicationsList/__tests__/PublicationsList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/publisher/api/hooks/__tests__/publisher.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/publisher/api/hooks/__tests__/publisher.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/publisher/api/publisher.service.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 3
+    },
+    {
+      "file": "src/entities/publisher/ui/__tests__/EditPublisherFields.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/publisher/ui/AddNewPublisher/__tests__/AddNewPublisher.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/publisher/ui/EditContact/__tests__/EditContact.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/publisher/ui/EditName/__tests__/EditName.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/reference/api/hooks/__tests__/reference.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/reference/api/hooks/__tests__/reference.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/reference/ui/__tests__/EditReferenceFields.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/series/api/hooks/__tests__/series.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 2
+    },
+    {
+      "file": "src/entities/series/api/hooks/__tests__/series.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/series/ui/EditSeriesForm/__tests__/EditSeriesForm.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/series/ui/SeriesList/__tests__/SeriesList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/sets/api/hooks/__tests__/sets.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 2
+    },
+    {
+      "file": "src/entities/sets/api/hooks/__tests__/sets.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/sets/ui/AddNewSetForm/__tests__/AddNewSetForm.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/sets/ui/SetsCardList/__tests__/SetsCardList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/subject/api/hooks/__tests__/subject.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/subject/api/hooks/__tests__/subject.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/subject/api/subject.service.test.ts",
+      "severity": "error",
+      "ruleId": "no-useless-escape",
+      "message": "Unnecessary escape character: \\\".",
+      "count": 2
+    },
+    {
+      "file": "src/entities/subject/ui/EditSubject/__tests__/EditSubject.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/subject/ui/EditSubjects/__tests__/EditSubjects.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/title/api/hooks/__tests__/title.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/title/api/hooks/__tests__/title.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/user/api/hooks/__tests__/user.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/user/api/user.service.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'createEntity' is assigned a value but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/api/hooks/__tests__/work.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 2
+    },
+    {
+      "file": "src/entities/work/api/hooks/__tests__/work.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'useBulkCreateWorkChapters' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/api/hooks/__tests__/work.hooks.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/work/api/hooks/__tests__/work.hooks.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 3
+    },
+    {
+      "file": "src/entities/work/ui/__tests__/EditWorkFields.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/ui/CreateWorkForm/useCreateWorkForm.ts",
+      "severity": "warning",
+      "ruleId": "react-hooks/incompatible-library",
+      "message": "Compilation Skipped: Use of incompatible library\n\nThis API returns functions which cannot be memoized without leading to stale UI. To prevent this, by default React Compiler will skip memoizing this component/hook. However, you may see issues if values from this API are passed to other components/hooks that are memoized.\n\n<repo>/src/entities/work/ui/CreateWorkForm/useCreateWorkForm.ts:59:27\n  57 |   });\n  58 |\n> 59 |   const selectedImprint = watch(IMPRINT.name);\n     |                           ^^^^^ React Hook Form's `useForm()` API returns a `watch()` function which cannot be memoized safely.\n  60 |\n  61 |   const localeOption = useDefaultLocaleOption(selectedImprint);\n  62 |   const imprintPlace = useDefaultPlace(selectedImprint);",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/ui/EditDoi/__tests__/EditDoi.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/ui/EditImprint/__tests__/EditImprint.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/ui/EditLicense/__tests__/EditLicense.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/ui/EditPublicationDate/__tests__/EditPublicationDate.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/ui/EditStatus/__tests__/EditStatus.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/entities/work/ui/EditWorkHeader/__tests__/EditWorkHeader.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/ui/EditWorkType/__tests__/EditWorkType.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/ui/WorkStatusChip/__tests__/WorkStatusChip.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'vi' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/entities/work/ui/WorkStatusChip/__tests__/WorkStatusChip.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/award/__tests__/AwardFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/book-review/__tests__/BookReviewFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/books/BooksChip/BooksChip.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/books/EditBookLink/EditBookLink.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/contribution/AddNewContribution/useAddNewContribution.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 5
+    },
+    {
+      "file": "src/features/contribution/EditContribution/useEditContribution.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 13
+    },
+    {
+      "file": "src/features/contribution/EditContribution/useEditContribution.ts",
+      "severity": "warning",
+      "ruleId": "__eslint_no_rule__",
+      "message": "Unused eslint-disable directive (no problems were reported from 'react-hooks/set-state-in-effect').",
+      "count": 2
+    },
+    {
+      "file": "src/features/contribution/EditContribution/useEditContribution.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-direct-set-state-in-use-effect",
+      "message": "Do not call the 'set' function 'setContribution' of 'useState' directly in 'useEffect'.",
+      "count": 2
+    },
+    {
+      "file": "src/features/endorsement/__tests__/EndorsementFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/fundings/__tests__/FundingFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/fundings/AddFunding/useAddFunding.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 2
+    },
+    {
+      "file": "src/features/fundings/EditFunding/useEditFunding.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 2
+    },
+    {
+      "file": "src/features/i18n/ContentLanguage.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/imprint/__tests__/ImprintsList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/imprint/ImprintsList/useImprintsList.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 7
+    },
+    {
+      "file": "src/features/publications/EditPublication/useEditPublication.ts",
+      "severity": "warning",
+      "ruleId": "__eslint_no_rule__",
+      "message": "Unused eslint-disable directive (no problems were reported from 'react-hooks/set-state-in-effect').",
+      "count": 2
+    },
+    {
+      "file": "src/features/publisher/__tests__/PublisherFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/publisher/ui/ChangeActivePublisher/useChangeActivePublisher.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 5
+    },
+    {
+      "file": "src/features/reference/__tests__/ReferenceFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/series/__tests__/SeriesFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/sets/__tests__/SetFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/work/__tests__/WorkFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'useEditFundings' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/features/work/__tests__/WorkFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'useEditPublications' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/features/work/__tests__/WorkFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'useEditReferences' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/features/work/__tests__/WorkFeatures.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 2
+    },
+    {
+      "file": "src/features/work/AddContributionModal/AddContributionModal.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/work/CreateWorkCopy/CreateWorkCopy.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/features/work/EditChaptersModal/EditChaptersModal.tsx",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-direct-set-state-in-use-effect",
+      "message": "Do not call the 'set' function 'setChapters' of 'useState' directly in 'useEffect'.",
+      "count": 1
+    },
+    {
+      "file": "src/features/work/EditDescriptions/components/EditAbstracts.test.tsx",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 7
+    },
+    {
+      "file": "src/features/work/EditDescriptions/components/useEditLanguages.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 2
+    },
+    {
+      "file": "src/features/work/EditFundings/useEditFundings.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 4
+    },
+    {
+      "file": "src/features/work/EditPublications/useEditPublications.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 2
+    },
+    {
+      "file": "src/features/work/EditReferences/useEditReferences.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 5
+    },
+    {
+      "file": "src/shared/api/graphqlService/index.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 4
+    },
+    {
+      "file": "src/shared/hooks/useActiveLocale.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/hooks/useDefaultCurrencyOption.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/hooks/useDefaultLocaleOption.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/hooks/useDefaultPlace.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/hooks/useEntityList.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 4
+    },
+    {
+      "file": "src/shared/hooks/useIsDesktop.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/hooks/useNotifications.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 2
+    },
+    {
+      "file": "src/shared/hooks/useQueryToken.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/hooks/useTypedTranslation.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'beforeEach' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/hooks/useTypedTranslation.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/store/forms/hooks/useFormStateMachine.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 3
+    },
+    {
+      "file": "src/shared/store/ui/ui.context.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 3
+    },
+    {
+      "file": "src/shared/store/ui/ui.context.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'screen' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/store/ui/ui.context.test.tsx",
+      "severity": "error",
+      "ruleId": "react-hooks/globals",
+      "message": "Error: Cannot reassign variables declared outside of the component/hook\n\nVariable `contextValue` is declared outside of the component/hook. Reassigning this value during render is a form of side effect, which can cause unpredictable behavior depending on when the component happens to re-render. If this variable is used in rendering, use useState instead. Otherwise, consider updating it in an effect. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#side-effects-must-run-outside-of-render).\n\n<repo>/src/shared/store/ui/ui.context.test.tsx:15:7\n  13 |\n  14 |     const Consumer = () => {\n> 15 |       contextValue = useUIContext();\n     |       ^^^^^^^^^^^^ `contextValue` cannot be reassigned\n  16 |       return null;\n  17 |     };\n  18 |",
+      "count": 1
+    },
+    {
+      "file": "src/shared/store/ui/ui.context.test.tsx",
+      "severity": "error",
+      "ruleId": "react-hooks/globals",
+      "message": "Error: Cannot reassign variables declared outside of the component/hook\n\nVariable `contextValue` is declared outside of the component/hook. Reassigning this value during render is a form of side effect, which can cause unpredictable behavior depending on when the component happens to re-render. If this variable is used in rendering, use useState instead. Otherwise, consider updating it in an effect. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#side-effects-must-run-outside-of-render).\n\n<repo>/src/shared/store/ui/ui.context.test.tsx:32:7\n  30 |\n  31 |     const Consumer = () => {\n> 32 |       contextValue = useUIContext();\n     |       ^^^^^^^^^^^^ `contextValue` cannot be reassigned\n  33 |       return null;\n  34 |     };\n  35 |",
+      "count": 1
+    },
+    {
+      "file": "src/shared/store/ui/ui.context.test.tsx",
+      "severity": "error",
+      "ruleId": "react-hooks/globals",
+      "message": "Error: Cannot reassign variables declared outside of the component/hook\n\nVariable `contextValue` is declared outside of the component/hook. Reassigning this value during render is a form of side effect, which can cause unpredictable behavior depending on when the component happens to re-render. If this variable is used in rendering, use useState instead. Otherwise, consider updating it in an effect. (https://react.dev/reference/rules/components-and-hooks-must-be-pure#side-effects-must-run-outside-of-render).\n\n<repo>/src/shared/store/ui/ui.context.test.tsx:49:7\n  47 |\n  48 |     const Consumer = () => {\n> 49 |       contextValue = useUIContext();\n     |       ^^^^^^^^^^^^ `contextValue` cannot be reassigned\n  50 |       return null;\n  51 |     };\n  52 |",
+      "count": 1
+    },
+    {
+      "file": "src/shared/store/ui/ui.context.test.tsx",
+      "severity": "warning",
+      "ruleId": "@eslint-react/no-context-provider",
+      "message": "In React 19, you can render '<Context>' as a provider instead of '<Context.Provider>'.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/core/DataIndicator/DataIndicator.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'screen' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/core/DataIndicator/DataIndicator.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'within' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/core/DataIndicator/DataIndicator.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/core/FavoriteButton/FavoriteButton.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'screen' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/core/FavoriteButton/FavoriteButton.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/core/MarkdownEditor/components/MarkdownEditorToolbar.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/core/MarkdownEditor/components/MarkdownEditorToolbar.tsx",
+      "severity": "warning",
+      "ruleId": "@next/next/no-img-element",
+      "message": "Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+      "count": 2
+    },
+    {
+      "file": "src/shared/ui/forms/CheckboxFormField/CheckboxFormField.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/forms/FormEditButton/FormEditButton.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/forms/FormTextField/FormTextField.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/forms/FormTextField/FormTextField.test.tsx",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/forms/LanguageField/LanguageField.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/forms/MarkdownSwitch/MarkdownSwitch.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/icons/DoiLogo/DoiLogo.tsx",
+      "severity": "warning",
+      "ruleId": "@next/next/no-img-element",
+      "message": "Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/icons/OrcidLogo/OrcidLogo.tsx",
+      "severity": "warning",
+      "ruleId": "@next/next/no-img-element",
+      "message": "Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/icons/RorLogo/RorLogo.tsx",
+      "severity": "warning",
+      "ruleId": "@next/next/no-img-element",
+      "message": "Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/layout/EditableContent/EditableContent.test.tsx",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 2
+    },
+    {
+      "file": "src/shared/ui/layout/EditableContent/EditableContent.test.tsx",
+      "severity": "warning",
+      "ruleId": "@eslint-react/no-context-provider",
+      "message": "In React 19, you can render '<Context>' as a provider instead of '<Context.Provider>'.",
+      "count": 3
+    },
+    {
+      "file": "src/shared/ui/layout/EditableContent/EditableContentAlt.test.tsx",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/layout/EditableContent/EditableContentAlt.test.tsx",
+      "severity": "warning",
+      "ruleId": "@eslint-react/no-context-provider",
+      "message": "In React 19, you can render '<Context>' as a provider instead of '<Context.Provider>'.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/ui/layout/RecommendedSection/RecommendedSection.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/utils/conversions/formFields.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'appConfig' is defined but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/shared/utils/conversions/formFields.test.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/utils/index.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/exports",
+      "message": "Run autofix to sort these exports!",
+      "count": 1
+    },
+    {
+      "file": "src/shared/utils/validations/index.ts",
+      "severity": "error",
+      "ruleId": "no-useless-escape",
+      "message": "Unnecessary escape character: \\/.",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/AllWorks/__tests__/AllWorks.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/AllWorks/__tests__/header.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'getByRole' is assigned a value but never used. Allowed unused vars must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/AllWorks/__tests__/header.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/AllWorks/__tests__/upload-modal.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/AllWorks/__tests__/useAllWorks.test.ts",
+      "severity": "warning",
+      "ruleId": "@eslint-react/hooks-extra/no-unnecessary-use-prefix",
+      "message": "If your function doesn't call any Hooks, avoid the 'use' prefix. Instead, write it as a regular function without the 'use' prefix.",
+      "count": 4
+    },
+    {
+      "file": "src/widgets/AllWorks/__tests__/works-speed-dial.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/CopyWork/__tests__/CopyWork.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/Dashboard/__tests__/Dashboard.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/EditWorkChapters/__tests__/EditWorkChapters.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/EditWorkChapters/components/__tests__/ChaptersList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/EditWorkChapters/components/__tests__/ChapterTableRow.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 2
+    },
+    {
+      "file": "src/widgets/EditWorkChapters/components/__tests__/ChapterTableRow.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/EditWorkMarketing/__tests__/EditWorkMarketing.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/EditWorkResources/__tests__/EditWorkResources.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/EditWorkWidget/__tests__/EditWorkWidget.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/Profile/__tests__/Profile.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/PublishedBooksChart/__tests__/PublishedBooksChart.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/PublishedBooksChart/__tests__/useBooksCountByMonth.test.ts",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-explicit-any",
+      "message": "Unexpected any. Specify a different type.",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/RecentlyPublishedBooks/__tests__/RecentlyPublishedBooks.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/RecentlyPublishedBooks/components/__tests__/BooksList.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'contributions' is defined but never used. Allowed unused args must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/RecentlyPublishedBooks/components/__tests__/BooksList.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'image' is defined but never used. Allowed unused args must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/RecentlyPublishedBooks/components/__tests__/BooksList.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'status' is defined but never used. Allowed unused args must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/RecentlyPublishedBooks/components/__tests__/BooksList.test.tsx",
+      "severity": "error",
+      "ruleId": "@typescript-eslint/no-unused-vars",
+      "message": "'type' is defined but never used. Allowed unused args must match /^_/u.",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/RecentlyPublishedBooks/components/__tests__/BooksList.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/RecentlyUpdatedBooks/__tests__/RecentlyUpdatedBooks.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/Series/__tests__/SeriesHeader.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/Sets/__tests__/Sets.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "src/widgets/Sets/__tests__/SetsHeader.test.tsx",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    },
+    {
+      "file": "vitest.setup.ts",
+      "severity": "error",
+      "ruleId": "simple-import-sort/imports",
+      "message": "Run autofix to sort these imports!",
+      "count": 1
+    }
+  ]
+}

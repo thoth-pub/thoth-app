@@ -15,6 +15,7 @@ vi.mock('@/src/entities/publisher', () => ({
   EditStatement: vi.fn(() => <div data-testid="edit-statement" />),
   EditUrl: vi.fn(() => <div data-testid="edit-url" />),
   EditZitadelId: vi.fn(() => <div data-testid="edit-zitadel-id" />),
+  PublisherServiceConfiguration: vi.fn(() => <div data-testid="publisher-service-configuration" />),
 }));
 
 vi.mock('@/src/features', () => ({

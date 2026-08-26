@@ -7,6 +7,7 @@ import { emptyToNull } from '@/src/shared/utils/strings';
 import { AffiliationService } from '../../affiliation/api/affiliation.service';
 import { ContributorService } from '../../contributor';
 import { ContributionId } from '../../contributor/model/contributor.types';
+import type { ImportContributorRegistry } from '../../work/api/importContributorRegistry';
 import { BiographyDtoMapper } from '../model/contribution.mapper';
 import {
   CREATE_BIOGRAPHY,
@@ -44,23 +45,48 @@ export class ContributionService {
     this.biographyDtoMapper = biographyDtoMapper;
   }
 
-  async createContribution(data: WorkContribution, relatedWorkId: string): Promise<WorkContribution> {
+  /**
+   * Creates one contribution, and the contributor behind it when the plan still carries the
+   * new-contributor sentinel.
+   *
+   * `contributorRegistry` is supplied only by a bulk import, and only so that repeated
+   * occurrences of one ORCID inside that import resolve to a single created contributor rather
+   * than colliding on the backend's ORCID uniqueness constraint (issue #135). Without it — every
+   * ordinary, non-import call — this behaves exactly as it always has, creating a contributor per
+   * new-contributor contribution.
+   *
+   * Everything the source said about *this* occurrence is unaffected either way: role, ordinal,
+   * main flag, names, biographies and affiliations are still written from `data`. Only which
+   * contributor the contribution points at can be shared.
+   */
+  async createContribution(
+    data: WorkContribution,
+    relatedWorkId: string,
+    contributorRegistry?: ImportContributorRegistry,
+  ): Promise<WorkContribution> {
     const isNewContributor = isDefaultId(data.contributorId);
     let contributorId = data.contributorId;
 
     if (isNewContributor) {
-      const contributor = await this.contributorService.createContributor({
-        firstName: data.firstName,
-        lastName: data.lastName,
-        fullName: data.fullName,
-        orcid: data.orcidId,
-        website: data.website,
-        lastContributionTitle: '',
-        id: data.contributorId,
-        name: data.fullName,
-        updatedAt: '',
-      });
-      contributorId = contributor.id;
+      const createContributor = async () => {
+        const contributor = await this.contributorService.createContributor({
+          firstName: data.firstName,
+          lastName: data.lastName,
+          fullName: data.fullName,
+          orcid: data.orcidId,
+          website: data.website,
+          lastContributionTitle: '',
+          id: data.contributorId,
+          name: data.fullName,
+          updatedAt: '',
+        });
+
+        return contributor.id;
+      };
+
+      contributorId = await (contributorRegistry
+        ? contributorRegistry.resolve(data.orcidId, createContributor)
+        : createContributor());
     }
 
     const response = await this.graphqlService.mutation(CREATE_CONTRIBUTION, {

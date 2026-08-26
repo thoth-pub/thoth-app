@@ -1,3 +1,4 @@
+import BusinessRoundedIcon from '@mui/icons-material/BusinessRounded';
 import Filter1Icon from '@mui/icons-material/Filter1';
 import HomeRoundedIcon from '@mui/icons-material/HomeRounded';
 import LibraryBooksRoundedIcon from '@mui/icons-material/LibraryBooksRounded';
@@ -31,5 +32,16 @@ export const PAGES = [
     name: 'publisher',
     href: ROUTES.PUBLISHER,
     icon: PermIdentityRoundedIcon,
+  },
+];
+
+// Staff-only navigation entries (APP-02A). Rendered only after authoritative
+// user state confirms the viewer is a superuser; visibility is a presentation
+// affordance only - the backend remains the authorization boundary.
+export const SUPERUSER_PAGES = [
+  {
+    name: 'publishers',
+    href: ROUTES.PUBLISHERS,
+    icon: BusinessRoundedIcon,
   },
 ];

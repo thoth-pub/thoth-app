@@ -7,13 +7,13 @@ import type { InstitutionEntity } from '@/src/entities/institution/model/institu
 
 import { ImportLookupCoordinator } from './importLookupCoordinator';
 
-const contributor = (fullName: string): ContributorEntity => ({
+const contributor = (fullName: string, orcid = ''): ContributorEntity => ({
   id: `contributor-${fullName}`,
   name: fullName,
   fullName,
   firstName: '',
   lastName: '',
-  orcid: '',
+  orcid,
   website: '',
   updatedAt: '',
   lastContributionTitle: '',
@@ -151,5 +151,140 @@ describe('ImportLookupCoordinator', () => {
     );
 
     await expect(coordinator.findInstitutionByRor('https://ror.org/requested')).resolves.toBeNull();
+  });
+  /**
+   * Issue #135. ORCID is the one deterministic contributor identity a bulk import has, and the
+   * backend filter it has to go through is a substring search. Everything here is about the gap
+   * between those two facts.
+   */
+  describe('findContributorByOrcid', () => {
+    const ORCID = '0000-0001-6365-5189';
+    const CANONICAL = `https://orcid.org/${ORCID}`;
+
+    const makeCoordinator = (getContributors: ReturnType<typeof vi.fn>) =>
+      new ImportLookupCoordinator(
+        { getContributors } as unknown as ContributorService,
+        { getInstitutions: vi.fn() } as unknown as InstitutionService,
+      );
+
+    it('coalesces every occurrence of one ORCID into a single lookup for the parse', async () => {
+      const match = contributor('Stored Name', ORCID);
+      const getContributors = vi.fn().mockResolvedValue([match]);
+      const coordinator = makeCoordinator(getContributors);
+
+      // The three representations one file can carry for a single identity.
+      const [bare, prefixed, padded] = await Promise.all([
+        coordinator.findContributorByOrcid(ORCID),
+        coordinator.findContributorByOrcid(CANONICAL),
+        coordinator.findContributorByOrcid(`  ${ORCID}  `),
+      ]);
+
+      expect(bare).toEqual(match);
+      expect(prefixed).toEqual(match);
+      expect(padded).toEqual(match);
+      expect(getContributors).toHaveBeenCalledTimes(1);
+      // The bare identifier: a substring of every representation Thoth accepts, so the candidate
+      // set is as wide as the filter can make it.
+      expect(getContributors).toHaveBeenCalledWith(ORCID);
+    });
+
+    it('keeps the ORCID and full-name caches from aliasing each other', async () => {
+      // A contributor whose *name* is the ORCID string is absurd but perfectly storable, and one
+      // shared cache would hand the name search's array to the identity lookup.
+      const namedLikeAnOrcid = contributor(ORCID, '');
+      const realHolder = contributor('Stored Name', ORCID);
+      const getContributors = vi
+        .fn()
+        .mockResolvedValueOnce([namedLikeAnOrcid])
+        .mockResolvedValueOnce([namedLikeAnOrcid, realHolder]);
+      const coordinator = makeCoordinator(getContributors);
+
+      const byName = await coordinator.findContributors(ORCID);
+      const byOrcid = await coordinator.findContributorByOrcid(ORCID);
+
+      expect(byName).toEqual([namedLikeAnOrcid]);
+      expect(byOrcid).toEqual(realHolder);
+      expect(getContributors).toHaveBeenCalledTimes(2);
+    });
+
+    it('selects the one exact ORCID out of a substring-capable candidate set', async () => {
+      // Everything the filter can legitimately return: a longer identifier containing the search
+      // string, a contributor with no ORCID at all, and the actual holder.
+      const substringCandidate = contributor('Substring Holder', '0000-0001-6365-51890');
+      const noOrcid = contributor('No Orcid', '');
+      const match = contributor('Stored Name', CANONICAL);
+      const getContributors = vi.fn().mockResolvedValue([substringCandidate, noOrcid, match]);
+
+      await expect(makeCoordinator(getContributors).findContributorByOrcid(ORCID)).resolves.toEqual(match);
+    });
+
+    it('resolves regardless of which representation each side stores the ORCID in', async () => {
+      // Thoth stores the resolver form and the mapper strips it; a source file may write either,
+      // and only the check character may vary in case.
+      const match = contributor('Stored Name', 'https://orcid.org/0000-0001-5109-376X');
+      const getContributors = vi.fn().mockResolvedValue([match]);
+
+      await expect(
+        makeCoordinator(getContributors).findContributorByOrcid('0000-0001-5109-376x'),
+      ).resolves.toEqual(match);
+    });
+
+    it('rejects substring-only candidates rather than treating the filter result as identity', async () => {
+      const getContributors = vi.fn().mockResolvedValue([
+        contributor('Longer Holder', '0000-0001-6365-51890'),
+        contributor('Unrelated', '0000-0002-1825-0097'),
+      ]);
+
+      await expect(makeCoordinator(getContributors).findContributorByOrcid(ORCID)).resolves.toBeNull();
+    });
+
+    it('returns no match when the backend holds no candidate at all', async () => {
+      const getContributors = vi.fn().mockResolvedValue([]);
+
+      await expect(makeCoordinator(getContributors).findContributorByOrcid(ORCID)).resolves.toBeNull();
+    });
+
+    it('looks nothing up for a value that is not a usable ORCID', async () => {
+      const getContributors = vi.fn();
+      const coordinator = makeCoordinator(getContributors);
+
+      // Blank cells, and an ONIX NameIdentifier holding a publisher's own key rather than an
+      // ORCID. Neither is an error; both simply carry no identity.
+      await expect(coordinator.findContributorByOrcid('')).resolves.toBeNull();
+      await expect(coordinator.findContributorByOrcid('   ')).resolves.toBeNull();
+      await expect(coordinator.findContributorByOrcid(null)).resolves.toBeNull();
+      await expect(coordinator.findContributorByOrcid(undefined)).resolves.toBeNull();
+      await expect(coordinator.findContributorByOrcid('PROPRIETARY-1234')).resolves.toBeNull();
+      await expect(coordinator.findContributorByOrcid('0000-0001-6365')).resolves.toBeNull();
+
+      expect(getContributors).not.toHaveBeenCalled();
+    });
+
+    it('fails closed when more than one contributor somehow holds the same exact ORCID', async () => {
+      // Cannot happen while `orcid_uniq_idx` holds. If it ever does, choosing between two
+      // identities arbitrarily is worse than stopping the import and saying so.
+      const getContributors = vi
+        .fn()
+        .mockResolvedValue([contributor('First Holder', ORCID), contributor('Second Holder', CANONICAL)]);
+
+      await expect(makeCoordinator(getContributors).findContributorByOrcid(ORCID)).rejects.toThrow(
+        /2 contributors with the ORCID/,
+      );
+    });
+
+    it('propagates a genuine lookup rejection to every coalesced caller', async () => {
+      const failure = new Error('502 Bad Gateway');
+      const getContributors = vi.fn().mockRejectedValue(failure);
+      const coordinator = makeCoordinator(getContributors);
+
+      const first = coordinator.findContributorByOrcid(ORCID);
+      const second = coordinator.findContributorByOrcid(CANONICAL);
+
+      // Never softened into "Thoth holds no contributor with this ORCID", which would invite
+      // creating a duplicate of a contributor the lookup simply could not see.
+      await expect(first).rejects.toBe(failure);
+      await expect(second).rejects.toBe(failure);
+      expect(getContributors).toHaveBeenCalledTimes(1);
+    });
   });
 });

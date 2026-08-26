@@ -13,7 +13,7 @@ import {
 } from '../model/endorsement.mutations';
 import type { EndorsementDto, EndorsementEntity, EndorsementId } from '../model/endorsement.types';
 
-export class EndorsementService extends BaseService<EndorsementEntity, EndorsementDto> {
+export class EndorsementService extends BaseService<EndorsementEntity, EndorsementDto, EndorsementDtoMapper> {
   constructor(graphqlService: GraphqlService, mapper = new EndorsementDtoMapper()) {
     super(graphqlService, mapper);
   }

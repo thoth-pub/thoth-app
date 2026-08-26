@@ -24,7 +24,7 @@ export class FeaturedVideoDtoMapper implements BaseMapper<FeaturedVideoEntity, F
     return {
       workFeaturedVideoId: id,
       workId,
-      title: emptyToNull(title),
+      title: emptyToNull(title) ?? '',
       url: emptyToNull(url),
       width,
       height,
