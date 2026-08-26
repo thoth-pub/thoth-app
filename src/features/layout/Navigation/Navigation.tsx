@@ -45,7 +45,7 @@ type NavigationGroupProps = {
 // collections passed in - this component groups presentation only and decides
 // nothing about which pages exist or who may reach them.
 const NavigationGroup = ({ label, hasVisibleHeading = true, pages, isExpanded, children }: NavigationGroupProps) => (
-  <div className="flex flex-col gap-2">
+  <div className="flex flex-col gap-3">
     {isExpanded && hasVisibleHeading && (
       <Typography color="primary" component="h2" variant="body2" className="px-1 font-semibold tracking-wide uppercase">
         {label}
@@ -108,7 +108,7 @@ const Navigation = () => {
       <motion.div
         initial={false}
         animate={{ width: isExpanded ? '15rem' : '2.5rem' }}
-        className="flex h-full max-w-60 flex-col gap-2 overflow-hidden duration-300"
+        className="flex h-full max-w-60 flex-col gap-4 overflow-hidden duration-300"
       >
         <div className={`flex items-center justify-between gap-4 ${isExpanded ? 'flex-row' : 'flex-col'}`}>
           <Link className="cursor-pointer" href={ROUTES.DASHBOARD}>

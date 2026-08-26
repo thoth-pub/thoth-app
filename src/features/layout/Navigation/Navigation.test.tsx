@@ -329,4 +329,96 @@ describe('Navigation', () => {
       expect(screen.getByTestId('change-active-publisher')).toHaveAttribute('data-hidden', 'true');
     });
   });
+  // APP-NAV-SPACING-01: the expanded shell needs a coarser rhythm between its
+  // major regions than it does inside a single group. jsdom measures no pixels,
+  // so the approved contract is pinned structurally, on the exact containers
+  // that carry it: the shell stack that separates logo/header, publisher
+  // context and Admin, and each NavigationGroup root that separates a heading
+  // or child control from its bordered destination list. Destination-row
+  // spacing is asserted unchanged in the same block so the coarser rhythm can
+  // never leak into the lists themselves.
+  describe('navigation spacing rhythm (APP-NAV-SPACING-01)', () => {
+    const MAJOR_RHYTHM = 'gap-4';
+    const GROUP_RHYTHM = 'gap-3';
+    const FORMER_RHYTHM = 'gap-2';
+
+    // The publisher-context group root is the nav landmark's parent; the shell
+    // stack that carries every major region is that root's own parent.
+    const getGroupRoot = (label: string) => {
+      const root = screen.getByRole('navigation', { name: label }).parentElement;
+
+      expect(root).not.toBeNull();
+
+      return root as HTMLElement;
+    };
+
+    const getShellStack = () => {
+      const stack = getGroupRoot(PUBLISHER_CONTEXT_GROUP).parentElement;
+
+      expect(stack).not.toBeNull();
+
+      return stack as HTMLElement;
+    };
+
+    it('separates the major shell regions with the approved major rhythm', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation();
+
+      const shellStack = getShellStack();
+
+      expect(shellStack).toHaveClass('flex', 'flex-col', MAJOR_RHYTHM);
+      expect(shellStack).not.toHaveClass(FORMER_RHYTHM);
+    });
+
+    it('separates the publisher switcher from its destination list with the approved group rhythm', () => {
+      useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
+
+      renderNavigation();
+
+      const publisherContext = getGroupRoot(PUBLISHER_CONTEXT_GROUP);
+
+      expect(publisherContext).toHaveClass('flex', 'flex-col', GROUP_RHYTHM);
+      expect(publisherContext).not.toHaveClass(FORMER_RHYTHM);
+    });
+
+    it('separates the Admin heading from its destination list with the approved group rhythm', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation();
+
+      const admin = getGroupRoot(ADMIN_GROUP);
+
+      expect(admin).toHaveClass('flex', 'flex-col', GROUP_RHYTHM);
+      expect(admin).not.toHaveClass(FORMER_RHYTHM);
+    });
+
+    it('leaves expanded destination-row padding and icon/text spacing untouched', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation();
+
+      const dashboard = within(screen.getByRole('navigation', { name: PUBLISHER_CONTEXT_GROUP })).getByRole('link', {
+        name: 'dashboard',
+      });
+
+      expect(dashboard).toHaveClass('items-center', FORMER_RHYTHM);
+      expect(dashboard.closest('li')).toHaveClass('py-2', 'px-4');
+    });
+
+    it('keeps the same major rhythm and untouched row spacing when collapsed', () => {
+      collapse();
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation();
+
+      expect(getShellStack()).toHaveClass(MAJOR_RHYTHM);
+      expect(getGroupRoot(ADMIN_GROUP)).toHaveClass(GROUP_RHYTHM);
+
+      const publishers = within(screen.getByRole('navigation', { name: ADMIN_GROUP })).getByRole('link');
+
+      expect(publishers).toHaveClass('items-center', FORMER_RHYTHM);
+      expect(publishers.closest('li')).toHaveClass('py-2', 'px-1.5');
+    });
+  });
 });
