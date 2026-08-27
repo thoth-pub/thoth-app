@@ -515,6 +515,100 @@ describe('CSV preflight: identifiers and whitespace', () => {
     ]);
   });
 
+  /**
+   * The other representation of an ORCID a publisher's export really produces.
+   *
+   * ORCID's own registry displays the hyphenated form, but the sixteen bare characters are an
+   * equally valid expression of the same iD — it is how ONIX encodes one, and it is what falls
+   * out of a spreadsheet column that has been through anything numeric. Both are the same
+   * person, so both have to reach the same contributor; canonicalising in the importer is what
+   * makes the value that is validated the value that is looked up and planned, exactly as
+   * `canonicaliseDoi` and `canonicaliseRor` already do for their identifiers.
+   */
+  describe('hyphenless ORCID', () => {
+    const orcidRow = (value: string, overrides: Record<string, string> = {}) => ({
+      ...BASE,
+      contribution_1_first_name: 'A',
+      contribution_1_surname: 'B',
+      contribution_1_orcid: value,
+      ...overrides,
+    });
+
+    it('accepts a valid 16-character hyphenless ORCID', async () => {
+      const { parser } = makeParser(makeFile(buildCsv([orcidRow('0000000163655189')])));
+
+      expect(errorMessages(await parser.parse())).toEqual([]);
+    });
+
+    it('plans the hyphenated form for a hyphenless ORCID', async () => {
+      const { parser } = makeParser(makeFile(buildCsv([orcidRow('0000000163655189')])));
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      // What execution will send to createContributor. The bare encoding is not what Thoth
+      // stores, so planning it would put a second representation of one person in the database.
+      expect(result.data.plan.works[0].contributions[0].orcidId).toBe('0000-0001-6365-5189');
+    });
+
+    it('canonicalises a terminal lower-case check character to upper case', async () => {
+      const { parser } = makeParser(makeFile(buildCsv([orcidRow('000000015109376x')])));
+
+      const result = await parser.parse();
+
+      expect(result.status).toBe('success');
+      // Only the check character of an ORCID can be a letter, and Thoth writes it upper case, so
+      // `…376x` and `…376X` are one iD rather than two.
+      expect(result.data.plan.works[0].contributions[0].orcidId).toBe('0000-0001-5109-376X');
+    });
+
+    it('looks a hyphenless ORCID up by the canonical form, so it resolves the same contributor', async () => {
+      const stored = {
+        id: 'existing-contributor',
+        name: 'J. A. Doe-Smith',
+        fullName: 'J. A. Doe-Smith',
+        firstName: 'J. A.',
+        lastName: 'Doe-Smith',
+        orcid: '0000-0001-6365-5189',
+        website: '',
+        updatedAt: '',
+        lastContributionTitle: 'An Earlier Book',
+      };
+      const getContributors = vi.fn((filter: string) =>
+        Promise.resolve(filter === '0000-0001-6365-5189' ? [stored] : []),
+      );
+      const { parser } = makeParser(makeFile(buildCsv([orcidRow('0000000163655189')])), { getContributors });
+
+      const result = await parser.parse();
+
+      // The #135 exact-ORCID reuse, reached from the representation the file happened to use:
+      // one identity, not a create intent the ORCID unique index would reject.
+      expect(result.data.plan.works[0].contributions[0].contributorId).toBe('existing-contributor');
+    });
+
+    it('still rejects a hyphenless value that is not a valid ORCID', async () => {
+      const { parser } = makeParser(makeFile(buildCsv([orcidRow('123')])));
+
+      // `123` is malformed, not an ORCID missing its leading zeros. Padding it out would invent
+      // a plausible identifier belonging to somebody else, so it stays an error and the value
+      // reported is the one the file supplied.
+      expect(errorMessages(await parser.parse())).toEqual([
+        'errors.csvOrcidNotValid:{"field":"contribution_1_orcid","value":"123","row":1}',
+      ]);
+    });
+
+    it('still reports boundary whitespace around an otherwise valid hyphenless ORCID', async () => {
+      const { parser } = makeParser(makeFile(buildCsv([orcidRow('0000000163655189 ')])));
+
+      // Canonicalisation is not licence to repair a boundary defect: `contribution_N_orcid` is a
+      // `report` field, and silently trimming it to make the iD valid is precisely the silent
+      // repair that policy exists to prevent.
+      expect(errorMessages(await parser.parse())).toEqual([
+        'errors.csvFieldWhitespace:{"field":"contribution_1_orcid","row":1}',
+      ]);
+    });
+  });
+
   it('accepts a bare ROR, canonicalises it, and looks the institution up by the canonical form', async () => {
     const canonical = 'https://ror.org/03vek6s52';
     const getInstitutions = vi.fn().mockResolvedValue([{ id: 'inst-1', name: 'Harvard', ror: canonical }]);

@@ -157,6 +157,50 @@ export const canonicaliseRor = (value: string): string => {
   return rorIdentifierPattern.test(identifier) ? `${appConfig.validations.rorPrefix}${identifier}` : '';
 };
 
+/**
+ * An ORCID's sixteen characters once any hyphens are removed: fifteen digits and a check
+ * character that is a digit or `X`. Anchored at both ends, so nothing longer, shorter or
+ * differently shaped can reach the grouping below.
+ */
+const orcidIdentifierPattern = /^\d{15}[\dX]$/;
+
+/**
+ * An ORCID's bare sixteen characters written as the four hyphenated groups Thoth stores, or an
+ * empty string when the value is not an ORCID in a representation this may rewrite.
+ *
+ * The importer counterpart of {@link canonicaliseDoi} and {@link canonicaliseRor}, and needed for
+ * the same reason: a source writes an ORCID in whichever representation it uses, and Thoth stores
+ * exactly one of them. ORCID's registry displays `0000-0001-6365-5189`, but the same iD is
+ * equally an unhyphenated `0000000163655189` — that is how ONIX encodes one, and it is what a
+ * spreadsheet column produces once anything has treated it as a number. Both are one person, so
+ * both have to reach one contributor; leaving the bare form uncanonicalised means the value that
+ * is validated is not the value that is looked up, which is how one iD becomes two contributors
+ * the ORCID unique index then refuses.
+ *
+ * Deliberately narrow in three ways:
+ *
+ * - it never invents length. `123` is malformed input, not an ORCID that has mislaid its leading
+ *   zeros, and left-padding it to sixteen characters would mint `0000-0000-0000-0123` — a
+ *   syntactically perfect iD belonging to somebody who is not this contributor. A value that is
+ *   not already sixteen characters is simply not an ORCID here;
+ * - it never trims. Boundary whitespace is a defect its caller reports, not one this repairs;
+ * - it returns `''` rather than the input for anything it does not recognise, including the
+ *   resolver-URL form. Callers keep what they were given, so a representation that already works
+ *   keeps working byte for byte and only a rejected one can change.
+ *
+ * Only the trailing check character of an ORCID can be a letter, so upper-casing is safe and
+ * makes `…-376x` and `…-376X` the one iD they are rather than two. Validity itself is still
+ * {@link orcidValidation}'s to decide: this returns a representation, not a verdict.
+ */
+export const canonicaliseOrcid = (value: string): string => {
+  const identifier = value.replace(/-/g, '').toUpperCase();
+
+  if (!orcidIdentifierPattern.test(identifier)) return '';
+
+  // Safe by construction: the pattern above fixes the length at sixteen, so this is four groups.
+  return (identifier.match(/.{4}/g) as string[]).join('-');
+};
+
 /* External Identifiers Validations */
 export const idValidation = z.uuid();
 export const orcidValidation = getStringValidation()
