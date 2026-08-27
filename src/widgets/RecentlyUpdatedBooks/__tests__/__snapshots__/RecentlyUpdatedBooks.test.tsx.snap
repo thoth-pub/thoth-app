@@ -64,7 +64,7 @@ exports[`RecentlyUpdatedBooks > renders with books > RecentlyUpdatedBooks 1`] = 
                       monograph
                     </p>
                     <div
-                      class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-jltgem-MuiChip-root"
+                      class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-2807ev-MuiChip-root"
                     >
                       <span
                         class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"

@@ -334,7 +334,14 @@ export const theme = createTheme({
           // label-to-icon gap outright, and the right margin is surrendered to
           // the root padding. The delete icon is a fixed 16px box either side of
           // the 1280px breakpoint, so one pair serves both regimes (#154).
-          '& .MuiChip-deleteIcon': {
+          //
+          // Scoped to `deleteIconSmall`, not `deleteIcon`. The 4px comes from
+          // small geometry (8px label padding - 4px icon margin); MUI's
+          // medium/default Chip is a different system - `label { padding: 0 12px }`,
+          // `deleteIcon { margin: 0 5px 0 -6px }`, 22px icon - whose own
+          // relationship is 6px. A size-agnostic selector would impose these
+          // small-derived numbers on medium Chips too, which #154 never measured.
+          '& .MuiChip-deleteIconSmall': {
             marginLeft: '4px',
             marginRight: '0',
           },

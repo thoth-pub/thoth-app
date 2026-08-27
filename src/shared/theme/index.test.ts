@@ -94,12 +94,12 @@ describe('shared table theme row-interaction contract', () => {
 
 // APP-CHIP-DELETE-SPACING-01 shared deletable-Chip spacing contract.
 //
-// MUI 7.3.5's small Chip lays a deletable Chip out as
-// `label(padding 0 8px)` + `deleteIcon(margin: 0 4px 0 -4px)` on a Chip root
-// with `padding: 0` (`@mui/material/Chip/Chip.js`). The label's own 8px right
-// padding is the gutter that MUI's -4px icon margin is designed to eat, which
-// leaves 4px between the visible label and the delete icon, and 4px between the
-// icon and the Chip's edge.
+// MUI 7.3.5 gives a *small* Chip `label(padding: 0 8px)` and
+// `deleteIcon(margin: 0 4px 0 -4px, fontSize: 16)` on a Chip root with
+// `padding: 0` (`@mui/material/Chip/Chip.js`). The label's own 8px right padding
+// is the gutter that MUI's -4px icon margin is designed to eat, which leaves 4px
+// between the visible label and the delete icon, and 4px between the icon and
+// the Chip's edge.
 //
 // Thoth deliberately uses a different layout model: the horizontal gutter lives
 // on the Chip *root* (`padding`, with its own >=1280px value) and
@@ -121,19 +121,44 @@ describe('shared table theme row-interaction contract', () => {
 // The 16px delete-icon box is a fixed MUI pixel geometry at both breakpoints, so
 // one margin pair serves both regimes.
 //
+// That 4px is derived from *small* geometry (8px label padding - 4px icon
+// margin) and holds only there. MUI's medium/default Chip is a different system
+// - `label(padding: 0 12px)`, `deleteIcon(margin: 0 5px 0 -6px, fontSize: 22)` -
+// whose own relationship is 12 - 6 = 6px. Applying the small-derived pair to
+// every size would silently redesign medium Chips on unmeasured numbers, so the
+// override must name the small delete icon and nothing else. Medium/default
+// delete-icon geometry is out of scope here and stays exactly as MUI ships it.
+//
 // These assertions read the theme's declared style-override tree. They pin the
 // declared contract only; they are not browser pixel measurements.
 
 const chipRootOverrides = theme.components?.MuiChip?.styleOverrides?.root as StyleNode | undefined;
 
-const DELETE_ICON_SELECTOR = '& .MuiChip-deleteIcon';
+const SMALL_DELETE_ICON_SELECTOR = '& .MuiChip-deleteIconSmall';
 const LABEL_SELECTOR = '& .MuiChip-label';
 const WIDE_BREAKPOINT_SELECTOR = '@media (min-width: 1280px)';
 
-/** The shared delete-icon declarations, if the theme states any. */
-const deleteIconOverrides = () => (chipRootOverrides as StyleNode | undefined)?.[DELETE_ICON_SELECTOR] as
-  | StyleNode
-  | undefined;
+/**
+ * Matches the size-agnostic `.MuiChip-deleteIcon` class without also matching
+ * the size-qualified `.MuiChip-deleteIconSmall`/`-Medium` classes, which contain
+ * it as a prefix.
+ */
+const UNQUALIFIED_DELETE_ICON_CLASS = /\.MuiChip-deleteIcon(?![\w-])/;
+
+/** The shared small delete-icon declarations, if the theme states any. */
+const smallDeleteIconOverrides = () => chipRootOverrides?.[SMALL_DELETE_ICON_SELECTOR] as StyleNode | undefined;
+
+/** Every selector path in the MuiChip override tree that targets a delete icon. */
+const deleteIconSelectorPaths = (node: unknown = chipRootOverrides, path: string[] = []): string[][] => {
+  if (typeof node !== 'object' || node === null) {
+    return [];
+  }
+
+  return Object.entries(node as StyleNode).flatMap(([key, child]) => {
+    const here = key.includes('MuiChip-deleteIcon') ? [[...path, key]] : [];
+    return [...here, ...deleteIconSelectorPaths(child, [...path, key])];
+  });
+};
 
 describe('shared chip theme deletable-spacing contract', () => {
   it('keeps the root-padding / zero-label-padding layout model the correction is derived from', () => {
@@ -147,36 +172,52 @@ describe('shared chip theme deletable-spacing contract', () => {
     expect(root[LABEL_SELECTOR]).toEqual({ padding: '0' });
   });
 
-  it('states a shared delete-icon spacing rule rather than inheriting MUI small-Chip margins', () => {
-    expect(deleteIconOverrides()).toBeDefined();
+  it('states a small-specific delete-icon spacing rule rather than inheriting MUI small-Chip margins', () => {
+    expect(smallDeleteIconOverrides()).toBeDefined();
   });
 
-  it('gives the delete icon the label-to-icon gap the zero-padded label can no longer supply', () => {
+  it('gives the small delete icon the label-to-icon gap the zero-padded label can no longer supply', () => {
     // MUI's own small-Chip relationship is 8px label padding minus a 4px icon
     // margin, i.e. a 4px visible gap. With `padding: 0` on the label, the icon's
     // left margin *is* that gap, so it carries the whole 4px.
-    expect(deleteIconOverrides()?.marginLeft).toBe('4px');
+    expect(smallDeleteIconOverrides()?.marginLeft).toBe('4px');
   });
 
-  it('surrenders the delete icon right margin to the Chip root padding that already owns it', () => {
+  it('surrenders the small delete icon right margin to the Chip root padding that already owns it', () => {
     // The root supplies 8px (12px at >=1280px) of right padding. Keeping MUI's
     // 4px icon right margin on top of that would double-count outer spacing.
-    expect(deleteIconOverrides()?.marginRight).toBe('0');
+    expect(smallDeleteIconOverrides()?.marginRight).toBe('0');
+  });
+
+  it('never carries the small-derived margins on a size-agnostic delete-icon selector', () => {
+    // A bare `& .MuiChip-deleteIcon` rule would impose small geometry on every
+    // Chip size, including medium, whose spacing was never measured here.
+    const unqualified = deleteIconSelectorPaths().filter((path) =>
+      UNQUALIFIED_DELETE_ICON_CLASS.test(path[path.length - 1]),
+    );
+
+    expect(unqualified).toEqual([]);
+  });
+
+  it('introduces no medium or default delete-icon override', () => {
+    // The whole delete-icon surface this task owns is the small selector; MUI's
+    // medium/default `margin: 0 5px 0 -6px` must reach the browser untouched.
+    expect(deleteIconSelectorPaths().map((path) => path.join(' '))).toEqual([SMALL_DELETE_ICON_SELECTOR]);
   });
 
   it('never reintroduces a negative delete-icon margin', () => {
-    const negativeMarginPaths = Object.entries(deleteIconOverrides() ?? {}).filter(
+    const negativeMargins = Object.entries(smallDeleteIconOverrides() ?? {}).filter(
       ([property, value]) => property.startsWith('margin') && typeof value === 'string' && value.trim().startsWith('-'),
     );
 
-    expect(negativeMarginPaths).toEqual([]);
+    expect(negativeMargins).toEqual([]);
   });
 
   it('corrects horizontal spacing only, leaving Chip height, typography and vertical centring alone', () => {
     // The browser diagnosis measured chip/label/icon-box/glyph vertical centres
     // at 0.000px apart, so a vertical or sizing declaration here would be
     // correcting something that is not broken.
-    expect(Object.keys(deleteIconOverrides() ?? {})).toEqual(['marginLeft', 'marginRight']);
+    expect(Object.keys(smallDeleteIconOverrides() ?? {})).toEqual(['marginLeft', 'marginRight']);
   });
 
   it('uses one delete-icon margin pair for both breakpoint regimes', () => {
@@ -185,7 +226,7 @@ describe('shared chip theme deletable-spacing contract', () => {
     // root padding scales.
     const wide = (chipRootOverrides as StyleNode)[WIDE_BREAKPOINT_SELECTOR] as StyleNode;
 
-    expect(wide).not.toHaveProperty(DELETE_ICON_SELECTOR);
-    expect(JSON.stringify(deleteIconOverrides() ?? {})).not.toContain('@media');
+    expect(wide).not.toHaveProperty(SMALL_DELETE_ICON_SELECTOR);
+    expect(JSON.stringify(smallDeleteIconOverrides() ?? {})).not.toContain('@media');
   });
 });
