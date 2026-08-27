@@ -54,7 +54,7 @@ exports[`EditLocations > renders snapshot > EditLocations 1`] = `
       class="flex items-center gap-1"
     >
       <span
-        class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorDefault MuiChip-filledDefault css-hdcm1p-MuiChip-root"
+        class="MuiChip-root MuiChip-filled MuiChip-sizeSmall MuiChip-colorDefault MuiChip-filledDefault css-15tds78-MuiChip-root"
       >
         <span
           class="MuiChip-label MuiChip-labelSmall css-qmwq9b-MuiChip-label"

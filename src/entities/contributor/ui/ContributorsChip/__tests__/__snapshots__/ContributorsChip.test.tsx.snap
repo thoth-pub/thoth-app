@@ -22,7 +22,7 @@ exports[`ContributorsChip > renders snapshot with more than limit > Contributors
       A, B, C
     </li>
     <div
-      class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault css-52fj8r-MuiChip-root"
+      class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault css-1tjavjc-MuiChip-root"
     >
       <span
         class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
