@@ -597,6 +597,47 @@ describe('CSV preflight: identifiers and whitespace', () => {
       ]);
     });
 
+    it('rejects malformed, partial or misplaced hyphenation rather than repairing it', async () => {
+      // Every one of these carries the sixteen characters of a real ORCID in a spelling no
+      // import format defines. Accepting them would mean silently rewriting a malformed
+      // identifier into a plausible one — the same manufacture `123` is refused for — and the
+      // value the user is shown must stay the one their file actually contains.
+      const malformed = ['0000--0001-6365-5189', '00000-001-6365-5189', '00000001-63655189'];
+
+      for (const value of malformed) {
+        const { parser } = makeParser(makeFile(buildCsv([orcidRow(value)])));
+
+        expect(errorMessages(await parser.parse())).toEqual([
+          `errors.csvOrcidNotValid:{"field":"contribution_1_orcid","value":"${value}","row":1}`,
+        ]);
+      }
+    });
+
+    it('never reaches an existing contributor through a repaired malformed ORCID', async () => {
+      const stored = {
+        id: 'existing-contributor',
+        name: 'J. A. Doe-Smith',
+        fullName: 'J. A. Doe-Smith',
+        firstName: 'J. A.',
+        lastName: 'Doe-Smith',
+        orcid: '0000-0001-6365-5189',
+        website: '',
+        updatedAt: '',
+        lastContributionTitle: 'An Earlier Book',
+      };
+      const getContributors = vi.fn((filter: string) =>
+        Promise.resolve(filter === '0000-0001-6365-5189' ? [stored] : []),
+      );
+      const { parser } = makeParser(makeFile(buildCsv([orcidRow('0000--0001-6365-5189')])), { getContributors });
+
+      const result = await parser.parse();
+
+      // The row fails preflight, so nothing is planned and no identity lookup is made on an
+      // identifier the file never actually supplied.
+      expect(result.status).toBe('failed');
+      expect(getContributors.mock.calls.map(([filter]) => filter)).not.toContain('0000-0001-6365-5189');
+    });
+
     it('still reports boundary whitespace around an otherwise valid hyphenless ORCID', async () => {
       const { parser } = makeParser(makeFile(buildCsv([orcidRow('0000000163655189 ')])));
 

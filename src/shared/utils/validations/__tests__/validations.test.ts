@@ -134,6 +134,28 @@ describe('canonicaliseOrcid', () => {
     expect(canonicaliseOrcid('0000000163655189 ')).toBe('');
   });
 
+  it('rejects malformed, partial, multiple or misplaced hyphenation', () => {
+    // Each of these carries the sixteen characters of a real ORCID, but none of them is written
+    // in a representation an import supports. Stripping the separators before deciding would
+    // rewrite every one into `0000-0001-6365-5189` — repairing a malformed identifier into a
+    // plausible one, which is the exact failure the length anchor already refuses for `123`.
+    // Supported means the bare sixteen characters or the four correct groups, and nothing else.
+    expect(canonicaliseOrcid('0000--0001-6365-5189')).toBe('');
+    expect(canonicaliseOrcid('00000-001-6365-5189')).toBe('');
+    expect(canonicaliseOrcid('00000001-63655189')).toBe('');
+    expect(canonicaliseOrcid('0000-0001-6365-5189-')).toBe('');
+    expect(canonicaliseOrcid('-0000-0001-6365-5189')).toBe('');
+    expect(canonicaliseOrcid('000-00001-6365-5189')).toBe('');
+    expect(canonicaliseOrcid('0000-0001-63655189')).toBe('');
+    expect(canonicaliseOrcid('0000-0001-6365-518-9')).toBe('');
+  });
+
+  it('accepts the two supported representations and no third one', () => {
+    // The whole supported set, stated once: bare sixteen, or four correct groups.
+    expect(canonicaliseOrcid('0000000163655189')).toBe('0000-0001-6365-5189');
+    expect(canonicaliseOrcid('0000-0001-6365-5189')).toBe('0000-0001-6365-5189');
+  });
+
   it('leaves the resolver-URL form alone rather than rewriting it', () => {
     // Already accepted everywhere it is used; returning '' means callers keep it byte for byte.
     expect(canonicaliseOrcid('https://orcid.org/0000-0001-6365-5189')).toBe('');
