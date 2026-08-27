@@ -321,6 +321,23 @@ export const theme = createTheme({
           '& .MuiChip-label': {
             padding: '0',
           },
+
+          // MUI's small Chip pairs `label { padding: 0 8px }` with
+          // `deleteIcon { margin: 0 4px 0 -4px }` on a zero-padded root, so the
+          // icon's negative left margin consumes the label's own right padding
+          // and leaves a 4px gap, and its right margin supplies the Chip's
+          // right-hand spacing. Thoth puts the horizontal gutter on the Chip
+          // root and zeroes the label instead, so that negative margin has no
+          // padding left to consume and lands on the label, while the right
+          // margin double-counts spacing the root already provides. State the
+          // same two relationships in this model: the left margin becomes the
+          // label-to-icon gap outright, and the right margin is surrendered to
+          // the root padding. The delete icon is a fixed 16px box either side of
+          // the 1280px breakpoint, so one pair serves both regimes (#154).
+          '& .MuiChip-deleteIcon': {
+            marginLeft: '4px',
+            marginRight: '0',
+          },
         },
       },
     },
