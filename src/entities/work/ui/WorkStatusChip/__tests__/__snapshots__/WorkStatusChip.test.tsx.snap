@@ -3,7 +3,7 @@
 exports[`WorkStatusChip > applies custom className > WorkStatusChip - with custom className 1`] = `
 <div>
   <div
-    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize custom-class css-3xlim2-MuiChip-root"
+    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize custom-class css-2807ev-MuiChip-root"
   >
     <span
       class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
@@ -17,7 +17,7 @@ exports[`WorkStatusChip > applies custom className > WorkStatusChip - with custo
 exports[`WorkStatusChip > renders snapshot for Active status > WorkStatusChip - Active 1`] = `
 <div>
   <div
-    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-3xlim2-MuiChip-root"
+    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-2807ev-MuiChip-root"
   >
     <span
       class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
@@ -31,7 +31,7 @@ exports[`WorkStatusChip > renders snapshot for Active status > WorkStatusChip - 
 exports[`WorkStatusChip > renders snapshot for Forthcoming status > WorkStatusChip - Forthcoming 1`] = `
 <div>
   <div
-    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-4v7kzb-MuiChip-root"
+    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-x276kv-MuiChip-root"
   >
     <span
       class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
@@ -45,7 +45,7 @@ exports[`WorkStatusChip > renders snapshot for Forthcoming status > WorkStatusCh
 exports[`WorkStatusChip > renders snapshot for Withdrawn status > WorkStatusChip - Withdrawn 1`] = `
 <div>
   <div
-    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-1q0peui-MuiChip-root"
+    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-udg4t0-MuiChip-root"
   >
     <span
       class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"

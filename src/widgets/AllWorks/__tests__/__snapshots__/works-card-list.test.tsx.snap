@@ -39,7 +39,7 @@ exports[`WorkCardListItem > renders snapshot > WorkCardListItem 1`] = `
               class="MuiTypography-root MuiTypography-h2 flex flex-col gap-1 normal-case css-10p1e2f-MuiTypography-root"
             >
               <div
-                class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize w-fit css-3xlim2-MuiChip-root"
+                class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize w-fit css-2807ev-MuiChip-root"
               >
                 <span
                   class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
@@ -335,7 +335,7 @@ exports[`WorksCardList > renders snapshot > WorksCardList 1`] = `
                 class="MuiTypography-root MuiTypography-h2 flex flex-col gap-1 normal-case css-10p1e2f-MuiTypography-root"
               >
                 <div
-                  class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize w-fit css-3xlim2-MuiChip-root"
+                  class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize w-fit css-2807ev-MuiChip-root"
                 >
                   <span
                     class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"

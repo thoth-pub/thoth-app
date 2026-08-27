@@ -110,6 +110,47 @@ const ARC_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 </ONIXMessage>`;
 
 /**
+ * One product whose sole contributor declares an ORCID under NameIDType 21, written exactly as
+ * the caller asks for it. The scheme code and the identifier are both parameters because the two
+ * questions this fixture exists to answer are separate: what a declared ORCID becomes, and what
+ * an identically shaped value under another scheme must *not* become.
+ */
+const orcidContributorOnix = (idValue: string, nameIdType = '21') => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>9781641891783</RecordReference>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">A Companion to the Cavendishes</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Jane Doe</PersonName>
+        <NamesBeforeKey>Jane</NamesBeforeKey>
+        <KeyNames>Doe</KeyNames>
+        <NameIdentifier>
+          <NameIDType>${nameIdType}</NameIDType>
+          <IDValue>${idValue}</IDValue>
+        </NameIdentifier>
+      </Contributor>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+/**
  * The Arc first product's real contributor shape: two authors on one work, numbered by
  * SequenceNumber, alongside the Arc regressions the file also exercises — a NoPrefix /
  * TitleWithoutPrefix title, a TitleType 05 internal title that must not be imported, controlled
@@ -1732,6 +1773,62 @@ describe('ONIX bulk import, end to end', () => {
       expect(variables.find((variable) => variable.fullName === 'Tom Rutter')?.contributorId).toBe('existing-tom');
       const ordinals = variables.map(({ contributionOrdinal }) => contributionOrdinal);
       expect([...ordinals].sort((a, b) => a - b)).toEqual([1, 2]);
+    });
+  });
+
+  /**
+   * The ORCID representation an uploaded ONIX file is allowed to use, carried the whole way to
+   * the mutation.
+   *
+   * ONIX's normal encoding of an ORCID is the bare sixteen characters, while Thoth stores and its
+   * API accepts the hyphenated form behind the resolver prefix. Every step between the two is
+   * real here — `@5stones/onix` parses the XML, `XMLParser` plans it, `WorkService` executes the
+   * plan — because the conversion is only worth anything if it survives all of them. The adapter
+   * unit tests hand `selectOnixOrcid` a composite that was never parsed from anything, so they
+   * cannot see what the parser does to sixteen leading-zero-bearing digits on the way in.
+   */
+  describe('ORCID representation from real XML to the mutation', () => {
+    const ORCID = '0000-0001-6365-5189';
+    const HYPHENLESS_ORCID = '0000000163655189';
+    const STORED_ORCID = `https://orcid.org/${ORCID}`;
+
+    const importOnix = async (onix: string) => {
+      const result = await parseUpload([], onix);
+
+      expect(result.status).toBe('success');
+
+      await workService.bulkCreateWorks(result.data.plan);
+
+      return result;
+    };
+
+    const createdContributorOrcids = () =>
+      mutationsNamed('CreateContributor').map((call) => (call.variables.data as { orcid: string | null }).orcid);
+
+    it('sends a hyphenless ONIX ORCID to CreateContributor in the form Thoth stores', async () => {
+      const result = await importOnix(orcidContributorOnix(HYPHENLESS_ORCID));
+
+      // Planned bare and hyphenated, then prefixed by the existing mapper exactly as it always
+      // has been. Neither step may leave the ONIX encoding, which the ORCID unique index and the
+      // API's own parser would both read as a different identifier.
+      expect(result.data.plan.works[0].contributions[0].orcidId).toBe(ORCID);
+      expect(createdContributorOrcids()).toEqual([STORED_ORCID]);
+    });
+
+    it('sends an already-hyphenated ONIX ORCID unchanged', async () => {
+      const result = await importOnix(orcidContributorOnix(ORCID));
+
+      expect(result.data.plan.works[0].contributions[0].orcidId).toBe(ORCID);
+      expect(createdContributorOrcids()).toEqual([STORED_ORCID]);
+    });
+
+    it('creates no ORCID at all for an ORCID-shaped value declared under another scheme', async () => {
+      // NameIDType 01 is a proprietary key: the file says this is not an ORCID, and that
+      // declaration outranks the fact that it is shaped like one.
+      const result = await importOnix(orcidContributorOnix(HYPHENLESS_ORCID, '01'));
+
+      expect(result.data.plan.works[0].contributions[0].orcidId).toBe('');
+      expect(createdContributorOrcids()).toEqual([null]);
     });
   });
 });

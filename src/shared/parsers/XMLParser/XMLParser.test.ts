@@ -8209,6 +8209,129 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
 
       expect(result.data.plan.works[0].contributions[0].orcidId).toBe('');
     });
+
+    /**
+     * The same rules, but read off real XML rather than a hand-built composite.
+     *
+     * Every case above constructs the parsed shape directly, which asserts what the adapter does
+     * with a value it is handed and says nothing about the value it is actually handed. An
+     * uploaded file reaches the adapter only after `@5stones/onix` has parsed it, and that
+     * library configures `fast-xml-parser` itself: whether `<IDValue>0000000163655189</IDValue>`
+     * survives as those sixteen characters, or arrives as something a tag-value conversion has
+     * already rewritten, is decided there and nowhere the adapter can see. This is the boundary
+     * `app/actions/validateXml.ts` really crosses, so it is the boundary the ORCID contract has
+     * to hold across.
+     */
+    describe('through the real @5stones/onix parser', () => {
+      /** One product carrying one contributor, as an uploaded file would actually write it. */
+      const contributorProductXml = (nameIdType: string, idValue: string) => `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  <Product>
+    <RecordReference>9781641891783</RecordReference>
+    <DescriptiveDetail>
+      <ProductForm>BC</ProductForm>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>A book</TitleText></TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>${languages[0].value.toLowerCase()}</LanguageCode></Language>
+      <Contributor>
+        <SequenceNumber>1</SequenceNumber>
+        <ContributorRole>A01</ContributorRole>
+        <PersonName>Jane Doe</PersonName>
+        <KeyNames>Doe</KeyNames>
+        <NamesBeforeKey>Jane</NamesBeforeKey>
+        <NameIdentifier>
+          <NameIDType>${nameIdType}</NameIDType>
+          <IDValue>${idValue}</IDValue>
+        </NameIdentifier>
+      </Contributor>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${imprints[0].label}</ImprintName></Imprint>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+  </Product>
+</ONIXMessage>`;
+
+      const parseRealXml = async (xml: string) =>
+        new XMLParser(
+          (await parse(xml)) as ExtendedONIXMessageRoot,
+          imprints,
+          licenseOptions,
+          [],
+          mockContributorService,
+          mockInstitutionService,
+          languages,
+          currencyOptions,
+        ).parse();
+
+      it('plans the Thoth-form ORCID for a hyphenless NameIDType 21 identifier in real XML', async () => {
+        mockContributorService.getContributors = vi.fn().mockResolvedValue([]);
+
+        const result = await parseRealXml(contributorProductXml('21', HYPHENLESS_ORCID));
+
+        expect(result.status).toBe('success');
+        // The sixteen characters the file wrote, hyphenated — not what a numeric reading of them
+        // would leave behind, and not the ONIX encoding itself.
+        expect(result.data.plan.works[0].contributions[0].orcidId).toBe(ORCID);
+      });
+
+      it('resolves an existing contributor from a hyphenless ORCID in real XML', async () => {
+        const getContributors = byFilter({ [ORCID]: [stored()] });
+        mockContributorService.getContributors = getContributors;
+
+        const result = await parseRealXml(contributorProductXml('21', HYPHENLESS_ORCID));
+
+        expect(result.data.plan.works[0].contributions[0].contributorId).toBe('existing-contributor');
+        // The identity lookup is made on the canonical form, which is the only form that can
+        // match what Thoth stored.
+        expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(expect.arrayContaining([ORCID]));
+      });
+
+      it('leaves an already-hyphenated ORCID in real XML unchanged', async () => {
+        mockContributorService.getContributors = vi.fn().mockResolvedValue([]);
+
+        const result = await parseRealXml(contributorProductXml('21', ORCID));
+
+        expect(result.data.plan.works[0].contributions[0].orcidId).toBe(ORCID);
+      });
+
+      it('canonicalises a real-XML terminal lower-case check character to upper case', async () => {
+        mockContributorService.getContributors = vi.fn().mockResolvedValue([]);
+
+        const result = await parseRealXml(contributorProductXml('21', '000000015109376x'));
+
+        expect(result.data.plan.works[0].contributions[0].orcidId).toBe('0000-0001-5109-376X');
+      });
+
+      it('keeps an ORCID-shaped value under another scheme non-ORCID in real XML', async () => {
+        const getContributors = byFilter({ [ORCID]: [stored({ id: 'orcid-holder' })] });
+        mockContributorService.getContributors = getContributors;
+
+        const result = await parseRealXml(contributorProductXml('01', HYPHENLESS_ORCID));
+
+        // NameIDType 01 is a proprietary key. The declaration decides the scheme, so nothing here
+        // is an ORCID however ORCID-shaped it looks.
+        expect(result.data.plan.works[0].contributions[0].orcidId).toBe('');
+        expect(result.data.plan.works[0].contributions[0].contributorId).toBe(appConfig.defaultId);
+        expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(['Jane Doe']);
+      });
+
+      it('never manufactures an ORCID from a short numeric NameIDType 21 value', async () => {
+        const getContributors = vi.fn().mockResolvedValue([]);
+        mockContributorService.getContributors = getContributors;
+
+        const result = await parseRealXml(contributorProductXml('21', '123'));
+
+        // `123` is malformed, not an ORCID missing its leading zeros. Left-padding it to sixteen
+        // characters would invent `0000-0000-0000-0123`, a plausible identifier for a real
+        // person who is not this one, so the value stays exactly as the file wrote it and the
+        // shared ORCID validation is left to reject it.
+        expect(result.data.plan.works[0].contributions[0].orcidId).toBe('123');
+        expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(['Jane Doe']);
+      });
+    });
   });
 
   it('makes no identity decision from a proprietary NameIdentifier', async () => {

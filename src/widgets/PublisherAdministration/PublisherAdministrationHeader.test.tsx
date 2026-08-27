@@ -207,6 +207,7 @@ const TAG_ROW_SELECTOR = /\.MuiAutocomplete-inputRoot[\w.-]*$/;
 // Matches a selector whose last compound is the inner text input. The negative
 // lookahead keeps `.MuiAutocomplete-inputRoot` from matching as a prefix.
 const TAG_ROW_INPUT_SELECTOR = /\.MuiAutocomplete-input(?![\w-])[\w.-]*$/;
+const END_ADORNMENT_SELECTOR = /\.MuiAutocomplete-endAdornment[\w.-]*$/;
 const DESKTOP_MEDIA = 'min-width';
 
 const emotionClassesOf = (element: HTMLElement): string[] =>
@@ -318,6 +319,31 @@ describe('PublisherAdministrationHeader multi-select geometry (APP-PUBLISHER-FIL
     expect(declaredValue(rules, TAG_ROW_SELECTOR, 'flex-wrap')).toBe('wrap');
     expect(declaredValue(rules, TAG_ROW_SELECTOR, 'gap')).toBe('4px');
     expect(declaredValue(rules, /\.MuiChip-root$/, 'margin')).toBe('0px');
+  });
+
+  // APP-PUBLISHER-FILTER-ALIGN-02. Browser measurement proves the notched
+  // outline's visual centre is 2.5px above the input-root centre. jsdom cannot
+  // prove that geometry, but it can truthfully pin the local style contract
+  // derived from it: preserve MUI's total 12px vertical padding while moving
+  // the content box upward by 2.5px.
+  it.each(MULTIPLE_FILTER_LABELS)(
+    'preserves %s total root padding while shifting its content toward the outline centre',
+    (label) => {
+      renderWithSelections();
+
+      const rules = localStyleRulesFor(autocompleteRootFor(label));
+
+      expect(declaredValue(rules, TAG_ROW_SELECTOR, 'padding-top')).toBe('3.5px');
+      expect(declaredValue(rules, TAG_ROW_SELECTOR, 'padding-bottom')).toBe('8.5px');
+    },
+  );
+
+  it.each(MULTIPLE_FILTER_LABELS)('moves %s end adornment by the same measured 2.5px', (label) => {
+    renderWithSelections();
+
+    const rules = localStyleRulesFor(autocompleteRootFor(label));
+
+    expect(declaredValue(rules, END_ADORNMENT_SELECTOR, 'top')).toBe('calc(50% - 2.5px)');
   });
 
   it('leaves the native back-catalogue job select outside that local treatment', () => {

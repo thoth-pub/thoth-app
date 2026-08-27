@@ -2036,4 +2036,96 @@ describe('CSV contributor identity by ORCID', () => {
     expect(result.status).toBe('failed');
     expect(result.data.plan.works).toEqual([]);
   });
+
+  /**
+   * The same identity rules, reached from the other representation a CSV column really holds.
+   *
+   * `0000000163655189` and `0000-0001-6365-5189` are one iD, and a spreadsheet produces the
+   * first as readily as the second. Unless the importer canonicalises, the two are two
+   * identities: the exact-match lookup misses, the per-import registry keys them apart, and the
+   * pair becomes two contributor creations that the backend's ORCID unique index refuses.
+   */
+  describe('hyphenless representation', () => {
+    const HYPHENLESS_ORCID = '0000000163655189';
+
+    it('resolves the existing contributor an equivalent hyphenless ORCID identifies', async () => {
+      const getContributors = byFilter({ [ORCID]: [existing({})] });
+      const csv = buildCsv(
+        contributorRow({
+          contribution_1_first_name: 'Jane',
+          contribution_1_surname: 'Doe',
+          contribution_1_orcid: HYPHENLESS_ORCID,
+        }),
+      );
+
+      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+      expect(plannedContributions(result)[0].contributorId).toBe('existing-contributor');
+      // Looked up by the canonical form, which is the only one that can match what Thoth stored.
+      expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(expect.arrayContaining([ORCID]));
+    });
+
+    it('plans the hyphenated form for a new contributor supplied hyphenless', async () => {
+      const getContributors = vi.fn().mockResolvedValue([]);
+      const csv = buildCsv(
+        contributorRow({
+          contribution_1_first_name: 'Jane',
+          contribution_1_surname: 'Doe',
+          contribution_1_orcid: HYPHENLESS_ORCID,
+        }),
+      );
+
+      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+      expect(result.status).toBe('success');
+      // What execution will send to createContributor, so it may not be the source encoding.
+      expect(plannedContributions(result)[0].orcidId).toBe(ORCID);
+    });
+
+    it('treats hyphenated and hyphenless occurrences of one ORCID as one identity', async () => {
+      const getContributors = vi.fn().mockResolvedValue([]);
+      const csv = buildCsvRows([
+        contributorRow({
+          title: 'First book',
+          contribution_1_first_name: 'Jane',
+          contribution_1_surname: 'Doe',
+          contribution_1_orcid: HYPHENLESS_ORCID,
+        }),
+        contributorRow({
+          title: 'Second book',
+          contribution_1_first_name: 'J.',
+          contribution_1_surname: 'Doe',
+          contribution_1_orcid: ORCID,
+        }),
+      ]);
+
+      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+      expect(result.status).toBe('success');
+
+      const contributions = plannedContributions(result);
+
+      // One ORCID across both rows is what lets the execution registry key them together and
+      // create the contributor exactly once, rather than twice onto a unique index.
+      expect(contributions.map(({ orcidId }) => orcidId)).toEqual([ORCID, ORCID]);
+      expect(getContributors.mock.calls.filter(([filter]) => filter === ORCID)).toHaveLength(1);
+    });
+
+    it('keeps a malformed short numeric ORCID an error rather than padding it', async () => {
+      const getContributors = vi.fn().mockResolvedValue([]);
+      const csv = buildCsv(
+        contributorRow({
+          contribution_1_first_name: 'Jane',
+          contribution_1_surname: 'Doe',
+          contribution_1_orcid: '123',
+        }),
+      );
+
+      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+
+      // `0000-0000-0000-0123` would be a perfectly valid iD for somebody else entirely.
+      expect(result.status).toBe('failed');
+      expect(result.data.plan.works).toEqual([]);
+    });
+  });
 });
