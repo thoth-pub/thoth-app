@@ -4,10 +4,12 @@ import { ERRORS } from '@/src/shared/constants';
 
 import {
   canonicaliseDoi,
+  canonicaliseOrcid,
   doiValidation,
   getFileValidation,
   getRequiredStringValidation,
   issnValidation,
+  orcidValidation,
   rorValidation,
 } from '../index';
 
@@ -86,6 +88,82 @@ describe('canonicaliseDoi', () => {
   it('only ever returns something the app already considers a valid DOI', () => {
     ['10.1234/abc', 'https://dx.doi.org/10.1234/abc-def_ghi;1', 'doi.org/10.123456789/x'].forEach((input) => {
       expect(doiValidation.safeParse(canonicaliseDoi(input)).success).toBe(true);
+    });
+  });
+});
+
+describe('canonicaliseOrcid', () => {
+  it('hyphenates the bare sixteen-character form', () => {
+    expect(canonicaliseOrcid('0000000163655189')).toBe('0000-0001-6365-5189');
+  });
+
+  it('leaves an already-hyphenated ORCID exactly as it is', () => {
+    expect(canonicaliseOrcid('0000-0001-6365-5189')).toBe('0000-0001-6365-5189');
+  });
+
+  it('upper-cases the trailing check character', () => {
+    expect(canonicaliseOrcid('000000015109376x')).toBe('0000-0001-5109-376X');
+    expect(canonicaliseOrcid('0000-0001-5109-376x')).toBe('0000-0001-5109-376X');
+  });
+
+  it('is idempotent', () => {
+    const once = canonicaliseOrcid('0000000163655189');
+
+    expect(canonicaliseOrcid(once)).toBe(once);
+  });
+
+  it('never invents the leading zeros of a short numeric value', () => {
+    // The whole point of the length anchor: padding these would mint a syntactically perfect iD
+    // belonging to a different person, which is worse than rejecting the value.
+    expect(canonicaliseOrcid('123')).toBe('');
+    expect(canonicaliseOrcid('163655189')).toBe('');
+    expect(canonicaliseOrcid('0000-0002-1825')).toBe('');
+  });
+
+  it('rejects anything that is not sixteen ORCID characters', () => {
+    expect(canonicaliseOrcid('')).toBe('');
+    expect(canonicaliseOrcid('not-an-orcid')).toBe('');
+    // Seventeen characters, so not an ORCID that merely needs regrouping.
+    expect(canonicaliseOrcid('00000001636551890')).toBe('');
+    // `X` is the check character and may only be last.
+    expect(canonicaliseOrcid('X000000163655189')).toBe('');
+  });
+
+  it('does not trim, so a boundary defect stays its caller’s to report', () => {
+    expect(canonicaliseOrcid(' 0000000163655189')).toBe('');
+    expect(canonicaliseOrcid('0000000163655189 ')).toBe('');
+  });
+
+  it('rejects malformed, partial, multiple or misplaced hyphenation', () => {
+    // Each of these carries the sixteen characters of a real ORCID, but none of them is written
+    // in a representation an import supports. Stripping the separators before deciding would
+    // rewrite every one into `0000-0001-6365-5189` — repairing a malformed identifier into a
+    // plausible one, which is the exact failure the length anchor already refuses for `123`.
+    // Supported means the bare sixteen characters or the four correct groups, and nothing else.
+    expect(canonicaliseOrcid('0000--0001-6365-5189')).toBe('');
+    expect(canonicaliseOrcid('00000-001-6365-5189')).toBe('');
+    expect(canonicaliseOrcid('00000001-63655189')).toBe('');
+    expect(canonicaliseOrcid('0000-0001-6365-5189-')).toBe('');
+    expect(canonicaliseOrcid('-0000-0001-6365-5189')).toBe('');
+    expect(canonicaliseOrcid('000-00001-6365-5189')).toBe('');
+    expect(canonicaliseOrcid('0000-0001-63655189')).toBe('');
+    expect(canonicaliseOrcid('0000-0001-6365-518-9')).toBe('');
+  });
+
+  it('accepts the two supported representations and no third one', () => {
+    // The whole supported set, stated once: bare sixteen, or four correct groups.
+    expect(canonicaliseOrcid('0000000163655189')).toBe('0000-0001-6365-5189');
+    expect(canonicaliseOrcid('0000-0001-6365-5189')).toBe('0000-0001-6365-5189');
+  });
+
+  it('leaves the resolver-URL form alone rather than rewriting it', () => {
+    // Already accepted everywhere it is used; returning '' means callers keep it byte for byte.
+    expect(canonicaliseOrcid('https://orcid.org/0000-0001-6365-5189')).toBe('');
+  });
+
+  it('only ever returns something the app already considers a valid ORCID', () => {
+    ['0000000163655189', '0000-0001-6365-5189', '000000015109376x'].forEach((input) => {
+      expect(orcidValidation.safeParse(canonicaliseOrcid(input)).success).toBe(true);
     });
   });
 });

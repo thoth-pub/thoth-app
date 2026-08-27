@@ -1,4 +1,4 @@
-import { canonicaliseDoi, canonicaliseRor, orcidValidation } from '../../utils/validations';
+import { canonicaliseDoi, canonicaliseOrcid, canonicaliseRor, orcidValidation } from '../../utils/validations';
 import { normaliseImportedPlainText } from '../XMLParser/importedPlainText';
 import type { TranslateFunction } from './CSVParser';
 import { type CsvFieldDefinition, type CsvFieldKey, type CsvRow, csvSchema, normaliseCsvValue } from './csvSchema';
@@ -6,8 +6,8 @@ import { type CsvFieldDefinition, type CsvFieldKey, type CsvRow, csvSchema, norm
 /**
  * The deterministic CSV preflight rules: the checks that can be answered from the canonical rows
  * alone, with no contributor/institution lookup and no mutation, implemented against the same
- * authoritative contracts the rest of the application uses (`canonicaliseDoi`, `canonicaliseRor`,
- * `orcidValidation`, the existing plain-text representability helper).
+ * authoritative contracts the rest of the application uses (`canonicaliseDoi`, `canonicaliseOrcid`,
+ * `canonicaliseRor`, `orcidValidation`, the existing plain-text representability helper).
  *
  * `csvSchema` names which rule applies to which field; this module only implements the rule
  * bodies, exactly as `getCsvConfig` implements the `csv-file-validator` rule names. Every finding
@@ -183,6 +183,22 @@ export const checkImportedCsvText = (content: string): ImportedCsvTextProblem | 
 };
 
 /**
+ * The canonical representation of one identifier, or `''` when the value is not that identifier
+ * at all. Each delegates to the contract that already owns the question, so the preflight holds
+ * no second opinion about what a DOI, an ORCID or a ROR is.
+ */
+const toCanonicalIdentifier = (rule: 'doi' | 'orcid' | 'ror', value: string): string => {
+  switch (rule) {
+    case 'doi':
+      return canonicaliseDoi(value);
+    case 'orcid':
+      return canonicaliseOrcid(value);
+    case 'ror':
+      return canonicaliseRor(value);
+  }
+};
+
+/**
  * One canonical cell: the exact string that is validated and, if the file passes, planned and
  * imported. Canonicalisation happens once, before any rule runs, and only ever re-applies a
  * transformation an existing authoritative contract already performs:
@@ -191,7 +207,8 @@ export const checkImportedCsvText = (content: string): ImportedCsvTextProblem | 
  *   whitespace, exactly as `canonicaliseDoi` and `parseSeries` always have;
  * - enum-backed fields resolve their supported aliases to the canonical member, as before;
  * - a valid DOI or ROR in any form the Thoth contract accepts becomes its canonical resolver
- *   URL. An invalid one is left exactly as supplied — canonicalisation never manufactures a
+ *   URL, and an ORCID written as its bare sixteen characters becomes the hyphenated form Thoth
+ *   stores. An invalid one is left exactly as supplied — canonicalisation never manufactures a
  *   plausible identifier out of a broken one — and the matching rule reports it.
  *
  * Boundary-`report` fields are never repaired here: their defects are findings, not input.
@@ -202,8 +219,8 @@ export const toCanonicalCsvValue = (field: CsvFieldDefinition, value: string): s
 
   if (normalised.length === 0) return normalised;
 
-  if (field.preflight === 'doi' || field.preflight === 'ror') {
-    const canonical = field.preflight === 'doi' ? canonicaliseDoi(normalised) : canonicaliseRor(normalised);
+  if (field.preflight === 'doi' || field.preflight === 'ror' || field.preflight === 'orcid') {
+    const canonical = toCanonicalIdentifier(field.preflight, normalised);
 
     return canonical.length > 0 ? canonical : normalised;
   }
@@ -234,7 +251,12 @@ const evaluateRule = (
     case 'doi':
       return canonicaliseDoi(value).length > 0 ? undefined : t('errors.csvDoiNotValid', { value, row });
     case 'orcid':
-      return orcidValidation.safeParse(value).success
+      // Canonicalised again here rather than trusted from the row, because this rule is also
+      // asked about the residual of a value whose boundary defect has been reported — a string
+      // that never went through `toCanonicalCsvValue`. Canonicalising is idempotent, so the
+      // already-canonical cell is unaffected. The verdict stays `orcidValidation`'s alone, and
+      // the value named in the error is always the one the file supplied.
+      return orcidValidation.safeParse(canonicaliseOrcid(value) || value).success
         ? undefined
         : t('errors.csvOrcidNotValid', { field: field.header, value, row });
     case 'ror':

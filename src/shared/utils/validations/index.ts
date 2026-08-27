@@ -157,6 +157,66 @@ export const canonicaliseRor = (value: string): string => {
   return rorIdentifierPattern.test(identifier) ? `${appConfig.validations.rorPrefix}${identifier}` : '';
 };
 
+/**
+ * The two representations of an ORCID an import accepts, and the only two.
+ *
+ * `bare` is ONIX's encoding and what a spreadsheet column yields once anything has treated the
+ * value as a number; `grouped` is what ORCID's registry displays and what Thoth stores. Both are
+ * anchored at both ends and spell the separator positions out in full, so the shape of the value
+ * is decided before anything is removed from it. The terminal check character is the only letter
+ * an ORCID can contain, and it is matched in either case.
+ */
+const orcidSourcePatterns = {
+  bare: /^\d{15}[\dXx]$/,
+  grouped: /^\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$/,
+};
+
+/**
+ * An ORCID's bare sixteen characters written as the four hyphenated groups Thoth stores, or an
+ * empty string when the value is not an ORCID in a representation this may rewrite.
+ *
+ * The importer counterpart of {@link canonicaliseDoi} and {@link canonicaliseRor}, and needed for
+ * the same reason: a source writes an ORCID in whichever representation it uses, and Thoth stores
+ * exactly one of them. ORCID's registry displays `0000-0001-6365-5189`, but the same iD is
+ * equally an unhyphenated `0000000163655189` — that is how ONIX encodes one, and it is what a
+ * spreadsheet column produces once anything has treated it as a number. Both are one person, so
+ * both have to reach one contributor; leaving the bare form uncanonicalised means the value that
+ * is validated is not the value that is looked up, which is how one iD becomes two contributors
+ * the ORCID unique index then refuses.
+ *
+ * Deliberately narrow in four ways:
+ *
+ * - it never invents length. `123` is malformed input, not an ORCID that has mislaid its leading
+ *   zeros, and left-padding it to sixteen characters would mint `0000-0000-0000-0123` — a
+ *   syntactically perfect iD belonging to somebody who is not this contributor. A value that is
+ *   not already sixteen characters is simply not an ORCID here;
+ * - it never invents separator placement. The input has to *arrive* in one of the two supported
+ *   shapes; hyphens are removed only once that is settled. Stripping them first and asking
+ *   afterwards would silently accept a third family of spellings nothing defines —
+ *   `0000--0001-6365-5189`, `00000-001-6365-5189`, `00000001-63655189` would all become
+ *   `0000-0001-6365-5189` — which is the same manufacture of a plausible identifier out of a
+ *   malformed one that the length anchor above exists to refuse;
+ * - it never trims. Boundary whitespace is a defect its caller reports, not one this repairs;
+ * - it returns `''` rather than the input for anything it does not recognise, including the
+ *   resolver-URL form. Callers keep what they were given, so a representation that already works
+ *   keeps working byte for byte and only a rejected one can change.
+ *
+ * Only the trailing check character of an ORCID can be a letter, so upper-casing is safe and
+ * makes `…-376x` and `…-376X` the one iD they are rather than two. Validity itself is still
+ * {@link orcidValidation}'s to decide: this returns a representation, not a verdict.
+ */
+export const canonicaliseOrcid = (value: string): string => {
+  const supported = Object.values(orcidSourcePatterns).some((pattern) => pattern.test(value));
+
+  if (!supported) return '';
+
+  const identifier = value.replace(/-/g, '').toUpperCase();
+
+  // Safe by construction: both supported shapes carry exactly sixteen characters, so this is
+  // four groups of four.
+  return (identifier.match(/.{4}/g) as string[]).join('-');
+};
+
 /* External Identifiers Validations */
 export const idValidation = z.uuid();
 export const orcidValidation = getStringValidation()
