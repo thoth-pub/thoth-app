@@ -150,7 +150,7 @@ exports[`EditWorkHeader > renders snapshot > EditWorkHeader 1`] = `
                   class="group flex items-center gap-1"
                 >
                   <div
-                    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-3xlim2-MuiChip-root"
+                    class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-jltgem-MuiChip-root"
                   >
                     <span
                       class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"

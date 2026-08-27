@@ -17,7 +17,7 @@ exports[`EditStatus > calls onUpdate when onSubmit is triggered > EditStatus - w
         class="group flex items-center gap-1"
       >
         <div
-          class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-3xlim2-MuiChip-root"
+          class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-jltgem-MuiChip-root"
         >
           <span
             class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
@@ -66,7 +66,7 @@ exports[`EditStatus > renders snapshot > EditStatus 1`] = `
         class="group flex items-center gap-1"
       >
         <div
-          class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-3xlim2-MuiChip-root"
+          class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-jltgem-MuiChip-root"
         >
           <span
             class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
@@ -115,7 +115,7 @@ exports[`EditStatus > renders with disabled false > EditStatus - editable 1`] = 
         class="group flex items-center gap-1"
       >
         <div
-          class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-4v7kzb-MuiChip-root"
+          class="MuiChip-root MuiChip-filled MuiChip-sizeMedium MuiChip-colorDefault MuiChip-filledDefault capitalize css-1bnr5ry-MuiChip-root"
         >
           <span
             class="MuiChip-label MuiChip-labelMedium css-1glixai-MuiChip-label"
