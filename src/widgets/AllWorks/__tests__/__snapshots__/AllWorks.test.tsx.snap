@@ -394,7 +394,7 @@ exports[`AllWorks > renders snapshot > AllWorks 1`] = `
         >
           <a
             class="MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways css-1dqfxx0-MuiTypography-root-MuiLink-root"
-            href="/admin/works/new"
+            href="/works/new"
           >
             <svg
               aria-hidden="true"
