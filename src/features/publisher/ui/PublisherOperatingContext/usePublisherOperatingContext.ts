@@ -2,6 +2,7 @@
 
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
+import { useEffect, useEffectEvent, useRef } from 'react';
 
 import type { PublisherId } from '@/src/entities/publisher';
 import usePublisherStateMachine from '@/src/entities/publisher/store/hooks/usePublisherStateMachine';
@@ -56,6 +57,37 @@ const usePublisherOperatingContext = () => {
     resetLinkedPublishers();
     clearPublisherScopedQueries(queryClient);
   };
+
+  // Acceptance 19, live half. `restoreStaffContext` only validates a STORED
+  // context, and it returns early once one is already active - so a workspace
+  // that is already mounted must be revoked here instead. When a later
+  // authoritative `me` result stops listing the publisher whose context is
+  // active, that context dies immediately: it is never quietly swapped for
+  // another publisher the operator still happens to be allowed to open.
+  //
+  // Invalidation only. A still-listed active publisher is left exactly alone,
+  // and an ordinary publisher user never reaches this at all.
+  const revokedPublisherId = useRef<PublisherId | null>(null);
+
+  const activeStaffPublisherId = isStaffOperator ? (activePublisher?.id ?? null) : null;
+  const isActiveStaffPublisherAuthorized =
+    activeStaffPublisherId === null ||
+    staffPublishers.some((candidate) => candidate.id === activeStaffPublisherId);
+
+  // Reads the current clear path and router without re-firing on their identity.
+  const revokeStaffContext = useEffectEvent(async () => {
+    await clearStaffContext();
+    router.replace(ROUTES.ADMIN);
+  });
+
+  useEffect(() => {
+    if (activeStaffPublisherId === null || isActiveStaffPublisherAuthorized) return;
+    // One revocation per context: the machine reset lands a render later.
+    if (revokedPublisherId.current === activeStaffPublisherId) return;
+
+    revokedPublisherId.current = activeStaffPublisherId;
+    void revokeStaffContext();
+  }, [activeStaffPublisherId, isActiveStaffPublisherAuthorized]);
 
   const applyStaffPublisher = (publisher: (typeof staffPublishers)[number]) => {
     // `changeActivePublisher` is only accepted once the machine has left `init`.

@@ -239,6 +239,49 @@ describe('usePublisherOperatingContext', () => {
     });
   });
 
+  describe('live revocation of an already-active staff context (acceptance 19)', () => {
+    it('keeps an already-active staff publisher that remains in the authoritative linked-publisher set', async () => {
+      mocks.activePublisher = { id: 'pub-2', name: 'Publisher B' };
+
+      const { rerender } = renderHook(() => usePublisherOperatingContext());
+
+      await act(async () => {
+        rerender();
+      });
+
+      expect(staffWrites()).toEqual([]);
+      expect(mocks.resetLinkedPublishers).not.toHaveBeenCalled();
+      expect(mocks.router.replace).not.toHaveBeenCalled();
+    });
+
+    it('revokes an already-active staff publisher that a later authoritative result no longer lists, without falling back to the remaining one', async () => {
+      mocks.activePublisher = { id: 'pub-2', name: 'Publisher B' };
+
+      const { rerender } = renderHook(() => usePublisherOperatingContext());
+
+      // Still authoritative membership: nothing may be torn down yet.
+      expect(staffWrites()).toEqual([]);
+      expect(mocks.router.replace).not.toHaveBeenCalled();
+
+      // A later authoritative `me` result drops pub-2 while pub-1 remains.
+      mocks.user.linkedPublishers = [mocks.createPublisher()];
+
+      await act(async () => {
+        rerender();
+      });
+
+      expect(staffWrites()).toEqual([[STAFF_KEY, null]]);
+      expect(mocks.resetLinkedPublishers).toHaveBeenCalled();
+      expect(mocks.queryClient.resetQueries).toHaveBeenCalled();
+      expect(mocks.queryClient.removeQueries).toHaveBeenCalled();
+      expect(mocks.router.replace).toHaveBeenCalledWith('/admin');
+
+      // Fail closed, never sideways: the still-authorized pub-1 is not selected.
+      expect(mocks.changeActivePublisher).not.toHaveBeenCalled();
+      expect(ordinaryWrites()).toEqual([]);
+    });
+  });
+
   describe('clearing (acceptance 17, 18)', () => {
     it('Return to Admin clears the staff context, resets publisher-scoped state and goes to Admin', async () => {
       const { result } = renderHook(() => usePublisherOperatingContext());
