@@ -44,5 +44,6 @@
   "editorOutcomeSaved": "Service configuration saved",
   "editorOutcomeStale": "Not saved: this configuration changed since it was loaded. The list has been reloaded; start a new edit to apply your changes.",
   "editorOutcomeJobCreationDisabled": "Not saved: automatic distribution job creation is disabled, so the requested activation was rolled back and no job was created.",
-  "editorOutcomeFailed": "Service configuration not saved, or the outcome could not be confirmed. The list has been reloaded from the API; start a new edit to try again."
+  "editorOutcomeFailed": "Service configuration not saved, or the outcome could not be confirmed. The list has been reloaded from the API; start a new edit to try again.",
+  "openWorkspaceAction": "Open workspace"
 }

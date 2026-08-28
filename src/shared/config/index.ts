@@ -136,7 +136,15 @@ export const appConfig = {
   maxBulkChaptersCount: 100,
   persistentStorage: {
     prefix: 'thoth_app',
+    // Ordinary publisher users' active-publisher selection. Unchanged by
+    // APP-ADM-01: same key, same persistence and fallback semantics.
     activePublisherIdKey: 'activePublisherIdKey',
+    // APP-ADM-01 (ADR-0010): the superuser publisher OPERATING CONTEXT is a
+    // different lifecycle concept from the ordinary selection above, so it gets
+    // its own storage identity and must never be conflated with it. It holds a
+    // publisher id and nothing else - no token, credential or role claim - and
+    // the authenticated root landing always clears it before Admin is entered.
+    staffPublisherContextIdKey: 'staffPublisherContextIdKey',
   },
   publisherDefaultValues: {
     defaultCurrency: CurrencyCode.enum.Gbp,

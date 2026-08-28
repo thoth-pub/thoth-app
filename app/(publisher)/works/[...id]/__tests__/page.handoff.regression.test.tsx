@@ -10,7 +10,7 @@
  * `workId` hand-off would slip past it.
  *
  * This file closes exactly that gap. It invokes the REAL production server component
- * `app/admin/works/[...id]/page.tsx` (`WorkPage`) with a genuine `params` Promise, mocks only
+ * `app/(publisher)/works/[...id]/page.tsx` (`WorkPage`) with a genuine `params` Promise, mocks only
  * the infrastructure needed to pass the auth / data / ownership gates, and observes the element
  * the real page returns to assert that the exact route Work id reaches `EditWorkWidget`.
  *

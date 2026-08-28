@@ -303,7 +303,11 @@ export const authOptions: NextAuthOptions = {
      * @returns The URL to redirect the user to after successful login
      */
     async redirect({ baseUrl }) {
-      return `${baseUrl}${ROUTES.DASHBOARD}`;
+      // APP-ADM-01 (ADR-0010): every successful authentication returns through
+      // the role-resolution landing at `/`, never straight to a publisher
+      // dashboard, so a new authenticated session always re-resolves the
+      // authoritative identity and starts with no staff publisher context.
+      return `${baseUrl}${ROUTES.ROOT}`;
     },
 
     /**

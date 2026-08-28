@@ -27,6 +27,12 @@ vi.mock('../../publisher', () => ({
     <div data-testid="change-active-publisher" data-hidden={String(Boolean(isHidden))} />
   ),
 }));
+// APP-ADM-01: the superuser's publisher-workspace treatment owns its own
+// restoration/Return-to-Admin seam; the shell only decides where it sits and
+// who sees it instead of the selector.
+vi.mock('../../publisher/ui/PublisherOperatingContext/PublisherOperatingContext', () => ({
+  default: () => <div data-testid="publisher-operating-context" />,
+}));
 vi.mock('../../auth', () => ({
   SignOutButton: () => null,
 }));
@@ -53,14 +59,22 @@ const PUBLISHER_CONTEXT_GROUP = 'publisherContext';
 const ADMIN_GROUP = 'admin';
 const FORMER_STAFF_GROUP = 'staff';
 
-// The exact publisher-context destinations defined by PAGES, with the exact
-// routes they must keep.
+// APP-ADM-01 (ADR-0010): the publisher workspace no longer sits under `/admin`.
+// These are the exact destinations of the publisher shell, with the exact
+// root-level routes they must carry.
 const PUBLISHER_CONTEXT_DESTINATIONS = [
-  ['dashboard', '/admin/dashboard'],
-  ['books', '/admin/works'],
-  ['series', '/admin/series'],
-  ['sets', '/admin/sets'],
-  ['publisher', '/admin/publisher'],
+  ['dashboard', '/dashboard'],
+  ['books', '/works'],
+  ['series', '/series'],
+  ['sets', '/sets'],
+  ['publisher', '/publisher'],
+] as const;
+
+// The Admin shell's own destinations - and only these in this slice. No
+// activity/attention/reports placeholders are introduced by APP-ADM-01.
+const ADMIN_DESTINATIONS = [
+  ['adminHome', '/admin'],
+  ['publishers', '/admin/publishers'],
 ] as const;
 
 const createUser = (isSuperuser: boolean) => ({
@@ -72,10 +86,10 @@ const createUser = (isSuperuser: boolean) => ({
   linkedPublishers: [],
 });
 
-const renderNavigation = () =>
+const renderNavigation = (mode: 'publisher' | 'admin' = 'publisher') =>
   render(
     <ThemeProvider theme={theme}>
-      <Navigation />
+      <Navigation mode={mode} />
     </ThemeProvider>,
   );
 
@@ -93,113 +107,14 @@ afterEach(() => {
 });
 
 describe('Navigation', () => {
-  it('does not show the Publishers entry to an authoritative ordinary publisher user', () => {
-    useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
-
-    renderNavigation();
-
-    expect(screen.queryByText('publishers')).not.toBeInTheDocument();
-  });
-
-  it('shows the Publishers entry pointing at /admin/publishers to an authoritative superuser', () => {
-    useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
-
-    renderNavigation();
-
-    const entry = screen.getByText('publishers');
-
-    expect(entry.closest('a')).toHaveAttribute('href', '/admin/publishers');
-  });
-
-  it('does not show the Publishers entry while user state is not yet authoritative, even if it claims superuser', () => {
-    useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: false });
-
-    renderNavigation();
-
-    expect(screen.queryByText('publishers')).not.toBeInTheDocument();
-  });
-
-  it('keeps the existing navigation entries for ordinary publisher users unchanged', () => {
-    useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
-
-    renderNavigation();
-
-    for (const entry of ['dashboard', 'books', 'series', 'sets', 'publisher']) {
-      expect(screen.getByText(entry)).toBeInTheDocument();
-    }
-  });
-
-  it('keeps the existing publisher-context profile entry alongside the admin entry for superusers', () => {
-    useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
-
-    renderNavigation();
-
-    expect(screen.getByText('publisher').closest('a')).toHaveAttribute('href', '/admin/publisher');
-    expect(screen.getByText('publishers').closest('a')).toHaveAttribute('href', '/admin/publishers');
-  });
-
-  // APP-SHELL-SU-01 separated publisher-context workflows from staff workflows.
-  // APP-SHELL-SU-02 refines only how those two groups are *presented*: the
-  // publisher-context group loses its visible heading while keeping its
-  // landmark, and the staff group is renamed Admin. Routes, ordering and gating
-  // are untouched.
-  describe('publisher context / admin grouping (APP-SHELL-SU-02)', () => {
-    it('gives an authoritative ordinary publisher a publisher-context group and no admin group at all', () => {
+  // APP-ADM-01 acceptance 5: the publisher workspace is a root-level namespace,
+  // and the Admin namespace is not reachable from inside it except through the
+  // explicit Return to Admin action the operating-context treatment owns.
+  describe('publisher workspace shell', () => {
+    it('keeps every publisher destination, and only those, on their new root-level routes', () => {
       useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
 
-      renderNavigation();
-
-      expect(screen.getByRole('navigation', { name: PUBLISHER_CONTEXT_GROUP })).toBeInTheDocument();
-
-      expect(screen.queryByRole('navigation', { name: ADMIN_GROUP })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: ADMIN_GROUP })).not.toBeInTheDocument();
-      expect(screen.queryByText(ADMIN_GROUP)).not.toBeInTheDocument();
-    });
-
-    // APP-SHELL-SU-02 acceptance 1: the grouping survives, the visible heading does not.
-    it('renders no visible Publisher context heading or label while expanded', () => {
-      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
-
-      renderNavigation();
-
-      expect(screen.queryByRole('heading', { name: PUBLISHER_CONTEXT_GROUP })).not.toBeInTheDocument();
-      expect(screen.queryByText(PUBLISHER_CONTEXT_GROUP)).not.toBeInTheDocument();
-    });
-
-    // APP-SHELL-SU-02 acceptance 2: removing the visible heading must not flatten
-    // the semantic grouping.
-    it('keeps the publisher-context navigation landmark even without a visible heading', () => {
-      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
-
-      renderNavigation();
-
-      const publisherContext = screen.getByRole('navigation', { name: PUBLISHER_CONTEXT_GROUP });
-      const admin = screen.getByRole('navigation', { name: ADMIN_GROUP });
-
-      // Two distinct landmarks, neither nested inside the other.
-      expect(publisherContext).not.toBe(admin);
-      expect(publisherContext.contains(admin)).toBe(false);
-      expect(admin.contains(publisherContext)).toBe(false);
-    });
-
-    // APP-SHELL-SU-02 acceptance 3: Staff -> Admin, visibly and accessibly.
-    it('names the authoritative superuser group Admin, with no trace of Staff', () => {
-      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
-
-      renderNavigation();
-
-      expect(screen.getByRole('navigation', { name: ADMIN_GROUP })).toBeInTheDocument();
-      expect(screen.getByRole('heading', { name: ADMIN_GROUP })).toBeInTheDocument();
-
-      expect(screen.queryByRole('navigation', { name: FORMER_STAFF_GROUP })).not.toBeInTheDocument();
-      expect(screen.queryByRole('heading', { name: FORMER_STAFF_GROUP })).not.toBeInTheDocument();
-      expect(screen.queryByText(FORMER_STAFF_GROUP)).not.toBeInTheDocument();
-    });
-
-    it('keeps every publisher-context destination, and only those, in the publisher-context group', () => {
-      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
-
-      renderNavigation();
+      renderNavigation('publisher');
 
       const publisherContext = within(screen.getByRole('navigation', { name: PUBLISHER_CONTEXT_GROUP }));
 
@@ -208,27 +123,59 @@ describe('Navigation', () => {
       }
 
       expect(publisherContext.getAllByRole('link')).toHaveLength(PUBLISHER_CONTEXT_DESTINATIONS.length);
-      expect(publisherContext.queryByText('publishers')).not.toBeInTheDocument();
     });
 
-    // APP-SHELL-SU-02 acceptance 3/5: exactly the existing SUPERUSER_PAGES route.
-    it('keeps the admin group to exactly the Publishers destination', () => {
+    it('exposes no Admin destinations at all, not even to an authoritative superuser', () => {
       useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('publisher');
 
-      const admin = within(screen.getByRole('navigation', { name: ADMIN_GROUP }));
-      const links = admin.getAllByRole('link');
+      expect(screen.queryByRole('navigation', { name: ADMIN_GROUP })).not.toBeInTheDocument();
+      expect(screen.queryByText('publishers')).not.toBeInTheDocument();
+      expect(screen.queryByText('adminHome')).not.toBeInTheDocument();
+    });
 
-      expect(links).toHaveLength(1);
-      expect(links[0]).toHaveAccessibleName('publishers');
-      expect(links[0]).toHaveAttribute('href', '/admin/publishers');
+    it('gives an authoritative ordinary publisher user the existing active-publisher selector', () => {
+      useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
+
+      renderNavigation('publisher');
+
+      expect(screen.getByTestId('change-active-publisher')).toBeInTheDocument();
+      expect(screen.queryByTestId('publisher-operating-context')).not.toBeInTheDocument();
+    });
+
+    // Acceptance 15: a superuser gets the persistent operating-context treatment
+    // instead of a picker - they never drift into a publisher.
+    it('gives an authoritative superuser the operating-context treatment instead of the selector', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation('publisher');
+
+      expect(screen.getByTestId('publisher-operating-context')).toBeInTheDocument();
+      expect(screen.queryByTestId('change-active-publisher')).not.toBeInTheDocument();
+    });
+
+    it('keeps the ordinary selector seam while a claimed superuser identity is not yet authoritative', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: false });
+
+      renderNavigation('publisher');
+
+      expect(screen.getByTestId('change-active-publisher')).toBeInTheDocument();
+      expect(screen.queryByTestId('publisher-operating-context')).not.toBeInTheDocument();
+    });
+
+    it('points the shell home action at the publisher workspace', () => {
+      useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
+
+      renderNavigation('publisher');
+
+      expect(screen.getByRole('link', { name: /Thoth Open Metadata logo/i })).toHaveAttribute('href', '/dashboard');
     });
 
     it('renders the publisher-context switcher inside the publisher-context group', () => {
       useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('publisher');
 
       const selector = screen.getByTestId('change-active-publisher');
       const group = screen.getByRole('navigation', { name: PUBLISHER_CONTEXT_GROUP }).parentElement;
@@ -237,48 +184,114 @@ describe('Navigation', () => {
       expect(group?.contains(selector)).toBe(true);
     });
 
-    // APP-SHELL-SU-02 acceptance 4: gating is `isAuthoritative && user.isSuperuser`,
-    // unchanged by the rename.
-    it('shows no admin group to a claimed superuser whose identity is not yet authoritative', () => {
-      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: false });
+    // APP-SHELL-SU-02 acceptance 1/2, preserved: the grouping survives as a
+    // landmark, the visible heading does not.
+    it('renders no visible Publisher context heading while keeping the landmark', () => {
+      useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('publisher');
 
       expect(screen.getByRole('navigation', { name: PUBLISHER_CONTEXT_GROUP })).toBeInTheDocument();
-      expect(screen.queryByRole('navigation', { name: ADMIN_GROUP })).not.toBeInTheDocument();
-      expect(screen.queryByText(ADMIN_GROUP)).not.toBeInTheDocument();
+      expect(screen.queryByRole('heading', { name: PUBLISHER_CONTEXT_GROUP })).not.toBeInTheDocument();
+      expect(screen.queryByText(PUBLISHER_CONTEXT_GROUP)).not.toBeInTheDocument();
+    });
+  });
+
+  // APP-ADM-01 acceptance 7: `/admin` is a genuine global Admin namespace with
+  // its own shell, not the publisher application wearing a prefix.
+  describe('Admin shell', () => {
+    it('exposes exactly the Admin destinations', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation('admin');
+
+      const admin = within(screen.getByRole('navigation', { name: ADMIN_GROUP }));
+
+      for (const [name, href] of ADMIN_DESTINATIONS) {
+        expect(admin.getByRole('link', { name })).toHaveAttribute('href', href);
+      }
+
+      expect(admin.getAllByRole('link')).toHaveLength(ADMIN_DESTINATIONS.length);
+    });
+
+    it('exposes no publisher-workspace destinations', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation('admin');
+
+      expect(screen.queryByRole('navigation', { name: PUBLISHER_CONTEXT_GROUP })).not.toBeInTheDocument();
+
+      for (const [name] of PUBLISHER_CONTEXT_DESTINATIONS) {
+        expect(screen.queryByText(name)).not.toBeInTheDocument();
+      }
+    });
+
+    it('exposes no active-publisher selector and no operating-context treatment', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation('admin');
+
+      expect(screen.queryByTestId('change-active-publisher')).not.toBeInTheDocument();
+      expect(screen.queryByTestId('publisher-operating-context')).not.toBeInTheDocument();
+    });
+
+    it('keeps the shell home action inside Admin', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation('admin');
+
+      expect(screen.getByRole('link', { name: /Thoth Open Metadata logo/i })).toHaveAttribute('href', '/admin');
+    });
+
+    // APP-ADM-01 explicitly defers Admin operational surfaces to a later stage.
+    it('invents no operational Admin destinations', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation('admin');
+
+      for (const absent of ['activity', 'attention', 'reports']) {
+        expect(screen.queryByText(absent)).not.toBeInTheDocument();
+      }
+    });
+
+    it('names the Admin group Admin, with no trace of Staff', () => {
+      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+
+      renderNavigation('admin');
+
+      expect(screen.getByRole('heading', { name: ADMIN_GROUP })).toBeInTheDocument();
+      expect(screen.queryByRole('navigation', { name: FORMER_STAFF_GROUP })).not.toBeInTheDocument();
       expect(screen.queryByText(FORMER_STAFF_GROUP)).not.toBeInTheDocument();
     });
   });
 
   // APP-SHELL-SU-01 moved Add Publisher out of the shell to the Publishers
-  // surface; APP-SHELL-SU-02 changes where it lives on that surface, not the
+  // surface; APP-SHELL-SU-02 changed where it lives on that surface, not the
   // fact that the shell no longer mounts it.
   describe('Add Publisher is no longer an application-shell action', () => {
     it.each([
-      ['an authoritative superuser', true, true],
-      ['an authoritative ordinary publisher', false, true],
-      ['a not-yet-authoritative claimed superuser', true, false],
-    ])('does not mount Add Publisher for %s', (_case, isSuperuser, isAuthoritative) => {
+      ['an authoritative superuser in Admin', true, true, 'admin'],
+      ['an authoritative superuser in the workspace', true, true, 'publisher'],
+      ['an authoritative ordinary publisher', false, true, 'publisher'],
+      ['a not-yet-authoritative claimed superuser', true, false, 'publisher'],
+    ] as const)('does not mount Add Publisher for %s', (_case, isSuperuser, isAuthoritative, mode) => {
       useUserMock.mockReturnValue({ user: createUser(isSuperuser), isAuthoritative });
 
-      renderNavigation();
+      renderNavigation(mode);
 
       expect(screen.queryByText('actions.addPublisher')).not.toBeInTheDocument();
       expect(screen.queryByRole('button', { name: 'actions.addPublisher' })).not.toBeInTheDocument();
     });
   });
 
-  // The compact shell carries the two groups without leaking any section label,
-  // which APP-SHELL-SU-02 must preserve.
+  // The compact shell carries its group without leaking any section label.
   describe('collapsed navigation', () => {
     it('renders no section label text and no section headings', () => {
       collapse();
       useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('admin');
 
-      expect(screen.queryByText(PUBLISHER_CONTEXT_GROUP)).not.toBeInTheDocument();
       expect(screen.queryByText(ADMIN_GROUP)).not.toBeInTheDocument();
       expect(screen.queryByText(FORMER_STAFF_GROUP)).not.toBeInTheDocument();
       expect(screen.queryAllByRole('heading')).toHaveLength(0);
@@ -286,64 +299,45 @@ describe('Navigation', () => {
 
     it('renders no destination label text, leaving the icon-only entries', () => {
       collapse();
-      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+      useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('publisher');
 
       for (const [name] of PUBLISHER_CONTEXT_DESTINATIONS) {
         expect(screen.queryByText(name)).not.toBeInTheDocument();
       }
-      expect(screen.queryByText('publishers')).not.toBeInTheDocument();
     });
 
-    it('still exposes both named groups and the admin Publishers destination to an authoritative superuser', () => {
+    it('still exposes the Admin destinations to an authoritative superuser', () => {
       collapse();
       useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
 
-      renderNavigation();
-
-      expect(screen.getByRole('navigation', { name: PUBLISHER_CONTEXT_GROUP })).toBeInTheDocument();
+      renderNavigation('admin');
 
       const admin = within(screen.getByRole('navigation', { name: ADMIN_GROUP }));
-      const links = admin.getAllByRole('link');
 
-      expect(links).toHaveLength(1);
-      expect(links[0]).toHaveAttribute('href', '/admin/publishers');
-    });
-
-    it('still withholds the admin group from an authoritative ordinary publisher', () => {
-      collapse();
-      useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
-
-      renderNavigation();
-
-      expect(screen.queryByRole('navigation', { name: ADMIN_GROUP })).not.toBeInTheDocument();
+      expect(admin.getAllByRole('link')).toHaveLength(ADMIN_DESTINATIONS.length);
     });
 
     it('keeps the publisher-context switcher mounted and asks it to hide itself', () => {
       collapse();
       useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('publisher');
 
       expect(screen.getByTestId('change-active-publisher')).toHaveAttribute('data-hidden', 'true');
     });
   });
+
   // APP-NAV-SPACING-01: the expanded shell needs a coarser rhythm between its
   // major regions than it does inside a single group. jsdom measures no pixels,
   // so the approved contract is pinned structurally, on the exact containers
-  // that carry it: the shell stack that separates logo/header, publisher
-  // context and Admin, and each NavigationGroup root that separates a heading
-  // or child control from its bordered destination list. Destination-row
-  // spacing is asserted unchanged in the same block so the coarser rhythm can
-  // never leak into the lists themselves.
+  // that carry it. APP-ADM-01 must not disturb that rhythm in either shell.
   describe('navigation spacing rhythm (APP-NAV-SPACING-01)', () => {
     const MAJOR_RHYTHM = 'gap-4';
     const GROUP_RHYTHM = 'gap-3';
     const FORMER_RHYTHM = 'gap-2';
 
-    // The publisher-context group root is the nav landmark's parent; the shell
-    // stack that carries every major region is that root's own parent.
     const getGroupRoot = (label: string) => {
       const root = screen.getByRole('navigation', { name: label }).parentElement;
 
@@ -352,8 +346,8 @@ describe('Navigation', () => {
       return root as HTMLElement;
     };
 
-    const getShellStack = () => {
-      const stack = getGroupRoot(PUBLISHER_CONTEXT_GROUP).parentElement;
+    const getShellStack = (label: string) => {
+      const stack = getGroupRoot(label).parentElement;
 
       expect(stack).not.toBeNull();
 
@@ -363,9 +357,9 @@ describe('Navigation', () => {
     it('separates the major shell regions with the approved major rhythm', () => {
       useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('publisher');
 
-      const shellStack = getShellStack();
+      const shellStack = getShellStack(PUBLISHER_CONTEXT_GROUP);
 
       expect(shellStack).toHaveClass('flex', 'flex-col', MAJOR_RHYTHM);
       expect(shellStack).not.toHaveClass(FORMER_RHYTHM);
@@ -374,7 +368,7 @@ describe('Navigation', () => {
     it('separates the publisher switcher from its destination list with the approved group rhythm', () => {
       useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('publisher');
 
       const publisherContext = getGroupRoot(PUBLISHER_CONTEXT_GROUP);
 
@@ -385,18 +379,16 @@ describe('Navigation', () => {
     it('separates the Admin heading from its destination list with the approved group rhythm', () => {
       useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('admin');
 
-      const admin = getGroupRoot(ADMIN_GROUP);
-
-      expect(admin).toHaveClass('flex', 'flex-col', GROUP_RHYTHM);
-      expect(admin).not.toHaveClass(FORMER_RHYTHM);
+      expect(getGroupRoot(ADMIN_GROUP)).toHaveClass('flex', 'flex-col', GROUP_RHYTHM);
+      expect(getShellStack(ADMIN_GROUP)).toHaveClass('flex', 'flex-col', MAJOR_RHYTHM);
     });
 
     it('leaves expanded destination-row padding and icon/text spacing untouched', () => {
-      useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
+      useUserMock.mockReturnValue({ user: createUser(false), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('publisher');
 
       const dashboard = within(screen.getByRole('navigation', { name: PUBLISHER_CONTEXT_GROUP })).getByRole('link', {
         name: 'dashboard',
@@ -410,15 +402,20 @@ describe('Navigation', () => {
       collapse();
       useUserMock.mockReturnValue({ user: createUser(true), isAuthoritative: true });
 
-      renderNavigation();
+      renderNavigation('admin');
 
-      expect(getShellStack()).toHaveClass(MAJOR_RHYTHM);
+      expect(getShellStack(ADMIN_GROUP)).toHaveClass(MAJOR_RHYTHM);
       expect(getGroupRoot(ADMIN_GROUP)).toHaveClass(GROUP_RHYTHM);
 
-      const publishers = within(screen.getByRole('navigation', { name: ADMIN_GROUP })).getByRole('link');
+      // Collapsed entries are icon-only by design, so they carry no accessible
+      // name; the row is identified by the destination it points at instead.
+      const publishers = within(screen.getByRole('navigation', { name: ADMIN_GROUP }))
+        .getAllByRole('link')
+        .find((link) => link.getAttribute('href') === '/admin/publishers');
 
+      expect(publishers).toBeDefined();
       expect(publishers).toHaveClass('items-center', FORMER_RHYTHM);
-      expect(publishers.closest('li')).toHaveClass('py-2', 'px-1.5');
+      expect(publishers?.closest('li')).toHaveClass('py-2', 'px-1.5');
     });
   });
 });

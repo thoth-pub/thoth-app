@@ -28,7 +28,7 @@ const mocks = vi.hoisted(() => {
     },
     loading: false,
     isAuthoritative: true,
-    activePublisher: { id: 'pub-1', name: 'Publisher A' },
+    activePublisher: { id: 'pub-1', name: 'Publisher A' } as { id: string; name: string } | null,
     changeActivePublisher: vi.fn(),
     resetLinkedPublishers: vi.fn(),
     setLinkedPublishers: vi.fn(),
@@ -84,6 +84,7 @@ describe('useChangeActivePublisher', () => {
     mocks.activePublisher = { id: 'pub-1', name: 'Publisher A' };
     mocks.loading = false;
     mocks.isAuthoritative = true;
+    mocks.user.isSuperuser = false;
     mocks.pathname = '/dashboard';
     mocks.user.linkedPublishers = [
       mocks.createPublisher(),
@@ -400,7 +401,7 @@ describe('useChangeActivePublisher', () => {
     mocks.changeActivePublisher.mockClear();
     mocks.queryClient.resetQueries.mockClear();
     mocks.queryClient.removeQueries.mockClear();
-    mocks.pathname = '/admin/works/550e8400-e29b-41d4-a716-446655440000';
+    mocks.pathname = '/works/550e8400-e29b-41d4-a716-446655440000';
 
     const updatedImprints = [{ id: 'imprint-1', name: 'Updated Imprint' }];
     mocks.user.linkedPublishers = [
@@ -440,7 +441,7 @@ describe('useChangeActivePublisher', () => {
   });
 
   it('useChangeActivePublisher_preservesSwitchSideEffectsWhenCurrentAccessRevoked', async () => {
-    mocks.pathname = '/admin/works/550e8400-e29b-41d4-a716-446655440000';
+    mocks.pathname = '/works/550e8400-e29b-41d4-a716-446655440000';
 
     const { rerender } = renderHook(() => useChangeActivePublisher({}));
 
@@ -472,7 +473,7 @@ describe('useChangeActivePublisher', () => {
       'pub-2',
     );
     expect(mocks.queryClient.removeQueries).toHaveBeenCalledTimes(1);
-    expect(mocks.router.push).toHaveBeenCalledWith('/admin/dashboard');
+    expect(mocks.router.push).toHaveBeenCalledWith('/dashboard');
   });
 
   it('useChangeActivePublisher_selectsActivePublisherWhenAccessReturnsAfterEmpty', async () => {
@@ -534,7 +535,7 @@ describe('useChangeActivePublisher', () => {
   });
 
   it('useChangeActivePublisher_clearsActiveWorkQueryOnFullRevocation', async () => {
-    mocks.pathname = '/admin/works/550e8400-e29b-41d4-a716-446655440000';
+    mocks.pathname = '/works/550e8400-e29b-41d4-a716-446655440000';
 
     const { rerender } = renderHook(() => useChangeActivePublisher({}));
 
@@ -566,7 +567,7 @@ describe('useChangeActivePublisher', () => {
     expect(inactiveQueryFilters.type).toBe('inactive');
     expect(inactiveQueryFilters.predicate({ queryKey: [QueryKeys.work, 'work-id'] })).toBe(true);
     expect(inactiveQueryFilters.predicate({ queryKey: [QueryKeys.userInfo, 'token'] })).toBe(false);
-    expect(mocks.router.push).toHaveBeenCalledWith('/admin/dashboard');
+    expect(mocks.router.push).toHaveBeenCalledWith('/dashboard');
   });
 
   it('useChangeActivePublisher_doesNotResetPublishersDuringUserRefetchEmptyState', async () => {
@@ -604,7 +605,7 @@ describe('useChangeActivePublisher', () => {
     mocks.queryClient.resetQueries.mockClear();
     mocks.queryClient.removeQueries.mockClear();
     mocks.router.push.mockClear();
-    mocks.pathname = '/admin/works/550e8400-e29b-41d4-a716-446655440000';
+    mocks.pathname = '/works/550e8400-e29b-41d4-a716-446655440000';
     mocks.isAuthoritative = false;
     mocks.user.linkedPublishers = [];
 
@@ -715,7 +716,7 @@ describe('useChangeActivePublisher', () => {
         await result.current.updateActivePublisher('pub-2');
       });
 
-      expect(mocks.router.push).toHaveBeenCalledWith('/admin/dashboard');
+      expect(mocks.router.push).toHaveBeenCalledWith('/dashboard');
     });
 
     it('should skip redirect when skipRedirect is true', async () => {
@@ -745,4 +746,55 @@ describe('useChangeActivePublisher', () => {
       expect(mocks.changeActivePublisher).not.toHaveBeenCalled();
     });
   });
+
+  // APP-ADM-01 (ADR-0010) acceptance 12, 18, 20: the ordinary active-publisher
+  // lifecycle below belongs to ordinary publisher users only. An authoritative
+  // superuser operates a separate staff publisher context
+  // (`usePublisherOperatingContext`), so this hook must not auto-select the
+  // first publisher for them, must not restore the ordinary persisted key as if
+  // it were staff context, and must not persist anything on their behalf.
+  describe('superuser publisher operating context is not the ordinary lifecycle', () => {
+    it('does not auto-select the first publisher for an authoritative superuser', async () => {
+      mocks.user.isSuperuser = true;
+      mocks.activePublisher = null;
+      mocks.persistentStorage.get.mockResolvedValue(null);
+
+      renderHook(() => useChangeActivePublisher({}));
+
+      await waitFor(() => {
+        expect(mocks.persistentStorage.get).not.toHaveBeenCalled();
+      });
+
+      expect(mocks.changeActivePublisher).not.toHaveBeenCalled();
+      expect(mocks.persistentStorage.set).not.toHaveBeenCalled();
+    });
+
+    it('does not restore the ordinary persisted publisher as staff context for a superuser', async () => {
+      mocks.user.isSuperuser = true;
+      mocks.activePublisher = null;
+      mocks.persistentStorage.get.mockResolvedValue('pub-2');
+
+      renderHook(() => useChangeActivePublisher({}));
+
+      await waitFor(() => {
+        expect(mocks.changeActivePublisher).not.toHaveBeenCalled();
+      });
+
+      expect(mocks.persistentStorage.set).not.toHaveBeenCalled();
+    });
+
+    it('still initialises an authoritative ordinary publisher user from the persisted key', async () => {
+      mocks.activePublisher = null;
+      mocks.persistentStorage.get.mockResolvedValue('pub-2');
+
+      renderHook(() => useChangeActivePublisher({}));
+
+      await waitFor(() => {
+        expect(mocks.changeActivePublisher).toHaveBeenCalledWith(expect.objectContaining({ id: 'pub-2' }));
+      });
+
+      expect(mocks.persistentStorage.set).toHaveBeenCalledWith('activePublisherIdKey', 'pub-2');
+    });
+  });
+
 });

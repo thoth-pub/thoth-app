@@ -1,5 +1,5 @@
-import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
 
 import { ROUTES, WORK_COPY_VARIANTS } from '@/src/shared/constants';
 import { authOptions } from '@/src/shared/lib/auth/auth';

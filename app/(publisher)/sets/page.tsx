@@ -1,6 +1,6 @@
-import { Suspense } from 'react';
-import { getServerSession } from 'next-auth';
 import { redirect } from 'next/navigation';
+import { getServerSession } from 'next-auth';
+import { Suspense } from 'react';
 
 import { ROUTES } from '@/src/shared/constants';
 import { authOptions } from '@/src/shared/lib/auth/auth';

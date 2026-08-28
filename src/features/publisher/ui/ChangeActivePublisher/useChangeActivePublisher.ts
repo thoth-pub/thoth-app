@@ -19,7 +19,10 @@ type UseChangeActivePublisherProps = {
 
 const { activePublisherIdKey } = appConfig.persistentStorage;
 
-const publisherScopedQueryKeys: ReadonlySet<string> = new Set([
+// APP-ADM-01: exported so the superuser operating-context lifecycle applies the
+// exact same publisher-scoped cache separation rather than a second, drifting
+// copy of it. The membership itself is unchanged.
+export const publisherScopedQueryKeys: ReadonlySet<string> = new Set([
   QueryKeys.books,
   QueryKeys.booksCount,
   QueryKeys.forthcomingBooksCount,
@@ -50,6 +53,25 @@ const publisherScopedQueryKeys: ReadonlySet<string> = new Set([
   QueryKeys.publisherImprints,
 ]);
 
+// Observed queries cannot be removed, so reset them before purging inactive
+// cache entries. Shared verbatim with the staff operating-context lifecycle.
+export const clearPublisherScopedQueries = (queryClient: {
+  resetQueries: (options: { type: 'active'; predicate: (query: { queryKey: readonly unknown[] }) => boolean }) => unknown;
+  removeQueries: (options: {
+    type: 'inactive';
+    predicate: (query: { queryKey: readonly unknown[] }) => boolean;
+  }) => unknown;
+}) => {
+  const predicate = (query: { queryKey: readonly unknown[] }) => {
+    const rootQueryKey = query.queryKey[0];
+
+    return typeof rootQueryKey === 'string' && publisherScopedQueryKeys.has(rootQueryKey);
+  };
+
+  void queryClient.resetQueries({ type: 'active', predicate });
+  queryClient.removeQueries({ type: 'inactive', predicate });
+};
+
 export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) => {
   const { isHidden = false } = props;
 
@@ -61,6 +83,18 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
   const { activePublisher, changeActivePublisher, resetLinkedPublishers, setLinkedPublishers } =
     usePublisherStateMachine();
+
+  // APP-ADM-01 (ADR-0010): everything below is the ORDINARY publisher user's
+  // active-publisher lifecycle - persisted selection, first-publisher fallback,
+  // and re-selection when access changes. An authoritative superuser operates a
+  // separate, deliberately-entered staff publisher context instead
+  // (`usePublisherOperatingContext`), so this lifecycle must not run for them:
+  // no auto-selection of the first publisher, no restoring `activePublisherIdKey`
+  // as if it were staff context, and no persistence on their behalf.
+  //
+  // The guard requires authoritative identity, so a pending or failed `me` query
+  // is never treated as an ordinary `isSuperuser: false` user.
+  const isStaffOperator = isAuthoritative && user.isSuperuser;
 
   const authorizedPublishers = user.linkedPublishers
     .map((publisher) => ({
@@ -80,17 +114,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
   const publishersOptions = convertEntityToSelectFieldOptions(authorizedPublishers, 'name');
 
-  const clearPublisherScopedQueries = () => {
-    const predicate = (query: { queryKey: readonly unknown[] }) => {
-      const rootQueryKey = query.queryKey[0];
-
-      return typeof rootQueryKey === 'string' && publisherScopedQueryKeys.has(rootQueryKey);
-    };
-
-    // Observed queries cannot be removed, so reset them before purging inactive cache entries.
-    void queryClient.resetQueries({ type: 'active', predicate });
-    queryClient.removeQueries({ type: 'inactive', predicate });
-  };
+  const clearScopedQueries = () => clearPublisherScopedQueries(queryClient);
 
   const updateActivePublisher = async (publisherId: PublisherId, skipRedirect = false) => {
     const publisher = authorizedPublishersRef.current.find(
@@ -101,7 +125,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
 
     activePublisherTransitionVersion.current += 1;
     changeActivePublisher(publisher);
-    clearPublisherScopedQueries();
+    clearScopedQueries();
 
     try {
       await persistentStorage.set(activePublisherIdKey, publisher.id);
@@ -157,6 +181,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   // user and store state without re-firing on them.
   const initializeActivePublisher = useEffectEvent(() => {
     if (loading || !isAuthoritative || hasInitialized.current) return;
+    if (isStaffOperator) return;
     if (user.linkedPublishers.length === 0 && !activePublisher) return;
 
     hasInitialized.current = true;
@@ -175,6 +200,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
   const syncPublishers = useEffectEvent(() => {
     if (!hasInitialized.current) return;
     if (loading || !isAuthoritative) return;
+    if (isStaffOperator) return;
 
     if (publisherSyncSnapshot === prevSyncSnapshot.current) return;
     prevSyncSnapshot.current = publisherSyncSnapshot;
@@ -182,7 +208,7 @@ export const useChangeActivePublisher = (props: UseChangeActivePublisherProps) =
     if (authorizedPublishers.length === 0) {
       activePublisherTransitionVersion.current += 1;
       resetLinkedPublishers();
-      clearPublisherScopedQueries();
+      clearScopedQueries();
       void persistentStorage.set(activePublisherIdKey, null);
 
       if (isRouteIncludesUUID(pathname)) router.push(ROUTES.DASHBOARD);

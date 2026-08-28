@@ -44,5 +44,6 @@
   "editorOutcomeSaved": "Configuración del servicio guardada",
   "editorOutcomeStale": "No guardada: esta configuración cambió desde que se cargó. La lista se ha recargado; inicie una nueva edición para aplicar sus cambios.",
   "editorOutcomeJobCreationDisabled": "No guardada: la creación automática de trabajos de distribución está deshabilitada, por lo que la activación solicitada se revirtió y no se creó ningún trabajo.",
-  "editorOutcomeFailed": "La configuración del servicio no se guardó, o no se pudo confirmar el resultado. La lista se ha recargado desde la API; inicie una nueva edición para volver a intentarlo."
+  "editorOutcomeFailed": "La configuración del servicio no se guardó, o no se pudo confirmar el resultado. La lista se ha recargado desde la API; inicie una nueva edición para volver a intentarlo.",
+  "openWorkspaceAction": "Abrir el espacio de trabajo"
 }

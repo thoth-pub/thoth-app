@@ -46,6 +46,21 @@ vi.mock('@/src/entities/publisher/ui/AddNewPublisher/useAddNewPublisher', () => 
   useAddNewPublisher: () => useAddNewPublisherMock(),
 }));
 
+// APP-ADM-01: the deliberate staff publisher-context entry seam. The widget may
+// only ask this hook to enter a context; validation against authoritative
+// `me.publisherContexts`, cache separation and navigation all belong to the hook.
+const operatingContext = vi.hoisted(() => ({
+  isStaffOperator: true,
+  staffPublisher: null,
+  enterPublisherContext: vi.fn().mockResolvedValue('entered'),
+  restoreStaffContext: vi.fn(),
+  returnToAdmin: vi.fn(),
+  clearStaffContext: vi.fn(),
+}));
+vi.mock('@/src/features/publisher/ui/PublisherOperatingContext/usePublisherOperatingContext', () => ({
+  default: () => operatingContext,
+}));
+
 import PublisherAdministration from './PublisherAdministration';
 
 // Backend-provided display labels; DOAB deliberately has metadata although no
@@ -279,12 +294,17 @@ describe('PublisherAdministration', () => {
 
     const table = screen.getByRole('table');
 
-    // One control per row and nothing else: no row checkboxes, no select-all,
-    // no apply-to-many action.
-    expect(within(table).getAllByRole('button')).toHaveLength(2);
+    // Exactly the two explicit per-row controls and nothing else: no row
+    // checkboxes, no select-all, no apply-to-many action. APP-ADM-01 adds the
+    // separate Open workspace entry alongside Edit, so the row now carries two
+    // named single-row actions - still one control per purpose, still nothing
+    // that operates on more than the row it sits in.
+    expect(within(table).getAllByRole('button')).toHaveLength(4);
     expect(within(table).queryAllByRole('checkbox')).toHaveLength(0);
     expect(within(table).getByRole('button', { name: 'editAction: Publisher One' })).toBeInTheDocument();
     expect(within(table).getByRole('button', { name: 'editAction: Publisher Two' })).toBeInTheDocument();
+    expect(within(table).getByRole('button', { name: 'openWorkspaceAction: Publisher One' })).toBeInTheDocument();
+    expect(within(table).getByRole('button', { name: 'openWorkspaceAction: Publisher Two' })).toBeInTheDocument();
     expect(within(table).getByText('actionsColumn')).toBeInTheDocument();
   });
 
@@ -511,7 +531,12 @@ describe('PublisherAdministration', () => {
       // here regardless of that.
       const { container } = renderWidget();
 
-      const editButtons = Array.from(container.querySelectorAll('table button'));
+      // Scoped to the Edit controls specifically: the separate APP-ADM-01
+      // workspace-entry action is deliberately independent of the edit session,
+      // so it is neither counted nor required to be disabled here.
+      const editButtons = Array.from(container.querySelectorAll('table button')).filter((button) =>
+        (button.getAttribute('aria-label') ?? '').startsWith('editAction:'),
+      );
 
       expect(editButtons).toHaveLength(2);
       editButtons.forEach((button) => expect(button).toBeDisabled());
@@ -768,4 +793,83 @@ describe('PublisherAdministration', () => {
       expect(startEdit).toHaveBeenCalledTimes(1);
     });
   });
+
+  // APP-ADM-01 (ADR-0010) acceptance 13, 22, 23: entering a publisher workspace
+  // from Admin is a separate, explicit affordance - never a side effect of the
+  // existing service-configuration Edit, and never a backend mutation.
+  describe('staff publisher-context entry (APP-ADM-01)', () => {
+    beforeEach(() => {
+      operatingContext.isStaffOperator = true;
+      operatingContext.enterPublisherContext.mockClear();
+      operatingContext.enterPublisherContext.mockResolvedValue('entered');
+    });
+
+    it('offers Open workspace as a distinct per-row action alongside Edit', () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          summaries: [createSummary(), createSummary({ publisherId: 'pub-2', publisherName: 'Publisher Two' })],
+        }),
+      );
+
+      renderWidget();
+
+      for (const name of ['Publisher One', 'Publisher Two']) {
+        expect(screen.getByRole('button', { name: `openWorkspaceAction: ${name}` })).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: `editAction: ${name}` })).toBeInTheDocument();
+      }
+    });
+
+    it('enters the exact row publisher, not a neighbouring row', async () => {
+      usePublisherAdministrationMock.mockReturnValue(
+        createHookState({
+          summaries: [createSummary(), createSummary({ publisherId: 'pub-2', publisherName: 'Publisher Two' })],
+        }),
+      );
+
+      renderWidget();
+
+      await userEvent.click(screen.getByRole('button', { name: 'openWorkspaceAction: Publisher Two' }));
+
+      expect(operatingContext.enterPublisherContext).toHaveBeenCalledTimes(1);
+      expect(operatingContext.enterPublisherContext).toHaveBeenCalledWith('pub-2');
+    });
+
+    it('does not start an edit session or touch the active-publisher store directly', async () => {
+      const startEdit = vi.fn();
+      usePublisherAdministrationMock.mockReturnValue(createHookState({ startEdit }));
+
+      renderWidget();
+
+      await userEvent.click(screen.getByRole('button', { name: 'openWorkspaceAction: Publisher One' }));
+
+      expect(startEdit).not.toHaveBeenCalled();
+      expect(stateMachineSpy).not.toHaveBeenCalled();
+    });
+
+    // Acceptance 22: Edit stays exactly what it was - a bounded edit of that
+    // row's service configuration, with no publisher-context effect at all.
+    it('keeps Edit completely independent of staff publisher context', async () => {
+      const startEdit = vi.fn();
+      usePublisherAdministrationMock.mockReturnValue(createHookState({ startEdit }));
+
+      renderWidget();
+
+      await userEvent.click(screen.getByRole('button', { name: 'editAction: Publisher One' }));
+
+      expect(startEdit).toHaveBeenCalledTimes(1);
+      expect(operatingContext.enterPublisherContext).not.toHaveBeenCalled();
+    });
+
+    it('withholds the entry action when the viewer is not an authoritative staff operator', () => {
+      operatingContext.isStaffOperator = false;
+      usePublisherAdministrationMock.mockReturnValue(createHookState());
+
+      renderWidget();
+
+      expect(screen.queryByRole('button', { name: 'openWorkspaceAction: Publisher One' })).not.toBeInTheDocument();
+      // The unrelated edit affordance is untouched by that gating.
+      expect(screen.getByRole('button', { name: 'editAction: Publisher One' })).toBeInTheDocument();
+    });
+  });
+
 });
