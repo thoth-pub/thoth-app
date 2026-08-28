@@ -10,5 +10,13 @@
   "publishers": "Verlage",
   "publisherContext": "Verlagskontext",
   "admin": "Verwaltung",
-  "currentPublisher": "Aktueller Verlag"
+  "currentPublisher": "Aktueller Verlag",
+  "accessDenied": "Zugriff verweigert",
+  "accessDeniedDescription": "Sie haben keine Berechtigung, auf diese Seite zuzugreifen.",
+  "goToDashboard": "Zum Dashboard",
+  "identityUnavailable": "Ihre Kontodaten sind derzeit nicht verfügbar. Bitte versuchen Sie es erneut.",
+  "staffPublisherContext": "Arbeiten in",
+  "returnToAdmin": "Zurück zur Verwaltung",
+  "adminHome": "Verwaltung – Startseite",
+  "adminHomeIntro": "Verlage über das Verlagsverzeichnis verwalten."
 }

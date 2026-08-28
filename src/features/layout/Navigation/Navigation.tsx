@@ -10,7 +10,7 @@ import Link from 'next/link';
 import { Activity, type ReactNode, useState } from 'react';
 
 import { useUser } from '@/src/entities/user';
-import { PAGES, ROUTES, SUPERUSER_PAGES } from '@/src/shared/constants';
+import { ADMIN_PAGES, PAGES, ROUTES } from '@/src/shared/constants';
 import useTypedTranslation from '@/src/shared/hooks/useTypedTranslation';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { useUIContext } from '@/src/shared/store';
@@ -19,6 +19,7 @@ import { IconButton, Paper, TranslatedContent, Typography } from '@/src/shared/u
 import { SignOutButton } from '../../auth';
 import ContentLanguage from '../../i18n/ContentLanguage';
 import { ChangeActivePublisher } from '../../publisher';
+import PublisherOperatingContext from '../../publisher/ui/PublisherOperatingContext/PublisherOperatingContext';
 
 type NavigationGroupProps = {
   label: string;
@@ -77,7 +78,19 @@ const NavigationGroup = ({ label, hasVisibleHeading = true, pages, isExpanded, c
   </div>
 );
 
-const Navigation = () => {
+type NavigationProps = {
+  mode?: 'publisher' | 'admin';
+};
+
+// APP-ADM-01 (ADR-0010): one shell component, two explicit application modes.
+//
+// ADR-0010 separates the global Admin console from the ordinary publisher
+// workspace. Rather than duplicate the shell, `mode` selects which application
+// the user is in: Admin shows only Admin destinations and never an
+// active-publisher control; the publisher workspace shows only publisher
+// destinations and never an Admin one. There is no combined navigation, and the
+// publisher application is not duplicated under `/admin/publishers/:id/...`.
+const Navigation = ({ mode = 'publisher' }: NavigationProps) => {
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
 
   const { user, isAuthoritative } = useUser();
@@ -88,16 +101,18 @@ const Navigation = () => {
     setIsUserMenuOpen((prev) => !prev);
   };
 
-  // APP-02A: admin entries appear only once authoritative user state confirms a
-  // superuser, so an ordinary publisher - or a not-yet-loaded identity - never
-  // sees them, not even as a flash. This gating is presentation only; the
-  // backend stays the authorization boundary for everything the entries reach.
+  const isAdminMode = mode === 'admin';
+
+  // Which publisher treatment the workspace shows. An authoritative superuser
+  // operates a deliberately-entered publisher context and therefore gets the
+  // persistent indicator and Return to Admin action; everyone else - including a
+  // claimed superuser whose identity is not yet authoritative - keeps the
+  // existing active-publisher selector and its unchanged semantics.
   //
-  // APP-SHELL-SU-01 keeps that exact condition and only stops concatenating the
-  // two collections, so these destinations are rendered as their own group
-  // rather than as a tail of the publisher-context list. APP-SHELL-SU-02 renames
-  // the group from Staff to Admin and changes this condition not at all.
-  const canSeeAdminNavigation = isAuthoritative && user.isSuperuser;
+  // Presentation only: the backend remains the authorization boundary, and the
+  // selector's own hook independently refuses to initialise an ordinary
+  // publisher selection for an authoritative superuser.
+  const isStaffOperator = isAuthoritative && user.isSuperuser;
 
   return (
     <Paper
@@ -111,7 +126,8 @@ const Navigation = () => {
         className="flex h-full max-w-60 flex-col gap-4 overflow-hidden duration-300"
       >
         <div className={`flex items-center justify-between gap-4 ${isExpanded ? 'flex-row' : 'flex-col'}`}>
-          <Link className="cursor-pointer" href={ROUTES.DASHBOARD}>
+          {/* The shell home action stays inside the current application. */}
+          <Link className="cursor-pointer" href={isAdminMode ? ROUTES.ADMIN : ROUTES.DASHBOARD}>
             <Activity mode={isExpanded ? 'visible' : 'hidden'}>
               <Image
                 src="/logo.png"
@@ -141,28 +157,29 @@ const Navigation = () => {
           </IconButton>
         </div>
 
-        {/* Publisher context: the active-publisher switcher and the destinations
-            that operate against it. The switcher stays mounted in both states so
-            its existing initialisation/persistence seam is untouched; it hides
-            itself when collapsed exactly as before.
+        {isAdminMode ? (
+          /* Admin: the global staff console. No publisher destinations and no
+             active-publisher control of any kind appear here - entering a
+             publisher is an explicit action taken from the publisher directory,
+             never a side effect of the shell. */
+          <NavigationGroup label={t('admin')} pages={ADMIN_PAGES} isExpanded={isExpanded} />
+        ) : (
+          /* Publisher workspace: the destinations that operate against the
+             current publisher, preceded by whichever publisher treatment fits
+             the viewer.
 
-            APP-SHELL-SU-02 drops the visible heading here only. The landmark
-            keeps its accessible name, so the group remains distinct to assistive
-            technology while the expanded shell reads as the switcher and the
-            destinations that follow from it. */}
-        <NavigationGroup
-          label={t('publisherContext')}
-          hasVisibleHeading={false}
-          pages={PAGES}
-          isExpanded={isExpanded}
-        >
-          <ChangeActivePublisher isHidden={!isExpanded} />
-        </NavigationGroup>
-
-        {/* Admin: destinations that are independent of the active publisher.
-            Presentation gating only - see canSeeAdminNavigation above. */}
-        {canSeeAdminNavigation && (
-          <NavigationGroup label={t('admin')} pages={SUPERUSER_PAGES} isExpanded={isExpanded} />
+             APP-SHELL-SU-02 drops the visible heading here only. The landmark
+             keeps its accessible name, so the group remains distinct to
+             assistive technology while the expanded shell reads as the publisher
+             treatment and the destinations that follow from it. */
+          <NavigationGroup
+            label={t('publisherContext')}
+            hasVisibleHeading={false}
+            pages={PAGES}
+            isExpanded={isExpanded}
+          >
+            {isStaffOperator ? <PublisherOperatingContext /> : <ChangeActivePublisher isHidden={!isExpanded} />}
+          </NavigationGroup>
         )}
 
         {isExpanded && (

@@ -10,5 +10,13 @@
   "publishers": "publishers",
   "publisherContext": "Publisher context",
   "admin": "Admin",
-  "currentPublisher": "Current publisher"
+  "currentPublisher": "Current publisher",
+  "accessDenied": "Access denied",
+  "accessDeniedDescription": "You don't have permission to access this page.",
+  "goToDashboard": "Go to dashboard",
+  "identityUnavailable": "Your account details are currently unavailable. Please try again.",
+  "staffPublisherContext": "Working in",
+  "returnToAdmin": "Return to Admin",
+  "adminHome": "Admin home",
+  "adminHomeIntro": "Manage publishers from the publisher directory."
 }
