@@ -4,14 +4,22 @@ import { getServerSession } from 'next-auth';
 import { ROUTES } from './src/shared/constants';
 import { authOptions } from './src/shared/lib/auth/auth';
 
+// APP-ADM-01 (ADR-0010): session gating only.
+//
+// The proxy is responsible for "is this request signed in?" and nothing else. It
+// deliberately does NOT decide who may enter Admin: superuser truth belongs to
+// the backend-owned `me` query, and duplicating it here - or parsing ZITADEL
+// claims for it - would create a second, drifting authorization policy. Admin
+// authorization is resolved by the Admin access gate against that authoritative
+// identity, and the Thoth API remains the actual authorization boundary.
+//
+// Two redirects were removed as part of the namespace migration: `/admin` no
+// longer bounces to `/`, because `/admin` is now a real Admin home; and an
+// authenticated `/` is no longer pushed to a publisher dashboard, because `/` is
+// now the role-resolution landing that decides between Admin and the workspace.
 export async function proxy(request: NextRequest) {
-  if (request.nextUrl.pathname === ROUTES.ADMIN) {
-    return NextResponse.redirect(new URL(ROUTES.ROOT, request.url));
-  }
+  const session = await getServerSession(authOptions);
 
-  const session = await getServerSession(authOptions); // Get the session
-
-  // Check the session existence to optimistically redirect
   if (!session) {
     // Redirect to the sign-in page, potentially with a callback URL
     const signInUrl = new URL(ROUTES.LOGIN, request.url);
@@ -19,17 +27,12 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(signInUrl);
   }
 
-  if (
-    session &&
-    !request.nextUrl.pathname.startsWith(ROUTES.ADMIN) &&
-    !request.nextUrl.pathname.startsWith(ROUTES.LOGOUT_ERROR)
-  ) {
-    return NextResponse.redirect(new URL(ROUTES.DASHBOARD, request.url));
-  }
-
   return NextResponse.next();
 }
 
+// Matched paths must be literals so Next.js can analyse them statically. These
+// are the authenticated surfaces: the role-resolution landing, the Admin
+// namespace, and the root-level publisher workspace routes.
 export const config = {
-  matcher: ['/admin/:path*', '/'],
+  matcher: ['/', '/admin/:path*', '/dashboard', '/publisher', '/series', '/sets', '/works/:path*'],
 };

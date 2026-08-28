@@ -35,7 +35,7 @@ exports[`EditWorkHeader > renders snapshot > EditWorkHeader 1`] = `
               class="MuiBreadcrumbs-li"
             >
               <a
-                href="/admin/dashboard"
+                href="/dashboard"
               >
                 <span
                   class="MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways no-underline css-1pnnk3i-MuiTypography-root-MuiLink-root"
@@ -58,7 +58,7 @@ exports[`EditWorkHeader > renders snapshot > EditWorkHeader 1`] = `
               class="MuiBreadcrumbs-li"
             >
               <a
-                href="/admin/works"
+                href="/works"
               >
                 <span
                   class="MuiTypography-root MuiTypography-inherit MuiLink-root MuiLink-underlineAlways no-underline css-1pnnk3i-MuiTypography-root-MuiLink-root"

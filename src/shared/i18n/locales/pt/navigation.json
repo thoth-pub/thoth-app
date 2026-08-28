@@ -10,5 +10,13 @@
   "publishers": "editoras",
   "publisherContext": "Contexto de editora",
   "admin": "Administração",
-  "currentPublisher": "Editora atual"
+  "currentPublisher": "Editora atual",
+  "accessDenied": "Acesso negado",
+  "accessDeniedDescription": "Não tem permissão para aceder a esta página.",
+  "goToDashboard": "Ir para o painel",
+  "identityUnavailable": "Os dados da sua conta não estão disponíveis de momento. Tente novamente.",
+  "staffPublisherContext": "A trabalhar em",
+  "returnToAdmin": "Voltar à Administração",
+  "adminHome": "Início da Administração",
+  "adminHomeIntro": "Faça a gestão das editoras a partir do diretório de editoras."
 }

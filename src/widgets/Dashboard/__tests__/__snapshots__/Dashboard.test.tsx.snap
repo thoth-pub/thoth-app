@@ -18,7 +18,7 @@ exports[`Dashboard > renders snapshot > Dashboard 1`] = `
           dashboard
         </h1>
         <a
-          href="/admin/works/new"
+          href="/works/new"
         >
           <span
             class="MuiButtonBase-root MuiButton-root MuiButton-contained MuiButton-containedPrimary MuiButton-sizeMedium MuiButton-containedSizeMedium MuiButton-colorPrimary MuiButton-root MuiButton-contained MuiButton-containedPrimary MuiButton-sizeMedium MuiButton-containedSizeMedium MuiButton-colorPrimary capitalize css-u0lm9f-MuiButtonBase-root-MuiButton-root"

@@ -10,5 +10,13 @@
   "publishers": "editoriales",
   "publisherContext": "Contexto de editorial",
   "admin": "Administración",
-  "currentPublisher": "Editorial actual"
+  "currentPublisher": "Editorial actual",
+  "accessDenied": "Acceso denegado",
+  "accessDeniedDescription": "No tiene permiso para acceder a esta página.",
+  "goToDashboard": "Ir al panel",
+  "identityUnavailable": "Los datos de su cuenta no están disponibles en este momento. Inténtelo de nuevo.",
+  "staffPublisherContext": "Trabajando en",
+  "returnToAdmin": "Volver a Administración",
+  "adminHome": "Inicio de Administración",
+  "adminHomeIntro": "Gestione las editoriales desde el directorio de editoriales."
 }

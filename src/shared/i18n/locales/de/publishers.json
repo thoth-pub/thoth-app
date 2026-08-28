@@ -44,5 +44,6 @@
   "editorOutcomeSaved": "Servicekonfiguration gespeichert",
   "editorOutcomeStale": "Nicht gespeichert: diese Konfiguration hat sich seit dem Laden geändert. Die Liste wurde neu geladen; beginnen Sie eine neue Bearbeitung, um Ihre Änderungen anzuwenden.",
   "editorOutcomeJobCreationDisabled": "Nicht gespeichert: die automatische Erstellung von Vertriebsaufträgen ist deaktiviert, daher wurde die angeforderte Aktivierung zurückgenommen und kein Auftrag erstellt.",
-  "editorOutcomeFailed": "Servicekonfiguration nicht gespeichert, oder das Ergebnis konnte nicht bestätigt werden. Die Liste wurde aus der API neu geladen; beginnen Sie eine neue Bearbeitung für einen weiteren Versuch."
+  "editorOutcomeFailed": "Servicekonfiguration nicht gespeichert, oder das Ergebnis konnte nicht bestätigt werden. Die Liste wurde aus der API neu geladen; beginnen Sie eine neue Bearbeitung für einen weiteren Versuch.",
+  "openWorkspaceAction": "Arbeitsbereich öffnen"
 }

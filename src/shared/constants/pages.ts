@@ -35,10 +35,19 @@ export const PAGES = [
   },
 ];
 
-// Staff-only navigation entries (APP-02A). Rendered only after authoritative
-// user state confirms the viewer is a superuser; visibility is a presentation
-// affordance only - the backend remains the authorization boundary.
-export const SUPERUSER_PAGES = [
+// APP-ADM-01 (ADR-0010): the destinations of the global Admin shell.
+//
+// These are reached only through the `/admin` namespace, which the Admin access
+// gate protects, so they are no longer mixed into the publisher workspace's own
+// navigation. This slice deliberately ships only the Admin home and the existing
+// publisher directory: no activity, attention or reports entry is added, because
+// no authoritative operational read model exists yet.
+export const ADMIN_PAGES = [
+  {
+    name: 'adminHome',
+    href: ROUTES.ADMIN,
+    icon: HomeRoundedIcon,
+  },
   {
     name: 'publishers',
     href: ROUTES.PUBLISHERS,

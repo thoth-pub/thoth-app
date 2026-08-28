@@ -1,6 +1,7 @@
 'use client';
 
 import type { GetPublisherServiceConfigurationReportQuery } from '@/gql/graphql';
+import usePublisherOperatingContext from '@/src/features/publisher/ui/PublisherOperatingContext/usePublisherOperatingContext';
 import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import {
@@ -83,10 +84,18 @@ const PublisherAdministration = () => {
     saveEdit,
   } = usePublisherAdministration();
 
+  // APP-ADM-01: the deliberate publisher-workspace entry seam. It is entirely
+  // separate from the edit session above - this widget only names a publisher to
+  // enter; validating that publisher against authoritative `me.publisherContexts`,
+  // applying publisher-scoped cache separation and navigating all belong to the
+  // operating-context hook, and none of it causes a backend mutation.
+  const { isStaffOperator, enterPublisherContext } = usePublisherOperatingContext();
+
   // Each row's Edit control gets an accessible name that identifies the exact
   // publisher it edits, so the affordance is never ambiguous between rows.
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.publishers });
   const editActionLabel = t('editAction');
+  const openWorkspaceActionLabel = t('openWorkspaceAction');
 
   // User identity is not authoritative yet: nothing staff-only is presented and
   // no report request has been started.
@@ -187,20 +196,42 @@ const PublisherAdministration = () => {
           )}
         </TableCell>
         <TableCell>
-          {/* One row, one bounded edit. The whole summary is handed over so the
-              session snapshots this row's own publisher ID, package, platform
-              set and version token together; the control is disabled whenever a
-              session or a save is already outstanding, so a second publisher's
-              edit cannot start and a pending attempt cannot be retargeted.
-              There is no multi-row selection and no bulk action anywhere. */}
-          <Button
-            size="small"
-            disabled={!canStartEdit}
-            onClick={() => startEdit(summary)}
-            aria-label={`${editActionLabel}: ${publisher.publisherName}`}
-          >
-            <TranslatedContent content="editAction" namespace={NAMESPACES.enum.publishers} />
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            {/* One row, one bounded edit. The whole summary is handed over so the
+                session snapshots this row's own publisher ID, package, platform
+                set and version token together; the control is disabled whenever a
+                session or a save is already outstanding, so a second publisher's
+                edit cannot start and a pending attempt cannot be retargeted.
+                There is no multi-row selection and no bulk action anywhere.
+
+                APP-ADM-01 leaves this action's meaning untouched: editing a
+                publisher's service configuration neither reads nor changes any
+                publisher operating context. */}
+            <Button
+              size="small"
+              disabled={!canStartEdit}
+              onClick={() => startEdit(summary)}
+              aria-label={`${editActionLabel}: ${publisher.publisherName}`}
+            >
+              <TranslatedContent content="editAction" namespace={NAMESPACES.enum.publishers} />
+            </Button>
+
+            {/* APP-ADM-01: a separate, explicit entry into this publisher's
+                workspace, carrying this row's own publisher ID and nothing else.
+                It is not a bulk action, not a row-level handler and not a
+                mutation - and it is withheld unless the viewer is an
+                authoritative staff operator, with the hook failing closed again
+                behind that. */}
+            {isStaffOperator && (
+              <Button
+                size="small"
+                onClick={() => void enterPublisherContext(publisher.publisherId)}
+                aria-label={`${openWorkspaceActionLabel}: ${publisher.publisherName}`}
+              >
+                <TranslatedContent content="openWorkspaceAction" namespace={NAMESPACES.enum.publishers} />
+              </Button>
+            )}
+          </div>
         </TableCell>
       </TableRow>
     );
