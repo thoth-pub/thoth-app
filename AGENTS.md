@@ -136,8 +136,8 @@ This repository is a **consumer** of the Thoth GraphQL schema owned by
 
 Verified codegen setup (`codegen.ts`):
 
-- schema source: the pinned local SDL snapshot `graphql/schema.v1.7.0.graphql`
-  (SHA-256 `521fba3b438c0013f21bfcbff62a24a3349cdd394738a40fd62e8f76fbf14226`),
+- schema source: the pinned local SDL snapshot `graphql/schema.v1.8.0.graphql`
+  (SHA-256 `091e11f293132fdec784de420e3addf251f5020ba7e387889b292a066be15d8e`),
   not a live endpoint;
 - documents: `app/**/*.{ts,tsx}` and `src/**/*.{ts,tsx}`;
 - output: `./gql/` using the GraphQL Code Generator `client` preset.
