@@ -279,6 +279,8 @@ class XMLParser {
         };
       }
 
+      await this.lookupCoordinator.prefetchContributorsByOrcids(this.collectContributorOrcids(products));
+
       const promises = products.map((product, index) => this.parseWork(product, index + 1, WorkTypes.enum.EditedBook));
 
       // `Promise.all` resolves in input order regardless of completion order, so collecting
@@ -348,6 +350,22 @@ class XMLParser {
 
   private convertToArray<T>(data: T | T[]): T[] {
     return toOnixArray(data);
+  }
+
+  /** Every declared ORCID belonging to a contributor this parser will resolve for this import. */
+  private collectContributorOrcids(products: ExtendedProduct[]): string[] {
+    return products.flatMap((product) => {
+      const workContributors = this.convertToArray(product.DescriptiveDetail?.Contributor).filter(
+        (contributor) => !!contributor,
+      );
+      const chapterContributors = this.convertToArray(product.ContentDetail?.ContentItem)
+        .filter((chapter) => !!chapter)
+        .flatMap((chapter) => this.convertToArray(chapter.Contributor).filter((contributor) => !!contributor));
+
+      return [...workContributors, ...chapterContributors]
+        .filter((contributor) => (contributor.PersonName ?? '').length > 0)
+        .map((contributor) => selectOnixOrcid(contributor.NameIdentifier));
+    });
   }
 
   /**
@@ -1686,10 +1704,10 @@ class XMLParser {
       const affiliationInstitutionRor = contributor.ProfessionalAffiliation?.AffiliationIdentifier?.IDValue;
       const biographies = this.parseBiographies(contributor, product, index);
 
-      const [foundedInstitution, foundedContributors, orcidMatch] = await Promise.all([
+      const orcidMatch = await this.lookupCoordinator.findContributorByOrcid(orcid);
+      const [foundedInstitution, foundedContributors] = await Promise.all([
         this.lookupCoordinator.findInstitutionByRor(affiliationInstitutionRor),
-        this.lookupCoordinator.findContributors(fullName),
-        this.lookupCoordinator.findContributorByOrcid(orcid),
+        orcidMatch ? Promise.resolve([]) : this.lookupCoordinator.findContributors(fullName),
       ]);
 
       const affiliation = foundedInstitution
