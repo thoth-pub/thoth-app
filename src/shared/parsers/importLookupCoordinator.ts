@@ -10,6 +10,7 @@ import { orcidValidation } from '../utils/validations';
 
 /** Shared ceiling for distinct contributor and institution reads within one import. */
 export const IMPORT_LOOKUP_CONCURRENCY = 4;
+const CONTRIBUTOR_ORCID_BATCH_SIZE = 1000;
 
 type QueuedLookup = () => void;
 
@@ -91,6 +92,58 @@ export class ImportLookupCoordinator {
     this.contributorLookups.set(filter, lookup);
 
     return lookup;
+  }
+
+  /**
+   * Resolves every usable ORCID for one import through the exact batch endpoint, then records both
+   * hits and misses in the parse-scoped identity cache before row/product parsing starts.
+   */
+  async prefetchContributorsByOrcids(orcids: Array<string | null | undefined>): Promise<void> {
+    const canonicalOrcids = Array.from(
+      new Set(orcids.map((orcid) => canonicalImportOrcid(orcid)).filter((orcid): orcid is string => orcid !== null)),
+    );
+
+    if (canonicalOrcids.length === 0) return;
+
+    // The concrete ContributorService always supplies the batch endpoint. Keep the coordinator's
+    // existing lazy exact-match path available to older injected adapters that implement only the
+    // original contributor search contract; they remain correct, but do not receive the batch
+    // performance improvement until they expose the new method.
+    const getContributorsByOrcids = this.contributorService.getContributorsByOrcids;
+
+    if (typeof getContributorsByOrcids !== 'function') return;
+
+    const batches: string[][] = [];
+
+    for (let offset = 0; offset < canonicalOrcids.length; offset += CONTRIBUTOR_ORCID_BATCH_SIZE) {
+      batches.push(canonicalOrcids.slice(offset, offset + CONTRIBUTOR_ORCID_BATCH_SIZE));
+    }
+
+    // Do not seed any miss until every request succeeds. A failed batch is a failed prefetch, not
+    // evidence that Thoth has no contributor for the identifiers in that batch.
+    const contributors = (
+      await Promise.all(batches.map((batch) => getContributorsByOrcids.call(this.contributorService, batch)))
+    ).flat();
+    const requested = new Set(canonicalOrcids);
+    const exactByOrcid = new Map<string, ContributorEntity>();
+
+    contributors.forEach((contributor) => {
+      const canonical = canonicalImportOrcid(contributor.orcid);
+
+      if (canonical === null || !requested.has(canonical)) return;
+
+      if (exactByOrcid.has(canonical)) {
+        throw new Error(
+          `Thoth holds more than one contributor with the ORCID ${canonical}; the import cannot choose between them`,
+        );
+      }
+
+      exactByOrcid.set(canonical, contributor);
+    });
+
+    canonicalOrcids.forEach((canonical) => {
+      this.orcidLookups.set(canonical, Promise.resolve(exactByOrcid.get(canonical) ?? null));
+    });
   }
 
   /**

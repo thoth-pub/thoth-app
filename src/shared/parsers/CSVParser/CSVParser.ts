@@ -203,6 +203,16 @@ export class CSVParser {
 
       const data = rows;
 
+      const contributorOrcids = data.flatMap((row) =>
+        Array.from({ length: appConfig.maxCsvContributorsCount }, (_, index) => {
+          const { ORCID } = getContributorFieldsByIndex(index + 1);
+
+          return row[ORCID];
+        }),
+      );
+
+      await this.lookupCoordinator.prefetchContributorsByOrcids(contributorOrcids);
+
       // `Promise.all` resolves in input order regardless of completion order, so collecting the
       // results here — rather than letting each concurrent `parseRow` push into shared state —
       // keeps works, contributor selections and series ordinals in CSV source-row order.
@@ -885,10 +895,10 @@ export class CSVParser {
         website,
       } = filteredContributors[i];
 
-      const [foundedContributors, institution, orcidMatch] = await Promise.all([
-        this.lookupCoordinator.findContributors(fullName),
+      const orcidMatch = await this.lookupCoordinator.findContributorByOrcid(orcid);
+      const [foundedContributors, institution] = await Promise.all([
+        orcidMatch ? Promise.resolve([]) : this.lookupCoordinator.findContributors(fullName),
         this.lookupCoordinator.findInstitutionByRor(affiliationInstitutionRor),
-        this.lookupCoordinator.findContributorByOrcid(orcid),
       ]);
 
       const affiliation = institution

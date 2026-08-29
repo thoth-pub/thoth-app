@@ -7,6 +7,7 @@ import {
   CREATE_CONTRIBUTOR,
   GET_CONTRIBUTOR,
   GET_CONTRIBUTORS,
+  GET_CONTRIBUTORS_BY_ORCIDS,
   GET_LINKED_PUBLISHERS,
   UPDATE_CONTRIBUTOR,
 } from '../model/contributor.schema';
@@ -23,6 +24,12 @@ export class ContributorService extends BaseService<ContributorEntity, Contribut
     const result = contributors.map(this.dtoMapper.toEntity);
 
     return result;
+  }
+
+  async getContributorsByOrcids(orcids: string[]): Promise<ContributorEntity[]> {
+    const { contributorsByOrcids = [] } = await this.graphqlService.query(GET_CONTRIBUTORS_BY_ORCIDS, { orcids });
+
+    return contributorsByOrcids.map(this.dtoMapper.toEntity);
   }
 
   async getContributor(contributorId: ContributorId): Promise<ContributorEntity> {

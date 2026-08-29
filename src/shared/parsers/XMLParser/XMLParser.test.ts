@@ -123,6 +123,7 @@ describe('XMLParser', () => {
   beforeEach(() => {
     mockContributorService = {
       getContributors: vi.fn().mockResolvedValue([]),
+      getContributorsByOrcids: vi.fn().mockResolvedValue([]),
     } as unknown as ContributorService;
 
     mockInstitutionService = {
@@ -7833,6 +7834,8 @@ Professor Emerita of English.</BiographicalNote>`),
 describe('ONIX contributor identity by ORCID (issue #135)', () => {
   const ORCID = '0000-0001-6365-5189';
   const CANONICAL_ORCID = `https://orcid.org/${ORCID}`;
+  const OTHER_ORCID = '0000-0002-1825-0097';
+  const OTHER_CANONICAL_ORCID = `https://orcid.org/${OTHER_ORCID}`;
 
   let mockContributorService: ContributorService;
   let mockInstitutionService: InstitutionService;
@@ -7925,14 +7928,79 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
     ).parse();
 
   beforeEach(() => {
-    mockContributorService = { getContributors: vi.fn().mockResolvedValue([]) } as unknown as ContributorService;
+    mockContributorService = {
+      getContributors: vi.fn().mockResolvedValue([]),
+      getContributorsByOrcids: vi.fn().mockResolvedValue([]),
+    } as unknown as ContributorService;
     mockInstitutionService = { getInstitutions: vi.fn().mockResolvedValue([]) } as unknown as InstitutionService;
     imprints = [{ label: faker.company.name(), value: faker.string.uuid() }];
     languages = languageOptions;
   });
 
+  it('prefetches hundreds of distinct ONIX ORCIDs in one batch before product fanout', async () => {
+    const canonicalOrcid = (index: number) =>
+      `https://orcid.org/0000-0002-0000-${index.toString().padStart(4, '0')}`;
+    const contributors = Array.from({ length: 200 }, (_, index) =>
+      onixContributor(`Author ${index}`, orcidIdentifier(canonicalOrcid(index))),
+    );
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
+    mockContributorService.getContributors = getContributors;
+    mockContributorService.getContributorsByOrcids = getContributorsByOrcids;
+
+    const result = await parseProducts([product('A book', contributors)]);
+
+    expect(result.status).toBe('success');
+    expect(getContributorsByOrcids).toHaveBeenCalledTimes(1);
+    expect(getContributorsByOrcids).toHaveBeenCalledWith(
+      Array.from({ length: 200 }, (_, index) => canonicalOrcid(index)),
+    );
+    expect(getContributors).toHaveBeenCalledTimes(200);
+  });
+
+  it('prefetches work and chapter ORCIDs but excludes identifiers whose NameIDType is not 21', async () => {
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
+    mockContributorService.getContributorsByOrcids = getContributorsByOrcids;
+
+    const result = await parseProducts([
+      product(
+        'A book',
+        [
+          onixContributor('Work Author', orcidIdentifier(ORCID)),
+          onixContributor('Proprietary Author', proprietaryIdentifier('0000-0003-1111-2222')),
+        ],
+        [{ title: 'A chapter', contributors: [onixContributor('Chapter Author', orcidIdentifier(OTHER_ORCID))] }],
+      ),
+    ]);
+
+    expect(result.status).toBe('success');
+    expect(getContributorsByOrcids).toHaveBeenCalledTimes(1);
+    expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID, OTHER_CANONICAL_ORCID]);
+  });
+
+  it('uses an exact batch hit without issuing the redundant ONIX name lookup', async () => {
+    const getContributors = vi.fn().mockResolvedValue([stored({ id: 'name-only-candidate', orcid: '' })]);
+    mockContributorService.getContributors = getContributors;
+    mockContributorService.getContributorsByOrcids = vi.fn().mockResolvedValue([stored({ id: 'orcid-holder' })]);
+
+    const result = await parseProducts([product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))])]);
+
+    expect(result.data.plan.works[0].contributions[0].contributorId).toBe('orcid-holder');
+    expect(mockContributorService.getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
+    expect(getContributors).not.toHaveBeenCalled();
+  });
+
+  it('fails the parse when the ONIX ORCID batch request rejects', async () => {
+    mockContributorService.getContributorsByOrcids = vi.fn().mockRejectedValue(new Error('502 Bad Gateway'));
+
+    const result = await parseProducts([product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))])]);
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+  });
+
   it('resolves an existing ORCID even when the ONIX PersonName would never have found it', async () => {
-    mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+    mockContributorService.getContributorsByOrcids = vi.fn().mockResolvedValue([stored()]);
 
     const result = await parseProducts([product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))])]);
 
@@ -7960,7 +8028,7 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
   it('keeps the ONIX role, ordinal, biography and affiliation while sharing the resolved identity', async () => {
     const ror = 'https://ror.org/03vek6s52';
 
-    mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+    mockContributorService.getContributorsByOrcids = vi.fn().mockResolvedValue([stored()]);
     mockInstitutionService.getInstitutions = vi
       .fn()
       .mockResolvedValue([{ id: 'institution', name: 'Harvard University', ror }]);
@@ -7995,9 +8063,9 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
   });
 
   it('rejects a substring ORCID candidate rather than treating it as identity', async () => {
-    mockContributorService.getContributors = byFilter({
-      [ORCID]: [stored({ id: 'substring-holder', orcid: `${CANONICAL_ORCID}0` })],
-    });
+    mockContributorService.getContributorsByOrcids = vi
+      .fn()
+      .mockResolvedValue([stored({ id: 'substring-holder', orcid: `${CANONICAL_ORCID}0` })]);
 
     const result = await parseProducts([product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))])]);
 
@@ -8006,7 +8074,9 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
 
   it('plans one shared identity for a repeated previously unseen ORCID across products', async () => {
     const getContributors = vi.fn().mockResolvedValue([]);
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
     mockContributorService.getContributors = getContributors;
+    mockContributorService.getContributorsByOrcids = getContributorsByOrcids;
 
     const result = await parseProducts([
       product('First book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))]),
@@ -8019,13 +8089,16 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
       appConfig.defaultId,
     ]);
     // Both occurrences carry the one ORCID the execution registry keys on, and the identity
-    // lookup itself ran once for the whole parse.
-    expect(getContributors.mock.calls.filter(([filter]) => filter === ORCID)).toHaveLength(1);
+    // lookup itself was seeded once for the whole parse.
+    expect(getContributorsByOrcids).toHaveBeenCalledOnce();
+    expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
   });
 
   it('plans one shared identity for an ORCID repeated between a product and its chapters', async () => {
     const getContributors = vi.fn().mockResolvedValue([]);
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
     mockContributorService.getContributors = getContributors;
+    mockContributorService.getContributorsByOrcids = getContributorsByOrcids;
 
     const result = await parseProducts([
       product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))], [
@@ -8045,11 +8118,12 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
     // Chapters are created concurrently with each other and inside one top-level work, which is
     // exactly why execution keys on the ORCID rather than on completion order.
     expect(everyContribution.every(({ contributorId }) => contributorId === appConfig.defaultId)).toBe(true);
-    expect(getContributors.mock.calls.filter(([filter]) => filter === ORCID)).toHaveLength(1);
+    expect(getContributorsByOrcids).toHaveBeenCalledOnce();
+    expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
   });
 
   it('resolves the same existing ORCID for a chapter contributor as for the product', async () => {
-    mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+    mockContributorService.getContributorsByOrcids = vi.fn().mockResolvedValue([stored()]);
 
     const result = await parseProducts([
       product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))], [
@@ -8088,7 +8162,7 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
     const HYPHENLESS_ORCID = '0000000163655189';
 
     it('finds the ORCID behind another identifier scheme', async () => {
-      mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+      mockContributorService.getContributorsByOrcids = vi.fn().mockResolvedValue([stored()]);
 
       const result = await parseProducts([
         product('A book', [
@@ -8102,7 +8176,7 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
     });
 
     it('reads NameIDType through the ONIX text helper when it carries attributes', async () => {
-      mockContributorService.getContributors = byFilter({ [ORCID]: [stored()] });
+      mockContributorService.getContributorsByOrcids = vi.fn().mockResolvedValue([stored()]);
 
       const result = await parseProducts([
         product('A book', [onixContributor('Jane Doe', identifier({ '#text': '21' }, ORCID))]),
@@ -8138,8 +8212,8 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
     });
 
     it('converts a hyphenless ONIX ORCID into the form Thoth stores', async () => {
-      const getContributors = byFilter({ [ORCID]: [stored()] });
-      mockContributorService.getContributors = getContributors;
+      const getContributorsByOrcids = vi.fn().mockResolvedValue([stored()]);
+      mockContributorService.getContributorsByOrcids = getContributorsByOrcids;
 
       const result = await parseProducts([
         product('A book', [onixContributor('Jane Doe', orcidIdentifier(HYPHENLESS_ORCID))]),
@@ -8147,9 +8221,7 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
 
       // `0000000163655189` is the normal ONIX encoding of `0000-0001-6365-5189`, and only the
       // latter is what Thoth stores, what the exact lookup can match, and what the API accepts.
-      expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(
-        expect.arrayContaining([ORCID]),
-      );
+      expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
       expect(result.data.plan.works[0].contributions[0].contributorId).toBe('existing-contributor');
     });
 
@@ -8169,7 +8241,9 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
 
     it('keeps a repeated hyphenless ORCID one identity across products and chapters', async () => {
       const getContributors = vi.fn().mockResolvedValue([]);
+      const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
       mockContributorService.getContributors = getContributors;
+      mockContributorService.getContributorsByOrcids = getContributorsByOrcids;
 
       const result = await parseProducts([
         product('First book', [onixContributor('Jane Doe', orcidIdentifier(HYPHENLESS_ORCID))], [
@@ -8186,14 +8260,14 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
       // One normalized ORCID across all three occurrences is what lets the execution registry
       // key them together and create the contributor exactly once.
       expect(new Set(everyContribution.map(({ orcidId }) => orcidId))).toEqual(new Set([ORCID]));
-      expect(getContributors.mock.calls.filter(([filter]) => filter === ORCID)).toHaveLength(1);
+      expect(getContributorsByOrcids).toHaveBeenCalledOnce();
+      expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
     });
 
     it('still accepts a NameIDType 21 identifier already written with hyphens', async () => {
       // The form `public/templates/template.xml` itself demonstrates, so files written against
       // the repository's own template keep working exactly as before.
-      const getContributors = byFilter({ [ORCID]: [stored()] });
-      mockContributorService.getContributors = getContributors;
+      mockContributorService.getContributorsByOrcids = vi.fn().mockResolvedValue([stored()]);
 
       const result = await parseProducts([
         product('A book', [onixContributor('Jane Doe', orcidIdentifier(ORCID))]),
@@ -8278,15 +8352,15 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
       });
 
       it('resolves an existing contributor from a hyphenless ORCID in real XML', async () => {
-        const getContributors = byFilter({ [ORCID]: [stored()] });
-        mockContributorService.getContributors = getContributors;
+        const getContributorsByOrcids = vi.fn().mockResolvedValue([stored()]);
+        mockContributorService.getContributorsByOrcids = getContributorsByOrcids;
 
         const result = await parseRealXml(contributorProductXml('21', HYPHENLESS_ORCID));
 
         expect(result.data.plan.works[0].contributions[0].contributorId).toBe('existing-contributor');
         // The identity lookup is made on the canonical form, which is the only form that can
         // match what Thoth stored.
-        expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(expect.arrayContaining([ORCID]));
+        expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
       });
 
       it('leaves an already-hyphenated ORCID in real XML unchanged', async () => {

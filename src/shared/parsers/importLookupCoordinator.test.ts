@@ -152,6 +152,154 @@ describe('ImportLookupCoordinator', () => {
 
     await expect(coordinator.findInstitutionByRor('https://ror.org/requested')).resolves.toBeNull();
   });
+
+  describe('prefetchContributorsByOrcids', () => {
+    const canonicalOrcid = (index: number) =>
+      `https://orcid.org/0000-0002-${Math.floor(index / 10_000)
+        .toString()
+        .padStart(4, '0')}-${(index % 10_000).toString().padStart(4, '0')}`;
+
+    const makeCoordinator = ({
+      getContributors = vi.fn(),
+      getContributorsByOrcids = vi.fn().mockResolvedValue([]),
+    }: {
+      getContributors?: ReturnType<typeof vi.fn>;
+      getContributorsByOrcids?: ReturnType<typeof vi.fn>;
+    } = {}) => {
+      const coordinator = new ImportLookupCoordinator(
+        { getContributors, getContributorsByOrcids } as unknown as ContributorService,
+        { getInstitutions: vi.fn() } as unknown as InstitutionService,
+      );
+
+      return {
+        coordinator,
+        prefetch: (orcids: Array<string | null | undefined>) =>
+          (
+            coordinator as ImportLookupCoordinator & {
+              prefetchContributorsByOrcids: (values: Array<string | null | undefined>) => Promise<void>;
+            }
+          ).prefetchContributorsByOrcids(orcids),
+      };
+    };
+
+    it('preserves the lazy exact-match fallback for a partial service without the batch method', async () => {
+      const orcid = canonicalOrcid(1);
+      const exact = contributor('Stored Name', orcid);
+      const getContributors = vi.fn().mockResolvedValue([exact]);
+      const coordinator = new ImportLookupCoordinator(
+        { getContributors } as unknown as ContributorService,
+        { getInstitutions: vi.fn() } as unknown as InstitutionService,
+      );
+
+      await coordinator.prefetchContributorsByOrcids([orcid]);
+
+      await expect(coordinator.findContributorByOrcid(orcid)).resolves.toEqual(exact);
+      expect(getContributors).toHaveBeenCalledOnce();
+    });
+
+    it('resolves 538 distinct valid ORCIDs with one exact batch request', async () => {
+      const orcids = Array.from({ length: 538 }, (_, index) => canonicalOrcid(index));
+      const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
+      const { prefetch } = makeCoordinator({ getContributorsByOrcids });
+
+      await prefetch(orcids);
+
+      expect(getContributorsByOrcids).toHaveBeenCalledTimes(1);
+      expect(getContributorsByOrcids).toHaveBeenCalledWith(orcids);
+    });
+
+    it('uses one inclusive maximum-size batch for exactly 1000 ORCIDs', async () => {
+      const orcids = Array.from({ length: 1000 }, (_, index) => canonicalOrcid(index));
+      const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
+      const { prefetch } = makeCoordinator({ getContributorsByOrcids });
+
+      await prefetch(orcids);
+
+      expect(getContributorsByOrcids).toHaveBeenCalledTimes(1);
+      expect(getContributorsByOrcids).toHaveBeenCalledWith(orcids);
+    });
+
+    it('chunks 1001 ORCIDs into exactly two requests of at most 1000 values', async () => {
+      const orcids = Array.from({ length: 1001 }, (_, index) => canonicalOrcid(index));
+      const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
+      const { prefetch } = makeCoordinator({ getContributorsByOrcids });
+
+      await prefetch(orcids);
+
+      expect(getContributorsByOrcids).toHaveBeenCalledTimes(2);
+      const batches = getContributorsByOrcids.mock.calls.map(([batch]) => batch as string[]);
+      expect(batches.map((batch) => batch.length)).toEqual([1000, 1]);
+      expect(batches.flat()).toEqual(orcids);
+    });
+
+    it('canonicalizes, removes invalid values, and deduplicates equivalent occurrences', async () => {
+      const canonical = 'https://orcid.org/0000-0001-5109-376X';
+      const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
+      const { prefetch } = makeCoordinator({ getContributorsByOrcids });
+
+      await prefetch([
+        '0000-0001-5109-376x',
+        canonical,
+        `  ${canonical}  `,
+        '',
+        null,
+        undefined,
+        'PROPRIETARY-1234',
+      ]);
+
+      expect(getContributorsByOrcids).toHaveBeenCalledTimes(1);
+      expect(getContributorsByOrcids).toHaveBeenCalledWith([canonical]);
+    });
+
+    it('seeds exact hits and explicit misses without any per-ORCID fuzzy request', async () => {
+      const hitOrcid = canonicalOrcid(1);
+      const missOrcid = canonicalOrcid(2);
+      const hit = contributor('Stored Name', hitOrcid);
+      const getContributors = vi.fn();
+      const getContributorsByOrcids = vi.fn().mockResolvedValue([hit]);
+      const { coordinator, prefetch } = makeCoordinator({ getContributors, getContributorsByOrcids });
+
+      await prefetch([hitOrcid, missOrcid]);
+
+      await expect(coordinator.findContributorByOrcid(hitOrcid)).resolves.toEqual(hit);
+      await expect(coordinator.findContributorByOrcid(missOrcid)).resolves.toBeNull();
+      expect(getContributors).not.toHaveBeenCalled();
+    });
+
+    it('keeps seeded ORCID identities separate from name fallback lookups', async () => {
+      const hitOrcid = canonicalOrcid(1);
+      const missOrcid = canonicalOrcid(2);
+      const hit = contributor('Stored Name', hitOrcid);
+      const sameTextAsName = contributor(hitOrcid);
+      const fallback = contributor('Fallback Name');
+      const getContributors = vi
+        .fn()
+        .mockResolvedValueOnce([sameTextAsName])
+        .mockResolvedValueOnce([fallback]);
+      const { coordinator, prefetch } = makeCoordinator({
+        getContributors,
+        getContributorsByOrcids: vi.fn().mockResolvedValue([hit]),
+      });
+
+      await prefetch([hitOrcid, missOrcid]);
+
+      await expect(coordinator.findContributors(hitOrcid)).resolves.toEqual([sameTextAsName]);
+      await expect(coordinator.findContributorByOrcid(hitOrcid)).resolves.toEqual(hit);
+      await expect(coordinator.findContributorByOrcid(missOrcid)).resolves.toBeNull();
+      await expect(coordinator.findContributors('Fallback Name')).resolves.toEqual([fallback]);
+      expect(getContributors).toHaveBeenCalledTimes(2);
+    });
+
+    it('propagates batch failure instead of seeding the request as no match', async () => {
+      const failure = new Error('502 Bad Gateway');
+      const { prefetch } = makeCoordinator({
+        getContributorsByOrcids: vi.fn().mockRejectedValue(failure),
+      });
+
+      await expect(prefetch([canonicalOrcid(1)])).rejects.toBe(failure);
+    });
+  });
+
   /**
    * Issue #135. ORCID is the one deterministic contributor identity a bulk import has, and the
    * backend filter it has to go through is a substring search. Everything here is about the gap
