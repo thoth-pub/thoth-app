@@ -845,7 +845,27 @@ class XMLParser {
   private parseLicense(product: ExtendedProduct, index: number) {
     const enteredLicense =
       product.DescriptiveDetail?.EpubLicense?.EpubLicenseExpression?.EpubLicenseExpressionLink ?? '';
-    const license = this.licenses.find((option) => option.value.startsWith(enteredLicense));
+
+    if (enteredLicense.trim() === '') {
+      return '';
+    }
+
+    const exactLicense = this.licenses.find((option) => enteredLicense === option.value);
+
+    if (exactLicense) {
+      return exactLicense.value;
+    }
+
+    const creativeCommonsLicenseRoot = 'https://creativecommons.org/licenses/';
+    const representationSuffix =
+      /^(?:legalcode|deed)(?:\.[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?(?:-(?:[A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*)?$/;
+    const license = this.licenses.find(
+      (option) =>
+        option.value !== '' &&
+        option.value.startsWith(creativeCommonsLicenseRoot) &&
+        enteredLicense.startsWith(option.value) &&
+        representationSuffix.test(enteredLicense.slice(option.value.length)),
+    );
 
     if (!license) {
       this.pushError(product, index, `License ${enteredLicense} not found for product ${index}`);
