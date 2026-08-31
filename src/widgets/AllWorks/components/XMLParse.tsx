@@ -1,8 +1,8 @@
 'use client';
 
+import { parse } from '@5stones/onix/dist/parse';
 import { Activity, useEffect, useEffectEvent, useState } from 'react';
 
-import { validateXml } from '@/app/actions/validateXml';
 import type { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { currencyOptions, ERRORS, languageOptions, licenseOptions } from '@/src/shared/constants';
 import { useServices } from '@/src/shared/context';
@@ -48,47 +48,43 @@ export const XMLParse = (props: XMLParseProps) => {
     setIsValidatingFile(true);
     setPlan(createEmptyImportPlan());
     setWarnings([]);
-    const response = await validateXml(file);
+    try {
+      let data;
+      try {
+        const xmlString = await file.text();
+        data = parse(xmlString);
+      } catch (error) {
+        const message = error instanceof Error && error.message ? error.message : t(ERRORS.XML_PARSING_ERROR);
+        onValidationFailure?.(fileError(message));
+        return;
+      }
 
-    if (response.status === 'error') {
-      onValidationFailure?.(fileError(response.error));
+      const xmlParser = new XMLParser(
+        data,
+        imprints,
+        licenseOptions,
+        serieses,
+        contributorService,
+        institutionService,
+        languageOptions,
+        currencyOptions,
+      );
+
+      const result = await xmlParser.parse();
+
+      if (result.status === 'failed') {
+        onValidationFailure?.(result.issues);
+        return;
+      }
+
+      setPlan(result.data.plan);
+      setMultipleFoundedContributors(result.data.contributorsForSelection);
+      // A successful parse only ever carries warnings, and they are not a validation failure:
+      // they travel with the data to the preview, where the user decides whether to go ahead.
+      setWarnings(result.issues);
+    } finally {
       setIsValidatingFile(false);
-      return;
     }
-
-    const { data } = response;
-
-    if (!data) {
-      onValidationFailure?.(fileError(t(ERRORS.XML_PARSING_ERROR)));
-      setIsValidatingFile(false);
-      return;
-    }
-
-    const xmlParser = new XMLParser(
-      data,
-      imprints,
-      licenseOptions,
-      serieses,
-      contributorService,
-      institutionService,
-      languageOptions,
-      currencyOptions,
-    );
-
-    const result = await xmlParser.parse();
-
-    if (result.status === 'failed') {
-      onValidationFailure?.(result.issues);
-      setIsValidatingFile(false);
-      return;
-    }
-
-    setPlan(result.data.plan);
-    setMultipleFoundedContributors(result.data.contributorsForSelection);
-    // A successful parse only ever carries warnings, and they are not a validation failure:
-    // they travel with the data to the preview, where the user decides whether to go ahead.
-    setWarnings(result.issues);
-    setIsValidatingFile(false);
   });
 
   useEffect(() => {

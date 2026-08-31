@@ -8292,8 +8292,8 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
      * uploaded file reaches the adapter only after `@5stones/onix` has parsed it, and that
      * library configures `fast-xml-parser` itself: whether `<IDValue>0000000163655189</IDValue>`
      * survives as those sixteen characters, or arrives as something a tag-value conversion has
-     * already rewritten, is decided there and nowhere the adapter can see. This is the boundary
-     * `app/actions/validateXml.ts` really crosses, so it is the boundary the ORCID contract has
+     * already rewritten, is decided there and nowhere the adapter can see. This is the raw parsing
+     * boundary `XMLParse.tsx` crosses in the browser, so it is the boundary the ORCID contract has
      * to hold across.
      */
     describe('through the real @5stones/onix parser', () => {

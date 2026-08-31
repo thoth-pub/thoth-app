@@ -834,7 +834,7 @@ describe('ONIX bulk import, end to end', () => {
   });
 
   const parseUpload = async (serieses: SeriesEntity[], onix = ONIX) => {
-    // Step 1: what app/actions/validateXml.ts does.
+    // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
 
     // Step 2: what XMLParse.tsx does.

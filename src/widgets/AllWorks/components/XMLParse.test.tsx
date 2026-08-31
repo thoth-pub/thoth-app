@@ -8,14 +8,14 @@ import { ONIX_PROCESSING_FAILURE_MESSAGE } from '@/src/shared/parsers/XMLParser/
 import type { ImportIssue } from '@/src/shared/types';
 import { getDefaultWork } from '@/src/shared/utils/work';
 
-const { mockValidateXml, mockParse, mockXMLParser } = vi.hoisted(() => ({
-  mockValidateXml: vi.fn(),
+const { mockRawParse, mockParse, mockXMLParser } = vi.hoisted(() => ({
+  mockRawParse: vi.fn(),
   mockParse: vi.fn(),
   mockXMLParser: vi.fn(),
 }));
 
-vi.mock('@/app/actions/validateXml', () => ({
-  validateXml: (...args: unknown[]) => mockValidateXml(...args),
+vi.mock('@5stones/onix/dist/parse', () => ({
+  parse: (...args: unknown[]) => mockRawParse(...args),
 }));
 
 vi.mock('@/src/shared/parsers', () => ({
@@ -28,8 +28,13 @@ vi.mock('@/src/shared/hooks', () => ({
 
 import { XMLParse } from './XMLParse';
 
-function createMockFile(): File {
-  return new File(['<ONIXMessage></ONIXMessage>'], 'test.xml', { type: 'text/xml' });
+function createMockFile(
+  content = '<ONIXMessage></ONIXMessage>',
+  readFile = vi.fn().mockResolvedValue(content),
+): File {
+  const file = new File([content], 'test.xml', { type: 'text/xml' });
+  Object.defineProperty(file, 'text', { configurable: true, value: readFile });
+  return file;
 }
 
 const parsedOnixData: ONIXMessageRoot = {
@@ -40,10 +45,14 @@ const parsedOnixData: ONIXMessageRoot = {
 
 describe('XMLParse', () => {
   // The project does not enable vitest globals, so RTL's auto-cleanup does not run.
-  afterEach(cleanup);
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
+    mockRawParse.mockReturnValue(parsedOnixData);
     mockParse.mockResolvedValue({
       status: 'success',
       data: {
@@ -59,41 +68,14 @@ describe('XMLParse', () => {
     });
   });
 
-  it('XMLParse_displaysUnauthorizedFromValidateXml', async () => {
+  it('reads the exact XML string locally and passes the raw parser result to XMLParser', async () => {
+    const xml = '<ONIXMessage release="3.0"><Product /></ONIXMessage>';
+    const readFile = vi.fn().mockResolvedValue(xml);
+    const file = createMockFile(xml, readFile);
     const onValidationFailure = vi.fn();
-    mockValidateXml.mockResolvedValue({ status: 'error', error: 'Unauthorized' });
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
 
-    render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
-
-    await waitFor(() => {
-      expect(onValidationFailure).toHaveBeenCalledWith([
-        { severity: 'error', code: 'file.validation', message: 'Unauthorized', source: { kind: 'file' } },
-      ]);
-    });
-
-    expect(mockXMLParser).not.toHaveBeenCalled();
-  });
-
-  it('falls back to the generic XML parsing error when successful validation has no data', async () => {
-    const onValidationFailure = vi.fn();
-    mockValidateXml.mockResolvedValue({ status: 'success' });
-
-    render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
-
-    await waitFor(() => {
-      expect(onValidationFailure).toHaveBeenCalledWith([
-        { severity: 'error', code: 'file.validation', message: ERRORS.XML_PARSING_ERROR, source: { kind: 'file' } },
-      ]);
-    });
-
-    expect(mockXMLParser).not.toHaveBeenCalled();
-  });
-
-  it('passes parsed ONIX data to XMLParser on successful validation', async () => {
-    const onValidationFailure = vi.fn();
-    mockValidateXml.mockResolvedValue({ status: 'success', data: parsedOnixData });
-
-    render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
+    render(<XMLParse file={file} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
 
     await waitFor(() => {
       expect(mockXMLParser).toHaveBeenCalledWith(
@@ -108,8 +90,101 @@ describe('XMLParse', () => {
       );
     });
 
-    expect(mockParse).toHaveBeenCalled();
+    expect(readFile).toHaveBeenCalledOnce();
+    expect(mockRawParse).toHaveBeenCalledOnce();
+    expect(mockRawParse.mock.calls[0][0]).toBe(xml);
+    expect(mockParse).toHaveBeenCalledOnce();
+    expect(fetchSpy).not.toHaveBeenCalled();
     expect(onValidationFailure).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByTestId('import-phase-parsing')).not.toBeVisible());
+  });
+
+  it('consumes a file larger than the former server request boundary entirely in the client', async () => {
+    const formerServerRequestBoundaryBytes = 4_500_000;
+    const xml = `<ONIXMessage>${' '.repeat(formerServerRequestBoundaryBytes)}</ONIXMessage>`;
+    const readFile = vi.fn().mockResolvedValue(xml);
+    const file = createMockFile(xml, readFile);
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+
+    expect(file.size).toBeGreaterThan(formerServerRequestBoundaryBytes);
+    render(<XMLParse file={file} imprints={[]} serieses={[]} onValidationFailure={vi.fn()} />);
+
+    await waitFor(() => expect(mockRawParse).toHaveBeenCalledOnce());
+
+    expect(readFile).toHaveBeenCalledOnce();
+    expect(mockRawParse.mock.calls[0][0]).toBe(xml);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(mockXMLParser).toHaveBeenCalledOnce();
+  });
+
+  it('reports a file.validation issue and stops parsing when File.text rejects', async () => {
+    const readFile = vi.fn().mockRejectedValue(new Error('Unable to read selected file'));
+    const file = createMockFile(undefined, readFile);
+    const onValidationFailure = vi.fn();
+
+    render(<XMLParse file={file} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
+
+    await waitFor(() => {
+      expect(onValidationFailure).toHaveBeenCalledWith([
+        {
+          severity: 'error',
+          code: 'file.validation',
+          message: 'Unable to read selected file',
+          source: { kind: 'file' },
+        },
+      ]);
+    });
+
+    expect(readFile).toHaveBeenCalledOnce();
+    expect(mockRawParse).not.toHaveBeenCalled();
+    expect(mockXMLParser).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByTestId('import-phase-parsing')).not.toBeVisible());
+  });
+
+  it('preserves an Error message from raw ONIX parsing and stops before XMLParser', async () => {
+    const onValidationFailure = vi.fn();
+    mockRawParse.mockImplementation(() => {
+      throw new Error('Invalid ONIX XML at line 12');
+    });
+
+    render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
+
+    await waitFor(() => {
+      expect(onValidationFailure).toHaveBeenCalledWith([
+        {
+          severity: 'error',
+          code: 'file.validation',
+          message: 'Invalid ONIX XML at line 12',
+          source: { kind: 'file' },
+        },
+      ]);
+    });
+
+    expect(mockXMLParser).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByTestId('import-phase-parsing')).not.toBeVisible());
+  });
+
+  it('uses the generic XML parsing fallback for a non-Error raw parser failure', async () => {
+    const onValidationFailure = vi.fn();
+    mockRawParse.mockImplementation(() => {
+      throw null;
+    });
+
+    render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
+
+    await waitFor(() => {
+      expect(onValidationFailure).toHaveBeenCalledWith([
+        {
+          severity: 'error',
+          code: 'file.validation',
+          message: ERRORS.XML_PARSING_ERROR,
+          source: { kind: 'file' },
+        },
+      ]);
+    });
+
+    expect(mockXMLParser).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.getByTestId('import-phase-parsing')).not.toBeVisible());
   });
 
   describe('issues from the parser', () => {
@@ -123,8 +198,6 @@ describe('XMLParse', () => {
     };
 
     const renderParse = (onPreview: () => void, onValidationFailure: () => void) => {
-      mockValidateXml.mockResolvedValue({ status: 'success', data: parsedOnixData });
-
       return render(
         <XMLParse
           file={createMockFile()}
@@ -137,7 +210,6 @@ describe('XMLParse', () => {
     };
 
     it('shows a truthful ONIX parsing phase while validating, with no fabricated percentage', async () => {
-      mockValidateXml.mockResolvedValue({ status: 'success', data: parsedOnixData });
       let resolveParse: (result: unknown) => void = () => {};
       mockParse.mockImplementation(() => new Promise((resolve) => (resolveParse = resolve)));
 
@@ -159,6 +231,8 @@ describe('XMLParse', () => {
           issues: [],
         });
       });
+
+      await waitFor(() => expect(phase).not.toBeVisible());
     });
 
     it('carries the plan, its chapters and its warnings through to the preview', async () => {
@@ -215,6 +289,7 @@ describe('XMLParse', () => {
       await waitFor(() => expect(onValidationFailure).toHaveBeenCalledWith([warning, error]));
       expect(onPreview).not.toHaveBeenCalled();
       expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      await waitFor(() => expect(screen.getByTestId('import-phase-parsing')).not.toBeVisible());
     });
 
     it('hands the display-ready processing failure to the upload step without translating it as a key', async () => {
@@ -239,6 +314,7 @@ describe('XMLParse', () => {
       expect(onValidationFailure.mock.calls[0][0][0].message).toBe(ONIX_PROCESSING_FAILURE_MESSAGE);
       expect(onValidationFailure.mock.calls[0][0][0].message).not.toBe(ERRORS.XML_PARSING_ERROR);
       expect(onPreview).not.toHaveBeenCalled();
+      await waitFor(() => expect(screen.getByTestId('import-phase-parsing')).not.toBeVisible());
     });
   });
 });
