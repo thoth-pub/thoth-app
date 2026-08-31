@@ -1058,11 +1058,10 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].abstracts).toHaveLength(0);
     });
 
-    it('should parse license', async () => {
+    const parseProductLicense = (enteredLicense?: string) => {
       const language = languages[0];
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
-      const license = licenses[0];
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
@@ -1071,7 +1070,10 @@ describe('XMLParser', () => {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
                 Language: { LanguageCode: language.value },
-                EpubLicense: { EpubLicenseExpression: { EpubLicenseExpressionLink: license.value } },
+                EpubLicense:
+                  enteredLicense === undefined
+                    ? undefined
+                    : { EpubLicenseExpression: { EpubLicenseExpressionLink: enteredLicense } },
               } as ExtendedDescriptiveDetail,
               PublishingDetail: {
                 Imprint: { ImprintName: imprint.label },
@@ -1081,7 +1083,8 @@ describe('XMLParser', () => {
           ],
         },
       };
-      const parser = new XMLParser(
+
+      return new XMLParser(
         xml,
         imprints,
         licenses,
@@ -1090,53 +1093,175 @@ describe('XMLParser', () => {
         mockInstitutionService,
         languages,
         currencyOptions,
-      );
+      ).parse();
+    };
 
-      const result = await parser.parse();
+    it('keeps an exact configured canonical licence unchanged', async () => {
+      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
+
+      const result = await parseProductLicense(canonicalLicense);
 
       expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].license).toBe(license.value);
+      expect(result.data.plan.works[0].license).toBe(canonicalLicense);
     });
 
-    it('should return error if license is not found', async () => {
-      const language = languages[0];
-      const title = faker.lorem.sentence();
-      const imprint = imprints[0];
-      const license = faker.string.sample();
-      const xml: ExtendedONIXMessageRoot = {
-        ONIXMessage: {
-          Product: [
-            {
-              DescriptiveDetail: {
-                ProductForm: ProductForm._BC,
-                TitleDetail: { TitleElement: { TitleText: title } },
-                Language: { LanguageCode: language.value },
-                EpubLicense: { EpubLicenseExpression: { EpubLicenseExpressionLink: license } },
-              } as ExtendedDescriptiveDetail,
-              PublishingDetail: {
-                Imprint: { ImprintName: imprint.label },
-                PublishingStatus: '04',
-              },
-            },
-          ],
-        },
-      };
-      const parser = new XMLParser(
-        xml,
-        imprints,
-        licenses,
-        serieses,
-        mockContributorService,
-        mockInstitutionService,
-        languages,
-        currencyOptions,
-      );
+    it('canonicalizes a configured CC BY 4.0 legalcode locale URL', async () => {
+      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
 
-      const result = await parser.parse();
+      const result = await parseProductLicense(`${canonicalLicense}legalcode.en`);
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
+    });
+
+    it('canonicalizes a configured CC BY 4.0 legalcode URL without a locale', async () => {
+      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
+
+      const result = await parseProductLicense(`${canonicalLicense}legalcode`);
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
+    });
+
+    it('canonicalizes a configured CC BY 4.0 deed URL without a locale', async () => {
+      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
+
+      const result = await parseProductLicense(`${canonicalLicense}deed`);
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
+    });
+
+    it('canonicalizes a configured CC BY 4.0 deed locale URL', async () => {
+      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
+
+      const result = await parseProductLicense(`${canonicalLicense}deed.fr`);
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
+    });
+
+    it('canonicalizes a configured CC BY-SA representation to its own family', async () => {
+      const canonicalLicense = 'https://creativecommons.org/licenses/by-sa/4.0/';
+
+      const result = await parseProductLicense(`${canonicalLicense}legalcode.en`);
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
+    });
+
+    it('keeps a missing licence empty', async () => {
+      const result = await parseProductLicense();
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]?.license).toBe('');
+      expect(errorMessages(result)).toEqual([]);
+    });
+
+    it('keeps a blank licence empty', async () => {
+      const result = await parseProductLicense('   ');
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]?.license).toBe('');
+      expect(errorMessages(result)).toEqual([]);
+    });
+
+    it('keeps a bare representation suffix blocking', async () => {
+      const enteredLicense = 'legalcode.en';
+
+      const result = await parseProductLicense(enteredLicense);
 
       expect(result.status).toBe('failed');
       expect(result.data.plan.works).toHaveLength(0);
-      expect(errorMessages(result)).toContain(`License ${license} not found for product 1`);
+      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
+    });
+
+    it('keeps an exact configured CC0 licence unchanged', async () => {
+      const canonicalLicense = 'https://creativecommons.org/publicdomain/zero/1.0/';
+
+      const result = await parseProductLicense(canonicalLicense);
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
+    });
+
+    it('keeps an exact configured Public Domain Mark licence unchanged', async () => {
+      const canonicalLicense = 'https://creativecommons.org/publicdomain/mark/1.0/';
+
+      const result = await parseProductLicense(canonicalLicense);
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
+    });
+
+    it('keeps a CC0 representation suffix blocking', async () => {
+      const enteredLicense = 'https://creativecommons.org/publicdomain/zero/1.0/legalcode.en';
+
+      const result = await parseProductLicense(enteredLicense);
+
+      expect(result.status).toBe('failed');
+      expect(result.data.plan.works).toHaveLength(0);
+      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
+    });
+
+    it('keeps a Public Domain Mark representation suffix blocking', async () => {
+      const enteredLicense = 'https://creativecommons.org/publicdomain/mark/1.0/deed.en';
+
+      const result = await parseProductLicense(enteredLicense);
+
+      expect(result.status).toBe('failed');
+      expect(result.data.plan.works).toHaveLength(0);
+      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
+    });
+
+    it('keeps a representation suffix with a punctuation-only locale blocking', async () => {
+      const enteredLicense = 'https://creativecommons.org/licenses/by/4.0/legalcode.---';
+
+      const result = await parseProductLicense(enteredLicense);
+
+      expect(result.status).toBe('failed');
+      expect(result.data.plan.works).toHaveLength(0);
+      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
+    });
+
+    it('keeps a representation suffix with arbitrary text blocking', async () => {
+      const enteredLicense =
+        'https://creativecommons.org/licenses/by/4.0/legalcode.not-a-license-page';
+
+      const result = await parseProductLicense(enteredLicense);
+
+      expect(result.status).toBe('failed');
+      expect(result.data.plan.works).toHaveLength(0);
+      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
+    });
+
+    it('canonicalizes a representation URL with an ordinary hyphenated locale', async () => {
+      const canonicalLicense = 'https://creativecommons.org/licenses/by/4.0/';
+
+      const result = await parseProductLicense(`${canonicalLicense}deed.zh-Hant-TW`);
+
+      expect(result.status).toBe('success');
+      expect(result.data.plan.works[0]?.license).toBe(canonicalLicense);
+    });
+
+    it('keeps an unknown noncanonical licence URL blocking', async () => {
+      const enteredLicense = 'https://example.com/licenses/unknown';
+
+      const result = await parseProductLicense(enteredLicense);
+
+      expect(result.status).toBe('failed');
+      expect(result.data.plan.works).toHaveLength(0);
+      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
+    });
+
+    it('keeps a deceptive continuation of a configured licence URL blocking', async () => {
+      const enteredLicense = 'https://creativecommons.org/licenses/by/4.0/not-a-license-page';
+
+      const result = await parseProductLicense(enteredLicense);
+
+      expect(result.status).toBe('failed');
+      expect(result.data.plan.works).toHaveLength(0);
+      expect(errorMessages(result)).toContain(`License ${enteredLicense} not found for product 1`);
     });
 
     it('should parse bibliography note', async () => {
