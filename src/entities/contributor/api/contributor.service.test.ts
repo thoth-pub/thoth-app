@@ -195,6 +195,39 @@ describe('ContributorService', () => {
     });
   });
 
+  describe('getContributorsByOrcids', () => {
+    const batchService = () =>
+      service as ContributorService & {
+        getContributorsByOrcids: (orcids: string[]) => Promise<ContributorEntity[]>;
+      };
+
+    it('sends the exact canonical ORCID list and maps every returned contributor', async () => {
+      const orcids = [
+        'https://orcid.org/0000-0002-1825-0097',
+        'https://orcid.org/0000-0001-2345-6789',
+      ];
+      const dtos = [
+        { contributorId: 'first', fullName: 'First Contributor', contributions: [] },
+        { contributorId: 'second', fullName: 'Second Contributor', contributions: [] },
+      ];
+      vi.mocked(mockGraphqlService.query).mockResolvedValue({ contributorsByOrcids: dtos } as never);
+
+      const result = await batchService().getContributorsByOrcids(orcids);
+
+      expect(mockGraphqlService.query).toHaveBeenCalledWith(expect.anything(), { orcids });
+      expect(result.map(({ id }) => id)).toEqual(['first', 'second']);
+    });
+
+    it('propagates a batch GraphQL rejection instead of returning no matches', async () => {
+      const failure = new Error('503 Service Unavailable');
+      vi.mocked(mockGraphqlService.query).mockRejectedValue(failure);
+
+      await expect(
+        batchService().getContributorsByOrcids(['https://orcid.org/0000-0002-1825-0097']),
+      ).rejects.toBe(failure);
+    });
+  });
+
   describe('getContributor', () => {
     it('should call query with contributorId', async () => {
       const contributorId = faker.string.uuid();

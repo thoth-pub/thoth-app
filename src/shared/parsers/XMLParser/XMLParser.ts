@@ -279,6 +279,8 @@ class XMLParser {
         };
       }
 
+      await this.lookupCoordinator.prefetchContributorsByOrcids(this.collectContributorOrcids(products));
+
       const promises = products.map((product, index) => this.parseWork(product, index + 1, WorkTypes.enum.EditedBook));
 
       // `Promise.all` resolves in input order regardless of completion order, so collecting
@@ -348,6 +350,22 @@ class XMLParser {
 
   private convertToArray<T>(data: T | T[]): T[] {
     return toOnixArray(data);
+  }
+
+  /** Every declared ORCID belonging to a contributor this parser will resolve for this import. */
+  private collectContributorOrcids(products: ExtendedProduct[]): string[] {
+    return products.flatMap((product) => {
+      const workContributors = this.convertToArray(product.DescriptiveDetail?.Contributor).filter(
+        (contributor) => !!contributor,
+      );
+      const chapterContributors = this.convertToArray(product.ContentDetail?.ContentItem)
+        .filter((chapter) => !!chapter)
+        .flatMap((chapter) => this.convertToArray(chapter.Contributor).filter((contributor) => !!contributor));
+
+      return [...workContributors, ...chapterContributors]
+        .filter((contributor) => (contributor.PersonName ?? '').length > 0)
+        .map((contributor) => selectOnixOrcid(contributor.NameIdentifier));
+    });
   }
 
   /**
@@ -703,8 +721,9 @@ class XMLParser {
    * of the format it resolved to:
    *
    * - HTML ({@link normaliseImportedAbstractHtml}): harmless empty spacer paragraphs are dropped, a
-   *   field that was nothing but spacer markup is omitted so no empty entity is created, and a
-   *   meaningful `<br>` Thoth cannot represent raises a blocking issue and drops the field.
+   *   field that was nothing but spacer markup is omitted so no empty entity is created, and each
+   *   safely understood `<br>` becomes a paragraph boundary. Malformed or ambiguous structure that
+   *   cannot be normalised without inventing semantics or losing content raises a blocking issue.
    * - Plain text ({@link normaliseImportedPlainText}), which still knows the declaration the
    *   markup-free content arrived under: HTML/XHTML whitespace collapses the way it would render,
    *   and under every other declaration a literal single line break — which the API's plain-text
@@ -754,7 +773,7 @@ class XMLParser {
       this.issues.push({
         severity: 'error',
         code: 'onix.text.unrepresentable_structure',
-        message: `The ${subject} of ${this.describeProduct(product, index)} contains a line break Thoth cannot represent. Replace the line break with separate paragraphs and upload the file again.`,
+        message: `The ${subject} of ${this.describeProduct(product, index)} contains HTML structure Thoth cannot safely normalise or represent without inventing semantics or losing content. Correct the HTML structure and upload the file again.`,
         source: this.productSource(product, index),
       });
 
@@ -827,7 +846,27 @@ class XMLParser {
   private parseLicense(product: ExtendedProduct, index: number) {
     const enteredLicense =
       product.DescriptiveDetail?.EpubLicense?.EpubLicenseExpression?.EpubLicenseExpressionLink ?? '';
-    const license = this.licenses.find((option) => option.value.startsWith(enteredLicense));
+
+    if (enteredLicense.trim() === '') {
+      return '';
+    }
+
+    const exactLicense = this.licenses.find((option) => enteredLicense === option.value);
+
+    if (exactLicense) {
+      return exactLicense.value;
+    }
+
+    const creativeCommonsLicenseRoot = 'https://creativecommons.org/licenses/';
+    const representationSuffix =
+      /^(?:legalcode|deed)(?:\.[A-Za-z]{2,3}(?:-[A-Za-z]{4})?(?:-(?:[A-Za-z]{2}|[0-9]{3}))?(?:-(?:[A-Za-z0-9]{5,8}|[0-9][A-Za-z0-9]{3}))*)?$/;
+    const license = this.licenses.find(
+      (option) =>
+        option.value !== '' &&
+        option.value.startsWith(creativeCommonsLicenseRoot) &&
+        enteredLicense.startsWith(option.value) &&
+        representationSuffix.test(enteredLicense.slice(option.value.length)),
+    );
 
     if (!license) {
       this.pushError(product, index, `License ${enteredLicense} not found for product ${index}`);
@@ -1686,10 +1725,10 @@ class XMLParser {
       const affiliationInstitutionRor = contributor.ProfessionalAffiliation?.AffiliationIdentifier?.IDValue;
       const biographies = this.parseBiographies(contributor, product, index);
 
-      const [foundedInstitution, foundedContributors, orcidMatch] = await Promise.all([
+      const orcidMatch = await this.lookupCoordinator.findContributorByOrcid(orcid);
+      const [foundedInstitution, foundedContributors] = await Promise.all([
         this.lookupCoordinator.findInstitutionByRor(affiliationInstitutionRor),
-        this.lookupCoordinator.findContributors(fullName),
-        this.lookupCoordinator.findContributorByOrcid(orcid),
+        orcidMatch ? Promise.resolve([]) : this.lookupCoordinator.findContributors(fullName),
       ]);
 
       const affiliation = foundedInstitution

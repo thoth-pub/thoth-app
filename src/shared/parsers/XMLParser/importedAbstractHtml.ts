@@ -15,17 +15,16 @@
  * The safe subset. Publisher ONIX (Arc Humanities Press) routinely closes an abstract with an
  * empty layout paragraph such as `<p style="text-align:justify;"><br></p>`. That paragraph holds
  * no visible content: it is pure formatting cruft, and removing the whole paragraph removes its
- * `<br>` with it, losing nothing. A `<br>` inside a paragraph that *does* carry visible content is
- * the opposite — a meaningful line break — and must never be silently deleted or turned into a
- * space. It is reported as unrepresentable so the import blocks in preview, before any mutation
- * runs, rather than being discovered at the API partway through a non-atomic bulk import.
+ * `<br>` with it, losing nothing. A `<br>` inside content is meaningful and becomes a paragraph
+ * boundary. Proven-safe inline elements open at the boundary are closed on the left and reopened
+ * with their original start tags on the right, preserving formatting and link attributes without
+ * flattening the publisher's markup. Document containers retain the new paragraphs as children;
+ * wrappers whose semantics are not proven safe make the field unrepresentable.
  *
  * Scope. This is a narrow, pure, dependency-free transform, not an HTML sanitiser and not a second
- * copy of the backend's markup validator. It removes structurally-empty paragraphs and detects the
- * `<br>` that survive; every character outside a removed paragraph is copied verbatim. Three edits
- * and no others are permitted: removing a spacer paragraph's own characters, trimming whitespace
- * from the two ends of the whole field, and inserting a single space where deleting a spacer would
- * otherwise run two survivors together. Nothing between two survivors is ever dropped. Anything else
+ * copy of the backend's markup validator. It removes structurally-empty paragraphs and converts
+ * surviving line breaks only when their surrounding element structure can be balanced safely.
+ * Content without a `<br>` keeps the existing byte-for-byte preservation guarantees. Anything else
  * an abstract's markup might get wrong stays the API's job.
  */
 
@@ -36,8 +35,8 @@
  *   still contains markup; the caller creates the entity with it.
  * - `empty` — the field held nothing but spacer markup, so it has no semantic content. The caller
  *   omits the field: an empty abstract or biography is never created.
- * - `unrepresentable` — a meaningful `<br>` remains that Thoth cannot represent. The caller raises
- *   a blocking issue and drops the field, so it never reaches a mutation.
+ * - `unrepresentable` — malformed or ambiguous markup prevents a surviving `<br>` from being split
+ *   without risking publisher content. The caller raises a blocking issue and drops the field.
  */
 export type ImportedAbstractHtml =
   | { kind: 'content'; content: string }
@@ -424,6 +423,16 @@ const tokenise = (html: string): Token[] => {
 };
 
 /**
+ * Whether tag-shaped text was left inside a text token because its comment or quoted tag never
+ * closed. This matters only when a real break must be transformed: repairing around such an opener
+ * would guess where publisher markup ended, so the safe result is `unrepresentable`.
+ */
+const hasUnterminatedMarkup = (tokens: Token[], html: string): boolean =>
+  tokens.some(
+    (token) => token.type === 'text' && /<!--|<\/?[a-zA-Z]/.test(html.slice(token.start, token.end)),
+  );
+
+/**
  * Groups the tokens into top-level `<p>` elements. Paragraphs do not nest in HTML, so an opening
  * `<p>` while one is already open closes the previous one where it stood (as a real HTML parser
  * does), and an unclosed `<p>` runs to the end of the fragment. Content outside any paragraph is
@@ -545,6 +554,52 @@ const isSpacerParagraph = (tokens: Token[], html: string, paragraph: Paragraph):
  * tags are blocks.
  */
 const BLOCK_BOUNDARY_ELEMENTS = new Set([...PARAGRAPH_IMPLICIT_END_ELEMENTS, 'p']);
+
+/** Transparent document containers whose children may be transformed without cloning the container. */
+const DOCUMENT_CONTAINER_ELEMENTS = new Set(['html', 'body', 'div']);
+
+/**
+ * Wrappers whose backend meaning is preserved when one instance is closed and an identical one is
+ * reopened around the next paragraph. This is an allowlist of the backend's formatting/link HTML
+ * mappings, not the inverse of {@link BLOCK_BOUNDARY_ELEMENTS}: arbitrary HTML elements may carry
+ * semantics that cannot survive being cloned.
+ */
+const REOPENABLE_INLINE_ELEMENTS = new Set([
+  'a',
+  'b',
+  'code',
+  'del',
+  'em',
+  'i',
+  's',
+  'span',
+  'strike',
+  'strikethrough',
+  'strong',
+  'sub',
+  'sup',
+  'text',
+  'u',
+  'underline',
+]);
+
+/**
+ * Whether a span class makes reopening unsafe. The backend tokenises the HTML-decoded class value;
+ * this narrow normaliser does not implement that decoder, so any character reference means it
+ * cannot prove the span is ordinary. A literal inline-formula token is unsafe for the same reason:
+ * cloning it would turn one backend formula into two.
+ */
+const hasUnreopenableSpanClass = (name: string, open: string): boolean => {
+  if (name !== 'span') return false;
+
+  const classAttribute = /\sclass\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/i.exec(open);
+  const classValue = classAttribute?.[1] ?? classAttribute?.[2] ?? classAttribute?.[3];
+
+  return classValue?.includes('&') || classValue?.split(/\s+/).includes('inline-formula') || false;
+};
+
+const canReopenInlineElement = (name: string, open: string): boolean =>
+  REOPENABLE_INLINE_ELEMENTS.has(name) && !hasUnreopenableSpanClass(name, open);
 
 /**
  * The nearest token index on each side of a span that will still be there once it is gone, or `-1`
@@ -684,18 +739,333 @@ const rendersNothing = (tokens: Token[], html: string): boolean =>
     return !token.standalone && NON_RENDERING_ELEMENTS.has(token.name);
   });
 
+type OpenInlineElement = { name: string; open: string; reopenable: boolean };
+
+/**
+ * Splits one run of inline tokens at every `<br>`, balancing the wrappers around each resulting
+ * fragment. Start tags are copied verbatim when a wrapper is reopened, so attributes such as an
+ * anchor's `href` survive on both sides. Closing tags introduced at the boundary need only carry the
+ * element name; the source closing tag remains on the final fragment.
+ *
+ * A mismatched close, a block element inside the run, or an unclosed wrapper is ambiguous here. The
+ * function then returns `undefined`, making the field unrepresentable rather than guessing and
+ * silently losing or moving content.
+ */
+const splitInlineTokensAtBreaks = (tokens: Token[], html: string): string[] | undefined => {
+  const fragments: string[] = [];
+  const openElements: OpenInlineElement[] = [];
+  let fragment = '';
+  let fragmentHasSourceContent = false;
+  let sawBreak = false;
+
+  const finishFragment = () => {
+    const balanced =
+      fragment +
+      [...openElements]
+        .reverse()
+        .map(({ name }) => `</${name}>`)
+        .join('');
+
+    if (fragmentHasSourceContent && !rendersNothing(tokenise(balanced), balanced)) fragments.push(balanced);
+  };
+
+  for (const token of tokens) {
+    const raw = html.slice(token.start, token.end);
+
+    if (token.type !== 'tag') {
+      fragment += raw;
+      if (token.type === 'text' && hasVisibleText(raw)) fragmentHasSourceContent = true;
+      continue;
+    }
+
+    if (token.name === 'br') {
+      if (openElements.some(({ reopenable }) => !reopenable)) return undefined;
+
+      sawBreak = true;
+      finishFragment();
+      fragment = openElements.map(({ open }) => open).join('');
+      fragmentHasSourceContent = false;
+      continue;
+    }
+
+    if (BLOCK_BOUNDARY_ELEMENTS.has(token.name)) return undefined;
+
+    if (token.standalone) {
+      fragment += raw;
+      fragmentHasSourceContent = true;
+      continue;
+    }
+
+    if (!token.closing) {
+      fragment += raw;
+      if (!NON_RENDERING_ELEMENTS.has(token.name)) fragmentHasSourceContent = true;
+      openElements.push({
+        name: token.name,
+        open: raw,
+        reopenable: canReopenInlineElement(token.name, raw),
+      });
+      continue;
+    }
+
+    if (openElements.at(-1)?.name !== token.name) return undefined;
+
+    fragment += raw;
+    openElements.pop();
+  }
+
+  if (!sawBreak || openElements.length > 0) return undefined;
+
+  finishFragment();
+  return fragments;
+};
+
+/**
+ * Makes the paragraph structure explicit before the balanced loose-break pass, then replaces each
+ * real paragraph containing a break with one paragraph per non-empty fragment. Implicit paragraph
+ * ends come from {@link findParagraphs}, so this does not invent a second set of HTML rules.
+ */
+const splitParagraphBreaks = (html: string): string | undefined => {
+  const tokens = tokenise(html);
+  const paragraphs = findParagraphs(tokens, html.length);
+
+  let result = '';
+  let cursor = 0;
+
+  for (const paragraph of paragraphs) {
+    const opening = tokens[paragraph.innerFrom - 1];
+    const closing = tokens[paragraph.innerTo];
+
+    if (opening?.type !== 'tag' || opening.name !== 'p' || opening.closing) return undefined;
+
+    const paragraphTokens = tokens.slice(paragraph.innerFrom, paragraph.innerTo);
+    const hasBreak = paragraphTokens.some(
+      (token) => token.type === 'tag' && token.name === 'br',
+    );
+    const hasExplicitClose = closing?.type === 'tag' && closing.name === 'p' && closing.closing;
+
+    if (!hasBreak && hasExplicitClose) continue;
+
+    result += html.slice(cursor, paragraph.start);
+
+    if (!hasBreak) {
+      result += `${html.slice(paragraph.start, paragraph.end)}</p>`;
+      cursor = paragraph.end;
+      continue;
+    }
+
+    const fragments = splitInlineTokensAtBreaks(paragraphTokens, html);
+    if (fragments === undefined) return undefined;
+
+    const openingHtml = html.slice(opening.start, opening.end);
+    const closingHtml = hasExplicitClose ? html.slice(closing.start, closing.end) : '</p>';
+
+    result += fragments.map((fragment) => `${openingHtml}${fragment}${closingHtml}`).join('');
+    cursor = paragraph.end;
+  }
+
+  return result + html.slice(cursor);
+};
+
+type BreakTreeNode =
+  | { type: 'raw'; raw: string; visible: boolean }
+  | {
+      type: 'element';
+      name: string;
+      open: string;
+      close?: string;
+      standalone: boolean;
+      children: BreakTreeNode[];
+    };
+
+/**
+ * Builds only the small, balanced tree needed to locate loose inline runs. Paragraph breaks have
+ * already been handled before this runs. Unlike an HTML error-recovery parser, this rejects stray,
+ * crossed or unclosed tags so malformed input cannot be silently repaired into different content.
+ */
+const parseBreakTree = (html: string): BreakTreeNode[] | undefined => {
+  const root: BreakTreeNode[] = [];
+  const stack: Extract<BreakTreeNode, { type: 'element' }>[] = [];
+  const append = (node: BreakTreeNode) => (stack.at(-1)?.children ?? root).push(node);
+
+  for (const token of tokenise(html)) {
+    const raw = html.slice(token.start, token.end);
+
+    if (token.type !== 'tag') {
+      append({ type: 'raw', raw, visible: token.type === 'text' && hasVisibleText(raw) });
+      continue;
+    }
+
+    if (token.closing && token.name !== 'br') {
+      const open = stack.at(-1);
+      if (open?.name !== token.name) return undefined;
+
+      open.close = raw;
+      stack.pop();
+      continue;
+    }
+
+    const element: Extract<BreakTreeNode, { type: 'element' }> = {
+      type: 'element',
+      name: token.name,
+      open: raw,
+      standalone: token.standalone,
+      children: [],
+    };
+
+    append(element);
+    if (!token.standalone) stack.push(element);
+  }
+
+  return stack.length === 0 ? root : undefined;
+};
+
+const treeContainsBreak = (nodes: BreakTreeNode[]): boolean =>
+  nodes.some((node) =>
+    node.type === 'element' ? node.name === 'br' || treeContainsBreak(node.children) : false,
+  );
+
+const serialiseBreakTree = (nodes: BreakTreeNode[]): string =>
+  nodes
+    .map((node) =>
+      node.type === 'raw'
+        ? node.raw
+        : node.open + serialiseBreakTree(node.children) + (node.standalone ? '' : (node.close ?? '')),
+    )
+    .join('');
+
+/** Splits a balanced loose inline run, cloning any wrappers that span a break. */
+const splitTreeRunAtBreaks = (nodes: BreakTreeNode[]): string[] | undefined => {
+  const fragments: string[] = [];
+  const openElements: Extract<BreakTreeNode, { type: 'element' }>[] = [];
+  let fragment = '';
+  let fragmentHasSourceContent = false;
+
+  const finishFragment = () => {
+    const balanced =
+      fragment +
+      [...openElements]
+        .reverse()
+        .map(({ name }) => `</${name}>`)
+        .join('');
+
+    if (fragmentHasSourceContent && !rendersNothing(tokenise(balanced), balanced)) fragments.push(balanced);
+  };
+
+  const visit = (entries: BreakTreeNode[]): boolean => {
+    for (const node of entries) {
+      if (node.type === 'raw') {
+        fragment += node.raw;
+        if (node.visible) fragmentHasSourceContent = true;
+        continue;
+      }
+
+      if (node.name === 'br') {
+        if (openElements.some(({ name, open }) => !canReopenInlineElement(name, open))) return false;
+
+        finishFragment();
+        fragment = openElements.map(({ open }) => open).join('');
+        fragmentHasSourceContent = false;
+        continue;
+      }
+
+      if (BLOCK_BOUNDARY_ELEMENTS.has(node.name)) return false;
+
+      if (node.standalone) {
+        fragment += node.open;
+        fragmentHasSourceContent = true;
+        continue;
+      }
+
+      if (node.close === undefined) return false;
+
+      fragment += node.open;
+      if (!NON_RENDERING_ELEMENTS.has(node.name)) fragmentHasSourceContent = true;
+      openElements.push(node);
+      if (!visit(node.children)) return false;
+      fragment += node.close;
+      openElements.pop();
+    }
+
+    return true;
+  };
+
+  if (!visit(nodes) || openElements.length > 0) return undefined;
+
+  finishFragment();
+  return fragments;
+};
+
+/**
+ * Turns loose inline runs containing a `<br>` into paragraphs at their current block depth. Existing
+ * block elements remain where they are; their children are transformed recursively. Thus
+ * `Line one<br>Line two` gains paragraph structure without wrapping or flattening a neighbouring
+ * real paragraph, list or container.
+ */
+const splitLooseBreaks = (html: string): string | undefined => {
+  const tree = parseBreakTree(html);
+  if (tree === undefined) return undefined;
+
+  const transformContainer = (nodes: BreakTreeNode[]): BreakTreeNode[] | undefined => {
+    const transformed: BreakTreeNode[] = [];
+    let inlineRun: BreakTreeNode[] = [];
+
+    const flushInlineRun = (): boolean => {
+      if (inlineRun.length === 0) return true;
+
+      if (!treeContainsBreak(inlineRun)) {
+        transformed.push(...inlineRun);
+        inlineRun = [];
+        return true;
+      }
+
+      const fragments = splitTreeRunAtBreaks(inlineRun);
+      if (fragments === undefined) return false;
+
+      transformed.push(
+        ...fragments.map(
+          (fragment): BreakTreeNode => ({ type: 'raw', raw: `<p>${fragment}</p>`, visible: true }),
+        ),
+      );
+      inlineRun = [];
+      return true;
+    };
+
+    for (const node of nodes) {
+      if (
+        node.type !== 'element' ||
+        (!BLOCK_BOUNDARY_ELEMENTS.has(node.name) && !DOCUMENT_CONTAINER_ELEMENTS.has(node.name))
+      ) {
+        inlineRun.push(node);
+        continue;
+      }
+
+      if (!flushInlineRun()) return undefined;
+
+      if (node.name === 'p' || node.standalone) {
+        transformed.push(node);
+        continue;
+      }
+
+      const children = transformContainer(node.children);
+      if (children === undefined) return undefined;
+
+      transformed.push({ ...node, children });
+    }
+
+    return flushInlineRun() ? transformed : undefined;
+  };
+
+  const transformed = transformContainer(tree);
+  return transformed === undefined ? undefined : serialiseBreakTree(transformed);
+};
+
 /**
  * Normalises one imported HTML abstract/biography field for Thoth's representable subset.
  *
- * Removes structurally-empty spacer paragraphs; keeps everything else exactly as it was; and, if a
- * meaningful `<br>` survives — one in a paragraph that carries visible content, or one loose at the
- * top level — reports the field as unrepresentable rather than editing it. A field that renders
- * nothing once the spacers are gone comes back `empty`, so no content-free entity is created for it.
- *
- * The order matters and is fixed: tokenise, find the spacer paragraphs, and only then judge the
- * `<br>` that are *not* inside one. A meaningful break outranks everything, so it is reported before
- * a single character is removed and the emptiness test never runs on a field that still holds a real
- * line break — no `<br>` can be swept away by being declared part of an empty wrapper.
+ * Removes structurally-empty spacer paragraphs, then turns every safely understood surviving `<br>`
+ * into a paragraph boundary. A field that renders nothing once the spacers and empty break fragments
+ * are gone comes back `empty`, so no content-free entity is created for it. If wrapper structure is
+ * malformed or ambiguous at a required split, the field remains `unrepresentable`.
  *
  * Precisely what "exactly as it was" means, as three rules rather than one slogan:
  *
@@ -711,27 +1081,34 @@ export const normaliseImportedAbstractHtml = (content: string): ImportedAbstract
   const paragraphs = findParagraphs(tokens, content.length);
   const spacers = paragraphs.filter((paragraph) => isSpacerParagraph(tokens, content, paragraph));
 
-  const withinSpacer = (offset: number) => spacers.some(({ start, end }) => offset >= start && offset < end);
-  const meaningfulBreak = tokens.some(
-    (token) => token.type === 'tag' && token.name === 'br' && !withinSpacer(token.start),
-  );
+  const cleaned =
+    spacers.length === 0
+      ? content
+      : removeSpans(
+          content,
+          spacers.map(({ start, end }): [number, number] => [start, end]),
+          tokens,
+        ).trim();
 
-  // A meaningful line break outranks any spacer removal: the field cannot be represented, so it is
-  // reported untouched rather than partially cleaned and sent to fail at the API.
-  if (meaningfulBreak) return { kind: 'unrepresentable' };
+  const cleanedTokens = tokenise(cleaned);
+  const hasBreak = cleanedTokens.some((token) => token.type === 'tag' && token.name === 'br');
 
-  // Nothing to remove: return the input unchanged, so representable content is never rewritten.
-  if (spacers.length === 0) {
-    return rendersNothing(tokens, content) ? { kind: 'empty' } : { kind: 'content', content };
+  // Preserve the existing byte-for-byte fast path whenever no meaningful break survives.
+  if (!hasBreak) {
+    return rendersNothing(cleanedTokens, cleaned) ? { kind: 'empty' } : { kind: 'content', content: cleaned };
   }
 
-  const cleaned = removeSpans(
-    content,
-    spacers.map(({ start, end }): [number, number] => [start, end]),
-    tokens,
-  ).trim();
+  if (hasUnterminatedMarkup(cleanedTokens, cleaned)) return { kind: 'unrepresentable' };
+
+  const paragraphsSplit = splitParagraphBreaks(cleaned);
+  if (paragraphsSplit === undefined) return { kind: 'unrepresentable' };
+
+  const fullySplit = splitLooseBreaks(paragraphsSplit);
+  if (fullySplit === undefined) return { kind: 'unrepresentable' };
 
   // Not a length test: what is left may still be wrappers holding nothing, such as the `<div></div>`
   // that removing the only paragraph of `<div><p><br></p></div>` leaves behind.
-  return rendersNothing(tokenise(cleaned), cleaned) ? { kind: 'empty' } : { kind: 'content', content: cleaned };
+  return rendersNothing(tokenise(fullySplit), fullySplit)
+    ? { kind: 'empty' }
+    : { kind: 'content', content: fullySplit };
 };

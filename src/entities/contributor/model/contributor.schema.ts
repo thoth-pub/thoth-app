@@ -22,6 +22,28 @@ export const GET_CONTRIBUTORS = graphql(`
   }
 `);
 
+export const GET_CONTRIBUTORS_BY_ORCIDS = graphql(`
+  query GetContributorsByOrcids($orcids: [Orcid!]!) {
+    contributorsByOrcids(orcids: $orcids) {
+      orcid
+      fullName
+      firstName
+      lastName
+      website
+      updatedAt
+      contributorId
+      contributions(order: { field: UPDATED_AT, direction: DESC }, limit: 1) {
+        work {
+          titles {
+            canonical
+            title
+          }
+        }
+      }
+    }
+  }
+`);
+
 export const GET_LINKED_PUBLISHERS = graphql(`
   query GetLinkedPublishers($contributorId: Uuid!, $offset: Int!, $limit: Int) {
     contributor(contributorId: $contributorId) {

@@ -65,12 +65,14 @@ const makeParser = (
     contributorResults?: object[];
     institutionResults?: object[];
     getContributors?: (fullName: string) => Promise<object[]>;
+    getContributorsByOrcids?: (orcids: string[]) => Promise<object[]>;
     getInstitutions?: (offset: number, limit: number, filter: string) => Promise<object[]>;
   } = {},
 ) => {
   const series = opts.series ?? testSeries;
   const config = getCsvConfig(imprints, licenseOptions, t);
   const getContributors = opts.getContributors ?? vi.fn().mockResolvedValue(opts.contributorResults ?? []);
+  const getContributorsByOrcids = opts.getContributorsByOrcids ?? vi.fn().mockResolvedValue([]);
   const getInstitutions = opts.getInstitutions ?? vi.fn().mockResolvedValue(opts.institutionResults ?? []);
 
   return new CSVParser(
@@ -79,7 +81,7 @@ const makeParser = (
     imprints,
     licenseOptions,
     series,
-    { getContributors } as unknown as ContributorService,
+    { getContributors, getContributorsByOrcids } as unknown as ContributorService,
     { getInstitutions } as unknown as InstitutionService,
     t,
   );
@@ -1789,10 +1791,39 @@ describe('CSV contributor identity by ORCID', () => {
   const plannedContributions = (result: Awaited<ReturnType<CSVParser['parse']>>) =>
     result.data.plan.works.map((work) => work.contributions[0]);
 
-  it('resolves an existing ORCID even when the source name would never have found it', async () => {
-    // The name search returns nothing at all — the stored spelling is materially different —
-    // and the ORCID still settles the identity.
-    const getContributors = byFilter({ [ORCID]: [existing({})] });
+  it('prefetches hundreds of distinct ORCIDs in one batch before row fanout', async () => {
+    const canonicalOrcid = (index: number) =>
+      `https://orcid.org/0000-0002-0000-${index.toString().padStart(4, '0')}`;
+    const rows = Array.from({ length: 200 }, (_, index) =>
+      contributorRow({
+        title: `Book ${index}`,
+        contribution_1_first_name: `Author${index}`,
+        contribution_1_surname: 'Example',
+        contribution_1_orcid: canonicalOrcid(index),
+      }),
+    );
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
+
+    const result = await makeParser(makeFile(buildCsvRows(rows)), {
+      getContributors,
+      getContributorsByOrcids,
+    }).parse();
+
+    expect(result.status).toBe('success');
+    expect(getContributorsByOrcids).toHaveBeenCalledTimes(1);
+    expect(getContributorsByOrcids).toHaveBeenCalledWith(
+      Array.from({ length: 200 }, (_, index) => canonicalOrcid(index)),
+    );
+    expect(getContributors).toHaveBeenCalledTimes(200);
+    expect(getContributors.mock.calls.every(([filter]) => String(filter).includes('Example'))).toBe(true);
+  });
+
+  it('uses an exact batch hit without issuing the redundant name lookup', async () => {
+    const getContributors = vi.fn().mockResolvedValue([
+      existing({ id: 'name-only-candidate', fullName: 'Jane Doe', orcid: '' }),
+    ]);
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([existing({ id: 'orcid-holder' })]);
     const csv = buildCsv(
       contributorRow({
         contribution_1_first_name: 'Jane',
@@ -1801,12 +1832,50 @@ describe('CSV contributor identity by ORCID', () => {
       }),
     );
 
-    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+    const result = await makeParser(makeFile(csv), { getContributors, getContributorsByOrcids }).parse();
+
+    expect(plannedContributions(result)[0].contributorId).toBe('orcid-holder');
+    expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
+    expect(getContributors).not.toHaveBeenCalled();
+  });
+
+  it('fails the parse when the ORCID batch request rejects', async () => {
+    const failure = new Error('502 Bad Gateway');
+    const csv = buildCsv(
+      contributorRow({
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: ORCID,
+      }),
+    );
+
+    const result = await makeParser(makeFile(csv), {
+      getContributors: vi.fn().mockResolvedValue([]),
+      getContributorsByOrcids: vi.fn().mockRejectedValue(failure),
+    }).parse();
+
+    expect(result.status).toBe('failed');
+    expect(result.data.plan.works).toEqual([]);
+  });
+
+  it('resolves an existing ORCID even when the source name would never have found it', async () => {
+    // The name search returns nothing at all — the stored spelling is materially different —
+    // and the ORCID still settles the identity.
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([existing({})]);
+    const csv = buildCsv(
+      contributorRow({
+        contribution_1_first_name: 'Jane',
+        contribution_1_surname: 'Doe',
+        contribution_1_orcid: ORCID,
+      }),
+    );
+
+    const result = await makeParser(makeFile(csv), { getContributors, getContributorsByOrcids }).parse();
 
     expect(result.status).toBe('success');
-    expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(
-      expect.arrayContaining(['Jane Doe', ORCID]),
-    );
+    expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
+    expect(getContributors).not.toHaveBeenCalled();
 
     const [contribution] = plannedContributions(result);
 
@@ -1829,7 +1898,8 @@ describe('CSV contributor identity by ORCID', () => {
 
   it('keeps the source role, ordinal, biography and affiliation while sharing the resolved identity', async () => {
     const ror = 'https://ror.org/03vek6s52';
-    const getContributors = byFilter({ [ORCID]: [existing({})] });
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([existing({})]);
     const getInstitutions = vi.fn().mockResolvedValue([{ id: 'institution', name: 'Harvard University', ror }]);
     const csv = buildCsv(
       contributorRow({
@@ -1843,7 +1913,11 @@ describe('CSV contributor identity by ORCID', () => {
       }),
     );
 
-    const result = await makeParser(makeFile(csv), { getContributors, getInstitutions }).parse();
+    const result = await makeParser(makeFile(csv), {
+      getContributors,
+      getContributorsByOrcids,
+      getInstitutions,
+    }).parse();
     const [contribution] = plannedContributions(result);
 
     // Who the contribution points at is Thoth's stored identity; everything the file said about
@@ -1867,8 +1941,8 @@ describe('CSV contributor identity by ORCID', () => {
         { ...existing({ id: 'namesake-one', fullName: 'Jane Doe', orcid: '' }) },
         { ...existing({ id: 'namesake-two', fullName: 'Jane Doe', orcid: `https://orcid.org/${OTHER_ORCID}` }) },
       ],
-      [ORCID]: [existing({ id: 'orcid-holder' })],
     });
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([existing({ id: 'orcid-holder' })]);
     const csv = buildCsv(
       contributorRow({
         contribution_1_first_name: 'Jane',
@@ -1877,21 +1951,23 @@ describe('CSV contributor identity by ORCID', () => {
       }),
     );
 
-    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+    const result = await makeParser(makeFile(csv), { getContributors, getContributorsByOrcids }).parse();
 
     expect(plannedContributions(result)[0].contributorId).toBe('orcid-holder');
 
     const options = Object.values(result.data.contributorsForSelection[result.data.plan.works[0].id])[0];
 
     expect(options.map(({ contributorId }) => contributorId)).toEqual(['orcid-holder']);
+    expect(getContributors).not.toHaveBeenCalled();
   });
 
   it('never turns a substring ORCID candidate into an identity', async () => {
     // The backend filter is a substring search, so it may legitimately return a longer ORCID
     // that merely contains the search string.
-    const getContributors = byFilter({
-      [ORCID]: [existing({ id: 'substring-holder', orcid: `https://orcid.org/${ORCID}0` })],
-    });
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const getContributorsByOrcids = vi
+      .fn()
+      .mockResolvedValue([existing({ id: 'substring-holder', orcid: `https://orcid.org/${ORCID}0` })]);
     const csv = buildCsv(
       contributorRow({
         contribution_1_first_name: 'Jane',
@@ -1900,13 +1976,14 @@ describe('CSV contributor identity by ORCID', () => {
       }),
     );
 
-    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+    const result = await makeParser(makeFile(csv), { getContributors, getContributorsByOrcids }).parse();
 
     expect(plannedContributions(result)[0].contributorId).toBe(appConfig.defaultId);
   });
 
   it('plans one shared identity for a repeated previously unseen ORCID across rows', async () => {
     const getContributors = vi.fn().mockResolvedValue([]);
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
     const csv = buildCsvRows([
       contributorRow({
         title: 'First book',
@@ -1923,7 +2000,7 @@ describe('CSV contributor identity by ORCID', () => {
       }),
     ]);
 
-    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+    const result = await makeParser(makeFile(csv), { getContributors, getContributorsByOrcids }).parse();
 
     expect(result.status).toBe('success');
 
@@ -1936,16 +2013,17 @@ describe('CSV contributor identity by ORCID', () => {
       appConfig.defaultId,
     ]);
     expect(contributions.map(({ orcidId }) => orcidId)).toEqual([ORCID, CANONICAL_ORCID]);
-    // One identity lookup for the ORCID across the whole parse, in either representation.
-    expect(getContributors.mock.calls.filter(([filter]) => filter === ORCID)).toHaveLength(1);
+    // One exact identity lookup for the ORCID across the whole parse, in either representation.
+    expect(getContributorsByOrcids).toHaveBeenCalledTimes(1);
+    expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
   });
 
   it('keeps two same-name contributors with different ORCIDs distinct', async () => {
-    const getContributors = byFilter({
-      'Jane Doe': [existing({ id: 'namesake', fullName: 'Jane Doe' })],
-      [ORCID]: [existing({ id: 'holder-one' })],
-      [OTHER_ORCID]: [existing({ id: 'holder-two', orcid: `https://orcid.org/${OTHER_ORCID}` })],
-    });
+    const getContributors = vi.fn().mockResolvedValue([existing({ id: 'namesake', fullName: 'Jane Doe' })]);
+    const getContributorsByOrcids = vi.fn().mockResolvedValue([
+      existing({ id: 'holder-one' }),
+      existing({ id: 'holder-two', orcid: `https://orcid.org/${OTHER_ORCID}` }),
+    ]);
     const csv = buildCsvRows([
       contributorRow({
         title: 'First book',
@@ -1961,12 +2039,13 @@ describe('CSV contributor identity by ORCID', () => {
       }),
     ]);
 
-    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+    const result = await makeParser(makeFile(csv), { getContributors, getContributorsByOrcids }).parse();
 
     expect(plannedContributions(result).map(({ contributorId }) => contributorId)).toEqual([
       'holder-one',
       'holder-two',
     ]);
+    expect(getContributors).not.toHaveBeenCalled();
   });
 
   it('leaves name-based selection exactly as it was when no ORCID matches', async () => {
@@ -2020,9 +2099,8 @@ describe('CSV contributor identity by ORCID', () => {
   });
 
   it('fails the parse when the ORCID identity lookup genuinely rejects', async () => {
-    const getContributors = vi.fn((filter: string) =>
-      filter === ORCID ? Promise.reject(new Error('502 Bad Gateway')) : Promise.resolve([]),
-    );
+    const getContributors = vi.fn().mockResolvedValue([]);
+    const getContributorsByOrcids = vi.fn().mockRejectedValue(new Error('502 Bad Gateway'));
     const csv = buildCsv(
       contributorRow({
         contribution_1_first_name: 'Jane',
@@ -2031,7 +2109,7 @@ describe('CSV contributor identity by ORCID', () => {
       }),
     );
 
-    const result = await makeParser(makeFile(csv), { getContributors }).parse();
+    const result = await makeParser(makeFile(csv), { getContributors, getContributorsByOrcids }).parse();
 
     expect(result.status).toBe('failed');
     expect(result.data.plan.works).toEqual([]);
@@ -2049,7 +2127,8 @@ describe('CSV contributor identity by ORCID', () => {
     const HYPHENLESS_ORCID = '0000000163655189';
 
     it('resolves the existing contributor an equivalent hyphenless ORCID identifies', async () => {
-      const getContributors = byFilter({ [ORCID]: [existing({})] });
+      const getContributors = vi.fn().mockResolvedValue([]);
+      const getContributorsByOrcids = vi.fn().mockResolvedValue([existing({})]);
       const csv = buildCsv(
         contributorRow({
           contribution_1_first_name: 'Jane',
@@ -2058,11 +2137,12 @@ describe('CSV contributor identity by ORCID', () => {
         }),
       );
 
-      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+      const result = await makeParser(makeFile(csv), { getContributors, getContributorsByOrcids }).parse();
 
       expect(plannedContributions(result)[0].contributorId).toBe('existing-contributor');
       // Looked up by the canonical form, which is the only one that can match what Thoth stored.
-      expect(getContributors.mock.calls.map(([filter]) => filter)).toEqual(expect.arrayContaining([ORCID]));
+      expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
+      expect(getContributors).not.toHaveBeenCalled();
     });
 
     it('plans the hyphenated form for a new contributor supplied hyphenless', async () => {
@@ -2084,6 +2164,7 @@ describe('CSV contributor identity by ORCID', () => {
 
     it('treats hyphenated and hyphenless occurrences of one ORCID as one identity', async () => {
       const getContributors = vi.fn().mockResolvedValue([]);
+      const getContributorsByOrcids = vi.fn().mockResolvedValue([]);
       const csv = buildCsvRows([
         contributorRow({
           title: 'First book',
@@ -2099,7 +2180,7 @@ describe('CSV contributor identity by ORCID', () => {
         }),
       ]);
 
-      const result = await makeParser(makeFile(csv), { getContributors }).parse();
+      const result = await makeParser(makeFile(csv), { getContributors, getContributorsByOrcids }).parse();
 
       expect(result.status).toBe('success');
 
@@ -2108,7 +2189,8 @@ describe('CSV contributor identity by ORCID', () => {
       // One ORCID across both rows is what lets the execution registry key them together and
       // create the contributor exactly once, rather than twice onto a unique index.
       expect(contributions.map(({ orcidId }) => orcidId)).toEqual([ORCID, ORCID]);
-      expect(getContributors.mock.calls.filter(([filter]) => filter === ORCID)).toHaveLength(1);
+      expect(getContributorsByOrcids).toHaveBeenCalledTimes(1);
+      expect(getContributorsByOrcids).toHaveBeenCalledWith([CANONICAL_ORCID]);
     });
 
     it('keeps a malformed short numeric ORCID an error rather than padding it', async () => {
