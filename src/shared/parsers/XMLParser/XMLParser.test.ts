@@ -7951,6 +7951,306 @@ Professor Emerita of English.</BiographicalNote>`),
       });
     });
   });
+
+  /**
+   * Issue #173. Whether a canonical Location is representable at all depends on the Publication's
+   * own type: thoth-api accepts a physical canonical Location with either URL, but requires both a
+   * landing page and a full text URL for a digital one. The parser used to append a canonical
+   * Supplier Location unconditionally, so a frontlist record with no access URLs yet planned a
+   * `('', '')` Location and the import failed at the API partway through, after earlier records had
+   * already been created. These cover the matrix from the ONIX side, before any mutation runs.
+   */
+  describe('publication Location planning', () => {
+    const RECORD_REFERENCE = '9781802700000';
+    const SUPPLIER_LANDING_PAGE = 'https://supplier.example.com/book/a-frontlist-title';
+    const SUPPLIER_FULL_TEXT_URL = 'https://supplier.example.com/book/a-frontlist-title.pdf';
+    const PUBLISHER_LANDING_PAGE = 'https://publisher.example.com/book/a-frontlist-title/';
+
+    /** The Supplier Website roles a case supplies: role 02 landing page, role 29 full text. */
+    type SupplierUrls = { landingPage?: string; fullTextUrl?: string };
+
+    const supplierWebsites = ({ landingPage, fullTextUrl }: SupplierUrls) => [
+      ...(landingPage === undefined ? [] : [{ WebsiteRole: '02', WebsiteLink: landingPage }]),
+      ...(fullTextUrl === undefined ? [] : [{ WebsiteRole: '29', WebsiteLink: fullTextUrl }]),
+    ];
+
+    /**
+     * One priced product — the parser only reaches the Supplier branch when SupplyDetail carries a
+     * Price — with whichever Supplier Website roles the case is about. Omitting `supplier`
+     * entirely leaves the product with no ProductSupply. The publisher-level Website role 02 is
+     * passed separately, because it is Work metadata rather than Publication Location metadata.
+     */
+    const productWith = ({
+      productForm,
+      supplier,
+      publisherLandingPage,
+    }: {
+      productForm: ProductForm;
+      supplier?: SupplierUrls;
+      publisherLandingPage?: string;
+    }): ExtendedONIXMessageRoot => ({
+      ONIXMessage: {
+        Product: [
+          {
+            RecordReference: RECORD_REFERENCE,
+            DescriptiveDetail: {
+              ProductForm: productForm,
+              TitleDetail: { TitleElement: { TitleText: 'A frontlist title' } },
+              Language: { LanguageCode: languages[0].value },
+            } as ExtendedDescriptiveDetail,
+            PublishingDetail: {
+              Imprint: { ImprintName: imprints[0].label },
+              PublishingStatus: '04',
+              ...(publisherLandingPage === undefined
+                ? {}
+                : { Publisher: [{ Website: [{ WebsiteRole: '02', WebsiteLink: publisherLandingPage }] }] }),
+            } as ExtendedPublishingDetail,
+            ...(supplier === undefined
+              ? {}
+              : {
+                  ProductSupply: {
+                    SupplyDetail: {
+                      Price: [{ CurrencyCode: currencies[0].value, PriceAmount: '10' }],
+                      Supplier: { Website: supplierWebsites(supplier) },
+                    },
+                    Market: { Territory: { RegionsIncluded: LocationPlatforms.options[0] } },
+                  } as ExtendedProductSupply,
+                }),
+          },
+        ],
+      },
+    });
+
+    const run = async (xml: ExtendedONIXMessageRoot) => {
+      const parser = new XMLParser(
+        xml,
+        imprints,
+        licenses,
+        serieses,
+        mockContributorService,
+        mockInstitutionService,
+        languages,
+        currencies,
+      );
+
+      return parser.parse();
+    };
+
+    const locationsOf = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
+      result.data.plan.works[0].publications[0].locations;
+
+    const unrepresentableWarnings = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
+      result.issues.filter((issue) => issue.code === 'onix.location.unrepresentable_canonical');
+
+    /** The one canonical Location a representable case should plan, with the platform mapping kept. */
+    const canonicalLocation = (landingPage: string, fullTextUrl: string) => [
+      {
+        id: appConfig.defaultId,
+        canonical: true,
+        landingPage,
+        fullTextUrl,
+        locationPlatform: LocationPlatforms.options[0],
+      },
+    ];
+
+    // Physical: thoth-api's canonical completeness rule for Paperback and Hardback is "at least
+    // one URL", so every populated case is representable exactly as the Supplier supplied it.
+    describe.each([
+      ['Paperback (BC)', ProductForm._BC],
+      ['Hardback (BB)', ProductForm._BB],
+    ])('a physical publication, %s', (_label, productForm) => {
+      it('plans no Location when the Supplier carries neither URL', async () => {
+        const result = await run(productWith({ productForm, supplier: {} }));
+
+        expect(result.status).toBe('success');
+        expect(errorMessages(result)).toHaveLength(0);
+        expect(result.data.plan.works[0].publications).toHaveLength(1);
+        expect(locationsOf(result)).toEqual([]);
+        expect(unrepresentableWarnings(result)).toHaveLength(0);
+      });
+
+      it('plans a canonical Location from a Supplier landing page alone', async () => {
+        const result = await run(productWith({ productForm, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }));
+
+        expect(result.status).toBe('success');
+        expect(locationsOf(result)).toEqual(canonicalLocation(SUPPLIER_LANDING_PAGE, ''));
+        expect(unrepresentableWarnings(result)).toHaveLength(0);
+      });
+
+      it('plans a canonical Location from a Supplier full text URL alone', async () => {
+        const result = await run(productWith({ productForm, supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL } }));
+
+        expect(result.status).toBe('success');
+        expect(locationsOf(result)).toEqual(canonicalLocation('', SUPPLIER_FULL_TEXT_URL));
+        expect(unrepresentableWarnings(result)).toHaveLength(0);
+      });
+
+      it('plans one canonical Location holding both Supplier URLs', async () => {
+        const result = await run(
+          productWith({
+            productForm,
+            supplier: { landingPage: SUPPLIER_LANDING_PAGE, fullTextUrl: SUPPLIER_FULL_TEXT_URL },
+          }),
+        );
+
+        expect(result.status).toBe('success');
+        expect(locationsOf(result)).toEqual(canonicalLocation(SUPPLIER_LANDING_PAGE, SUPPLIER_FULL_TEXT_URL));
+        expect(unrepresentableWarnings(result)).toHaveLength(0);
+      });
+    });
+
+    // Digital: a canonical Location needs both URLs. Exactly one of them is therefore
+    // unrepresentable — and dropping it silently would lose metadata the publisher did supply.
+    describe.each([
+      ['PDF (ED)', ProductForm._ED],
+      ['MP3 (AJ)', ProductForm._AJ],
+    ])('a digital publication, %s', (_label, productForm) => {
+      it('plans no Location, and warns about nothing, when the Supplier carries neither URL', async () => {
+        const result = await run(productWith({ productForm, supplier: {} }));
+
+        expect(result.status).toBe('success');
+        expect(errorMessages(result)).toHaveLength(0);
+        expect(result.data.plan.works[0].publications).toHaveLength(1);
+        expect(locationsOf(result)).toEqual([]);
+        // No Location metadata was supplied, so none was lost.
+        expect(unrepresentableWarnings(result)).toHaveLength(0);
+      });
+
+      it('omits the Location and warns when only the Supplier landing page is supplied', async () => {
+        const result = await run(productWith({ productForm, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }));
+
+        expect(result.status).toBe('success');
+        expect(locationsOf(result)).toEqual([]);
+        expect(unrepresentableWarnings(result)).toHaveLength(1);
+      });
+
+      it('omits the Location and warns when only the Supplier full text URL is supplied', async () => {
+        const result = await run(productWith({ productForm, supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL } }));
+
+        expect(result.status).toBe('success');
+        expect(locationsOf(result)).toEqual([]);
+        expect(unrepresentableWarnings(result)).toHaveLength(1);
+      });
+
+      it('plans one canonical Location when the Supplier supplies both URLs', async () => {
+        const result = await run(
+          productWith({
+            productForm,
+            supplier: { landingPage: SUPPLIER_LANDING_PAGE, fullTextUrl: SUPPLIER_FULL_TEXT_URL },
+          }),
+        );
+
+        expect(result.status).toBe('success');
+        expect(locationsOf(result)).toEqual(canonicalLocation(SUPPLIER_LANDING_PAGE, SUPPLIER_FULL_TEXT_URL));
+        expect(unrepresentableWarnings(result)).toHaveLength(0);
+      });
+    });
+
+    describe('the unrepresentable canonical Location warning', () => {
+      it('is one non-blocking product-scoped warning naming the missing full text URL', async () => {
+        const result = await run(
+          productWith({ productForm: ProductForm._ED, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }),
+        );
+
+        expect(result.status).toBe('success');
+        expect(unrepresentableWarnings(result)).toEqual([
+          {
+            severity: 'warning',
+            code: 'onix.location.unrepresentable_canonical',
+            message: expect.stringContaining('no full text URL was supplied'),
+            // The parser numbers products from one, so the sole product here is product 1.
+            source: { kind: 'onix', productIndex: 1, recordReference: RECORD_REFERENCE },
+          },
+        ]);
+      });
+
+      it('names the missing landing page when only the full text URL was supplied', async () => {
+        const result = await run(
+          productWith({ productForm: ProductForm._ED, supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL } }),
+        );
+
+        const [warning] = unrepresentableWarnings(result);
+
+        expect(warning.severity).toBe('warning');
+        expect(warning.message).toContain('no landing page was supplied');
+        expect(warning.message).not.toContain('no full text URL was supplied');
+      });
+
+      it('keeps the Work and its Publication in the plan and never says they were dropped', async () => {
+        const result = await run(
+          productWith({ productForm: ProductForm._ED, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }),
+        );
+
+        expect(result.status).toBe('success');
+        expect(result.data.plan.works).toHaveLength(1);
+        expect(result.data.plan.works[0].publications).toHaveLength(1);
+        expect(result.data.plan.works[0].publications[0].type).toBe(PublicationType.enum.Pdf);
+
+        const [warning] = unrepresentableWarnings(result);
+
+        // The product it came from, so the message is actionable...
+        expect(warning.message).toContain(RECORD_REFERENCE);
+        // ...and the reassurance that only the Location was left behind.
+        expect(warning.message).toContain('The publication itself is imported without it');
+      });
+    });
+
+    describe('representative frontlist regressions for issue #173', () => {
+      it('keeps the publisher landing page on the Work while planning no Location', async () => {
+        const result = await run(
+          productWith({
+            productForm: ProductForm._BC,
+            supplier: {},
+            publisherLandingPage: PUBLISHER_LANDING_PAGE,
+          }),
+        );
+
+        expect(result.status).toBe('success');
+        expect(errorMessages(result)).toHaveLength(0);
+        expect(result.data.plan.works[0].landingPage).toBe(PUBLISHER_LANDING_PAGE);
+        expect(result.data.plan.works[0].publications).toHaveLength(1);
+        expect(locationsOf(result)).toEqual([]);
+        expect(unrepresentableWarnings(result)).toHaveLength(0);
+      });
+
+      it('plans no Location for a frontlist product carrying no ProductSupply at all', async () => {
+        const result = await run(
+          productWith({ productForm: ProductForm._ED, publisherLandingPage: PUBLISHER_LANDING_PAGE }),
+        );
+
+        expect(result.status).toBe('success');
+        expect(result.data.plan.works[0].landingPage).toBe(PUBLISHER_LANDING_PAGE);
+        expect(locationsOf(result)).toEqual([]);
+        expect(unrepresentableWarnings(result)).toHaveLength(0);
+      });
+
+      it('never completes a half-supplied digital Supplier Location from the Work landing page', async () => {
+        // The publisher's own product page and a supplier's full-text platform are different
+        // things; pairing them would invent a Location neither source actually claims.
+        const result = await run(
+          productWith({
+            productForm: ProductForm._ED,
+            supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL },
+            publisherLandingPage: PUBLISHER_LANDING_PAGE,
+          }),
+        );
+
+        expect(result.data.plan.works[0].landingPage).toBe(PUBLISHER_LANDING_PAGE);
+        expect(locationsOf(result)).toEqual([]);
+        expect(unrepresentableWarnings(result)).toHaveLength(1);
+      });
+
+      it('never turns an unrepresentable digital candidate into a non-canonical Location', async () => {
+        // A first non-canonical Location is itself rejected by the API, so it is no workaround.
+        const result = await run(
+          productWith({ productForm: ProductForm._ED, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }),
+        );
+
+        expect(locationsOf(result).some(({ canonical }) => !canonical)).toBe(false);
+        expect(locationsOf(result)).toHaveLength(0);
+      });
+    });
+  });
 });
 
 /**

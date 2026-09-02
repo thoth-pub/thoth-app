@@ -83,7 +83,16 @@ export type ImportIssueCode =
    * so contributor order followed the ONIX source order instead. Non-blocking: source order is a
    * perfectly importable ordering, and the contributors are still created with contiguous ordinals.
    */
-  | 'onix.contributor.sequence_fallback';
+  | 'onix.contributor.sequence_fallback'
+  /**
+   * A Supplier Location Thoth cannot store as this Publication's canonical Location. Completeness
+   * depends on the Publication's own type: a physical one needs at least one URL, a digital one
+   * needs both a landing page and a full text URL, and the record supplied only one of them.
+   * Non-blocking — a Publication with no Location is an ordinary, supported state, so the work and
+   * the publication are still imported — but the URL the file did supply would otherwise vanish
+   * without a word.
+   */
+  | 'onix.location.unrepresentable_canonical';
 
 export type ImportIssue = {
   severity: ImportIssueSeverity;

@@ -20,8 +20,17 @@ import { SubjectService } from '@/src/entities/subject/api/subject.service';
 import { TitleService } from '@/src/entities/title/api/title.service';
 import { WorkService } from '@/src/entities/work/api/work.service';
 
-import { currencyOptions, languageOptions, licenseOptions, SubjectTypes, WorkStatuses } from '../../constants';
+import {
+  currencyOptions,
+  languageOptions,
+  licenseOptions,
+  LocationPlatforms,
+  PublicationType,
+  SubjectTypes,
+  WorkStatuses,
+} from '../../constants';
 import { SeriesType } from '../../constants/series';
+import { appConfig } from '../../config';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
@@ -721,6 +730,126 @@ const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
   </Product>
 </ONIXMessage>`;
 
+const FRONTLIST_PDF_ISBN = '9781802700001';
+const HALF_SUPPLIED_PDF_ISBN = '9781802700002';
+const PAPERBACK_ISBN = '9781802700003';
+
+/** The supplier's own product page, offered as Supplier Website role 02 by two of the records. */
+const SUPPLIER_LANDING_PAGE = 'https://supplier.example.com/book/a-half-supplied-title';
+
+const supplierLandingPageWebsite = `
+          <Website>
+            <WebsiteRole>02</WebsiteRole>
+            <WebsiteLink>${SUPPLIER_LANDING_PAGE}</WebsiteLink>
+          </Website>`;
+
+/**
+ * Issue #173: sanitized, representative frontlist regressions. Every product carries the
+ * publisher's own product page as Website role 02 under PublishingDetail/Publisher — Work
+ * metadata — plus a priced SupplyDetail whose Supplier composite is the only source of
+ * Publication Location URLs. `supplierWebsites` says which of those the record actually has, and
+ * none of these records has a full text URL yet.
+ *
+ * The fixture exercises the observed failure condition — a canonical Location the Supplier
+ * composite cannot complete — but it is not asserted to reproduce the reporting publisher's file:
+ * the ProductForm that actually failed, and that record's full ProductSupply/Supplier structure,
+ * were never captured. Every ISBN, title and domain below is invented.
+ *
+ * Written out as ONIX so `@5stones/onix` decides the parsed shape, not this test.
+ */
+const locationProduct = ({
+  isbn,
+  title,
+  productForm,
+  publisherPage,
+  supplierWebsites = '',
+}: {
+  isbn: string;
+  title: string;
+  productForm: string;
+  publisherPage: string;
+  supplierWebsites?: string;
+}) => `
+  <Product>
+    <RecordReference>${isbn}</RecordReference>
+    <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
+    <DescriptiveDetail>
+      <ProductForm>${productForm}</ProductForm>
+      <TitleDetail>
+        <TitleType>01</TitleType>
+        <TitleElement>
+          <TitleElementLevel>01</TitleElementLevel>
+          <NoPrefix/>
+          <TitleWithoutPrefix language="eng">${title}</TitleWithoutPrefix>
+        </TitleElement>
+      </TitleDetail>
+      <Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+    </DescriptiveDetail>
+    <PublishingDetail>
+      <Imprint><ImprintName>${IMPRINT_NAME}</ImprintName></Imprint>
+      <Publisher>
+        <PublishingRole>01</PublishingRole>
+        <PublisherName>${IMPRINT_NAME}</PublisherName>
+        <Website>
+          <WebsiteRole>02</WebsiteRole>
+          <WebsiteLink>${publisherPage}</WebsiteLink>
+        </Website>
+      </Publisher>
+      <PublishingStatus>04</PublishingStatus>
+    </PublishingDetail>
+    <ProductSupply>
+      <Market><Territory><RegionsIncluded>WORLD</RegionsIncluded></Territory></Market>
+      <SupplyDetail>
+        <Supplier>
+          <SupplierRole>09</SupplierRole>
+          <SupplierName>${IMPRINT_NAME}</SupplierName>${supplierWebsites}
+        </Supplier>
+        <ProductAvailability>20</ProductAvailability>
+        <Price>
+          <PriceType>02</PriceType>
+          <PriceAmount>0.00</PriceAmount>
+          <CurrencyCode>GBP</CurrencyCode>
+        </Price>
+      </SupplyDetail>
+    </ProductSupply>
+  </Product>`;
+
+/** The publisher-level role 02 page of each product, i.e. what `Work.landingPage` must keep. */
+const PUBLISHER_PAGE_OF: Record<string, string> = {
+  [FRONTLIST_PDF_ISBN]: 'https://uolpress.example.com/book/a-representative-frontlist-pdf/',
+  [HALF_SUPPLIED_PDF_ISBN]: 'https://uolpress.example.com/book/a-half-supplied-title/',
+  [PAPERBACK_ISBN]: 'https://uolpress.example.com/book/a-paperback-title/',
+};
+
+/**
+ * A PDF with no Supplier Website at all, a PDF whose Supplier offers only a landing page, and a
+ * paperback whose Supplier offers only a landing page — the digital-unrepresentable, the
+ * digital-partial and the physical-representable arms of the matrix in one file.
+ */
+const FRONTLIST_LOCATION_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0">
+  ${locationProduct({
+    isbn: FRONTLIST_PDF_ISBN,
+    title: 'Representative Frontlist PDF',
+    productForm: 'ED',
+    publisherPage: PUBLISHER_PAGE_OF[FRONTLIST_PDF_ISBN],
+  })}
+  ${locationProduct({
+    isbn: HALF_SUPPLIED_PDF_ISBN,
+    title: 'A Half-Supplied Title',
+    productForm: 'ED',
+    publisherPage: PUBLISHER_PAGE_OF[HALF_SUPPLIED_PDF_ISBN],
+    supplierWebsites: supplierLandingPageWebsite,
+  })}
+  ${locationProduct({
+    isbn: PAPERBACK_ISBN,
+    title: 'A Paperback Title',
+    productForm: 'BC',
+    publisherPage: PUBLISHER_PAGE_OF[PAPERBACK_ISBN],
+    supplierWebsites: supplierLandingPageWebsite,
+  })}
+</ONIXMessage>`;
+
 const foundations: SeriesEntity = {
   id: FOUNDATIONS_ID,
   name: 'Foundations',
@@ -800,6 +929,10 @@ describe('ONIX bulk import, end to end', () => {
                 locations: [],
               },
             };
+          case 'CreatePrice':
+            return { createPrice: { priceId: `price-${mutations.length}`, ...(variables.data as object) } };
+          case 'CreateLocation':
+            return { createLocation: { locationId: `location-${mutations.length}`, ...(variables.data as object) } };
           default:
             return {};
         }
@@ -1820,6 +1953,112 @@ describe('ONIX bulk import, end to end', () => {
 
       expect(result.data.plan.works[0].contributions[0].orcidId).toBe('');
       expect(createdContributorOrcids()).toEqual([null]);
+    });
+  });
+
+  /**
+   * Issue #173, end to end. A frontlist file whose Publications have no full text URL yet used to
+   * plan a canonical `('', '')` Location, which thoth-api rejects — and because bulk import is not
+   * atomic, that rejection landed after other records had already been created. The plan must now
+   * carry the Work landing page and the Publication while sending no Location mutation at all.
+   */
+  describe('frontlist Publications with no representable Supplier Location (issue #173)', () => {
+    const unrepresentableWarnings = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
+      result.issues.filter((issue) => issue.code === 'onix.location.unrepresentable_canonical');
+
+    /** The same warnings, narrowed to one product. The parser numbers products from one. */
+    const unrepresentableWarningsFor = (result: Awaited<ReturnType<XMLParser['parse']>>, productIndex: number) =>
+      unrepresentableWarnings(result).filter(
+        (issue) => issue.source.kind === 'onix' && issue.source.productIndex === productIndex,
+      );
+
+    it('plans the Work landing page and the Publication, but no Location, for a frontlist PDF', async () => {
+      const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
+      const [frontlistPdf] = result.data.plan.works;
+
+      expect(result.status).toBe('success');
+      expect(result.issues.filter(({ severity }) => severity === 'error')).toEqual([]);
+
+      // The publisher-level Website role 02 is Work metadata and survives untouched...
+      expect(frontlistPdf.landingPage).toBe(PUBLISHER_PAGE_OF[FRONTLIST_PDF_ISBN]);
+      // ...while the Publication itself is planned with no Location to fail on.
+      expect(frontlistPdf.publications).toHaveLength(1);
+      expect(frontlistPdf.publications[0].type).toBe(PublicationType.enum.Pdf);
+      expect(frontlistPdf.publications[0].locations).toEqual([]);
+      // Nothing was supplied, so nothing was lost and nothing is warned about for this product.
+      expect(unrepresentableWarningsFor(result, 1)).toHaveLength(0);
+    });
+
+    it('warns once, without blocking, for the digital record that supplied only a landing page', async () => {
+      const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
+      const halfSupplied = result.data.plan.works[1];
+
+      expect(result.status).toBe('success');
+      expect(halfSupplied.publications[0].locations).toEqual([]);
+      expect(unrepresentableWarnings(result)).toEqual([
+        {
+          severity: 'warning',
+          code: 'onix.location.unrepresentable_canonical',
+          message: expect.stringContaining('no full text URL was supplied'),
+          source: { kind: 'onix', productIndex: 2, recordReference: HALF_SUPPLIED_PDF_ISBN },
+        },
+      ]);
+    });
+
+    it('still plans the physical record’s one-URL canonical Location', async () => {
+      const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
+      const paperback = result.data.plan.works[2];
+
+      expect(paperback.publications[0].type).toBe(PublicationType.enum.Paperback);
+      expect(paperback.publications[0].locations).toEqual([
+        {
+          id: appConfig.defaultId,
+          canonical: true,
+          landingPage: SUPPLIER_LANDING_PAGE,
+          fullTextUrl: '',
+          // WORLD is no Thoth platform, so the Market/Territory mapping falls back as before.
+          locationPlatform: LocationPlatforms.enum.Other,
+        },
+      ]);
+    });
+
+    it('sends CreateLocation only for the physical record, and CreateWork for all three', async () => {
+      const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
+
+      await workService.bulkCreateWorks(result.data.plan);
+
+      expect(mutationsNamed('CreateWork')).toHaveLength(3);
+      expect(mutationsNamed('CreatePublication')).toHaveLength(3);
+      // The whole point: no `('', '')` Location, and no half-supplied digital one, ever reaches
+      // the API — so the import cannot fail partway through on Location completeness.
+      expect(
+        mutationsNamed('CreateLocation').map((call) => {
+          const { landingPage, fullTextUrl, canonical } = call.variables.data as Record<string, unknown>;
+
+          return { landingPage, fullTextUrl, canonical };
+        }),
+      ).toEqual([{ landingPage: SUPPLIER_LANDING_PAGE, fullTextUrl: null, canonical: true }]);
+    });
+
+    it('never copies a Work landing page into a Publication Location', async () => {
+      const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
+
+      await workService.bulkCreateWorks(result.data.plan);
+
+      const publisherPages = Object.values(PUBLISHER_PAGE_OF);
+      const locationUrls = mutationsNamed('CreateLocation').flatMap((call) => {
+        const { landingPage, fullTextUrl } = call.variables.data as Record<string, unknown>;
+
+        return [landingPage, fullTextUrl];
+      });
+
+      // A publisher's product page and a supplier's platform are different things: pairing them
+      // would manufacture a Location neither source claims.
+      expect(locationUrls.some((url) => publisherPages.includes(url as string))).toBe(false);
+      // The Work still keeps every one of them.
+      expect(
+        mutationsNamed('CreateWork').map((call) => (call.variables.data as Record<string, unknown>).landingPage),
+      ).toEqual(publisherPages);
     });
   });
 });
