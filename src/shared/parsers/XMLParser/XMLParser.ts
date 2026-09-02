@@ -60,6 +60,7 @@ import {
   getDefaultWork,
   getPublicationType,
   getWorkStatusFromXml,
+  isFullTextUrlAvailable,
   isValidPublicationForm,
   localeFromLanguageCode,
 } from '../../utils';
@@ -1333,17 +1334,67 @@ class XMLParser {
         (option) => option.toLowerCase() === productSupply.Market?.Territory?.RegionsIncluded?.toLowerCase(),
       ) ?? LocationPlatforms.enum.Other;
 
-    publication.locations.push({
-      id: this.defaultId,
-      canonical: true,
-      landingPage,
-      fullTextUrl,
-      locationPlatform,
-    });
+    // thoth-api decides canonical completeness from the Publication's own type: a physical
+    // Location needs at least one URL, a digital one needs both, and it rejects an incomplete
+    // candidate before or at persistence — a digital Location missing either URL is refused by the
+    // API's canonical-completeness policy, ahead of the write, while a physical one carrying
+    // neither URL reaches the universal `location_url_check` database constraint. Bulk import is
+    // not atomic, so a Location either would reject must never reach the plan — the failure would
+    // land partway through, after other records were created.
+    //
+    // Nothing is manufactured to get past the rule. `Work.landingPage` is the publisher's own
+    // product page rather than this supplier's, so pairing it with a supplier full text URL would
+    // invent a Location neither source claims; and demoting the candidate to `canonical: false`
+    // would be rejected too, because a Publication's first Location has to be the canonical one.
+    const isDigital = isFullTextUrlAvailable(publication.type);
+    const hasLandingPage = landingPage.length > 0;
+    const hasFullTextUrl = fullTextUrl.length > 0;
+
+    if (isDigital ? hasLandingPage && hasFullTextUrl : hasLandingPage || hasFullTextUrl) {
+      publication.locations.push({
+        id: this.defaultId,
+        canonical: true,
+        landingPage,
+        fullTextUrl,
+        locationPlatform,
+      });
+    } else if (isDigital && (hasLandingPage || hasFullTextUrl)) {
+      // Half a digital pair. The Publication imports without it, but the URL the file did supply
+      // is real metadata, so it is reported rather than dropped in silence. A Supplier that
+      // supplied neither lost nothing and is left unremarked.
+      this.warnAboutUnrepresentableLocation(product, index, hasLandingPage ? 'fullTextUrl' : 'landingPage');
+    }
 
     publications.push(publication);
 
     return publications;
+  }
+
+  /**
+   * Says which half of a digital canonical Location the file left out, without failing the work.
+   *
+   * Only the Location is left behind: a Publication with no Location is an ordinary, supported
+   * state — `PublicationService.createPublication` sends no Location mutation for an empty list —
+   * and the publisher's own workflow depends on it, because frontlist titles are catalogued before
+   * their files exist. Uploading the file later through Thoth Hosting is what establishes the
+   * canonical Location, and that path is the backend's to own.
+   */
+  private warnAboutUnrepresentableLocation(
+    product: ExtendedProduct,
+    index: number,
+    missing: 'landingPage' | 'fullTextUrl',
+  ) {
+    const missingUrl = missing === 'fullTextUrl' ? 'no full text URL' : 'no landing page';
+
+    this.issues.push({
+      severity: 'warning',
+      code: 'onix.location.unrepresentable_canonical',
+      message:
+        `The supplier location for ${this.describeProduct(product, index)} was not imported because Thoth ` +
+        'requires both a landing page and a full text URL for a canonical location on a digital publication, and ' +
+        `${missingUrl} was supplied. The publication itself is imported without it.`,
+      source: this.productSource(product, index),
+    });
   }
 
   /**
