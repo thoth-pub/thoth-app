@@ -69,12 +69,12 @@ export type ImportIssueCode =
    */
   | 'onix.text.unrepresentable_format'
   /**
-   * An abstract or biography whose format *is* representable — resolved to HTML — but whose
-   * structure is not: a meaningful HTML line break (`<br>`) that Thoth's abstract/biography model
-   * cannot hold, once the harmless empty spacer paragraphs publishers pad text with have been
-   * removed. Distinct from `unrepresentable_format`, which is about the format itself; here only
-   * the structure defeats representation. Blocking, and detected in preview, so the field is never
-   * sent to the API to fail there partway through a non-atomic bulk import.
+   * An abstract or biography whose format is representable but whose text structure remains unsafe
+   * or unrepresentable after format resolution and normalisation. The imported text cannot be
+   * transformed into the API's accepted model without inventing semantics or losing content.
+   * Distinct from `unrepresentable_format`, which is about the format itself; here only the
+   * structure defeats representation. Blocking, and detected in preview, so the field is never sent
+   * to the API to fail there partway through a non-atomic bulk import.
    */
   | 'onix.text.unrepresentable_structure'
   /**

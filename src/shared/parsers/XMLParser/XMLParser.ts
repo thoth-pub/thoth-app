@@ -721,8 +721,9 @@ class XMLParser {
    * of the format it resolved to:
    *
    * - HTML ({@link normaliseImportedAbstractHtml}): harmless empty spacer paragraphs are dropped, a
-   *   field that was nothing but spacer markup is omitted so no empty entity is created, and a
-   *   meaningful `<br>` Thoth cannot represent raises a blocking issue and drops the field.
+   *   field that was nothing but spacer markup is omitted so no empty entity is created, and each
+   *   safely understood `<br>` becomes a paragraph boundary. Malformed or ambiguous structure that
+   *   cannot be normalised without inventing semantics or losing content raises a blocking issue.
    * - Plain text ({@link normaliseImportedPlainText}), which still knows the declaration the
    *   markup-free content arrived under: HTML/XHTML whitespace collapses the way it would render,
    *   and under every other declaration a literal single line break — which the API's plain-text
@@ -772,7 +773,7 @@ class XMLParser {
       this.issues.push({
         severity: 'error',
         code: 'onix.text.unrepresentable_structure',
-        message: `The ${subject} of ${this.describeProduct(product, index)} contains a line break Thoth cannot represent. Replace the line break with separate paragraphs and upload the file again.`,
+        message: `The ${subject} of ${this.describeProduct(product, index)} contains HTML structure Thoth cannot safely normalise or represent without inventing semantics or losing content. Correct the HTML structure and upload the file again.`,
         source: this.productSource(product, index),
       });
 

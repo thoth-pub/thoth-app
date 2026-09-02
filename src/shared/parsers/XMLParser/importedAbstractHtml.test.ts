@@ -106,7 +106,7 @@ describe('normaliseImportedAbstractHtml', () => {
       }
     });
 
-    it('keeps a reference that decodes to something visible', () => {
+    it('keeps a reference that decodes to something visible when removing a trailing break', () => {
       // Nothing is treated as blank for merely looking like an entity.
       for (const reference of [
         '&#65;',
@@ -119,12 +119,18 @@ describe('normaliseImportedAbstractHtml', () => {
         '&tab;', // Named references are case-sensitive; this one is literal text.
         '&NBSP;',
       ]) {
-        expect(normaliseImportedAbstractHtml(`<p>${reference}<br></p>`)).toEqual({ kind: 'unrepresentable' });
+        expect(normaliseImportedAbstractHtml(`<p>${reference}<br></p>`)).toEqual({
+          kind: 'content',
+          content: `<p>${reference}</p>`,
+        });
       }
     });
 
     it('still sees visible text sitting beside a whitespace reference', () => {
-      expect(normaliseImportedAbstractHtml('<p>&#10;Hello<br></p>')).toEqual({ kind: 'unrepresentable' });
+      expect(normaliseImportedAbstractHtml('<p>&#10;Hello<br></p>')).toEqual({
+        kind: 'content',
+        content: '<p>&#10;Hello</p>',
+      });
     });
 
     it('leaves whitespace references in surviving content exactly as written', () => {
@@ -340,36 +346,113 @@ describe('normaliseImportedAbstractHtml', () => {
     });
   });
 
-  describe('blocks a meaningful line break as unrepresentable', () => {
-    it('flags a break between two words', () => {
-      expect(normaliseImportedAbstractHtml('<p>Hello<br>world</p>')).toEqual({ kind: 'unrepresentable' });
+  describe('turns meaningful line breaks into paragraph boundaries', () => {
+    it('normalises a production-shaped Mohr Siebeck paragraph', () => {
+      const input =
+        '<p style="text-align: justify;"><span lang="EN-US">First paragraph.<br>Second paragraph.</span></p>';
+
+      expect(normaliseImportedAbstractHtml(input)).toEqual({
+        kind: 'content',
+        content:
+          '<p style="text-align: justify;"><span lang="EN-US">First paragraph.</span></p>' +
+          '<p style="text-align: justify;"><span lang="EN-US">Second paragraph.</span></p>',
+      });
     });
 
-    it('flags a break before content', () => {
-      expect(normaliseImportedAbstractHtml('<p><br>Hello</p>')).toEqual({ kind: 'unrepresentable' });
+    it('splits a simple paragraph between two words', () => {
+      expect(normaliseImportedAbstractHtml('<p>Hello<br>world</p>')).toEqual({
+        kind: 'content',
+        content: '<p>Hello</p><p>world</p>',
+      });
     });
 
-    it('flags a trailing break in a paragraph that has content', () => {
-      expect(normaliseImportedAbstractHtml('<p><em>Hello</em><br></p>')).toEqual({ kind: 'unrepresentable' });
-      expect(normaliseImportedAbstractHtml('<p><a href="https://example.com">Link</a><br></p>')).toEqual({
+    it('honours an omitted paragraph end before another paragraph when splitting a later break', () => {
+      expect(normaliseImportedAbstractHtml('<p>One<p>Two<br>Three</p>')).toEqual({
+        kind: 'content',
+        content: '<p>One</p><p>Two</p><p>Three</p>',
+      });
+    });
+
+    it('honours an omitted paragraph end before a block when splitting a loose break', () => {
+      expect(normaliseImportedAbstractHtml('<p>One<div>Two<br>Three</div>')).toEqual({
+        kind: 'content',
+        content: '<p>One</p><div><p>Two</p><p>Three</p></div>',
+      });
+    });
+
+    it('closes and reopens nested emphasis and links across a boundary', () => {
+      expect(normaliseImportedAbstractHtml('<p><a href="https://example.com"><em>one<br>two</em></a></p>')).toEqual({
+        kind: 'content',
+        content:
+          '<p><a href="https://example.com"><em>one</em></a></p>' +
+          '<p><a href="https://example.com"><em>two</em></a></p>',
+      });
+    });
+
+    it('does not create empty paragraphs for leading, trailing or repeated breaks', () => {
+      expect(normaliseImportedAbstractHtml('<p><br>Hello<br></p>')).toEqual({
+        kind: 'content',
+        content: '<p>Hello</p>',
+      });
+      expect(normaliseImportedAbstractHtml('<p>one<br><br>two</p>')).toEqual({
+        kind: 'content',
+        content: '<p>one</p><p>two</p>',
+      });
+      expect(normaliseImportedAbstractHtml('<p><a href="https://example.com">one<br><br>two</a></p>')).toEqual({
+        kind: 'content',
+        content:
+          '<p><a href="https://example.com">one</a></p>' +
+          '<p><a href="https://example.com">two</a></p>',
+      });
+    });
+
+    it('wraps loose top-level content in paragraph structure', () => {
+      expect(normaliseImportedAbstractHtml('Line one<br>Line two')).toEqual({
+        kind: 'content',
+        content: '<p>Line one</p><p>Line two</p>',
+      });
+    });
+
+    it('keeps body and html as document containers around paragraphs created from loose breaks', () => {
+      expect(normaliseImportedAbstractHtml('<body>one<br>two</body>')).toEqual({
+        kind: 'content',
+        content: '<body><p>one</p><p>two</p></body>',
+      });
+      expect(normaliseImportedAbstractHtml('<html><body>one<br>two</body></html>')).toEqual({
+        kind: 'content',
+        content: '<html><body><p>one</p><p>two</p></body></html>',
+      });
+    });
+
+    it('does not split one backend inline formula into independent formulas', () => {
+      expect(normaliseImportedAbstractHtml('<p><span class="inline-formula">x<br>y</span></p>')).toEqual({
         kind: 'unrepresentable',
       });
     });
 
-    it('flags a break sitting next to visible text even behind a blank wrapper', () => {
-      expect(normaliseImportedAbstractHtml('<p><strong> </strong><br>Actual text</p>')).toEqual({
+    it('does not reopen a span whose encoded class can contain the backend inline-formula token', () => {
+      for (const classValue of ['inline&#45;formula', 'math&#32;inline-formula']) {
+        expect(normaliseImportedAbstractHtml(`<p><span class="${classValue}">x<br>y</span></p>`)).toEqual({
+          kind: 'unrepresentable',
+        });
+      }
+    });
+
+    it('fails closed when a break would require cloning an unproven wrapper', () => {
+      expect(normaliseImportedAbstractHtml('<p><custom-tag>one<br>two</custom-tag></p>')).toEqual({
         kind: 'unrepresentable',
       });
     });
 
-    it('flags a loose top-level break with no paragraph at all', () => {
-      expect(normaliseImportedAbstractHtml('Line one<br>Line two')).toEqual({ kind: 'unrepresentable' });
-    });
-
-    it('flags a meaningful break even when a separate spacer paragraph was removable', () => {
-      // The spacer alone would be dropped, but the break in the third paragraph is meaningful, so
-      // the whole field is unrepresentable rather than partially cleaned and sent to fail.
+    it('removes a separate spacer before splitting a meaningful break', () => {
       expect(normaliseImportedAbstractHtml('<p>One.</p><p><br></p><p>Two<br>three</p>')).toEqual({
+        kind: 'content',
+        content: '<p>One.</p><p>Two</p><p>three</p>',
+      });
+    });
+
+    it('fails conservatively when mismatched inline markup makes reopening ambiguous', () => {
+      expect(normaliseImportedAbstractHtml('<p><em>one<br>two</strong></p>')).toEqual({
         kind: 'unrepresentable',
       });
     });
@@ -395,9 +478,10 @@ describe('normaliseImportedAbstractHtml', () => {
       expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
     });
 
-    it('still blocks a real break in a paragraph whose attribute holds >', () => {
+    it('keeps a paragraph attribute containing > on both sides of a split', () => {
       expect(normaliseImportedAbstractHtml('<p title="1 > 0">Hello<br>world</p>')).toEqual({
-        kind: 'unrepresentable',
+        kind: 'content',
+        content: '<p title="1 > 0">Hello</p><p title="1 > 0">world</p>',
       });
     });
 
@@ -519,10 +603,12 @@ describe('normaliseImportedAbstractHtml', () => {
       }
     });
 
-    it('still blocks a real break inside a wrapper rather than calling the wrapper empty', () => {
-      expect(normaliseImportedAbstractHtml('<div><p>Hello<br>world</p></div>')).toEqual({ kind: 'unrepresentable' });
-      // A loose break in a wrapper is not a spacer paragraph, so it blocks rather than vanishing.
-      expect(normaliseImportedAbstractHtml('<div><br></div>')).toEqual({ kind: 'unrepresentable' });
+    it('normalises a real break inside a wrapper and omits a wrapper with only a break', () => {
+      expect(normaliseImportedAbstractHtml('<div><p>Hello<br>world</p></div>')).toEqual({
+        kind: 'content',
+        content: '<div><p>Hello</p><p>world</p></div>',
+      });
+      expect(normaliseImportedAbstractHtml('<div><br></div>')).toEqual({ kind: 'empty' });
     });
   });
 
@@ -543,18 +629,20 @@ describe('normaliseImportedAbstractHtml', () => {
       );
     });
 
-    it('blocks a real break beside an href-only anchor instead of deleting the href', () => {
+    it('removes a trailing break beside an href-only anchor without deleting the href', () => {
       expect(normaliseImportedAbstractHtml('<p><a href="https://example.com"></a><br></p>')).toEqual({
-        kind: 'unrepresentable',
+        kind: 'content',
+        content: '<p><a href="https://example.com"></a></p>',
       });
     });
 
-    it('keeps an anchor that has visible text, and blocks a break beside it', () => {
+    it('keeps an anchor that has visible text when removing a trailing break', () => {
       const input = '<p><a href="https://example.com">Example</a></p>';
 
       expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
       expect(normaliseImportedAbstractHtml('<p><a href="https://example.com">Example</a><br></p>')).toEqual({
-        kind: 'unrepresentable',
+        kind: 'content',
+        content: input,
       });
     });
 
@@ -637,20 +725,28 @@ describe('normaliseImportedAbstractHtml', () => {
       expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
     });
 
-    it('still blocks a break belonging to a meaningful paragraph a block ended', () => {
-      expect(normaliseImportedAbstractHtml('<p>Hello<br><div>Real</div>')).toEqual({ kind: 'unrepresentable' });
+    it('removes a trailing break before a block implicitly ends the paragraph', () => {
+      expect(normaliseImportedAbstractHtml('<p>Hello<br><div>Real</div>')).toEqual({
+        kind: 'content',
+        content: '<p>Hello</p><div>Real</div>',
+      });
     });
 
     it('does not let an inline element end a paragraph', () => {
-      // A `<span>` keeps the paragraph open, so the break sits beside visible text and blocks.
-      expect(normaliseImportedAbstractHtml('<p><br><span>Inline</span></p>')).toEqual({ kind: 'unrepresentable' });
-      expect(normaliseImportedAbstractHtml('<p><br><em>Inline</em></p>')).toEqual({ kind: 'unrepresentable' });
+      expect(normaliseImportedAbstractHtml('<p><br><span>Inline</span></p>')).toEqual({
+        kind: 'content',
+        content: '<p><span>Inline</span></p>',
+      });
+      expect(normaliseImportedAbstractHtml('<p><br><em>Inline</em></p>')).toEqual({
+        kind: 'content',
+        content: '<p><em>Inline</em></p>',
+      });
     });
 
-    it('does not let an unknown or custom element end a paragraph', () => {
-      // Unlisted names must not silently change where a paragraph is judged to end.
+    it('preserves a balanced unknown inline element after a leading break', () => {
       expect(normaliseImportedAbstractHtml('<p><br><custom-tag>Real</custom-tag></p>')).toEqual({
-        kind: 'unrepresentable',
+        kind: 'content',
+        content: '<p><custom-tag>Real</custom-tag></p>',
       });
     });
 
@@ -729,13 +825,13 @@ describe('normaliseImportedAbstractHtml', () => {
     });
 
     it('does not let a descendant inline close end the paragraph', () => {
-      // `</span>` closes a span opened inside the paragraph, so the paragraph keeps going and its
-      // visible text makes the break meaningful.
       expect(normaliseImportedAbstractHtml('<div><p><span><br></span>Real text</p></div>')).toEqual({
-        kind: 'unrepresentable',
+        kind: 'content',
+        content: '<div><p><span></span>Real text</p></div>',
       });
       expect(normaliseImportedAbstractHtml('<div><p><em>Hello</em><br></p></div>')).toEqual({
-        kind: 'unrepresentable',
+        kind: 'content',
+        content: '<div><p><em>Hello</em></p></div>',
       });
       expect(normaliseImportedAbstractHtml('<p><em>Hello</em></p>')).toEqual({
         kind: 'content',
@@ -743,8 +839,11 @@ describe('normaliseImportedAbstractHtml', () => {
       });
     });
 
-    it('still blocks a real break when the parent close follows visible text', () => {
-      expect(normaliseImportedAbstractHtml('<div><p>Hello<br></div>')).toEqual({ kind: 'unrepresentable' });
+    it('removes a trailing break when the parent close implicitly ends the paragraph', () => {
+      expect(normaliseImportedAbstractHtml('<div><p>Hello<br></div>')).toEqual({
+        kind: 'content',
+        content: '<div><p>Hello</p></div>',
+      });
     });
 
     it('removes a parent-closed spacer built from a blank formatting wrapper', () => {
@@ -821,13 +920,14 @@ describe('normaliseImportedAbstractHtml', () => {
       expect(normaliseImportedAbstractHtml(input)).toEqual({ kind: 'content', content: input });
     });
 
-    it('still blocks a real break that happens to share the field with a commented-out one', () => {
+    it('normalises a real break while preserving a commented-out one verbatim', () => {
       expect(normaliseImportedAbstractHtml('<p>Hello<br>world</p><!-- <br> -->')).toEqual({
-        kind: 'unrepresentable',
+        kind: 'content',
+        content: '<p>Hello</p><p>world</p><!-- <br> -->',
       });
-      // …and a comment before it cannot smuggle the real break past the check either.
       expect(normaliseImportedAbstractHtml('<!-- <p> --><p>Hello<br>world</p>')).toEqual({
-        kind: 'unrepresentable',
+        kind: 'content',
+        content: '<!-- <p> --><p>Hello</p><p>world</p>',
       });
     });
 

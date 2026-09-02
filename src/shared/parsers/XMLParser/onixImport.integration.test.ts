@@ -1437,31 +1437,22 @@ describe('ONIX bulk import, end to end', () => {
     ]);
   });
 
-  it('blocks a meaningful-line-break abstract in preview, so no mutation ever runs', async () => {
-    // The non-negotiable guarantee: a deterministic markup incompatibility is discovered before
-    // bulkCreateWorks, not after several earlier works have already been created.
+  it('normalises a meaningful-line-break abstract through real ONIX parsing and into the mutation', async () => {
     const result = await parseUpload([], arcSpacerOnix('&lt;p&gt;Hello&lt;br&gt;world&lt;/p&gt;'));
 
-    expect(result.status).toBe('failed');
-    expect(result.issues).toContainEqual(
-      expect.objectContaining({
-        severity: 'error',
-        code: 'onix.text.unrepresentable_structure',
-        source: { kind: 'onix', productIndex: 1, recordReference: '9781802700596' },
-      }),
+    expect(result.status).toBe('success');
+    expect(result.issues).not.toContainEqual(
+      expect.objectContaining({ code: 'onix.text.unrepresentable_structure' }),
     );
-    expect(result.data.plan.works).toEqual([]);
+    expect(result.data.plan.works[0].abstracts.map(({ content }) => content)).toEqual([
+      '<p>Hello</p><p>world</p>',
+    ]);
 
     await workService.bulkCreateWorks(result.data.plan);
 
-    // Zero side effects, not merely an eventual error message.
-    expect(mutationsNamed('CreateWork')).toEqual([]);
-    expect(mutationsNamed('CreateAbstract')).toEqual([]);
-    expect(mutationsNamed('CreateContributor')).toEqual([]);
-    expect(mutationsNamed('CreateContribution')).toEqual([]);
-    expect(mutationsNamed('CreateBiography')).toEqual([]);
-    expect(mutationsNamed('CreateSubject')).toEqual([]);
-    expect(mutations).toEqual([]);
+    expect(mutationsNamed('CreateAbstract').map((call) => (call.variables.data as { content: string }).content)).toEqual([
+      '<p>Hello</p><p>world</p>',
+    ]);
   });
 
   it('imports the wrapped tagless Arc abstract of product 9781942401353 as collapsed plain text', async () => {
