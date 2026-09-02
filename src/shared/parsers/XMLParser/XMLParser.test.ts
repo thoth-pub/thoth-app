@@ -7164,28 +7164,40 @@ describe('XMLParser', () => {
         expect(abstractsOf(result)).toEqual([]);
       });
 
-      it('blocks the import when an abstract carries a meaningful line break, and creates no work', async () => {
+      it('blocks malformed HTML with a structurally accurate diagnostic', async () => {
+        const result = await runFidelityParser(
+          productXml({
+            collateralDetail: collateral(
+              '<Text textformat="02">&lt;p&gt;&lt;em&gt;one&lt;br&gt;two&lt;/strong&gt;&lt;/p&gt;</Text>',
+            ),
+          }),
+        );
+
+        expect(result.status).toBe('failed');
+        expect(result.data.plan.works).toEqual([]);
+        expect(result.issues).toContainEqual({
+          severity: 'error',
+          code: 'onix.text.unrepresentable_structure',
+          message: expect.stringContaining('contains HTML structure Thoth cannot safely normalise or represent'),
+          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
+        });
+        expect(errorMessages(result)[0]).toContain('without inventing semantics or losing content');
+        expect(errorMessages(result)[0]).not.toContain('line break');
+      });
+
+      it('normalises meaningful HTML line breaks in a long abstract into paragraphs', async () => {
         const result = await runFidelityParser(
           productXml({
             collateralDetail: collateral('<Text textformat="02">&lt;p&gt;Hello&lt;br&gt;world&lt;/p&gt;</Text>'),
           }),
         );
 
-        expect(result.status).toBe('failed');
-        // A failed parse carries an empty plan, so bulkCreateWorks would create nothing.
-        expect(result.data.plan.works).toEqual([]);
-        expect(result.issues).toContainEqual({
-          severity: 'error',
-          code: 'onix.text.unrepresentable_structure',
-          message: expect.stringContaining('long abstract'),
-          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-        });
-        expect(errorMessages(result)[0]).toContain('line break');
-        // Never the raw backend wording, which is misleading for this case.
-        expect(errorMessages(result)[0]).not.toContain('nested block elements');
+        expect(result.status).toBe('success');
+        expect(result.issues).toEqual([]);
+        expect(abstractsOf(result)).toEqual([['<p>Hello</p><p>world</p>', MarkupFormat.Html]]);
       });
 
-      it('names the short abstract when its line break is the unrepresentable one', async () => {
+      it('normalises meaningful HTML line breaks in a short abstract into paragraphs', async () => {
         const result = await runFidelityParser(
           productXml({
             collateralDetail: `<CollateralDetail>
@@ -7196,13 +7208,9 @@ describe('XMLParser', () => {
           }),
         );
 
-        expect(result.status).toBe('failed');
-        expect(result.issues).toContainEqual(
-          expect.objectContaining({
-            code: 'onix.text.unrepresentable_structure',
-            message: expect.stringContaining('short abstract'),
-          }),
-        );
+        expect(result.status).toBe('success');
+        expect(result.issues).toEqual([]);
+        expect(abstractsOf(result)).toEqual([['<p>Short</p><p>break</p>', MarkupFormat.Html]]);
       });
 
       it('removes a spacer paragraph from a biography and keeps it as HTML', async () => {
@@ -7218,7 +7226,7 @@ describe('XMLParser', () => {
         expect(biographiesOf(result)).toEqual([['<p>A real biography.</p>', MarkupFormat.Html]]);
       });
 
-      it('blocks the import when a biography carries a meaningful line break, naming the author', async () => {
+      it('normalises meaningful HTML line breaks in a biography into paragraphs', async () => {
         const result = await runFidelityParser(
           productXml({
             contributors: contributorXml(
@@ -7227,14 +7235,9 @@ describe('XMLParser', () => {
           }),
         );
 
-        expect(result.status).toBe('failed');
-        expect(result.data.plan.works).toEqual([]);
-        expect(result.issues).toContainEqual({
-          severity: 'error',
-          code: 'onix.text.unrepresentable_structure',
-          message: expect.stringContaining('biography of Lisa Hopkins'),
-          source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-        });
+        expect(result.status).toBe('success');
+        expect(result.issues).toEqual([]);
+        expect(biographiesOf(result)).toEqual([['<p>Hello</p><p>world</p>', MarkupFormat.Html]]);
       });
 
       it('keeps a contradictory textformat="06" abstract on the HTML path after removing its spacer', async () => {
