@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 import { type Control, type FieldValues, type UseFormSetValue, useWatch } from 'react-hook-form';
 
 import { FORM_FIELDS } from '@/src/shared/constants';
-import { isArabicNumeral } from '@/src/shared/utils';
+import { interpretPageRange } from '@/src/shared/utils';
 
 const { WORK_FIRST_PAGE, WORK_LAST_PAGE, WORK_PAGES_COUNT } = FORM_FIELDS;
 
@@ -19,13 +19,15 @@ export const PageCountAutoCalculator = ({
   const lastPage = useWatch({ control, name: WORK_LAST_PAGE.name }) as string;
 
   useEffect(() => {
-    if (!isArabicNumeral(firstPage) && !isArabicNumeral(lastPage)) return;
+    // The same interpretation the form validates the two fields with, so the count offered here is
+    // only ever the count of a range the form would accept. Anything else — a half-entered range, a
+    // pair of endpoints in different numbering schemes, a descending one — yields no count at all
+    // rather than a number derived from part of the input.
+    const { pageCount } = interpretPageRange(firstPage, lastPage);
 
-    const count = Number(lastPage) - Number(firstPage) + 1;
+    if (pageCount === null) return;
 
-    if (count <= 0) return;
-
-    setValue(WORK_PAGES_COUNT.name, count);
+    setValue(WORK_PAGES_COUNT.name, pageCount);
   }, [firstPage, lastPage, setValue]);
 
   return null;

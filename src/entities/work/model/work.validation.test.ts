@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { appConfig } from '@/src/shared/config';
 
-import { coverUrlValidationSchema } from './work.validation';
+import { coverUrlValidationSchema, pagesCountValidationSchema } from './work.validation';
 
 const JPEG_MIME = 'image/jpeg';
 const VALID_SIZE = 7000; // between minFileSize (6250) and maxFileSize (50000000)
@@ -97,5 +97,111 @@ describe('cover-specific configuration', () => {
       'image/svg+xml',
       'image/tiff',
     ]);
+  });
+});
+
+const validatePages = (firstPage?: string, lastPage?: string) =>
+  pagesCountValidationSchema.safeParse({ firstPage, lastPage });
+
+const issuePaths = (result: ReturnType<typeof validatePages>) =>
+  result.success ? [] : result.error.issues.map((issue) => issue.path.join('.'));
+
+describe('chapter page range validation', () => {
+  it.each([
+    ['1', '20'],
+    ['I', 'XI'],
+    ['iv', 'ix'],
+    ['A1', '20'],
+    ['A1', 'A20'],
+    ['B6', '20'],
+    ['B6', 'B20'],
+    ['7', '7'],
+    ['A3', 'A3'],
+  ])('accepts the valid range %s to %s', (firstPage, lastPage) => {
+    expect(validatePages(firstPage, lastPage).success).toBe(true);
+  });
+
+  it.each([
+    ['1', undefined],
+    [undefined, '20'],
+    ['A1', undefined],
+    [undefined, 'XI'],
+    [undefined, undefined],
+    ['', ''],
+  ])('keeps the single or absent endpoints %s / %s valid', (firstPage, lastPage) => {
+    expect(validatePages(firstPage, lastPage).success).toBe(true);
+  });
+
+  it.each(['a1', 'AA1', '1A', 'A0', 'Appendix1', 'IIII'])('rejects the invalid first-page label %s', (firstPage) => {
+    const result = validatePages(firstPage, undefined);
+
+    expect(result.success).toBe(false);
+    expect(issuePaths(result)).toContain('firstPage');
+  });
+
+  it.each(['a20', 'BB20', '20B', 'B0', 'Appendix20', 'VV'])('rejects the invalid last-page label %s', (lastPage) => {
+    const result = validatePages(undefined, lastPage);
+
+    expect(result.success).toBe(false);
+    expect(issuePaths(result)).toContain('lastPage');
+  });
+
+  it.each([
+    ['I', '10'],
+    ['1', 'X'],
+    ['A1', 'XI'],
+    ['1', 'A20'],
+  ])('rejects the mixed-scheme range %s to %s against the last page', (firstPage, lastPage) => {
+    const result = validatePages(firstPage, lastPage);
+
+    expect(result.success).toBe(false);
+    expect(issuePaths(result)).toContain('lastPage');
+  });
+
+  it('rejects a changed prefix against the last page', () => {
+    const result = validatePages('A1', 'B20');
+
+    expect(result.success).toBe(false);
+    expect(issuePaths(result)).toContain('lastPage');
+  });
+
+  it.each([
+    ['20', '1'],
+    ['XI', 'I'],
+    ['A20', 'A1'],
+    ['A20', '1'],
+  ])('rejects the descending range %s to %s against the last page', (firstPage, lastPage) => {
+    const result = validatePages(firstPage, lastPage);
+
+    expect(result.success).toBe(false);
+    expect(issuePaths(result)).toContain('lastPage');
+  });
+
+  it('distinguishes the four page-range failures by message', () => {
+    const messageFor = (firstPage: string, lastPage: string) => {
+      const result = validatePages(firstPage, lastPage);
+
+      return result.success ? '' : result.error.issues.map((issue) => issue.message).join(' | ');
+    };
+
+    const invalidLabel = messageFor('Appendix1', '20');
+    const incompatible = messageFor('I', '10');
+    const prefixMismatch = messageFor('A1', 'B20');
+    const descending = messageFor('20', '1');
+
+    expect(new Set([invalidLabel, incompatible, prefixMismatch, descending]).size).toBe(4);
+    expect(invalidLabel).not.toMatch(/custom/i);
+  });
+
+  it('leaves the unrelated page-count fields untouched', () => {
+    expect(
+      pagesCountValidationSchema.safeParse({
+        pageCount: 20,
+        frontmatterCount: 4,
+        backmatterCount: 2,
+        firstPage: 'A1',
+        lastPage: '20',
+      }).success,
+    ).toBe(true);
   });
 });

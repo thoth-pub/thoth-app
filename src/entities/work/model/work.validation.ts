@@ -3,13 +3,13 @@ import z from 'zod';
 import { appConfig } from '@/src/shared/config';
 import { FORM_FIELDS } from '@/src/shared/constants';
 import { ERRORS } from '@/src/shared/constants/errors';
+import { interpretPageRange, isPageLabel, type PageRangeStatus } from '@/src/shared/utils/helpers/pages';
 import {
   doiValidation,
   getCoverImageFileValidation,
   getRequiredStringValidation,
   getStringValidation,
   languageValidation,
-  numberOrRomanNumeralValidationOptional,
   optionalDateValidation,
   optionalPositiveIntValidation,
   optionalStringValidation,
@@ -88,9 +88,36 @@ const frontMatterCountValidation = optionalPositiveIntValidation;
 
 const backMatterCountValidation = optionalPositiveIntValidation;
 
-const firstPageValidation = numberOrRomanNumeralValidationOptional;
+/*
+ * Page fields are validated through the shared page-range interpretation in
+ * `src/shared/utils/helpers/pages` rather than through the generic
+ * `numberOrRomanNumeralValidationOptional`, which knows nothing of prefixed labels and judges each
+ * endpoint on its own. Reading both fields through one interpretation is what keeps the rules this
+ * form enforces and the rules the automatic page count applies from drifting apart.
+ */
 
-const lastPageValidation = numberOrRomanNumeralValidationOptional;
+/** Names every supported convention, so the message never implies a free-text page label. */
+const PAGE_LABEL_ERROR =
+  'Must be a positive number (1), a Roman numeral (IV), or one uppercase letter followed by a positive number (A1)';
+
+/**
+ * The pair failures, each with the field a correction belongs on. Cross-field failures point at the
+ * last page: the first page is the endpoint the range is read from, so it is the last page the user
+ * has to reconcile with it.
+ */
+const PAGE_RANGE_PAIR_ERRORS: Partial<Record<PageRangeStatus, string>> = {
+  incompatibleSchemes: 'First and last page must use the same numbering (1–20, I–XI, A1–20 or A1–A20)',
+  prefixMismatch: 'First and last page must use the same prefix (A1–A20)',
+  descending: 'Last page must not come before first page',
+};
+
+const pageLabelValidation = optionalStringValidation.refine((value) => !value || isPageLabel(value), {
+  message: PAGE_LABEL_ERROR,
+});
+
+const firstPageValidation = pageLabelValidation;
+
+const lastPageValidation = pageLabelValidation;
 
 const titleLanguageValidation = z.object({
   value: languageValidation,
@@ -176,13 +203,24 @@ export const mediaValidationSchema = z.object({
   [WORK_VIDEO_COUNT.name]: videoCountValidation,
 });
 
-export const pagesCountValidationSchema = z.object({
-  [WORK_PAGES_COUNT.name]: pagesCountValidation,
-  [WORK_FRONTMATTER_COUNT.name]: frontMatterCountValidation,
-  [WORK_BACKMATTER_COUNT.name]: backMatterCountValidation,
-  [WORK_FIRST_PAGE.name]: firstPageValidation,
-  [WORK_LAST_PAGE.name]: lastPageValidation,
-});
+export const pagesCountValidationSchema = z
+  .object({
+    [WORK_PAGES_COUNT.name]: pagesCountValidation,
+    [WORK_FRONTMATTER_COUNT.name]: frontMatterCountValidation,
+    [WORK_BACKMATTER_COUNT.name]: backMatterCountValidation,
+    [WORK_FIRST_PAGE.name]: firstPageValidation,
+    [WORK_LAST_PAGE.name]: lastPageValidation,
+  })
+  .superRefine((values, ctx) => {
+    const { status } = interpretPageRange(values[WORK_FIRST_PAGE.name], values[WORK_LAST_PAGE.name]);
+    const message = PAGE_RANGE_PAIR_ERRORS[status];
+
+    // An endpoint that is not a valid label on its own has already been reported against its own
+    // field, and an incomplete range has no pair to check.
+    if (!message) return;
+
+    ctx.addIssue({ code: 'custom', message, path: [WORK_LAST_PAGE.name] });
+  });
 
 export const coverUrlValidationSchema = z.object({
   [COVER_URL.name]: getCoverImageFileValidation(
