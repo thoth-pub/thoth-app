@@ -216,6 +216,24 @@ describe('normaliseOnixMessage', () => {
       expect(normalised.languages[0]).toMatchObject({ code: 'srp', countryCode: 'RS', scriptCode: 'Cyrl' });
     });
 
+    it('keeps a valid role the target has nowhere to put, and calls it nothing', () => {
+      // List 22 role 03 is the language of the abstracts. Thoth's Work has no relation for it, so
+      // the current reducer drops it silently. That is a target question: the fact is valid ONIX,
+      // survives normalisation intact, and is not relabelled source-invalid on the way through.
+      const abstracts = `
+        <DescriptiveDetail>
+          <Language><LanguageRole>01</LanguageRole><LanguageCode>ger</LanguageCode></Language>
+          <Language><LanguageRole>03</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+        </DescriptiveDetail>`;
+      const message = onix(product(abstracts));
+
+      expect(message.products[0].languages.map(({ role, code }) => `${role}/${code}`)).toEqual([
+        '01/ger',
+        '03/eng',
+      ]);
+      expect(message.diagnostics).toEqual([]);
+    });
+
     it('blocks a language role or code the pinned codelists do not define', () => {
       const invalid = `
         <DescriptiveDetail>
