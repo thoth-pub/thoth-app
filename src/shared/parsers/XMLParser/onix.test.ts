@@ -28,6 +28,7 @@ import {
   getOnixText,
   getOnixTextFormat,
   isEarlierCalendarDate,
+  normaliseOnixOrcid,
   readOnixDate,
   resolveOnixContributorOrder,
   resolveOnixTextMarkup,
@@ -1320,15 +1321,126 @@ describe('selectOnixOrcid', () => {
     expect(selectOnixOrcid(orcid(''))).toBe('');
   });
 
+  it('canonicalises the resolver spellings of a declared ORCID', () => {
+    // ONIX-AUDIT-PREFLIGHT-RECOVERY-01: a publisher writing the iD as a resolver URL, with or
+    // without the scheme, has written the same iD. It is normalised rather than left for the
+    // shared ORCID validation to reject.
+    expect(selectOnixOrcid(orcid('https://orcid.org/0000-0001-6365-5189'))).toBe(ORCID);
+    expect(selectOnixOrcid(orcid('https://orcid.org/0000000163655189'))).toBe(ORCID);
+    expect(selectOnixOrcid(orcid('orcid.org/0000000163655189'))).toBe(ORCID);
+  });
+
   it('passes an unrecognised representation through untouched rather than guessing', () => {
     // Left exactly as the file wrote it, for the shared ORCID validation to accept or reject.
-    expect(selectOnixOrcid(orcid('https://orcid.org/0000-0001-6365-5189'))).toBe(
-      'https://orcid.org/0000-0001-6365-5189',
-    );
     expect(selectOnixOrcid(orcid('not-an-orcid'))).toBe('not-an-orcid');
+    expect(selectOnixOrcid(orcid('https://example.org/0000-0001-6365-5189'))).toBe(
+      'https://example.org/0000-0001-6365-5189',
+    );
   });
 
   it('takes the first when a contributor somehow declares two ORCIDs', () => {
     expect(selectOnixOrcid([orcid(ORCID), orcid('0000-0002-1825-0097')])).toBe(ORCID);
+  });
+});
+
+describe('normaliseOnixOrcid', () => {
+  const ORCID = '0009-0002-4666-4892';
+
+  it('accepts ONIX\'s hyphenless sixteen characters', () => {
+    expect(normaliseOnixOrcid('0009000246664892')).toEqual({
+      kind: 'canonical',
+      orcid: ORCID,
+      spelling: 'bare',
+      source: '0009000246664892',
+    });
+  });
+
+  it('accepts the hyphenated form the registry displays and Thoth stores', () => {
+    expect(normaliseOnixOrcid(ORCID)).toEqual({
+      kind: 'canonical',
+      orcid: ORCID,
+      spelling: 'hyphenated',
+      source: ORCID,
+    });
+  });
+
+  it('accepts the HTTPS resolver form, hyphenated or not', () => {
+    expect(normaliseOnixOrcid(`https://orcid.org/${ORCID}`)).toEqual({
+      kind: 'canonical',
+      orcid: ORCID,
+      spelling: 'resolver',
+      source: `https://orcid.org/${ORCID}`,
+    });
+    expect(normaliseOnixOrcid('https://orcid.org/0009000246664892')).toMatchObject({
+      kind: 'canonical',
+      orcid: ORCID,
+      spelling: 'resolver',
+    });
+  });
+
+  it('accepts the scheme-less resolver form real ONIX contains', () => {
+    expect(normaliseOnixOrcid('orcid.org/0009000246664892')).toEqual({
+      kind: 'canonical',
+      orcid: ORCID,
+      spelling: 'resolver_scheme_less',
+      source: 'orcid.org/0009000246664892',
+    });
+  });
+
+  it('reduces every accepted spelling to one canonical identity', () => {
+    const spellings = [
+      '0009000246664892',
+      ORCID,
+      `https://orcid.org/${ORCID}`,
+      'https://orcid.org/0009000246664892',
+      'orcid.org/0009000246664892',
+      `orcid.org/${ORCID}`,
+    ];
+
+    const normalised = spellings.map(normaliseOnixOrcid);
+
+    expect(normalised.every(({ kind }) => kind === 'canonical')).toBe(true);
+    expect(new Set(normalised.map((result) => (result.kind === 'canonical' ? result.orcid : result.source)))).toEqual(
+      new Set([ORCID]),
+    );
+  });
+
+  it('keeps the source spelling, so a diagnostic can say what the file wrote', () => {
+    expect(normaliseOnixOrcid('orcid.org/0009000246664892').source).toBe('orcid.org/0009000246664892');
+    expect(normaliseOnixOrcid('nonsense').source).toBe('nonsense');
+  });
+
+  it('upper-cases the check character, which is the only letter an ORCID can hold', () => {
+    expect(normaliseOnixOrcid('000900095087464x')).toMatchObject({ orcid: '0009-0009-5087-464X' });
+    expect(normaliseOnixOrcid('https://orcid.org/000900095087464x')).toMatchObject({ orcid: '0009-0009-5087-464X' });
+  });
+
+  it('does not strip arbitrary domains or URL prefixes', () => {
+    expect(normaliseOnixOrcid(`https://example.org/${ORCID}`)).toEqual({
+      kind: 'malformed',
+      source: `https://example.org/${ORCID}`,
+    });
+    expect(normaliseOnixOrcid(`https://www.orcid.org/${ORCID}`)).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid(`orcid.org.uk/${ORCID}`)).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid(`http://orcid.org/${ORCID}`)).toMatchObject({ kind: 'malformed' });
+  });
+
+  it('does not accept extra path, query or fragment content around an ORCID-shaped substring', () => {
+    expect(normaliseOnixOrcid(`https://orcid.org/${ORCID}/works`)).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid(`https://orcid.org/${ORCID}?lang=en`)).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid(`https://orcid.org/${ORCID}#profile`)).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid(`https://orcid.org/${ORCID}/`)).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid(`see ${ORCID}`)).toMatchObject({ kind: 'malformed' });
+  });
+
+  it('never invents length or separator placement', () => {
+    // The same four refusals the shared ORCID canonicalisation makes, reached through the
+    // resolver forms too rather than only on a bare value.
+    expect(normaliseOnixOrcid('123')).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid('https://orcid.org/123')).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid('0000--0001-6365-5189')).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid('00000001-63655189')).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid(` ${ORCID}`)).toMatchObject({ kind: 'malformed' });
+    expect(normaliseOnixOrcid('')).toMatchObject({ kind: 'malformed' });
   });
 });
