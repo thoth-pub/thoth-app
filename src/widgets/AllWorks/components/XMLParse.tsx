@@ -10,6 +10,8 @@ import { useTypedTranslation } from '@/src/shared/hooks';
 import { NAMESPACES } from '@/src/shared/i18n/model/i18n.types';
 import { FormFieldOption } from '@/src/shared/interfaces';
 import { XMLParser } from '@/src/shared/parsers';
+import { toImportIssues } from '@/src/shared/parsers/issues/importIssues';
+import { releaseDiagnostic, resolveOnixRelease } from '@/src/shared/parsers/XMLParser/onixContract';
 import { ContributorsForSelection, ImportIssue, ImportPlan, ImportSource } from '@/src/shared/types';
 import { createEmptyImportPlan } from '@/src/shared/utils';
 
@@ -56,6 +58,17 @@ export const XMLParse = (props: XMLParseProps) => {
       } catch (error) {
         const message = error instanceof Error && error.message ? error.message : t(ERRORS.XML_PARSING_ERROR);
         onValidationFailure?.(fileError(message));
+        return;
+      }
+
+      // The supported source boundary, enforced before anything reads a Product. An ONIX 2.1
+      // message is a different standard with different element names; a message that declares no
+      // release does not say which grammar it is written in. Either way there is nothing to map,
+      // so the file stops here rather than producing whatever falls out of the target mapping.
+      const release = releaseDiagnostic(resolveOnixRelease(data?.ONIXMessage));
+
+      if (release) {
+        onValidationFailure?.(toImportIssues([release]));
         return;
       }
 
