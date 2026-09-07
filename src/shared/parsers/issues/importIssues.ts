@@ -1,4 +1,4 @@
-import type { ImportIssue, ImportIssueSource, ImportStatus } from '../../types';
+import type { ImportIssue, ImportIssueSource, ImportStatus, OnixSourceDiagnostic } from '../../types';
 
 /**
  * The rules that turn a pile of issues into an ordered, actionable list and into a parse status.
@@ -52,3 +52,43 @@ export const warningIssues = (issues: ImportIssue[]): ImportIssue[] =>
  */
 export const importStatus = (issues: ImportIssue[]): ImportStatus =>
   issues.some(({ severity }) => severity === 'error') ? 'failed' : 'success';
+
+/**
+ * The findings that stop an import, taken from what the contract allows to be done about them.
+ *
+ * Deliberately blind to classification and to severity. A construct can be `SOURCE_INVALID` and
+ * still not block, because an approved recovery rule proved that exactly this malformed subtree
+ * can be omitted without changing the meaning of anything around it; and a perfectly valid
+ * construct the target cannot hold does not block either. Only the recovery decides.
+ */
+export const blockingDiagnostics = (diagnostics: OnixSourceDiagnostic[]): OnixSourceDiagnostic[] =>
+  diagnostics.filter(({ recovery }) => recovery === 'BLOCKING');
+
+/**
+ * Source diagnostics as the issues the upload and preview screens already render.
+ *
+ * A projection, not a translation: the richer model stays available to whatever plans the import,
+ * while the user is shown the subset that asks something of them. Informational diagnostics —
+ * an accepted spelling that was canonicalised — are provenance rather than findings, and are
+ * left out rather than dressed up as warnings nobody can act on.
+ */
+export const toImportIssues = (diagnostics: OnixSourceDiagnostic[]): ImportIssue[] =>
+  diagnostics
+    .filter(({ severity }) => severity !== 'info')
+    .map(({ severity, code, message, path, productIndex, recordReference }) => ({
+      // Narrowed by the filter above; `info` never reaches an issue.
+      severity: severity as ImportIssue['severity'],
+      code,
+      message,
+      // A finding about the message as a whole belongs to no product, and no product 0 is
+      // invented for it — the same rule `sortIssues` relies on to place file-level findings.
+      source:
+        productIndex === undefined
+          ? ({ kind: 'file' } as const)
+          : ({
+              kind: 'onix' as const,
+              productIndex,
+              ...(recordReference ? { recordReference } : {}),
+              sourcePath: path,
+            } satisfies ImportIssueSource),
+    }));
