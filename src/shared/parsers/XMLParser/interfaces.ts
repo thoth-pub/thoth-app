@@ -83,9 +83,16 @@ export interface OnixTitleDetail {
   TitleElement?: OnixRepeatable<OnixTitleElement>;
 }
 
+/**
+ * One Language composite. `CountryCode` and `ScriptCode` are declared because they carry source
+ * semantics — Serbian in Cyrillic is not Serbian in Latin — that a later reducer has to be able
+ * to see even where the target cannot hold them; upstream's interface omits both.
+ */
 export interface OnixLanguage {
   LanguageRole?: LanguageRole;
   LanguageCode?: LanguageBasedOnIso6392b | string;
+  CountryCode?: OnixText;
+  ScriptCode?: OnixText;
 }
 
 /** A subject whose scheme, code and heading can all carry standard ONIX text attributes. */

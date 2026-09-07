@@ -1,6 +1,6 @@
 import type { OnixSourceDiagnostic } from '../../types';
 import type { ExtendedONIXMessage } from './interfaces';
-import { ONIX_MESSAGE_PATH } from './onixSource';
+import { ONIX_MESSAGE_PATH } from './onixSourcePath';
 
 /**
  * The supported ONIX source boundary, owned by code rather than assumed.
