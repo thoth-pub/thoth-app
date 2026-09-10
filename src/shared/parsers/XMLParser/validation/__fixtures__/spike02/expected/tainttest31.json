@@ -1,0 +1,435 @@
+{
+ "X1_header_defect.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "stop": null,
+  "ordinary": [
+   {
+    "kind": "BLOCKING",
+    "xpath": "/*/*[1]/*[2]",
+    "resolved_path": "/ONIXMessage[1]/Header[1]/SentDateTime[1]",
+    "message": "Element '{http://ns.editeur.org/onix/3.1/reference}SentDateTime': 'not-a-date' is not a valid value of the union type '{http://ns.editeur.org/onix/3.1/reference",
+    "taint": [
+     "/ONIXMessage[1]/Header[1]/SentDateTime[1] (subtree)"
+    ]
+   }
+  ],
+  "recoveries": [],
+  "findings": [
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20190410_c_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Header[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:MessageNumber"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "S-TEST-HEADER-DEP",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": false,
+    "disposition": "SECONDARY",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "parent::node()/child::onix:Header/child::onix:SentDateTime"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Header[1]/SentDateTime[1]"
+    ]
+   },
+   {
+    "tier": "schematron",
+    "id": "S-TEST-CONFINED",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:RecordReference"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "T-FAIL-RAISES",
+    "klass": "RULE_NOT_EVALUABLE",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": false,
+    "disposition": "NOT_EVALUABLE (non-counting; fail-safe scope: document)",
+    "scope_fallback": "document",
+    "dependency_paths": [],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Header[1]/SentDateTime[1]"
+    ],
+    "error": "Error: FOER0000"
+   },
+   {
+    "tier": "thoth",
+    "id": "T-UNKNOWN-CONFINED",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::ProductIdentifier",
+     "/…?"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "T-UNKNOWN-ESCAPING",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": true,
+    "disposition": "SECONDARY",
+    "scope_fallback": "document",
+    "dependency_paths": [
+     "/…?"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Header[1]/SentDateTime[1]"
+    ]
+   },
+   {
+    "tier": "thoth",
+    "id": "T-CONFINED-FIRES",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::RecordReference"
+    ],
+    "tainted_dependencies": []
+   }
+  ],
+  "counts": {
+   "ordinary_blocking": 1,
+   "ordinary_recoverable": 0,
+   "later_blocking_before_projection": 3,
+   "later_blocking_after_projection": 2,
+   "later_secondary": 2,
+   "not_evaluable": 1,
+   "total_blocking_before": 4,
+   "total_blocking_after": 3
+  }
+ },
+ "X2_clean_control.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "stop": null,
+  "ordinary": [],
+  "recoveries": [],
+  "findings": [
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20190410_c_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Header[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:MessageNumber"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "S-TEST-HEADER-DEP",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "parent::node()/child::onix:Header/child::onix:SentDateTime"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "S-TEST-CONFINED",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:RecordReference"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "T-FAIL-RAISES",
+    "klass": "RULE_NOT_EVALUABLE",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": false,
+    "disposition": "NOT_EVALUABLE (non-counting; fail-safe scope: document)",
+    "scope_fallback": "document",
+    "dependency_paths": [],
+    "tainted_dependencies": [],
+    "error": "Error: FOER0000"
+   },
+   {
+    "tier": "thoth",
+    "id": "T-UNKNOWN-CONFINED",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::ProductIdentifier",
+     "/…?"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "T-UNKNOWN-ESCAPING",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": "document",
+    "dependency_paths": [
+     "/…?"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "T-CONFINED-FIRES",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::RecordReference"
+    ],
+    "tainted_dependencies": []
+   }
+  ],
+  "counts": {
+   "ordinary_blocking": 0,
+   "ordinary_recoverable": 0,
+   "later_blocking_before_projection": 3,
+   "later_blocking_after_projection": 3,
+   "later_secondary": 0,
+   "not_evaluable": 1,
+   "total_blocking_before": 3,
+   "total_blocking_after": 3
+  }
+ },
+ "X3_salesoutlet_bdl.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "stop": null,
+  "ordinary": [],
+  "recoveries": [],
+  "findings": [
+   {
+    "tier": "schematron",
+    "id": "_20180202_d_54",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/PublishingDetail[1]/SalesRights[1]/SalesRestriction[1]/SalesOutlet[1]/SalesOutletIdentifier[1]/SalesOutletIDType[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "following-sibling::onix:IDValue"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20190410_c_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Header[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:MessageNumber"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "S-TEST-HEADER-DEP",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "parent::node()/child::onix:Header/child::onix:SentDateTime"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "S-TEST-CONFINED",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:RecordReference"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "T-FAIL-RAISES",
+    "klass": "RULE_NOT_EVALUABLE",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": false,
+    "disposition": "NOT_EVALUABLE (non-counting; fail-safe scope: document)",
+    "scope_fallback": "document",
+    "dependency_paths": [],
+    "tainted_dependencies": [],
+    "error": "Error: FOER0000"
+   },
+   {
+    "tier": "thoth",
+    "id": "T-UNKNOWN-CONFINED",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::ProductIdentifier",
+     "/…?"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "T-UNKNOWN-ESCAPING",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": "document",
+    "dependency_paths": [
+     "/…?"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "T-CONFINED-FIRES",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::RecordReference"
+    ],
+    "tainted_dependencies": []
+   }
+  ],
+  "counts": {
+   "ordinary_blocking": 0,
+   "ordinary_recoverable": 0,
+   "later_blocking_before_projection": 3,
+   "later_blocking_after_projection": 3,
+   "later_secondary": 0,
+   "not_evaluable": 1,
+   "total_blocking_before": 3,
+   "total_blocking_after": 3
+  }
+ },
+ "D3_pi_doctype.xml": {
+  "release": "3.1",
+  "stage2": [
+   {
+    "id": "SECURITY_DTD",
+    "scope": "SECURITY",
+    "class": "PROCESSING_STOP",
+    "blocking": true,
+    "stage": 2,
+    "detail": {
+     "name": "ONIXMessage",
+     "externalId": null,
+     "internalSubset": false,
+     "malformed": false
+    }
+   },
+   {
+    "id": "R-MSG-NO-DOCTYPE-31",
+    "scope": "VALIDITY",
+    "class": "SOURCE_INVALID",
+    "blocking": true,
+    "stage": 2,
+    "inventory": "tables/source_rule_inventory.json"
+   }
+  ],
+  "stop": "STOP after stage 2 (DOCTYPE/DTD construct); no later tier parsed or evaluated",
+  "ordinary": [],
+  "recoveries": [],
+  "findings": [],
+  "counts": {
+   "stage2_findings": 2,
+   "total_blocking_before": 2,
+   "total_blocking_after": 2
+  }
+ }
+}
