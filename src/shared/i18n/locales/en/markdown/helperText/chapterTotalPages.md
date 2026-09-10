@@ -12,6 +12,6 @@ First Page and Last Page accept three numbering conventions:
 
 - **Numbers**, such as `1`–`20`.
 - **Roman numerals**, such as `I`–`XI`.
-- **Prefixed pages**: one uppercase letter followed immediately by a positive page number, such as `A1`–`A20`. The prefix may also be given once, as `A1`–`20`.
+- **Prefixed pages**: a prefix followed immediately by a positive page number, such as `A8`–`A18` or `III3`–`III6`. The prefix is either one uppercase letter (`A`) or a valid uppercase Roman numeral (`III`); no other prefix is accepted. The prefix may also be given once, as `A8`–`18` or `III3`–`6`.
 
-Both pages must use the same convention — a prefixed first page may be closed by a plain number, but the letter must not change — and the last page must not come before the first. Pages are stored exactly as entered, and the total page count is calculated automatically from a complete range.
+Both pages must use the same convention — a prefixed first page may be closed by a plain number, but the prefix must not change, so `III3`–`IV6` is not a range — and the last page must not come before the first. Only the page number after the prefix is counted: `III3`–`III6` is 4 pages. Pages are stored exactly as entered, and the total page count is calculated automatically from a complete range.
