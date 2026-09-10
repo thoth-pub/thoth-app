@@ -150,6 +150,29 @@ describe('runOrdinaryStage: Short input (source flavour, then canonical Referenc
     expect(defect.sourceDiagnostics[0].message).toMatch(/j151/);
   });
 
+  it('localises and merges defects of a namespace-prefixed message exactly as for a default namespace', () => {
+    const reference = base('3.0').replace(
+      '</Product>',
+      '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>s</SupplierName></Supplier><ProductAvailability>20</ProductAvailability><Price><PriceType>01</PriceType><PriceAmount>0.00</PriceAmount><CurrencyCode>EUR</CurrencyCode></Price></SupplyDetail></ProductSupply></Product>',
+    );
+    const prefixed = (text: string) =>
+      text.replace(/<(\/?)([A-Za-z_][\w.-]*)/g, '<$1p:$2').replace(' xmlns="', ' xmlns:p="');
+
+    const referenceResult = ok(run(prefixed(reference), '3.0', 'reference'));
+    expect(referenceResult.canonicalDefects.map((d) => [d.kind, d.node && pathOf(d.node)])).toEqual([
+      ['BLOCKING', '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1]'],
+    ]);
+
+    const shortResult = ok(run(prefixed(toShort(reference, '3.0')), '3.0', 'short'));
+    expect(shortResult.sourceOnly).toEqual([]);
+    expect(shortResult.canonicalDefects.map((d) => [d.kind, d.node && pathOf(d.node)])).toEqual([
+      ['BLOCKING', '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1]'],
+    ]);
+    expect(shortResult.canonicalDefects[0].sourceDiagnostics.map((d) => d.xpath)).toEqual([
+      expect.stringMatching(/p:j151$/),
+    ]);
+  });
+
   it('blocks a Short-only error that is not a registered artifact defect (flavour purity)', () => {
     const short = toShort(base('3.0'), '3.0').replace('<x298>', '<SenderName>').replace('</x298>', '</SenderName>');
     const result = ok(run(short, '3.0', 'short'));

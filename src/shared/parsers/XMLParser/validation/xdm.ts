@@ -146,25 +146,37 @@ export function pathOf(node: Element): string {
 }
 
 /**
- * Resolves a libxml2 node path (`/*[k]` or `name[k]` steps) to an element,
- * exactly as the SPIKE-02 v4 taint reference does. Anything else, including
- * attribute steps, is unresolved (`null`) and becomes whole-document taint.
+ * Resolves a libxml2 node path to an element: `/*[k]` and `name[k]` steps
+ * exactly as the SPIKE-02 v4 taint reference does, and the `prefix:name[k]`
+ * steps libxml2 writes for a namespace-prefixed document, matched by prefix,
+ * name and same-name position (libxml2's own counting), so a node's identity
+ * never depends on the prefix a source chose. `nameOf` names elements as the
+ * validated document did (the source tags of a renamed Short tree). Anything
+ * else, including attribute steps, is unresolved (`null`) and becomes
+ * whole-document taint.
  */
-export function resolveLibxmlPath(document: Document, xpath: string): Element | null {
+export function resolveLibxmlPath(
+  document: Document,
+  xpath: string,
+  nameOf: (element: Element) => string = (element) => element.localName,
+): Element | null {
   const steps = xpath.replace(/^\//, '').split('/').filter(Boolean);
   let current: Document | Element = document;
   for (const step of steps) {
-    const match = /^(\*|[A-Za-z_][\w.-]*)(?:\[(\d+)\])?$/.exec(step.replace(/^\*\[local-name\(\)='([^']+)'\]/, '$1'));
+    const match = /^(?:(\*)|(?:([A-Za-z_][\w.-]*):)?([A-Za-z_][\w.-]*))(?:\[(\d+)\])?$/.exec(
+      step.replace(/^\*\[local-name\(\)='([^']+)'\]/, '$1'),
+    );
     if (!match) return null;
-    const name = match[1];
-    const index = match[2] ? Number(match[2]) : 1;
+    const [, wildcard, prefix, name, position] = match;
+    const index = position ? Number(position) : 1;
     let seen = 0;
     let found: Element | null = null;
     for (const child of current.childNodes) {
       if (child.nodeType !== ELEMENT_NODE) continue;
-      if (name !== '*' && (child as Element).localName !== name) continue;
+      const element = child as Element;
+      if (!wildcard && (nameOf(element) !== name || (prefix !== undefined && element.prefix !== prefix))) continue;
       if (++seen === index) {
-        found = child as Element;
+        found = element;
         break;
       }
     }

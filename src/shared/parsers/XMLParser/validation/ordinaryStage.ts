@@ -137,6 +137,9 @@ export function runOrdinaryStage(input: OrdinaryStageInput): OrdinaryStageResult
     throw error;
   }
   const resolve = (d: OrdinaryDiagnostic) => (d.xpath ? resolveLibxmlPath(xdm.document, d.xpath) : null);
+  // The source-flavour pass names elements as the source did (Short tags), not as the renamed tree.
+  const resolveSource = (d: OrdinaryDiagnostic) =>
+    d.xpath ? resolveLibxmlPath(xdm.document, d.xpath, xdm.provenance.sourceTagOf) : null;
 
   if (source.flavour === 'reference') {
     return {
@@ -164,7 +167,7 @@ export function runOrdinaryStage(input: OrdinaryStageInput): OrdinaryStageResult
   }));
   const sourceOnly: SourceOnlyDefect[] = [];
   for (const diagnostic of sourcePass.diagnostics) {
-    const node = resolve(diagnostic);
+    const node = resolveSource(diagnostic);
     const reproduced = node ? canonical.find((c) => c.node === node) : undefined;
     if (reproduced) {
       reproduced.sourceDiagnostics.push(diagnostic);

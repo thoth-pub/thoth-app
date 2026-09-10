@@ -112,6 +112,40 @@ describe('pathOf and resolveLibxmlPath', () => {
     expect(pathOf(resolveLibxmlPath(document, '/ONIXMessage/Product[2]/A')!)).toBe('/ONIXMessage[1]/Product[2]/A[1]');
   });
 
+  it('resolves prefixed steps by prefix, name and same-name position', () => {
+    const { document: prefixed } = buildXdm(
+      `<r:ONIXMessage xmlns:r="${REF}"><r:Header/><r:Product><r:A/><r:B/><r:A/></r:Product><r:Product><r:A/></r:Product></r:ONIXMessage>`,
+    );
+    expect(pathOf(resolveLibxmlPath(prefixed, '/r:ONIXMessage/r:Product[1]/r:A[2]')!)).toBe(
+      '/ONIXMessage[1]/Product[1]/A[2]',
+    );
+    expect(pathOf(resolveLibxmlPath(prefixed, '/r:ONIXMessage/r:Product[2]/r:A')!)).toBe(
+      '/ONIXMessage[1]/Product[2]/A[1]',
+    );
+    expect(resolveLibxmlPath(prefixed, '/x:ONIXMessage')).toBeNull();
+  });
+
+  it('resolves source-flavour steps through the provenance names of a renamed tree', () => {
+    const xdm = buildXdm(
+      `<s:ONIXmessage xmlns:s="${SHORT}"><s:header/><s:product><s:a001>r</s:a001></s:product></s:ONIXmessage>`,
+      {
+        rename: {
+          shortToReference: new Map([
+            ['ONIXmessage', 'ONIXMessage'],
+            ['header', 'Header'],
+            ['product', 'Product'],
+            ['a001', 'RecordReference'],
+          ]),
+          sourceNamespace: SHORT,
+          targetNamespace: REF,
+        },
+      },
+    );
+    const node = resolveLibxmlPath(xdm.document, '/s:ONIXmessage/s:product/s:a001', xdm.provenance.sourceTagOf);
+    expect(pathOf(node!)).toBe('/ONIXMessage[1]/Product[1]/RecordReference[1]');
+    expect(resolveLibxmlPath(xdm.document, '/s:ONIXmessage/s:product/s:a001')).toBeNull();
+  });
+
   it('returns null for paths it cannot resolve (whole-document fail-safe upstream)', () => {
     expect(resolveLibxmlPath(document, '/*/*[9]')).toBeNull();
     expect(resolveLibxmlPath(document, '/*/*[2]/@datestamp')).toBeNull();

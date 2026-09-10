@@ -223,6 +223,53 @@ describe('createOnixSourceValidator', () => {
     expect(result.normalized!.provenance.sourcePathOf(recordReference)).toBe('/ONIXmessage[1]/product[1]/a001[1]');
   });
 
+  it('gives a namespace-prefixed Short message the ledger of its default-namespace Reference twin', async () => {
+    const reference =
+      '<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference"><Header><Sender><SenderName>T</SenderName></Sender><SentDateTime>20260909T1200</SentDateTime></Header>' +
+      '<Product><RecordReference>r</RecordReference><NotificationType>03</NotificationType><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>' +
+      '<ProductSupply><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>s</SupplierName></Supplier><ProductAvailability>20</ProductAvailability>' +
+      '<Price><PriceType>01</PriceType><PriceAmount>0.00</PriceAmount><CurrencyCode>EUR</CurrencyCode></Price></SupplyDetail></ProductSupply></Product></ONIXMessage>';
+    const SHORT_TAGS: Record<string, string> = {
+      ONIXMessage: 'ONIXmessage',
+      Header: 'header',
+      Sender: 'sender',
+      SenderName: 'x298',
+      SentDateTime: 'x307',
+      Product: 'product',
+      RecordReference: 'a001',
+      NotificationType: 'a002',
+      ProductIdentifier: 'productidentifier',
+      ProductIDType: 'b221',
+      IDValue: 'b244',
+      ProductSupply: 'productsupply',
+      SupplyDetail: 'supplydetail',
+      Supplier: 'supplier',
+      SupplierRole: 'j292',
+      SupplierName: 'j137',
+      ProductAvailability: 'j396',
+      Price: 'price',
+      PriceType: 'x462',
+      PriceAmount: 'j151',
+      CurrencyCode: 'j152',
+    };
+    const short = reference
+      .replace(/<(\/?)(\w+)/g, (_, close: string, name: string) => `<${close}o:${SHORT_TAGS[name]}`)
+      .replace('xmlns="http://ns.editeur.org/onix/3.0/reference"', 'xmlns:o="http://ns.editeur.org/onix/3.0/short"');
+    const ledger = (findings: readonly SourceFinding[]) =>
+      findings.map((f) => `${f.tier}|${f.id}|${f.path}|${f.class}|${f.projection}|${f.counts}`).sort();
+
+    const [referenceResult, shortResult] = [
+      await validator.validate(encode(reference)),
+      await validator.validate(encode(short)),
+    ];
+    expect(shortResult.source?.flavour).toBe('short');
+    expect(referenceResult.findings.filter((f) => f.tier === 'CANONICAL_ORDINARY').map((f) => f.path)).toEqual([
+      '/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1]',
+    ]);
+    expect(ledger(shortResult.findings)).toEqual(ledger(referenceResult.findings));
+    expect(shortResult.summary).toEqual(referenceResult.summary);
+  });
+
   it('counts same-key LanguageRole 01 + 02 as blocking source invalidity', async () => {
     const text = fixtureText('dtd_suite30/N3_plain.xml').replace(
       '</TitleDetail>',

@@ -19,7 +19,7 @@ export interface OrdinaryDiagnostic {
   readonly level: number;
   readonly line: number;
   readonly col: number;
-  /** libxml2 node path (`/*[k]` steps), when libxml2 reports one. */
+  /** libxml2 node path (`/*[k]`, `name[k]` or `prefix:name[k]` steps), when libxml2 reports one. */
   readonly xpath: string | null;
 }
 
