@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, type Mock, vi } from 'vitest';
 
 import { decodeSource } from '../encoding';
 import { PROLOG_SCAN_BOUND } from '../prolog';
@@ -34,7 +34,7 @@ const message = (products: number, release = '3.0') =>
 interface Harness {
   posted: WorkerToClientMessage[];
   calls: string[];
-  loader: ReturnType<typeof vi.fn>;
+  loader: Mock<(fileName: string) => Promise<Uint8Array>>;
   session: ReturnType<typeof createWorkerSession>;
   controls: ValidatorControls[];
 }

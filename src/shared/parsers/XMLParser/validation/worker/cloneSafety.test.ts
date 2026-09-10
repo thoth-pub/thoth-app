@@ -28,7 +28,7 @@ describe('assertStructuredCloneSafe', () => {
     ['a WeakMap', { w: new WeakMap() }, '$.w', 'WeakMap instance'],
     ['a Map', { m: new Map() }, '$.m', 'Map instance'],
     ['a symbol', { s: Symbol('x') }, '$.s', 'symbol'],
-    ['a bigint', { n: 1n }, '$.n', 'bigint'],
+    ['a bigint', { n: BigInt(1) }, '$.n', 'bigint'],
   ])('rejects %s naming the path', (_label, value, path, reason) => {
     expect(() => assertStructuredCloneSafe(value)).toThrow(NotCloneSafeError);
     try {
