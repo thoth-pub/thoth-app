@@ -1,11 +1,7 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import {
-  resolveReleaseFlavour,
-  type RootTag,
-  type RootTagAttribute,
-} from './release';
+import { resolveReleaseFlavour, type RootTag, type RootTagAttribute } from './release';
 
 const REF30 = 'http://ns.editeur.org/onix/3.0/reference';
 const SHORT30 = 'http://ns.editeur.org/onix/3.0/short';
@@ -20,8 +16,7 @@ function root(
 ): RootTag {
   const attributes: RootTagAttribute[] = [];
   if (release !== null) attributes.push({ name: 'release', value: release });
-  if (namespaceURI !== null)
-    attributes.push({ name: 'xmlns', value: namespaceURI });
+  if (namespaceURI !== null) attributes.push({ name: 'xmlns', value: namespaceURI });
   return {
     qualifiedName: localName,
     localName,
@@ -39,20 +34,17 @@ describe('resolveReleaseFlavour', () => {
     ['ONIXmessage', SHORT30, '3.0', '3.0', '3.0.8', 'short'],
     ['ONIXMessage', REF31, '3.1', '3.1', '3.1.3', 'reference'],
     ['ONIXmessage', SHORT31, '3.1', '3.1', '3.1.3', 'short'],
-  ])(
-    'resolves %s in %s with release %s',
-    (localName, ns, release, onixRelease, schemaRelease, flavour) => {
-      expect(resolveReleaseFlavour(root(localName, ns, release))).toEqual({
-        kind: 'RESOLVED',
-        source: {
-          release: onixRelease,
-          schemaRelease,
-          flavour,
-          namespaceURI: ns,
-        },
-      });
-    },
-  );
+  ])('resolves %s in %s with release %s', (localName, ns, release, onixRelease, schemaRelease, flavour) => {
+    expect(resolveReleaseFlavour(root(localName, ns, release))).toEqual({
+      kind: 'RESOLVED',
+      source: {
+        release: onixRelease,
+        schemaRelease,
+        flavour,
+        namespaceURI: ns,
+      },
+    });
+  });
 
   it('resolves a namespace-prefixed root', () => {
     const result = resolveReleaseFlavour({
@@ -80,21 +72,24 @@ describe('resolveReleaseFlavour', () => {
   });
 
   it('rejects a missing release attribute on a 3.x root', () => {
-    expect(resolveReleaseFlavour(root('ONIXMessage', REF31, null))).toMatchObject(
-      { kind: 'INVALID', reason: 'RELEASE_UNDECLARED' },
-    );
+    expect(resolveReleaseFlavour(root('ONIXMessage', REF31, null))).toMatchObject({
+      kind: 'INVALID',
+      reason: 'RELEASE_UNDECLARED',
+    });
   });
 
   it('rejects a release that contradicts the namespace', () => {
-    expect(
-      resolveReleaseFlavour(root('ONIXMessage', REF30, '3.1')),
-    ).toMatchObject({ kind: 'INVALID', reason: 'RELEASE_NAMESPACE_CONFLICT' });
+    expect(resolveReleaseFlavour(root('ONIXMessage', REF30, '3.1'))).toMatchObject({
+      kind: 'INVALID',
+      reason: 'RELEASE_NAMESPACE_CONFLICT',
+    });
   });
 
   it('rejects a 3.x release declared without the ONIX namespace', () => {
-    expect(resolveReleaseFlavour(root('ONIXMessage', null, '3.0'))).toMatchObject(
-      { kind: 'INVALID', reason: 'NAMESPACE_UNDECLARED' },
-    );
+    expect(resolveReleaseFlavour(root('ONIXMessage', null, '3.0'))).toMatchObject({
+      kind: 'INVALID',
+      reason: 'NAMESPACE_UNDECLARED',
+    });
   });
 
   it('rejects an ONIX 3 element other than the message as the root', () => {
@@ -117,14 +112,8 @@ describe('resolveReleaseFlavour', () => {
   it.each([
     ['ONIX 2.1 without namespace', root('ONIXMessage', null, '2.1')],
     ['ONIX 2.1 without release', root('ONIXmessage', null, null)],
-    [
-      'ONIX 2.1 namespace',
-      root('ONIXMessage', 'http://www.editeur.org/onix/2.1/reference', null),
-    ],
-    [
-      'a future ONIX release',
-      root('ONIXMessage', 'http://ns.editeur.org/onix/3.2/reference', '3.2'),
-    ],
+    ['ONIX 2.1 namespace', root('ONIXMessage', 'http://www.editeur.org/onix/2.1/reference', null)],
+    ['a future ONIX release', root('ONIXMessage', 'http://ns.editeur.org/onix/3.2/reference', '3.2')],
     ['a non-ONIX document', root('html', 'http://www.w3.org/1999/xhtml', null)],
     ['a no-namespace non-ONIX document', root('catalogue', null, null)],
   ])('stops %s as unsupported', (_label, tag) => {

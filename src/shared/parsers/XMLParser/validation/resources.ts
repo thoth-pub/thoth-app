@@ -100,9 +100,7 @@ export class OnixResourceIntegrityError extends Error {
 
 export async function sha256Hex(bytes: Uint8Array): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(bytes));
-  return Array.from(new Uint8Array(digest), (b) =>
-    b.toString(16).padStart(2, '0'),
-  ).join('');
+  return Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, '0')).join('');
 }
 
 const byName = new Map(ONIX_VALIDATION_RESOURCES.map((r) => [r.fileName, r]));
@@ -112,30 +110,18 @@ const byName = new Map(ONIX_VALIDATION_RESOURCES.map((r) => [r.fileName, r]));
  * be used. Anything else fails closed: an unknown name never reaches the
  * loader, and altered bytes are never returned.
  */
-export async function loadVerifiedResource(
-  loader: OnixResourceLoader,
-  fileName: string,
-): Promise<Uint8Array> {
+export async function loadVerifiedResource(loader: OnixResourceLoader, fileName: string): Promise<Uint8Array> {
   const pin = byName.get(fileName);
   if (!pin) {
-    throw new OnixResourceIntegrityError(
-      fileName,
-      'not a pinned ONIX validation resource',
-    );
+    throw new OnixResourceIntegrityError(fileName, 'not a pinned ONIX validation resource');
   }
   const bytes = await loader(fileName);
   if (bytes.byteLength !== pin.byteLength) {
-    throw new OnixResourceIntegrityError(
-      fileName,
-      `expected ${pin.byteLength} bytes, received ${bytes.byteLength}`,
-    );
+    throw new OnixResourceIntegrityError(fileName, `expected ${pin.byteLength} bytes, received ${bytes.byteLength}`);
   }
   const actual = await sha256Hex(bytes);
   if (actual !== pin.sha256) {
-    throw new OnixResourceIntegrityError(
-      fileName,
-      `SHA-256 ${actual} does not match the pin ${pin.sha256}`,
-    );
+    throw new OnixResourceIntegrityError(fileName, `SHA-256 ${actual} does not match the pin ${pin.sha256}`);
   }
   return bytes;
 }
@@ -153,14 +139,9 @@ export interface OnixResourceSelection {
   readonly shared: readonly string[];
 }
 
-export function resourcesFor(
-  release: OnixRelease,
-  flavour: OnixFlavour,
-): OnixResourceSelection {
+export function resourcesFor(release: OnixRelease, flavour: OnixFlavour): OnixResourceSelection {
   const pick = (role: OnixResourceRole) => {
-    const match = ONIX_VALIDATION_RESOURCES.find(
-      (r) => r.role === role && r.release === release,
-    );
+    const match = ONIX_VALIDATION_RESOURCES.find((r) => r.role === role && r.release === release);
     if (!match) throw new Error(`no ${role} resource for release ${release}`);
     return match.fileName;
   };
@@ -171,8 +152,6 @@ export function resourcesFor(
     referenceOrdinary,
     shortOrdinary,
     referenceStrict: pick('STRICT_REFERENCE'),
-    shared: ONIX_VALIDATION_RESOURCES.filter((r) => r.release === null).map(
-      (r) => r.fileName,
-    ),
+    shared: ONIX_VALIDATION_RESOURCES.filter((r) => r.release === null).map((r) => r.fileName),
   };
 }

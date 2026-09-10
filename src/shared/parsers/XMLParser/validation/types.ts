@@ -15,9 +15,7 @@ export interface OnixSourceDescriptor {
   readonly namespaceURI: string;
 }
 
-export const ONIX_NAMESPACES: Readonly<
-  Record<OnixRelease, Readonly<Record<OnixFlavour, string>>>
-> = {
+export const ONIX_NAMESPACES: Readonly<Record<OnixRelease, Readonly<Record<OnixFlavour, string>>>> = {
   '3.0': {
     reference: 'http://ns.editeur.org/onix/3.0/reference',
     short: 'http://ns.editeur.org/onix/3.0/short',
@@ -28,11 +26,10 @@ export const ONIX_NAMESPACES: Readonly<
   },
 };
 
-export const SCHEMA_RELEASE: Readonly<Record<OnixRelease, OnixSchemaRelease>> =
-  {
-    '3.0': '3.0.8',
-    '3.1': '3.1.3',
-  };
+export const SCHEMA_RELEASE: Readonly<Record<OnixRelease, OnixSchemaRelease>> = {
+  '3.0': '3.0.8',
+  '3.1': '3.1.3',
+};
 
 export const ONIX_ROOT_NAME: Readonly<Record<OnixFlavour, string>> = {
   reference: 'ONIXMessage',

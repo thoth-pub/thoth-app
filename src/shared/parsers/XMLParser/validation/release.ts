@@ -30,9 +30,7 @@ export type ReleaseFlavourInvalidReason =
   | 'RELEASE_NAMESPACE_CONFLICT'
   | 'NAMESPACE_UNDECLARED';
 
-export type ReleaseFlavourUnsupportedReason =
-  | 'UNSUPPORTED_ONIX_RELEASE'
-  | 'NOT_ONIX_FOR_BOOKS';
+export type ReleaseFlavourUnsupportedReason = 'UNSUPPORTED_ONIX_RELEASE' | 'NOT_ONIX_FOR_BOOKS';
 
 export interface RootSummary {
   readonly rootName: string;
@@ -55,13 +53,9 @@ export type ReleaseFlavourResolution =
 
 const EDITEUR_ONIX_NAMESPACE = /^https?:\/\/(?:ns\.|www\.)?editeur\.org\/onix\//i;
 
-function lookupOnix3(
-  namespaceURI: string | null,
-): { release: OnixRelease; flavour: OnixFlavour } | null {
+function lookupOnix3(namespaceURI: string | null): { release: OnixRelease; flavour: OnixFlavour } | null {
   for (const release of Object.keys(ONIX_NAMESPACES) as OnixRelease[]) {
-    for (const flavour of Object.keys(
-      ONIX_NAMESPACES[release],
-    ) as OnixFlavour[]) {
+    for (const flavour of Object.keys(ONIX_NAMESPACES[release]) as OnixFlavour[]) {
       if (ONIX_NAMESPACES[release][flavour] === namespaceURI) {
         return { release, flavour };
       }
@@ -85,18 +79,13 @@ export function resolveReleaseFlavour(root: RootTag): ReleaseFlavourResolution {
     release,
   };
 
-  if (
-    root.duplicateAttributeNames.some(
-      (n) => n === 'release' || n === 'xmlns' || n.startsWith('xmlns:'),
-    )
-  ) {
+  if (root.duplicateAttributeNames.some((n) => n === 'release' || n === 'xmlns' || n.startsWith('xmlns:'))) {
     return { kind: 'INVALID', reason: 'AMBIGUOUS_ROOT', detail };
   }
 
   const known = lookupOnix3(root.namespaceURI);
   if (known) {
-    const otherFlavour: OnixFlavour =
-      known.flavour === 'reference' ? 'short' : 'reference';
+    const otherFlavour: OnixFlavour = known.flavour === 'reference' ? 'short' : 'reference';
     if (root.localName === ONIX_ROOT_NAME[otherFlavour]) {
       return { kind: 'INVALID', reason: 'MIXED_FLAVOUR', detail };
     }
@@ -126,8 +115,7 @@ export function resolveReleaseFlavour(root: RootTag): ReleaseFlavourResolution {
 
   if (
     root.namespaceURI === null &&
-    (root.localName === ONIX_ROOT_NAME.reference ||
-      root.localName === ONIX_ROOT_NAME.short)
+    (root.localName === ONIX_ROOT_NAME.reference || root.localName === ONIX_ROOT_NAME.short)
   ) {
     if (release === '3.0' || release === '3.1') {
       return { kind: 'INVALID', reason: 'NAMESPACE_UNDECLARED', detail };
