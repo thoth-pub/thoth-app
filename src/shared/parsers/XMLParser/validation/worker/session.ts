@@ -99,6 +99,25 @@ export function createWorkerSession(deps: WorkerSessionDependencies): WorkerSess
   let cancelRequested = false;
   let lastStage: ValidationStageName | null = null;
 
+  // One validator per acceleration mode for the life of the Worker, so compiled engines survive across runs
+  // (a warning continuation, a run after a cancel); its controls forward to the active run only.
+  let active: ValidatorControls | null = null;
+  const validators = new Map<boolean, OnixSourceValidator>();
+  const validatorFor = (accelerate: boolean): OnixSourceValidator => {
+    let validator = validators.get(accelerate);
+    if (!validator) {
+      validator = deps.createValidator({
+        accelerate,
+        onStage: (name) => active?.onStage(name),
+        onProgress: (progress) => active?.onProgress(progress),
+        shouldCancel: () => active?.shouldCancel() ?? false,
+        yield: () => active?.yield() ?? Promise.resolve(),
+      });
+      validators.set(accelerate, validator);
+    }
+    return validator;
+  };
+
   const post = deps.post;
   const error = (
     runId: string | null,
@@ -158,10 +177,14 @@ export function createWorkerSession(deps: WorkerSessionDependencies): WorkerSess
 
   /** A stage-1/2 stop: the canonical validator produces the exact stopped result without touching any resource. */
   async function finishCanonicalStop(runId: string, bytes: Uint8Array, options: BeginOptions): Promise<void> {
-    const validator = deps.createValidator(controls(runId, options));
-    const result = await validator.validate(bytes);
-    state = { kind: 'IDLE' };
-    post({ type: 'result', runId, result: toWorkerResult(result), envelope: null });
+    active = controls(runId, options);
+    try {
+      const result = await validatorFor(active.accelerate).validate(bytes);
+      post({ type: 'result', runId, result: toWorkerResult(result), envelope: null });
+    } finally {
+      active = null;
+      state = { kind: 'IDLE' };
+    }
   }
 
   function controls(runId: string, options: BeginOptions): ValidatorControls {
@@ -192,11 +215,12 @@ export function createWorkerSession(deps: WorkerSessionDependencies): WorkerSess
     options: BeginOptions,
   ): Promise<void> {
     state = { kind: 'RUNNING', runId };
-    const validator = deps.createValidator(controls(runId, options));
+    active = controls(runId, options);
     let result;
     try {
-      result = await validator.validate(bytes);
+      result = await validatorFor(active.accelerate).validate(bytes);
     } catch (failure) {
+      active = null;
       state = { kind: 'IDLE' };
       if (cancelRequested) {
         post({ type: 'cancelled', runId, stage: lastStage });
@@ -204,6 +228,7 @@ export function createWorkerSession(deps: WorkerSessionDependencies): WorkerSess
       }
       throw failure;
     }
+    active = null;
     if (cancelRequested) {
       // Cancelled after the last cooperative check: the result is discarded, never delivered.
       state = { kind: 'IDLE' };

@@ -53,7 +53,12 @@ function harness(userAgent: string, validatorFactory?: (controls: ValidatorContr
     createValidator: (c) => {
       controls.push(c);
       calls.push('createValidator');
-      return validatorFactory ? validatorFactory(c) : createOnixSourceValidator({ loadResource: loader });
+      return validatorFactory
+        ? validatorFactory(c)
+        : createOnixSourceValidator({
+            loadResource: loader,
+            execution: { onStage: c.onStage, onProgress: c.onProgress, shouldCancel: c.shouldCancel, yield: c.yield },
+          });
     },
     decode: (bytes) => {
       calls.push('decode');
@@ -126,12 +131,21 @@ describe('worker session: normal path', () => {
     });
     expect(result.envelope?.bytes).toBe(encode(message(2)).byteLength);
     expect(types(h).filter((t) => t === 'progress').length).toBeGreaterThan(3);
-    expect(
-      h.posted
-        .filter((m) => m.type === 'progress')
-        .map((m) => m.type === 'progress' && m.stage)
-        .slice(0, 5),
-    ).toEqual(['DECODING', 'SOURCE_GATE', 'ENVELOPE', 'SIZING', 'ENVELOPE']);
+    expect(h.posted.filter((m) => m.type === 'progress').map((m) => m.type === 'progress' && m.stage)).toEqual([
+      'DECODING',
+      'SOURCE_GATE',
+      'ENVELOPE',
+      'SIZING',
+      'ENVELOPE',
+      'DECODING',
+      'SOURCE_GATE',
+      'PREPARING',
+      'ORDINARY',
+      'STRICT',
+      'SCHEMATRON',
+      'INVENTORY',
+      'SERIALIZING',
+    ]);
     expect(h.session.state).toBe('IDLE');
     expect(h.controls[0].accelerate).toBe(true);
   });
@@ -384,6 +398,23 @@ describe('worker session: running state and cancellation', () => {
     await h.session.handle({ type: 'cancel', runId: 'r1' });
     await run;
     expect(types(h).filter((t) => t !== 'progress')).toEqual(['cancelled']);
+  });
+
+  it('reuses one validator per acceleration mode across runs, with controls bound to the active run', async () => {
+    const h = harness(CHROME);
+    await h.session.handle(begin(encode(message(1))));
+    await h.session.handle({ type: 'begin', runId: 'r2', bytes: encode(message(1)) });
+    await h.session.handle({ type: 'begin', runId: 'r3', bytes: encode(message(1)), options: { accelerate: false } });
+    expect(h.calls.filter((c) => c === 'createValidator')).toHaveLength(2);
+    expect(h.controls.map((c) => c.accelerate)).toEqual([true, false]);
+    const loads = h.calls.filter((c) => c.startsWith('load:')).length;
+    expect(loads).toBeGreaterThan(0);
+    expect(h.posted.filter((m) => m.type === 'result').map((m) => m.runId)).toEqual(['r1', 'r2', 'r3']);
+    const stages = h.posted
+      .filter((m) => m.type === 'progress' && m.runId === 'r2')
+      .map((m) => m.type === 'progress' && m.stage);
+    expect(stages).toContain('STRICT');
+    expect(h.controls[0].shouldCancel()).toBe(false);
   });
 
   it('cancel outside a run answers cancelled without state', async () => {
