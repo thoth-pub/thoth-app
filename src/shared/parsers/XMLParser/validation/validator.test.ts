@@ -5,8 +5,14 @@ import { join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 
 import type { SourceFinding } from './findings';
-import { type InventoryBinding, KERNEL_BINDINGS } from './inventory/inventory';
+import {
+  type InventoryBinding,
+  inventoryBindings,
+  KERNEL_BINDINGS,
+  SOURCE_RULE_INVENTORY,
+} from './inventory/inventory';
 import { requestedResourceUrls } from './ordinary';
+import { PROLOG_SCAN_BOUND } from './prolog';
 import { ONIX_VALIDATION_RESOURCES, OnixResourceIntegrityError } from './resources';
 import type { SchematronReport } from './strict/ruleset';
 import { createConformanceValidator, createOnixSourceValidator, type OnixSourceValidator } from './validator';
@@ -171,6 +177,31 @@ describe('createOnixSourceValidator', () => {
     expect(result.normalized).toBeNull();
   });
 
+  it('stops a root start tag beyond the prolog bound before any resource is loaded or parsed', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    const loader = vi.fn(loadResource);
+    const fresh = createOnixSourceValidator({ loadResource: loader });
+    const root = '<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference"><Header/></ONIXMessage>';
+    const text = `<?xml version="1.0"?><!--${'x'.repeat(PROLOG_SCAN_BOUND - 29)}-->${root}`;
+    expect(text.indexOf('<ONIXMessage')).toBe(PROLOG_SCAN_BOUND - 1);
+    const result = await fresh.validate(encode(text));
+    expect(result.status).toBe('STOPPED');
+    expect(result.stop).toEqual({ stage: 2, text: 'STOP after stage 2 (prolog bound exceeded)' });
+    expect(result.findings).toEqual([
+      expect.objectContaining({
+        id: 'SECURITY_PROLOG_BOUND',
+        scope: 'SECURITY',
+        class: 'PROCESSING_STOP',
+        counts: true,
+      }),
+    ]);
+    expect(result.source).toBeNull();
+    expect(result.normalized).toBeNull();
+    expect(loader).not.toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('stops unsupported input as a SUPPORT outcome, never as invalid ONIX', async () => {
     const result = await validator.validate(encode('<ONIXMessage release="2.1"><Header/></ONIXMessage>'));
     expect(result.status).toBe('STOPPED');
@@ -301,6 +332,21 @@ describe('createOnixSourceValidator', () => {
     ]);
   });
 
+  it('emits K-EIDR-CONTENT-ID with the approved adoption wording, never the v4 proposal', async () => {
+    const result = await validator.validate(fixtureBytes('kernel31/K-EIDR_pos_wrong_shape.xml'));
+    const findings = result.findings.filter((f) => f.id === 'K-EIDR-CONTENT-ID');
+    expect(findings).toEqual([
+      expect.objectContaining({
+        class: 'NORMATIVE_INVALID',
+        counts: true,
+        detail: expect.objectContaining({ authorityClass: 'EXTERNAL_ADOPTED' }),
+      }),
+    ]);
+    expect(findings[0].message).toContain('adopted from EIDR ID Format v1.51');
+    expect(findings[0].message).toContain('Adoption approved by the final thoth#895 decision');
+    expect(result.findings.filter((f) => f.message?.includes('PROPOSED adoption'))).toEqual([]);
+  });
+
   it('is deterministic', async () => {
     const bytes = fixtureBytes('taint31/T7_global_rule_with_tainted_product.xml');
     const first = await validator.validate(bytes);
@@ -338,6 +384,126 @@ describe('createOnixSourceValidator', () => {
     await expect(tampered.validate(fixtureBytes('dtd_suite30/N3_plain.xml'))).rejects.toBeInstanceOf(
       OnixResourceIntegrityError,
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Cross-Collection residual localisation (independent review of #195, F2)
+// ---------------------------------------------------------------------------
+describe('cross-Collection residual rules under unrelated sibling taint', () => {
+  const P6_LEVEL_02 =
+    '<TitleElement><TitleElementLevel>02</TitleElementLevel><TitleText>Great Series</TitleText></TitleElement>';
+  const collectionTitle =
+    '<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>02</TitleElementLevel><TitleText>Sibling</TitleText></TitleElement></TitleDetail>';
+  const identifier = (level: string) =>
+    `<CollectionIdentifier><CollectionElementLevel>${level}</CollectionElementLevel><CollectionIDType>01</CollectionIDType><IDTypeName>MySeriesID</IDTypeName><IDValue>S-${level}</IDValue></CollectionIdentifier>`;
+  // Unrelated ordinary-XSD defects, reported on the Collection element itself or inside it.
+  const TAINT = {
+    'missing CollectionType (defect on the Collection element)': `<Collection>${identifier('02')}${collectionTitle}</Collection>`,
+    'invalid CollectionType code (defect inside the Collection)': `<Collection><CollectionType>99</CollectionType>${identifier('02')}${collectionTitle}</Collection>`,
+  };
+  const CONFORMING = `<Collection><CollectionType>10</CollectionType>${identifier('02')}${collectionTitle}</Collection>`;
+  const message = (collections: string, p6: string) =>
+    '<?xml version="1.0" encoding="UTF-8"?><ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">' +
+    '<Header><Sender><SenderName>F2</SenderName></Sender><SentDateTime>20260909T1200</SentDateTime></Header>' +
+    '<Product><RecordReference>f2</RecordReference><NotificationType>03</NotificationType>' +
+    '<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>' +
+    `<DescriptiveDetail><ProductComposition>00</ProductComposition><ProductForm>BC</ProductForm>${collections}` +
+    `<TitleDetail><TitleType>01</TitleType>${p6}<TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>F2</TitleText></TitleElement></TitleDetail>` +
+    '</DescriptiveDetail><PublishingDetail><Publisher><PublishingRole>01</PublishingRole><PublisherName>F2</PublisherName></Publisher>' +
+    '<PublishingStatus>04</PublishingStatus><PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260101</Date></PublishingDate>' +
+    '</PublishingDetail></Product></ONIXMessage>';
+  const DD = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]';
+  const withId = (findings: readonly SourceFinding[], id: string) => findings.filter((f) => f.id === id);
+
+  const CASES: [
+    id: string,
+    violating: string,
+    conformingVariant: string,
+    p6: string,
+    expectedPath: string,
+    ownTaint: [from: string, to: string],
+  ][] = [
+    [
+      'R-COLL-TITLELESS-P6-31',
+      // Titleless publisher collection whose Group P.6 title carries no collection-level element.
+      '<Collection><CollectionType>10</CollectionType></Collection>',
+      '<Collection><CollectionType>10</CollectionType></Collection>',
+      '',
+      `${DD}/Collection[3]`,
+      // CollectionType is a dependency of the rule.
+      ['<CollectionType>10</CollectionType>', '<CollectionType>99</CollectionType>'],
+    ],
+    [
+      'R-COLLELEMENTLEVEL-MATCH-31',
+      `<Collection><CollectionType>10</CollectionType>${identifier('03')}${collectionTitle}</Collection>`,
+      `<Collection><CollectionType>10</CollectionType>${identifier('02')}${collectionTitle}</Collection>`,
+      '',
+      `${DD}/Collection[3]/CollectionIdentifier[1]`,
+      // The Collection's own TitleDetail is a dependency of the rule.
+      ['<TitleType>01</TitleType>', ''],
+    ],
+  ];
+
+  describe.each(Object.entries(TAINT))('%s in Collection[1]', (_label, tainted) => {
+    it.each(CASES)('%s stays authoritative and localised to Collection[3]', async (id, violating, _c, p6, path) => {
+      const result = await validator.validate(encode(message(`${tainted}${CONFORMING}${violating}`, p6)));
+      expect(result.status).toBe('COMPLETED');
+      // The sibling defect is real and taints only Collection[1].
+      const ordinary = result.findings.filter((f) => f.tier === 'CANONICAL_ORDINARY');
+      expect(ordinary.length).toBeGreaterThan(0);
+      for (const defect of ordinary)
+        expect(defect.path?.startsWith(`${DD}/Collection[1]`), defect.path ?? '').toBe(true);
+      // The genuine violation counts, is authoritative and names the responsible construct.
+      expect(withId(result.findings, id)).toEqual([
+        expect.objectContaining({
+          class: 'NORMATIVE_INVALID',
+          projection: 'AUTHORITATIVE',
+          counts: true,
+          path,
+          detail: expect.objectContaining({ dependency: expect.objectContaining({ taintedDependencies: [] }) }),
+        }),
+      ]);
+      expect(result.summary.blocking).toBeGreaterThanOrEqual(2);
+    });
+
+    it.each(CASES)('%s: the conforming variant of Collection[3] fires nothing', async (id, _v, conforming, p6) => {
+      const result = await validator.validate(
+        encode(message(`${tainted}${CONFORMING}${conforming}`, `${P6_LEVEL_02}${p6}`)),
+      );
+      expect(result.status).toBe('COMPLETED');
+      expect(withId(result.findings, id)).toEqual([]);
+    });
+  });
+
+  it.each(CASES)(
+    '%s: without sibling taint the same finding is identical apart from the taint',
+    async (id, violating, _c, p6, path) => {
+      const result = await validator.validate(encode(message(`${CONFORMING}${CONFORMING}${violating}`, p6)));
+      expect(result.findings.filter((f) => f.tier === 'CANONICAL_ORDINARY')).toEqual([]);
+      expect(withId(result.findings, id)).toEqual([
+        expect.objectContaining({ class: 'NORMATIVE_INVALID', projection: 'AUTHORITATIVE', counts: true, path }),
+      ]);
+    },
+  );
+
+  it.each(CASES)(
+    '%s: taint on a dependency inside the violating Collection makes its own finding SECONDARY',
+    async (id, violating, _c, p6, path, [from, to]) => {
+      const own = violating.replace(from, to);
+      const result = await validator.validate(encode(message(`${CONFORMING}${CONFORMING}${own}`, p6)));
+      const ordinary = result.findings.filter((f) => f.tier === 'CANONICAL_ORDINARY');
+      expect(ordinary.map((f) => f.path?.startsWith(`${DD}/Collection[3]`))).toEqual([true]);
+      expect(withId(result.findings, id)).toEqual([
+        expect.objectContaining({ projection: 'SECONDARY', counts: false, path }),
+      ]);
+    },
+  );
+
+  it.each(CASES)('%s is bound to its inventory owner', (id) => {
+    const entry = SOURCE_RULE_INVENTORY.find((e) => e.id === id)!;
+    const bindings = inventoryBindings('3.1').filter((b) => b.id === id);
+    expect(bindings.map((b) => b.owner)).toEqual([entry.owner]);
   });
 });
 

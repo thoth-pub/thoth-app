@@ -67,6 +67,31 @@ export function inventoryBindings(release: OnixRelease): readonly InventoryBindi
   return [...KERNEL_BINDINGS, ...RESIDUAL_FORMALISATIONS].filter((b) => b.releases.includes(release));
 }
 
+/**
+ * Final-architecture authority overlay over the frozen v4 binding text. The v4
+ * evidence recorded the narrow EIDR ID Format v1.51 adoption (Content-ID
+ * check-character alphabet only) as a proposal; the final thoth#895 decision
+ * approved exactly that adoption. The evidence projection stays byte-identical;
+ * the emitted finding states the decision. Nothing else about the rule changes.
+ */
+const FINAL_AUTHORITY_OVERLAYS: readonly { readonly id: string; readonly from: string; readonly to: string }[] = [
+  {
+    id: 'K-EIDR-CONTENT-ID',
+    from: 'PROPOSED adoption (CTO).',
+    to:
+      'Adoption approved by the final thoth#895 decision, limited to the Content-ID check-character alphabet ' +
+      '(no EIDR checksum, registry or Party-ID layout rule is adopted).',
+  },
+];
+
+/** The authority (or derivation basis) text a finding of this binding carries. */
+export function bindingAuthority(binding: InventoryBinding): string {
+  const record = binding as InventoryBinding & { readonly authority?: string };
+  const text = record.authority ?? binding.basis ?? '';
+  const overlay = FINAL_AUTHORITY_OVERLAYS.find((o) => o.id === binding.id);
+  return overlay ? text.replace(overlay.from, overlay.to) : text;
+}
+
 const XS = 'http://www.w3.org/2001/XMLSchema';
 
 /** Global element names of the pinned XHTML-subset module. */

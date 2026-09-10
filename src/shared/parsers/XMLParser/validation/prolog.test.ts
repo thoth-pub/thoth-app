@@ -125,9 +125,47 @@ describe('scanProlog: fail-closed bound', () => {
     expect(scanProlog(`<ONIXMessage a="${'x'.repeat(bound)}">`, { bound }).outcome).toBe('BOUND_EXCEEDED');
   });
 
-  it('accepts a prolog that ends inside the bound', () => {
-    // The root start tag is bounded too, so the bound must exceed its length.
-    expect(scanProlog(`<!--${'x'.repeat(200)}-->${ROOT30}`, { bound: 256 }).outcome).toBe('ROOT');
+  it('accepts a prolog and root start tag that both end inside the bound', () => {
+    // One absolute endpoint bounds the whole stage-2 scan, the root start tag included.
+    expect(scanProlog(`<!--${'x'.repeat(200)}-->${ROOT30}`, { bound: 512 }).outcome).toBe('ROOT');
+  });
+
+  describe('root start tag against the absolute endpoint', () => {
+    const tag = ROOT30.slice(0, ROOT30.indexOf('>') + 1);
+    // A comment of exactly `length` characters, so the root begins at a chosen offset.
+    const comment = (length: number) => `<!--${'x'.repeat(length - 7)}-->`;
+    const absolute = 256;
+
+    it('stops when the root begins immediately before the bound and closes beyond it', () => {
+      const scan = scanProlog(`${' '.repeat(absolute - 1)}${ROOT30}`, { bound: absolute });
+      expect(scan).toMatchObject({ outcome: 'BOUND_EXCEEDED', rootAt: absolute - 1, root: null });
+    });
+
+    it('stops when the root closing ">" lies one character beyond the bound', () => {
+      const text = `${comment(absolute - tag.length + 1)}${ROOT30}`;
+      expect(text.indexOf('>', text.indexOf('<ONIXMessage'))).toBe(absolute);
+      expect(scanProlog(text, { bound: absolute })).toMatchObject({ outcome: 'BOUND_EXCEEDED', root: null });
+    });
+
+    it('accepts the root when its closing ">" is the last character within the bound', () => {
+      const text = `${comment(absolute - tag.length)}${ROOT30}`;
+      expect(text.indexOf('>', text.indexOf('<ONIXMessage'))).toBe(absolute - 1);
+      const scan = scanProlog(text, { bound: absolute });
+      expect(scan.outcome).toBe('ROOT');
+      expect(scan.root?.namespaceURI).toBe('http://ns.editeur.org/onix/3.0/reference');
+    });
+
+    it('never grants the root a fresh bound measured from its own offset', () => {
+      // The root tag alone fits inside `absolute`; placed after a prolog it must not.
+      expect(scanProlog(ROOT30, { bound: absolute }).outcome).toBe('ROOT');
+      expect(scanProlog(`${comment(absolute - 10)}${ROOT30}`, { bound: absolute }).outcome).toBe('BOUND_EXCEEDED');
+    });
+
+    it('applies the real 1 MiB bound to a root start tag straddling it', () => {
+      const text = `<?xml version="1.0"?>${comment(PROLOG_SCAN_BOUND - 22)}${ROOT30}`;
+      expect(text.indexOf('<ONIXMessage')).toBe(PROLOG_SCAN_BOUND - 1);
+      expect(scanProlog(text).outcome).toBe('BOUND_EXCEEDED');
+    });
   });
 
   it('applies the real 1 MiB bound to a straddling comment', () => {

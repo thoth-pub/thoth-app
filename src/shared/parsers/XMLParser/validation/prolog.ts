@@ -11,9 +11,10 @@ import type { RootTag, RootTagAttribute } from './release';
  * fail-closed refinement:
  * - any `<!` markup declaration in the prolog that is not a comment is a DTD
  *   construct (lower-case and other malformed forms included);
- * - a comment, PI or XML declaration that begins inside the bound but whose
- *   terminator lies beyond it, and any prolog that has not reached the root by
- *   the bound, is `BOUND_EXCEEDED` (fail closed);
+ * - a comment, PI, XML declaration or root start tag that begins inside the
+ *   bound but whose terminator lies beyond it, and any prolog that has not
+ *   reached the root by the bound, is `BOUND_EXCEEDED` (fail closed); the
+ *   whole scan, root start tag included, uses one absolute endpoint;
  * - only a genuinely unterminated item (no terminator anywhere) or other
  *   non-XML content is `MALFORMED`, left to the well-formedness stop.
  */
@@ -132,8 +133,8 @@ const NAME_END = /[\s/>=]/;
 
 type RootStep = { root: RootTag } | { outcome: PrologOutcome; error: string };
 
-function lexRootTag(text: string, start: number, bound: number): RootStep {
-  const limit = Math.min(text.length, start + bound);
+/** Lexes the root start tag up to `limit`, the same absolute endpoint as the rest of the scan. */
+function lexRootTag(text: string, start: number, limit: number): RootStep {
   const fail = (what: string): RootStep => overrun(text, limit, what) as RootStep;
   const malformed = (error: string): RootStep => ({
     outcome: 'MALFORMED',
@@ -261,7 +262,7 @@ export function scanProlog(text: string, { bound = PROLOG_SCAN_BOUND }: ScanOpti
       continue;
     }
     if (c === '<') {
-      const lexed = lexRootTag(text, i, bound);
+      const lexed = lexRootTag(text, i, limit);
       if ('root' in lexed) return result('ROOT', null, i, lexed.root);
       return result(lexed.outcome, lexed.error, i);
     }

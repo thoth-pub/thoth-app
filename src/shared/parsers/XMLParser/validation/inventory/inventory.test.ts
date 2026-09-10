@@ -12,6 +12,7 @@ import type { OnixRelease } from '../types';
 import { buildXdm } from '../xdm';
 import { RESIDUAL_FORMALISATIONS } from './formalisations';
 import {
+  bindingAuthority,
   deriveXhtmlElementNames,
   evaluateInventory,
   type InventoryBinding,
@@ -547,6 +548,40 @@ describe('external-authority boundary and EIDR', () => {
       'EXTERNAL_ADOPTED',
       'NORMATIVE_INVALID',
     ]);
+  });
+
+  it('states the approved EIDR Content-ID adoption at runtime while the frozen v4 text stays as recorded', () => {
+    const bindings = KERNEL_BINDINGS.filter((b) => b.id === 'K-EIDR-CONTENT-ID');
+    expect(bindings).toHaveLength(1);
+    const [binding] = bindings;
+    // The byte-pinned v4 evidence recorded the adoption as proposed; that sentence is what the overlay replaces.
+    const proposed = 'PROPOSED adoption (CTO).';
+    expect(binding.authority.endsWith(proposed)).toBe(true);
+    const authority = bindingAuthority(binding);
+    expect(authority).not.toContain('PROPOSED');
+    expect(authority.startsWith(binding.authority.slice(0, -proposed.length))).toBe(true);
+    expect(authority).toContain('check-character alphabet [0-9A-Z] adopted from EIDR ID Format v1.51');
+    expect(authority).toContain(
+      'Adoption approved by the final thoth#895 decision, limited to the Content-ID check-character alphabet',
+    );
+    expect(authority).toContain('no EIDR checksum, registry or Party-ID layout rule is adopted');
+    // The adopted rule itself is untouched and stays narrow: ONIX-stated shape plus the check-character alphabet.
+    expect(binding.xpath).toBe(
+      "not(AVItemIDType = '31') or matches(IDValue, '^10\\.5240/[0-9A-Fa-f]{4}(-[0-9A-Fa-f]{4}){4}-[0-9A-Za-z]$')",
+    );
+    const fires = (name: string) =>
+      run(fixture(`kernel31/${name}`)).findings.filter((f) => f.id === 'K-EIDR-CONTENT-ID');
+    expect(fires('K-EIDR_pos_wrong_shape.xml').map((f) => f.disposition)).toEqual(['NORMATIVE_INVALID']);
+    expect(fires('K-EIDR_neg_valid_content_id_hex_check.xml')).toEqual([]);
+    expect(fires('K-EIDR_neg_valid_content_id_nonhex_check.xml')).toEqual([]);
+  });
+
+  it('passes every other binding authority or basis text through verbatim', () => {
+    for (const binding of [...KERNEL_BINDINGS, ...RESIDUAL_FORMALISATIONS]) {
+      if (binding.id === 'K-EIDR-CONTENT-ID') continue;
+      const record = binding as InventoryBinding & { readonly authority?: string };
+      expect(bindingAuthority(binding), binding.id).toBe(record.authority ?? record.basis ?? '');
+    }
   });
 
   it('binds K-EIDR-PARTY-ID (ONIX-stated) to every List-44 identifier owner', () => {

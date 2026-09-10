@@ -132,6 +132,25 @@ describe('evaluateSourceGate: prolog bound', () => {
     expect(gate.kind === 'STOP' && gate.findings.map((f) => f.id)).toEqual(['SECURITY_PROLOG_BOUND']);
   });
 
+  it('a root start tag straddling the 1 MiB bound stops (P4)', () => {
+    const text = `${' '.repeat(PROLOG_SCAN_BOUND - 1)}${root('3.1')}`;
+    expect(text.indexOf('<ONIXMessage')).toBe(PROLOG_SCAN_BOUND - 1);
+    const gate = evaluateSourceGate(text);
+    expect(gate.kind === 'STOP' && stage2Projection(gate.findings)).toEqual([boundStop]);
+    expect(gate.kind === 'STOP' && [gate.stage, gate.stopText, gate.source]).toEqual([
+      2,
+      'STOP after stage 2 (prolog bound exceeded)',
+      null,
+    ]);
+  });
+
+  it('continues when the root start tag closes on the last character within the bound', () => {
+    const tag = root('3.1').slice(0, root('3.1').indexOf('>') + 1);
+    const text = `<!--${'x'.repeat(PROLOG_SCAN_BOUND - tag.length - 7)}-->${root('3.1')}`;
+    expect(text.indexOf('>', text.indexOf('<ONIXMessage'))).toBe(PROLOG_SCAN_BOUND - 1);
+    expect(evaluateSourceGate(text)).toMatchObject({ kind: 'CONTINUE', source: { release: '3.1' } });
+  });
+
   it('keeps SECURITY_DTD when the DOCTYPE itself cannot be closed within the bound', () => {
     const gate = evaluateSourceGate(
       `<!DOCTYPE ONIXMessage [<!ENTITY a "${'x'.repeat(PROLOG_SCAN_BOUND)}">]>${root('3.1')}`,

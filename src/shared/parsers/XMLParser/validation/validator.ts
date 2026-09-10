@@ -4,6 +4,7 @@ import { schematronDisposition, strictDisposition } from './dispositions';
 import { decodeSource } from './encoding';
 import { type FindingClass, makeFinding, type SourceFinding } from './findings';
 import {
+  bindingAuthority,
   deriveXhtmlElementNames,
   evaluateInventory,
   type InventoryBinding,
@@ -442,12 +443,11 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
           projection = projectDependency(f.node, f.error ? null : ast, document, inventoryResolver, taint, !!f.error);
         }
         const binding = f.binding as InventoryBinding & {
-          authority?: string;
           authority_class?: string;
           basis?: string;
         };
         findings.push(
-          later('INVENTORY', 8, f.id, klass, f.path, f.node, binding.authority ?? binding.basis ?? '', projection, {
+          later('INVENTORY', 8, f.id, klass, f.path, f.node, bindingAuthority(f.binding), projection, {
             ...(binding.authority_class ? { authorityClass: binding.authority_class } : {}),
             ...(binding.basis ? { basis: binding.basis } : {}),
             ...(f.error ? { error: f.error } : {}),

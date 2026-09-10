@@ -377,21 +377,24 @@ const xpathRules: XPathInventoryBinding[] = [
     'at most one collection-level TitleElement in a Group P.6 TitleDetail',
     'ADVISORY',
   ),
+  // The two cross-Collection rules are evaluated at their inventory owner, never at
+  // DescriptiveDetail: a finding names the responsible Collection or CollectionIdentifier,
+  // and an unrelated sibling Collection's ordinary defect is not among its dependencies.
+  // Group P.6 (the parent DescriptiveDetail's TitleDetail) is reached through the parent axis.
   residual(
     'R-COLL-TITLELESS-P6-31',
-    'DescriptiveDetail',
+    'Collection',
     R31,
-    "every $c in Collection[not(exists(TitleDetail))] satisfies ($c/CollectionType = '10' and " +
-      "exists(TitleDetail/TitleElement[TitleElementLevel = '02']))",
+    "exists(TitleDetail) or (CollectionType = '10' and exists(../TitleDetail/TitleElement[TitleElementLevel = '02']))",
     'a Collection without TitleDetail is a publisher collection titled at collection level in Group P.6',
   ),
   residual(
     'R-COLLELEMENTLEVEL-MATCH-31',
-    'DescriptiveDetail',
+    'CollectionIdentifier',
     R31,
-    'every $c in Collection, $l in $c/CollectionIdentifier/CollectionElementLevel satisfies ' +
-      '(if (exists($c/TitleDetail)) then $l = $c/TitleDetail/TitleElement/TitleElementLevel ' +
-      'else $l = TitleDetail/TitleElement/TitleElementLevel)',
+    'every $l in CollectionElementLevel satisfies ' +
+      '(if (exists(../TitleDetail)) then $l = ../TitleDetail/TitleElement/TitleElementLevel ' +
+      'else $l = ../../TitleDetail/TitleElement/TitleElementLevel)',
     'CollectionElementLevel matches a TitleElementLevel of its Collection, or of Group P.6 when titleless',
   ),
   residual(
