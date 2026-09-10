@@ -1,0 +1,122 @@
+{
+ "BU-CREF_admit_block7_only.xml": [],
+ "BU-CREF_fire_block1_present_unmatched.xml": [
+  "R-KERNEL-CONTRIBREF-MATCH"
+ ],
+ "BU-MANIFF_admit_block8_only.xml": [],
+ "BU-MANIFF_fire_block1_present_no_parts.xml": [
+  "R-KERNEL-MANIFEST-ID-IFF-PARTS",
+  "R-MANIFEST-ID-MATCHPART"
+ ],
+ "BU-MANMATCH_admit_block8_only.xml": [],
+ "BU-MANMATCH_fire_block1_present.xml": [
+  "R-MANIFEST-ID-MATCHPART"
+ ],
+ "BU-MANSAME_admit_block8_only.xml": [],
+ "BU-SUPPDIST_admit_equals_part_block8_only.xml": [],
+ "BU-SUPPDIST_fire_equals_product_p2_block8_only.xml": [
+  "R-SUPPLEMENT-ID-DISTINCT"
+ ],
+ "BU-TAXMATCH_admit_block6_only.xml": [],
+ "BU-TAXMATCH_fire_block1_present.xml": [
+  "R-TAX-ID-MATCHPART"
+ ],
+ "S-AR-INT_boundary_age_150_official_rejects.xml": [],
+ "S-AR-INT_neg_integers.xml": [],
+ "S-AR-INT_pos_decimal_age.xml": [
+  "R-KERNEL-AUDIENCERANGE-INTEGER"
+ ],
+ "S-CREF_neg_full_matched.xml": [],
+ "S-CREF_pos_full_unmatched.xml": [
+  "R-KERNEL-CONTRIBREF-MATCH"
+ ],
+ "S-DDSLIST_neg_expected_form.xml": [],
+ "S-DDSLIST_neg_tokens_official_rejects.xml": [],
+ "S-DDSLIST_pos_no_value.xml": [
+  "R-KERNEL-EUDR-DDS-LIST"
+ ],
+ "S-EPUBVAL_neg_4.0.0a.xml": [],
+ "S-EPUBVAL_neg_v4-beta_official_rejects.xml": [],
+ "S-EPUBVAL_pos_no_value.xml": [
+  "R-KERNEL-EPUBVALIDATOR-VERSION-PRESENT"
+ ],
+ "S-EUDRVAL_neg_country_only.xml": [],
+ "S-EUDRVAL_neg_species_list_official_rejects.xml": [],
+ "S-EUDRVAL_pos_no_country.xml": [
+  "R-KERNEL-EUDR-VALUE-SHAPE"
+ ],
+ "S-LEXILE_neg_880L.xml": [],
+ "S-LEXILE_neg_AD0L_official_rejects.xml": [],
+ "S-LEXILE_pos_not_lexile.xml": [
+  "R-KERNEL-LEXILE-SHAPE"
+ ],
+ "S-MANIFF_neg_no_parts_no_ids.xml": [],
+ "S-MANIFF_neg_parts_with_manifest_ids.xml": [],
+ "S-MANIFF_pos_parts_without_manifest_ids.xml": [
+  "R-KERNEL-MANIFEST-ID-IFF-PARTS"
+ ],
+ "S-MANMATCH_neg_ids_match_parts.xml": [],
+ "S-MANMATCH_pos_id_not_a_part.xml": [
+  "R-MANIFEST-ID-MATCHPART"
+ ],
+ "S-MANSAME_neg_same_part_two_ids.xml": [],
+ "S-MANSAME_pos_two_parts.xml": [
+  "R-MANIFEST-ID-SAMEPART"
+ ],
+ "S-MEASURE_neg_height_mm_weight_gr.xml": [],
+ "S-MEASURE_neg_pallet_length_in_mm_official_rejects.xml": [],
+ "S-MEASURE_pos_height_in_kg.xml": [
+  "R-KERNEL-MEASURE-UNIT-FAMILY"
+ ],
+ "S-MEASURE_pos_pallet_length_in_kg.xml": [
+  "R-KERNEL-MEASURE-UNIT-FAMILY"
+ ],
+ "S-NOMIX_neg_two_points.xml": [],
+ "S-NOMIX_pos_mixed_point_and_pair.xml": [
+  "K-EUDR-DESC-NOMIX"
+ ],
+ "S-OCCDATE_neg_offset_official_rejects.xml": [],
+ "S-OCCDATE_neg_zulu.xml": [],
+ "S-OCCDATE_pos_bad_hour.xml": [
+  "R-KERNEL-OCCURRENCEDATE-FORMAT13"
+ ],
+ "S-PCL_neg_status_02_with_limit.xml": [],
+ "S-PCL_neg_status_02_without_limit_official_rejects.xml": [],
+ "S-PCL_pos_limit_with_status_01.xml": [
+  "R-KERNEL-PRICECONSTRAINTLIMIT-ONLYIF"
+ ],
+ "S-SIRET-SHAPE_neg_14_digits_laposte.xml": [],
+ "S-SIRET-SHAPE_neg_14_digits_luhn.xml": [],
+ "S-SIRET-SHAPE_neg_alphanumeric.xml": [],
+ "S-SIRET-SHAPE_pos_13_digits.xml": [
+  "R-KERNEL-SIRET-SHAPE"
+ ],
+ "S-SIRET-SHAPE_pos_spaces.xml": [
+  "R-KERNEL-SIRET-SHAPE"
+ ],
+ "S-SUPPDIST_neg_distinct.xml": [],
+ "S-SUPPDIST_pos_equals_part.xml": [
+  "R-SUPPLEMENT-ID-DISTINCT"
+ ],
+ "S-TARIC_neg_4_digits_official_rejects.xml": [],
+ "S-TARIC_neg_Y129.xml": [],
+ "S-TARIC_pos_3_chars.xml": [
+  "R-KERNEL-TARIC-4ALNUM"
+ ],
+ "S-TAXEX_neg_header_default_01.xml": [],
+ "S-TAXEX_neg_type_35_official_rejects.xml": [],
+ "S-TAXEX_pos_inc_tax_with_taxexempt.xml": [
+  "R-KERNEL-TAXEXEMPT-EXCTAX-ONLY"
+ ],
+ "S-TAXINC_neg_header_default_02_official_rejects.xml": [],
+ "S-TAXINC_neg_inc_tax_with_tax.xml": [],
+ "S-TAXINC_pos_exc_tax_with_tax.xml": [
+  "R-KERNEL-TAX-INCTAX-ONLY"
+ ],
+ "S-TAXMATCH_neg_id_matches_part.xml": [],
+ "S-UUID_neg_no_description_official_rejects.xml": [],
+ "S-UUID_neg_valid_uuid.xml": [],
+ "S-UUID_pos_not_a_uuid.xml": [
+  "K-EUDR-DDS-UUID"
+ ]
+}

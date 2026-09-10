@@ -1,0 +1,4799 @@
+{
+ "release": "3.1",
+ "ordinarySha256": "d87cdb4aa2ba62a0c9192dcde363e3819720717a8086dfd7724d9e3a200b0d64",
+ "defaults": {
+  "CopyrightType": "C"
+ },
+ "elements": {
+  "ONIXMessage": {
+   "children": [
+    "Header",
+    "NoProduct",
+    "Product"
+   ],
+   "uniques": [
+    {
+     "name": "Product·RecordReference·must·be·unique",
+     "selector": "onix:Product",
+     "fields": [
+      "onix:RecordReference"
+     ]
+    }
+   ]
+  },
+  "Addressee": {
+   "children": [
+    "AddresseeIdentifier",
+    "AddresseeName",
+    "ContactName",
+    "TelephoneNumber",
+    "EmailAddress"
+   ]
+  },
+  "AddresseeIdentifier": {
+   "children": [
+    "AddresseeIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "AddresseeIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AddresseeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Affiliation": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AffiliationIdentifier": {
+   "children": [
+    "AffiliationIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "AffiliationIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AgentIdentifier": {
+   "children": [
+    "AgentIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "AgentIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AgentName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AgentRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AlternativeName": {
+   "children": [
+    "NameType",
+    "LettersAfterNames",
+    "PrefixToKey",
+    "KeyNames",
+    "NamesAfterKey",
+    "PersonNameInverted",
+    "NamesBeforeKey",
+    "SuffixToKey",
+    "TitlesAfterNames",
+    "CorporateNameInverted",
+    "TitlesBeforeNames",
+    "CorporateName",
+    "NameIdentifier",
+    "PersonName"
+   ]
+  },
+  "AncillaryContent": {
+   "children": [
+    "AncillaryContentType",
+    "AncillaryContentDescription",
+    "Number"
+   ],
+   "uniques": [
+    {
+     "name": "AncillaryContentDescription·language·attribute·must·be·unique",
+     "selector": "onix:AncillaryContentDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "AncillaryContentDescription": {
+   "children": []
+  },
+  "AncillaryContentType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Audience": {
+   "children": [
+    "MainAudience",
+    "AudienceCodeType",
+    "AudienceCodeTypeName",
+    "AudienceHeadingText",
+    "AudienceCodeValue"
+   ]
+  },
+  "AudienceCodeType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AudienceCodeTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AudienceCodeValue": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AudienceDescription": {
+   "children": []
+  },
+  "AudienceHeadingText": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AudienceRange": {
+   "children": [
+    "AudienceRangeQualifier",
+    "AudienceRangePrecision",
+    "AudienceRangeValue"
+   ]
+  },
+  "AudienceRangePrecision": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AudienceRangeQualifier": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AudienceRangeValue": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AVDuration": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AVItem": {
+   "children": [
+    "AVItemType",
+    "AVItemIdentifier",
+    "TimeRun",
+    "AVDuration"
+   ]
+  },
+  "AVItemIdentifier": {
+   "children": [
+    "AVItemIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "AVItemIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AVItemType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "AwardingBody": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Barcode": {
+   "children": [
+    "BarcodeType",
+    "PositionOnProduct"
+   ]
+  },
+  "BarcodeType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "BatchBonus": {
+   "children": [
+    "BatchQuantity",
+    "FreeQuantity"
+   ]
+  },
+  "BatchQuantity": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "Bible": {
+   "children": [
+    "BibleContents",
+    "BibleVersion",
+    "StudyBibleType",
+    "BiblePurpose",
+    "BibleTextOrganization",
+    "BibleReferenceLocation",
+    "BibleTextFeature"
+   ]
+  },
+  "BibleContents": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "BiblePurpose": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "BibleReferenceLocation": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "BibleTextFeature": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "BibleTextOrganization": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "BibleVersion": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "BiographicalNote": {
+   "children": []
+  },
+  "BodyManifest": {
+   "children": [
+    "SpecificationBundleName",
+    "SpecificationDetail",
+    "SpecificationFeature",
+    "SpecificationDescription",
+    "BodyResource"
+   ],
+   "uniques": [
+    {
+     "name": "BodyManifest·SpecificationDetail·must·be·unique",
+     "selector": "onix:SpecificationDetail",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "BodyManifest·SpecficationDescription·language·attribute·must·be·unique",
+     "selector": "onix:SpecificationDescription",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "BodyResource·SequenceNumber·must·be·unique",
+     "selector": "onix:BodyResource",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    }
+   ]
+  },
+  "BodyResource": {
+   "children": [
+    "SequenceNumber",
+    "ResourceIdentifier",
+    "ResourceRole",
+    "ResourceFileDetail",
+    "ResourceFileFeature",
+    "ResourceFileDescription",
+    "ResourceFileContentDescription",
+    "ResourceFileLink",
+    "ResourceFileDate"
+   ],
+   "uniques": [
+    {
+     "name": "BodyResource·ResourceFileDetail·must·be·unique",
+     "selector": "onix:ResourceFileDetail",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "BodyResource·ResourceFileLink·must·be·unique",
+     "selector": "onix:ResourceFileLink",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "BodyResource·ResourceFileDateRole·must·be·unique",
+     "selector": "onix:ResourceFileDate",
+     "fields": [
+      "onix:ResourceFileDateRole"
+     ]
+    }
+   ]
+  },
+  "BookClubAdoption": {
+   "children": []
+  },
+  "CBO": {
+   "simple": {
+    "primitive": "nonNegativeInteger",
+    "variety": "atomic"
+   }
+  },
+  "CitationNote": {
+   "children": []
+  },
+  "CitedContent": {
+   "children": [
+    "SequenceNumber",
+    "CitedContentType",
+    "ContentAudience",
+    "Territory",
+    "SourceType",
+    "ListName",
+    "SourceTitle",
+    "ReviewRating",
+    "PositionOnList",
+    "CitationNote",
+    "ResourceLink",
+    "ContentDate"
+   ],
+   "uniques": [
+    {
+     "name": "CitedContent·SourceTitle·language·attribute·must·be·unique",
+     "selector": "onix:SourceTitle",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "ListName·language·attribute·must·be·unique",
+     "selector": "onix:ListName",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "CitationNote·language·attribute·must·be·unique",
+     "selector": "onix:CitationNote",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "CitedContent·ContentDateRole·must·be·unique",
+     "selector": "onix:ContentDate",
+     "fields": [
+      "onix:ContentDateRole"
+     ]
+    }
+   ]
+  },
+  "CitedContentType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CityOfPublication": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CollateralDetail": {
+   "children": [
+    "TextContent",
+    "CitedContent",
+    "SupportingResource",
+    "Prize"
+   ],
+   "uniques": [
+    {
+     "name": "TextContent·SequenceNumber·must·be·unique",
+     "selector": "onix:TextContent",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    },
+    {
+     "name": "CitedContent·SequenceNumber·must·be·unique",
+     "selector": "onix:CitedContent",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    },
+    {
+     "name": "SupportingResource·SequenceNumber·must·be·unique",
+     "selector": "onix:SupportingResource",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    },
+    {
+     "name": "Prize·SequenceNumber·must·be·unique",
+     "selector": "onix:Prize",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    }
+   ]
+  },
+  "Collection": {
+   "children": [
+    "CollectionType",
+    "CollectionFrequency",
+    "SourceName",
+    "CollectionIdentifier",
+    "CollectionSequence",
+    "TitleDetail",
+    "ContributorStatement",
+    "Contributor",
+    "NoContributor"
+   ],
+   "uniques": [
+    {
+     "name": "Collection·TitleType·must·be·unique",
+     "selector": "onix:TitleDetail",
+     "fields": [
+      "onix:TitleType"
+     ]
+    },
+    {
+     "name": "Collection·ContributorStatement·language·attribute·must·be·unique",
+     "selector": "onix:ContributorStatement",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "CollectionElementLevel": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CollectionFrequency": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CollectionIdentifier": {
+   "children": [
+    "CollectionElementLevel",
+    "CollectionIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "CollectionIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CollectionSequence": {
+   "children": [
+    "CollectionSequenceType",
+    "CollectionSequenceTypeName",
+    "CollectionSequenceNumber"
+   ]
+  },
+  "CollectionSequenceNumber": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CollectionSequenceType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CollectionSequenceTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CollectionType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ComparisonProductPrice": {
+   "children": [
+    "ProductIdentifier",
+    "PriceType",
+    "PriceAmount",
+    "CurrencyCode"
+   ]
+  },
+  "Complexity": {
+   "children": [
+    "ComplexitySchemeIdentifier",
+    "ComplexityCode"
+   ]
+  },
+  "ComplexityCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ComplexitySchemeIdentifier": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ComponentNumber": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ComponentTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ContactName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ContentAudience": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ContentDate": {
+   "children": [
+    "ContentDateRole",
+    "Date"
+   ]
+  },
+  "ContentDateRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ContentDetail": {
+   "children": [
+    "ContentItem"
+   ],
+   "uniques": [
+    {
+     "name": "ContentItem·LevelSequenceNumber·must·be·unique",
+     "selector": "onix:ContentItem",
+     "fields": [
+      "onix:LevelSequenceNumber"
+     ]
+    }
+   ]
+  },
+  "ContentItem": {
+   "children": [
+    "LevelSequenceNumber",
+    "TextItem",
+    "AVItem",
+    "EpubUsageConstraint",
+    "EpubLicense",
+    "ComponentTypeName",
+    "ComponentNumber",
+    "TitleDetail",
+    "ContributorStatement",
+    "Contributor",
+    "NoContributor",
+    "Language",
+    "Subject",
+    "NameAsSubject",
+    "TextContent",
+    "CitedContent",
+    "SupportingResource",
+    "Publisher",
+    "CopyrightStatement",
+    "CopyrightStatementText",
+    "RelatedWork",
+    "RelatedProduct"
+   ],
+   "uniques": [
+    {
+     "name": "ContentItem·CopyrightStatementText·language·attribute·must·be·unique",
+     "selector": "onix:CopyrightStatementText",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "ContentItem·ContributorStatement·language·attribute·must·be·unique",
+     "selector": "onix:ContributorStatement",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "ContentItem·Contributor·SequenceNumber·must·be·unique",
+     "selector": "onix:Contributor",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    },
+    {
+     "name": "ContentItem·EpubLicenseName·language·attribute·must·be·unique",
+     "selector": "onix:EpubLicense/onix:EpubLicenseName",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "ContentItem·EpubLicenseDateRole·must·be·unique",
+     "selector": "onix:EpubLicense/onix:EpubLicenseDate",
+     "fields": [
+      "onix:EpubLicenseDateRole"
+     ]
+    },
+    {
+     "name": "ContentItem·TextContent·SequenceNumber·must·be·unique",
+     "selector": "onix:TextContent",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    },
+    {
+     "name": "ContentItem·CitedContent·SequenceNumber·must·be·unique",
+     "selector": "onix:CitedContent",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    },
+    {
+     "name": "ContentItem·SupportingResource·SequenceNumber·must·be·unique",
+     "selector": "onix:SupportingResource",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    },
+    {
+     "name": "ContentItem·NameAsSubject·SequenceNumber·must·be·unique",
+     "selector": "onix:NameAsSubject",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    }
+   ]
+  },
+  "Contributor": {
+   "children": [
+    "SequenceNumber",
+    "ContributorRole",
+    "FromLanguage",
+    "ToLanguage",
+    "NameType",
+    "LettersAfterNames",
+    "PrefixToKey",
+    "KeyNames",
+    "NamesAfterKey",
+    "PersonNameInverted",
+    "NamesBeforeKey",
+    "SuffixToKey",
+    "TitlesAfterNames",
+    "CorporateNameInverted",
+    "UnnamedPersons",
+    "TitlesBeforeNames",
+    "CorporateName",
+    "NameIdentifier",
+    "PersonName",
+    "AlternativeName",
+    "ContributorDate",
+    "ProfessionalAffiliation",
+    "Prize",
+    "BiographicalNote",
+    "Website",
+    "ContributorDescription",
+    "ContributorPlace"
+   ],
+   "uniques": [
+    {
+     "name": "CorporateName·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:CorporateName",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "CorporateNameInverted·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:CorporateNameInverted",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "BiographicalNote·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:BiographicalNote",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "ContributorDescription·language·attribute·must·be·unique",
+     "selector": "onix:ContributorDescription",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "ContributorRole·must·be·unique",
+     "selector": "onix:ContributorRole",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "ContributorDateRole·must·be·unique",
+     "selector": "onix:ContributorDate",
+     "fields": [
+      "onix:ContributorDateRole"
+     ]
+    },
+    {
+     "name": "Contributor·Prize·SequenceNumber·must·be·unique",
+     "selector": "onix:Prize",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    },
+    {
+     "name": "Contributor·FromLanguage·must·be·unique",
+     "selector": "onix:FromLanguage",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "Contributor·ToLanguage·must·be·unique",
+     "selector": "onix:ToLanguage",
+     "fields": [
+      "."
+     ]
+    }
+   ]
+  },
+  "ContributorDate": {
+   "children": [
+    "ContributorDateRole",
+    "Date"
+   ]
+  },
+  "ContributorDateRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ContributorDescription": {
+   "children": []
+  },
+  "ContributorPlace": {
+   "children": [
+    "ContributorPlaceRelator",
+    "RegionCode",
+    "CountryCode",
+    "LocationName"
+   ],
+   "uniques": [
+    {
+     "name": "LocationName·language·attribute·must·be·unique",
+     "selector": "onix:LocationName",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "ContributorPlaceRelator": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ContributorReference": {
+   "children": [
+    "SequenceNumber",
+    "ContributorRole",
+    "NameIdentifier"
+   ],
+   "uniques": [
+    {
+     "name": "ContributorReference·Role·must·be·unique",
+     "selector": "onix:ContributorRole",
+     "fields": [
+      "."
+     ]
+    }
+   ]
+  },
+  "ContributorRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ContributorStatement": {
+   "children": []
+  },
+  "CopiesSold": {
+   "children": []
+  },
+  "CopyrightOwner": {
+   "children": [
+    "CorporateName",
+    "CopyrightOwnerIdentifier",
+    "PersonName"
+   ]
+  },
+  "CopyrightOwnerIdentifier": {
+   "children": [
+    "CopyrightOwnerIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "CopyrightOwnerIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CopyrightStatement": {
+   "children": [
+    "CopyrightType",
+    "CopyrightOwner",
+    "CopyrightYear"
+   ]
+  },
+  "CopyrightStatementText": {
+   "children": []
+  },
+  "CopyrightType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CopyrightYear": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CorporateName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CorporateNameInverted": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CountriesIncluded": {
+   "simple": {
+    "primitive": "list",
+    "variety": "list"
+   }
+  },
+  "CountriesExcluded": {
+   "simple": {
+    "primitive": "list",
+    "variety": "list"
+   }
+  },
+  "CountryCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CountryOfManufacture": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CountryOfPublication": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "CoverManifest": {
+   "children": [
+    "SpecificationBundleName",
+    "SpecificationDetail",
+    "SpecificationFeature",
+    "SpecificationDescription",
+    "CoverResource"
+   ],
+   "uniques": [
+    {
+     "name": "Cover·SpecificationDetail·must·be·unique",
+     "selector": "onix:SpecificationDetail",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "Cover·SpecficationDescription·language·attribute·must·be·unique",
+     "selector": "onix:SpecificationDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "CoverResource": {
+   "children": [
+    "SequenceNumber",
+    "SalesOutlet",
+    "ResourceIdentifier",
+    "ResourceFileDetail",
+    "ResourceFileDescription",
+    "ResourceFileContentDescription",
+    "NoResource",
+    "ResourceFileLink",
+    "ResourceFileFeature",
+    "ResourceRole",
+    "ResourceFileDate"
+   ],
+   "uniques": [
+    {
+     "name": "Cover·ResourceFileDetail·must·be·unique",
+     "selector": "onix:ResourceFileDetail",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "Cover·ResourceFileLink·must·be·unique",
+     "selector": "onix:ResourceFileLink",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "Cover·ResourceFileDateRole·must·be·unique",
+     "selector": "onix:ResourceFileDate",
+     "fields": [
+      "onix:ResourceFileDateRole"
+     ]
+    }
+   ]
+  },
+  "CurrencyCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Date": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "DefaultCurrencyCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "DefaultLanguageOfText": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "DefaultPriceType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "DeletionText": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "DescriptiveDetail": {
+   "children": [
+    "ProductComposition",
+    "ProductForm",
+    "ProductFormDetail",
+    "ProductFormFeature",
+    "ProductPackaging",
+    "ProductFormDescription",
+    "TradeCategory",
+    "PrimaryContentType",
+    "ProductContentType",
+    "Measure",
+    "CountryOfManufacture",
+    "EpubTechnicalProtection",
+    "EpubUsageConstraint",
+    "EpubLicense",
+    "MapScale",
+    "ProductClassification",
+    "ProductPart",
+    "NoCollection",
+    "Collection",
+    "TitleDetail",
+    "ThesisType",
+    "ThesisPresentedTo",
+    "ThesisYear",
+    "ContributorStatement",
+    "Contributor",
+    "NoContributor",
+    "Event",
+    "EditionNumber",
+    "EditionVersionNumber",
+    "EditionType",
+    "EditionStatement",
+    "NoEdition",
+    "ReligiousText",
+    "Language",
+    "Extent",
+    "Illustrated",
+    "NumberOfIllustrations",
+    "IllustrationsNote",
+    "AncillaryContent",
+    "Subject",
+    "NameAsSubject",
+    "Audience",
+    "AudienceRange",
+    "AudienceDescription",
+    "Complexity"
+   ],
+   "uniques": [
+    {
+     "name": "ProductFormDetail·must·be·unique",
+     "selector": "onix:ProductFormDetail",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "ProductContentType·must·be·unique",
+     "selector": "onix:PrimaryContentType | onix:ProductContentType",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "Measure·must·be·unique",
+     "selector": "onix:Measure",
+     "fields": [
+      "onix:MeasureType",
+      "onix:MeasureUnitCode"
+     ]
+    },
+    {
+     "name": "MapScale·must·be·unique",
+     "selector": "onix:MapScale",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "Contributor·SequenceNumber·must·be·unique",
+     "selector": "onix:Contributor|onix:Collection/onix:Contributor",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    },
+    {
+     "name": "EpubLicenseDateRole·must·be·unique",
+     "selector": "onix:EpubLicense/onix:EpubLicenseDate",
+     "fields": [
+      "onix:EpubLicenseDateRole"
+     ]
+    },
+    {
+     "name": "EditionType·must·be·unique",
+     "selector": "onix:EditionType",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "ProductFormDescription·language·attribute·must·be·unique",
+     "selector": "onix:ProductFormDescription",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "ContributorStatement·language·attribute·must·be·unique",
+     "selector": "onix:ContributorStatement",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "IllustrationsNote·language·attribute·must·be·unique",
+     "selector": "onix:IllustrationsNote",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "EditionStatement·language·attribute·must·be·unique",
+     "selector": "onix:EditionStatement",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "AudienceDescription·language·attribute·must·be·unique",
+     "selector": "onix:AudienceDescription",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "EpubLicenseName·language·attribute·must·be·unique",
+     "selector": "onix:EpubLicense/onix:EpubLicenseName",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "NameAsSubject·SequenceNumber·must·be·unique",
+     "selector": "onix:NameAsSubject",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    }
+   ]
+  },
+  "Discount": {
+   "children": [
+    "DiscountType",
+    "Quantity",
+    "ToQuantity",
+    "DiscountPercent",
+    "DiscountAmount"
+   ]
+  },
+  "DiscountAmount": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "DiscountCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "DiscountCoded": {
+   "children": [
+    "DiscountCodeType",
+    "DiscountCodeTypeName",
+    "DiscountCode"
+   ]
+  },
+  "DiscountCodeType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "DiscountCodeTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "DiscountPercent": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "DiscountType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EditionNumber": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "EditionStatement": {
+   "children": []
+  },
+  "EditionType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EditionVersionNumber": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EmailAddress": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EndDate": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EndTime": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EpubLicenseDate": {
+   "children": [
+    "EpubLicenseDateRole",
+    "Date"
+   ]
+  },
+  "EpubLicenseDateRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EpubLicenseExpression": {
+   "children": [
+    "EpubLicenseExpressionType",
+    "EpubLicenseExpressionTypeName",
+    "EpubLicenseExpressionLink"
+   ]
+  },
+  "EpubLicenseExpressionLink": {
+   "simple": {
+    "primitive": "anyURI",
+    "variety": "atomic"
+   }
+  },
+  "EpubLicenseExpressionType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EpubLicenseExpressionTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EpubLicenseName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EpubTechnicalProtection": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EpubUsageConstraint": {
+   "children": [
+    "EpubUsageType",
+    "EpubUsageStatus",
+    "EpubUsageLimit"
+   ]
+  },
+  "EpubUsageLimit": {
+   "children": [
+    "Quantity",
+    "EpubUsageUnit"
+   ]
+  },
+  "EpubUsageStatus": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EpubUsageType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EpubUsageUnit": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Event": {
+   "children": [
+    "EventRole",
+    "EventName",
+    "EventAcronym",
+    "EventNumber",
+    "EventTheme",
+    "EventDate",
+    "EventPlace",
+    "EventSponsor",
+    "Website"
+   ],
+   "uniques": [
+    {
+     "name": "EventName·language·attribute·must·be·unique",
+     "selector": "onix:EventName",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "EventAcronym·language·attribute·must·be·unique",
+     "selector": "onix:EventAcronym",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "EventTheme·language·attribute·must·be·unique",
+     "selector": "onix:EventTheme",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "EventPlace·language·attribute·must·be·unique",
+     "selector": "onix:EventPlace",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "EventAcronym": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EventDate": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EventDescription": {
+   "children": []
+  },
+  "EventIdentifier": {
+   "children": [
+    "EventIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "EventIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EventName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EventNumber": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "EventOccurrence": {
+   "children": [
+    "EventIdentifier",
+    "OccurrenceDate",
+    "EventStatus",
+    "RegionCode",
+    "CountryCode",
+    "LocationName",
+    "VenueName",
+    "StreetAddress",
+    "PostalCode",
+    "VenueNote",
+    "EventDescription",
+    "SupportingResource",
+    "EventSponsor",
+    "Website"
+   ],
+   "uniques": [
+    {
+     "name": "EventOccurrence·LocationName·language·attribute·must·be·unique",
+     "selector": "onix:LocationName",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "EventOccurrence·EventDescription·language·attribute·must·be·unique",
+     "selector": "onix:EventDescription",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "VenueNote·language·attribute·must·be·unique",
+     "selector": "onix:VenueNote",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "OccurrenceDateRole·must·be·unique",
+     "selector": "onix:OccurrenceDate",
+     "fields": [
+      "onix:OccurrenceDateRole"
+     ]
+    }
+   ]
+  },
+  "EventPlace": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EventRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EventSponsor": {
+   "children": [
+    "EventSponsorIdentifier",
+    "CorporateName",
+    "PersonName"
+   ]
+  },
+  "EventSponsorIdentifier": {
+   "children": [
+    "EventSponsorIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "EventSponsorIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EventStatus": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EventTheme": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "EventType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ExpectedDate": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Extent": {
+   "children": [
+    "ExtentType",
+    "ExtentValueRoman",
+    "ExtentValue",
+    "ExtentUnit"
+   ]
+  },
+  "ExtentType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ExtentUnit": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ExtentValue": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "ExtentValueRoman": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "FaxNumber": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "FeatureNote": {
+   "children": []
+  },
+  "FeatureValue": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "FirstPageNumber": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "FreeQuantity": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "FromLanguage": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Funding": {
+   "children": [
+    "FundingIdentifier"
+   ]
+  },
+  "FundingIdentifier": {
+   "children": [
+    "FundingIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "FundingIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Header": {
+   "children": [
+    "Sender",
+    "Addressee",
+    "MessageNumber",
+    "MessageRepeat",
+    "SentDateTime",
+    "MessageNote",
+    "DefaultLanguageOfText",
+    "DefaultPriceType",
+    "DefaultCurrencyCode"
+   ],
+   "uniques": [
+    {
+     "name": "MessageNote·language·attribute·must·be·unique",
+     "selector": "onix:MessageNote",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "IDTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "IDValue": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Illustrated": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "IllustrationsNote": {
+   "children": []
+  },
+  "Imprint": {
+   "children": [
+    "ImprintName",
+    "ImprintIdentifier",
+    "ImprintNameInverted"
+   ]
+  },
+  "ImprintIdentifier": {
+   "children": [
+    "ImprintIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "ImprintIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ImprintName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ImprintNameInverted": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "InitialPrintRun": {
+   "children": []
+  },
+  "InsertManifest": {
+   "children": [
+    "SpecificationBundleName",
+    "SpecificationDetail",
+    "SpecificationFeature",
+    "SpecificationDescription",
+    "InsertPoint",
+    "InsertResource"
+   ],
+   "uniques": [
+    {
+     "name": "Insert·SpecificationDetail·must·be·unique",
+     "selector": "onix:SpecificationDetail",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "Insert·SpecificationDescription·language·attribute·must·be·unique",
+     "selector": "onix:SpecificationDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "InsertPoint": {
+   "children": [
+    "InsertPointType",
+    "InsertPointValue"
+   ]
+  },
+  "InsertPointType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "InsertPointValue": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "InsertResource": {
+   "children": [
+    "SequenceNumber",
+    "SalesOutlet",
+    "ResourceIdentifier",
+    "ResourceFileDetail",
+    "ResourceFileDescription",
+    "ResourceFileContentDescription",
+    "NoResource",
+    "ResourceFileLink",
+    "ResourceFileFeature",
+    "ResourceRole",
+    "ResourceFileDate"
+   ],
+   "uniques": [
+    {
+     "name": "Insert·ResourceFileDetail·must·be·unique",
+     "selector": "onix:ResourceFileDetail",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "Insert·ResourceFileLink·must·be·unique",
+     "selector": "onix:ResourceFileLink",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "Insert·ResourceFileDateRole·must·be·unique",
+     "selector": "onix:ResourceFileDate",
+     "fields": [
+      "onix:ResourceFileDateRole"
+     ]
+    }
+   ]
+  },
+  "KeyNames": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Language": {
+   "children": [
+    "LanguageRole",
+    "LanguageCode",
+    "CountryCode",
+    "RegionCode",
+    "ScriptCode"
+   ]
+  },
+  "LanguageCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "LanguageRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "LastPageNumber": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "LatestReprintNumber": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "LettersAfterNames": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "LevelSequenceNumber": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ListName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "LocationIdentifier": {
+   "children": [
+    "LocationIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "LocationIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "LocationName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "MainAudience": {
+   "children": []
+  },
+  "MainSubject": {
+   "children": []
+  },
+  "MapScale": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "Market": {
+   "children": [
+    "Territory",
+    "SalesRestriction"
+   ]
+  },
+  "MarketDate": {
+   "children": [
+    "MarketDateRole",
+    "Date"
+   ]
+  },
+  "MarketDateRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "MarketPublishingDetail": {
+   "children": [
+    "PublisherRepresentative",
+    "ProductContact",
+    "MarketPublishingStatus",
+    "MarketPublishingStatusNote",
+    "MarketDate",
+    "PromotionCampaign",
+    "InitialPrintRun",
+    "ReprintDetail",
+    "CopiesSold",
+    "BookClubAdoption"
+   ],
+   "uniques": [
+    {
+     "name": "MarketPublishingStatusNote·language·attribute·must·be·unique",
+     "selector": "onix:MarketPublishingStatusNote",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "PromotionCampaign·language·attribute·must·be·unique",
+     "selector": "onix:PromotionCampaign",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "InitialPrintRun·language·attribute·must·be·unique",
+     "selector": "onix:InitialPrintRun",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "ReprintDetail·language·attribute·must·be·unique",
+     "selector": "onix:ReprintDetail",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "CopiesSold·language·attribute·must·be·unique",
+     "selector": "onix:CopiesSold",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "BookClubAdoption·language·attribute·must·be·unique",
+     "selector": "onix:BookClubAdoption",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "MarketDateRole·must·be·unique",
+     "selector": "onix:MarketDate",
+     "fields": [
+      "onix:MarketDateRole"
+     ]
+    }
+   ]
+  },
+  "MarketPublishingStatus": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "MarketPublishingStatusNote": {
+   "children": []
+  },
+  "MarketReference": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Measure": {
+   "children": [
+    "MeasureType",
+    "Measurement",
+    "MeasureUnitCode"
+   ]
+  },
+  "Measurement": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "MeasureType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "MeasureUnitCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "MessageNote": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "MessageNumber": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "MessageRepeat": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "MinimumOrderQuantity": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "NameAsSubject": {
+   "children": [
+    "SequenceNumber",
+    "NameType",
+    "LettersAfterNames",
+    "PrefixToKey",
+    "KeyNames",
+    "NamesAfterKey",
+    "PersonNameInverted",
+    "NamesBeforeKey",
+    "SuffixToKey",
+    "TitlesAfterNames",
+    "CorporateNameInverted",
+    "TitlesBeforeNames",
+    "CorporateName",
+    "NameIdentifier",
+    "PersonName",
+    "AlternativeName",
+    "SubjectDate",
+    "ProfessionalAffiliation",
+    "SubjectDescription"
+   ],
+   "uniques": [
+    {
+     "name": "Subject·CorporateName·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:CorporateName",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "Subject·CorporateNameInverted·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:CorporateNameInverted",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "SubjectDateRole·must·be·unique",
+     "selector": "onix:SubjectDate",
+     "fields": [
+      "onix:SubjectDateRole"
+     ]
+    },
+    {
+     "name": "SubjectDescription·language·attribute·must·be·unique",
+     "selector": "onix:SubjectDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "NameIdentifier": {
+   "children": [
+    "NameIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "NameIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "NamesAfterKey": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "NamesBeforeKey": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "NameType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "NewSupplier": {
+   "children": [
+    "SupplierName",
+    "SupplierIdentifier",
+    "TelephoneNumber",
+    "FaxNumber",
+    "EmailAddress",
+    "Website"
+   ]
+  },
+  "NoCollection": {
+   "children": []
+  },
+  "NoContributor": {
+   "children": []
+  },
+  "NoEdition": {
+   "children": []
+  },
+  "NoPrefix": {
+   "children": []
+  },
+  "NoProduct": {
+   "children": []
+  },
+  "NoResource": {
+   "children": []
+  },
+  "NoSupplement": {
+   "children": []
+  },
+  "NotificationType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Number": {
+   "simple": {
+    "primitive": "nonNegativeInteger",
+    "variety": "atomic"
+   }
+  },
+  "NumberOfCopies": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "NumberOfIllustrations": {
+   "simple": {
+    "primitive": "nonNegativeInteger",
+    "variety": "atomic"
+   }
+  },
+  "NumberOfItemsOfThisForm": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "NumberOfPages": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "OccurrenceDate": {
+   "children": [
+    "OccurrenceDateRole",
+    "Date"
+   ]
+  },
+  "OccurrenceDateRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "OnHand": {
+   "simple": {
+    "primitive": "?int",
+    "variety": "atomic"
+   }
+  },
+  "OnOrder": {
+   "simple": {
+    "primitive": "nonNegativeInteger",
+    "variety": "atomic"
+   }
+  },
+  "OnOrderDetail": {
+   "children": [
+    "OnOrder",
+    "Proximity",
+    "ExpectedDate"
+   ]
+  },
+  "OrderQuantityMinimum": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "OrderQuantityMultiple": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "OrderTime": {
+   "simple": {
+    "primitive": "nonNegativeInteger",
+    "variety": "atomic"
+   }
+  },
+  "PackQuantity": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "PageRun": {
+   "children": [
+    "FirstPageNumber",
+    "LastPageNumber"
+   ]
+  },
+  "PalletQuantity": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "PartNumber": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Percent": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "PersonName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PersonNameInverted": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PositionOnList": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "PositionOnProduct": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PostalCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PrefixToKey": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Price": {
+   "children": [
+    "PriceIdentifier",
+    "PriceType",
+    "PriceQualifier",
+    "EpubTechnicalProtection",
+    "PriceConstraint",
+    "EpubLicense",
+    "PriceTypeDescription",
+    "PricePer",
+    "PriceCondition",
+    "MinimumOrderQuantity",
+    "BatchBonus",
+    "DiscountCoded",
+    "Discount",
+    "PriceStatus",
+    "PriceCoded",
+    "UnpricedItemType",
+    "PriceAmount",
+    "Tax",
+    "TaxExempt",
+    "CurrencyCode",
+    "Territory",
+    "ComparisonProductPrice",
+    "PriceDate",
+    "PrintedOnProduct",
+    "PositionOnProduct"
+   ],
+   "uniques": [
+    {
+     "name": "PriceTypeDescription·language·attribute·must·be·unique",
+     "selector": "onix:PriceTypeDescription",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "Price·EpubLicenseName·language·attribute·must·be·unique",
+     "selector": "onix:EpubLicense/onix:EpubLicenseName",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "PriceDateRole·must·be·unique",
+     "selector": "onix:PriceDate",
+     "fields": [
+      "onix:PriceDateRole"
+     ]
+    }
+   ]
+  },
+  "PriceAmount": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "PriceCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceCoded": {
+   "children": [
+    "PriceCodeType",
+    "PriceCodeTypeName",
+    "PriceCode"
+   ]
+  },
+  "PriceCodeType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceCodeTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceCondition": {
+   "children": [
+    "PriceConditionType",
+    "PriceConditionQuantity",
+    "ProductIdentifier"
+   ]
+  },
+  "PriceConditionQuantity": {
+   "children": [
+    "PriceConditionQuantityType",
+    "Quantity",
+    "QuantityUnit"
+   ]
+  },
+  "PriceConditionQuantityType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceConditionType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceConstraint": {
+   "children": [
+    "PriceConstraintType",
+    "PriceConstraintStatus",
+    "PriceConstraintLimit"
+   ]
+  },
+  "PriceConstraintLimit": {
+   "children": [
+    "Quantity",
+    "PriceConstraintUnit"
+   ]
+  },
+  "PriceConstraintStatus": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceConstraintType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceConstraintUnit": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceDate": {
+   "children": [
+    "PriceDateRole",
+    "Date"
+   ]
+  },
+  "PriceDateRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceIdentifier": {
+   "children": [
+    "PriceIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "PriceIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PricePartDescription": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PricePer": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceQualifier": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceStatus": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PriceTypeDescription": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PrimaryContentType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PrimaryPart": {
+   "children": []
+  },
+  "PrintedOnProduct": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Prize": {
+   "children": [
+    "SequenceNumber",
+    "PrizeIdentifier",
+    "PrizeName",
+    "PrizeYear",
+    "AwardingBody",
+    "PrizeCountry",
+    "PrizeRegion",
+    "PrizeCode",
+    "PrizeStatement",
+    "PrizeJury"
+   ],
+   "uniques": [
+    {
+     "name": "PrizeName·language·attribute·must·be·unique",
+     "selector": "onix:PrizeName",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "PrizeStatement·language·attribute·must·be·unique",
+     "selector": "onix:PrizeStatement",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "PrizeJury·language·attribute·must·be·unique",
+     "selector": "onix:PrizeJury",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "AwardingBody·language·attribute·must·be·unique",
+     "selector": "onix:AwardingBody",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "PrizeCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PrizeCountry": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PrizeIdentifier": {
+   "children": [
+    "PrizeIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "PrizeIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PrizeJury": {
+   "children": []
+  },
+  "PrizeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PrizeRegion": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PrizeStatement": {
+   "children": []
+  },
+  "PrizeYear": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Product": {
+   "children": [
+    "RecordReference",
+    "NotificationType",
+    "DeletionText",
+    "RecordSourceType",
+    "RecordSourceIdentifier",
+    "RecordSourceName",
+    "ProductIdentifier",
+    "Barcode",
+    "DescriptiveDetail",
+    "CollateralDetail",
+    "PromotionDetail",
+    "ContentDetail",
+    "PublishingDetail",
+    "RelatedMaterial",
+    "ProductionDetail",
+    "ProductSupply"
+   ],
+   "uniques": [
+    {
+     "name": "DeletionText·language·attribute·must·be·unique",
+     "selector": "onix:DeletionText",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "ProductSupply·MarketReference·must·be·unique",
+     "selector": "onix:ProductSupply",
+     "fields": [
+      "onix:MarketReference"
+     ]
+    }
+   ]
+  },
+  "ProductAvailability": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductClassification": {
+   "children": [
+    "ProductClassificationType",
+    "ProductClassificationTypeName",
+    "ProductClassificationCode",
+    "Percent"
+   ]
+  },
+  "ProductClassificationCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductClassificationType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductClassificationTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductComposition": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductContact": {
+   "children": [
+    "ProductContactRole",
+    "ProductContactIdentifier",
+    "ProductContactName",
+    "ContactName",
+    "TelephoneNumber",
+    "FaxNumber",
+    "EmailAddress",
+    "StreetAddress",
+    "LocationName",
+    "PostalCode",
+    "RegionCode",
+    "CountryCode"
+   ]
+  },
+  "ProductContactIdentifier": {
+   "children": [
+    "ProductContactIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "ProductContactIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductContactName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductContactRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductContentType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductForm": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductFormDescription": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductFormDetail": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductFormFeature": {
+   "children": [
+    "ProductFormFeatureType",
+    "ProductFormFeatureValue",
+    "ProductFormFeatureDescription"
+   ],
+   "uniques": [
+    {
+     "name": "ProductFormFeatureDescription·language·attribute·must·be·unique",
+     "selector": "onix:ProductFormFeatureDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "ProductFormFeatureDescription": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductFormFeatureType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductFormFeatureValue": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductIdentifier": {
+   "children": [
+    "ProductIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "ProductIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductionDetail": {
+   "children": [
+    "ProductionManifest"
+   ]
+  },
+  "ProductionManifest": {
+   "children": [
+    "ProductIdentifier",
+    "CoverManifest",
+    "BodyManifest",
+    "InsertManifest",
+    "SupplementManifest"
+   ]
+  },
+  "ProductPackaging": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductPart": {
+   "children": [
+    "PrimaryPart",
+    "ProductIdentifier",
+    "ProductForm",
+    "ProductFormDetail",
+    "ProductFormFeature",
+    "ProductPackaging",
+    "ProductFormDescription",
+    "ProductContentType",
+    "Measure",
+    "NumberOfItemsOfThisForm",
+    "NumberOfCopies",
+    "CountryOfManufacture"
+   ],
+   "uniques": [
+    {
+     "name": "ProductPart·ProductFormDetail·must·be·unique",
+     "selector": "onix:ProductFormDetail",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "ProductPart·ProductContentType·must·be·unique",
+     "selector": "onix:ProductContentType",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "ProductPart·Measure·must·be·unique",
+     "selector": "onix:Measure",
+     "fields": [
+      "onix:MeasureType",
+      "onix:MeasureUnitCode"
+     ]
+    },
+    {
+     "name": "ProductPart·ProductFormDescription·language·attribute·must·be·unique",
+     "selector": "onix:ProductFormDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "ProductRelationCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ProductSupply": {
+   "children": [
+    "MarketReference",
+    "Market",
+    "MarketPublishingDetail",
+    "SupplyDetail"
+   ]
+  },
+  "ProfessionalAffiliation": {
+   "children": [
+    "AffiliationIdentifier",
+    "Affiliation",
+    "ProfessionalPosition"
+   ],
+   "uniques": [
+    {
+     "name": "ProfessionalPosition·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:ProfessionalPosition",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "Affiliation·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:Affiliation",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    }
+   ]
+  },
+  "ProfessionalPosition": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PromotionalEvent": {
+   "children": [
+    "EventIdentifier",
+    "EventType",
+    "EventStatus",
+    "ContentAudience",
+    "EventName",
+    "ContributorReference",
+    "ContributorStatement",
+    "Contributor",
+    "NoContributor",
+    "EventDescription",
+    "EventOccurrence",
+    "SupportingResource",
+    "EventSponsor",
+    "Website"
+   ],
+   "uniques": [
+    {
+     "name": "PromotionalEvent·EventName·language·attribute·must·be·unique",
+     "selector": "onix:EventName",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "PromotionalEvent·EventDescription·language·attribute·must·be·unique",
+     "selector": "onix:EventDescription",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "PromotionalEvent·ContributorStatement·language·attribute·must·be·unique",
+     "selector": "onix:ContributorStatement",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "PromotionalEvent·Contributor·SequenceNumber·must·be·unique",
+     "selector": "onix:Contributor|onix:ContributorReference",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    }
+   ]
+  },
+  "PromotionCampaign": {
+   "children": []
+  },
+  "PromotionDetail": {
+   "children": [
+    "PromotionalEvent"
+   ]
+  },
+  "Proximity": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Publisher": {
+   "children": [
+    "PublishingRole",
+    "PublisherNameInverted",
+    "PublisherIdentifier",
+    "PublisherName",
+    "Funding",
+    "Website"
+   ],
+   "uniques": [
+    {
+     "name": "PublisherName·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:PublisherName",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "PublisherNameInverted·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:PublisherNameInverted",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    }
+   ]
+  },
+  "PublisherIdentifier": {
+   "children": [
+    "PublisherIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "PublisherIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PublisherName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PublisherNameInverted": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PublisherRepresentative": {
+   "children": [
+    "AgentRole",
+    "AgentIdentifier",
+    "AgentName",
+    "TelephoneNumber",
+    "FaxNumber",
+    "EmailAddress",
+    "Website"
+   ]
+  },
+  "PublishingDate": {
+   "children": [
+    "PublishingDateRole",
+    "Date"
+   ]
+  },
+  "PublishingDateRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PublishingDetail": {
+   "children": [
+    "Imprint",
+    "Publisher",
+    "CityOfPublication",
+    "CountryOfPublication",
+    "ProductContact",
+    "PublishingStatus",
+    "PublishingStatusNote",
+    "PublishingDate",
+    "LatestReprintNumber",
+    "CopyrightStatement",
+    "CopyrightStatementText",
+    "SalesRights",
+    "ROWSalesRightsType"
+   ],
+   "uniques": [
+    {
+     "name": "CopyrightStatementText·language·attribute·must·be·unique",
+     "selector": "onix:CopyrightStatementText",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "PublishingStatusNote·language·attribute·must·be·unique",
+     "selector": "onix:PublishingStatusNote",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "CityOfPublication·language·attribute·must·be·unique",
+     "selector": "onix:CityOfPublication",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "PublishingDateRole·must·be·unique",
+     "selector": "onix:PublishingDate",
+     "fields": [
+      "onix:PublishingDateRole"
+     ]
+    }
+   ]
+  },
+  "PublishingRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PublishingStatus": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "PublishingStatusNote": {
+   "children": []
+  },
+  "Quantity": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "QuantityUnit": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Rate": {
+   "simple": {
+    "primitive": "?int",
+    "variety": "atomic"
+   }
+  },
+  "Rating": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "RatingLimit": {
+   "simple": {
+    "primitive": "nonNegativeInteger",
+    "variety": "atomic"
+   }
+  },
+  "RatingUnits": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "RecordReference": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "RecordSourceIdentifier": {
+   "children": [
+    "RecordSourceIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "RecordSourceIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "RecordSourceName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "RecordSourceType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "RegionCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "RegionsIncluded": {
+   "simple": {
+    "primitive": "list",
+    "variety": "list"
+   }
+  },
+  "RegionsExcluded": {
+   "simple": {
+    "primitive": "list",
+    "variety": "list"
+   }
+  },
+  "RelatedMaterial": {
+   "children": [
+    "RelatedWork",
+    "RelatedProduct"
+   ]
+  },
+  "RelatedProduct": {
+   "children": [
+    "ProductRelationCode",
+    "ProductIdentifier",
+    "ProductForm",
+    "ProductFormDetail"
+   ],
+   "uniques": [
+    {
+     "name": "ProductRelationCode·must·be·unique",
+     "selector": "onix:ProductRelationCode",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "RelatedProduct·ProductFormDetail·must·be·unique",
+     "selector": "onix:ProductFormDetail",
+     "fields": [
+      "."
+     ]
+    }
+   ]
+  },
+  "RelatedWork": {
+   "children": [
+    "WorkRelationCode",
+    "WorkIdentifier"
+   ]
+  },
+  "ReligiousText": {
+   "children": [
+    "ReligiousTextIdentifier",
+    "Bible",
+    "ReligiousTextFeature"
+   ]
+  },
+  "ReligiousTextFeature": {
+   "children": [
+    "ReligiousTextFeatureType",
+    "ReligiousTextFeatureCode",
+    "ReligiousTextFeatureDescription"
+   ],
+   "uniques": [
+    {
+     "name": "ReligiousTextFeatureDescription·language·attribute·must·be·unique",
+     "selector": "onix:ReligiousTextFeatureDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "ReligiousTextFeatureCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ReligiousTextFeatureDescription": {
+   "children": []
+  },
+  "ReligiousTextFeatureType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ReligiousTextIdentifier": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ReprintDetail": {
+   "children": []
+  },
+  "Reserved": {
+   "simple": {
+    "primitive": "nonNegativeInteger",
+    "variety": "atomic"
+   }
+  },
+  "ResourceContentType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceFeature": {
+   "children": [
+    "ResourceFeatureType",
+    "FeatureValue",
+    "FeatureNote"
+   ],
+   "uniques": [
+    {
+     "name": "Resource·FeatureNote·language·attribute·must·be·unique",
+     "selector": "onix:FeatureNote",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "ResourceFeatureType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceFileContentDescription": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceFileDate": {
+   "children": [
+    "ResourceFileDateRole",
+    "Date"
+   ]
+  },
+  "ResourceFileDateRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceFileDescription": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceFileDetail": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceFileFeature": {
+   "children": [
+    "ResourceFileFeatureType",
+    "ResourceFileFeatureValue",
+    "ResourceFileFeatureDescription"
+   ],
+   "uniques": [
+    {
+     "name": "ResourceFileFeatureDescription·language·attribute·must·be·unique",
+     "selector": "onix:ResourceFileFeatureDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "ResourceFileFeatureDescription": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceFileFeatureType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceFileFeatureValue": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceFileLink": {
+   "simple": {
+    "primitive": "anyURI",
+    "variety": "atomic"
+   }
+  },
+  "ResourceForm": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceIdentifier": {
+   "children": [
+    "ResourceIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "ResourceIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceLink": {
+   "simple": {
+    "primitive": "anyURI",
+    "variety": "atomic"
+   }
+  },
+  "ResourceMode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ResourceVersion": {
+   "children": [
+    "ResourceForm",
+    "ResourceVersionFeature",
+    "ResourceLink",
+    "EpubUsageConstraint",
+    "EpubLicense",
+    "ContentDate"
+   ],
+   "uniques": [
+    {
+     "name": "ResourceVersion·EpubLicenseDateRole·must·be·unique",
+     "selector": "onix:EpubLicense/onix:EpubLicenseDate",
+     "fields": [
+      "onix:EpubLicenseDateRole"
+     ]
+    },
+    {
+     "name": "ResourceVersion·ContentDateRole·must·be·unique",
+     "selector": "onix:ContentDate",
+     "fields": [
+      "onix:ContentDateRole"
+     ]
+    },
+    {
+     "name": "ResourceVersion·FeatureType·must·be·unique",
+     "selector": "onix:ResourceVersionFeature",
+     "fields": [
+      "onix:ResourceVersionFeatureType"
+     ]
+    }
+   ]
+  },
+  "ResourceVersionFeature": {
+   "children": [
+    "ResourceVersionFeatureType",
+    "FeatureValue",
+    "FeatureNote"
+   ],
+   "uniques": [
+    {
+     "name": "ResourceVersion·FeatureNote·language·attribute·must·be·unique",
+     "selector": "onix:FeatureNote",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "ResourceVersionFeatureType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ReturnsCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ReturnsCodeType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ReturnsCodeTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ReturnsConditions": {
+   "children": [
+    "ReturnsCodeType",
+    "ReturnsCodeTypeName",
+    "ReturnsCode",
+    "ReturnsNote"
+   ],
+   "uniques": [
+    {
+     "name": "ReturnsNote·language·attribute·must·be·unique",
+     "selector": "onix:ReturnsNote",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "ReturnsNote": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ReviewRating": {
+   "children": [
+    "Rating",
+    "RatingLimit",
+    "RatingUnits"
+   ],
+   "uniques": [
+    {
+     "name": "RatingUnits·language·attribute·must·be·unique",
+     "selector": "onix:RatingUnits",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "ROWSalesRightsType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SalesOutlet": {
+   "children": [
+    "SalesOutletName",
+    "SalesOutletIdentifier"
+   ]
+  },
+  "SalesOutletIdentifier": {
+   "children": [
+    "SalesOutletIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "SalesOutletIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SalesOutletName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SalesRestriction": {
+   "children": [
+    "SalesRestrictionType",
+    "SalesOutlet",
+    "SalesRestrictionNote",
+    "StartDate",
+    "EndDate"
+   ],
+   "uniques": [
+    {
+     "name": "SalesRestrictionNote·language·attribute·must·be·unique",
+     "selector": "onix:SalesRestrictionNote",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "SalesRestrictionNote": {
+   "children": []
+  },
+  "SalesRestrictionType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SalesRights": {
+   "children": [
+    "SalesRightsType",
+    "Territory",
+    "SalesRestriction",
+    "ProductIdentifier",
+    "PublisherName",
+    "PublisherNameInverted"
+   ],
+   "uniques": [
+    {
+     "name": "Equivalent·Product·PublisherName·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:PublisherName",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "Equivalent·Product·PublisherNameInverted·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:PublisherNameInverted",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    }
+   ]
+  },
+  "SalesRightsType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ScriptCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Sender": {
+   "children": [
+    "SenderName",
+    "SenderIdentifier",
+    "ContactName",
+    "TelephoneNumber",
+    "EmailAddress"
+   ]
+  },
+  "SenderIdentifier": {
+   "children": [
+    "SenderIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "SenderIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SenderName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SentDateTime": {
+   "simple": {
+    "primitive": "union",
+    "variety": "atomic"
+   }
+  },
+  "SequenceNumber": {
+   "simple": {
+    "primitive": "positiveInteger",
+    "variety": "atomic"
+   }
+  },
+  "SourceName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SourceTitle": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SourceType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SpecificationBundleName": {
+   "children": [
+    "SpecificationBundleNameTypeName",
+    "SpecificationBundleNameValue"
+   ]
+  },
+  "SpecificationBundleNameTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SpecificationBundleNameValue": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SpecificationDescription": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SpecificationDetail": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SpecificationFeature": {
+   "children": [
+    "SpecificationFeatureType",
+    "SpecificationFeatureValue",
+    "SpecificationFeatureDescription"
+   ],
+   "uniques": [
+    {
+     "name": "SpecificationFeatureDescription·language·attribute·must·be·unique",
+     "selector": "onix:SpecificationFeatureDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "SpecificationFeatureDescription": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SpecificationFeatureType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SpecificationFeatureValue": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "StartDate": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "StartTime": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Stock": {
+   "children": [
+    "LocationIdentifier",
+    "LocationName",
+    "StockQuantityCoded",
+    "Proximity",
+    "OnOrder",
+    "OnHand",
+    "CBO",
+    "Reserved",
+    "OnOrderDetail",
+    "Velocity"
+   ],
+   "uniques": [
+    {
+     "name": "Stock·LocationName·language·attribute·must·be·unique",
+     "selector": "onix:LocationName",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "StockQuantityCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "StockQuantityCoded": {
+   "children": [
+    "StockQuantityCodeType",
+    "StockQuantityCodeTypeName",
+    "StockQuantityCode"
+   ]
+  },
+  "StockQuantityCodeType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "StockQuantityCodeTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "StreetAddress": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "StudyBibleType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Subject": {
+   "children": [
+    "MainSubject",
+    "SubjectSchemeIdentifier",
+    "SubjectSchemeName",
+    "SubjectSchemeVersion",
+    "SubjectHeadingText",
+    "SubjectCode"
+   ],
+   "uniques": [
+    {
+     "name": "SubjectHeadingText·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:SubjectHeadingText",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    }
+   ]
+  },
+  "SubjectCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SubjectDate": {
+   "children": [
+    "SubjectDateRole",
+    "Date"
+   ]
+  },
+  "SubjectDateRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SubjectDescription": {
+   "children": []
+  },
+  "SubjectHeadingText": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SubjectSchemeIdentifier": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SubjectSchemeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SubjectSchemeVersion": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Subtitle": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SuffixToKey": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplementManifest": {
+   "children": [
+    "SequenceNumber",
+    "SalesOutlet",
+    "Measure",
+    "ProductFormDescription",
+    "ProductForm",
+    "CoverManifest",
+    "ProductFormDetail",
+    "NoSupplement",
+    "ProductIdentifier",
+    "InsertManifest",
+    "BodyManifest"
+   ]
+  },
+  "Supplier": {
+   "children": [
+    "SupplierRole",
+    "SupplierName",
+    "SupplierIdentifier",
+    "TelephoneNumber",
+    "FaxNumber",
+    "EmailAddress",
+    "Website"
+   ]
+  },
+  "SupplierCodeType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplierCodeTypeName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplierCodeValue": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplierIdentifier": {
+   "children": [
+    "SupplierIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "SupplierIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplierName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplierOwnCoding": {
+   "children": [
+    "SupplierCodeType",
+    "SupplierCodeTypeName",
+    "SupplierCodeValue"
+   ]
+  },
+  "SupplierRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplyContact": {
+   "children": [
+    "SupplyContactRole",
+    "SupplyContactName",
+    "SupplyContactIdentifier",
+    "ContactName",
+    "TelephoneNumber",
+    "FaxNumber",
+    "EmailAddress",
+    "StreetAddress",
+    "LocationName",
+    "PostalCode",
+    "RegionCode",
+    "CountryCode"
+   ]
+  },
+  "SupplyContactIdentifier": {
+   "children": [
+    "SupplyContactIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "SupplyContactIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplyContactName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplyContactRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplyDate": {
+   "children": [
+    "SupplyDateRole",
+    "Date"
+   ]
+  },
+  "SupplyDateRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "SupplyDetail": {
+   "children": [
+    "Supplier",
+    "SupplyContact",
+    "SupplierOwnCoding",
+    "ReturnsConditions",
+    "ProductAvailability",
+    "SupplyDate",
+    "OrderTime",
+    "NewSupplier",
+    "Stock",
+    "PackQuantity",
+    "PalletQuantity",
+    "OrderQuantityMinimum",
+    "OrderQuantityMultiple",
+    "UnpricedItemType",
+    "Price"
+   ],
+   "uniques": [
+    {
+     "name": "SupplyDateRole·must·be·unique",
+     "selector": "onix:SupplyDate",
+     "fields": [
+      "onix:SupplyDateRole"
+     ]
+    }
+   ]
+  },
+  "SupportingResource": {
+   "children": [
+    "SequenceNumber",
+    "ResourceContentType",
+    "ContentAudience",
+    "Territory",
+    "ResourceMode",
+    "ResourceFeature",
+    "ResourceVersion"
+   ],
+   "uniques": [
+    {
+     "name": "Repeats·of·SupportingResource·ContentAudience·must·be·unique",
+     "selector": "onix:ContentAudience",
+     "fields": [
+      "."
+     ]
+    }
+   ]
+  },
+  "Tax": {
+   "children": [
+    "ProductIdentifier",
+    "PricePartDescription",
+    "TaxType",
+    "TaxRateCode",
+    "TaxAmount",
+    "TaxRatePercent",
+    "TaxableAmount"
+   ],
+   "uniques": [
+    {
+     "name": "PricePartDescription·language·attribute·must·be·unique",
+     "selector": "onix:PricePartDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "TaxableAmount": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "TaxAmount": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "TaxExempt": {
+   "children": []
+  },
+  "TaxRateCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TaxRatePercent": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "TaxType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TelephoneNumber": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Territory": {
+   "children": [
+    "RegionsIncluded",
+    "CountriesIncluded",
+    "RegionsExcluded",
+    "CountriesExcluded"
+   ]
+  },
+  "Text": {
+   "children": []
+  },
+  "TextAuthor": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TextContent": {
+   "children": [
+    "SequenceNumber",
+    "TextType",
+    "ContentAudience",
+    "Territory",
+    "Text",
+    "ReviewRating",
+    "TextSourceDescription",
+    "TextSource",
+    "TextAuthor",
+    "TextSourceCorporate",
+    "SourceTitle",
+    "TextSourceLink",
+    "EpubUsageConstraint",
+    "EpubLicense",
+    "ContentDate"
+   ],
+   "uniques": [
+    {
+     "name": "TextContent·EpubLicenseDateRole·must·be·unique",
+     "selector": "onix:EpubLicense/onix:EpubLicenseDate",
+     "fields": [
+      "onix:EpubLicenseDateRole"
+     ]
+    },
+    {
+     "name": "Text·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:Text",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "TextSourceDescription·language·attribute·must·be·unique",
+     "selector": "onix:TextSourceDescription",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "TextContent·SourceTitle·language·attribute·must·be·unique",
+     "selector": "onix:SourceTitle",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "Repeats·of·TextContent·ContentAudience·must·be·unique",
+     "selector": "onix:ContentAudience",
+     "fields": [
+      "."
+     ]
+    },
+    {
+     "name": "TextContent·ContentDate·ContentDateRole·must·be·unique",
+     "selector": "onix:ContentDate",
+     "fields": [
+      "onix:ContentDateRole"
+     ]
+    },
+    {
+     "name": "TextSource·SequenceNumber·must·be·unique",
+     "selector": "onix:TextSource",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    }
+   ]
+  },
+  "TextItem": {
+   "children": [
+    "TextItemType",
+    "TextItemIdentifier",
+    "PageRun",
+    "NumberOfPages"
+   ]
+  },
+  "TextItemIdentifier": {
+   "children": [
+    "TextItemIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "TextItemIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TextItemType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TextSource": {
+   "children": [
+    "SequenceNumber",
+    "NameType",
+    "LettersAfterNames",
+    "PrefixToKey",
+    "KeyNames",
+    "NamesAfterKey",
+    "PersonNameInverted",
+    "NamesBeforeKey",
+    "SuffixToKey",
+    "TitlesAfterNames",
+    "CorporateNameInverted",
+    "UnnamedPersons",
+    "TitlesBeforeNames",
+    "CorporateName",
+    "NameIdentifier",
+    "PersonName",
+    "ProfessionalAffiliation",
+    "TextSourceDescription"
+   ],
+   "uniques": [
+    {
+     "name": "TextSource·CorporateName·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:CorporateName",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "TextSource·CorporateNameInverted·language·and·textscript·attributes·must·be·unique",
+     "selector": "onix:CorporateNameInverted",
+     "fields": [
+      "@language",
+      "@textscript"
+     ]
+    },
+    {
+     "name": "TextSource·TextSourceDescription·language·attribute·must·be·unique",
+     "selector": "onix:TextSourceDescription",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "TextSourceCorporate": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TextSourceDescription": {
+   "children": []
+  },
+  "TextSourceLink": {
+   "simple": {
+    "primitive": "anyURI",
+    "variety": "atomic"
+   }
+  },
+  "TextType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ThesisPresentedTo": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ThesisType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ThesisYear": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TimeRun": {
+   "children": [
+    "StartTime",
+    "EndTime"
+   ]
+  },
+  "TitleDetail": {
+   "children": [
+    "TitleType",
+    "TitleElement",
+    "TitleStatement"
+   ],
+   "uniques": [
+    {
+     "name": "TitleElement·SequenceNumber·must·be·unique",
+     "selector": "onix:TitleElement",
+     "fields": [
+      "onix:SequenceNumber"
+     ]
+    }
+   ]
+  },
+  "TitleElement": {
+   "children": [
+    "SequenceNumber",
+    "TitleElementLevel",
+    "NoPrefix",
+    "TitleWithoutPrefix",
+    "TitlePrefix",
+    "YearOfAnnual",
+    "PartNumber",
+    "TitleText",
+    "Subtitle"
+   ]
+  },
+  "TitleElementLevel": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TitlePrefix": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TitlesAfterNames": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TitlesBeforeNames": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TitleStatement": {
+   "children": []
+  },
+  "TitleText": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TitleType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "TitleWithoutPrefix": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ToLanguage": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "ToQuantity": {
+   "simple": {
+    "primitive": "decimal",
+    "variety": "atomic"
+   }
+  },
+  "TradeCategory": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "UnnamedPersons": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "UnpricedItemType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "Velocity": {
+   "children": [
+    "VelocityMetric",
+    "Rate",
+    "Proximity"
+   ]
+  },
+  "VelocityMetric": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "VenueName": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "VenueNote": {
+   "children": []
+  },
+  "Website": {
+   "children": [
+    "WebsiteRole",
+    "WebsiteDescription",
+    "WebsiteLink"
+   ],
+   "uniques": [
+    {
+     "name": "WebsiteDescription·language·attribute·must·be·unique",
+     "selector": "onix:WebsiteDescription",
+     "fields": [
+      "@language"
+     ]
+    },
+    {
+     "name": "WebsiteLink·language·attribute·must·be·unique",
+     "selector": "onix:WebsiteLink",
+     "fields": [
+      "@language"
+     ]
+    }
+   ]
+  },
+  "WebsiteDescription": {
+   "children": []
+  },
+  "WebsiteLink": {
+   "simple": {
+    "primitive": "anyURI",
+    "variety": "atomic"
+   }
+  },
+  "WebsiteRole": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "WorkIdentifier": {
+   "children": [
+    "WorkIDType",
+    "IDTypeName",
+    "IDValue"
+   ]
+  },
+  "WorkIDType": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "WorkRelationCode": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "YearOfAnnual": {
+   "simple": {
+    "primitive": "string",
+    "variety": "atomic"
+   }
+  },
+  "special": {},
+  "fontstyle": {},
+  "phrase": {},
+  "gloss": {},
+  "inline": {},
+  "heading": {},
+  "lists": {},
+  "blocktext": {},
+  "block": {},
+  "div": {
+   "children": []
+  },
+  "p": {
+   "children": []
+  },
+  "h1": {
+   "children": []
+  },
+  "h2": {
+   "children": []
+  },
+  "h3": {
+   "children": []
+  },
+  "h4": {
+   "children": []
+  },
+  "h5": {
+   "children": []
+  },
+  "h6": {
+   "children": []
+  },
+  "ul": {
+   "children": [
+    "li"
+   ]
+  },
+  "ol": {
+   "children": [
+    "li"
+   ]
+  },
+  "li": {
+   "children": []
+  },
+  "dl": {
+   "children": [
+    "dt",
+    "dd"
+   ]
+  },
+  "dt": {
+   "children": []
+  },
+  "dd": {
+   "children": []
+  },
+  "address": {
+   "children": []
+  },
+  "hr": {
+   "children": []
+  },
+  "pre": {
+   "children": []
+  },
+  "blockquote": {
+   "children": []
+  },
+  "a": {
+   "children": []
+  },
+  "span": {
+   "children": []
+  },
+  "bdo": {
+   "children": []
+  },
+  "br": {
+   "children": []
+  },
+  "em": {
+   "children": []
+  },
+  "strong": {
+   "children": []
+  },
+  "dfn": {
+   "children": []
+  },
+  "code": {
+   "children": []
+  },
+  "samp": {
+   "children": []
+  },
+  "kbd": {
+   "children": []
+  },
+  "var": {
+   "children": []
+  },
+  "cite": {
+   "children": []
+  },
+  "abbr": {
+   "children": []
+  },
+  "acronym": {
+   "children": []
+  },
+  "q": {
+   "children": []
+  },
+  "sub": {
+   "children": []
+  },
+  "sup": {
+   "children": []
+  },
+  "tt": {
+   "children": []
+  },
+  "i": {
+   "children": []
+  },
+  "b": {
+   "children": []
+  },
+  "big": {
+   "children": []
+  },
+  "small": {
+   "children": []
+  },
+  "img": {
+   "children": []
+  },
+  "map": {
+   "children": [
+    "area",
+    "block"
+   ]
+  },
+  "area": {
+   "children": []
+  },
+  "table": {
+   "children": [
+    "caption",
+    "colgroup",
+    "col",
+    "thead",
+    "tfoot",
+    "tr",
+    "tbody"
+   ]
+  },
+  "caption": {
+   "children": []
+  },
+  "thead": {
+   "children": [
+    "tr"
+   ]
+  },
+  "tfoot": {
+   "children": [
+    "tr"
+   ]
+  },
+  "tbody": {
+   "children": [
+    "tr"
+   ]
+  },
+  "colgroup": {
+   "children": [
+    "col"
+   ]
+  },
+  "col": {
+   "children": []
+  },
+  "tr": {
+   "children": [
+    "th",
+    "td"
+   ]
+  },
+  "th": {
+   "children": []
+  },
+  "td": {
+   "children": []
+  },
+  "ruby": {
+   "children": [
+    "rtc",
+    "rp",
+    "rt",
+    "rbc",
+    "rb"
+   ]
+  },
+  "rbc": {
+   "children": [
+    "rb"
+   ]
+  },
+  "rtc": {
+   "children": [
+    "rt"
+   ]
+  },
+  "rb": {
+   "children": []
+  },
+  "rp": {
+   "children": []
+  },
+  "rt": {
+   "children": []
+  }
+ }
+}

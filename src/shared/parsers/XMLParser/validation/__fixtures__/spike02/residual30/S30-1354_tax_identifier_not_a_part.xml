@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference">
+<Header><Sender><SenderName>SPIKE-02</SenderName></Sender><SentDateTime>20260909T1200</SentDateTime></Header>
+<Product>
+<RecordReference>spike02.S30-1354</RecordReference>
+<NotificationType>03</NotificationType>
+<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>
+<DescriptiveDetail>
+<ProductComposition>10</ProductComposition>
+<ProductForm>SA</ProductForm>
+<ProductPart><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000019</IDValue></ProductIdentifier><ProductForm>BC</ProductForm><NumberOfCopies>1</NumberOfCopies></ProductPart><ProductPart><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000026</IDValue></ProductIdentifier><ProductForm>BC</ProductForm><NumberOfCopies>1</NumberOfCopies></ProductPart>
+<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Residual S30-1354</TitleText></TitleElement></TitleDetail>
+
+</DescriptiveDetail>
+
+<PublishingDetail>
+<Publisher><PublishingRole>01</PublishingRole><PublisherName>SPIKE</PublisherName></Publisher>
+<PublishingStatus>04</PublishingStatus>
+<PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260101</Date></PublishingDate>
+</PublishingDetail>
+<ProductSupply><Market><Territory><CountriesIncluded>GB</CountriesIncluded></Territory></Market><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>S</SupplierName></Supplier><ProductAvailability>20</ProductAvailability><Price><PriceType>02</PriceType><PriceAmount>12.00</PriceAmount><Tax><ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000033</IDValue></ProductIdentifier><TaxType>01</TaxType><TaxRateCode>S</TaxRateCode><TaxRatePercent>20</TaxRatePercent><TaxableAmount>10.00</TaxableAmount><TaxAmount>2.00</TaxAmount></Tax><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>
+</Product>
+</ONIXMessage>

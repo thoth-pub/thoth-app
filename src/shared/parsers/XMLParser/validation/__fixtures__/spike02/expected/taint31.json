@@ -1,0 +1,747 @@
+{
+ "T1_empty_textcontent_recovery.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "stop": null,
+  "ordinary": [
+   {
+    "kind": "RECOVERABLE",
+    "xpath": "/*/*[2]/*[5]/*",
+    "resolved_path": "/ONIXMessage[1]/Product[1]/CollateralDetail[1]/TextContent[1]",
+    "message": "Element '{http://ns.editeur.org/onix/3.1/reference}TextContent': Missing child element(s). Expected is one of ( {http://ns.editeur.org/onix/3.1/reference}Conten",
+    "taint": [
+     "(recovery site) /ONIXMessage[1]/Product[1]/CollateralDetail[1]"
+    ]
+   }
+  ],
+  "recoveries": [
+   {
+    "recovery": "OMIT_INVALID_COMPOSITE",
+    "removed": "/ONIXMessage[1]/Product[1]/CollateralDetail[1]/TextContent[1]",
+    "taint_site": "/ONIXMessage[1]/Product[1]/CollateralDetail[1]"
+   }
+  ],
+  "findings": [
+   {
+    "tier": "strict",
+    "id": "_20181026_a_1",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]",
+    "blocking_class": true,
+    "disposition": "SECONDARY",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::CollateralDetail",
+     "child::CollateralDetail/child::*",
+     "/…?",
+     "/…?",
+     "child::NotificationType",
+     "/…?"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Product[1]/CollateralDetail[1]"
+    ]
+   },
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20190410_c_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Header[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:MessageNumber"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "R-CL-17-FOLLOWS",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::ContributorRole",
+     "child::SequenceNumber",
+     "parent::node()/child::Contributor",
+     "child::SequenceNumber",
+     "preceding-sibling::Contributor"
+    ],
+    "tainted_dependencies": []
+   }
+  ],
+  "counts": {
+   "ordinary_blocking": 0,
+   "ordinary_recoverable": 1,
+   "later_blocking_before_projection": 2,
+   "later_blocking_after_projection": 1,
+   "later_secondary": 1,
+   "not_evaluable": 0,
+   "total_blocking_before": 2,
+   "total_blocking_after": 1
+  }
+ },
+ "T2_priceamount_zero.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "stop": null,
+  "ordinary": [
+   {
+    "kind": "BLOCKING",
+    "xpath": "/*/*[2]/*[6]/*[2]/*[3]/*[2]",
+    "resolved_path": "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1]",
+    "message": "Element '{http://ns.editeur.org/onix/3.1/reference}PriceAmount': [facet 'minExclusive'] The value '0.00' must be greater than '0'.\n",
+    "taint": [
+     "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1] (subtree)"
+    ]
+   }
+  ],
+  "recoveries": [],
+  "findings": [
+   {
+    "tier": "strict",
+    "id": "_20171221_a_1",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    "blocking_class": false,
+    "disposition": "SECONDARY",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::PriceAmount",
+     "child::Tax",
+     "/…?",
+     "/…?",
+     "child::Tax/child::TaxableAmount",
+     "/…?"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1]"
+    ]
+   },
+   {
+    "tier": "strict",
+    "id": "_20171221_a_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    "blocking_class": false,
+    "disposition": "SECONDARY",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::PriceAmount",
+     "child::Tax",
+     "/…?",
+     "/…?",
+     "child::Tax/child::TaxableAmount",
+     "/…?"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1]"
+    ]
+   },
+   {
+    "tier": "strict",
+    "id": "_20171221_c_1",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/Tax[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::TaxableAmount",
+     "child::TaxRatePercent",
+     "/…?",
+     "/…?",
+     "child::TaxAmount",
+     "/…?"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20190410_c_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Header[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:MessageNumber"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "R-CL-17-FOLLOWS",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::ContributorRole",
+     "child::SequenceNumber",
+     "parent::node()/child::Contributor",
+     "child::SequenceNumber",
+     "preceding-sibling::Contributor"
+    ],
+    "tainted_dependencies": []
+   }
+  ],
+  "counts": {
+   "ordinary_blocking": 1,
+   "ordinary_recoverable": 0,
+   "later_blocking_before_projection": 1,
+   "later_blocking_after_projection": 1,
+   "later_secondary": 2,
+   "not_evaluable": 0,
+   "total_blocking_before": 2,
+   "total_blocking_after": 2
+  }
+ },
+ "T3_taxableamount_zero.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "stop": null,
+  "ordinary": [
+   {
+    "kind": "BLOCKING",
+    "xpath": "/*/*[2]/*[6]/*[2]/*[3]/*[3]/*[4]",
+    "resolved_path": "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/Tax[1]/TaxableAmount[1]",
+    "message": "Element '{http://ns.editeur.org/onix/3.1/reference}TaxableAmount': [facet 'minExclusive'] The value '0.00' must be greater than '0'.\n",
+    "taint": [
+     "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/Tax[1]/TaxableAmount[1] (subtree)"
+    ]
+   }
+  ],
+  "recoveries": [],
+  "findings": [
+   {
+    "tier": "strict",
+    "id": "_20171221_a_1",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    "blocking_class": false,
+    "disposition": "SECONDARY",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::PriceAmount",
+     "child::Tax",
+     "/…?",
+     "/…?",
+     "child::Tax/child::TaxableAmount",
+     "/…?"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/Tax[1]/TaxableAmount[1]"
+    ]
+   },
+   {
+    "tier": "strict",
+    "id": "_20171221_a_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    "blocking_class": false,
+    "disposition": "SECONDARY",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::PriceAmount",
+     "child::Tax",
+     "/…?",
+     "/…?",
+     "child::Tax/child::TaxableAmount",
+     "/…?"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/Tax[1]/TaxableAmount[1]"
+    ]
+   },
+   {
+    "tier": "strict",
+    "id": "_20171221_c_1",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/Tax[1]",
+    "blocking_class": false,
+    "disposition": "SECONDARY",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::TaxableAmount",
+     "child::TaxRatePercent",
+     "/…?",
+     "/…?",
+     "child::TaxAmount",
+     "/…?"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/Tax[1]/TaxableAmount[1]"
+    ]
+   },
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20190410_c_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Header[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:MessageNumber"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "R-CL-17-FOLLOWS",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::ContributorRole",
+     "child::SequenceNumber",
+     "parent::node()/child::Contributor",
+     "child::SequenceNumber",
+     "preceding-sibling::Contributor"
+    ],
+    "tainted_dependencies": []
+   }
+  ],
+  "counts": {
+   "ordinary_blocking": 1,
+   "ordinary_recoverable": 0,
+   "later_blocking_before_projection": 1,
+   "later_blocking_after_projection": 1,
+   "later_secondary": 3,
+   "not_evaluable": 0,
+   "total_blocking_before": 2,
+   "total_blocking_after": 2
+  }
+ },
+ "T4_negative_numberofillustrations.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "stop": null,
+  "ordinary": [
+   {
+    "kind": "BLOCKING",
+    "xpath": "/*/*[2]/*[4]/*[5]",
+    "resolved_path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/NumberOfIllustrations[1]",
+    "message": "Element '{http://ns.editeur.org/onix/3.1/reference}NumberOfIllustrations': '-3' is not a valid value of the atomic type '{http://ns.editeur.org/onix/3.1/referen",
+    "taint": [
+     "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/NumberOfIllustrations[1] (subtree)"
+    ]
+   }
+  ],
+  "recoveries": [],
+  "findings": [
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20190410_c_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Header[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:MessageNumber"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "R-CL-17-FOLLOWS",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::ContributorRole",
+     "child::SequenceNumber",
+     "parent::node()/child::Contributor",
+     "child::SequenceNumber",
+     "preceding-sibling::Contributor"
+    ],
+    "tainted_dependencies": []
+   }
+  ],
+  "counts": {
+   "ordinary_blocking": 1,
+   "ordinary_recoverable": 0,
+   "later_blocking_before_projection": 1,
+   "later_blocking_after_projection": 1,
+   "later_secondary": 0,
+   "not_evaluable": 0,
+   "total_blocking_before": 2,
+   "total_blocking_after": 2
+  }
+ },
+ "T5_missing_mandatory_child.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "stop": null,
+  "ordinary": [
+   {
+    "kind": "BLOCKING",
+    "xpath": "/*/*[2]/*[4]",
+    "resolved_path": "/ONIXMessage[1]/Product[1]/ProductIdentifier[2]",
+    "message": "Element '{http://ns.editeur.org/onix/3.1/reference}ProductIdentifier': Missing child element(s). Expected is one of ( {http://ns.editeur.org/onix/3.1/reference}",
+    "taint": [
+     "/ONIXMessage[1]/Product[1]/ProductIdentifier[2] (subtree)"
+    ]
+   }
+  ],
+  "recoveries": [],
+  "findings": [
+   {
+    "tier": "strict",
+    "id": "_20171126_c_7",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]/ProductIdentifier[2]",
+    "blocking_class": true,
+    "disposition": "SECONDARY",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::ProductIDType",
+     "child::IDTypeName"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Product[1]/ProductIdentifier[2]",
+     "/ONIXMessage[1]/Product[1]/ProductIdentifier[2]/ProductIDType[1]"
+    ]
+   },
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20190410_c_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Header[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:MessageNumber"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "R-CL-17-FOLLOWS",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::ContributorRole",
+     "child::SequenceNumber",
+     "parent::node()/child::Contributor",
+     "child::SequenceNumber",
+     "preceding-sibling::Contributor"
+    ],
+    "tainted_dependencies": []
+   }
+  ],
+  "counts": {
+   "ordinary_blocking": 1,
+   "ordinary_recoverable": 0,
+   "later_blocking_before_projection": 2,
+   "later_blocking_after_projection": 1,
+   "later_secondary": 1,
+   "not_evaluable": 0,
+   "total_blocking_before": 3,
+   "total_blocking_after": 2
+  }
+ },
+ "T6_identity_violation.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "stop": null,
+  "ordinary": [
+   {
+    "kind": "BLOCKING_IDENTITY",
+    "xpath": "/*/*[2]/*[4]/*[4]",
+    "resolved_path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/ProductFormDetail[2]",
+    "message": "Element '{http://ns.editeur.org/onix/3.1/reference}ProductFormDetail': Duplicate key-sequence ['B401'] in unique identity-constraint '{http://ns.editeur.org/oni",
+    "taint": [
+     "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/ProductFormDetail[2]"
+    ]
+   }
+  ],
+  "recoveries": [],
+  "findings": [
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20190410_c_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Header[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:MessageNumber"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "thoth",
+    "id": "R-CL-17-FOLLOWS",
+    "klass": "NORMATIVE_INVALID",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]",
+    "blocking_class": true,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::ContributorRole",
+     "child::SequenceNumber",
+     "parent::node()/child::Contributor",
+     "child::SequenceNumber",
+     "preceding-sibling::Contributor"
+    ],
+    "tainted_dependencies": []
+   }
+  ],
+  "counts": {
+   "ordinary_blocking": 1,
+   "ordinary_recoverable": 0,
+   "later_blocking_before_projection": 1,
+   "later_blocking_after_projection": 1,
+   "later_secondary": 0,
+   "not_evaluable": 0,
+   "total_blocking_before": 2,
+   "total_blocking_after": 2
+  }
+ },
+ "T7_global_rule_with_tainted_product.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "stop": null,
+  "ordinary": [
+   {
+    "kind": "BLOCKING",
+    "xpath": "/*/*[3]/*[6]/*[2]/*[3]/*[2]",
+    "resolved_path": "/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1]",
+    "message": "Element '{http://ns.editeur.org/onix/3.1/reference}PriceAmount': [facet 'minExclusive'] The value '0.00' must be greater than '0'.\n",
+    "taint": [
+     "/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1] (subtree)"
+    ]
+   },
+   {
+    "kind": "BLOCKING_IDENTITY",
+    "xpath": "/*/*[3]",
+    "resolved_path": "/ONIXMessage[1]/Product[2]",
+    "message": "Element '{http://ns.editeur.org/onix/3.1/reference}Product': Duplicate key-sequence ['spike02.T7'] in unique identity-constraint '{http://ns.editeur.org/onix/3.",
+    "taint": [
+     "/ONIXMessage[1]/Product[2]/RecordReference[1]"
+    ]
+   }
+  ],
+  "recoveries": [],
+  "findings": [
+   {
+    "tier": "strict",
+    "id": "_20171126_a_3",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::Product",
+     "child::ProductIdentifier",
+     "child::ProductIDType",
+     "child::Product/child::ProductIdentifier/child::IDValue",
+     "child::ProductIDType"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "strict",
+    "id": "_20171221_a_1",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    "blocking_class": false,
+    "disposition": "SECONDARY",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::PriceAmount",
+     "child::Tax",
+     "/…?",
+     "/…?",
+     "child::Tax/child::TaxableAmount",
+     "/…?"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1]"
+    ]
+   },
+   {
+    "tier": "strict",
+    "id": "_20171221_a_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    "blocking_class": false,
+    "disposition": "SECONDARY",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::PriceAmount",
+     "child::Tax",
+     "/…?",
+     "/…?",
+     "child::Tax/child::TaxableAmount",
+     "/…?"
+    ],
+    "tainted_dependencies": [
+     "/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]/PriceAmount[1]"
+    ]
+   },
+   {
+    "tier": "strict",
+    "id": "_20171221_c_1",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Product[2]/ProductSupply[1]/SupplyDetail[1]/Price[1]/Tax[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": "subtree(context)",
+    "dependency_paths": [
+     "child::TaxableAmount",
+     "child::TaxRatePercent",
+     "/…?",
+     "/…?",
+     "child::TaxAmount",
+     "/…?"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20240205_a_12",
+    "klass": "DEPRECATED_OR_INFORMATIONAL",
+    "path": "/ONIXMessage[1]/Product[2]/DescriptiveDetail[1]/TitleDetail[1]/TitleElement[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:TitleText"
+    ],
+    "tainted_dependencies": []
+   },
+   {
+    "tier": "schematron",
+    "id": "_20190410_c_2",
+    "klass": "ADVISORY",
+    "path": "/ONIXMessage[1]/Header[1]",
+    "blocking_class": false,
+    "disposition": "AUTHORITATIVE",
+    "scope_fallback": null,
+    "dependency_paths": [
+     "child::onix:MessageNumber"
+    ],
+    "tainted_dependencies": []
+   }
+  ],
+  "counts": {
+   "ordinary_blocking": 2,
+   "ordinary_recoverable": 0,
+   "later_blocking_before_projection": 0,
+   "later_blocking_after_projection": 0,
+   "later_secondary": 2,
+   "not_evaluable": 0,
+   "total_blocking_before": 2,
+   "total_blocking_after": 2
+  }
+ }
+}

@@ -1,0 +1,11 @@
+{
+ "C-List158-53_resourcecontenttype_53_in_31.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ }
+}

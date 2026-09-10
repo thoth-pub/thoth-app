@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+<Header><Sender><SenderName>SPIKE-02</SenderName></Sender><SentDateTime>20260909T1200</SentDateTime></Header>
+<Product>
+<RecordReference>spike02.RUNIQ-CONTRIBREF</RecordReference>
+<NotificationType>03</NotificationType>
+<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>
+<DescriptiveDetail>
+<ProductComposition>00</ProductComposition>
+<ProductForm>BC</ProductForm>
+
+<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Residual RUNIQ-CONTRIBREF</TitleText></TitleElement></TitleDetail>
+<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole><NameIdentifier><NameIDType>16</NameIDType><IDValue>0000000121032683</IDValue></NameIdentifier><PersonName>Jane Doe</PersonName></Contributor>
+
+</DescriptiveDetail>
+<PromotionDetail><PromotionalEvent><EventType>01</EventType><ContentAudience>00</ContentAudience><EventName>Launch talk</EventName><ContributorReference><ContributorRole>A01</ContributorRole><ContributorRole>A01</ContributorRole><NameIdentifier><NameIDType>16</NameIDType><IDValue>0000000121032683</IDValue></NameIdentifier></ContributorReference><EventOccurrence><OccurrenceDate><OccurrenceDateRole>01</OccurrenceDateRole><Date dateformat="00">20260101</Date></OccurrenceDate><EventStatus>A</EventStatus></EventOccurrence></PromotionalEvent></PromotionDetail>
+<PublishingDetail>
+<Publisher><PublishingRole>01</PublishingRole><PublisherName>SPIKE</PublisherName></Publisher>
+<PublishingStatus>04</PublishingStatus>
+<PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260101</Date></PublishingDate>
+</PublishingDetail>
+
+</Product>
+</ONIXMessage>

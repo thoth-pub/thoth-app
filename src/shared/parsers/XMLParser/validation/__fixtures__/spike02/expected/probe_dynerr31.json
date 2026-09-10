@@ -1,0 +1,133 @@
+{
+ "D-AR-bad_second_grade_11.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20180129_b_2",
+   "_20180129_d_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "D-AR-valid_two_ages_17.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "D-AR-valid_two_grades_11.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "D-PFF19-two_descriptions_both_valid.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20190410_f_1(dyn)",
+   "_20191128_d_1(dyn)",
+   "_20240412_b_2(dyn)",
+   "_20240412_b_3(dyn)",
+   "_20240412_b_6(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "D-PFF19-two_descriptions_one_bad.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20190410_f_1(dyn)",
+   "_20191128_d_1(dyn)",
+   "_20240412_b_2(dyn)",
+   "_20240412_b_3(dyn)",
+   "_20240412_b_6(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "D-PFF21-single_bad_description.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20191128_d_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "D-PFF21-two_descriptions_both_valid.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20190410_f_1(dyn)",
+   "_20191128_d_1(dyn)",
+   "_20240412_b_2(dyn)",
+   "_20240412_b_3(dyn)",
+   "_20240412_b_6(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "D-PFF21-two_descriptions_one_bad.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20190410_f_1(dyn)",
+   "_20191128_d_1(dyn)",
+   "_20240412_b_2(dyn)",
+   "_20240412_b_3(dyn)",
+   "_20240412_b_6(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "D-PFF47-two_descriptions_both_valid.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20190410_f_1(dyn)",
+   "_20191128_d_1(dyn)",
+   "_20240412_b_2(dyn)",
+   "_20240412_b_3(dyn)",
+   "_20240412_b_6(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ },
+ "D-PFF47-two_descriptions_one_bad.xml": {
+  "release": "3.1",
+  "stage2": null,
+  "strict": [
+   "_20190410_f_1(dyn)",
+   "_20191128_d_1(dyn)",
+   "_20240412_b_2(dyn)",
+   "_20240412_b_3(dyn)",
+   "_20240412_b_6(dyn)"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240205_a_12/warn"
+  ]
+ }
+}

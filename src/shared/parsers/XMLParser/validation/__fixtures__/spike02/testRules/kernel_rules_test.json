@@ -1,0 +1,54 @@
+[
+ {
+  "id": "T-FAIL-RAISES",
+  "kind": "TEST",
+  "owner": "Product",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "TEST",
+  "authority": "test: evaluation raises -> must be an explicit RULE_NOT_EVALUABLE finding, never an implicit PASS",
+  "xpath": "error()"
+ },
+ {
+  "id": "T-UNKNOWN-CONFINED",
+  "kind": "TEST",
+  "owner": "Product",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "TEST",
+  "authority": "test: variable-rooted path (unknown dependency) with no escaping axis/function -> fallback subtree(context)",
+  "xpath": "not(every $x in ProductIdentifier satisfies exists($x/IDValue))"
+ },
+ {
+  "id": "T-UNKNOWN-ESCAPING",
+  "kind": "TEST",
+  "owner": "Product",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "TEST",
+  "authority": "test: function-rooted dependency (root()) -> fallback whole document",
+  "xpath": "not(exists(root(.)//Header/SentDateTime))"
+ },
+ {
+  "id": "T-CONFINED-FIRES",
+  "kind": "TEST",
+  "owner": "Product",
+  "releases": [
+   "3.0",
+   "3.1"
+  ],
+  "disposition": "NORMATIVE_INVALID",
+  "authority_class": "TEST",
+  "authority": "test: statically resolvable confined dependency; fires on every document",
+  "xpath": "not(exists(RecordReference))"
+ }
+]

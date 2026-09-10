@@ -1,0 +1,517 @@
+{
+ "C-List13-38_issnl_hyphenated.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-SA_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20240412_c_1/warn"
+  ]
+ },
+ "C-List150-SB_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-SC_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-SD_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-SE_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-SF_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-SG_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-SH_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-XC_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7",
+   "_20180214_i_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-XE_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7",
+   "_20180214_i_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-XL_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7",
+   "_20180214_i_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-XM_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7",
+   "_20180214_i_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-XN_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-XO_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List150-XY_no_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_4"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List17-B33_transcribed_without_teller.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List17-Z01_assisted_by_as_first_contributor.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List17-Z04_peer_reviewed_without_unnamedpersons_02.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List17-Z05_posthumously_completed_as_first_contributor.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List17-Z06_in_association_as_first_contributor.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List17-Z98_various_roles_without_etal.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List175-B308_half_bound_no_material.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List175-B309_quarter_bound_no_material.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List196-35_latex_math_without_contenttype_48.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List196-53_described_math_without_contenttype_48.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List196-54_latex_chem_without_contenttype_47.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List196-88_credentialler_name_missing.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List196-89_credentialler_url_missing.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List196-90_certifier_name_missing.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List196-91_assessment_date_not_yyyymmdd.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List21-AVS_anniversary_without_editionstatement.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-101A_with_productformdetail_E107.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-101B_with_productformdetail_E107.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-101C_with_productformdetail_E107.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-101D_with_productformdetail_E107.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-101E_with_productformdetail_E107.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-101F_with_productformdetail_E107.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-107C_with_productformdetail_E101.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-107D_with_productformdetail_E101.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-107F_with_productformdetail_E101.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-107G_with_productformdetail_E101.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-107J_with_productformdetail_E101.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-116A_with_productformdetail_E101.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-116B_with_productformdetail_E101.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List220-116C_with_productformdetail_E101.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List44-42_lei_19_chars.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-42a_ghg_licence_value_not_list262.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20230419_a_1",
+   "_20260310_a_2"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-42b_ghg_licence_without_description.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-47a_eudr_value_not_country.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20240412_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-47b_eudr_description_not_gps.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20240412_b_2"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-48a_eudr_binding_value_not_country.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20240412_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-49a_eudr_other_value_not_country.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20240412_b_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-52_eudr_attestation_bad_country_token.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-60_eudr_url_not_a_url.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-61_eudr_binding_url_not_a_url.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-62_eudr_other_url_not_a_url.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List79-63_eudr_postal_no_country.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "C-List81-35_advertising_generic_with_specific.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20220412_a_1/warn"
+  ]
+ }
+}

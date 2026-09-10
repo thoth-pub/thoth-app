@@ -1,0 +1,41 @@
+{
+ "K-CPPAP_neg_valid_0525C28512.xml": [],
+ "K-CPPAP_pos_bad_shape.xml": [
+  "K-CPPAP-SHAPE"
+ ],
+ "K-EIDR_neg_valid_content_id_hex_check.xml": [],
+ "K-EIDR_neg_valid_content_id_nonhex_check.xml": [],
+ "K-EIDR_pos_wrong_shape.xml": [
+  "K-EIDR-CONTENT-ID"
+ ],
+ "K-LEATHER_neg_B404_with_BB.xml": [],
+ "K-LEATHER_pos_B403_with_BB.xml": [
+  "K-LEATHER-FORM"
+ ],
+ "K-PAPER_neg_WHI.xml": [],
+ "K-PAPER_pos_PNK.xml": [
+  "K-PAPER-COLOUR"
+ ],
+ "K-SIRET_neg_laposte_sum_mod5.xml": [],
+ "K-SIRET_neg_luhn_valid.xml": [],
+ "K-SIRET_pos_bad_check.xml": [
+  "K-SIRET-CHECK"
+ ],
+ "N-List13-38_issnl_8_digits.xml": [],
+ "N-List150-XN_with_productpart.xml": [],
+ "N-List17-B33_with_B07.xml": [],
+ "N-List17-Z01_second_contributor.xml": [],
+ "N-List17-Z04_with_unnamedpersons_02.xml": [],
+ "N-List17-Z98_with_etal.xml": [],
+ "N-List175-B308_with_B401.xml": [],
+ "N-List196-35_with_contenttype_48.xml": [],
+ "N-List196-88_with_description.xml": [],
+ "N-List196-91_valid_date.xml": [],
+ "N-List21-AVS_with_editionstatement.xml": [],
+ "N-List220-101B_with_E101.xml": [],
+ "N-List44-42_lei_20_chars.xml": [],
+ "N-List79-42_with_description.xml": [],
+ "N-List79-52_valid_countries.xml": [],
+ "N-List79-60_url.xml": [],
+ "N-List81-35_alone.xml": []
+}

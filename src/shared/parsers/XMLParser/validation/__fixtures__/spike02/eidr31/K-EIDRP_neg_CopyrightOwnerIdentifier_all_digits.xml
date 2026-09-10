@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+<Header><Sender><SenderName>SPIKE-02</SenderName></Sender><SentDateTime>20260909T1200</SentDateTime></Header>
+<Product>
+<RecordReference>spike02.EPnall_di</RecordReference>
+<NotificationType>03</NotificationType>
+<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>
+<DescriptiveDetail>
+<ProductComposition>00</ProductComposition>
+<ProductForm>BC</ProductForm>
+
+<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Residual EPnall_di</TitleText></TitleElement></TitleDetail>
+
+</DescriptiveDetail>
+
+<PublishingDetail>
+<Publisher><PublishingRole>01</PublishingRole><PublisherName>SPIKE</PublisherName></Publisher>
+<PublishingStatus>04</PublishingStatus>
+<PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260101</Date></PublishingDate>
+<CopyrightStatement><CopyrightYear>2026</CopyrightYear><CopyrightOwner><CopyrightOwnerIdentifier><CopyrightOwnerIDType>29</CopyrightOwnerIDType><IDValue>10.5237/1234-5678</IDValue></CopyrightOwnerIdentifier><CorporateName>Owner</CorporateName></CopyrightOwner></CopyrightStatement>
+</PublishingDetail>
+
+</Product>
+</ONIXMessage>
