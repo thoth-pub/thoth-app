@@ -1,0 +1,1226 @@
+[
+ {
+  "id": "K-PFF-DESC-UN",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 21 / List 243 codes 02-05: description 'must contain a UN number ... UN plus four digits' [kernel of _20191128_d_1]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-PFF-DESC-BATTERY",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 242 codes 02/03: description gives '[number] x [voltage]V' (value 04 'may use' excluded) [kernel of _20190410_f_1]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-EUDR-DESC-GPS",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 codes 47/48/49: description = plots of GPS points (lat lon, comma/semicolon separated, |lat|<=90, -180<lon<=180) [kernel of _20240412_b_2]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-EUDR-DESC-NOMIX",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 47: 'Plot types with one, two or multiple points must not be mixed in a list of multiple plots' [kernel of _20240412_b_3]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-EUDR-DDS-UUID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 50: a description, when present, is a UUID ('There may also be a UUID') [kernel of _20240412_b_6]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-EIDR-CONTENT-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "AVItemIdentifier",
+  "authority_class": "EXTERNAL_ADOPTED",
+  "authority": "Issue-74 List 241 code 31 (DOI beginning 10.5240/, 5 hyphens, hexadecimal suffix) - ONIX-stated structure; check-character alphabet [0-9A-Z] adopted from EIDR ID Format v1.51 (eidr.org, Jun 2024, directly fetched): the adoption only loosens the ONIX 'hexadecimal' reading and never rejects a value either authority permits. PROPOSED adoption (CTO). [kernel of _20171126_c_6]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-CPPAP-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductClassification",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 9 code 22: '10 characters (4 digits, one letter, then five digits)' [kernel of _20171219_b_13]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-LEATHER-FORM",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "DescriptiveDetail, ProductPart",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 175 B403/B405 'Use with <ProductForm> BG'; B404 'Use with <ProductForm> BB (or BG if particularly high-quality)' [kernel of _20180308_a_10]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-PAPER-COLOUR",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "SpecificationFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 249 code 43 + List 257 = {BRW, WHI, OFW, CRE} [kernel of _20210806_d_1]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-SIRET-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "AddresseeIdentifier, AgentIdentifier, ConferenceSponsorIdentifier, CopyrightOwnerIdentifier, EventSponsorIdentifier, FundingIdentifier, ImprintIdentifier, LocationIdentifier, NameIdentifier, ProductContactIdentifier, PublisherIdentifier, SalesOutletIdentifier, SenderIdentifier, SupplierIdentifier",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 44: '14 digits (the SIREN plus a further five digits), without spaces, or occasionally an alphanumeric code' - blocking shape: no whitespace or punctuation; an all-numeric value is exactly 14 digits; an alphanumeric value is admitted (length not stated by ONIX) [kernel of _20241125_a_27…_a_79 (SIRET invalid characters family)]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-SIRET-CHECK",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "AddresseeIdentifier, AgentIdentifier, ConferenceSponsorIdentifier, CopyrightOwnerIdentifier, EventSponsorIdentifier, FundingIdentifier, ImprintIdentifier, LocationIdentifier, NameIdentifier, ProductContactIdentifier, PublisherIdentifier, SalesOutletIdentifier, SenderIdentifier, SupplierIdentifier",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "INSEE: numerical SIRET incorporates a Luhn parity check (direct primary); La Poste exception (SIREN 356000000: digit sum multiple of 5, INSEE Sirene letter n°16, Nov 2013) evidenced only secondarily (fr.wikipedia quotation; sirene.fr unreachable, insee.fr copy not found). Not blocking unless the CTO adopts and pins the INSEE rule including the exception; evaluated only for all-numeric 14-digit values, so it never rejects an alphanumeric SIRET. [kernel of _20241125_a_76 (3.0.8)]",
+  "disposition": "ADVISORY",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-PARTICIPANT-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "AddresseeIdentifier, AgentIdentifier, ConferenceSponsorIdentifier, CopyrightOwnerIdentifier, EventSponsorIdentifier, FundingIdentifier, ImprintIdentifier, LocationIdentifier, NameIdentifier, ProductContactIdentifier, PublisherIdentifier, SalesOutletIdentifier, SenderIdentifier, SupplierIdentifier",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 92 code 45: '12-digits (or 11 digits plus X)'; the check-digit algorithm coded in _20241125_a_76 is EXTERNAL_ADOPTION_REQUIRED (advisory) [kernel of _20241125_a_76 (3.1.3)]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-EIDR-PARTY-ID",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "AddresseeIdentifier, AffiliationIdentifier, ConferenceSponsorIdentifier, CopyrightOwnerIdentifier, EventSponsorIdentifier, ImprintIdentifier, NameIdentifier, ProductContactIdentifier, PublisherIdentifier, RecordSourceIdentifier, SenderIdentifier, SupplyContactIdentifier",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 44 code 29 'EIDR Party ID': 'a DOI beginning 10.5237/ with a suffix of 8 hexadecimal digits and one hyphen, and without the https://doi.org/ or the older http://dx.doi.org/' - ONIX-stated structure only: the prefix, exactly 8 hexadecimal digits and exactly one interior hyphen (17 characters). The 4-4 layout of the ONIX example and every EIDR-owned rule (check characters, registry resolution) are not enforced (not adopted). Kernel of the official code-29 family whose 3.1.3 CopyrightOwnerIdentifier member _20171221_j_28 is unevaluable (malformed regex range a-F -> FORX0002); owners = every identifier composite whose IDType extends List44 in the release's ordinary reference XSD (tables/eidr_party_owners.json). [kernel of _20171221_j_28 (3.1.3 malformed; 3.0.8 prefix-only) + code-29 family _20171126_b_11/_b_23/_b_35/_b_47/_b_59/_b_71/_b_91, _20171221_j_16/_j_40/_j_59/_j_77]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-AUDIENCERANGE-INTEGER",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "AudienceRange",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 30 codes 15, 16, 17, 18: 'values in <AudienceRangeValue> must be integers' (every value; the official <=1000/<=120 bounds are not mandated; _c_5/_c_6 are inert) [kernel of _20180129_c_1/_c_2/_c_5/_c_6]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-LEXILE-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Complexity",
+  "authority_class": "EXTERNAL_ADOPTION_REQUIRED",
+  "authority": "Issue-74 List 32 code 06 describes the Lexile form by example only ('880L', 'AD0L', 'HL600L'); the full scheme (codes, multiples of 5, caps) is owned by MetaMetrics and not pinned. Advisory unless adopted. [kernel of _20171219_g_4]",
+  "disposition": "ADVISORY",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-MEASURE-UNIT-FAMILY",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Measure",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 48 linear dimensions (01-05, 09-16, 19-21, 23-25 and the Issue-74 pallet dimensions 27-29) must use a List 50 length unit (mm, cm, in, px) and only they may; the official set omits 27-29 (medium confidence on the codelist-label reading) [kernel of _20171212_g_1]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-OCCURRENCEDATE-FORMAT13",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "OccurrenceDate",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.27.71 Date: format 13 (explicit, via <DateFormat>, or the default) is YYYYMMDDThhmm optionally followed by Z or a ±hhmm offset; List 55 code 13. The official regex whitelists specific offsets. [kernel of _20171208_d_41]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-TAX-INCTAX-ONLY",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Price",
+  "authority_class": "ONIX_STATED",
+  "authority": "Tax composite: 'used only when <PriceType> indicates an inc-tax price'; P.26.43: PriceType may be omitted when a Header <DefaultPriceType> is given (effective type = PriceType else DefaultPriceType); inc-tax set = Issue-74 List 58 {02,04,07,09,12,14,17,22,24,27,34,42} [kernel of _20171219_c_1]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-TAXEXEMPT-EXCTAX-ONLY",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Price",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.26.70a TaxExempt: 'used only when <PriceType> indicates an exc-tax price' (effective type as above); exc-tax set = List 58 {01,03,05,06,08,11,13,15,21,23,25,31,32,33,41} plus the Issue-74 codes 35, 36, 37 ('excluding tax') the official rule omits [kernel of _20181026_b_1]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-PRICECONSTRAINTLIMIT-ONLYIF",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "PriceConstraint",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 146: a limit may occur only with status 02 'Permitted subject to limit' (codes 01 unlimited / 03 prohibited exclude a limit); the converse ('limit should be specified') is a should [kernel of _20171212_j_1]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-CONTRIBREF-MATCH",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Product",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.27 ContributorReference/NameIdentifier 'must match a name identifier in an instance of <Contributor> ... or <NameAsSubject> ... in the same Product record'; contextual on a block update that omits Blocks 1 and 3 [kernel of _20191128_c_1]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": "NotificationType 04 without DescriptiveDetail and ContentDetail: admitted (contextual)"
+ },
+ {
+  "id": "R-KERNEL-MANIFEST-ID-IFF-PARTS",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Product",
+  "authority_class": "ONIX_STATED",
+  "authority": "Product identifier composite (product part, P.28): 'mandatory and repeatable when <ProductPart> is present within the Product record, but must be omitted if there are no product parts'; contextual on a block update that omits Block 1 or Block 8 [kernel of _20210302_b_1]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": "NotificationType 04 without DescriptiveDetail or without ProductionDetail: admitted"
+ },
+ {
+  "id": "R-KERNEL-TARIC-4ALNUM",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductClassification",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 9 code 20: 'EU TARIC Document codes, 4 alphanumeric characters (usually 1 letter, 3 digits)' [kernel of _20171219_b_11]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-EPUBVALIDATOR-VERSION-PRESENT",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 16: '<ProductFormFeatureValue> is the version number of the validator' (presence; no syntax is mandated) [kernel of _20191128_e_6]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-EUDR-VALUE-SHAPE",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 47: value = List 91 country code, optionally a space and a species name (Latin binomial, optionally + '(common name)'; or a comma-separated list of such names), optionally a space and a harvest date (YYYY, YYYYMM or YYYYMMDD); the official regex admits only one species and 20xx dates [kernel of _20240412_b_1]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-KERNEL-EUDR-DDS-LIST",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 79 code 51: '<ProductFormFeatureValue> is a space-separated list of document references for DDSs' (non-empty token list; the token alphabet is only 'expected to be in a format like') [kernel of _20240412_b_5]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-MANIFEST-ID-MATCHPART",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Product",
+  "authority_class": "ONIX_STATED",
+  "authority": "Product identifier composite (product part, P.28): identifier 'must match a product identifier in an instance of the <ProductPart> composite'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": "NotificationType 04 without DescriptiveDetail: admitted"
+ },
+ {
+  "id": "R-MANIFEST-ID-SAMEPART",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Product",
+  "authority_class": "ONIX_STATED",
+  "authority": "'Where multiple product identifiers are provided in any one occurrence of the <ProductionManifest> composite, they must all identify the same product part'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": "NotificationType 04 without DescriptiveDetail: admitted"
+ },
+ {
+  "id": "R-TAX-ID-MATCHPART",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Product",
+  "authority_class": "ONIX_STATED",
+  "authority": "Tax/ProductIdentifier: 'All identifiers included here must also be included in an instance of <ProductPart>, and ... they must all identify the same product part'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": "NotificationType 04 without DescriptiveDetail: admitted"
+ },
+ {
+  "id": "R-SUPPLEMENT-ID-DISTINCT",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Product",
+  "authority_class": "ONIX_STATED",
+  "authority": "SupplementManifest/ProductIdentifier 'must not match a product identifier within Group P.2 or in an instance of the <ProductPart> composite'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": "the ProductPart half is admitted on a NotificationType 04 record without DescriptiveDetail; the Group P.2 half is always evaluable"
+ },
+ {
+  "id": "R-CL-13-38-ISSNL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "CollectionIdentifier",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 13 code 38: 'Unhyphenated, 8 digits' (blocking: 8 characters, unhyphenated; the final-position X of ISO 3297 is admitted, which only loosens the ONIX reading)",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-17-FOLLOWS",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Contributor",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 17 Z01/Z05/Z06: 'Contributor must follow another contributor'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-17-Z04",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Contributor",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 17 Z04: 'Use with <UnnamedPersons> code 02 as a flag'",
+  "disposition": "ADVISORY",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-17-Z98",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Contributor",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 17 Z98: 'For use ONLY with et al or Various within <UnnamedPersons>'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-17-B33",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Contributor",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 17 B33: 'Use with ... B03, B07 or A28'",
+  "disposition": "ADVISORY",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-21-AVS",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "DescriptiveDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 21 AVS: 'Use <EditionStatement> to describe the nature of the anniversary'",
+  "disposition": "ADVISORY",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-44-42-LEI",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "NameIdentifier",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 44 code 42: 'as 20 alphanumeric characters without spaces or hyphens' (ISO 17442 check digits not enforced: external)",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-79-42-DESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 79 code 42: '<ProductFormFeatureDescription> is a certificate or license number'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-79-52-COUNTRIES",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 79 code 52: 'a space-separated list of country codes from List 91'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-79-URL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 79 codes 60/61/62: '<ProductFormFeatureDescription> is the URL of a GeoJSON file' (absolute-URI syntax only)",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-81-35",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "DescriptiveDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 81 code 35: 'Use only where type of advertising content is not stated'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "K-PRODUCTPART-IFF-MULTI",
+  "kind": "NORMATIVE_KERNEL_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "DescriptiveDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.4 introduction + List 150 SA-SH, XC, XE, XL, XM, XN, XO, XY notes ('must be given in <ProductPart>') [kernel of _20180214_a_7]",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-175-BOUND-MATERIAL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "DescriptiveDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 175 B308/B309: 'Must be accompanied by a code specifying a material' (material set: B401-B406, B409-B418)",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-196-MATH-CONTENT",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "DescriptiveDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 196 codes 35/53 'Use with code 48 from list 81'; 54 'Use with code 47'",
+  "disposition": "ADVISORY",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-196-CERTIFIER-DESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 196 codes 88/89/90: '<ProductFormFeatureDescription> carries the name / URL of the organization'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-196-91-DATE",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ProductFormFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 196 code 91: description 'contains a date in the YYYYMMDD format'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-220-VERSION-FORMDETAIL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "DescriptiveDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "List 220 notes 'Use only with <ProductFormDetail> code(s) ...' (101A: E101/E102; 101B-101F: E101; 107C-107J: E107/E108; 116A: E116/E127; 116B/116C: E116)",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-MSG-XMLDECL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "well-formedness stage",
+  "authority_class": "ONIX_STATED",
+  "authority": "X.1 Start of message: The message begins with an XML declaration line.",
+  "disposition": "ADVISORY",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-XHTML-EVENTATTR",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Text/Flow elements",
+  "authority_class": "ONIX_STATED",
+  "authority": "X.14 Using XHTML: An XHTML fragment may not use event attributes (onfocus/onblur are still declared on <a> in the subset).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-XHTML-INTERLINEAR",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Text/Flow elements",
+  "authority_class": "ONIX_STATED",
+  "authority": "X.14 Using XHTML: XHTML markup must not be mixed with Unicode interlinear annotation delimiters (U+FFF9-U+FFFB) in one element.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-COLLSEQ-TYPENAME",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8"
+  ],
+  "owner": "CollectionSequence",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.5.5b Collection sequence type name: CollectionSequenceTypeName present iff CollectionSequenceType is proprietary (List 197 code 01).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-COLL-TITLELEVEL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Collection/TitleDetail/TitleElement",
+  "authority_class": "ONIX_STATED",
+  "authority": "Title element composite (collection): A TitleElement inside <Collection> must not use TitleElementLevel 01 (product level).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-EDITION-STATEMENT",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "DescriptiveDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.9.4 Edition statement: An EditionStatement must be accompanied by at least one EditionType or an EditionNumber.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-REPEAT-AUDIENCEHEADINGTEXT",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Audience",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.13.4a Audience heading text: Repeated AudienceHeadingText must each carry a language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-REPEAT-TEXTSOURCEDESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8"
+  ],
+  "owner": "TextContent (3.0.8); TextContent/TextSource (3.1.3)",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.14.5a Text source description: Repeated TextSourceDescription must each carry a language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-ALLORNONE-CITEDCONTENT-RESOURCELINK",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "CitedContent",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.15.8 Resource link: Where multiple languages are used in CitedContent/ResourceLink, all repeats carry the language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-EVENTOCC-STARTDATE",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "PromotionalEvent/EventOccurrence",
+  "authority_class": "ONIX_STATED",
+  "authority": "Event occurrence date composite (P.27): Each EventOccurrence carries an OccurrenceDate with OccurrenceDateRole 01 (date the occurrence begins).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-FUNDING-ROLE",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Publisher",
+  "authority_class": "ONIX_STATED",
+  "authority": "Funding composite (P.19): Funding is used only when PublishingRole is a funder role (List 45 codes 14, 15, 16).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-REPEAT-CITYOFPUB",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8"
+  ],
+  "owner": "PublishingDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.19.13 City or town of publication: Repeated CityOfPublication must each carry a language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-REPEAT-RESFILEFEATUREDESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8"
+  ],
+  "owner": "ResourceFileFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.28.23 / P.28.46 Resource file feature description: Repeated ResourceFileFeatureDescription must each carry a language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-REPEAT-RESFILEDESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "CoverResource/BodyResource/InsertResource",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.28.24 / P.28.47 Resource file description: Repeated ResourceFileDescription must each carry a language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-REPEAT-RESFILECONTENTDESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "CoverResource/BodyResource/InsertResource",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.28.25 / P.28.48 Resource file content description: Repeated ResourceFileContentDescription must each carry a language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-REPEAT-SPECFEATUREDESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8"
+  ],
+  "owner": "SpecificationFeature",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.28.36 Specification feature description: Repeated SpecificationFeatureDescription must each carry a language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-REPEAT-SPECDESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8"
+  ],
+  "owner": "BodyManifest/CoverManifest/InsertManifest",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.28.37 Specification description: Repeated SpecificationDescription must each carry a language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-INSERTPOINT-FORMAT",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "InsertPoint",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.28.61 Insertion point value: InsertPointValue conforms to the format of InsertPointType (List 255: ALP/APP integer page number; ATC HHHMMSS[cc]).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-REPEAT-SUPPLEMENT-PRODUCTFORMDESC",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "SupplementManifest",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.28.92 Product form description (supplement): Repeated ProductFormDescription in SupplementManifest must each carry a language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-RETURNS-TYPENAME",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ReturnsConditions",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.26.15 Returns code type name: ReturnsCodeTypeName present iff ReturnsCodeType is proprietary (List 53 code 00).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-NEWSUPPLIER-AVAIL",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "SupplyDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "New supplier composite (P.26): NewSupplier is used only when ProductAvailability is List 65 code 43.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-STOCK-REPEAT-LOCATION",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "SupplyDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "Stock quantity composite (P.26): If Stock is repeated, each instance carries a LocationIdentifier or LocationName.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-STOCKQTY-TYPENAME",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "StockQuantityCoded",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.26.34 Stock quantity code type name: StockQuantityCodeTypeName present iff StockQuantityCodeType is proprietary (List 70 code 01).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-ONORDER-SUM",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Stock",
+  "authority_class": "ONIX_STATED",
+  "authority": "On order detail composite (P.26): Stock/OnOrder >= sum(Stock/OnOrderDetail/OnOrder) when both are present.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-PRICEID-UNIQUE-PRODUCT",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "Product",
+  "authority_class": "ONIX_STATED",
+  "authority": "Price identifier composite (P.26): A PriceIdentifier (type, name, value) is unique across all Price composites of one Product.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-PRICECODE-TYPENAME",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8"
+  ],
+  "owner": "PriceCoded",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.26.64 Price code type name: PriceCodeTypeName present iff PriceCodeType is proprietary (List 179 code 01).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-UNIQ-CONTRIBREF-ROLE-30",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.0.8"
+  ],
+  "owner": "ContributorReference",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.27.9 Event contributor role: ContributorRole values are unique within one ContributorReference (3.0 ordinary lacks the xs:unique that 3.1 ordinary and 3.0 strict carry).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-SUBJECTDESC-NONEMPTY-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "NameAsSubject",
+  "authority_class": "ONIX_STATED",
+  "authority": "X.4 Empty XML elements: SubjectDescription (new in 3.1.3) must not be empty (only XHTML-enabled element missing from the _20180517_b_* family).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-PRODUCTSUPPLY-NONEMPTY-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "ProductSupply",
+  "authority_class": "ONIX_STATED",
+  "authority": "X.4 Empty XML elements: ProductSupply cannot be entirely empty (block update may carry only MarketReference).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-MSG-NO-SCHEMALOCATION-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "ONIXMessage",
+  "authority_class": "ONIX_STATED",
+  "authority": "Using ONIX schemas for validation: xsi:schemaLocation / xsi:noNamespaceSchemaLocation must be removed before exchange (3.1.3 \"must\"; 3.0.8 \"should\").",
+  "disposition": "ADVISORY",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-SUBJECTDESC-TEXTFORMAT-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "NameAsSubject/SubjectDescription",
+  "authority_class": "ONIX_STATED",
+  "authority": "X.14 Using XHTML: XHTML markup in SubjectDescription requires textformat=\"05\" (missing from the _20171208_g_* family).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-LANG-REPEAT-TEXTSOURCELINK-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "TextContent",
+  "authority_class": "ONIX_STATED",
+  "authority": "X.15 Multilingual text / P.14.6a Text source link: Repeated TextSourceLink must each carry a unique language attribute.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-JSONLD-CONTEXT-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "TextContent/Text",
+  "authority_class": "ONIX_STATED",
+  "authority": "X.18 Using JSON-LD: A JSON-LD Text (TextType 24) begins with the @context and @type members.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-P6-ONE-COLLECTION-TITLE-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "DescriptiveDetail/TitleDetail",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.5 Collection (introduction): At most one collection-level (02) TitleElement in the Group P.6 TitleDetail.",
+  "disposition": "ADVISORY",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-COLL-TITLELESS-P6-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "Collection",
+  "authority_class": "ONIX_STATED",
+  "authority": "Collection composite: A Collection without TitleDetail must be a publisher collection (CollectionType 10) whose title is carried at collection level in Group P.6.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-COLLELEMENTLEVEL-MATCH-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "CollectionIdentifier",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.5.2a Collection title element level: CollectionElementLevel matches a TitleElementLevel in the same Collection (or in Group P.6 when the Collection has no TitleDetail).",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-COLLELEMENTLEVEL-CODES-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "CollectionIdentifier",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.5.2a Collection title element level (List 149 note): CollectionElementLevel must not use List 149 codes 01 or 04.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-PUBNAMEINV-NOTFORSALE-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "SalesRights",
+  "authority_class": "ONIX_STATED",
+  "authority": "P.21.9a Publisher name, inverted: PublisherNameInverted in SalesRights is used only when SalesRightsType indicates not-for-sale.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-CL-158-53-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "SupportingResource",
+  "authority_class": "ONIX_STATED",
+  "authority": "Issue-74 List 158 code 53 note: ResourceContentType 53 (\"Deprecated, except for use in ONIX 3.0\") must not be used in a 3.1 message.",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 8,
+  "guard": null
+ },
+ {
+  "id": "R-MSG-NO-DOCTYPE-31",
+  "kind": "RESIDUAL_NORMATIVE_RULE",
+  "releases": [
+   "3.1.3"
+  ],
+  "owner": "prolog",
+  "authority_class": "ONIX_STATED",
+  "authority": "3.1.3 'Using ONIX schemas for validation': any DOCTYPE declaration 'must be removed prior to making the ONIX message available to supply chain partners'",
+  "disposition": "NORMATIVE_INVALID",
+  "execution_stage": 2,
+  "guard": "executed by stage 2 together with P-SECURITY-DTD, before any parse of later tiers; stage 8 is not required after the STOP"
+ },
+ {
+  "id": "P-SECURITY-DTD",
+  "kind": "SECURITY_OR_SUPPORT_POLICY",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "prolog",
+  "authority_class": "THOTH_POLICY",
+  "authority": "Thoth hardening policy (untrusted XML: no DTD/DOCTYPE construct; ONIX 3 needs none)",
+  "disposition": "PROCESSING_STOP (SECURITY_DTD, scope SECURITY)",
+  "execution_stage": 2,
+  "guard": null
+ },
+ {
+  "id": "P-SUPPORT-RELEASE-FLAVOUR",
+  "kind": "SECURITY_OR_SUPPORT_POLICY",
+  "releases": [
+   "3.0.8",
+   "3.1.3"
+  ],
+  "owner": "ONIXMessage",
+  "authority_class": "THOTH_POLICY",
+  "authority": "Thoth supported-source boundary: releases {3.0 Rev 8, 3.1 Rev 3} x {reference, short}, codelists Issue 74",
+  "disposition": "PROCESSING_STOP (UNSUPPORTED_SOURCE, scope SUPPORT)",
+  "execution_stage": 1,
+  "guard": null
+ }
+]

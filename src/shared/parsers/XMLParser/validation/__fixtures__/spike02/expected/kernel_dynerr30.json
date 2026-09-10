@@ -1,0 +1,20 @@
+{
+ "D-AR-bad_second_grade_11.xml": [],
+ "D-AR-valid_two_ages_17.xml": [],
+ "D-AR-valid_two_grades_11.xml": [],
+ "D-PFF19-two_descriptions_both_valid.xml": [],
+ "D-PFF19-two_descriptions_one_bad.xml": [
+  "K-PFF-DESC-BATTERY"
+ ],
+ "D-PFF21-single_bad_description.xml": [
+  "K-PFF-DESC-UN"
+ ],
+ "D-PFF21-two_descriptions_both_valid.xml": [],
+ "D-PFF21-two_descriptions_one_bad.xml": [
+  "K-PFF-DESC-UN"
+ ],
+ "D-PFF47-two_descriptions_both_valid.xml": [],
+ "D-PFF47-two_descriptions_one_bad.xml": [
+  "K-EUDR-DESC-GPS"
+ ]
+}
