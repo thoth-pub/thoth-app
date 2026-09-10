@@ -2,7 +2,10 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
-import { beforeAll, describe, expect, it } from 'vitest';
+import { beforeAll, describe, expect, it, vi } from 'vitest';
+
+// Corpus-scale suites: under coverage instrumentation they exceed the default 5 s per test.
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
 import { SCHEMA_MODELS } from '../schemaModel';
 import { evaluateSourceGate } from '../sourceGate';

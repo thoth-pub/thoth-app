@@ -2,7 +2,10 @@
 import { createHash } from 'node:crypto';
 
 import { evaluateXPath, evaluateXPathToBoolean } from 'fontoxpath';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+
+// Corpus-scale suites: under coverage instrumentation they exceed the default 5 s per test.
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
 import { createCharacterClassSet, DERIVED_CHARACTER_CLASSES } from './characterClasses';
 
