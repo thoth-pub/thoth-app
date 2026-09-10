@@ -1,0 +1,54 @@
+import type { ProvenanceDto } from './protocol';
+
+/**
+ * Client-side reconstruction of the source identity of a canonical element
+ * from the provenance sidecar (no DOM, no Worker): the original Short tag and
+ * the original source-flavour path of the element at a canonical Reference
+ * path, exactly as #190's in-process `XdmProvenance` reports them.
+ */
+export interface ProvenanceResolver {
+  sourcePathOf(canonicalPath: string): string;
+  sourceTagOf(canonicalPath: string): string;
+}
+
+const STEP = /^([^[]+)\[(\d+)\]$/;
+
+export function createProvenanceResolver(provenance: ProvenanceDto): ProvenanceResolver {
+  if (provenance.kind === 'IDENTITY') {
+    return {
+      sourcePathOf: (path) => path,
+      sourceTagOf: (path) => lastStepName(path),
+    };
+  }
+  const exceptions = new Map(provenance.exceptions.map((e) => [e.path, e]));
+  const own = Object.prototype.hasOwnProperty;
+  const sourceName = (name: string) =>
+    own.call(provenance.referenceToSource, name) ? provenance.referenceToSource[name] : name;
+  return {
+    sourcePathOf(path) {
+      const exception = exceptions.get(path);
+      if (exception) return exception.sourcePath;
+      return (
+        '/' +
+        path
+          .split('/')
+          .filter(Boolean)
+          .map((step) => {
+            const match = STEP.exec(step);
+            return match ? `${sourceName(match[1])}[${match[2]}]` : step;
+          })
+          .join('/')
+      );
+    },
+    sourceTagOf(path) {
+      const exception = exceptions.get(path);
+      return exception ? exception.sourceTag : sourceName(lastStepName(path));
+    },
+  };
+}
+
+function lastStepName(path: string): string {
+  const step = path.slice(path.lastIndexOf('/') + 1);
+  const match = STEP.exec(step);
+  return match ? match[1] : step;
+}

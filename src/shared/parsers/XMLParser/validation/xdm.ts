@@ -146,6 +146,38 @@ export function pathOf(node: Element): string {
 }
 
 /**
+ * Visits every element in document order with its canonical path and its
+ * path under `nameOf` (the same two shapes `pathOf` and `sourcePathOf`
+ * produce), in one pass with per-parent counters (thoth-app#196 provenance
+ * sidecar). Positions are those of the tree as it is at the time of the walk.
+ */
+export function forEachElementPath(
+  root: Document | Element,
+  nameOf: (element: Element) => string,
+  visit: (element: Element, path: string, namedPath: string) => void,
+): void {
+  const walk = (parent: Document | Element, prefix: string, namedPrefix: string) => {
+    const counts = new Map<string, number>();
+    const namedCounts = new Map<string, number>();
+    for (const child of parent.childNodes) {
+      if (child.nodeType !== ELEMENT_NODE) continue;
+      const element = child as Element;
+      const name = element.localName;
+      const named = nameOf(element);
+      const position = (counts.get(name) ?? 0) + 1;
+      const namedPosition = (namedCounts.get(named) ?? 0) + 1;
+      counts.set(name, position);
+      namedCounts.set(named, namedPosition);
+      const path = `${prefix}/${name}[${position}]`;
+      const namedPath = `${namedPrefix}/${named}[${namedPosition}]`;
+      visit(element, path, namedPath);
+      walk(element, path, namedPath);
+    }
+  };
+  walk(root, '', '');
+}
+
+/**
  * Resolves a libxml2 node path to an element: `/*[k]` and `name[k]` steps
  * exactly as the SPIKE-02 v4 taint reference does, and the `prefix:name[k]`
  * steps libxml2 writes for a namespace-prefixed document, matched by prefix,
