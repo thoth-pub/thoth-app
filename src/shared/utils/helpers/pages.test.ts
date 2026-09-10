@@ -74,16 +74,69 @@ describe('parsePageLabel', () => {
     ['B1', 'B', 1],
     ['B20', 'B', 20],
     ['Z125', 'Z', 125],
+    ['A8', 'A', 8],
+    ['A18', 'A', 18],
     // The digits are held to isArabicNumeral, so they read exactly as the same digits alone would.
     ['A01', 'A', 1],
+    // A single Roman symbol is still just a one-letter prefix; both rules yield the same prefix.
+    ['I3', 'I', 3],
+    ['X3', 'X', 3],
   ])('parses the prefixed Arabic label %s as %s%i', (label, prefix, value) => {
     expect(parsePageLabel(label)).toEqual({ scheme: 'prefixedArabic', value, prefix });
   });
 
+  it.each([
+    ['III3', 'III', 3],
+    ['III6', 'III', 6],
+    ['IV10', 'IV', 10],
+    ['XIV12', 'XIV', 12],
+    ['MMMCMXCIX1', 'MMMCMXCIX', 1],
+    // The suffix keeps the positive-Arabic semantics a one-letter prefix has.
+    ['III03', 'III', 3],
+  ])(
+    'parses the Roman-prefixed Arabic label %s as %s%i, keeping the prefix out of the value',
+    (label, prefix, value) => {
+      expect(parsePageLabel(label)).toEqual({ scheme: 'prefixedArabic', value, prefix });
+    },
+  );
+
   it.each(['a1', 'AA1', '1A', 'A0', 'A-1', 'Appendix1', 'A 1', ' A1', 'A1.5'])(
-    'rejects %s, which is not one uppercase letter followed by a positive page number',
+    'rejects %s, which is not a permitted prefix followed by a positive page number',
     (label) => {
       expect(parsePageLabel(label)).toBeNull();
+    },
+  );
+
+  it.each([
+    // Arbitrary multi-letter alphabetic prefixes.
+    'AA3',
+    'ABC3',
+    'IIIA3',
+    // Malformed Roman prefixes under the strict grammar.
+    'IIX3',
+    'VV3',
+    'IIII3',
+    'MMMM3',
+    // Compound prefixes are uppercase only, unlike standalone Roman labels.
+    'iii3',
+    'Iii3',
+    // Custom text, wrong direction, non-positive or non-integer positions, separators.
+    'Appendix3',
+    '3III',
+    'III0',
+    'III3.5',
+    'III-3',
+    'III 3',
+  ])('rejects the compound label %s', (label) => {
+    expect(parsePageLabel(label)).toBeNull();
+  });
+
+  it.each(['II', 'III', 'IV', 'XIV', 'MCMXCIX', 'MMMCMXCIX', 'IIX', 'VV', 'IIII', 'MMMM', 'IC', 'XM', 'AA', 'ABC'])(
+    'accepts %s as a multi-letter prefix exactly when the shared validator accepts it as a Roman numeral',
+    (prefix) => {
+      // Multi-letter prefixes are admitted only through the copied strict Roman grammar, so they
+      // are pinned to the shared validator the same way standalone Roman labels are below.
+      expect(parsePageLabel(`${prefix}3`) !== null).toBe(romanNumeralValidation.safeParse(prefix).success);
     },
   );
 
@@ -195,6 +248,72 @@ describe('interpretPageRange', () => {
       pageCount: 15,
     });
   });
+
+  it.each([
+    ['A8', 'A18', 11],
+    ['A8', '18', 11],
+  ])('keeps the one-letter prefixed range %s to %s at %i pages', (firstPage, lastPage, pageCount) => {
+    expect(interpretPageRange(firstPage, lastPage)).toMatchObject({ status: 'valid', pageCount });
+  });
+
+  it.each([
+    ['III3', 'III6', 4],
+    ['III3', '6', 4],
+    ['XIV10', 'XIV12', 3],
+    ['III3', 'III3', 1],
+    ['III3', '3', 1],
+  ])('accepts the Roman-prefixed range %s to %s and counts %i pages', (firstPage, lastPage, pageCount) => {
+    expect(interpretPageRange(firstPage, lastPage)).toMatchObject({ status: 'valid', pageCount });
+  });
+
+  it('keeps a Roman prefix out of the page arithmetic', () => {
+    // XIV is sequence metadata only: were it folded into the position, 10 and 12 would not be the values.
+    expect(interpretPageRange('XIV10', '12')).toEqual({
+      status: 'valid',
+      first: { scheme: 'prefixedArabic', value: 10, prefix: 'XIV' },
+      last: { scheme: 'arabic', value: 12 },
+      pageCount: 3,
+    });
+  });
+
+  it.each([
+    ['III3', 'IV6'],
+    ['XIV10', 'XV12'],
+    ['I3', 'III6'],
+    ['A3', 'III6'],
+  ])('rejects the prefix change %s to %s by comparing the complete prefix', (firstPage, lastPage) => {
+    expect(interpretPageRange(firstPage, lastPage)).toMatchObject({ status: 'prefixMismatch', pageCount: null });
+  });
+
+  it.each([
+    ['III6', 'III3'],
+    ['III6', '3'],
+  ])('rejects the descending Roman-prefixed range %s to %s', (firstPage, lastPage) => {
+    expect(interpretPageRange(firstPage, lastPage)).toMatchObject({ status: 'descending', pageCount: null });
+  });
+
+  it.each([
+    ['III3', 'XI'],
+    ['3', 'III6'],
+    ['III', 'III6'],
+  ])('rejects the mixed-scheme Roman-prefixed range %s to %s', (firstPage, lastPage) => {
+    expect(interpretPageRange(firstPage, lastPage)).toMatchObject({
+      status: 'incompatibleSchemes',
+      pageCount: null,
+    });
+  });
+
+  it('reports an invalid compound endpoint against that endpoint alone', () => {
+    expect(interpretPageRange('iii3', '6')).toMatchObject({ status: 'invalidFirstPage', pageCount: null });
+    expect(interpretPageRange('III3', 'IIX6')).toMatchObject({ status: 'invalidLastPage', pageCount: null });
+  });
+
+  it.each([
+    ['III3', ''],
+    ['', 'XIV12'],
+  ])('derives no page count from the incomplete Roman-prefixed range %s to %s', (firstPage, lastPage) => {
+    expect(interpretPageRange(firstPage, lastPage)).toMatchObject({ status: 'incomplete', pageCount: null });
+  });
 });
 
 describe('getPagesPlaceholder', () => {
@@ -221,5 +340,6 @@ describe('getPagesPlaceholder', () => {
   it('preserves the entered labels rather than normalising them', () => {
     expect(getPagesPlaceholder('A1', '20', 20, 'p.', 'pp.')).toBe('A1–20 (20pp.)');
     expect(getPagesPlaceholder('IV', 'IX', 6, 'p.', 'pp.')).toBe('IV–IX (6pp.)');
+    expect(getPagesPlaceholder('III3', '6', 4, 'p.', 'pp.')).toBe('III3–6 (4pp.)');
   });
 });

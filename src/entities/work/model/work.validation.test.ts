@@ -117,7 +117,26 @@ describe('chapter page range validation', () => {
     ['B6', 'B20'],
     ['7', '7'],
     ['A3', 'A3'],
+    ['A8', 'A18'],
+    ['A8', '18'],
   ])('accepts the valid range %s to %s', (firstPage, lastPage) => {
+    expect(validatePages(firstPage, lastPage).success).toBe(true);
+  });
+
+  it.each([
+    ['III3', 'III6'],
+    ['III3', '6'],
+    ['XIV10', 'XIV12'],
+    ['III3', 'III3'],
+    ['III3', '3'],
+  ])('accepts the Roman-prefixed range %s to %s', (firstPage, lastPage) => {
+    expect(validatePages(firstPage, lastPage).success).toBe(true);
+  });
+
+  it.each([
+    ['III3', undefined],
+    [undefined, 'XIV12'],
+  ])('keeps the single Roman-prefixed endpoint %s / %s valid', (firstPage, lastPage) => {
     expect(validatePages(firstPage, lastPage).success).toBe(true);
   });
 
@@ -191,6 +210,64 @@ describe('chapter page range validation', () => {
 
     expect(new Set([invalidLabel, incompatible, prefixMismatch, descending]).size).toBe(4);
     expect(invalidLabel).not.toMatch(/custom/i);
+  });
+
+  describe('Roman-prefixed labels', () => {
+    const issuesFor = (firstPage?: string, lastPage?: string) => {
+      const result = validatePages(firstPage, lastPage);
+
+      return result.success
+        ? []
+        : result.error.issues.map((issue) => ({ path: issue.path.join('.'), message: issue.message }));
+    };
+
+    it.each(['AA3', 'ABC3', 'IIX3', 'VV3', 'MMMM3', 'iii3', 'Appendix3', '3III', 'III0'])(
+      'rejects the invalid compound label %s against its own field',
+      (label) => {
+        expect(issuePaths(validatePages(label, undefined))).toEqual(['firstPage']);
+        expect(issuePaths(validatePages(undefined, label))).toEqual(['lastPage']);
+      },
+    );
+
+    it.each([
+      ['III3', 'XI', /same numbering/],
+      ['3', 'III6', /same numbering/],
+      ['III3', 'IV6', /same prefix/],
+      ['III6', 'III3', /must not come before/],
+      ['III6', '3', /must not come before/],
+    ])('reports the pair %s to %s once, against the last page', (firstPage, lastPage, message) => {
+      expect(issuesFor(firstPage, lastPage)).toEqual([{ path: 'lastPage', message: expect.stringMatching(message) }]);
+    });
+
+    it('names both permitted compound prefixes in the label message without implying free text', () => {
+      const [{ message }] = issuesFor('Appendix3', undefined);
+
+      expect(message).toMatch(/one uppercase letter/);
+      expect(message).toMatch(/uppercase Roman numeral/);
+      expect(message).toContain('A1');
+      expect(message).toContain('III3');
+      expect(message).not.toMatch(/custom/i);
+    });
+
+    it('illustrates the complete-prefix comparison in the prefix-mismatch message', () => {
+      const [{ message }] = issuesFor('III3', 'IV6');
+
+      expect(message).toContain('III3–IV6');
+    });
+
+    it('distinguishes the four page-range failures by message', () => {
+      const messageFor = (firstPage: string, lastPage: string) =>
+        issuesFor(firstPage, lastPage)
+          .map((issue) => issue.message)
+          .join(' | ');
+
+      const invalidLabel = messageFor('IIX3', '6');
+      const incompatible = messageFor('III3', 'XI');
+      const prefixMismatch = messageFor('III3', 'IV6');
+      const descending = messageFor('III6', 'III3');
+
+      expect(new Set([invalidLabel, incompatible, prefixMismatch, descending]).size).toBe(4);
+    });
   });
 
   it('leaves the unrelated page-count fields untouched', () => {
