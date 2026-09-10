@@ -1,0 +1,356 @@
+{
+ "A10_two_thema_main_subjects_distinct.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20171218_c_1",
+    "DescriptiveDetail",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]",
+    null
+   ],
+   [
+    "_20190107_e_1",
+    "DescriptiveDetail",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for matches is incorrect. Expected \"?\", but got \"+\"."
+   ],
+   [
+    "_20190107_f_1",
+    "DescriptiveDetail",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for matches is incorrect. Expected \"?\", but got \"+\"."
+   ]
+  ]
+ },
+ "A1_productpart_two_measures_same_type_unit.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20180214_a_1",
+    "DescriptiveDetail",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]",
+    null
+   ],
+   [
+    "_20180214_a_7",
+    "DescriptiveDetail",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]",
+    null
+   ],
+   [
+    "_20180109_d_2",
+    "ProductPart",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/ProductPart[1]",
+    null
+   ]
+  ]
+ },
+ "A2_audiencerange_from_to_grade.xml": {
+  "defaultsApplied": 0,
+  "findings": []
+ },
+ "A3_audiencerange_from_to_reading_speed.xml": {
+  "defaultsApplied": 0,
+  "findings": []
+ },
+ "A4_textcontent_two_from_dates.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20171208_e_9",
+    "TextContent",
+    "/ONIXMessage[1]/Product[1]/CollateralDetail[1]/TextContent[1]",
+    null
+   ],
+   [
+    "_20180109_g_7",
+    "TextContent",
+    "/ONIXMessage[1]/Product[1]/CollateralDetail[1]/TextContent[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for contains is incorrect. Expected \"?\", but got \"+\"."
+   ]
+  ]
+ },
+ "A5_contributor_two_birth_dates.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20171208_e_2",
+    "Contributor",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]",
+    null
+   ],
+   [
+    "_20180109_f_1",
+    "Contributor",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for contains is incorrect. Expected \"?\", but got \"+\"."
+   ]
+  ]
+ },
+ "A6_pff_battery_two_descriptions.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20190410_f_1",
+    "ProductFormFeature",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/ProductFormFeature[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for matches is incorrect. Expected \"?\", but got \"+\"."
+   ],
+   [
+    "_20191128_d_1",
+    "ProductFormFeature",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/ProductFormFeature[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for matches is incorrect. Expected \"?\", but got \"+\"."
+   ],
+   [
+    "_20240412_b_2",
+    "ProductFormFeature",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/ProductFormFeature[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for normalize-space is incorrect. Expected \"?\", but got \"+\"."
+   ],
+   [
+    "_20240412_b_3",
+    "ProductFormFeature",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/ProductFormFeature[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for normalize-space is incorrect. Expected \"?\", but got \"+\"."
+   ],
+   [
+    "_20240412_b_6",
+    "ProductFormFeature",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/ProductFormFeature[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for matches is incorrect. Expected \"?\", but got \"+\"."
+   ]
+  ]
+ },
+ "A7_two_embargo_dates.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20171208_e_6",
+    "PublishingDetail",
+    "/ONIXMessage[1]/Product[1]/PublishingDetail[1]",
+    null
+   ],
+   [
+    "_20181113_g_1",
+    "PublishingDetail",
+    "/ONIXMessage[1]/Product[1]/PublishingDetail[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for contains is incorrect. Expected \"?\", but got \"+\"."
+   ]
+  ]
+ },
+ "A8_textitem_two_pageruns.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20181113_d_1",
+    "TextItem",
+    "/ONIXMessage[1]/Product[1]/ContentDetail[1]/ContentItem[1]/TextItem[1]",
+    "Error: XPTY0004: Multiplicity of function argument of type xs:string? for matches is incorrect. Expected \"?\", but got \"+\"."
+   ]
+  ]
+ },
+ "A9_price_two_tax.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20171219_c_1",
+    "Price",
+    "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    null
+   ]
+  ]
+ },
+ "B10_lists_world_plus_regions_excluded.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20180101_a_3",
+    "PublishingDetail",
+    "/ONIXMessage[1]/Product[1]/PublishingDetail[1]",
+    null
+   ]
+  ]
+ },
+ "B11_lists_region_not_in_included_country.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20180101_a_1",
+    "PublishingDetail",
+    "/ONIXMessage[1]/Product[1]/PublishingDetail[1]",
+    null
+   ]
+  ]
+ },
+ "B12_lists_duplicate_country.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20180101_a_1",
+    "PublishingDetail",
+    "/ONIXMessage[1]/Product[1]/PublishingDetail[1]",
+    null
+   ],
+   [
+    "_20170517_g_1",
+    "PublishingDetail",
+    "/ONIXMessage[1]/Product[1]/PublishingDetail[1]",
+    null
+   ],
+   [
+    "_20171126_h_1",
+    "CountriesIncluded",
+    "/ONIXMessage[1]/Product[1]/PublishingDetail[1]/SalesRights[1]/Territory[1]/CountriesIncluded[1]",
+    null
+   ]
+  ]
+ },
+ "B13_lists_market_country_not_in_salesrights.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20180109_h_1",
+    "Product",
+    "/ONIXMessage[1]/Product[1]",
+    null
+   ],
+   [
+    "_20180101_a_1",
+    "PublishingDetail",
+    "/ONIXMessage[1]/Product[1]/PublishingDetail[1]",
+    null
+   ]
+  ]
+ },
+ "B14_extent_leading_zero.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20180118_a_1",
+    "Extent",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Extent[1]",
+    null
+   ]
+  ]
+ },
+ "B15_classification_percents_sum.xml": {
+  "defaultsApplied": 0,
+  "findings": []
+ },
+ "B16_default_conference_role_empty.xml": {
+  "defaultsApplied": 1,
+  "findings": []
+ },
+ "B17_default_copyright_type_empty.xml": {
+  "defaultsApplied": 1,
+  "findings": []
+ },
+ "B1_tax_decimal_precision.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20171219_c_1",
+    "Price",
+    "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    null
+   ]
+  ]
+ },
+ "B2_tax_tolerance_boundary.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20171219_c_1",
+    "Price",
+    "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    null
+   ],
+   [
+    "_20171221_a_1",
+    "Price",
+    "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    null
+   ],
+   [
+    "_20171221_a_2",
+    "Price",
+    "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    null
+   ],
+   [
+    "_20171221_c_1",
+    "Tax",
+    "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/Tax[1]",
+    null
+   ]
+  ]
+ },
+ "B3_tax_percent_boundary.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20171219_c_1",
+    "Price",
+    "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    null
+   ],
+   [
+    "_20171221_a_2",
+    "Price",
+    "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]",
+    null
+   ],
+   [
+    "_20171221_c_1",
+    "Tax",
+    "/ONIXMessage[1]/Product[1]/ProductSupply[1]/SupplyDetail[1]/Price[1]/Tax[1]",
+    null
+   ]
+  ]
+ },
+ "B4_aformat_boundary_pass.xml": {
+  "defaultsApplied": 0,
+  "findings": []
+ },
+ "B5_aformat_boundary_fail.xml": {
+  "defaultsApplied": 0,
+  "findings": []
+ },
+ "B6_measure_equivalence_mm_in.xml": {
+  "defaultsApplied": 0,
+  "findings": []
+ },
+ "B7_sequence_numbers_1_and_01.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20171126_d_7",
+    "DescriptiveDetail",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]",
+    null
+   ],
+   [
+    "_20171126_d_9",
+    "DescriptiveDetail",
+    "/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]",
+    null
+   ]
+  ]
+ },
+ "B8_sequence_numbers_01_02.xml": {
+  "defaultsApplied": 0,
+  "findings": []
+ },
+ "B9_lists_countries_regions.xml": {
+  "defaultsApplied": 0,
+  "findings": [
+   [
+    "_20180101_a_1",
+    "PublishingDetail",
+    "/ONIXMessage[1]/Product[1]/PublishingDetail[1]",
+    null
+   ]
+  ]
+ }
+}
