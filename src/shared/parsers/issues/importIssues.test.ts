@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest';
 
-import type { ImportIssue, ImportIssueSeverity, ImportIssueSource } from '../../types';
-import { errorIssues, importStatus, sortIssues, warningIssues } from './importIssues';
+import type {
+  ImportIssue,
+  ImportIssueSeverity,
+  ImportIssueSource,
+  OnixSourceDiagnostic,
+} from '../../types';
+import {
+  blockingDiagnostics,
+  errorIssues,
+  importStatus,
+  sortIssues,
+  toImportIssues,
+  warningIssues,
+} from './importIssues';
 
 const issue = (severity: ImportIssueSeverity, source: ImportIssueSource, message = 'message'): ImportIssue => ({
   severity,
@@ -86,5 +98,89 @@ describe('sortIssues', () => {
     sortIssues(issues);
 
     expect(messagesOf(issues)).toEqual(['row 3', 'row 1']);
+  });
+});
+
+describe('blockingDiagnostics', () => {
+  const diagnostic = (overrides: Partial<OnixSourceDiagnostic> = {}): OnixSourceDiagnostic => ({
+    classification: 'SOURCE_INVALID',
+    severity: 'error',
+    recovery: 'BLOCKING',
+    code: 'onix.source.invalid_composite',
+    message: 'message',
+    path: 'ONIXMessage/Product[1]',
+    ...overrides,
+  });
+
+  it('partitions on the carried recovery, not on the classification', () => {
+    // Two findings that are equally source-invalid. Only the recovery an approved rule granted
+    // decides whether the import may run, which is the whole point of carrying them separately.
+    const recoverable = diagnostic({ severity: 'warning', recovery: 'OMIT_INVALID_COMPOSITE', message: 'omitted' });
+    const blocking = diagnostic({ message: 'blocked' });
+
+    expect(blockingDiagnostics([recoverable, blocking]).map(({ message }) => message)).toEqual(['blocked']);
+  });
+
+  it('does not block on a valid fact the target cannot represent', () => {
+    const loss = diagnostic({ classification: 'TARGET_UNREPRESENTABLE', severity: 'warning', recovery: 'NONE' });
+
+    expect(blockingDiagnostics([loss])).toEqual([]);
+  });
+});
+
+describe('toImportIssues', () => {
+  const diagnostic = (overrides: Partial<OnixSourceDiagnostic> = {}): OnixSourceDiagnostic => ({
+    classification: 'SOURCE_INVALID',
+    severity: 'error',
+    recovery: 'BLOCKING',
+    code: 'onix.source.invalid_composite',
+    message: 'message',
+    path: 'ONIXMessage/Product[1]/CollateralDetail/TextContent[2]',
+    productIndex: 1,
+    ...overrides,
+  });
+
+  it('carries the exact source path onto the issue the user is shown', () => {
+    expect(toImportIssues([diagnostic({ recordReference: 'REF-1' })])).toEqual([
+      {
+        severity: 'error',
+        code: 'onix.source.invalid_composite',
+        message: 'message',
+        source: {
+          kind: 'onix',
+          productIndex: 1,
+          recordReference: 'REF-1',
+          sourcePath: 'ONIXMessage/Product[1]/CollateralDetail/TextContent[2]',
+        },
+      },
+    ]);
+  });
+
+  it('reports a message-level finding against the file rather than inventing a product 0', () => {
+    const release = diagnostic({ code: 'onix.source.undeclared_release', path: 'ONIXMessage', productIndex: undefined });
+
+    expect(toImportIssues([release])).toEqual([
+      { severity: 'error', code: 'onix.source.undeclared_release', message: 'message', source: { kind: 'file' } },
+    ]);
+  });
+
+  it('keeps informational provenance out of what the user is asked to read', () => {
+    // An accepted spelling that was canonicalised is not something to act on. It stays on the
+    // diagnostic for later reporting rather than becoming an issue in the upload screen.
+    const info = diagnostic({
+      classification: 'SUPPORTED_NORMALIZED',
+      severity: 'info',
+      recovery: 'NONE',
+      code: 'onix.source.normalised_identifier',
+    });
+
+    expect(toImportIssues([info])).toEqual([]);
+  });
+
+  it('turns a recoverable source-invalid finding into a warning, so the import still runs', () => {
+    const recoverable = diagnostic({ severity: 'warning', recovery: 'OMIT_INVALID_COMPOSITE' });
+
+    expect(importStatus(toImportIssues([recoverable]))).toBe('success');
+    expect(importStatus(toImportIssues([diagnostic()]))).toBe('failed');
   });
 });

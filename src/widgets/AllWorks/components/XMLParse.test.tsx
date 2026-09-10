@@ -39,6 +39,7 @@ function createMockFile(
 
 const parsedOnixData: ONIXMessageRoot = {
   ONIXMessage: {
+    '@_release': '3.0',
     Product: [],
   },
 };
@@ -162,6 +163,93 @@ describe('XMLParse', () => {
 
     expect(mockXMLParser).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByTestId('import-phase-parsing')).not.toBeVisible());
+  });
+
+  describe('the supported ONIX release boundary', () => {
+    const parsedWithRelease = (release?: string, namespace?: string): ONIXMessageRoot => ({
+      ONIXMessage: {
+        ...(release === undefined ? {} : { '@_release': release }),
+        ...(namespace === undefined ? {} : { '@_xmlns': namespace }),
+        Product: [],
+      },
+    });
+
+    it('reads a supported ONIX 3.0 message and hands it to the parser', async () => {
+      const onValidationFailure = vi.fn();
+      mockRawParse.mockReturnValue(parsedWithRelease('3.0', 'http://ns.editeur.org/onix/3.0/reference'));
+
+      render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
+
+      await waitFor(() => expect(mockXMLParser).toHaveBeenCalled());
+      expect(onValidationFailure).not.toHaveBeenCalled();
+    });
+
+    it('reads a supported ONIX 3.1 message', async () => {
+      const onValidationFailure = vi.fn();
+      mockRawParse.mockReturnValue(parsedWithRelease('3.1'));
+
+      render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
+
+      await waitFor(() => expect(mockXMLParser).toHaveBeenCalled());
+      expect(onValidationFailure).not.toHaveBeenCalled();
+    });
+
+    it('stops an ONIX 2.1 file before any target mapping runs', async () => {
+      const onValidationFailure = vi.fn();
+      mockRawParse.mockReturnValue(parsedWithRelease('2.1'));
+
+      render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
+
+      await waitFor(() => expect(onValidationFailure).toHaveBeenCalled());
+
+      const [issues] = onValidationFailure.mock.calls[0] as [ImportIssue[]];
+      expect(issues).toHaveLength(1);
+      expect(issues[0]).toMatchObject({
+        severity: 'error',
+        code: 'onix.source.unsupported_release',
+        source: { kind: 'file' },
+      });
+      expect(issues[0].message).toContain('2.1');
+      // The boundary is before the parser, not inside it: nothing was mapped, looked up or built.
+      expect(mockXMLParser).not.toHaveBeenCalled();
+      expect(mockParse).not.toHaveBeenCalled();
+    });
+
+    it('stops a file that declares no release rather than guessing one from its namespace', async () => {
+      const onValidationFailure = vi.fn();
+      mockRawParse.mockReturnValue(parsedWithRelease(undefined, 'http://ns.editeur.org/onix/3.0/reference'));
+
+      render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
+
+      await waitFor(() => expect(onValidationFailure).toHaveBeenCalled());
+
+      const [issues] = onValidationFailure.mock.calls[0] as [ImportIssue[]];
+      expect(issues[0]).toMatchObject({ code: 'onix.source.undeclared_release', severity: 'error' });
+      expect(mockXMLParser).not.toHaveBeenCalled();
+    });
+
+    it('stops a file whose declared release its own ONIX namespace contradicts', async () => {
+      const onValidationFailure = vi.fn();
+      mockRawParse.mockReturnValue(parsedWithRelease('3.0', 'http://ns.editeur.org/onix/3.1/reference'));
+
+      render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={onValidationFailure} />);
+
+      await waitFor(() => expect(onValidationFailure).toHaveBeenCalled());
+
+      const [issues] = onValidationFailure.mock.calls[0] as [ImportIssue[]];
+      expect(issues[0]).toMatchObject({ code: 'onix.source.ambiguous_release', severity: 'error' });
+      expect(mockXMLParser).not.toHaveBeenCalled();
+    });
+
+    it('never fetches anything to decide whether a release is supported', async () => {
+      const fetchSpy = vi.spyOn(globalThis, 'fetch');
+      mockRawParse.mockReturnValue(parsedWithRelease('2.1', 'http://ns.editeur.org/onix/2.1/reference'));
+
+      render(<XMLParse file={createMockFile()} imprints={[]} serieses={[]} onValidationFailure={vi.fn()} />);
+
+      await waitFor(() => expect(mockRawParse).toHaveBeenCalled());
+      expect(fetchSpy).not.toHaveBeenCalled();
+    });
   });
 
   it('uses the generic XML parsing fallback for a non-Error raw parser failure', async () => {

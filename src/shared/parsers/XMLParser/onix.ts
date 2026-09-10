@@ -11,7 +11,7 @@ import {
 import { MarkupFormat } from '@/gql/graphql';
 
 import type { ImportedMarkupFormat } from '../../types/markdown';
-import { canonicaliseDoi } from '../../utils/validations';
+import { canonicaliseDoi, canonicaliseOrcid } from '../../utils/validations';
 import type {
   OnixCollectionLike,
   OnixCollectionSequence,
@@ -114,30 +114,63 @@ export const getOnixTextFormat = (value: OnixText | undefined | null): string =>
 };
 
 /**
- * An ORCID as ONIX normally encodes it: the sixteen characters with no hyphens, the last of
- * which may be the check character `X`.
+ * The resolver spellings of an ORCID that a declared `NameIDType 21` may use, exactly.
+ *
+ * ONIX-AUDIT-PREFLIGHT-RECOVERY-01 approved four spellings of one iD: the bare sixteen
+ * characters, the hyphenated form, `https://orcid.org/<identifier>`, and the scheme-less
+ * `orcid.org/<identifier>` a real publisher file was found to use. The prefixes are enumerated
+ * rather than matched loosely, because the approval is explicit that this must not become
+ * arbitrary URL or domain stripping: `https://www.orcid.org/…`, `orcid.org.uk/…` and
+ * `http://orcid.org/…` are not among the approved spellings and stay malformed.
  */
-const ONIX_ORCID_IDENTIFIER = /^\d{15}[\dX]$/;
+const ORCID_RESOLVER_PREFIXES = [
+  { prefix: 'https://orcid.org/', spelling: 'resolver' },
+  { prefix: 'orcid.org/', spelling: 'resolver_scheme_less' },
+] as const;
+
+/** Which of the approved spellings a source value used, kept so provenance survives. */
+export type OnixOrcidSpelling = 'bare' | 'hyphenated' | (typeof ORCID_RESOLVER_PREFIXES)[number]['spelling'];
 
 /**
- * One declared ORCID in the single form Thoth stores.
+ * One declared ORCID reduced to Thoth's canonical identity, or the news that it cannot be.
  *
- * ONIX's normal encoding of an ORCID is the bare sixteen characters — `0000000163655189` — while
- * Thoth stores, and its API accepts, the hyphenated `0000-0001-6365-5189`. Converting here keeps
- * the ONIX representation inside the ONIX adapter: the app's shared ORCID contract is not
- * widened to understand an encoding only ONIX uses.
- *
- * Any other representation is returned untouched rather than guessed at. A correctly hyphenated
- * identifier — the form `public/templates/template.xml` demonstrates — survives unchanged, and
- * anything that is neither is left for the shared ORCID validation to accept or reject.
+ * The source spelling travels with the result rather than being consumed by it: a later
+ * diagnostic has to be able to say what the file wrote, and identity comparison has to use the
+ * one canonical form. Both need to be available at once.
  */
-const toThothOrcid = (value: string): string => {
-  const identifier = value.replace(/-/g, '').toUpperCase();
+export type OnixOrcidNormalisation =
+  | { kind: 'canonical'; orcid: string; spelling: OnixOrcidSpelling; source: string }
+  /** Declared as an ORCID but not written in any spelling the approved grammar accepts. */
+  | { kind: 'malformed'; source: string };
 
-  if (!ONIX_ORCID_IDENTIFIER.test(identifier)) return value;
+/**
+ * A declared ORCID in the one form Thoth stores.
+ *
+ * ONIX's normal encoding is the bare sixteen characters — `0000000163655189` — while Thoth
+ * stores, and its API accepts, the hyphenated `0000-0001-6365-5189`; publishers also write the
+ * iD as a resolver URL, with or without the scheme. All four are one person and have to reach
+ * one contributor, because the value that is validated has to be the value that is looked up.
+ *
+ * The resolver prefix is removed before the identifier is judged, never after: the shared
+ * {@link canonicaliseOrcid} then decides the identifier on its own narrow terms, so it still
+ * never invents length or separator placement and still refuses `123`, `0000--0001-6365-5189`
+ * and a value carrying boundary whitespace. Anything left over — a trailing `/works`, a query
+ * string, a fragment, a domain that is not `orcid.org` — makes the whole value malformed rather
+ * than being trimmed away until an ORCID-shaped substring appears.
+ *
+ * Knowing that a value is an ORCID at all remains the business of the declared NameIDType; this
+ * reads a value that has already been declared one.
+ */
+export const normaliseOnixOrcid = (value: string): OnixOrcidNormalisation => {
+  const resolver = ORCID_RESOLVER_PREFIXES.find(({ prefix }) => value.startsWith(prefix));
+  const identifier = resolver ? value.slice(resolver.prefix.length) : value;
+  const orcid = canonicaliseOrcid(identifier);
 
-  // Safe by construction: the pattern above fixes the length at sixteen, so this is four groups.
-  return (identifier.match(/.{4}/g) as string[]).join('-');
+  if (!orcid) return { kind: 'malformed', source: value };
+
+  const spelling: OnixOrcidSpelling = resolver ? resolver.spelling : identifier.includes('-') ? 'hyphenated' : 'bare';
+
+  return { kind: 'canonical', orcid, spelling, source: value };
 };
 
 /**
@@ -150,8 +183,14 @@ const toThothOrcid = (value: string): string => {
  * ORCID-shaped. Identity here is deterministic, so it is taken from what the file declares, not
  * from what a value looks like.
  *
+ * The four approved spellings of one iD all reduce to the one canonical form — see
+ * {@link normaliseOnixOrcid} — while a value declared as an ORCID that no approved spelling
+ * covers is passed through exactly as written, for the shared ORCID validation to reject.
+ *
  * A contributor should not declare two ORCIDs; if one somehow does, the first is used, which is
  * the same first-wins rule the surrounding parser applies to every other repeatable identifier.
+ * Treating two distinct iDs as the identity contradiction they are belongs to the contributor
+ * identity work, not here.
  */
 export const selectOnixOrcid = (nameIdentifier: OnixRepeatable<OnixNameIdentifier> | undefined | null): string => {
   const declaredOrcid = toOnixArray(nameIdentifier)
@@ -160,7 +199,11 @@ export const selectOnixOrcid = (nameIdentifier: OnixRepeatable<OnixNameIdentifie
     .map((identifier) => getOnixText(identifier.IDValue))
     .find((value) => value.length > 0);
 
-  return declaredOrcid ? toThothOrcid(declaredOrcid) : '';
+  if (!declaredOrcid) return '';
+
+  const normalised = normaliseOnixOrcid(declaredOrcid);
+
+  return normalised.kind === 'canonical' ? normalised.orcid : declaredOrcid;
 };
 
 /**
