@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+<Header><Sender><SenderName>SPIKE-02</SenderName></Sender><SentDateTime>20260909T1200</SentDateTime></Header>
+<Product>
+<RecordReference>spike02.TXneg</RecordReference>
+<NotificationType>03</NotificationType>
+<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>
+<DescriptiveDetail>
+<ProductComposition>00</ProductComposition>
+<ProductForm>BC</ProductForm>
+
+<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Residual TXneg</TitleText></TitleElement></TitleDetail>
+
+</DescriptiveDetail>
+
+<PublishingDetail>
+<Publisher><PublishingRole>01</PublishingRole><PublisherName>SPIKE</PublisherName></Publisher>
+<PublishingStatus>04</PublishingStatus>
+<PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260101</Date></PublishingDate>
+</PublishingDetail>
+<ProductSupply><Market><Territory><CountriesIncluded>GB</CountriesIncluded></Territory></Market><SupplyDetail><Supplier><SupplierRole>01</SupplierRole><SupplierName>S</SupplierName></Supplier><ProductAvailability>20</ProductAvailability><Price><PriceType>35</PriceType><PriceAmount>12.00</PriceAmount><TaxExempt/><CurrencyCode>GBP</CurrencyCode></Price></SupplyDetail></ProductSupply>
+</Product>
+</ONIXMessage>

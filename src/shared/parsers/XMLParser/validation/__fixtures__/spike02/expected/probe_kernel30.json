@@ -1,0 +1,264 @@
+{
+ "K-CPPAP_neg_valid_0525C28512.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "K-CPPAP_pos_bad_shape.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "K-EIDR_neg_valid_content_id_hex_check.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171126_c_6"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_5/info"
+  ]
+ },
+ "K-EIDR_neg_valid_content_id_nonhex_check.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171126_c_6"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_5/info"
+  ]
+ },
+ "K-EIDR_pos_wrong_shape.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20171126_c_6"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_5/info"
+  ]
+ },
+ "K-LEATHER_neg_B404_with_BB.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180308_a_10"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "K-LEATHER_pos_B403_with_BB.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180308_a_10"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "K-PAPER_neg_WHI.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20210806_d_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "K-PAPER_pos_PNK.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20210806_d_1"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20190426_a_8/info"
+  ]
+ },
+ "K-SIRET_neg_laposte_sum_mod5.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20241125_a_76"
+  ],
+  "schematron": [
+   "_20180202_c_2/warn",
+   "_20190410_c_2/warn"
+  ]
+ },
+ "K-SIRET_neg_luhn_valid.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20180202_c_2/warn",
+   "_20190410_c_2/warn"
+  ]
+ },
+ "K-SIRET_pos_bad_check.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20241125_a_76"
+  ],
+  "schematron": [
+   "_20180202_c_2/warn",
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List13-38_issnl_8_digits.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List150-XN_with_productpart.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [
+   "_20180214_a_7"
+  ],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List17-B33_with_B07.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List17-Z01_second_contributor.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List17-Z04_with_unnamedpersons_02.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List17-Z98_with_etal.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List175-B308_with_B401.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List196-35_with_contenttype_48.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20220412_a_1/warn"
+  ]
+ },
+ "N-List196-88_with_description.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List196-91_valid_date.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List21-AVS_with_editionstatement.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List220-101B_with_E101.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List44-42_lei_20_chars.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List79-42_with_description.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List79-52_valid_countries.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List79-60_url.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn"
+  ]
+ },
+ "N-List81-35_alone.xml": {
+  "release": "3.0",
+  "stage2": null,
+  "strict": [],
+  "schematron": [
+   "_20190410_c_2/warn",
+   "_20220412_a_1/warn"
+  ]
+ }
+}

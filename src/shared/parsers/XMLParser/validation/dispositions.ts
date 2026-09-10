@@ -1,3 +1,4 @@
+import schematronDispositions from './data/schematronDispositions.json';
 import strictDispositions from './data/strictDispositions.json';
 import type { OnixSchemaRelease } from './types';
 
@@ -28,5 +29,25 @@ export const STRICT_DISPOSITIONS = strictDispositions as unknown as Readonly<
 
 export function strictDisposition(release: OnixSchemaRelease, id: string): StrictDisposition | undefined {
   const table = STRICT_DISPOSITIONS[release];
+  return Object.prototype.hasOwnProperty.call(table, id) ? table[id] : undefined;
+}
+
+/**
+ * Versioned Schematron dispositions keyed by (schema release, report id): a
+ * projection of SPIKE-02 v4 `schematron_classification.json`. The report's
+ * `role` attribute is never authority.
+ */
+export type SchematronDispositionClass =
+  | 'NORMATIVE_INVALID'
+  | 'ADVISORY'
+  | 'DEPRECATED_OR_INFORMATIONAL'
+  | 'NOT_SOURCE_VALIDITY';
+
+export const SCHEMATRON_DISPOSITIONS = schematronDispositions as unknown as Readonly<
+  Record<OnixSchemaRelease, Readonly<Record<string, SchematronDispositionClass>>>
+>;
+
+export function schematronDisposition(release: OnixSchemaRelease, id: string): SchematronDispositionClass | undefined {
+  const table = SCHEMATRON_DISPOSITIONS[release];
   return Object.prototype.hasOwnProperty.call(table, id) ? table[id] : undefined;
 }

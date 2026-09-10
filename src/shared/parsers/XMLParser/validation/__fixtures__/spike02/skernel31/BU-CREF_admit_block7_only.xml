@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference">
+<Header><Sender><SenderName>SPIKE-02</SenderName></Sender><SentDateTime>20260909T1200</SentDateTime></Header>
+<Product>
+<RecordReference>spike02.CRbu</RecordReference>
+<NotificationType>04</NotificationType>
+<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>
+
+<PromotionDetail><PromotionalEvent><EventType>01</EventType><ContentAudience>00</ContentAudience><EventName>Launch</EventName><ContributorReference><ContributorRole>A01</ContributorRole><NameIdentifier><NameIDType>16</NameIDType><IDValue>0000000121032699</IDValue></NameIdentifier></ContributorReference><EventOccurrence><OccurrenceDate><OccurrenceDateRole>01</OccurrenceDateRole><Date dateformat="13">20260101T1200</Date></OccurrenceDate><EventStatus>A</EventStatus></EventOccurrence></PromotionalEvent></PromotionDetail>
+
+
+</Product>
+</ONIXMessage>
