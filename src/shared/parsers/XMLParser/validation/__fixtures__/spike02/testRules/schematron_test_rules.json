@@ -1,0 +1,16 @@
+[
+ {
+  "id": "S-TEST-HEADER-DEP",
+  "kind": "report",
+  "context": "//onix:Product",
+  "test": "exists(../onix:Header/onix:SentDateTime)",
+  "klass": "ADVISORY"
+ },
+ {
+  "id": "S-TEST-CONFINED",
+  "kind": "report",
+  "context": "//onix:Product",
+  "test": "exists(onix:RecordReference)",
+  "klass": "ADVISORY"
+ }
+]
