@@ -166,6 +166,38 @@ describe('scanProlog: fail-closed bound', () => {
       expect(text.indexOf('<ONIXMessage')).toBe(PROLOG_SCAN_BOUND - 1);
       expect(scanProlog(text).outcome).toBe('BOUND_EXCEEDED');
     });
+
+    describe('self-closing root terminator', () => {
+      const selfClosing = '<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference"/>';
+      const slashAt = (text: string) => text.indexOf('/>');
+
+      it('accepts a self-closing root whose "/>" lies wholly inside the bound', () => {
+        const text = `${comment(absolute - selfClosing.length)}${selfClosing}`;
+        expect([slashAt(text), slashAt(text) + 1]).toEqual([absolute - 2, absolute - 1]);
+        const scan = scanProlog(text, { bound: absolute });
+        expect(scan.outcome).toBe('ROOT');
+        expect(scan.root).toMatchObject({
+          localName: 'ONIXMessage',
+          attributes: [{ name: 'release', value: '3.0' }, {}],
+        });
+      });
+
+      it('stops when "/" is the last in-bound character and ">" lies at the bound', () => {
+        const text = `${comment(absolute - selfClosing.length + 1)}${selfClosing}`;
+        expect([slashAt(text), slashAt(text) + 1]).toEqual([absolute - 1, absolute]);
+        expect(scanProlog(text, { bound: absolute })).toMatchObject({ outcome: 'BOUND_EXCEEDED', root: null });
+      });
+
+      it('applies the real 1 MiB bound to a self-closing terminator straddling it', () => {
+        const text = `${comment(PROLOG_SCAN_BOUND - selfClosing.length + 1)}${selfClosing}`;
+        expect([slashAt(text), slashAt(text) + 1]).toEqual([PROLOG_SCAN_BOUND - 1, PROLOG_SCAN_BOUND]);
+        expect(scanProlog(text)).toMatchObject({ outcome: 'BOUND_EXCEEDED', root: null });
+      });
+
+      it('leaves a root ending in a bare "/" inside the bound malformed, not a security stop', () => {
+        expect(scanProlog('<ONIXMessage release="3.0"/', { bound: absolute }).outcome).toBe('MALFORMED');
+      });
+    });
   });
 
   it('applies the real 1 MiB bound to a straddling comment', () => {

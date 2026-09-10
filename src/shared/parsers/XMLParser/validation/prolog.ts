@@ -153,7 +153,12 @@ function lexRootTag(text: string, start: number, limit: number): RootStep {
     const wsStart = i;
     while (i < limit && WS.has(text[i])) i++;
     if (i >= limit) return fail('root start tag');
-    if (text[i] === '>' || text.startsWith('/>', i)) break;
+    if (text[i] === '>') break;
+    if (text[i] === '/') {
+      // Both characters of a "/>" terminator must lie inside the same absolute endpoint.
+      if (i + 1 >= limit) return fail('root start tag');
+      if (text[i + 1] === '>') break;
+    }
     if (i === wsStart) return malformed('attribute not separated by whitespace');
     const nameStart = i;
     while (i < limit && !NAME_END.test(text[i])) i++;

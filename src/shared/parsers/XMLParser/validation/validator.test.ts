@@ -202,6 +202,34 @@ describe('createOnixSourceValidator', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
+  it('stops a self-closing root terminator straddling the prolog bound before any resource, parser or later tier', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    requestedResourceUrls.splice(0);
+    const loader = vi.fn(loadResource);
+    const fresh = createOnixSourceValidator({ loadResource: loader });
+    const selfClosing = '<ONIXMessage release="3.0" xmlns="http://ns.editeur.org/onix/3.0/reference"/>';
+    const crossing = `<!--${'x'.repeat(PROLOG_SCAN_BOUND - selfClosing.length - 6)}-->${selfClosing}`;
+    expect(crossing.indexOf('/>')).toBe(PROLOG_SCAN_BOUND - 1);
+    const result = await fresh.validate(encode(crossing));
+    expect(result.status).toBe('STOPPED');
+    expect(result.stop).toEqual({ stage: 2, text: 'STOP after stage 2 (prolog bound exceeded)' });
+    expect(ids(result.findings)).toEqual(['SECURITY_PROLOG_BOUND']);
+    expect(result.source).toBeNull();
+    expect(result.normalized).toBeNull();
+    expect(loader).not.toHaveBeenCalled();
+    expect(requestedResourceUrls).toEqual([]);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    // Control: the same terminator one character earlier proceeds into the ordinary tiers.
+    const inside = `<!--${'x'.repeat(PROLOG_SCAN_BOUND - selfClosing.length - 7)}-->${selfClosing}`;
+    expect(inside.indexOf('/>')).toBe(PROLOG_SCAN_BOUND - 2);
+    const control = await fresh.validate(encode(inside));
+    expect(control.status).toBe('COMPLETED');
+    expect(control.source?.release).toBe('3.0');
+    expect(loader).toHaveBeenCalled();
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it('stops unsupported input as a SUPPORT outcome, never as invalid ONIX', async () => {
     const result = await validator.validate(encode('<ONIXMessage release="2.1"><Header/></ONIXMessage>'));
     expect(result.status).toBe('STOPPED');

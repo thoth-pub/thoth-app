@@ -151,6 +151,29 @@ describe('evaluateSourceGate: prolog bound', () => {
     expect(evaluateSourceGate(text)).toMatchObject({ kind: 'CONTINUE', source: { release: '3.1' } });
   });
 
+  it('a self-closing root terminator straddling the 1 MiB bound stops (P5)', () => {
+    const selfClosing = '<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference"/>';
+    const text = `<!--${'x'.repeat(PROLOG_SCAN_BOUND - selfClosing.length - 6)}-->${selfClosing}`;
+    expect(text.indexOf('/>')).toBe(PROLOG_SCAN_BOUND - 1);
+    const gate = evaluateSourceGate(text);
+    expect(gate.kind === 'STOP' && stage2Projection(gate.findings)).toEqual([boundStop]);
+    expect(gate.kind === 'STOP' && [gate.stage, gate.stopText, gate.source]).toEqual([
+      2,
+      'STOP after stage 2 (prolog bound exceeded)',
+      null,
+    ]);
+  });
+
+  it('continues when a self-closing root terminator lies wholly inside the bound', () => {
+    const selfClosing = '<ONIXMessage release="3.1" xmlns="http://ns.editeur.org/onix/3.1/reference"/>';
+    const text = `<!--${'x'.repeat(PROLOG_SCAN_BOUND - selfClosing.length - 7)}-->${selfClosing}`;
+    expect(text.indexOf('/>')).toBe(PROLOG_SCAN_BOUND - 2);
+    expect(evaluateSourceGate(text)).toMatchObject({
+      kind: 'CONTINUE',
+      source: { release: '3.1', flavour: 'reference' },
+    });
+  });
+
   it('keeps SECURITY_DTD when the DOCTYPE itself cannot be closed within the bound', () => {
     const gate = evaluateSourceGate(
       `<!DOCTYPE ONIXMessage [<!ENTITY a "${'x'.repeat(PROLOG_SCAN_BOUND)}">]>${root('3.1')}`,
