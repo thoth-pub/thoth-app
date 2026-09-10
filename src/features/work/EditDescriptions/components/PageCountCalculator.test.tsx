@@ -72,6 +72,7 @@ describe('PageCountAutoCalculator', () => {
   it.each([
     ['A1', 'A20', '20'],
     ['B6', 'B20', '15'],
+    ['A8', 'A18', '11'],
   ])('counts the repeated-prefix range %s to %s as %s pages', (firstPage, lastPage, expected) => {
     expect(renderCalculator({ firstPage, lastPage })()).toBe(expected);
   });
@@ -79,11 +80,43 @@ describe('PageCountAutoCalculator', () => {
   it.each([
     ['A1', '20', '20'],
     ['B6', '20', '15'],
+    ['A8', '18', '11'],
     ['A3', '3', '1'],
   ])('counts the prefixed shorthand %s to %s as %s pages', (firstPage, lastPage, expected) => {
     // No Arabic-only parser can reach these numbers, so a correct count here is itself the
     // evidence that the calculator reads the shared range interpretation.
     expect(renderCalculator({ firstPage, lastPage })()).toBe(expected);
+  });
+
+  it.each([
+    ['III3', 'III6', '4'],
+    ['III3', '6', '4'],
+    ['XIV10', 'XIV12', '3'],
+    ['III3', 'III3', '1'],
+    ['III3', '3', '1'],
+  ])(
+    'counts the Roman-prefixed range %s to %s from its Arabic positions as %s pages',
+    (firstPage, lastPage, expected) => {
+      expect(renderCalculator({ firstPage, lastPage })()).toBe(expected);
+    },
+  );
+
+  it.each([
+    ['III3', 'IV6'],
+    ['III3', 'XI'],
+    ['3', 'III6'],
+    ['III6', 'III3'],
+    ['III6', '3'],
+    ['iii3', '6'],
+    ['IIX3', '6'],
+    ['AA3', '6'],
+    ['III3', 'VV6'],
+    ['III3', ''],
+  ])('leaves the entered count alone for the unusable Roman-prefixed range %s to %s', (firstPage, lastPage) => {
+    const pageCount = renderCalculator({ firstPage, lastPage });
+
+    expect(pageCount()).toBe(String(ENTERED_PAGE_COUNT));
+    expect(pageCount()).not.toBe('NaN');
   });
 
   it.each([

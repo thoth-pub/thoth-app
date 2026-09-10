@@ -96,9 +96,12 @@ const backMatterCountValidation = optionalPositiveIntValidation;
  * form enforces and the rules the automatic page count applies from drifting apart.
  */
 
-/** Names every supported convention, so the message never implies a free-text page label. */
+/**
+ * Names every supported convention and both prefixes a compound label may carry, so the message
+ * never implies a free-text page label or an arbitrary prefix.
+ */
 const PAGE_LABEL_ERROR =
-  'Must be a positive number (1), a Roman numeral (IV), or one uppercase letter followed by a positive number (A1)';
+  'Must be a positive number (1), a Roman numeral (IV), or a positive number prefixed by either one uppercase letter or a valid uppercase Roman numeral (A1, III3)';
 
 /**
  * The pair failures, each with the field a correction belongs on. Cross-field failures point at the
@@ -106,8 +109,9 @@ const PAGE_LABEL_ERROR =
  * has to reconcile with it.
  */
 const PAGE_RANGE_PAIR_ERRORS: Partial<Record<PageRangeStatus, string>> = {
-  incompatibleSchemes: 'First and last page must use the same numbering (1–20, I–XI, A1–20 or A1–A20)',
-  prefixMismatch: 'First and last page must use the same prefix (A1–A20)',
+  incompatibleSchemes:
+    'First and last page must use the same numbering (1–20, I–XI, A1–20, A1–A20, III3–6 or III3–III6)',
+  prefixMismatch: 'First and last page must use the same prefix (A1–A20 or III3–III6, not III3–IV6)',
   descending: 'Last page must not come before first page',
 };
 

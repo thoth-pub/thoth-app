@@ -24,11 +24,20 @@ export const isArabicNumeral = (value: string) => {
 const ROMAN_PATTERN = /^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$/;
 
 /**
- * One uppercase ASCII letter followed by the digits of a page number, as used by publishers who
- * number chapters `A1`–`A20`. The digits are held to {@link isArabicNumeral} rather than to a
- * second rule of their own, so `A0` is rejected for exactly the reason `0` is.
+ * A prefix followed by the digits of a page number, as used by publishers who number chapters
+ * `A1`–`A20` or `III3`–`III6`. The run of uppercase letters is only a candidate: it is a prefix
+ * once {@link isPagePrefix} accepts it. The digits are held to {@link isArabicNumeral} rather than
+ * to a second rule of their own, so `A0` is rejected for exactly the reason `0` is.
  */
-const PREFIXED_ARABIC_PATTERN = /^([A-Z])([0-9]+)$/;
+const PREFIXED_ARABIC_PATTERN = /^([A-Z]+)([0-9]+)$/;
+
+/**
+ * Whether a candidate prefix is exactly one uppercase letter or an uppercase Roman numeral under
+ * {@link ROMAN_PATTERN}, so that `III` is a prefix and `AA`, `VV` and `Appendix` are not. Unlike a
+ * standalone Roman label, a prefix is not upper-cased first: the candidate only ever holds
+ * uppercase letters. It is never empty either, which the Roman grammar would otherwise accept.
+ */
+const isPagePrefix = (prefix: string) => prefix.length === 1 || ROMAN_PATTERN.test(prefix);
 
 /** The page-numbering conventions a chapter page label may be written in. */
 export type PageNumberingScheme = 'arabic' | 'roman' | 'prefixedArabic';
@@ -37,7 +46,11 @@ export type PageLabel = {
   scheme: PageNumberingScheme;
   /** The label's position on the page sequence, used for ordering and counting only. */
   value: number;
-  /** The uppercase letter of a `prefixedArabic` label; absent for the other schemes. */
+  /**
+   * The complete prefix of a `prefixedArabic` label — one uppercase letter or an uppercase Roman
+   * numeral — which only ties endpoints to one sequence and never contributes to `value`. Absent
+   * for the other schemes.
+   */
   prefix?: string;
 };
 
@@ -50,7 +63,7 @@ export type PageRangeStatus =
   | 'invalidLastPage'
   /** Both endpoints are valid labels, but their numbering schemes cannot form a range. */
   | 'incompatibleSchemes'
-  /** Both endpoints are explicitly prefixed, but with different letters. */
+  /** Both endpoints are explicitly prefixed, but the complete prefixes differ (`A`/`B`, `III`/`IV`). */
   | 'prefixMismatch'
   | 'descending'
   | 'valid';
@@ -72,11 +85,12 @@ const isAbsent = (value?: string | null): value is null | undefined | '' => !val
  * This is the single seam page handling is built on: field validation, pair compatibility, range
  * ordering and the automatic page count all read labels through it, so there is one grammar to
  * agree with rather than one per caller. The schemes are mutually exclusive — Arabic labels carry
- * no letters, Roman labels no digits, and prefixed labels exactly one of each — so the order the
- * schemes are tried in does not decide any value.
+ * no letters, Roman labels no digits, and prefixed labels letters followed by digits — so the order
+ * the schemes are tried in does not decide any value.
  *
  * Conversion is never used as validation: a Roman label is converted only once
- * {@link ROMAN_PATTERN} has accepted it, which is also what makes the conversion total.
+ * {@link ROMAN_PATTERN} has accepted it, which is also what makes the conversion total. A Roman
+ * prefix is never converted at all; it is kept as entered and the digits alone give the position.
  */
 export const parsePageLabel = (value?: string | null): PageLabel | null => {
   if (isAbsent(value)) return null;
@@ -88,7 +102,9 @@ export const parsePageLabel = (value?: string | null): PageLabel | null => {
   if (prefixed) {
     const [, prefix, digits] = prefixed;
 
-    return isArabicNumeral(digits) ? { scheme: 'prefixedArabic', value: Number(digits), prefix } : null;
+    return isPagePrefix(prefix) && isArabicNumeral(digits)
+      ? { scheme: 'prefixedArabic', value: Number(digits), prefix }
+      : null;
   }
 
   // Upper-casing before the test is what makes `iv` and `IV` the one numeral they are, exactly as
