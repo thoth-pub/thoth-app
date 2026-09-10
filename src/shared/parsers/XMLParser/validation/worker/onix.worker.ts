@@ -1,6 +1,7 @@
 import { ONIX_VALIDATION_RESOURCE_PATH, type OnixResourceLoader } from '../resources';
 import { createOnixSourceValidator } from '../validator';
 import { classifyEngine } from './envelope';
+import { createExecutionControls } from './execution';
 import { type ClientToWorkerMessage, ONIX_WORKER_PROTOCOL_VERSION, type WorkerToClientMessage } from './protocol';
 import { createWorkerSession } from './session';
 
@@ -32,15 +33,7 @@ const session = createWorkerSession({
   post: (message) => scope.postMessage(message),
   userAgent: scope.navigator.userAgent,
   createValidator: (controls) =>
-    createOnixSourceValidator({
-      loadResource,
-      execution: {
-        onStage: controls.onStage,
-        onProgress: controls.onProgress,
-        shouldCancel: controls.shouldCancel,
-        yield: controls.yield,
-      },
-    }),
+    createOnixSourceValidator({ loadResource, execution: createExecutionControls(controls) }),
 });
 
 scope.addEventListener('message', (event) => {
