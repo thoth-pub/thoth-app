@@ -12,6 +12,10 @@ import type { SchematronReport } from './strict/ruleset';
 import { createConformanceValidator, createOnixSourceValidator, type OnixSourceValidator } from './validator';
 import { serializeXdm } from './xdm';
 
+// Each validator compiles the pinned XSDs and ~1,300 strict assertions on first use; under coverage
+// instrumentation that alone exceeds the default 5 s, so this file allows two minutes per test and hook.
+vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
+
 const FIXTURES = join(__dirname, '__fixtures__', 'spike02');
 const PUBLIC_DIR = join(process.cwd(), 'public', 'onix-validation');
 const fixtureText = (path: string) => readFileSync(join(FIXTURES, path), 'utf8');
