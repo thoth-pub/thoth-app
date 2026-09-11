@@ -102,6 +102,21 @@ export function evaluateStrictRule(
   }
 }
 
+/** The finding of one rule outcome on one element (`null` when the assertion holds). */
+export function strictFinding(rule: StrictRule, element: Element, outcome: boolean | Error): StrictFinding | null {
+  if (outcome === true) return null;
+  return {
+    id: rule.id,
+    element: element.localName,
+    path: pathOf(element),
+    message: rule.message,
+    source: rule.source,
+    node: element,
+    rule,
+    dynamicError: outcome === false ? null : String(outcome).split('\n')[0].slice(0, 160),
+  };
+}
+
 export function evaluateStrict(ruleset: Ruleset, document: Document): StrictEvaluation {
   const options = strictOptions(ruleset);
   const findings: StrictFinding[] = [];
@@ -114,18 +129,8 @@ export function evaluateStrict(ruleset: Ruleset, document: Document): StrictEval
     if (!rules) continue;
     for (const rule of rules) {
       evaluated++;
-      const outcome = evaluateStrictRule(rule, element, options);
-      if (outcome === true) continue;
-      findings.push({
-        id: rule.id,
-        element: element.localName,
-        path: pathOf(element),
-        message: rule.message,
-        source: rule.source,
-        node: element,
-        rule,
-        dynamicError: outcome === false ? null : String(outcome).split('\n')[0].slice(0, 160),
-      });
+      const finding = strictFinding(rule, element, evaluateStrictRule(rule, element, options));
+      if (finding) findings.push(finding);
     }
   }
   return { findings, evaluated };

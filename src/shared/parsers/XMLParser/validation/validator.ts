@@ -15,9 +15,9 @@ import { createOrdinaryValidator, type OrdinaryValidator } from './ordinary';
 import { runOrdinaryStage } from './ordinaryStage';
 import { loadVerifiedResource, ONIX_VALIDATION_RESOURCES, type OnixResourceLoader, resourcesFor } from './resources';
 import { SCHEMA_MODELS, type SchemaModel } from './schemaModel';
-import { evaluateSchematron, schematronOptions } from './schematron';
+import { evaluateSchematron, type SchematronFinding, schematronOptions } from './schematron';
 import { evaluateSourceGate, notWellFormed, STOP_TEXT } from './sourceGate';
-import { applySchemaDefaults, evaluateStrict, strictOptions } from './strict/evaluate';
+import { applySchemaDefaults, evaluateStrict, type StrictEvaluation, strictOptions } from './strict/evaluate';
 import { buildRuleset, compileRuleset, type Ruleset, type SchematronReport } from './strict/ruleset';
 import { deriveTagMap, type TagMap } from './tagMap';
 import {
@@ -29,6 +29,7 @@ import {
   type RecoveryMarker,
 } from './taint';
 import type { OnixFlavour, OnixRelease, OnixSourceDescriptor } from './types';
+import type { ValidationStageName } from './worker/protocol';
 import { pathOf, serializeXdm, type XdmProvenance } from './xdm';
 
 /**
@@ -82,10 +83,64 @@ export interface OnixSourceValidator {
 export interface OnixSourceValidatorOptions {
   /** Supplies a pinned resource by file name (e.g. a same-origin fetch of /onix-validation/<name>). */
   readonly loadResource: OnixResourceLoader;
+  /** Execution observation, cooperative cancellation and evaluator scheduling (thoth-app#196); never semantics. */
+  readonly execution?: ExecutionControls;
+}
+
+export interface ExecutionProgress {
+  readonly stage: 'STRICT' | 'SCHEMATRON';
+  readonly done: number;
+  readonly total: number;
+}
+
+/** Controls handed to a scheduled evaluator; every member has a no-op default. */
+export interface EvaluatorControls {
+  readonly onProgress: (progress: ExecutionProgress) => void;
+  readonly shouldCancel: () => boolean;
+  readonly yield: () => Promise<void>;
+}
+
+/** Evaluates the canonical strict assertions; must return exactly what `evaluateStrict` returns. */
+export type StrictEvaluator = (
+  ruleset: Ruleset,
+  document: Document,
+  controls: EvaluatorControls,
+) => StrictEvaluation | Promise<StrictEvaluation>;
+
+/** Evaluates the canonical Schematron; must return exactly what `evaluateSchematron` returns. */
+export type SchematronEvaluator = (
+  ruleset: Ruleset,
+  document: Document,
+  controls: EvaluatorControls,
+) => readonly SchematronFinding[] | Promise<readonly SchematronFinding[]>;
+
+/**
+ * Execution controls (thoth-app#196): stage transitions, real work-unit
+ * progress, cooperative cancellation between bounded units and the injection
+ * of scheduled/accelerated evaluators. The canonical evaluators run when no
+ * evaluator is injected; an injected evaluator may only schedule canonical
+ * work differently and must produce the identical findings in the identical
+ * order. Nothing here can change a source-validity outcome.
+ */
+export interface ExecutionControls {
+  readonly onStage?: (stage: ValidationStageName) => void;
+  readonly onProgress?: (progress: ExecutionProgress) => void;
+  readonly shouldCancel?: () => boolean;
+  readonly yield?: () => Promise<void>;
+  readonly strict?: StrictEvaluator;
+  readonly schematron?: SchematronEvaluator;
+}
+
+/** Thrown out of `validate()` at a cooperative cancellation point; no partial result exists. */
+export class ValidationCancelledError extends Error {
+  constructor(readonly stage: ValidationStageName) {
+    super(`ONIX source validation cancelled during ${stage}`);
+    this.name = 'ValidationCancelledError';
+  }
 }
 
 export function createOnixSourceValidator(options: OnixSourceValidatorOptions): OnixSourceValidator {
-  return createConformanceValidator({ loadResource: options.loadResource });
+  return createConformanceValidator({ loadResource: options.loadResource, execution: options.execution });
 }
 
 /**
@@ -125,6 +180,20 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
     return pending;
   };
   const engines = new Map<string, Promise<Engine>>();
+  const execution = options.execution ?? {};
+  const stage = (name: ValidationStageName) => execution.onStage?.(name);
+  const cancelPoint = (name: ValidationStageName) => {
+    if (execution.shouldCancel?.()) throw new ValidationCancelledError(name);
+  };
+  const evaluatorControls: EvaluatorControls = {
+    onProgress: execution.onProgress ?? (() => undefined),
+    shouldCancel: execution.shouldCancel ?? (() => false),
+    yield: execution.yield ?? (() => Promise.resolve()),
+  };
+  const strictEvaluator: StrictEvaluator =
+    execution.strict ?? ((ruleset, document) => evaluateStrict(ruleset, document));
+  const schematronEvaluator: SchematronEvaluator =
+    execution.schematron ?? ((ruleset, document) => evaluateSchematron(ruleset, document));
 
   async function prepare(release: OnixRelease, flavour: OnixFlavour): Promise<Engine> {
     const selection = resourcesFor(release, flavour);
@@ -196,6 +265,7 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
 
   return {
     async validate(bytes) {
+      stage('DECODING');
       const decoded = decodeSource(bytes);
       if (decoded.kind === 'UNSUPPORTED_ENCODING') {
         return stopped(1, STOP_TEXT.unsupported, null, [
@@ -213,10 +283,14 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
       }
       if (decoded.kind === 'MALFORMED') return stopped(2, STOP_TEXT.malformed, null, [notWellFormed(decoded.reason)]);
 
+      stage('SOURCE_GATE');
       const gate = evaluateSourceGate(decoded.text);
       if (gate.kind === 'STOP') return stopped(gate.stage, gate.stopText, gate.source, gate.findings);
       const { source, scan } = gate;
+      stage('PREPARING');
       const engine = await engineFor(source);
+      cancelPoint('PREPARING');
+      stage('ORDINARY');
       const ordinary = runOrdinaryStage({
         source,
         bytes,
@@ -226,6 +300,7 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
         tagMap: engine.tagMap,
       });
       if (ordinary.kind === 'STOP') return stopped(2, STOP_TEXT.malformed, source, ordinary.findings);
+      cancelPoint('ORDINARY');
 
       const { xdm } = ordinary;
       const { document, provenance } = xdm;
@@ -358,8 +433,11 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
         });
 
       // Stage 6: canonical Reference strict assertions.
+      stage('STRICT');
+      const strict = await strictEvaluator(engine.ruleset, document, evaluatorControls);
+      cancelPoint('STRICT');
       const strictResolver = strictOptions(engine.ruleset).namespaceResolver;
-      for (const f of evaluateStrict(engine.ruleset, document).findings) {
+      for (const f of strict.findings) {
         const [tableClass, authorityKind, artifactDefect] = strictDisposition(schemaRelease, f.id)!;
         const klass: FindingClass = f.dynamicError ? 'RULE_NOT_EVALUABLE' : tableClass;
         const projection = projectDependency(
@@ -381,8 +459,11 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
       }
 
       // Stage 7: canonical Reference Schematron.
+      stage('SCHEMATRON');
+      const schematron = await schematronEvaluator(engine.ruleset, document, evaluatorControls);
+      cancelPoint('SCHEMATRON');
       const schematronAst = new Map<SchematronReport, Element | null>();
-      for (const f of evaluateSchematron(engine.ruleset, document)) {
+      for (const f of schematron) {
         const tableClass = engine.schematronClass.get(f.id) as FindingClass;
         const common = { role: f.report.role };
         if (f.notEvaluable?.phase === 'context' || !f.node) {
@@ -422,6 +503,7 @@ export function createConformanceValidator(options: ConformanceOptions): OnixSou
       }
 
       // Stage 8: centralized source-rule inventory.
+      stage('INVENTORY');
       const inventoryResolver = inventoryOptions(source.release).namespaceResolver;
       const bindingAst = new Map<InventoryBinding, Element | null>();
       for (const f of evaluateInventory(

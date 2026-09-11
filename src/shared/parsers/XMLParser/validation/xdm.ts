@@ -140,9 +140,93 @@ function pathWith(node: Element, nameOf: (element: Element) => string): string {
   return '/' + parts.join('/');
 }
 
+/**
+ * Document-order element index (thoth-app#196 G1 scheduling): every element's
+ * ordinal, every element by local name, and one name index per Product
+ * (a direct child of the root with the given local name) followed by the
+ * index of every element outside a Product (root, Header, ...). Built on the
+ * tree exactly as it is at the time of the call; it changes no node.
+ */
+export interface ElementIndex {
+  readonly ordinalOf: (element: Element) => number;
+  readonly byName: ReadonlyMap<string, readonly Element[]>;
+  /** Product groups in document order, then the global group. */
+  readonly groups: readonly ReadonlyMap<string, readonly Element[]>[];
+  readonly productCount: number;
+  readonly elementCount: number;
+}
+
+export function indexElements(document: Document, productLocalName = 'Product'): ElementIndex {
+  const ordinals = new Map<Element, number>();
+  const byName = new Map<string, Element[]>();
+  const products: Map<string, Element[]>[] = [];
+  const global = new Map<string, Element[]>();
+  const add = (map: Map<string, Element[]>, element: Element) => {
+    const list = map.get(element.localName);
+    if (list) list.push(element);
+    else map.set(element.localName, [element]);
+  };
+  const root = document.documentElement;
+  const stack: { element: Element; group: Map<string, Element[]> }[] = root ? [{ element: root, group: global }] : [];
+  let ordinal = 0;
+  while (stack.length) {
+    const { element, group: parentGroup } = stack.pop()!;
+    ordinals.set(element, ++ordinal);
+    let group = parentGroup;
+    if (element.parentNode === root && element.localName === productLocalName) {
+      group = new Map();
+      products.push(group);
+    }
+    add(byName, element);
+    add(group, element);
+    for (let child = element.lastChild; child; child = child.previousSibling) {
+      if (child.nodeType === ELEMENT_NODE) stack.push({ element: child as Element, group });
+    }
+  }
+  return {
+    ordinalOf: (element) => ordinals.get(element) ?? 0,
+    byName,
+    groups: [...products, global],
+    productCount: products.length,
+    elementCount: ordinal,
+  };
+}
+
 /** Canonical path with 1-based same-local-name positions (SPIKE-02 `pathOf`). */
 export function pathOf(node: Element): string {
   return pathWith(node, (element) => element.localName);
+}
+
+/**
+ * Visits every element in document order with its canonical path and its
+ * path under `nameOf` (the same two shapes `pathOf` and `sourcePathOf`
+ * produce), in one pass with per-parent counters (thoth-app#196 provenance
+ * sidecar). Positions are those of the tree as it is at the time of the walk.
+ */
+export function forEachElementPath(
+  root: Document | Element,
+  nameOf: (element: Element) => string,
+  visit: (element: Element, path: string, namedPath: string) => void,
+): void {
+  const walk = (parent: Document | Element, prefix: string, namedPrefix: string) => {
+    const counts = new Map<string, number>();
+    const namedCounts = new Map<string, number>();
+    for (const child of parent.childNodes) {
+      if (child.nodeType !== ELEMENT_NODE) continue;
+      const element = child as Element;
+      const name = element.localName;
+      const named = nameOf(element);
+      const position = (counts.get(name) ?? 0) + 1;
+      const namedPosition = (namedCounts.get(named) ?? 0) + 1;
+      counts.set(name, position);
+      namedCounts.set(named, namedPosition);
+      const path = `${prefix}/${name}[${position}]`;
+      const namedPath = `${namedPrefix}/${named}[${namedPosition}]`;
+      visit(element, path, namedPath);
+      walk(element, path, namedPath);
+    }
+  };
+  walk(root, '', '');
 }
 
 /**

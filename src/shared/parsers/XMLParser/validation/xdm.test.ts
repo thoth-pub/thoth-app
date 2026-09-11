@@ -1,7 +1,15 @@
 // @vitest-environment node
 import { describe, expect, it } from 'vitest';
 
-import { buildXdm, pathOf, resolveLibxmlPath, serializeXdm, XdmParseError } from './xdm';
+import {
+  buildXdm,
+  forEachElementPath,
+  indexElements,
+  pathOf,
+  resolveLibxmlPath,
+  serializeXdm,
+  XdmParseError,
+} from './xdm';
 
 const REF = 'http://ns.editeur.org/onix/3.0/reference';
 const SHORT = 'http://ns.editeur.org/onix/3.0/short';
@@ -149,5 +157,59 @@ describe('pathOf and resolveLibxmlPath', () => {
   it('returns null for paths it cannot resolve (whole-document fail-safe upstream)', () => {
     expect(resolveLibxmlPath(document, '/*/*[9]')).toBeNull();
     expect(resolveLibxmlPath(document, '/*/*[2]/@datestamp')).toBeNull();
+  });
+});
+
+describe('indexElements', () => {
+  const text =
+    '<ONIXMessage xmlns="http://ns.editeur.org/onix/3.0/reference"><Header><Sender><SenderName>T</SenderName></Sender></Header>' +
+    '<Product><RecordReference>a</RecordReference><Text>x</Text></Product>' +
+    '<!-- c --><Product><RecordReference>b</RecordReference><ProductIdentifier><IDValue>1</IDValue></ProductIdentifier></Product>' +
+    '<Note><Product>not a top-level Product</Product></Note></ONIXMessage>';
+
+  it('assigns document-order ordinals and indexes every element by local name', () => {
+    const { document } = buildXdm(text);
+    const index = indexElements(document);
+    const ordered: string[] = [];
+    forEachElementPath(
+      document,
+      (e) => e.localName,
+      (e, path) => void ordered.push(`${index.ordinalOf(e)}:${path}`),
+    );
+    expect(ordered.slice(0, 5)).toEqual([
+      '1:/ONIXMessage[1]',
+      '2:/ONIXMessage[1]/Header[1]',
+      '3:/ONIXMessage[1]/Header[1]/Sender[1]',
+      '4:/ONIXMessage[1]/Header[1]/Sender[1]/SenderName[1]',
+      '5:/ONIXMessage[1]/Product[1]',
+    ]);
+    expect(index.elementCount).toBe(ordered.length);
+    expect(index.byName.get('Product')!.map((e) => pathOf(e))).toEqual([
+      '/ONIXMessage[1]/Product[1]',
+      '/ONIXMessage[1]/Product[2]',
+      '/ONIXMessage[1]/Note[1]/Product[1]',
+    ]);
+    expect(index.byName.get('RecordReference')!.map((e) => e.textContent)).toEqual(['a', 'b']);
+  });
+
+  it('groups direct-child Products in document order and everything else globally', () => {
+    const { document } = buildXdm(text);
+    const index = indexElements(document);
+    expect(index.productCount).toBe(2);
+    expect(index.groups).toHaveLength(3);
+    expect([...index.groups[0].keys()]).toEqual(['Product', 'RecordReference', 'Text']);
+    expect([...index.groups[1].keys()]).toEqual(['Product', 'RecordReference', 'ProductIdentifier', 'IDValue']);
+    expect([...index.groups[2].keys()]).toEqual(['ONIXMessage', 'Header', 'Sender', 'SenderName', 'Note', 'Product']);
+    const total = index.groups.reduce((n, g) => n + [...g.values()].reduce((m, list) => m + list.length, 0), 0);
+    expect(total).toBe(index.elementCount);
+  });
+
+  it('is built on the tree as it is: a removed composite is absent', () => {
+    const { document } = buildXdm(text);
+    const first = document.documentElement!.getElementsByTagName('Product')[0];
+    first.parentNode!.removeChild(first);
+    const index = indexElements(document);
+    expect(index.productCount).toBe(1);
+    expect(index.ordinalOf(first)).toBe(0);
   });
 });

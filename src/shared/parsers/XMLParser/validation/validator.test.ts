@@ -14,8 +14,16 @@ import {
 import { requestedResourceUrls } from './ordinary';
 import { PROLOG_SCAN_BOUND } from './prolog';
 import { ONIX_VALIDATION_RESOURCES, OnixResourceIntegrityError } from './resources';
+import { evaluateSchematron } from './schematron';
+import { evaluateStrict } from './strict/evaluate';
 import type { SchematronReport } from './strict/ruleset';
-import { createConformanceValidator, createOnixSourceValidator, type OnixSourceValidator } from './validator';
+import {
+  createConformanceValidator,
+  createOnixSourceValidator,
+  type ExecutionControls,
+  type OnixSourceValidator,
+  ValidationCancelledError,
+} from './validator';
 import { serializeXdm } from './xdm';
 
 // Each validator compiles the pinned XSDs and ~1,300 strict assertions on first use; under coverage
@@ -532,6 +540,105 @@ describe('cross-Collection residual rules under unrelated sibling taint', () => 
     const entry = SOURCE_RULE_INVENTORY.find((e) => e.id === id)!;
     const bindings = inventoryBindings('3.1').filter((b) => b.id === id);
     expect(bindings.map((b) => b.owner)).toEqual([entry.owner]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Execution controls (thoth-app#196): observation and scheduling, never semantics
+// ---------------------------------------------------------------------------
+describe('execution controls', () => {
+  const ledger = (result: Awaited<ReturnType<OnixSourceValidator['validate']>>) =>
+    JSON.stringify({
+      findings: result.findings,
+      summary: result.summary,
+      source: result.source,
+      xml: result.normalized?.serialize() ?? null,
+    });
+  const withControls = (execution: ExecutionControls) => createOnixSourceValidator({ loadResource, execution });
+
+  it('reports stage transitions in pipeline order and changes nothing in the result', async () => {
+    const stages: string[] = [];
+    const bytes = fixtureBytes('taint31/T7_global_rule_with_tainted_product.xml');
+    const observed = await withControls({ onStage: (s) => void stages.push(s) }).validate(bytes);
+    const plain = await validator.validate(bytes);
+    expect(stages).toEqual(['DECODING', 'SOURCE_GATE', 'PREPARING', 'ORDINARY', 'STRICT', 'SCHEMATRON', 'INVENTORY']);
+    expect(ledger(observed)).toBe(ledger(plain));
+  });
+
+  it('a stage-2 stop reports only the gate stages and never prepares', async () => {
+    const stages: string[] = [];
+    const result = await withControls({ onStage: (s) => void stages.push(s) }).validate(
+      fixtureBytes('dtd_suite30/D1_bare_doctype.xml'),
+    );
+    expect(result.status).toBe('STOPPED');
+    expect(stages).toEqual(['DECODING', 'SOURCE_GATE']);
+  });
+
+  it.each(['PREPARING', 'ORDINARY', 'STRICT', 'SCHEMATRON'] as const)(
+    'cancels cooperatively at the %s point with no partial result',
+    async (point) => {
+      const seen: string[] = [];
+      let armed = true;
+      let reached = false;
+      const cancelling = withControls({
+        onStage: (s) => {
+          seen.push(s);
+          if (armed && s === point) reached = true;
+        },
+        shouldCancel: () => reached,
+      });
+      const failure = await cancelling.validate(fixtureBytes('dtd_suite30/N3_plain.xml')).then(
+        () => null,
+        (error: unknown) => error,
+      );
+      expect(failure).toBeInstanceOf(ValidationCancelledError);
+      expect((failure as ValidationCancelledError).stage).toBe(point);
+      expect(seen[seen.length - 1]).toBe(point);
+      // A cancellation leaves no corrupted state in the in-process validator: withdrawn, it completes.
+      armed = false;
+      reached = false;
+      const plain = await cancelling.validate(fixtureBytes('dtd_suite30/N3_plain.xml'));
+      expect(plain.status).toBe('COMPLETED');
+    },
+  );
+
+  it('does not cancel when shouldCancel stays false and exposes the error class', () => {
+    expect(new ValidationCancelledError('STRICT')).toMatchObject({ name: 'ValidationCancelledError', stage: 'STRICT' });
+  });
+
+  it('injected evaluators receive the canonical ruleset and document and their findings flow into the ledger unchanged', async () => {
+    const calls: string[] = [];
+    const bytes = fixtureBytes('taint30/T7_global_rule_with_tainted_product.xml');
+    const injected = await withControls({
+      strict: (ruleset, document, controls) => {
+        calls.push('strict');
+        controls.onProgress({ stage: 'STRICT', done: 1, total: 1 });
+        return evaluateStrict(ruleset, document);
+      },
+      schematron: async (ruleset, document, controls) => {
+        calls.push('schematron');
+        await controls.yield();
+        expect(controls.shouldCancel()).toBe(false);
+        return evaluateSchematron(ruleset, document);
+      },
+    }).validate(bytes);
+    const plain = await validator.validate(bytes);
+    expect(calls).toEqual(['strict', 'schematron']);
+    expect(ledger(injected)).toBe(ledger(plain));
+    expect(injected.findings.some((f) => f.tier === 'STRICT')).toBe(true);
+    expect(injected.findings.some((f) => f.tier === 'SCHEMATRON')).toBe(true);
+  });
+
+  it('progress and yield controls default to no-ops for injected evaluators', async () => {
+    const seen: unknown[] = [];
+    await withControls({
+      strict: (ruleset, document, controls) => {
+        controls.onProgress({ stage: 'STRICT', done: 1, total: 2 });
+        seen.push(controls.shouldCancel());
+        return evaluateStrict(ruleset, document);
+      },
+    }).validate(fixtureBytes('dtd_suite30/N3_plain.xml'));
+    expect(seen).toEqual([false]);
   });
 });
 

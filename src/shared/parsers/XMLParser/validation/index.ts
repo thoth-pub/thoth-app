@@ -24,9 +24,38 @@ export type { RecoveryMarker } from './taint';
 export type { OnixFlavour, OnixRelease, OnixSchemaRelease, OnixSourceDescriptor } from './types';
 export {
   createOnixSourceValidator,
+  type EvaluatorControls,
+  type ExecutionControls,
+  type ExecutionProgress,
   type NormalizedOnixSource,
   type OnixSourceValidationResult,
   type OnixSourceValidationSummary,
   type OnixSourceValidator,
   type OnixSourceValidatorOptions,
+  ValidationCancelledError,
 } from './validator';
+// Browser Worker runtime (thoth-app#196): inactive until the live uploader adopts it.
+export {
+  createOnixValidationClient,
+  type OnixValidationClient,
+  type OnixValidationClientOptions,
+  type ProgressEvent,
+  type ValidationOutcome,
+  type WorkerPort,
+} from './worker/client';
+export { classifyEngine, ENGINE_ENVELOPES, evaluateEnvelope, MEGABYTE } from './worker/envelope';
+export {
+  type BeginOptions,
+  type ClientToWorkerMessage,
+  type EngineClass,
+  type EnvelopeEvidence,
+  type EnvelopeVerdict,
+  type NormalizedSourceDto,
+  ONIX_WORKER_PROTOCOL_VERSION,
+  type OnixWorkerResult,
+  type ProductCountEvidence,
+  type ProvenanceDto,
+  type ValidationStageName,
+  type WorkerToClientMessage,
+} from './worker/protocol';
+export { createProvenanceResolver, type ProvenanceResolver } from './worker/provenance';
