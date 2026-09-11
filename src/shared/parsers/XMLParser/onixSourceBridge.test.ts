@@ -1,0 +1,512 @@
+// @vitest-environment node
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { parse } from '@5stones/onix/dist/parse';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import type { ContributorService } from '@/src/entities/contributor';
+import type { InstitutionService } from '@/src/entities/institution';
+
+import { currencyOptions, languageOptions, licenseOptions } from '../../constants';
+import type { ImportIssue } from '../../types';
+import type { ExtendedONIXMessageRoot } from './interfaces';
+import {
+  bridgeOnixSource,
+  permitsTargetPlanning,
+  projectOnixRefusal,
+  projectOnixSourceIssues,
+  projectOnixUnavailable,
+} from './onixSourceBridge';
+import {
+  createOnixSourceValidator,
+  ENGINE_ENVELOPES,
+  type EnvelopeEvidence,
+  type OnixSourceValidator,
+  type OnixWorkerResult,
+  type SourceFinding,
+} from './validation';
+import { deriveTagMap } from './validation/tagMap';
+import { createExecutionControls } from './validation/worker/execution';
+import { toWorkerResult } from './validation/worker/result';
+import XMLParser from './XMLParser';
+
+vi.mock('@5stones/onix/dist/parse', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@5stones/onix/dist/parse')>();
+  return { parse: vi.fn(actual.parse) };
+});
+
+// Plans carry generated ids; one deterministic sequence per plan makes two plans comparable field for field.
+const ids = vi.hoisted(() => ({ next: 0 }));
+vi.mock('uuid', () => ({ v4: () => `id-${(ids.next += 1)}` }));
+
+// The canonical validator compiles the pinned schemas and rules once for this file; under coverage that alone
+// exceeds the default timeouts.
+vi.setConfig({ testTimeout: 300_000, hookTimeout: 300_000 });
+
+const PUBLIC_DIR = join(process.cwd(), 'public', 'onix-validation');
+const FIXTURES = join(__dirname, 'validation', '__fixtures__', 'spike02');
+const REFERENCE_NS = 'http://ns.editeur.org/onix/3.0/reference';
+const SHORT_NS = 'http://ns.editeur.org/onix/3.0/short';
+
+/** Echoes the key and its interpolation values, so projected messages can be checked for what they carry. */
+const t = (key: string, options?: Record<string, unknown>) => (options ? `${key} ${JSON.stringify(options)}` : key);
+
+const noop = () => undefined;
+let validator: OnixSourceValidator;
+
+beforeAll(() => {
+  validator = createOnixSourceValidator({
+    loadResource: async (fileName) => new Uint8Array(readFileSync(join(PUBLIC_DIR, fileName))),
+    execution: createExecutionControls({
+      accelerate: true,
+      onStage: noop,
+      onProgress: noop,
+      shouldCancel: () => false,
+      yield: () => Promise.resolve(),
+    }),
+  });
+});
+
+/** The exact structured-clone-safe result a #196 Worker session posts for these bytes. */
+const canonical = async (xml: string): Promise<OnixWorkerResult> =>
+  toWorkerResult(await validator.validate(new TextEncoder().encode(xml)));
+
+const blockingIds = (result: OnixWorkerResult) => result.findings.filter((f) => f.counts).map((f) => `${f.id} ${f.path}`);
+
+const tagMap = deriveTagMap(
+  readFileSync(join(PUBLIC_DIR, 'ONIX_BookProduct_3.0_reference.xsd'), 'utf8'),
+  readFileSync(join(PUBLIC_DIR, 'ONIX_BookProduct_3.0_short.xsd'), 'utf8'),
+);
+
+/** The same message in Short tags: every element renamed through the pinned schema correspondence, nothing else. */
+const toShort = (reference: string) =>
+  reference
+    .replace(
+      /<(\/?)([A-Za-z][\w.-]*)/g,
+      (_, close: string, name: string) => `<${close}${tagMap.referenceToShort.get(name) ?? name}`,
+    )
+    .replace(`xmlns="${REFERENCE_NS}"`, `xmlns="${SHORT_NS}"`);
+
+/**
+ * A representative Reference message: two Products, repeated identifiers, titles and contributors listed out of
+ * sequence order, an ORCID, XHTML biography and abstract text with attributes, entities and a hex character
+ * reference, languages, extents, subjects and imprints - the facts the target planner reads.
+ */
+const REFERENCE_SOURCE = `<?xml version="1.0" encoding="UTF-8"?>
+<ONIXMessage release="3.0" xmlns="${REFERENCE_NS}">
+<Header><Sender><SenderName>Bridge Press</SenderName></Sender><SentDateTime>20260911T1200</SentDateTime></Header>
+<!-- a comment the target adapter never sees -->
+<Product>
+<RecordReference>bridge.9780000000002</RecordReference>
+<NotificationType>03</NotificationType>
+<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000002</IDValue></ProductIdentifier>
+<ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.11647/OBP.0001</IDValue></ProductIdentifier>
+<DescriptiveDetail>
+<ProductComposition>00</ProductComposition>
+<ProductForm>BC</ProductForm>
+<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Bridges &amp; Borders</TitleText><Subtitle>An Occurrence Study</Subtitle></TitleElement></TitleDetail>
+<Contributor><SequenceNumber>2</SequenceNumber><ContributorRole>A01</ContributorRole><PersonName>Charles Babbage</PersonName><NamesBeforeKey>Charles</NamesBeforeKey><KeyNames>Babbage</KeyNames></Contributor>
+<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>A01</ContributorRole><NameIdentifier><NameIDType>21</NameIDType><IDValue>0000000218250097</IDValue></NameIdentifier><PersonName>Ada Lovelace</PersonName><NamesBeforeKey>Ada</NamesBeforeKey><KeyNames>Lovelace</KeyNames><BiographicalNote textformat="05"><p>Ada writes about <em>engines</em>.</p></BiographicalNote></Contributor>
+<Contributor><SequenceNumber>3</SequenceNumber><ContributorRole>B01</ContributorRole><PersonName>Mary Somerville</PersonName><NamesBeforeKey>Mary</NamesBeforeKey><KeyNames>Somerville</KeyNames></Contributor>
+<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+<Extent><ExtentType>00</ExtentType><ExtentValue>240</ExtentValue><ExtentUnit>03</ExtentUnit></Extent>
+<Subject><MainSubject/><SubjectSchemeIdentifier>10</SubjectSchemeIdentifier><SubjectCode>HIS000000</SubjectCode></Subject>
+</DescriptiveDetail>
+<CollateralDetail>
+<TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience><Text textformat="05"><p>An abstract with <strong>markup</strong> &amp; an&#xA0;entity.</p><p>A second paragraph.</p></Text></TextContent>
+</CollateralDetail>
+<PublishingDetail>
+<Imprint><ImprintName>Bridge Imprint</ImprintName></Imprint>
+<Publisher><PublishingRole>01</PublishingRole><PublisherName>Bridge Press</PublisherName></Publisher>
+<PublishingStatus>04</PublishingStatus>
+<PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260101</Date></PublishingDate>
+</PublishingDetail>
+</Product>
+<Product>
+<RecordReference>bridge.9780000000019</RecordReference>
+<NotificationType>03</NotificationType>
+<ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9780000000019</IDValue></ProductIdentifier>
+<DescriptiveDetail>
+<ProductComposition>00</ProductComposition>
+<ProductForm>EB</ProductForm>
+<ProductFormDetail>E101</ProductFormDetail>
+<TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Second Crossing</TitleText></TitleElement></TitleDetail>
+<Contributor><SequenceNumber>1</SequenceNumber><ContributorRole>B01</ContributorRole><PersonName>Mary Somerville</PersonName><NamesBeforeKey>Mary</NamesBeforeKey><KeyNames>Somerville</KeyNames></Contributor>
+<Language><LanguageRole>01</LanguageRole><LanguageCode>eng</LanguageCode></Language>
+</DescriptiveDetail>
+<PublishingDetail>
+<Imprint><ImprintName>Bridge Imprint</ImprintName></Imprint>
+<Publisher><PublishingRole>01</PublishingRole><PublisherName>Bridge Press</PublisherName></Publisher>
+<PublishingStatus>04</PublishingStatus>
+<PublishingDate><PublishingDateRole>01</PublishingDateRole><Date>20260201</Date></PublishingDate>
+</PublishingDetail>
+</Product>
+</ONIXMessage>
+`;
+
+const LANGUAGE_PAIR =
+  '</TitleDetail><Language><LanguageRole>01</LanguageRole><LanguageCode>ger</LanguageCode></Language>' +
+  '<Language><LanguageRole>02</LanguageRole><LanguageCode>ger</LanguageCode></Language>';
+const languageRoleInvalid = () =>
+  readFileSync(join(FIXTURES, 'dtd_suite30', 'N3_plain.xml'), 'utf8').replace('</TitleDetail>', LANGUAGE_PAIR);
+
+const IMPRINTS = [{ label: 'Bridge Imprint', value: '11111111-1111-1111-1111-111111111111' }];
+
+/** Runs the unchanged target planner over one adapter value, with lookups that find nothing. */
+const plan = async (adapter: ExtendedONIXMessageRoot) => {
+  ids.next = 0;
+  const contributorService = {
+    getContributors: vi.fn().mockResolvedValue([]),
+    getContributorsByOrcids: vi.fn().mockResolvedValue([]),
+  } as unknown as ContributorService;
+  const institutionService = { getInstitutions: vi.fn().mockResolvedValue([]) } as unknown as InstitutionService;
+  return new XMLParser(
+    adapter,
+    IMPRINTS,
+    licenseOptions,
+    [],
+    contributorService,
+    institutionService,
+    languageOptions,
+    currencyOptions,
+  ).parse();
+};
+
+const raw = (xml: string) => parse(xml) as ExtendedONIXMessageRoot;
+
+const scripted = (overrides: Partial<OnixWorkerResult> = {}): OnixWorkerResult => ({
+  status: 'COMPLETED',
+  stop: null,
+  source: { release: '3.0', schemaRelease: '3.0.8', flavour: 'reference', namespaceURI: REFERENCE_NS },
+  findings: [],
+  summary: { total: 0, blocking: 0, secondary: 0, notEvaluable: 0, recovered: 0 },
+  sourceValid: true,
+  normalized: {
+    xml: `<ONIXMessage release="3.0" xmlns="${REFERENCE_NS}"><Product><RecordReference>r</RecordReference></Product></ONIXMessage>`,
+    elementCount: 3,
+    recoveries: [],
+    provenance: { kind: 'IDENTITY', flavour: 'reference' },
+  },
+  ...overrides,
+});
+
+const finding = (overrides: Partial<SourceFinding> = {}): SourceFinding => ({
+  id: 'R-TEST',
+  tier: 'STRICT',
+  stage: 6,
+  scope: 'VALIDITY',
+  class: 'NORMATIVE_INVALID',
+  blocking: true,
+  projection: 'AUTHORITATIVE',
+  recoverability: 'NOT_RECOVERABLE',
+  counts: true,
+  path: '/ONIXMessage[1]/Product[1]',
+  sourcePath: '/ONIXMessage[1]/Product[1]',
+  message: 'a canonical message',
+  ...overrides,
+});
+
+describe('onixSourceBridge', () => {
+  beforeEach(() => {
+    vi.mocked(parse).mockClear();
+    vi.useFakeTimers({ toFake: ['Date'], now: new Date('2026-09-11T12:00:00Z') });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  describe('permitsTargetPlanning', () => {
+    it('permits only a completed, source-valid result that carries its normalized source', () => {
+      expect(permitsTargetPlanning(scripted())).toBe(true);
+      expect(permitsTargetPlanning(scripted({ sourceValid: false }))).toBe(false);
+      expect(permitsTargetPlanning(scripted({ normalized: null }))).toBe(false);
+      expect(permitsTargetPlanning(scripted({ status: 'STOPPED', stop: { stage: 2, text: 'DOCTYPE' }, normalized: null }))).toBe(
+        false,
+      );
+    });
+  });
+
+  describe('bridgeOnixSource', () => {
+    it('parses exactly the normalized Reference XML, once, and keeps the canonical result beside the adapter value', () => {
+      const result = scripted();
+
+      const bridged = bridgeOnixSource(result);
+
+      expect(parse).toHaveBeenCalledExactlyOnceWith(result.normalized?.xml);
+      expect(bridged.canonical).toBe(result);
+      expect(bridged.adapter).toEqual(raw(result.normalized?.xml as string));
+      expect(bridged.provenance.sourcePathOf('/ONIXMessage[1]/Product[1]')).toBe('/ONIXMessage[1]/Product[1]');
+    });
+
+    it.each([
+      ['a stopped result', scripted({ status: 'STOPPED', stop: { stage: 2, text: 'DOCTYPE' }, normalized: null })],
+      ['a source-invalid result', scripted({ sourceValid: false })],
+      ['a result without its normalized source', scripted({ normalized: null })],
+    ])('refuses to bridge %s, before any adapter parse', (_case, result) => {
+      expect(() => bridgeOnixSource(result)).toThrow();
+      expect(parse).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Reference bridge equivalence', () => {
+    it('hands the target adapter exactly what the raw Reference file gave it, occurrence order and facts intact', async () => {
+      const result = await canonical(REFERENCE_SOURCE);
+      expect(blockingIds(result)).toEqual([]);
+      expect(permitsTargetPlanning(result)).toBe(true);
+
+      const { adapter } = bridgeOnixSource(result);
+
+      expect(adapter.ONIXMessage).toEqual(raw(REFERENCE_SOURCE).ONIXMessage);
+      const [first, second] = adapter.ONIXMessage.Product as unknown as Record<string, never>[];
+      const firstDetail = first.DescriptiveDetail as Record<string, never>;
+      expect((first.ProductIdentifier as { IDValue: string }[]).map(({ IDValue }) => IDValue)).toEqual([
+        '9780000000002',
+        '10.11647/OBP.0001',
+      ]);
+      expect((firstDetail.Contributor as { KeyNames: string }[]).map(({ KeyNames }) => KeyNames)).toEqual([
+        'Babbage',
+        'Lovelace',
+        'Somerville',
+      ]);
+      expect(firstDetail.TitleDetail).toEqual({
+        TitleType: '01',
+        TitleElement: { TitleElementLevel: '01', TitleText: 'Bridges & Borders', Subtitle: 'An Occurrence Study' },
+      });
+      const text = (first.CollateralDetail as { TextContent: { Text: Record<string, unknown> } }).TextContent.Text;
+      expect(text['@_textformat']).toBe('05');
+      expect(JSON.stringify(text)).toContain('an entity');
+      expect((second.DescriptiveDetail as { TitleDetail: unknown }).TitleDetail).toEqual({
+        TitleType: '01',
+        TitleElement: { TitleElementLevel: '01', TitleText: 'Second Crossing' },
+      });
+    });
+
+    it('plans identically from the raw Reference file and from the bridged canonical source', async () => {
+      const { adapter } = bridgeOnixSource(await canonical(REFERENCE_SOURCE));
+
+      const fromRaw = await plan(raw(REFERENCE_SOURCE));
+      const fromBridge = await plan(adapter);
+
+      expect(fromRaw.status).toBe('success');
+      expect(fromRaw.data.plan.works).toHaveLength(2);
+      expect(fromBridge).toEqual(fromRaw);
+    });
+  });
+
+  describe('Short bridge', () => {
+    it('normalizes Short input to the adapter value of its Reference twin, and plans it identically', async () => {
+      const short = toShort(REFERENCE_SOURCE);
+      expect(short).toContain(`<ONIXmessage release="3.0" xmlns="${SHORT_NS}">`);
+      const result = await canonical(short);
+      expect(result.source?.flavour).toBe('short');
+      expect(blockingIds(result)).toEqual([]);
+
+      const bridged = bridgeOnixSource(result);
+
+      expect(bridged.adapter.ONIXMessage).toEqual(raw(REFERENCE_SOURCE).ONIXMessage);
+      expect(await plan(bridged.adapter)).toEqual(await plan(raw(REFERENCE_SOURCE)));
+    });
+
+    it('retains the original Short tags and paths beside the Reference convenience parse', async () => {
+      const bridged = bridgeOnixSource(await canonical(toShort(REFERENCE_SOURCE)));
+
+      expect(bridged.canonical.normalized.provenance).toMatchObject({ kind: 'RENAMED', flavour: 'short' });
+      const keyNames = '/ONIXMessage[1]/Product[1]/DescriptiveDetail[1]/Contributor[2]/KeyNames[1]';
+      const shortKeyNames = tagMap.referenceToShort.get('KeyNames');
+      expect(bridged.provenance.sourceTagOf(keyNames)).toBe(shortKeyNames);
+      expect(bridged.provenance.sourcePathOf(keyNames)).toBe(
+        `/ONIXmessage[1]/product[1]/${tagMap.referenceToShort.get('DescriptiveDetail')}[1]/` +
+          `${tagMap.referenceToShort.get('Contributor')}[2]/${shortKeyNames}[1]`,
+      );
+    });
+
+    it('projects a Short finding with its original Short path beside the canonical path', async () => {
+      const result = await canonical(toShort(languageRoleInvalid()));
+      expect(permitsTargetPlanning(result)).toBe(false);
+
+      const issue = projectOnixSourceIssues(result, t).find(
+        ({ sourceValidation }) => sourceValidation?.kind === 'finding' && sourceValidation.finding.id === '_20171218_f_2',
+      );
+
+      const evidence = issue?.sourceValidation?.kind === 'finding' ? issue.sourceValidation.finding : null;
+      expect(issue?.severity).toBe('error');
+      expect(evidence?.sourcePath).toMatch(/^\/ONIXmessage\[1\]\/product\[1\]\//);
+      expect(evidence?.path).toMatch(/^\/ONIXMessage\[1\]\/Product\[1\]\/DescriptiveDetail\[1\]/);
+      expect(issue?.message).toContain(evidence?.sourcePath);
+      expect(issue?.message).toContain(evidence?.path);
+    });
+  });
+
+  describe('character references', () => {
+    it('decodes a decimal character reference as XML does, where the legacy raw parse turned it into a space', async () => {
+      const source = REFERENCE_SOURCE.replace('An Occurrence Study', 'An&#160;Occurrence Study');
+      const { adapter } = bridgeOnixSource(await canonical(source));
+
+      const subtitle = (adapter.ONIXMessage.Product as unknown as { DescriptiveDetail: { TitleDetail: { TitleElement: { Subtitle: string } } } }[])[0]
+        .DescriptiveDetail.TitleDetail.TitleElement.Subtitle;
+      expect(subtitle).toBe('An Occurrence Study');
+      // The legacy path parsed the raw text, where fast-xml-parser mis-decodes decimal `&#160;` to U+0020.
+      const legacy = (raw(source).ONIXMessage.Product as unknown as { DescriptiveDetail: { TitleDetail: { TitleElement: { Subtitle: string } } } }[])[0]
+        .DescriptiveDetail.TitleDetail.TitleElement.Subtitle;
+      expect(legacy).toBe('An Occurrence Study');
+    });
+  });
+
+  describe('approved recovery', () => {
+    // The second Product gains a TextContent without its required Text: the approved OMIT_INVALID_COMPOSITE case.
+    const RECOVERABLE_SOURCE = REFERENCE_SOURCE.replace(
+      '</DescriptiveDetail>\n<PublishingDetail>',
+      '</DescriptiveDetail>\n<CollateralDetail><TextContent><TextType>03</TextType><ContentAudience>00</ContentAudience>' +
+        '</TextContent></CollateralDetail>\n<PublishingDetail>',
+    );
+
+    it('hands the adapter the recovered source only and keeps the recovery visible as warnings', async () => {
+      const result = await canonical(RECOVERABLE_SOURCE);
+      expect(blockingIds(result)).toEqual([]);
+      expect(permitsTargetPlanning(result)).toBe(true);
+      const marker = {
+        recovery: 'OMIT_INVALID_COMPOSITE',
+        removed: '/ONIXMessage[1]/Product[2]/CollateralDetail[1]/TextContent[1]',
+        taintSite: '/ONIXMessage[1]/Product[2]/CollateralDetail[1]',
+      };
+      expect(result.normalized?.recoveries).toEqual([marker]);
+
+      const { adapter, canonical: kept } = bridgeOnixSource(result);
+      const issues = projectOnixSourceIssues(kept, t);
+
+      const [first, second] = adapter.ONIXMessage.Product as unknown as Record<string, unknown>[];
+      expect(JSON.stringify(first)).toContain('TextContent');
+      expect(JSON.stringify(second)).not.toContain('TextContent');
+      expect(issues.every(({ severity }) => severity === 'warning')).toBe(true);
+      expect(issues).toContainEqual(
+        expect.objectContaining({ code: 'onix.source.recovered', sourceValidation: { kind: 'recovery', recovery: marker } }),
+      );
+      expect(issues).toContainEqual(
+        expect.objectContaining({
+          severity: 'warning',
+          code: 'onix.source.validity',
+          sourceValidation: {
+            kind: 'finding',
+            finding: expect.objectContaining({ recoverability: 'OMIT_INVALID_COMPOSITE', class: 'SOURCE_INVALID', counts: false }),
+          },
+        }),
+      );
+    });
+
+    it('never lets a recovery make an otherwise blocked source plannable', async () => {
+      const result = await canonical(readFileSync(join(FIXTURES, 'taint30', 'T1_empty_textcontent_recovery.xml'), 'utf8'));
+
+      const issues = projectOnixSourceIssues(result, t);
+
+      expect(result.normalized?.recoveries).toHaveLength(1);
+      expect(permitsTargetPlanning(result)).toBe(false);
+      expect(() => bridgeOnixSource(result)).toThrow();
+      expect(issues.filter(({ severity }) => severity === 'error')).toHaveLength(result.summary.blocking);
+      expect(issues).toContainEqual(expect.objectContaining({ severity: 'warning', code: 'onix.source.recovered' }));
+    });
+  });
+
+  describe('projectOnixSourceIssues', () => {
+    it('blocks the same-key LanguageRole 01 + 02 source with its canonical finding', async () => {
+      const result = await canonical(languageRoleInvalid());
+
+      const issues = projectOnixSourceIssues(result, t);
+
+      expect(permitsTargetPlanning(result)).toBe(false);
+      expect(issues).toHaveLength(result.findings.length + (result.normalized?.recoveries.length ?? 0));
+      expect(issues).toContainEqual(
+        expect.objectContaining({
+          severity: 'error',
+          code: 'onix.source.validity',
+          sourceValidation: {
+            kind: 'finding',
+            finding: expect.objectContaining({ id: '_20171218_f_2', class: 'NORMATIVE_INVALID', counts: true }),
+          },
+        }),
+      );
+    });
+
+    it('keeps a stage-2 DOCTYPE stop as SECURITY and an unsupported release as SUPPORT', async () => {
+      const doctype = projectOnixSourceIssues(
+        await canonical(readFileSync(join(FIXTURES, 'dtd_suite30', 'D1_bare_doctype.xml'), 'utf8')),
+        t,
+      );
+      const unsupported = projectOnixSourceIssues(await canonical('<ONIXMessage release="2.1"><Header/></ONIXMessage>'), t);
+
+      expect(doctype.map(({ severity, code }) => [severity, code])).toEqual([['error', 'onix.source.security']]);
+      expect(unsupported.map(({ severity, code }) => [severity, code])).toEqual([['error', 'onix.source.support']]);
+      expect(doctype[0].message).toContain('onixValidation.issue.SECURITY');
+      expect(unsupported[0].message).toContain('onixValidation.issue.SUPPORT');
+    });
+
+    it('keeps SECONDARY and NOT_EVALUABLE dispositions, and only a counting finding blocks', () => {
+      const findings = [
+        finding(),
+        finding({ id: 'R-SECONDARY', projection: 'SECONDARY', counts: false }),
+        finding({ id: 'R-NE', class: 'RULE_NOT_EVALUABLE', blocking: false, projection: 'NOT_EVALUABLE', counts: false }),
+        finding({ id: 'R-ADV', class: 'ADVISORY', blocking: false, counts: false }),
+      ];
+      const issues = projectOnixSourceIssues(scripted({ findings, sourceValid: false }), t);
+
+      expect(issues.map(({ severity }) => severity)).toEqual(['error', 'warning', 'warning', 'warning']);
+      expect(issues.map(({ sourceValidation }) => sourceValidation)).toEqual(
+        findings.map((f) => ({ kind: 'finding', finding: f })),
+      );
+      expect(issues[1].message).toContain('onixValidation.disposition.SECONDARY');
+      expect(issues[2].message).toContain('onixValidation.disposition.NOT_EVALUABLE');
+      expect(issues.every(({ source }) => source.kind === 'file' || source.kind === 'onix')).toBe(true);
+    });
+  });
+
+  describe('projectOnixRefusal', () => {
+    const refusal = (overrides: Partial<EnvelopeEvidence>): EnvelopeEvidence => ({
+      engine: 'chromium',
+      bytes: 1_000,
+      products: { measured: false, reason: 'ENGINE_UNSUPPORTED' },
+      verdict: 'UNSUPPORTED',
+      limits: null,
+      exceeded: [],
+      ...overrides,
+    });
+
+    it.each([
+      ['mobile', refusal({ engine: 'mobile' }), 'onixValidation.support.mobile'],
+      ['webkit', refusal({ engine: 'webkit' }), 'onixValidation.support.webkit'],
+      ['unknown', refusal({ engine: 'unknown' }), 'onixValidation.support.unknown'],
+      [
+        'too large',
+        refusal({
+          engine: 'gecko',
+          bytes: 21_000_000,
+          products: { measured: false, reason: 'BYTE_CEILING_EXCEEDED' },
+          verdict: 'REFUSE',
+          limits: ENGINE_ENVELOPES.gecko,
+          exceeded: ['bytes'],
+        }),
+        'onixValidation.support.tooLarge',
+      ],
+    ])('projects a %s refusal as one SUPPORT outcome with its evidence, never as source invalidity', (_case, envelope, key) => {
+      const issues: ImportIssue[] = projectOnixRefusal(envelope, t);
+
+      expect(issues).toEqual([
+        { severity: 'error', code: 'onix.source.support', message: expect.stringContaining(key), source: { kind: 'file' }, sourceValidation: { kind: 'support', envelope } },
+      ]);
+    });
+  });
+
+  describe('projectOnixUnavailable', () => {
+    it('projects a runtime failure as unavailable validation, never as source invalidity', () => {
+      expect(projectOnixUnavailable({ code: 'WORKER_FAILED', message: 'blocked by policy' }, t)).toEqual([
+        {
+          severity: 'error',
+          code: 'onix.source.unavailable',
+          message: expect.stringContaining('blocked by policy'),
+          source: { kind: 'file' },
+          sourceValidation: { kind: 'unavailable', code: 'WORKER_FAILED', message: 'blocked by policy' },
+        },
+      ]);
+    });
+  });
+});

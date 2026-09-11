@@ -13,7 +13,7 @@ vi.mock('./CSVParse', () => ({
 }));
 
 vi.mock('./XMLParse', () => ({
-  XMLParse: (props: { onValidationFailure?: (issues: unknown[]) => void }) => {
+  XMLParse: (props: { onValidationFailure?: (issues: unknown[]) => void; onCancel?: () => void }) => {
     mockXMLParse(props);
 
     return <div data-testid="xml-parse" />;
@@ -411,5 +411,57 @@ describe('UploadStep', () => {
 
     expect(await screen.findByText(ONIX_PROCESSING_FAILURE_MESSAGE)).toBeInTheDocument();
     expect(screen.queryByText('errors.xmlParsingError')).not.toBeInTheDocument();
+  });
+
+  /**
+   * Cancelling an ONIX validation says nothing about the file, so it reports nothing: the step goes
+   * back to choosing a file. Like a failure, a cancellation belongs to the selection that raised it.
+   */
+  it('returns to file selection, reporting nothing, when the current XML validation is cancelled', async () => {
+    render(<UploadStep />);
+
+    await uploadXml();
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+    const { onCancel } = mockXMLParse.mock.calls[0][0];
+
+    act(() => onCancel());
+
+    expect(screen.queryByTestId('xml-parse')).not.toBeInTheDocument();
+    expect(screen.getByText('bulkUpload.instructions')).toBeInTheDocument();
+    expect(screen.queryByText(/^\d+\.$/)).not.toBeInTheDocument();
+  });
+
+  it('ignores a stale cancellation from a superseded XML selection', async () => {
+    render(<UploadStep />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+    await userEvent.upload(input, new File(['<ONIXMessage />'], 'first.xml', { type: 'text/xml' }));
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+    const { onCancel: firstCancel } = mockXMLParse.mock.calls[0][0];
+
+    await userEvent.upload(input, new File(['<ONIXMessage />'], 'second.xml', { type: 'text/xml' }));
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(2));
+
+    act(() => firstCancel());
+
+    expect(screen.getByText('fileUpload.selected:second.xml')).toBeInTheDocument();
+    expect(screen.getByTestId('xml-parse')).toBeInTheDocument();
+  });
+
+  it('ignores a stale XML cancellation after the file is replaced with CSV', async () => {
+    render(<UploadStep />);
+    const input = document.querySelector('input[type="file"]') as HTMLInputElement;
+
+    await userEvent.upload(input, new File(['<ONIXMessage />'], 'first.xml', { type: 'text/xml' }));
+    await waitFor(() => expect(mockXMLParse).toHaveBeenCalledTimes(1));
+    const { onCancel: xmlCancel } = mockXMLParse.mock.calls[0][0];
+
+    await userEvent.upload(input, new File(['title\nBook'], 'second.csv', { type: 'text/csv' }));
+    await waitFor(() => expect(mockCSVParse).toHaveBeenCalledTimes(1));
+
+    act(() => xmlCancel());
+
+    expect(screen.getByText('fileUpload.selected:second.csv')).toBeInTheDocument();
+    expect(screen.getByTestId('csv-parse')).toBeInTheDocument();
   });
 });

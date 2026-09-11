@@ -62,6 +62,18 @@ export const UploadStep = (props: UploadStepProps) => {
   };
 
   /**
+   * Cancelling an ONIX validation says nothing about the file, so nothing is reported: the step
+   * simply starts over. Like a failure, a cancellation belongs to the selection that raised it, and
+   * one from a superseded selection is dropped.
+   */
+  const handleParserCancel = (selectionId: number) => () => {
+    if (selectionId !== selectionSequence.current) return;
+
+    setValidationIssues([]);
+    setSelectedFile(null);
+  };
+
+  /**
    * A problem with the upload itself, raised before either parser sees it, so it belongs to the
    * file rather than to any row or product. A rejected attempt is still a new selection: it
    * advances the sequence so that any parser still validating the previous file becomes stale.
@@ -120,6 +132,7 @@ export const UploadStep = (props: UploadStepProps) => {
           imprints={userImprintsOptions}
           serieses={serieses}
           onValidationFailure={handleParserFailure(selectedFile.selectionId)}
+          onCancel={handleParserCancel(selectedFile.selectionId)}
           onPreview={onPreview}
         />
       )}
