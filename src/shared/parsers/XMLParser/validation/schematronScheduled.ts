@@ -18,18 +18,20 @@ import { type ElementIndex, indexElements } from './xdm';
 /**
  * G1/S1 Schematron scheduling (thoth-app#196). Reports are evaluated in their
  * canonical order, on the canonical node list of their context:
- * - a plain context (`//p:Name`, or a union of them) is served from the
- *   document-order name index, filtered by the namespace the report's own
- *   prefix resolution yields - exactly the nodes the XPath selects;
+ * - a plain context (`//p:Name`, or a union of them) whose every prefix
+ *   resolves to a non-empty namespace is served from the document-order name
+ *   index, filtered by that namespace, with XPath union set semantics: each
+ *   selected node once (deduplicated by identity), in document order -
+ *   exactly the nodes the XPath selects;
  * - every other context is evaluated once per distinct context by the
  *   canonical XPath, as `evaluateSchematron` does;
  * - each (report, node) pair runs the canonical per-node evaluation
  *   (`evaluateSchematronOnNode`, continue-on-error), except the ten accepted
- *   Unicode-block reports (S1), which read one scan of the text/CDATA
- *   children of the context's proper descendants against the derived class
- *   table; direct text children of the context are never scanned, matching
- *   `descendant::*[matches(., R)]`. Any report whose test does not have the
- *   accepted single-class shape stays canonical.
+ *   Unicode-block reports (S1), which read one scan per (context, node) of the
+ *   text/CDATA children of the node's proper descendants against the derived
+ *   class table; direct text children of the context are never scanned,
+ *   matching `descendant::*[matches(., R)]`. Any report whose test does not
+ *   have the accepted single-class shape stays canonical.
  * Tests are never batched: per-node evaluation is kernel-equivalent by
  * construction. Progress is one unit per report; cancellation is checked
  * between reports.
@@ -143,22 +145,26 @@ export async function evaluateSchematronScheduled(
   const contexts = new Map<string, Node[] | Error>();
   const stats = { indexServedContexts: 0, canonicalContexts: 0, s1Reports: 0, s1Nodes: 0, canonicalNodes: 0 };
 
-  const nodesOf = (report: SchematronReport): Node[] | Error => {
-    const key = schematronContextKey(report);
+  const nodesOf = (report: SchematronReport, key: string): Node[] | Error => {
     let nodes = contexts.get(key);
     if (nodes !== undefined) return nodes;
     const branches = plainContextBranches(report.context);
     const resolve = schematronOptions(report).namespaceResolver;
-    if (branches && branches.every((b) => resolve(b.prefix) !== null)) {
-      const selected: { node: Element; ordinal: number }[] = [];
-      for (const branch of branches) {
-        const namespace = resolve(branch.prefix);
+    const namespaces = branches?.map((branch) => resolve(branch.prefix)) ?? [];
+    // Index-served only when every branch resolves to a non-empty namespace; anything else is canonical XPath.
+    if (branches && namespaces.every((namespace) => namespace !== null && namespace !== '')) {
+      // XPath union: every selected node once, deduplicated by identity, then put in document order.
+      const selected = new Map<Element, number>();
+      branches.forEach((branch, i) => {
         for (const element of index.byName.get(branch.name) ?? []) {
-          if (element.namespaceURI === namespace) selected.push({ node: element, ordinal: index.ordinalOf(element) });
+          if (element.namespaceURI === namespaces[i] && !selected.has(element)) {
+            selected.set(element, index.ordinalOf(element));
+          }
         }
-      }
-      if (branches.length > 1) selected.sort((a, b) => a.ordinal - b.ordinal);
-      nodes = selected.map((s) => s.node);
+      });
+      const ordered = [...selected];
+      if (branches.length > 1) ordered.sort((a, b) => a[1] - b[1]);
+      nodes = ordered.map(([element]) => element);
       stats.indexServedContexts++;
     } else {
       nodes = evaluateSchematronContext(report, document);
@@ -168,7 +174,8 @@ export async function evaluateSchematronScheduled(
     return nodes;
   };
 
-  // S1: one scan per context node covering every S1 report of that context.
+  // S1: one scan per (context, node) covering every S1 report of that context. Keyed by context as well as by
+  // node, so a node that several contexts select is scanned for each context's own classes.
   const s1Bits = new Map<SchematronReport, number>();
   const wantByContext = new Map<string, number>();
   if (classes) {
@@ -181,12 +188,17 @@ export async function evaluateSchematronScheduled(
       wantByContext.set(key, (wantByContext.get(key) ?? 0) | bit);
     }
   }
-  const scans = new Map<Node, number>();
-  const scanFor = (report: SchematronReport, node: Element) => {
-    let found = scans.get(node);
+  const scans = new Map<string, Map<Node, number>>();
+  const scanFor = (key: string, node: Element) => {
+    let byNode = scans.get(key);
+    if (!byNode) {
+      byNode = new Map();
+      scans.set(key, byNode);
+    }
+    let found = byNode.get(node);
     if (found === undefined) {
-      found = scanDescendantText(node, wantByContext.get(schematronContextKey(report))!, classes!);
-      scans.set(node, found);
+      found = scanDescendantText(node, wantByContext.get(key)!, classes!);
+      byNode.set(node, found);
     }
     return found;
   };
@@ -196,7 +208,8 @@ export async function evaluateSchematronScheduled(
   for (let i = 0; i < reports.length; i++) {
     if (controls.shouldCancel?.()) throw new ValidationCancelledError('SCHEMATRON');
     const report = reports[i];
-    const nodes = nodesOf(report);
+    const key = schematronContextKey(report);
+    const nodes = nodesOf(report, key);
     if (nodes instanceof Error) {
       findings.push(schematronContextFailure(report, nodes));
     } else {
@@ -206,7 +219,7 @@ export async function evaluateSchematronScheduled(
       for (const node of nodes) {
         if (bit !== undefined && node.nodeType === 1) {
           stats.s1Nodes++;
-          const hit = (scanFor(report, node as Element) & bit) !== 0;
+          const hit = (scanFor(key, node as Element) & bit) !== 0;
           if (report.kind === 'report' ? hit : !hit) {
             findings.push({ id: report.id, report, node, path: schematronPath(node), notEvaluable: null });
           }

@@ -2,13 +2,15 @@
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+import { evaluateXPathToNodes } from 'fontoxpath';
+import type { Node } from 'slimdom';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 // Corpus-scale suites: under coverage instrumentation they exceed the default 5 s per test.
 vi.setConfig({ testTimeout: 120_000, hookTimeout: 120_000 });
 
 import { SCHEMA_MODELS } from './schemaModel';
-import { evaluateSchematron, type SchematronFinding } from './schematron';
+import { evaluateSchematron, schematronContextKey, type SchematronFinding, schematronOptions } from './schematron';
 import {
   evaluateSchematronScheduled,
   plainContextBranches,
@@ -128,6 +130,168 @@ describe('context classification', () => {
     expect(s1Pattern(tampered, classes)).toBeNull();
     expect(s1Pattern({ ...sample, id: '_20200115_d_10' }, classes)).toBeNull();
     expect(s1Pattern({ ...sample, test: "exists(descendant::*[matches(., '[abc]')])" }, classes)).toBeNull();
+  });
+});
+
+describe('G1 plain-context unions keep XPath set semantics', () => {
+  const FOREIGN = 'urn:example:foreign';
+  const TEXT =
+    `<ONIXMessage release="3.0" xmlns="${NS['3.0']}" xmlns:f="${FOREIGN}">` +
+    '<Header><Sender><SenderName>T</SenderName></Sender></Header>' +
+    '<Product><RecordReference>a</RecordReference><f:Product/></Product>' +
+    '<Product><RecordReference>b</RecordReference></Product>' +
+    '<f:Product><P xmlns="">x</P></f:Product>' +
+    '</ONIXMessage>';
+  const ONIX = { '': NS['3.0'], onix: NS['3.0'] };
+  const ALT = { ...ONIX, alt: NS['3.0'] };
+  const CASES: [label: string, context: string, prefixes: Record<string, string>, indexServed: boolean][] = [
+    ['identical duplicate branches', '//onix:Product | //onix:Product', ONIX, true],
+    ['two prefixes bound to the same namespace', '//onix:Product | //alt:Product', ALT, true],
+    ['a node reached through two of three branches', '//alt:Product | //onix:Header | //onix:Product', ALT, true],
+    ['a default-namespace branch overlapping a prefixed one', '//Product | //onix:Product', ONIX, true],
+    [
+      'disjoint branches listed out of document order',
+      '//onix:RecordReference | //onix:Header | //onix:Product',
+      ONIX,
+      true,
+    ],
+    ['one local name in two namespaces', '//onix:Product | //f:Product', { ...ONIX, f: FOREIGN }, true],
+    ['a single branch', '//onix:RecordReference', ONIX, true],
+    ['a prefix bound to the empty namespace (canonical fallback)', '//e:P | //e:P', { ...ONIX, e: '' }, false],
+    [
+      'an unbound prefix (canonical fallback and its static error)',
+      '//onix:Product | //nope:Product',
+      { onix: NS['3.0'] },
+      false,
+    ],
+  ];
+  const TESTS: [kind: 'report' | 'assert', test: string][] = [
+    ['report', 'true()'],
+    ['assert', 'false()'],
+    ['report', 'error()'],
+  ];
+
+  it.each(CASES)(
+    '%s: canonical node identity, order, finding count/order and errors',
+    async (_label, context, prefixes, indexServed) => {
+      const { document } = buildXdm(TEXT);
+      const reports = TESTS.map(
+        ([kind, test], i): SchematronReport => ({
+          kind,
+          id: `_union_${i}`,
+          role: 'error',
+          test,
+          context,
+          text: 't',
+          prefixes,
+        }),
+      );
+      const ruleset: Ruleset = { ...rulesets['3.0']!, schematron: reports };
+      const canonical = evaluateSchematron(ruleset, document);
+      const scheduled = await evaluateSchematronScheduled(ruleset, document);
+      expect(scheduled.findings).toHaveLength(canonical.length);
+      scheduled.findings.forEach((finding, i) => {
+        expect(finding.report).toBe(canonical[i].report);
+        expect(finding.node).toBe(canonical[i].node);
+        expect(finding.path).toBe(canonical[i].path);
+        expect(finding.notEvaluable).toEqual(canonical[i].notEvaluable);
+      });
+      expect(scheduled.stats).toMatchObject({
+        indexServedContexts: indexServed ? 1 : 0,
+        canonicalContexts: indexServed ? 0 : 1,
+      });
+      // A firing report visits exactly the XPath node sequence: every selected node once, in document order.
+      let expected: Node[] | null;
+      try {
+        expected = evaluateXPathToNodes<Node>(context, document, null, {}, schematronOptions(reports[0]));
+      } catch {
+        expected = null;
+      }
+      const visited = scheduled.findings.filter((f) => f.id === '_union_0').map((f) => f.node);
+      if (expected === null) {
+        expect(visited).toEqual([null]);
+      } else {
+        expect(new Set(expected).size).toBe(expected.length);
+        expect(visited).toHaveLength(expected.length);
+        visited.forEach((node, i) => expect(node).toBe(expected![i]));
+      }
+    },
+  );
+});
+
+describe('S1 scan cache identity', () => {
+  it("a node selected by two contexts is scanned for each context's own classes", async () => {
+    const base = rulesets['3.0']!;
+    const moved: Ruleset = {
+      ...base,
+      schematron: base.schematron.map(
+        (r): SchematronReport => (r.id === '_20200115_d_4' ? { ...r, context: '/onix:ONIXMessage' } : r),
+      ),
+    };
+    const p = prepared(
+      `<ONIXMessage release="3.0" xmlns="${NS['3.0']}"><Header><Sender><SenderName>T</SenderName></Sender></Header>` +
+        '<Product><RecordReference>é א</RecordReference></Product></ONIXMessage>',
+    )!;
+    const canonical = projection(evaluateSchematron(moved, p.document));
+    const scheduled = await evaluateSchematronScheduled(moved, p.document);
+    expect(projection(scheduled.findings)).toEqual(canonical);
+    expect(scheduled.stats.s1Reports).toBe(10);
+    expect(canonical.map((f) => f.id)).toEqual(expect.arrayContaining(['_20200115_d_1', '_20200115_d_4']));
+  });
+});
+
+describe('context cache identity', () => {
+  const report = (context: string, prefixes: Record<string, string>): SchematronReport => ({
+    kind: 'report',
+    id: '_key',
+    role: 'error',
+    test: 'true()',
+    context,
+    text: 't',
+    prefixes,
+  });
+  // Each pair is conflated by a space-joined composition of its components (context, then each prefix and namespace).
+  const spaceJoined = (r: SchematronReport) => [r.context, ...Object.entries(r.prefixes).flat()].join(' ');
+  const PAIRS: [SchematronReport, SchematronReport][] = [
+    [report('//a:Product', { a: `${NS['3.0']} b urn:x` }), report('//a:Product', { a: NS['3.0'], b: 'urn:x' })],
+    [report('//a:Product a', { b: 'c' }), report('//a:Product', { a: 'b c' })],
+    [report('//a:Product | //b:X', { a: NS['3.0'] }), report('//a:Product', { '|': `//b:X a ${NS['3.0']}` })],
+  ];
+
+  it('is a tuple encoding that recovers exactly the context and its bindings', () => {
+    const inputs = [
+      ...PAIRS.flat(),
+      report(`//onix:A[. = ' {"onix":"x"}'] | //onix:B`, { '': NS['3.0'] }),
+      report('//onix:A', { '': 'urn:"q" \\ {}' }),
+      report('', {}),
+    ];
+    for (const r of inputs) expect(JSON.parse(schematronContextKey(r))).toEqual([r.context, r.prefixes]);
+  });
+
+  it('keeps apart inputs a space-joined composition conflates, in the key and in both evaluators', async () => {
+    for (const [a, b] of PAIRS) {
+      expect(spaceJoined(a)).toBe(spaceJoined(b));
+      expect(schematronContextKey(a)).not.toBe(schematronContextKey(b));
+    }
+    // One context text under two bindings: each report selects through its own bindings.
+    const [unbound, bound] = PAIRS[0];
+    const { document } = buildXdm(
+      `<ONIXMessage release="3.0" xmlns="${NS['3.0']}"><Header/><Product/><Product/></ONIXMessage>`,
+    );
+    const ruleset: Ruleset = {
+      ...rulesets['3.0']!,
+      schematron: [
+        { ...unbound, id: '_unbound' },
+        { ...bound, id: '_bound' },
+      ],
+    };
+    const canonical = evaluateSchematron(ruleset, document);
+    const scheduled = await evaluateSchematronScheduled(ruleset, document);
+    expect(canonical.map((f) => [f.id, f.path])).toEqual([
+      ['_bound', '/ONIXMessage[1]/Product[1]'],
+      ['_bound', '/ONIXMessage[1]/Product[2]'],
+    ]);
+    expect(projection(scheduled.findings)).toEqual(projection(canonical));
   });
 });
 

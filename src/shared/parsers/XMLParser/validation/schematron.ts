@@ -36,9 +36,12 @@ export function schematronOptions(report: SchematronReport) {
 
 export const schematronPath = (node: Node) => (node.nodeType === 1 ? pathOf(node as Element) : '/');
 
-/** Cache key of a report's context: identical contexts evaluate to identical node lists on the unchanged tree. */
-export const schematronContextKey = (report: SchematronReport) =>
-  `${report.context} ${JSON.stringify(report.prefixes)}`;
+/**
+ * Cache key of a report's context: identical contexts evaluate to identical node lists on the unchanged tree.
+ * A JSON tuple of the context and its prefix bindings, so the key is structurally unambiguous: `JSON.parse`
+ * recovers both exactly, and no two distinct (context, bindings) pairs can share a key.
+ */
+export const schematronContextKey = (report: SchematronReport) => JSON.stringify([report.context, report.prefixes]);
 
 /** Canonical context selection of one report over the whole document; a raising context is returned as the error. */
 export function evaluateSchematronContext(report: SchematronReport, document: Document): Node[] | Error {
