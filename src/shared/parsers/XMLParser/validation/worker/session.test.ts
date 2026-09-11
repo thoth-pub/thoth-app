@@ -37,6 +37,10 @@ interface Harness {
   loader: Mock<(fileName: string) => Promise<Uint8Array>>;
   session: ReturnType<typeof createWorkerSession>;
   controls: ValidatorControls[];
+  /** Every validator the session built. */
+  validators: OnixSourceValidator[];
+  /** The message last posted at each report of the session's end. */
+  endings: WorkerToClientMessage[];
 }
 
 function harness(userAgent: string, validatorFactory?: (controls: ValidatorControls) => OnixSourceValidator): Harness {
@@ -47,18 +51,22 @@ function harness(userAgent: string, validatorFactory?: (controls: ValidatorContr
     return new Uint8Array(readFileSync(join(PUBLIC_DIR, fileName)));
   });
   const controls: ValidatorControls[] = [];
+  const validators: OnixSourceValidator[] = [];
+  const endings: WorkerToClientMessage[] = [];
   const session = createWorkerSession({
     post: (m) => void posted.push(m),
     userAgent,
     createValidator: (c) => {
       controls.push(c);
       calls.push('createValidator');
-      return validatorFactory
+      const validator = validatorFactory
         ? validatorFactory(c)
         : createOnixSourceValidator({
             loadResource: loader,
             execution: { onStage: c.onStage, onProgress: c.onProgress, shouldCancel: c.shouldCancel, yield: c.yield },
           });
+      validators.push(validator);
+      return validator;
     },
     decode: (bytes) => {
       calls.push('decode');
@@ -74,8 +82,9 @@ function harness(userAgent: string, validatorFactory?: (controls: ValidatorContr
     },
     newToken: () => 'token-1',
     now: () => 0,
+    onEnded: () => void endings.push(posted[posted.length - 1]),
   });
-  return { posted, calls, loader, session, controls };
+  return { posted, calls, loader, session, controls, validators, endings };
 }
 
 const begin = (bytes: Uint8Array, options?: ClientToWorkerMessage extends infer _M ? Record<string, unknown> : never) =>
@@ -100,7 +109,8 @@ describe('worker session: stage-1/2 stops precede sizing and every resource', ()
     expect(h.calls).not.toContain('sizing');
     expect(h.calls.filter((c) => c.startsWith('load:'))).toEqual([]);
     expect(h.loader).not.toHaveBeenCalled();
-    expect(h.session.state).toBe('IDLE');
+    expect(h.session.state).toBe('ENDED');
+    expect(h.endings).toEqual([result]);
   });
 
   it('stops an unsupported encoding through the canonical validator without decoding twice into sizing', async () => {
@@ -146,7 +156,7 @@ describe('worker session: normal path', () => {
       'INVENTORY',
       'SERIALIZING',
     ]);
-    expect(h.session.state).toBe('IDLE');
+    expect(h.session.state).toBe('ENDED');
     expect(h.controls[0].accelerate).toBe(true);
   });
 
@@ -245,7 +255,8 @@ describe('worker session: envelope refusals', () => {
     });
     expect(h.calls).toEqual(['decode', 'gate', 'sizing']);
     expect(h.loader).not.toHaveBeenCalled();
-    expect(h.session.state).toBe('IDLE');
+    expect(h.session.state).toBe('ENDED');
+    expect(h.endings).toEqual([last(h)]);
   });
 });
 
@@ -275,6 +286,7 @@ describe('worker session: warning continuation state machine', () => {
     expect(last(h)).toMatchObject({ type: 'error', runId: 'r2', code: 'STALE_SESSION' });
     expect(h.loader).not.toHaveBeenCalled();
     expect(h.session.state).toBe('AWAITING_CONTINUATION');
+    expect(h.endings).toEqual([]);
 
     await h.session.handle({ type: 'continue', runId: 'r1', token: 'token-1' });
     const result = last(h);
@@ -287,7 +299,9 @@ describe('worker session: warning continuation state machine', () => {
     const direct = await createOnixSourceValidator({ loadResource: h.loader }).validate(bytes);
     expect(result.result.findings).toEqual(direct.findings);
     expect(result.result.summary).toEqual(direct.summary);
-    expect(h.session.state).toBe('IDLE');
+    expect(h.session.state).toBe('ENDED');
+    expect(h.endings).toEqual([result]);
+    expect(h.validators).toHaveLength(1);
     // The session is consumed: the same token cannot be replayed.
     await h.session.handle({ type: 'continue', runId: 'r1', token: 'token-1' });
     expect(last(h)).toMatchObject({ type: 'error', code: 'NO_SESSION' });
@@ -300,24 +314,110 @@ describe('worker session: warning continuation state machine', () => {
     expect(h.calls).toEqual([]);
   });
 
-  it('cancelling a pending warning drops the retained bytes', async () => {
+  it('cancelling a pending warning drops the retained bytes and ends the session', async () => {
     const h = harness(FIREFOX);
     await h.session.handle(begin(encode(message(501))));
     await h.session.handle({ type: 'cancel', runId: 'r1' });
     expect(last(h)).toEqual({ type: 'cancelled', runId: 'r1', stage: 'ENVELOPE' });
-    expect(h.session.state).toBe('IDLE');
+    expect(h.session.state).toBe('ENDED');
+    expect(h.endings).toEqual([last(h)]);
     await h.session.handle({ type: 'continue', runId: 'r1', token: 'token-1' });
     expect(last(h)).toMatchObject({ type: 'error', code: 'NO_SESSION' });
     expect(h.loader).not.toHaveBeenCalled();
   });
 
-  it('a new begin replaces a pending warning session', async () => {
+  it('a begin while the warning awaits its continuation is refused BUSY: the retained source is never replaced', async () => {
     const h = harness(FIREFOX);
     await h.session.handle(begin(encode(message(501))));
     await h.session.handle({ type: 'begin', runId: 'r2', bytes: encode(message(1)) });
-    expect(last(h)).toMatchObject({ type: 'result', runId: 'r2' });
+    expect(last(h)).toMatchObject({ type: 'error', runId: 'r2', code: 'BUSY' });
+    expect(h.session.state).toBe('AWAITING_CONTINUATION');
+    expect(h.calls).toEqual(['decode', 'gate', 'sizing']);
     await h.session.handle({ type: 'continue', runId: 'r1', token: 'token-1' });
-    expect(last(h)).toMatchObject({ type: 'error', code: 'NO_SESSION' });
+    expect(last(h)).toMatchObject({
+      type: 'result',
+      runId: 'r1',
+      envelope: { products: { measured: true, count: 501 } },
+    });
+    expect(h.endings).toEqual([last(h)]);
+  });
+});
+
+describe('worker session: one session per Worker', () => {
+  it('a begin after the terminal outcome is refused SESSION_ENDED and nothing is decoded or validated again', async () => {
+    const h = harness(CHROME);
+    await h.session.handle(begin(encode(message(1))));
+    expect(last(h)).toMatchObject({ type: 'result', runId: 'r1' });
+    const callsAfterSession = [...h.calls];
+    await h.session.handle({ type: 'begin', runId: 'r2', bytes: encode(message(1)) });
+    expect(last(h)).toEqual({
+      type: 'error',
+      runId: 'r2',
+      code: 'SESSION_ENDED',
+      message: "this Worker's session has ended; a new session needs a new Worker",
+    });
+    expect(h.calls).toEqual(callsAfterSession);
+    expect(h.validators).toHaveLength(1);
+    expect(h.session.state).toBe('ENDED');
+    expect(h.endings).toHaveLength(1);
+  });
+
+  it('builds the validator of its one validation only: a new session builds its own, in its own mode', async () => {
+    const a = harness(CHROME);
+    await a.session.handle(begin(encode(message(1))));
+    const b = harness(CHROME);
+    await b.session.handle(begin(encode(message(1)), { accelerate: false }));
+    expect(a.validators).toHaveLength(1);
+    expect(b.validators).toHaveLength(1);
+    expect(b.validators[0]).not.toBe(a.validators[0]);
+    expect(a.controls.map((c) => c.accelerate)).toEqual([true]);
+    expect(b.controls.map((c) => c.accelerate)).toEqual([false]);
+    // Each session fetched and compiled its own resources: nothing survives from one session to the next.
+    const loads = (h: Harness) => h.calls.filter((c) => c.startsWith('load:'));
+    expect(loads(a).length).toBeGreaterThan(0);
+    expect(loads(b)).toEqual(loads(a));
+    expect(a.controls[0].shouldCancel()).toBe(false);
+  });
+
+  it('reports its end once, after the terminal message, and never for a non-terminal reply', async () => {
+    const warned = harness(FIREFOX);
+    await warned.session.handle(begin(encode(message(501))));
+    await warned.session.handle({ type: 'continue', runId: 'r1', token: 'wrong' });
+    await warned.session.handle({ type: 'begin', runId: 'r2', bytes: encode(message(1)) });
+    await warned.session.handle({} as ClientToWorkerMessage);
+    expect(types(warned)).toEqual(expect.arrayContaining(['warning', 'error']));
+    expect(warned.endings).toEqual([]);
+    await warned.session.handle({ type: 'cancel', runId: 'r1' });
+    expect(warned.endings).toEqual([{ type: 'cancelled', runId: 'r1', stage: 'ENVELOPE' }]);
+
+    const refused = harness(SAFARI);
+    await refused.session.handle(begin(encode(message(1))));
+    expect(last(refused).type).toBe('refused');
+    expect(refused.endings).toEqual([last(refused)]);
+
+    const stopped = harness(CHROME);
+    await stopped.session.handle(begin(encode('<!DOCTYPE ONIXMessage>' + message(1, '3.1'))));
+    expect(last(stopped)).toMatchObject({ type: 'result', result: { status: 'STOPPED' } });
+    expect(stopped.endings).toEqual([last(stopped)]);
+  });
+
+  it.each([
+    ['a direct run', CHROME, false],
+    ['a continued run', FIREFOX, true],
+  ])('a failure of %s ends the session with INTERNAL instead of rejecting the handler', async (_label, ua, warn) => {
+    const h = harness(ua, () => ({
+      validate: async () => {
+        throw new Error('engine exploded');
+      },
+    }));
+    await h.session.handle(begin(encode(message(warn ? 501 : 1))));
+    if (warn) {
+      expect(last(h).type).toBe('warning');
+      await expect(h.session.handle({ type: 'continue', runId: 'r1', token: 'token-1' })).resolves.toBeUndefined();
+    }
+    expect(last(h)).toEqual({ type: 'error', runId: 'r1', code: 'INTERNAL', message: 'Error: engine exploded' });
+    expect(h.session.state).toBe('ENDED');
+    expect(h.endings).toEqual([last(h)]);
   });
 });
 
@@ -357,9 +457,12 @@ describe('worker session: running state and cancellation', () => {
     v.release();
     await first;
     expect(last(h)).toMatchObject({ type: 'result', runId: 'r1' });
+    expect(h.session.state).toBe('ENDED');
+    await h.session.handle({ type: 'begin', runId: 'r3', bytes: encode(message(1)) });
+    expect(last(h)).toMatchObject({ type: 'error', runId: 'r3', code: 'SESSION_ENDED' });
   });
 
-  it('cooperative cancel discards the run and posts cancelled with the last stage; a fresh begin then works', async () => {
+  it('cooperative cancel discards the run and posts cancelled with the last stage; a fresh session then works', async () => {
     const v = deferredValidator();
     const h = harness(CHROME, v.factory);
     const first = h.session.handle(begin(encode(message(1))));
@@ -369,12 +472,18 @@ describe('worker session: running state and cancellation', () => {
     await first;
     expect(types(h).filter((t) => t !== 'progress')).toEqual(['cancelled']);
     expect(last(h)).toEqual({ type: 'cancelled', runId: 'r1', stage: 'STRICT' });
-    expect(h.session.state).toBe('IDLE');
+    expect(h.session.state).toBe('ENDED');
+    expect(h.endings).toEqual([last(h)]);
+    // The cancelled session is over; recovery is a fresh session with its own validator.
+    await h.session.handle({ type: 'begin', runId: 'r2', bytes: encode(message(1)) });
+    expect(last(h)).toMatchObject({ type: 'error', runId: 'r2', code: 'SESSION_ENDED' });
     const v2 = deferredValidator();
     v2.release();
     const h2 = harness(CHROME, v2.factory);
     await h2.session.handle(begin(encode(message(1))));
     expect(last(h2)).toMatchObject({ type: 'result', runId: 'r1', result: { status: 'COMPLETED' } });
+    expect(h.validators).toHaveLength(1);
+    expect(h2.validators).toHaveLength(1);
   });
 
   it('a result computed after a late cancel is discarded, never delivered', async () => {
@@ -398,29 +507,15 @@ describe('worker session: running state and cancellation', () => {
     await h.session.handle({ type: 'cancel', runId: 'r1' });
     await run;
     expect(types(h).filter((t) => t !== 'progress')).toEqual(['cancelled']);
-  });
-
-  it('reuses one validator per acceleration mode across runs, with controls bound to the active run', async () => {
-    const h = harness(CHROME);
-    await h.session.handle(begin(encode(message(1))));
-    await h.session.handle({ type: 'begin', runId: 'r2', bytes: encode(message(1)) });
-    await h.session.handle({ type: 'begin', runId: 'r3', bytes: encode(message(1)), options: { accelerate: false } });
-    expect(h.calls.filter((c) => c === 'createValidator')).toHaveLength(2);
-    expect(h.controls.map((c) => c.accelerate)).toEqual([true, false]);
-    const loads = h.calls.filter((c) => c.startsWith('load:')).length;
-    expect(loads).toBeGreaterThan(0);
-    expect(h.posted.filter((m) => m.type === 'result').map((m) => m.runId)).toEqual(['r1', 'r2', 'r3']);
-    const stages = h.posted
-      .filter((m) => m.type === 'progress' && m.runId === 'r2')
-      .map((m) => m.type === 'progress' && m.stage);
-    expect(stages).toContain('STRICT');
-    expect(h.controls[0].shouldCancel()).toBe(false);
+    expect(h.session.state).toBe('ENDED');
   });
 
   it('cancel outside a run answers cancelled without state', async () => {
     const h = harness(CHROME);
     await h.session.handle({ type: 'cancel', runId: 'r9' });
     expect(last(h)).toEqual({ type: 'cancelled', runId: 'r9', stage: null });
+    expect(h.session.state).toBe('IDLE');
+    expect(h.endings).toEqual([]);
   });
 
   it('rejects malformed messages', async () => {
@@ -430,6 +525,7 @@ describe('worker session: running state and cancellation', () => {
     await h.session.handle({ type: 'begin', runId: 'r1', bytes: 'text' as unknown as Uint8Array });
     expect(last(h)).toMatchObject({ type: 'error', code: 'MALFORMED_MESSAGE' });
     expect(h.calls).toEqual([]);
+    expect(h.session.state).toBe('IDLE');
   });
 
   it('throttles counted progress to the configured interval but always posts the final count', async () => {

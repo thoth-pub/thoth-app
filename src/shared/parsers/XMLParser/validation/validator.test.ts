@@ -594,7 +594,7 @@ describe('execution controls', () => {
       expect(failure).toBeInstanceOf(ValidationCancelledError);
       expect((failure as ValidationCancelledError).stage).toBe(point);
       expect(seen[seen.length - 1]).toBe(point);
-      // The same validator is reusable once cancellation is withdrawn.
+      // A cancellation leaves no corrupted state in the in-process validator: withdrawn, it completes.
       armed = false;
       reached = false;
       const plain = await cancelling.validate(fixtureBytes('dtd_suite30/N3_plain.xml'));

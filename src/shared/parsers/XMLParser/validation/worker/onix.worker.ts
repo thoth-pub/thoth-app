@@ -7,9 +7,11 @@ import { createWorkerSession } from './session';
 
 /**
  * Dedicated Worker entry of the browser ONIX validation runtime
- * (thoth-app#196). One Worker serves one validation session; the client
- * (`client.ts`) constructs it. Nothing in the live uploader references this
- * module: activation is a separate task.
+ * (thoth-app#196). One Worker serves exactly one validation session: the
+ * client (`client.ts`) constructs it for that session and terminates it at the
+ * session's end, and the Worker closes itself once it has posted the terminal
+ * message. Nothing in the live uploader references this module: activation is
+ * a separate task.
  *
  * Network boundary: the only requests this Worker ever makes are same-origin
  * fetches of the pinned `/onix-validation/*` resources, each verified against
@@ -18,6 +20,7 @@ import { createWorkerSession } from './session';
 interface DedicatedWorkerScope {
   postMessage(message: WorkerToClientMessage): void;
   addEventListener(type: 'message', listener: (event: { readonly data: ClientToWorkerMessage }) => void): void;
+  close(): void;
   readonly navigator: { readonly userAgent: string };
 }
 
@@ -34,6 +37,8 @@ const session = createWorkerSession({
   userAgent: scope.navigator.userAgent,
   createValidator: (controls) =>
     createOnixSourceValidator({ loadResource, execution: createExecutionControls(controls) }),
+  // The session's terminal message has been posted: this Worker's lifecycle ends with it.
+  onEnded: () => scope.close(),
 });
 
 scope.addEventListener('message', (event) => {

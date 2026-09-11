@@ -112,7 +112,14 @@ export type ClientToWorkerMessage =
   | { readonly type: 'continue'; readonly runId: string; readonly token: string }
   | { readonly type: 'cancel'; readonly runId: string };
 
-export type WorkerErrorCode = 'BUSY' | 'NO_SESSION' | 'STALE_SESSION' | 'MALFORMED_MESSAGE' | 'INTERNAL';
+/** `SESSION_ENDED`: the Worker's one session is over; a new session needs a new Worker (and client). */
+export type WorkerErrorCode =
+  | 'BUSY'
+  | 'NO_SESSION'
+  | 'STALE_SESSION'
+  | 'SESSION_ENDED'
+  | 'MALFORMED_MESSAGE'
+  | 'INTERNAL';
 
 export type WorkerToClientMessage =
   | {
