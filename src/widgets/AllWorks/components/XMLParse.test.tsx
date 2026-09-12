@@ -24,7 +24,7 @@ import {
 import { createExecutionControls } from '@/src/shared/parsers/XMLParser/validation/worker/execution';
 import { createWorkerSession } from '@/src/shared/parsers/XMLParser/validation/worker/session';
 import { ONIX_PROCESSING_FAILURE_MESSAGE } from '@/src/shared/parsers/XMLParser/XMLParser';
-import type { ImportIssue, ImportIssueCode } from '@/src/shared/types';
+import type { ImportIssue, ImportIssueCode, ImportPlan } from '@/src/shared/types';
 import { getDefaultWork } from '@/src/shared/utils/work';
 
 const { mockRawParse, mockParse, mockXMLParser } = vi.hoisted(() => ({
@@ -681,6 +681,152 @@ describe('XMLParse', () => {
 
       await waitFor(() => expect(mockXMLParser).toHaveBeenCalledOnce());
       expect(FakeWorker.instances[0].terminated).toBe(1);
+    });
+  });
+
+  /**
+   * Replacing one XML selection with the next is the parent's business: it may remount the parser or
+   * hand the same instance a new `file`. These render one instance and never change its key, so React
+   * keeps that instance and nothing but the `file` prop changes - the component itself has to let go of
+   * the previous file. Anything the old file produced that survives here would be shown beside, or
+   * submitted as, the new file.
+   */
+  describe('replacing the file on the same instance', () => {
+    /** One key for both renders: the instance is reused, so only the `file` prop changes. */
+    const SAME_KEY = 'one-instance';
+    const planOf = (id: string): ImportPlan => ({ works: [getDefaultWork({ id })], chapters: [], series: [] });
+    const PLAN_A = planOf('work-a');
+    const PLAN_B = planOf('work-b');
+    const WARNING_A: ImportIssue = { severity: 'warning', code: 'onix.validation', message: 'a warning about the first file', source: { kind: 'file' } };
+
+    const succeedWith = (plan: ImportPlan, issues: ImportIssue[] = []) => {
+      mockParse.mockResolvedValue({ status: 'success', data: { plan, contributorsForSelection: {} }, issues });
+    };
+
+    /** Holds the next session at its first progress report: it has begun and cannot have settled. */
+    const holdInFlight = () => {
+      FakeWorker.reply = answer((runId) => ({ type: 'progress', runId, stage: 'STRICT', done: 1, total: 4 }));
+    };
+
+    /** The first file, validated and planned, with its validated source and preview on screen. */
+    const planFirstFile = async (callbacks: ReturnType<typeof handlers>) => {
+      succeedWith(PLAN_A, [WARNING_A]);
+      FakeWorker.reply = answer(resultReply(completed([finding({ counts: false, blocking: false })])));
+      const view = render(parseElement(xmlFile('<ONIXMessage/>', 'first.xml').file, callbacks, SAME_KEY));
+      expect(await screen.findByRole('button', { name: 'preview' })).toBeInTheDocument();
+      expect(screen.getByTestId('onix-source-validated')).toBeInTheDocument();
+      return view;
+    };
+
+    /** Hands the reused instance the next file while that file's own validation is still running. */
+    const selectSecondFile = async (rerender: (ui: React.ReactElement) => void, callbacks: ReturnType<typeof handlers>) => {
+      holdInFlight();
+      rerender(parseElement(xmlFile('<ONIXMessage/>', 'second.xml').file, callbacks, SAME_KEY));
+      await waitFor(() => expect(FakeWorker.instances[1].types).toEqual(['begin']));
+      return FakeWorker.instances[1];
+    };
+
+    /** Nothing of a superseded file is on screen, and none of it can be submitted. */
+    const expectNothingOfTheFirstFile = (callbacks: ReturnType<typeof handlers>) => {
+      expect(screen.queryByTestId('onix-source-validated')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'preview' })).not.toBeInTheDocument();
+      expect(screen.getByTestId('import-phase-parsing')).not.toBeVisible();
+      expect(callbacks.onPreview).not.toHaveBeenCalled();
+    };
+
+    it('drops the previous file\'s validated source, plan, contributors and preview as soon as the file changes', async () => {
+      const callbacks = handlers();
+      const { rerender } = await planFirstFile(callbacks);
+
+      await selectSecondFile(rerender, callbacks);
+
+      // The first file's plan cannot be previewed under the second file's name while the second validates.
+      expectNothingOfTheFirstFile(callbacks);
+      expect(screen.getByTestId('onix-validation-status')).toBeVisible();
+    });
+
+    it('does not bring the previous file\'s plan back when the new file is blocked', async () => {
+      const callbacks = handlers();
+      const { rerender } = await planFirstFile(callbacks);
+      const current = await selectSecondFile(rerender, callbacks);
+
+      const blocking = finding();
+      act(() => current.emit(resultReply(completed([blocking]))('run-1')));
+
+      await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
+      expect(failureIssues(callbacks).map(({ severity }) => severity)).toEqual(['error']);
+      expectNothingOfTheFirstFile(callbacks);
+    });
+
+    it('does not bring the previous file\'s plan back when the new file is refused', async () => {
+      const callbacks = handlers();
+      const { rerender } = await planFirstFile(callbacks);
+      const current = await selectSecondFile(rerender, callbacks);
+
+      const envelope = envelopeOf('REFUSE', { bytes: 37_000_000, exceeded: ['bytes'] });
+      act(() =>
+        current.emit({ type: 'refused', runId: 'run-1', reason: 'UNSUPPORTED_FOR_BROWSER_VALIDATION', scope: 'SUPPORT', envelope }),
+      );
+
+      await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
+      expect(failureIssues(callbacks)[0].code).toBe('onix.source.support');
+      expectNothingOfTheFirstFile(callbacks);
+    });
+
+    it('does not bring the previous file\'s plan back when the new file errors', async () => {
+      const callbacks = handlers();
+      const { rerender } = await planFirstFile(callbacks);
+      const current = await selectSecondFile(rerender, callbacks);
+
+      act(() => current.crash('the Worker stopped'));
+
+      await waitFor(() => expect(callbacks.onValidationFailure).toHaveBeenCalledOnce());
+      expect(failureIssues(callbacks)[0].code).toBe('onix.source.unavailable');
+      expectNothingOfTheFirstFile(callbacks);
+    });
+
+    it('refuses a superseded file\'s planner result even when it lands after the new file has planned', async () => {
+      const callbacks = handlers();
+      // The first file's target planning never finishes until this is released.
+      let releaseFirstPlan: (value: unknown) => void = () => undefined;
+      mockParse.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseFirstPlan = resolve;
+          }),
+      );
+      FakeWorker.reply = answer(resultReply(completed()));
+      const { rerender } = render(parseElement(xmlFile('<ONIXMessage/>', 'first.xml').file, callbacks, SAME_KEY));
+      await waitFor(() => expect(mockParse).toHaveBeenCalledOnce());
+
+      succeedWith(PLAN_B);
+      rerender(parseElement(xmlFile('<ONIXMessage/>', 'second.xml').file, callbacks, SAME_KEY));
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+      expect(callbacks.onPreview).toHaveBeenCalledExactlyOnceWith(PLAN_B, [], { type: 'onix', filename: 'second.xml' });
+
+      // The replaced file's planner finally answers, long after its file stopped being the selection.
+      act(() => releaseFirstPlan({ status: 'success', data: { plan: PLAN_A, contributorsForSelection: {} }, issues: [WARNING_A] }));
+      await tick();
+
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+      expect(callbacks.onPreview).toHaveBeenCalledTimes(2);
+      expect(callbacks.onPreview).toHaveBeenLastCalledWith(PLAN_B, [], { type: 'onix', filename: 'second.xml' });
+    });
+
+    it('offers only the new file\'s plan, warnings and name once the new file succeeds', async () => {
+      const callbacks = handlers();
+      const { rerender } = await planFirstFile(callbacks);
+      const current = await selectSecondFile(rerender, callbacks);
+
+      succeedWith(PLAN_B);
+      act(() => current.emit(resultReply(completed())('run-1')));
+
+      await userEvent.click(await screen.findByRole('button', { name: 'preview' }));
+      expect(callbacks.onPreview).toHaveBeenCalledOnce();
+      expect(callbacks.onPreview).toHaveBeenCalledWith(PLAN_B, [], { type: 'onix', filename: 'second.xml' });
+      // Nothing of the first file rides along: neither its plan nor the warnings raised about it.
+      expect(callbacks.onPreview).not.toHaveBeenCalledWith(PLAN_A, expect.anything(), expect.anything());
+      expect(screen.getByTestId('onix-source-validated')).toBeInTheDocument();
     });
   });
 

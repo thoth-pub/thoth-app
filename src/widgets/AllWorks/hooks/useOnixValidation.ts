@@ -68,11 +68,12 @@ const messageOf = (error: unknown) => (error instanceof Error && error.message ?
  * a refusal, an error or a cancellation ends it. Browser and device support is decided in the Worker
  * session, never here, and never as a finding about the source.
  *
- * The session settles exactly once, through `onSettled`. Its Worker is terminated when it settles,
- * when it is cancelled, when the file changes and on unmount, and nothing a disposed session sends
- * afterwards reaches the uploader.
+ * The session settles exactly once, through `onSettled`, which is told which file settled: a settlement
+ * belongs to the file its session was started for, never to whichever file is selected by the time the
+ * uploader hears about it. Its Worker is terminated when it settles, when it is cancelled, when the file
+ * changes and on unmount, and nothing a disposed session sends afterwards reaches the uploader.
  */
-export function useOnixValidation(file: File, onSettled: (settlement: OnixValidationSettlement) => void) {
+export function useOnixValidation(file: File, onSettled: (settlement: OnixValidationSettlement, file: File) => void) {
   const [state, setState] = useState<{ readonly file: File; readonly view: OnixValidationView }>(() => ({
     file,
     view: STARTING,
@@ -96,7 +97,7 @@ export function useOnixValidation(file: File, onSettled: (settlement: OnixValida
       active = false;
       warning = null;
       client?.terminate();
-      settle(settlement);
+      settle(settlement, file);
     };
 
     const accept = (outcome: ValidationOutcome) => {

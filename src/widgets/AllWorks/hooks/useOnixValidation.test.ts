@@ -117,9 +117,10 @@ function xmlFile(content = '<ONIXMessage/>') {
 }
 
 const renderValidation = (file: File) => {
-  const onSettled = vi.fn<(settlement: OnixValidationSettlement) => void>();
+  const onSettled = vi.fn<(settlement: OnixValidationSettlement, file: File) => void>();
   const hook = renderHook(({ file }: { file: File }) => useOnixValidation(file, onSettled), { initialProps: { file } });
-  return { onSettled, ...hook };
+  // Every settlement names the file whose session raised it, so the assertions below say so too.
+  return { onSettled, file, ...hook };
 };
 
 const tick = () => act(() => new Promise<void>((resolve) => setTimeout(resolve, 20)));
@@ -183,10 +184,10 @@ describe('useOnixValidation', () => {
   });
 
   it('settles exactly once with the canonical result and disposes the Worker', async () => {
-    const { onSettled, result: hook } = renderValidation(xmlFile().file);
+    const { onSettled, file, result: hook } = renderValidation(xmlFile().file);
 
     await waitFor(() => expect(onSettled).toHaveBeenCalledOnce());
-    expect(onSettled).toHaveBeenCalledWith({ kind: 'result', result: RESULT, envelope: NORMAL });
+    expect(onSettled).toHaveBeenCalledWith({ kind: 'result', result: RESULT, envelope: NORMAL }, file);
     expect(hook.current.view).toEqual({ phase: 'settled' });
 
     const [worker] = FakeWorker.instances;
@@ -206,13 +207,13 @@ describe('useOnixValidation', () => {
       envelope: refused,
     }));
     const first = renderValidation(xmlFile().file);
-    await waitFor(() => expect(first.onSettled).toHaveBeenCalledWith({ kind: 'refused', envelope: refused }));
+    await waitFor(() => expect(first.onSettled).toHaveBeenCalledWith({ kind: 'refused', envelope: refused }, first.file));
     first.unmount();
 
     FakeWorker.reply = answer((runId) => ({ type: 'error', runId, code: 'INTERNAL', message: 'boom' }));
     const second = renderValidation(xmlFile().file);
     await waitFor(() =>
-      expect(second.onSettled).toHaveBeenCalledWith({ kind: 'error', code: 'INTERNAL', message: 'boom' }),
+      expect(second.onSettled).toHaveBeenCalledWith({ kind: 'error', code: 'INTERNAL', message: 'boom' }, second.file),
     );
     expect(FakeWorker.instances.map(({ terminated }) => terminated)).toEqual([1, 1]);
   });
@@ -222,7 +223,7 @@ describe('useOnixValidation', () => {
       (runId) => ({ type: 'warning', runId, token: 'token-1', envelope: WARNING }),
       (runId) => result(runId, WARNING),
     );
-    const { onSettled, result: hook } = renderValidation(xmlFile().file);
+    const { onSettled, file, result: hook } = renderValidation(xmlFile().file);
 
     await waitFor(() => expect(hook.current.view).toEqual({ phase: 'awaiting-decision', envelope: WARNING }));
     await tick();
@@ -237,7 +238,7 @@ describe('useOnixValidation', () => {
     });
 
     await waitFor(() => expect(onSettled).toHaveBeenCalledOnce());
-    expect(onSettled).toHaveBeenCalledWith({ kind: 'result', result: RESULT, envelope: WARNING });
+    expect(onSettled).toHaveBeenCalledWith({ kind: 'result', result: RESULT, envelope: WARNING }, file);
     expect(worker.received).toEqual([expect.objectContaining({ type: 'begin' }), { type: 'continue', runId: 'run-1', token: 'token-1' }]);
 
     act(() => hook.current.proceed());
@@ -247,12 +248,12 @@ describe('useOnixValidation', () => {
 
   it('cancelling a pending warning ends the session with no continuation', async () => {
     FakeWorker.reply = answer((runId) => ({ type: 'warning', runId, token: 'token-1', envelope: WARNING }));
-    const { onSettled, result: hook } = renderValidation(xmlFile().file);
+    const { onSettled, file, result: hook } = renderValidation(xmlFile().file);
     await waitFor(() => expect(hook.current.view.phase).toBe('awaiting-decision'));
 
     act(() => hook.current.cancel());
 
-    expect(onSettled).toHaveBeenCalledExactlyOnceWith({ kind: 'cancelled' });
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith({ kind: 'cancelled' }, file);
     const [worker] = FakeWorker.instances;
     expect(worker.terminated).toBe(1);
     act(() => hook.current.proceed());
@@ -262,12 +263,12 @@ describe('useOnixValidation', () => {
 
   it('cancelling during validation terminates at once and ignores the late reply', async () => {
     FakeWorker.reply = null;
-    const { onSettled, result: hook } = renderValidation(xmlFile().file);
+    const { onSettled, file, result: hook } = renderValidation(xmlFile().file);
     await waitFor(() => expect(FakeWorker.instances[0]?.types).toEqual(['begin']));
 
     act(() => hook.current.cancel());
 
-    expect(onSettled).toHaveBeenCalledExactlyOnceWith({ kind: 'cancelled' });
+    expect(onSettled).toHaveBeenCalledExactlyOnceWith({ kind: 'cancelled' }, file);
     const [worker] = FakeWorker.instances;
     expect(worker.terminated).toBe(1);
     act(() => worker.emit(result('run-1')));
@@ -291,10 +292,11 @@ describe('useOnixValidation', () => {
 
   it('a new file starts a fresh Worker, and the old session can no longer settle', async () => {
     FakeWorker.reply = null;
-    const { onSettled, rerender } = renderValidation(xmlFile('<first/>').file);
+    const { onSettled, file: first, rerender } = renderValidation(xmlFile('<first/>').file);
     await waitFor(() => expect(FakeWorker.instances[0]?.types).toEqual(['begin']));
 
-    rerender({ file: xmlFile('<second/>').file });
+    const second = xmlFile('<second/>').file;
+    rerender({ file: second });
 
     await waitFor(() => expect(FakeWorker.instances[1]?.types).toEqual(['begin']));
     const [old, current] = FakeWorker.instances;
@@ -308,16 +310,21 @@ describe('useOnixValidation', () => {
 
     act(() => current.emit(result('run-1')));
     await waitFor(() => expect(onSettled).toHaveBeenCalledOnce());
+    // The settlement names the file its own session validated. Two `File`s of the same name and type are
+    // structurally alike, so this is the identity of the object the session was started for.
+    expect(onSettled.mock.calls[0][0]).toEqual({ kind: 'result', result: RESULT, envelope: NORMAL });
+    expect(onSettled.mock.calls[0][1]).toBe(second);
+    expect(onSettled.mock.calls[0][1]).not.toBe(first);
   });
 
   it('settles a Worker that cannot even be constructed as a runtime failure', async () => {
     FakeWorker.onConstruct = () => {
       throw new Error('Refused to create a worker');
     };
-    const { onSettled } = renderValidation(xmlFile().file);
+    const { onSettled, file } = renderValidation(xmlFile().file);
 
     await waitFor(() => expect(onSettled).toHaveBeenCalledOnce());
-    expect(onSettled).toHaveBeenCalledWith({ kind: 'error', code: 'WORKER_FAILED', message: 'Refused to create a worker' });
+    expect(onSettled).toHaveBeenCalledWith({ kind: 'error', code: 'WORKER_FAILED', message: 'Refused to create a worker' }, file);
   });
 
   it('settles an unreadable file before any validation request', async () => {
@@ -326,7 +333,7 @@ describe('useOnixValidation', () => {
     const { onSettled } = renderValidation(file);
 
     await waitFor(() => expect(onSettled).toHaveBeenCalledOnce());
-    expect(onSettled).toHaveBeenCalledWith({ kind: 'error', code: 'FILE_UNREADABLE', message: 'The file could not be read' });
+    expect(onSettled).toHaveBeenCalledWith({ kind: 'error', code: 'FILE_UNREADABLE', message: 'The file could not be read' }, file);
     const [worker] = FakeWorker.instances;
     expect(worker.types).toEqual([]);
     expect(worker.terminated).toBe(1);

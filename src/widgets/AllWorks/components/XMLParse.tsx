@@ -36,6 +36,31 @@ type XMLParseProps = {
   onPreview?: (plan: ImportPlan, warnings: ImportIssue[], source: ImportSource) => void;
 };
 
+/** What the target side produced for one selected file, and nothing of any other. */
+type TargetState = {
+  /** The file every other field here belongs to. */
+  readonly file: File;
+  readonly isPlanning: boolean;
+  /** The canonical source the plan is built from, held whole beside the adapter value bridged from it. */
+  readonly validatedSource: BridgedOnixSource | null;
+  readonly plan: ImportPlan;
+  readonly multipleFoundedContributors: ContributorsForSelection;
+  /**
+   * Held here rather than routed through contributor selection, which has no business reading
+   * diagnostics: they are handed on unchanged when the user asks for the preview.
+   */
+  readonly warnings: ImportIssue[];
+};
+
+const nothingPlannedFor = (file: File): TargetState => ({
+  file,
+  isPlanning: false,
+  validatedSource: null,
+  plan: createEmptyImportPlan(),
+  multipleFoundedContributors: {},
+  warnings: [],
+});
+
 /** The adapter or planner failing on a source canonical validation accepted is Thoth's failure, not the file's. */
 const PROCESSING_FAILURE: ImportIssue = {
   severity: 'error',
@@ -51,23 +76,30 @@ export const XMLParse = (props: XMLParseProps) => {
   const { t } = useTypedTranslation({ namespace: NAMESPACES.enum.common });
   const translate = t as TranslateFunction;
 
-  const [isPlanning, setIsPlanning] = useState(false);
-  // The canonical source the plan is built from, held whole beside the adapter value bridged from it.
-  const [validatedSource, setValidatedSource] = useState<BridgedOnixSource | null>(null);
-  const [plan, setPlan] = useState<ImportPlan>(createEmptyImportPlan);
-  const [multipleFoundedContributors, setMultipleFoundedContributors] = useState<ContributorsForSelection>({});
-  // Held here rather than routed through contributor selection, which has no business reading
-  // diagnostics: they are handed on unchanged when the user asks for the preview.
-  const [warnings, setWarnings] = useState<ImportIssue[]>([]);
+  // Everything the target side made of one file, in one value that names the file it belongs to, so
+  // that changing the file lets go of all of it at once. Selecting another file resets it here, in the
+  // same render, before anything the previous file produced can be shown or submitted under the new
+  // one's name - whether or not the parent remounts this component for the new selection.
+  const [target, setTarget] = useState<TargetState>(() => nothingPlannedFor(file));
+  if (target.file !== file) setTarget(nothingPlannedFor(file));
 
+  const { isPlanning, validatedSource, plan, multipleFoundedContributors, warnings } = target;
   const isDataEmpty = plan.works.length === 0;
+
+  /** Applies what one file's validation produced, and only while that file is still the selected one. */
+  const applyToFile = (validated: File, change: Partial<TargetState>) =>
+    setTarget((previous) => (previous.file === validated ? { ...previous, ...change } : previous));
 
   /**
    * Canonical source validation has settled. Only a result that permits continuation reaches the target
    * side - the adapter parse, the planner and its contributor and institution lookups - and then only
    * through the normalised Reference XML the Worker returned. Every other outcome stops here.
    */
-  const planValidatedSource = async (settlement: OnixValidationSettlement) => {
+  const planValidatedSource = async (settlement: OnixValidationSettlement, validated: File) => {
+    // A settlement belongs to the file it was raised for; once that file is no longer the selection,
+    // nothing it says is this selection's business to report either.
+    if (validated !== target.file) return;
+
     switch (settlement.kind) {
       case 'cancelled':
         onCancel?.();
@@ -108,7 +140,7 @@ export const XMLParse = (props: XMLParseProps) => {
       return;
     }
 
-    setIsPlanning(true);
+    applyToFile(validated, { isPlanning: true });
     try {
       let bridged: BridgedOnixSource;
       try {
@@ -118,7 +150,7 @@ export const XMLParse = (props: XMLParseProps) => {
         onValidationFailure?.([...sourceIssues, PROCESSING_FAILURE]);
         return;
       }
-      setValidatedSource(bridged);
+      applyToFile(validated, { validatedSource: bridged });
 
       const xmlParser = new XMLParser(
         bridged.adapter,
@@ -138,13 +170,16 @@ export const XMLParse = (props: XMLParseProps) => {
         return;
       }
 
-      setPlan(parsed.data.plan);
-      setMultipleFoundedContributors(parsed.data.contributorsForSelection);
-      // A permitted source only ever carries warnings - recovered parts, findings that do not block - and
-      // they travel with the planner's warnings to the preview, where the user decides whether to go ahead.
-      setWarnings([...sourceIssues, ...parsed.issues]);
+      applyToFile(validated, {
+        plan: parsed.data.plan,
+        multipleFoundedContributors: parsed.data.contributorsForSelection,
+        // A permitted source only ever carries warnings - recovered parts, findings that do not block -
+        // and they travel with the planner's warnings to the preview, where the user decides whether to
+        // go ahead.
+        warnings: [...sourceIssues, ...parsed.issues],
+      });
     } finally {
-      setIsPlanning(false);
+      applyToFile(validated, { isPlanning: false });
     }
   };
 
