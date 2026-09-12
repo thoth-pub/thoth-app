@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import { parse } from '@5stones/onix/dist/parse';
+import type { Element } from 'slimdom';
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type { ContributorService } from '@/src/entities/contributor';
@@ -17,6 +18,7 @@ import {
   projectOnixRefusal,
   projectOnixSourceIssues,
   projectOnixUnavailable,
+  toAdapterXml,
 } from './onixSourceBridge';
 import {
   createOnixSourceValidator,
@@ -29,6 +31,7 @@ import {
 import { deriveTagMap } from './validation/tagMap';
 import { createExecutionControls } from './validation/worker/execution';
 import { toWorkerResult } from './validation/worker/result';
+import { buildXdm, pathOf } from './validation/xdm';
 import XMLParser from './XMLParser';
 
 vi.mock('@5stones/onix/dist/parse', async (importOriginal) => {
@@ -150,6 +153,31 @@ const LANGUAGE_PAIR =
   '<Language><LanguageRole>02</LanguageRole><LanguageCode>ger</LanguageCode></Language>';
 const languageRoleInvalid = () =>
   readFileSync(join(FIXTURES, 'dtd_suite30', 'N3_plain.xml'), 'utf8').replace('</TitleDetail>', LANGUAGE_PAIR);
+
+/**
+ * The same message with the ONIX namespace bound to a prefix instead of being the default one: the same
+ * elements, in the same namespace, spelled the other way XML allows.
+ */
+const toPrefixed = (reference: string, prefix = 'onix') =>
+  reference
+    .replace(/<(\/?)([A-Za-z][\w.-]*)/g, (_, close: string, name: string) => `<${close}${prefix}:${name}`)
+    .replace(`xmlns="${REFERENCE_NS}"`, `xmlns:${prefix}="${REFERENCE_NS}"`);
+
+/** Every element of a document as the XDM sees it: where it is, what namespace it is in and what it holds. */
+const infoset = (xml: string) => {
+  const { document } = buildXdm(xml);
+  const elements: string[] = [];
+  const walk = (node: Element) => {
+    const attributes = [...node.attributes]
+      .filter((attribute) => attribute.namespaceURI !== 'http://www.w3.org/2000/xmlns/')
+      .map((attribute) => `${attribute.namespaceURI ?? ''}}${attribute.name}=${attribute.value}`)
+      .sort();
+    elements.push(`${pathOf(node)} {${node.namespaceURI ?? ''}}${node.localName} [${attributes.join(' ')}] "${node.textContent ?? ''}"`);
+    for (const child of node.childNodes) if (child.nodeType === 1) walk(child as Element);
+  };
+  walk(document.documentElement as Element);
+  return elements;
+};
 
 const IMPRINTS = [{ label: 'Bridge Imprint', value: '11111111-1111-1111-1111-111111111111' }];
 
@@ -292,6 +320,116 @@ describe('onixSourceBridge', () => {
       expect(fromRaw.status).toBe('success');
       expect(fromRaw.data.plan.works).toHaveLength(2);
       expect(fromBridge).toEqual(fromRaw);
+    });
+  });
+
+  /**
+   * A Reference source may bind the ONIX namespace to a prefix rather than make it the default:
+   * `<onix:ONIXMessage xmlns:onix="...reference">` is the same message, in the same namespace, spelled
+   * the other way XML allows. Canonical validation is namespace-aware and accepts it, and the
+   * normalised XML keeps the source's own prefix because it is part of what was validated.
+   * `@5stones/onix` is not namespace-aware - it reads element names - so reconciling the two is the
+   * bridge's job, and only the bridge's: the canonical result is never rewritten to suit the adapter.
+   */
+  describe('namespace-prefixed Reference source', () => {
+    const PREFIXED_SOURCE = toPrefixed(REFERENCE_SOURCE);
+
+    it('is valid to canonical validation, which keeps the prefix the convenience adapter cannot read', async () => {
+      const result = await canonical(PREFIXED_SOURCE);
+
+      expect(blockingIds(result)).toEqual([]);
+      expect(permitsTargetPlanning(result)).toBe(true);
+      expect(result.source).toEqual({
+        release: '3.0',
+        schemaRelease: '3.0.8',
+        flavour: 'reference',
+        namespaceURI: REFERENCE_NS,
+      });
+      expect(result.normalized?.xml.startsWith('<onix:ONIXMessage ')).toBe(true);
+
+      // Read as it stands, the canonical representation names the root for a planner that never heard of it.
+      const direct = raw(result.normalized?.xml as string) as unknown as Record<string, unknown>;
+      expect(Object.keys(direct)).toEqual(['onix:ONIXMessage']);
+      expect(direct.ONIXMessage).toBeUndefined();
+    });
+
+    it('bridges to the same adapter value and the same plan as its unprefixed twin', async () => {
+      const prefixed = bridgeOnixSource(await canonical(PREFIXED_SOURCE));
+      const plain = bridgeOnixSource(await canonical(REFERENCE_SOURCE));
+
+      expect(prefixed.adapter.ONIXMessage).toEqual(plain.adapter.ONIXMessage);
+      expect(prefixed.adapter.ONIXMessage).toEqual(raw(REFERENCE_SOURCE).ONIXMessage);
+
+      const fromPrefixed = await plan(prefixed.adapter);
+      const fromPlain = await plan(plain.adapter);
+      expect(fromPlain.status).toBe('success');
+      expect(fromPlain.data.plan.works).toHaveLength(2);
+      expect(fromPrefixed).toEqual(fromPlain);
+    });
+
+    it('leaves the canonical result, its normalized XML and its findings exactly as validation produced them', async () => {
+      const result = await canonical(PREFIXED_SOURCE);
+      const asValidated = structuredClone(result);
+
+      const bridged = bridgeOnixSource(result);
+
+      expect(bridged.canonical).toBe(result);
+      expect(result).toEqual(asValidated);
+      expect(result.normalized?.xml).toContain('<onix:ONIXMessage ');
+      // Canonical paths never depended on the prefix, so the projected issues are the twin's.
+      const plainResult = await canonical(REFERENCE_SOURCE);
+      expect(projectOnixSourceIssues(result, t)).toEqual(projectOnixSourceIssues(plainResult, t));
+    });
+
+    it('derives the adapter XML with every element left in the namespace it was validated in', async () => {
+      const result = await canonical(PREFIXED_SOURCE);
+      const adapterXml = toAdapterXml(result.normalized?.xml as string);
+
+      expect(adapterXml).not.toContain('<onix:');
+      // Same elements, same namespaces, same order, same attributes, same text - only the spelling differs.
+      expect(infoset(adapterXml)).toEqual(infoset(result.normalized?.xml as string));
+      expect(infoset(adapterXml)).toEqual(infoset(toAdapterXml((await canonical(REFERENCE_SOURCE)).normalized?.xml as string)));
+    });
+
+    it('unprefixes a prefixed element under an unprefixed root, which is the same namespace either way', async () => {
+      // Both spellings of the ONIX namespace in one message: the default one, and a prefix bound to it.
+      const mixed = REFERENCE_SOURCE.replace(
+        `xmlns="${REFERENCE_NS}"`,
+        `xmlns="${REFERENCE_NS}" xmlns:onix="${REFERENCE_NS}"`,
+      ).replace(
+        '<Contributor><SequenceNumber>3</SequenceNumber><ContributorRole>B01</ContributorRole><PersonName>Mary Somerville</PersonName><NamesBeforeKey>Mary</NamesBeforeKey><KeyNames>Somerville</KeyNames></Contributor>',
+        '<onix:Contributor><onix:SequenceNumber>3</onix:SequenceNumber><onix:ContributorRole>B01</onix:ContributorRole><onix:PersonName>Mary Somerville</onix:PersonName><onix:NamesBeforeKey>Mary</onix:NamesBeforeKey><onix:KeyNames>Somerville</onix:KeyNames></onix:Contributor>',
+      );
+      const result = await canonical(mixed);
+      expect(blockingIds(result)).toEqual([]);
+      expect(result.normalized?.xml).toContain('<onix:Contributor>');
+
+      const { adapter } = bridgeOnixSource(result);
+
+      expect(adapter.ONIXMessage).toEqual(raw(REFERENCE_SOURCE).ONIXMessage);
+      expect(await plan(adapter)).toEqual(await plan(raw(REFERENCE_SOURCE)));
+    });
+
+    it('hands an already-unprefixed canonical source to the adapter exactly as it stands', async () => {
+      const { normalized } = await canonical(REFERENCE_SOURCE);
+
+      expect(toAdapterXml(normalized?.xml as string)).toBe(normalized?.xml);
+    });
+
+    it('keeps an element that is in no namespace out of the one it makes the default, and keeps what sits beside the root', () => {
+      const xml = `<!--a note--><onix:ONIXMessage xmlns:onix="${REFERENCE_NS}"><onix:Product/><free>x</free></onix:ONIXMessage>`;
+
+      const adapterXml = toAdapterXml(xml);
+
+      expect(adapterXml).toBe(`<!--a note--><ONIXMessage xmlns="${REFERENCE_NS}"><Product/><free xmlns="">x</free></ONIXMessage>`);
+      expect(infoset(adapterXml)).toEqual(infoset(xml));
+    });
+
+    it('leaves a prefixed document whose root is in no namespace alone', () => {
+      // Nothing here is an ONIX message; there is no namespace to make the default, so nothing is derived.
+      const xml = '<Root><a:leaf xmlns:a="urn:example">x</a:leaf></Root>';
+
+      expect(toAdapterXml(xml)).toBe(xml);
     });
   });
 

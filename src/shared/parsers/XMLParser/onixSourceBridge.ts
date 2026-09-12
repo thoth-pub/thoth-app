@@ -1,4 +1,5 @@
 import { parse } from '@5stones/onix/dist/parse';
+import { Document, type Element, type Node } from 'slimdom';
 
 import type { ImportIssue, ImportIssueCode, ImportIssueSource } from '../../types';
 import type { TranslateFunction } from '../CSVParser/CSVParser';
@@ -6,6 +7,7 @@ import type { ExtendedONIXMessageRoot } from './interfaces';
 import type { EnvelopeEvidence, NormalizedSourceDto, OnixWorkerResult, RecoveryMarker, SourceFinding } from './validation';
 import { MEGABYTE } from './validation/worker/envelope';
 import { createProvenanceResolver, type ProvenanceResolver } from './validation/worker/provenance';
+import { buildXdm, serializeXdm } from './validation/xdm';
 
 /**
  * The bridge from canonical ONIX source validation to the legacy target adapter (thoth-app#197).
@@ -42,6 +44,79 @@ export interface BridgedOnixSource {
   readonly adapter: ExtendedONIXMessageRoot;
 }
 
+const XMLNS = 'http://www.w3.org/2000/xmlns/';
+const ELEMENT_NODE = 1;
+/**
+ * A start tag whose element name carries a namespace prefix. Deliberately loose about what a name may
+ * contain, because a false positive only costs the round trip below, while a false negative would hand
+ * the adapter a name it cannot read. A comment or CDATA section quoting a prefixed tag is one such
+ * harmless false positive; text and attribute values cannot be, since both are escaped.
+ */
+const PREFIXED_ELEMENT = /<[^\s!?/>][^\s>/]*:/;
+
+/**
+ * Copies one element, naming it by its local name alone when it is in the message's own namespace.
+ * Every namespace an element is actually in is preserved: the message's namespace becomes the default
+ * one, declared on the root, and an element in no namespace says so for itself.
+ */
+function copyUnprefixed(element: Element, into: Document, onix: string): Element {
+  const inOnix = element.namespaceURI === onix;
+  const copy = into.createElementNS(element.namespaceURI, inOnix ? element.localName : element.nodeName);
+  for (const attribute of element.attributes) {
+    // Whatever prefix the source bound the message's namespace to is replaced by the default declaration.
+    if (attribute.namespaceURI === XMLNS && attribute.value === onix) continue;
+    const node = into.createAttributeNS(attribute.namespaceURI, attribute.name);
+    node.value = attribute.value;
+    copy.setAttributeNode(node);
+  }
+  if (element.namespaceURI === null && !copy.hasAttribute('xmlns')) {
+    // Under a default-namespaced root, an element in no namespace has to undeclare it to stay there.
+    const undeclare = into.createAttributeNS(XMLNS, 'xmlns');
+    undeclare.value = '';
+    copy.setAttributeNode(undeclare);
+  }
+  for (const child of element.childNodes) {
+    copy.appendChild(child.nodeType === ELEMENT_NODE ? copyUnprefixed(child as Element, into, onix) : into.importNode(child as Node, true));
+  }
+  return copy;
+}
+
+/**
+ * The XML the convenience adapter is parsed from.
+ *
+ * A Reference source may bind the ONIX namespace to a prefix rather than make it the default, and the
+ * canonical validator - which is namespace-aware - keeps that prefix, because it is part of the source
+ * it validated. `@5stones/onix` is not namespace-aware: it reads element names, so `<onix:Product>`
+ * would reach the target planner under a name it has never heard of. This derives an adapter-only copy
+ * in which the message's own namespace is the default one and its elements are therefore named as the
+ * planner knows them. Nothing else is touched - every element stays in the namespace it was in, with
+ * its attributes, its text and the order of repeated elements - and the canonical result keeps the
+ * representation validation produced, prefix and all.
+ *
+ * An unprefixed source is already in that shape and is handed to the adapter exactly as it stands.
+ */
+export function toAdapterXml(normalizedXml: string): string {
+  if (!PREFIXED_ELEMENT.test(normalizedXml)) return normalizedXml;
+  const { document } = buildXdm(normalizedXml);
+  const onix = document.documentElement?.namespaceURI ?? null;
+  if (onix === null) return normalizedXml;
+
+  const adapter = new Document();
+  for (const child of document.childNodes) {
+    if (child.nodeType !== ELEMENT_NODE) {
+      adapter.appendChild(adapter.importNode(child as Node, true));
+      continue;
+    }
+    // The one document element is where the message's own namespace becomes the default one.
+    const copy = copyUnprefixed(child as Element, adapter, onix);
+    const declaration = adapter.createAttributeNS(XMLNS, 'xmlns');
+    declaration.value = onix;
+    copy.setAttributeNode(declaration);
+    adapter.appendChild(copy);
+  }
+  return serializeXdm(adapter);
+}
+
 export function bridgeOnixSource(result: OnixWorkerResult): BridgedOnixSource {
   if (!permitsTargetPlanning(result)) {
     throw new Error('canonical ONIX source validation does not permit target planning for this source');
@@ -49,7 +124,7 @@ export function bridgeOnixSource(result: OnixWorkerResult): BridgedOnixSource {
   return {
     canonical: result,
     provenance: createProvenanceResolver(result.normalized.provenance),
-    adapter: parse(result.normalized.xml) as ExtendedONIXMessageRoot,
+    adapter: parse(toAdapterXml(result.normalized.xml)) as ExtendedONIXMessageRoot,
   };
 }
 
