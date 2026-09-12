@@ -1,3 +1,5 @@
+import type { EnvelopeEvidence, RecoveryMarker, SourceFinding } from '../parsers/XMLParser/validation';
+
 /**
  * The diagnostic vocabulary the bulk importers share.
  *
@@ -92,14 +94,52 @@ export type ImportIssueCode =
    * the publication are still imported — but the URL the file did supply would otherwise vanish
    * without a word.
    */
-  | 'onix.location.unrepresentable_canonical';
+  | 'onix.location.unrepresentable_canonical'
+  /**
+   * A finding of canonical ONIX source validation, which runs in the browser before anything is
+   * planned. One code per finding scope — the source's validity, Thoth's support for it, and the
+   * security boundary — so the three are never read as one generic parsing failure. Blocking
+   * exactly when the finding counts toward the source's verdict (authoritative, unrecovered, of a
+   * blocking class); every other finding is a warning that keeps its disposition.
+   */
+  | 'onix.source.validity'
+  | 'onix.source.support'
+  | 'onix.source.security'
+  /**
+   * An invalid part of the source that the approved recovery left out of the normalised source.
+   * Non-blocking: the rest can be imported, but the submitted file is still invalid at that point.
+   */
+  | 'onix.source.recovered'
+  /**
+   * ONIX source validation could not run in this browser at all — its Worker failed, or reported an
+   * internal error — so nothing was validated and nothing can be imported. There is no fallback.
+   */
+  | 'onix.source.unavailable';
+
+/**
+ * The canonical evidence behind an ONIX source-validation issue, kept whole beside the display text
+ * rather than reconstructed from it: the complete source finding (rule id, canonical and original
+ * Short paths, message and detail, scope, blocking class, recoverability and AUTHORITATIVE,
+ * SECONDARY or NOT_EVALUABLE disposition), an approved recovery marker, the envelope a support
+ * refusal rests on, or the runtime failure that kept validation from running.
+ */
+export type ImportIssueSourceValidation =
+  | { kind: 'finding'; finding: SourceFinding }
+  | { kind: 'recovery'; recovery: RecoveryMarker }
+  | { kind: 'support'; envelope: EnvelopeEvidence }
+  | { kind: 'unavailable'; code: string; message: string };
 
 export type ImportIssue = {
   severity: ImportIssueSeverity;
   code: ImportIssueCode;
-  /** Display-ready text. Translated for CSV; English ONIX vocabulary for ONIX. */
+  /**
+   * Display-ready text. Translated for CSV and for ONIX source validation; English ONIX vocabulary
+   * for the ONIX planner.
+   */
   message: string;
   source: ImportIssueSource;
+  /** Only on ONIX source-validation issues: the canonical evidence the message describes. */
+  sourceValidation?: ImportIssueSourceValidation;
 };
 
 /**
