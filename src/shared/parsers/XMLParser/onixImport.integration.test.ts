@@ -28,18 +28,29 @@ import {
   PublicationType,
   SubjectTypes,
   WorkStatuses,
+  WorkTypes,
 } from '../../constants';
 import { SeriesType } from '../../constants/series';
 import { appConfig } from '../../config';
+import type { ImportIssue, ImportParseResult, ImportPlan, OnixPlanInputs, OnixTargetEvidence } from '../../types';
 import { collectWorkIdentifiers } from '../../utils/importPreflight/identifiers';
 import { ExtendedONIXMessageRoot } from './interfaces';
 import { toOnixArray } from './onix';
+import { planOnixSource } from './onixPlanning';
+import {
+  adaptableGroupKeys,
+  EMPTY_ONIX_PLAN_INPUTS,
+  type OnixTargetLookup,
+  resolveOnixImportPlan,
+  resolveOnixTargets,
+} from './onixTargetResolution';
 import XMLParser from './XMLParser';
 
 /**
  * End-to-end cover for the whole bulk-import path: a real ONIX document parsed by the real
- * `@5stones/onix`, planned by the real `XMLParser`, then imported by the real `WorkService`
- * wired to real `SeriesService`, `TitleService` and friends.
+ * `@5stones/onix`, planned from the file alone, adapted by the real `XMLParser`, resolved into the
+ * plan the import runs by the ONIX resolver, then imported by the real `WorkService` wired to real
+ * `SeriesService`, `TitleService` and friends.
  *
  * Only the GraphQL transport is stubbed, so the assertions are about the mutations the app
  * would actually send — not about a mocked service being called.
@@ -47,6 +58,8 @@ import XMLParser from './XMLParser';
 
 const IMPRINT_ID = '11111111-1111-1111-1111-111111111111';
 const IMPRINT_NAME = 'Arc Humanities Press';
+const IMPRINTS = [{ label: IMPRINT_NAME, value: IMPRINT_ID }];
+const PUBLISHER_ID = '44444444-4444-4444-4444-444444444444';
 const FOUNDATIONS_ID = '22222222-2222-2222-2222-222222222222';
 const CREATED_SERIES_ID = '33333333-3333-3333-3333-333333333333';
 
@@ -54,6 +67,7 @@ const CREATED_SERIES_ID = '33333333-3333-3333-3333-333333333333';
 const product = (isbn: string, title: string, seriesName: string, collectionType = '10', contributorName?: string) => `
   <Product>
     <RecordReference>${isbn}</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
@@ -128,6 +142,7 @@ const orcidContributorOnix = (idValue: string, nameIdType = '21') => `<?xml vers
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
@@ -173,6 +188,7 @@ const ARC_MULTI_CONTRIBUTOR_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
@@ -251,6 +267,7 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
@@ -339,6 +356,7 @@ const ARC_MARKUP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
   </Product>
   <Product>
     <RecordReference>9781641893763</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641893763</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
@@ -403,6 +421,7 @@ const arcSpacerOnix = (abstractBody = ARC_SPACER_ABSTRACT) => `<?xml version="1.
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781802700596</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781802700596</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
@@ -457,6 +476,7 @@ const ARC_PRODUCT_8_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781942401353</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier>
       <ProductIDType>06</ProductIDType>
       <IDValue>10.17302/CDH-9781942401353</IDValue>
@@ -588,6 +608,7 @@ const THOTH_SUBJECT_ROUND_TRIP_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>subject-round-trip</RecordReference>
+    <NotificationType>03</NotificationType>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <TitleDetail><TitleType>01</TitleType><TitleElement><TitleElementLevel>01</TitleElementLevel><TitleText>Subject round trip</TitleText></TitleElement></TitleDetail>
@@ -616,20 +637,24 @@ const AMBIGUOUS_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 </ONIXMessage>`;
 
 /**
- * One product in the shapes Thoth's own ONIX 3 exporter writes: the work's DOI as
- * ProductIdentifier 06 carrying the bare `10.…` its `Doi` Display produces, the canonical title
- * tagged with the language its locale converts to, a second title as TitleType 06, the issue
- * ordinal as CollectionSequenceType 03 behind a sequence of another type, a chapter whose DOI is
- * a TextItemIdentifier of type 06, publication and withdrawn dates as `dateformat="00"` YYYYMMDD,
- * the work's other ISBN as relation 06, and a citation as relation 34 — written here in the
- * `dx.doi.org` form a real sender might use, which is the same DOI as the bare one.
+ * One product in the shapes Thoth's own ONIX 3 exporter writes: the bare `10.…` DOI its `Doi`
+ * Display produces, the canonical title tagged with the language its locale converts to, a second
+ * title as TitleType 06, the issue ordinal as CollectionSequenceType 03 behind a sequence of another
+ * type, a chapter whose DOI is a TextItemIdentifier of type 06, publication and withdrawn dates as
+ * `dateformat="00"` YYYYMMDD, the work's other ISBN as relation 06, and a citation as relation 34 —
+ * written here in the `dx.doi.org` form a real sender might use, which is the same DOI as the bare one.
+ *
+ * It is sent without Thoth's compatibility profile, so it reads as any sender's file: its
+ * ProductIdentifier 06 is the Product's own DOI, which is never the Work's (thoth-app#182), and the
+ * Work's DOI is the RelatedWork 01 WorkIdentifier a generic sender states it with.
  */
 const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
-    <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/work</IDValue></ProductIdentifier>
+    <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>10.1234/work.pb</IDValue></ProductIdentifier>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <Collection>
@@ -684,7 +709,7 @@ const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     <ContentDetail>
       <ContentItem>
         <LevelSequenceNumber>1</LevelSequenceNumber>
-        <TextItem>
+        <TextItem><TextItemType>03</TextItemType>
           <TextItemIdentifier>
             <TextItemIDType>06</TextItemIDType><IDValue>10.1234/work.ch1</IDValue>
           </TextItemIdentifier>
@@ -723,6 +748,10 @@ const THOTH_SHAPED_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
         <ProductIdentifier><ProductIDType>06</ProductIDType><IDValue>http://dx.doi.org/10.1234/cited</IDValue></ProductIdentifier>
       </RelatedProduct>
       <RelatedWork>
+        <WorkRelationCode>01</WorkRelationCode>
+        <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/work</IDValue></WorkIdentifier>
+      </RelatedWork>
+      <RelatedWork>
         <WorkRelationCode>29</WorkRelationCode>
         <WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>10.1234/original</IDValue></WorkIdentifier>
       </RelatedWork>
@@ -753,7 +782,9 @@ const supplierLandingPageWebsite = `
  * The fixture exercises the observed failure condition — a canonical Location the Supplier
  * composite cannot complete — but it is not asserted to reproduce the reporting publisher's file:
  * the ProductForm that actually failed, and that record's full ProductSupply/Supplier structure,
- * were never captured. Every ISBN, title and domain below is invented.
+ * were never captured. Every ISBN, title and domain below is invented. A digital record names its
+ * format with a ProductFormDetail, because a delivery form alone says nothing about what the file is
+ * (thoth-app#182).
  *
  * Written out as ONIX so `@5stones/onix` decides the parsed shape, not this test.
  */
@@ -761,20 +792,28 @@ const locationProduct = ({
   isbn,
   title,
   productForm,
+  productFormDetail,
   publisherPage,
   supplierWebsites = '',
 }: {
   isbn: string;
   title: string;
   productForm: string;
+  productFormDetail?: string;
   publisherPage: string;
   supplierWebsites?: string;
 }) => `
   <Product>
     <RecordReference>${isbn}</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>${isbn}</IDValue></ProductIdentifier>
     <DescriptiveDetail>
-      <ProductForm>${productForm}</ProductForm>
+      <ProductForm>${productForm}</ProductForm>${
+        productFormDetail
+          ? `
+      <ProductFormDetail>${productFormDetail}</ProductFormDetail>`
+          : ''
+      }
       <TitleDetail>
         <TitleType>01</TitleType>
         <TitleElement>
@@ -832,12 +871,14 @@ const FRONTLIST_LOCATION_ONIX = `<?xml version="1.0" encoding="UTF-8"?>
     isbn: FRONTLIST_PDF_ISBN,
     title: 'Representative Frontlist PDF',
     productForm: 'ED',
+    productFormDetail: 'E107',
     publisherPage: PUBLISHER_PAGE_OF[FRONTLIST_PDF_ISBN],
   })}
   ${locationProduct({
     isbn: HALF_SUPPLIED_PDF_ISBN,
     title: 'A Half-Supplied Title',
     productForm: 'ED',
+    productFormDetail: 'E107',
     publisherPage: PUBLISHER_PAGE_OF[HALF_SUPPLIED_PDF_ISBN],
     supplierWebsites: supplierLandingPageWebsite,
   })}
@@ -966,9 +1007,31 @@ describe('ONIX bulk import, end to end', () => {
     });
   });
 
-  const parseUpload = async (serieses: SeriesEntity[], onix = ONIX) => {
+  /** A Thoth holding none of these files' identifiers, so every Work group they describe is a new Work. */
+  const noExistingWorks: OnixTargetLookup = {
+    findWorks: async () => new Map(),
+    getWork: async (workId) => {
+      throw new Error(`no exact identifier matched, so no existing Work ${workId} is ever read`);
+    },
+  };
+
+  /**
+   * What XMLParse.tsx does with a message before adapting it: the deterministic source plan, its exact
+   * existing targets, and the adapter options naming the Work groups those targets leave new.
+   */
+  const planUpload = async (xml: ExtendedONIXMessageRoot) => {
+    const sourcePlan = planOnixSource(xml);
+    const targets = await resolveOnixTargets(sourcePlan, noExistingWorks, PUBLISHER_ID);
+
+    return { targets, options: { sourcePlan, adaptGroupKeys: adaptableGroupKeys(sourcePlan, targets, IMPRINTS) } };
+  };
+
+  type Upload = ImportParseResult & { readonly targets: OnixTargetEvidence };
+
+  const parseUpload = async (serieses: SeriesEntity[], onix = ONIX): Promise<Upload> => {
     // Step 1: what XMLParse.tsx does in the browser before constructing the semantic parser.
     const xml = (await parse(onix)) as ExtendedONIXMessageRoot;
+    const { targets, options } = await planUpload(xml);
 
     // Step 2: what XMLParse.tsx does.
     const parser = new XMLParser(
@@ -980,9 +1043,37 @@ describe('ONIX bulk import, end to end', () => {
       { getInstitutions: async () => [] } as never,
       languageOptions,
       currencyOptions,
+      options,
     );
 
-    return parser.parse();
+    return { ...(await parser.parse()), targets };
+  };
+
+  /**
+   * Step 3: the publisher's planning decisions, from which the ONIX resolver builds the only plan the preview
+   * shows and the import runs. Every Work in these files is taken as a new Monograph; any other decision a
+   * file leaves to the publisher is the test's to state.
+   */
+  const resolveUpload = (
+    { data, targets }: Upload,
+    inputs: Partial<OnixPlanInputs> = {},
+  ): { plan: ImportPlan; warnings: readonly ImportIssue[] } => {
+    if (data.onix === undefined) throw new Error('the parse produced no ONIX planning state');
+
+    const resolved = resolveOnixImportPlan({
+      sourcePlan: data.onix.sourcePlan,
+      targets,
+      inputs: { ...EMPTY_ONIX_PLAN_INPUTS, fileWorkType: WorkTypes.enum.Monograph, ...inputs },
+      imprints: IMPRINTS,
+      candidatePlan: data.plan,
+      adaptation: data.onix.groups,
+    });
+
+    if (resolved.plan === null) {
+      throw new Error(`the ONIX plan is blocked: ${resolved.sidecar.blockers.map(({ code }) => code).join(', ')}`);
+    }
+
+    return { plan: resolved.plan, warnings: resolved.warnings };
   };
 
   const mutationsNamed = (operation: string) => mutations.filter((call) => call.operation === operation);
@@ -1159,8 +1250,8 @@ describe('ONIX bulk import, end to end', () => {
     // --- upload + preview -------------------------------------------------
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
-    // The plan the parser produced is the plan the import runs: nothing is reassembled here.
-    const plan = result.data.plan;
+    // The plan the resolver builds is the plan the preview shows and the import runs.
+    const { plan } = resolveUpload(result);
 
     expect(plan.works).toHaveLength(4);
     expect(plan.works.map((work) => work.titles[0].title)).toEqual([
@@ -1225,7 +1316,7 @@ describe('ONIX bulk import, end to end', () => {
     // --- upload + preview -------------------------------------------------
     // The file is accepted: a warning is not a validation failure.
     expect(result.status).toBe('success');
-    const plan = result.data.plan;
+    const { plan } = resolveUpload(result);
 
     expect(plan.works.map((work) => work.titles[0].title)).toEqual(['A Companion to the Cavendishes']);
 
@@ -1254,8 +1345,8 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
 
-    // The plan the parser produced is the plan the import runs.
-    const plan = result.data.plan;
+    // The plan the resolver builds is the plan the import runs.
+    const { plan } = resolveUpload(result);
     const [work] = plan.works;
 
     // --- what the preview shows --------------------------------------------
@@ -1303,13 +1394,21 @@ describe('ONIX bulk import, end to end', () => {
     // different identifiers, and neither spelling is a conflict with anything.
     expect(result.issues).toEqual([]);
 
-    // The plan the parser produced is the plan the import runs: nothing is reassembled here.
-    const plan = result.data.plan;
+    // The plan the resolver builds is the plan the import runs: nothing is reassembled after it.
+    const { plan, warnings } = resolveUpload(result);
     const [work] = plan.works;
     const [chapter] = plan.chapters;
 
     // --- what the preview shows --------------------------------------------
+    // The Work's DOI is its Work identifier; the Product's own DOI is disclosed as not imported.
     expect(work.doi).toBe('https://doi.org/10.1234/work');
+    expect(warnings).toContainEqual(
+      expect.objectContaining({
+        severity: 'warning',
+        code: 'onix.identifier.unrepresentable',
+        message: expect.stringContaining('Product DOI "10.1234/work.pb"'),
+      }),
+    );
     expect(chapter.doi).toBe('https://doi.org/10.1234/work.ch1');
     expect([work.publicationDate, work.withdrawnDate]).toEqual(['2024-08-07', '2025-01-31']);
     expect(work.references.map(({ doi }) => doi)).toEqual(['https://doi.org/10.1234/cited']);
@@ -1319,6 +1418,8 @@ describe('ONIX bulk import, end to end', () => {
 
     // --- confirmation: the plan is the payload ------------------------------
     await workService.bulkCreateWorks(plan);
+
+    expect(JSON.stringify(mutations)).not.toContain('10.1234/work.pb');
 
     const [createdWork, createdChapter] = mutationsNamed('CreateWork').map((call) => call.variables.data);
 
@@ -1354,7 +1455,7 @@ describe('ONIX bulk import, end to end', () => {
       ['warning', 'onix.date.incompatible_status'],
     ]);
 
-    const plan = result.data.plan;
+    const { plan } = resolveUpload(result);
 
     expect([plan.works[0].publicationDate, plan.works[0].withdrawnDate]).toEqual(['2024-08-07', '']);
 
@@ -1391,6 +1492,7 @@ describe('ONIX bulk import, end to end', () => {
     );
     const getContributors = vi.fn().mockResolvedValue([]);
     const getInstitutions = vi.fn().mockResolvedValue([]);
+    const { targets, options } = await planUpload(xml);
     const parser = new XMLParser(
       xml,
       [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1400,6 +1502,7 @@ describe('ONIX bulk import, end to end', () => {
       { getInstitutions } as never,
       languageOptions,
       currencyOptions,
+      options,
     );
 
     const result = await parser.parse();
@@ -1412,7 +1515,7 @@ describe('ONIX bulk import, end to end', () => {
       '@_language': 'eng',
     });
 
-    const plan = result.data.plan;
+    const { plan } = resolveUpload({ ...result, targets });
 
     // --- what the preview shows: works in source order, titles intact -------
     expect(plan.works.map((work) => work.titles[0].title)).toEqual([
@@ -1534,7 +1637,7 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.issues).toEqual([]);
 
-    const plan = result.data.plan;
+    const { plan } = resolveUpload(result);
     expect(plan.works[0].abstracts.map(({ content, sourceMarkupFormat }) => [content, sourceMarkupFormat])).toEqual([
       ['<p>This book examines how the military orders gave rise to a new sacred landscape.</p>', MarkupFormat.Html],
     ]);
@@ -1581,7 +1684,7 @@ describe('ONIX bulk import, end to end', () => {
       '<p>Hello</p><p>world</p>',
     ]);
 
-    await workService.bulkCreateWorks(result.data.plan);
+    await workService.bulkCreateWorks(resolveUpload(result).plan);
 
     expect(mutationsNamed('CreateAbstract').map((call) => (call.variables.data as { content: string }).content)).toEqual([
       '<p>Hello</p><p>world</p>',
@@ -1624,8 +1727,13 @@ describe('ONIX bulk import, end to end', () => {
   it('sends product 9781942401353 to CREATE_ABSTRACT as the collapsed one-line plain text', async () => {
     // The mutation boundary itself: what the API would actually receive, not just the plan.
     const result = await parseUpload([], ARC_PRODUCT_8_ONIX);
+    // The record's ProductForm ED is a delivery form that names no file format, so the publisher says
+    // which Publication it is (thoth-app#182); the abstracts under test do not depend on the answer.
+    const [product8] = result.data.onix?.sourcePlan.products ?? [];
 
-    await workService.bulkCreateWorks(result.data.plan);
+    await workService.bulkCreateWorks(
+      resolveUpload(result, { manifestationChoices: { [product8.productKey]: PublicationType.enum.Pdf } }).plan,
+    );
 
     const abstractCalls = mutationsNamed('CreateAbstract').map((call) => ({
       content: (call.variables.data as { content: string }).content,
@@ -1710,7 +1818,7 @@ describe('ONIX bulk import, end to end', () => {
     expect(result.status).toBe('success');
     expect(result.data.plan.works[0].abstracts[0].sourceMarkupFormat).toBe(MarkupFormat.JatsXml);
 
-    await workService.bulkCreateWorks(result.data.plan);
+    await workService.bulkCreateWorks(resolveUpload(result).plan);
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -1725,7 +1833,7 @@ describe('ONIX bulk import, end to end', () => {
     // every input format, and the API's HTML path would refuse it, so it stays PLAIN_TEXT.
     const result = await parseUpload([foundations], THOTH_SHAPED_ONIX);
 
-    await workService.bulkCreateWorks(result.data.plan);
+    await workService.bulkCreateWorks(resolveUpload(result).plan);
 
     expect(
       mutationsNamed('CreateAbstract').map((call) => ({
@@ -1751,7 +1859,7 @@ describe('ONIX bulk import, end to end', () => {
     };
 
     const result = await parseUpload([foundations, arcCompanions]);
-    const plan = result.data.plan;
+    const { plan } = resolveUpload(result);
 
     expect(plan.series.map((group) => group.target.kind)).toEqual(['existing', 'existing']);
 
@@ -1771,8 +1879,9 @@ describe('ONIX bulk import, end to end', () => {
   describe('two contributors on one Arc work', () => {
     type ContributionVariables = { fullName: string; contributorId: string; contributionOrdinal: number };
 
-    const parseArc = async (getContributors: (name: string) => Promise<unknown[]>) => {
+    const parseArc = async (getContributors: (name: string) => Promise<unknown[]>): Promise<Upload> => {
       const xml = (await parse(ARC_MULTI_CONTRIBUTOR_ONIX)) as ExtendedONIXMessageRoot;
+      const { targets, options } = await planUpload(xml);
       const parser = new XMLParser(
         xml,
         [{ label: IMPRINT_NAME, value: IMPRINT_ID }],
@@ -1782,9 +1891,10 @@ describe('ONIX bulk import, end to end', () => {
         { getInstitutions: async () => [] } as never,
         languageOptions,
         currencyOptions,
+        options,
       );
 
-      return parser.parse();
+      return { ...(await parser.parse()), targets };
     };
 
     const contributionVariables = () =>
@@ -1833,7 +1943,7 @@ describe('ONIX bulk import, end to end', () => {
     });
 
     it('sends CREATE_CONTRIBUTION ordinals 1 and 2, never 1 and 1', async () => {
-      await parseArc(async () => []).then((result) => workService.bulkCreateWorks(result.data.plan));
+      await parseArc(async () => []).then((result) => workService.bulkCreateWorks(resolveUpload(result).plan));
 
       const variables = contributionVariables();
 
@@ -1867,7 +1977,8 @@ describe('ONIX bulk import, end to end', () => {
 
       // Mirror ContributorsSelection.applySelections: swap Tom's planned contribution for the
       // existing-record option the parser already tagged with Tom's resolved ordinal.
-      const [work] = result.data.plan.works;
+      const { plan } = resolveUpload(result);
+      const [work] = plan.works;
       const tomItem = Object.values(result.data.contributorsForSelection[work.id]).find(
         (options) => options[0].fullName === 'Tom Rutter',
       );
@@ -1876,7 +1987,7 @@ describe('ONIX bulk import, end to end', () => {
       expect(tomItem?.map(({ orderNumber }) => orderNumber)).toEqual([2, 2]);
       const { selected: _selected, lastContribution: _lastContribution, ...chosenTomContribution } = chosenTom!;
       const selectedPlan = {
-        ...result.data.plan,
+        ...plan,
         works: [
           {
             ...work,
@@ -1921,7 +2032,7 @@ describe('ONIX bulk import, end to end', () => {
 
       expect(result.status).toBe('success');
 
-      await workService.bulkCreateWorks(result.data.plan);
+      await workService.bulkCreateWorks(resolveUpload(result).plan);
 
       return result;
     };
@@ -1963,18 +2074,20 @@ describe('ONIX bulk import, end to end', () => {
    * carry the Work landing page and the Publication while sending no Location mutation at all.
    */
   describe('frontlist Publications with no representable Supplier Location (issue #173)', () => {
-    const unrepresentableWarnings = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
-      result.issues.filter((issue) => issue.code === 'onix.location.unrepresentable_canonical');
+    /** The resolver reports the Location warnings of the Publications it plans, with its other warnings. */
+    const unrepresentableWarnings = (warnings: readonly ImportIssue[]) =>
+      warnings.filter((issue) => issue.code === 'onix.location.unrepresentable_canonical');
 
     /** The same warnings, narrowed to one product. The parser numbers products from one. */
-    const unrepresentableWarningsFor = (result: Awaited<ReturnType<XMLParser['parse']>>, productIndex: number) =>
-      unrepresentableWarnings(result).filter(
+    const unrepresentableWarningsFor = (warnings: readonly ImportIssue[], productIndex: number) =>
+      unrepresentableWarnings(warnings).filter(
         (issue) => issue.source.kind === 'onix' && issue.source.productIndex === productIndex,
       );
 
     it('plans the Work landing page and the Publication, but no Location, for a frontlist PDF', async () => {
       const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
-      const [frontlistPdf] = result.data.plan.works;
+      const { plan, warnings } = resolveUpload(result);
+      const [frontlistPdf] = plan.works;
 
       expect(result.status).toBe('success');
       expect(result.issues.filter(({ severity }) => severity === 'error')).toEqual([]);
@@ -1986,16 +2099,17 @@ describe('ONIX bulk import, end to end', () => {
       expect(frontlistPdf.publications[0].type).toBe(PublicationType.enum.Pdf);
       expect(frontlistPdf.publications[0].locations).toEqual([]);
       // Nothing was supplied, so nothing was lost and nothing is warned about for this product.
-      expect(unrepresentableWarningsFor(result, 1)).toHaveLength(0);
+      expect(unrepresentableWarningsFor(warnings, 1)).toHaveLength(0);
     });
 
     it('warns once, without blocking, for the digital record that supplied only a landing page', async () => {
       const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
-      const halfSupplied = result.data.plan.works[1];
+      const { plan, warnings } = resolveUpload(result);
+      const halfSupplied = plan.works[1];
 
       expect(result.status).toBe('success');
       expect(halfSupplied.publications[0].locations).toEqual([]);
-      expect(unrepresentableWarnings(result)).toEqual([
+      expect(unrepresentableWarnings(warnings)).toEqual([
         {
           severity: 'warning',
           code: 'onix.location.unrepresentable_canonical',
@@ -2006,8 +2120,7 @@ describe('ONIX bulk import, end to end', () => {
     });
 
     it('still plans the physical record’s one-URL canonical Location', async () => {
-      const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
-      const paperback = result.data.plan.works[2];
+      const paperback = resolveUpload(await parseUpload([], FRONTLIST_LOCATION_ONIX)).plan.works[2];
 
       expect(paperback.publications[0].type).toBe(PublicationType.enum.Paperback);
       expect(paperback.publications[0].locations).toEqual([
@@ -2025,7 +2138,7 @@ describe('ONIX bulk import, end to end', () => {
     it('sends CreateLocation only for the physical record, and CreateWork for all three', async () => {
       const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
 
-      await workService.bulkCreateWorks(result.data.plan);
+      await workService.bulkCreateWorks(resolveUpload(result).plan);
 
       expect(mutationsNamed('CreateWork')).toHaveLength(3);
       expect(mutationsNamed('CreatePublication')).toHaveLength(3);
@@ -2043,7 +2156,7 @@ describe('ONIX bulk import, end to end', () => {
     it('never copies a Work landing page into a Publication Location', async () => {
       const result = await parseUpload([], FRONTLIST_LOCATION_ONIX);
 
-      await workService.bulkCreateWorks(result.data.plan);
+      await workService.bulkCreateWorks(resolveUpload(result).plan);
 
       const publisherPages = Object.values(PUBLISHER_PAGE_OF);
       const locationUrls = mutationsNamed('CreateLocation').flatMap((call) => {

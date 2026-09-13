@@ -3,6 +3,7 @@ import type { SeriesId, SeriesType } from '@/src/entities/series/model/series.ty
 import { WorkEntity, WorkId } from '@/src/entities/work/model/work.types';
 
 import type { ImportIssue, ImportStatus } from './importIssues';
+import type { OnixImportPlanSidecar, OnixParsePlanning } from './onixPlanning';
 
 export type ContributorSelection = {
   lastContribution: string;
@@ -91,15 +92,29 @@ export type ImportPlan = {
   works: WorkEntity[];
   chapters: WorkEntity[];
   series: SeriesImportPlan;
+  /**
+   * ONIX only: the identity, Work and manifestation planning state behind `works` (thoth-app#182).
+   *
+   * Optional, so a CSV plan is exactly what it always was. On an ONIX plan it is the whole truth `works`
+   * is the executable subset of - every source record, Product and Work group, the action each resolved
+   * to, including actions deliberately not executable yet, and the publisher decisions applied - and it
+   * rides through contributor selection untouched, because that refinement spreads the plan.
+   */
+  onix?: OnixImportPlanSidecar;
 };
 
 /**
  * What a parse produced: the import it would run, and the contributor choices the user still
  * has to make before running it.
+ *
+ * An ONIX parse also hands on its planning state. Its `plan` is then a candidate - one Work per
+ * adaptable group, WorkType and manifestation decisions still open - and only the plan the ONIX
+ * resolver derives from it with the publisher's decisions is ever offered for preview.
  */
 export type ImportParseData = {
   plan: ImportPlan;
   contributorsForSelection: ContributorsForSelection;
+  onix?: OnixParsePlanning;
 };
 
 /**

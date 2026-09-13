@@ -11,7 +11,6 @@ import {
   TitleType,
   WebsiteRole,
 } from '@5stones/onix/dist/enums';
-import isbn3 from 'isbn3';
 import { v4 as uuidv4 } from 'uuid';
 
 import { CurrencyCode, LanguageCode, LocaleCode, MarkupFormat } from '@/gql/graphql';
@@ -20,7 +19,8 @@ import { ContributorService } from '@/src/entities/contributor';
 import { FundingEntity } from '@/src/entities/funding/model/funding.types';
 import { InstitutionService } from '@/src/entities/institution';
 import { LanguageEntity } from '@/src/entities/language/model/language.types';
-import { PublicationEntity } from '@/src/entities/publication/model/publication.types';
+import { PriceEntity } from '@/src/entities/price/model/price.types';
+import { PublicationType } from '@/src/entities/publication/model/publication.types';
 import { ReferenceEntity } from '@/src/entities/reference/model/reference.types';
 import { SeriesEntity } from '@/src/entities/series/model/series.types';
 import { SubjectEntity } from '@/src/entities/subject/model/subject.types';
@@ -35,7 +35,6 @@ import {
   LocationPlatforms,
   SubjectTypes,
   WorkStatuses,
-  WorkTypes,
 } from '../../constants';
 import { AbstractTypes } from '../../constants/abstracts';
 import { FormFieldOption } from '../../interfaces';
@@ -47,6 +46,11 @@ import type {
   ImportIssueSource,
   ImportParseResult,
   LocaleCodeType,
+  OnixAdaptedGroup,
+  OnixAdaptedPublication,
+  OnixProductNode,
+  OnixSourcePlan,
+  OnixWorkGroup,
   SeriesImportPlan,
   TitleEntity,
 } from '../../types';
@@ -58,10 +62,8 @@ import {
   getDefaultPublication,
   getDefaultTitle,
   getDefaultWork,
-  getPublicationType,
   getWorkStatusFromXml,
   isFullTextUrlAvailable,
-  isValidPublicationForm,
   localeFromLanguageCode,
 } from '../../utils';
 import { createEmptyImportPlan } from '../../utils/importPlan';
@@ -105,6 +107,7 @@ import {
   selectSeriesCollection,
   toOnixArray,
 } from './onix';
+import { planOnixSource } from './onixPlanning';
 
 export const ONIX_PROCESSING_FAILURE_MESSAGE =
   'Thoth could not finish processing this ONIX file because an unexpected error occurred. The file itself may still be valid, and nothing has been created from this upload. Please try again; if the problem continues, report it to Thoth.';
@@ -208,6 +211,65 @@ type ParsedProduct = {
   work: WorkEntity;
   chapters: WorkEntity[];
   seriesCandidate?: SeriesCandidate;
+  /** A Publication for every PublicationType the Product's manifestation could still become. */
+  publications: Partial<Record<PublicationType, OnixAdaptedPublication>>;
+};
+
+export type XMLParserOptions = {
+  /** The deterministic ONIX source plan to adapt. Planned from the message itself when absent. */
+  readonly sourcePlan?: OnixSourcePlan;
+  /**
+   * The Work groups to build candidate Works for. When absent, every group whose own source is not in
+   * conflict; the ONIX resolver narrows it to the groups exact target evidence leaves new.
+   */
+  readonly adaptGroupKeys?: readonly string[];
+};
+
+/**
+ * The grouped Work facts two manifestations of one Work must agree on before either can stand for the Work.
+ *
+ * Everything a candidate Work carries except what is decided for the group as a whole (id, WorkType,
+ * edition and the Work identifiers) or belongs to a single manifestation (its Publications). No reducer
+ * merges a disagreement here: until a field's approved grouped reducer exists, any difference blocks.
+ */
+const GROUPED_WORK_FACTS = [
+  'titles',
+  'abstracts',
+  'status',
+  'imprintId',
+  'license',
+  'copyrightHolder',
+  'bibliographyNote',
+  'generalNote',
+  'pageCount',
+  'imageCount',
+  'tableCount',
+  'audioCount',
+  'videoCount',
+  'publicationDate',
+  'withdrawnDate',
+  'landingPage',
+  'subjects',
+  'fundings',
+  'languages',
+  'references',
+  'contributions',
+] as const satisfies readonly (keyof WorkEntity)[];
+
+const SOURCE_CONFLICT_CLASSIFICATIONS = new Set(['SOURCE_CONFLICT', 'SOURCE_INVALID']);
+
+/** Serialises with object keys sorted, so equal facts compare equal whatever order they were built in. */
+const canonicalJson = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+
+  if (value !== null && typeof value === 'object') {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`)
+      .join(',')}}`;
+  }
+
+  return value === undefined ? 'null' : JSON.stringify(value);
 };
 
 /** How the shared series planner phrases its errors for an ONIX import. */
@@ -241,6 +303,7 @@ class XMLParser {
   private currencyOptions: FormFieldOption[] = [];
   private defaultId: string = appConfig.defaultId;
   private readonly lookupCoordinator: ImportLookupCoordinator;
+  private readonly options: XMLParserOptions;
 
   constructor(
     xml: ExtendedONIXMessageRoot,
@@ -251,6 +314,7 @@ class XMLParser {
     institutionService: InstitutionService,
     languages: FormFieldOption[],
     currencyOptions: FormFieldOption[],
+    options: XMLParserOptions = {},
   ) {
     this.xml = xml;
     this.imprints = imprints;
@@ -258,12 +322,26 @@ class XMLParser {
     this.serieses = serieses;
     this.languages = languages;
     this.currencyOptions = currencyOptions;
+    this.options = options;
     this.lookupCoordinator = new ImportLookupCoordinator(contributorService, institutionService);
   }
 
+  /**
+   * Adapts the Products of an ONIX message into a candidate plan for the ONIX resolver.
+   *
+   * The deterministic identity plan decides which records are complete Product records, which Products
+   * manifest one Work, what each manifestation and each Work's edition can be. This builds, for every Work
+   * group it is asked to adapt, one candidate Work from its Products - only when every grouped Product
+   * states the same Work-level facts - plus a Publication for each PublicationType each manifestation
+   * could still become. It decides nothing about WorkType: a candidate's type is a placeholder the
+   * resolver always replaces with a structural, existing or publisher-chosen one, and a candidate plan is
+   * never itself a plan to run.
+   */
   async parse(): Promise<ImportParseResult> {
     try {
-      const products = this.convertToArray(this.xml.ONIXMessage.Product).filter((product) => !!product);
+      const products = this.convertToArray(this.xml.ONIXMessage.Product).filter(
+        (product) => !!product && typeof product === 'object',
+      );
 
       if (products.length === 0) {
         return {
@@ -280,23 +358,78 @@ class XMLParser {
         };
       }
 
-      await this.lookupCoordinator.prefetchContributorsByOrcids(this.collectContributorOrcids(products));
+      const sourcePlan = this.options.sourcePlan ?? planOnixSource(this.xml);
+      const adaptable = new Set(this.options.adaptGroupKeys ?? this.groupsWithoutSourceConflict(sourcePlan));
+      const recordIndexByKey = new Map(sourcePlan.records.map(({ recordKey, index }) => [recordKey, index]));
 
-      const promises = products.map((product, index) => this.parseWork(product, index + 1, WorkTypes.enum.EditedBook));
+      // Every Product of every adapted group, read from its representative record, in file order.
+      const members = sourcePlan.groups
+        .filter(({ groupKey }) => adaptable.has(groupKey))
+        .flatMap((group) =>
+          sourcePlan.products
+            .filter(({ groupKey }) => groupKey === group.groupKey)
+            .map((node) => ({ group, node, index: recordIndexByKey.get(node.representativeRecordKey) as number })),
+        )
+        .sort((a, b) => a.index - b.index);
+
+      await this.lookupCoordinator.prefetchContributorsByOrcids(
+        this.collectContributorOrcids(members.map(({ index }) => products[index - 1])),
+      );
 
       // `Promise.all` resolves in input order regardless of completion order, so collecting
       // the results here — rather than letting each concurrent `parseWork` push into shared
       // state — keeps works, chapters and series ordinals in ONIX product order.
-      const parsedProducts = await Promise.all(promises);
-
-      this.parsedWorks = parsedProducts.map(({ work }) => work);
-      this.parsedChapters = parsedProducts.flatMap(({ chapters }) => chapters);
-
-      const { plan, issues } = buildSeriesPlan(
-        parsedProducts.map(({ work, seriesCandidate }) => ({ work, candidate: seriesCandidate })),
-        this.serieses,
-        ONIX_SERIES_MESSAGES,
+      const parsedProducts = await Promise.all(
+        members.map(({ group, node, index }) => this.parseWork(products[index - 1], index, node, group)),
       );
+
+      const adaptation: OnixAdaptedGroup[] = [];
+      const seriesInputs: { work: WorkEntity; candidate?: SeriesCandidate }[] = [];
+      const withdrawnSelections = new Set<string>();
+
+      sourcePlan.groups
+        .filter(({ groupKey }) => adaptable.has(groupKey))
+        .forEach((group) => {
+          const grouped = members
+            .map((member, position) => ({ ...member, parsed: parsedProducts[position] }))
+            .filter((member) => member.group.groupKey === group.groupKey);
+
+          if (grouped.length === 0) return;
+
+          const [representative] = grouped;
+          const conflictingFields = this.conflictingWorkFacts(grouped.map(({ parsed }) => parsed));
+
+          adaptation.push({
+            groupKey: group.groupKey,
+            workId: representative.parsed.work.id,
+            conflictingFields,
+            publications: Object.fromEntries(grouped.map(({ node, parsed }) => [node.productKey, parsed.publications])),
+          });
+
+          // Only the representative's contributor alternatives stay: the other Products described the same
+          // contributors, or the group does not become a Work at all.
+          grouped.slice(conflictingFields.length > 0 ? 0 : 1).forEach(({ parsed }) => {
+            [parsed.work, ...parsed.chapters].forEach(({ id }) => withdrawnSelections.add(id));
+          });
+
+          if (conflictingFields.length > 0) return;
+
+          const work: WorkEntity = {
+            ...representative.parsed.work,
+            publications: grouped.flatMap(({ node, parsed }) => {
+              const resolved =
+                node.manifestation.kind === 'RESOLVED' ? parsed.publications[node.manifestation.type] : undefined;
+
+              return resolved === undefined ? [] : [resolved.publication];
+            }),
+          };
+
+          this.parsedWorks.push(work);
+          this.parsedChapters.push(...representative.parsed.chapters);
+          seriesInputs.push({ work, candidate: representative.parsed.seriesCandidate });
+        });
+
+      const { plan, issues } = buildSeriesPlan(seriesInputs, this.serieses, ONIX_SERIES_MESSAGES);
 
       this.parsedSeries = plan;
 
@@ -322,7 +455,10 @@ class XMLParser {
         status: 'success',
         data: {
           plan: { works: this.parsedWorks, chapters: this.parsedChapters, series: this.parsedSeries },
-          contributorsForSelection: this.contributorsForSelection,
+          contributorsForSelection: Object.fromEntries(
+            Object.entries(this.contributorsForSelection).filter(([id]) => !withdrawnSelections.has(id)),
+          ),
+          onix: { sourcePlan, groups: adaptation },
         },
         issues: sortedIssues,
       };
@@ -347,6 +483,49 @@ class XMLParser {
   /** A failed parse creates nothing, so it carries a plan that would create nothing. */
   private emptyData() {
     return { plan: createEmptyImportPlan(), contributorsForSelection: {} };
+  }
+
+  /** Groups whose own records, Products and Work identity are not in conflict: the default set to adapt. */
+  private groupsWithoutSourceConflict(sourcePlan: OnixSourcePlan): string[] {
+    return sourcePlan.groups
+      .filter(({ groupKey, productKeys }) =>
+        sourcePlan.blockers.every(
+          (blocker) =>
+            !SOURCE_CONFLICT_CLASSIFICATIONS.has(blocker.classification) ||
+            (blocker.groupKey !== groupKey && !productKeys.includes(blocker.productKey ?? '')),
+        ),
+      )
+      .map(({ groupKey }) => groupKey);
+  }
+
+  /**
+   * The grouped Work facts on which Products of one group disagree.
+   *
+   * Compared after adaptation, as the Work would receive them, so two spellings the adapter already reads
+   * the same way agree. Chapters are compared without their generated ids, and a series membership without
+   * the source handles that only name which Product supplied it.
+   */
+  private conflictingWorkFacts(parsed: ParsedProduct[]): string[] {
+    if (parsed.length < 2) return [];
+
+    const facts = parsed.map(({ work, chapters, seriesCandidate }) => ({
+      ...Object.fromEntries(GROUPED_WORK_FACTS.map((field) => [field, canonicalJson(work[field])])),
+      chapters: canonicalJson(chapters.map(({ id: _id, relationId: _relationId, ...chapter }) => chapter)),
+      series: canonicalJson(
+        seriesCandidate === undefined
+          ? null
+          : {
+              identity: seriesCandidate.identity,
+              name: seriesCandidate.name,
+              imprintId: seriesCandidate.imprintId,
+              existingSeriesId: seriesCandidate.existingSeriesId ?? null,
+              ordinal: seriesCandidate.ordinal ?? null,
+              creationAllowed: seriesCandidate.creation.allowed,
+            },
+      ),
+    })) as Record<string, string>[];
+
+    return Object.keys(facts[0]).filter((field) => new Set(facts.map((fact) => fact[field])).size > 1);
   }
 
   private convertToArray<T>(data: T | T[]): T[] {
@@ -426,7 +605,8 @@ class XMLParser {
   private async parseWork(
     product: ExtendedProduct,
     index: number,
-    workType = WorkTypes.enum.EditedBook,
+    node: OnixProductNode,
+    group: OnixWorkGroup,
   ): Promise<ParsedProduct> {
     const workId = this.generateId();
     const imprintId = this.parseImprint(product, index);
@@ -441,18 +621,23 @@ class XMLParser {
     const workContributors = product.DescriptiveDetail?.Contributor ?? [];
     const workContributions = await this.parseContributors(workContributors, workId, product, index);
 
+    // The Work's identity and edition are the group's, decided from every grouped Product at once. A
+    // Product DOI, LCCN or OCLC number identifies the Product, never the Work, so none is read here, and
+    // the WorkType is left to the resolver: nothing in a Product decides it.
     const work = getDefaultWork({
       id: workId,
       status,
-      type: workType,
       imprintId,
-      doi: this.parseDoi(product, index),
-      lccn: this.parseLccn(product),
-      oclc: this.parseOclc(product),
+      doi: group.workDoi.kind === 'DOI' ? group.workDoi.doi : '',
+      lccn: '',
+      oclc: '',
       license: this.parseLicense(product, index),
       copyrightHolder: this.parseCopyrightHolder(product),
       titles: this.parseTitle(product, textLocale),
-      edition: this.parseEdition(product),
+      edition:
+        group.edition.kind === 'EXPLICIT' || group.edition.kind === 'DEFAULT_FIRST_EDITION'
+          ? group.edition.edition
+          : null,
       bibliographyNote: this.parseBibliographyNote(product),
       generalNote: this.parseGeneralNote(product),
       abstracts: this.parseAbstracts(product, index, textLocale),
@@ -467,14 +652,19 @@ class XMLParser {
       subjects: this.parseSubjects(product),
       fundings,
       languages,
-      publications: this.parsePublications(product, index),
+      publications: [],
       references: this.parseReferences(product, index),
       contributions: workContributions,
     });
 
-    const chapters = await this.parseChapters(product, index, work, textLocale);
+    const chapters = await this.parseChapters(product, index, work, textLocale, node);
 
-    return { work, chapters, seriesCandidate: this.parseSeries(product, index, imprintId) };
+    return {
+      work,
+      chapters,
+      seriesCandidate: this.parseSeries(product, index, imprintId),
+      publications: this.parsePublicationCandidates(product, index, node),
+    };
   }
 
   private parseImprint(product: ExtendedProduct, index: number) {
@@ -532,42 +722,6 @@ class XMLParser {
     }
 
     return selection.kind === 'doi' ? selection.doi : '';
-  }
-
-  /**
-   * The work's DOI, in the single form Thoth stores.
-   *
-   * ProductIdentifier is repeatable, so the type has to be read off every occurrence rather than
-   * off whichever one came first — an ISBN listed before the DOI used to be enough to hide it —
-   * and only ProductIDType 06 is a DOI. What the sender wrote is then canonicalised rather than
-   * prefixed: `doiPrefix + value` turned an already-resolver-prefixed DOI into
-   * `https://doi.org/https://doi.org/10.…` and a publisher's product code into a URL that looks
-   * like a DOI until the API parses it.
-   */
-  private parseDoi(product: ExtendedProduct, index: number) {
-    const identifiers = this.convertToArray(product.ProductIdentifier).filter((identifier) => !!identifier);
-
-    const selection = selectCanonicalDoi(
-      identifiers
-        .filter((identifier) => getOnixText(identifier.ProductIDType) === ProductIdentifierType._06)
-        .map((identifier) => getOnixText(identifier.IDValue)),
-    );
-
-    return this.resolveDoi(
-      selection,
-      product,
-      index,
-      this.describeProduct(product, index),
-      'it was imported without a work DOI',
-    );
-  }
-
-  private parseLccn(product: ExtendedProduct) {
-    return this.findProductIdentifier(product, ProductIdentifierType._13);
-  }
-
-  private parseOclc(product: ExtendedProduct) {
-    return this.findProductIdentifier(product, ProductIdentifierType._23);
   }
 
   /**
@@ -672,12 +826,6 @@ class XMLParser {
     });
 
     return titles;
-  }
-
-  private parseEdition(product: ExtendedProduct): number {
-    const edition = parseInt(product.DescriptiveDetail?.Edition?.EditionNumber ?? '1');
-
-    return edition;
   }
 
   /**
@@ -1229,21 +1377,77 @@ class XMLParser {
     return fundings;
   }
 
-  private parsePublications(product: ExtendedProduct, index: number) {
-    const publications: PublicationEntity[] = [];
+  /**
+   * A Publication for every PublicationType one Product's manifestation could still become.
+   *
+   * The type comes from the approved ProductForm/ProductFormDetail reduction, never from the broad form
+   * alone: a resolved manifestation yields one candidate, one the publisher still has to name yields one
+   * per possible type - Location completeness depends on the type - and an unrepresentable one yields
+   * none. The Publication ISBN is the one the Product's identifiers establish. Prices are read once, so a
+   * currency Thoth lacks is reported once however many candidates there are.
+   */
+  private parsePublicationCandidates(
+    product: ExtendedProduct,
+    index: number,
+    node: OnixProductNode,
+  ): Partial<Record<PublicationType, OnixAdaptedPublication>> {
+    const { manifestation } = node;
+    const types =
+      manifestation.kind === 'RESOLVED'
+        ? [manifestation.type]
+        : manifestation.kind === 'INPUT_REQUIRED'
+          ? manifestation.candidates
+          : [];
+
+    if (types.length === 0) return {};
+
+    const isbn = node.isbn.kind === 'ACCEPTED' ? node.isbn.isbn : '';
+    const prices = this.parsePrices(product, index);
+
+    return Object.fromEntries(types.map((type) => [type, this.parsePublication(product, index, type, isbn, prices)]));
+  }
+
+  private parsePrices(product: ExtendedProduct, index: number): PriceEntity[] | null {
+    const productSupply = product.ProductSupply;
+
+    if (!productSupply || !productSupply.SupplyDetail || !productSupply.SupplyDetail.Price) return null;
+
+    return this.convertToArray(productSupply.SupplyDetail.Price)
+      .filter((price) => !!price)
+      .flatMap((price) => {
+        const currencyCode = this.currencyOptions.find(
+          (option) => option.value.toLowerCase() === (price?.CurrencyCode?.toLowerCase() ?? ''),
+        )?.value;
+
+        if (!currencyCode) {
+          this.pushError(
+            product,
+            index,
+            `Currency code ${price?.CurrencyCode} not found for ${this.describeProduct(product, index)}`,
+          );
+          return [];
+        }
+
+        return [
+          {
+            id: this.defaultId,
+            currencyCode: currencyCode as CurrencyCode,
+            unitPrice: this.parseFloatNumber(price?.PriceAmount ?? '0'),
+          },
+        ];
+      });
+  }
+
+  private parsePublication(
+    product: ExtendedProduct,
+    index: number,
+    type: PublicationType,
+    isbn: string,
+    prices: PriceEntity[] | null,
+  ): OnixAdaptedPublication {
     const descriptiveDetail = product.DescriptiveDetail;
-
-    if (!descriptiveDetail) return publications;
-
-    const productForm = descriptiveDetail.ProductForm;
-
-    if (!productForm) return publications;
-
-    const isValid = isValidPublicationForm(productForm);
-
-    if (!isValid) return publications;
-
-    const measures = this.convertToArray(descriptiveDetail.Measure).filter((measure) => !!measure);
+    const issues: ImportIssue[] = [];
+    const measures = this.convertToArray(descriptiveDetail?.Measure).filter((measure) => !!measure);
 
     const height =
       measures.find((measure) => measure.MeasureType === MeasureType._01 && measure.MeasureUnitCode === MeasureUnit.mm)
@@ -1269,12 +1473,9 @@ class XMLParser {
     const weightOz =
       measures.find((measure) => measure.MeasureType === MeasureType._08 && measure.MeasureUnitCode === MeasureUnit.oz)
         ?.Measurement ?? 0;
-    const isbn = this.findProductIdentifier(product, ProductIdentifierType._15);
-    const isValidIsbn = isbn3.parse(isbn)?.isValid ?? false;
-
     const publication = getDefaultPublication({
-      isbn: isValidIsbn ? isbn : '',
-      type: getPublicationType(productForm),
+      isbn,
+      type,
       width: this.parseFloatNumber(width.toString()),
       widthIn: this.parseFloatNumber(widthIn.toString()),
       height: this.parseFloatNumber(height.toString()),
@@ -1283,45 +1484,13 @@ class XMLParser {
       depthIn: this.parseFloatNumber(depthIn.toString()),
       weight: this.parseFloatNumber(weight.toString()),
       weightOz: this.parseFloatNumber(weightOz.toString()),
-      prices: [],
+      prices: prices === null ? [] : prices.map((price) => ({ ...price })),
       locations: [],
     });
 
     const productSupply = product.ProductSupply;
 
-    if (!productSupply || !productSupply.SupplyDetail || !productSupply.SupplyDetail.Price) {
-      publications.push(publication);
-      return publications;
-    }
-
-    // Prices
-    const prices = this.convertToArray(productSupply.SupplyDetail.Price).filter((price) => !!price);
-
-    prices.forEach((price) => {
-      const currencyCode = this.currencyOptions.find(
-        (option) => option.value.toLowerCase() === (price?.CurrencyCode?.toLowerCase() ?? ''),
-      )?.value;
-
-      if (!currencyCode) {
-        this.pushError(
-          product,
-          index,
-          `Currency code ${price?.CurrencyCode} not found for ${this.describeProduct(product, index)}`,
-        );
-        return;
-      }
-
-      publication.prices.push({
-        id: this.defaultId,
-        currencyCode: currencyCode as CurrencyCode,
-        unitPrice: this.parseFloatNumber(price?.PriceAmount ?? '0'),
-      });
-    });
-
-    if (!productSupply.SupplyDetail.Supplier) {
-      publications.push(publication);
-      return publications;
-    }
+    if (prices === null || !productSupply?.SupplyDetail?.Supplier) return { publication, issues };
 
     // Locations
     const supplierWebsites = this.convertToArray(productSupply.SupplyDetail.Supplier.Website).filter(
@@ -1362,12 +1531,10 @@ class XMLParser {
       // Half a digital pair. The Publication imports without it, but the URL the file did supply
       // is real metadata, so it is reported rather than dropped in silence. A Supplier that
       // supplied neither lost nothing and is left unremarked.
-      this.warnAboutUnrepresentableLocation(product, index, hasLandingPage ? 'fullTextUrl' : 'landingPage');
+      issues.push(this.unrepresentableLocation(product, index, hasLandingPage ? 'fullTextUrl' : 'landingPage'));
     }
 
-    publications.push(publication);
-
-    return publications;
+    return { publication, issues };
   }
 
   /**
@@ -1378,15 +1545,18 @@ class XMLParser {
    * and the publisher's own workflow depends on it, because frontlist titles are catalogued before
    * their files exist. Uploading the file later through Thoth Hosting is what establishes the
    * canonical Location, and that path is the backend's to own.
+   *
+   * Returned with the Publication candidate it belongs to rather than recorded here: whether that
+   * Publication is planned at all is the ONIX resolver's decision, and it reports what it plans.
    */
-  private warnAboutUnrepresentableLocation(
+  private unrepresentableLocation(
     product: ExtendedProduct,
     index: number,
     missing: 'landingPage' | 'fullTextUrl',
-  ) {
+  ): ImportIssue {
     const missingUrl = missing === 'fullTextUrl' ? 'no full text URL' : 'no landing page';
 
-    this.issues.push({
+    return {
       severity: 'warning',
       code: 'onix.location.unrepresentable_canonical',
       message:
@@ -1394,7 +1564,7 @@ class XMLParser {
         'requires both a landing page and a full text URL for a canonical location on a digital publication, and ' +
         `${missingUrl} was supplied. The publication itself is imported without it.`,
       source: this.productSource(product, index),
-    });
+    };
   }
 
   /**
@@ -1907,11 +2077,19 @@ class XMLParser {
     );
   }
 
+  /**
+   * The Product's structural chapters: ContentItems of TextItemType 02, 03 or 04, and nothing else.
+   *
+   * The approved ContentDetail rule makes only front, body and back matter BookChapters. A complete
+   * embedded work, an audiovisual item or an unrecognised item is never one: the source plan blocks its
+   * Product until the publisher or a later representation answers for it, so none of them is created here.
+   */
   private async parseChapters(
     product: ExtendedProduct,
     index: number,
     relatedWork: WorkEntity,
     textLocale: LocaleCodeType | undefined,
+    node: OnixProductNode,
   ) {
     const {
       id: workId,
@@ -1924,9 +2102,12 @@ class XMLParser {
       withdrawnDate,
     } = relatedWork;
 
-    const chapterCollections = this.convertToArray(product.ContentDetail?.ContentItem).filter(
-      (collection) => !!collection,
-    );
+    const chapterPaths = new Set(node.contentItems.filter(({ kind }) => kind === 'CHAPTER').map(({ path }) => path));
+    const chapterCollections = this.convertToArray(product.ContentDetail?.ContentItem)
+      .filter((_collection, position) =>
+        chapterPaths.has(`/ONIXMessage[1]/Product[${index}]/ContentDetail[1]/ContentItem[${position + 1}]`),
+      )
+      .filter((collection) => !!collection);
 
     const newChapters: WorkEntity[] = [];
 

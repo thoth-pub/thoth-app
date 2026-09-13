@@ -14,6 +14,7 @@ import {
   TitleElementLevel,
   TitleType,
   WebsiteRole,
+  WorkRelation,
 } from '@5stones/onix/dist/enums';
 import { faker } from '@faker-js/faker';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -80,6 +81,7 @@ const lookupProduct = ({
   /** `null` includes a funding publisher with no ROR identifier; `undefined` includes none. */
   fundingRor?: string | null;
 }): ExtendedProduct => ({
+  NotificationType: '03',
   DescriptiveDetail: {
     ProductForm: ProductForm._BC,
     TitleDetail: { TitleElement: { TitleText: title } },
@@ -435,7 +437,7 @@ describe('XMLParser', () => {
       expect(result.data.plan.works.every((work) => work.fundings.length === 0)).toBe(true);
     });
 
-    it('should successfully parse valid XML with a single product', async () => {
+    it('should successfully parse valid XML with a single product, reading no Work identifier from its Product identifiers', async () => {
       const doi = '10.12345/test';
       const lccn = '2017123456';
       const oclc = '1086123456';
@@ -443,13 +445,14 @@ describe('XMLParser', () => {
       const title = faker.lorem.sentence();
       const subtitle = faker.lorem.sentence();
       const language = languages[0];
-      const edition = faker.number.int(10);
+      const edition = faker.number.int({ min: 1, max: 10 });
       const imprint = imprints[0];
 
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               ProductIdentifier: [
                 { ProductIDType: ProductIdentifierType._06, IDValue: doi },
                 { ProductIDType: ProductIdentifierType._13, IDValue: lccn },
@@ -464,9 +467,7 @@ describe('XMLParser', () => {
                     Subtitle: subtitle,
                   },
                 },
-                Edition: {
-                  EditionNumber: edition.toString(),
-                },
+                EditionNumber: edition.toString(),
                 Language: {
                   LanguageCode: language.value,
                 },
@@ -500,9 +501,10 @@ describe('XMLParser', () => {
       const work = result.data.plan.works[0];
       expect(work.titles[0].title).toBe(title);
       expect(work.titles[0].subtitle).toBe(subtitle);
-      expect(work.doi).toContain(doi);
-      expect(work.lccn).toBe(lccn);
-      expect(work.oclc).toBe(oclc);
+      // A Product DOI, LCCN and OCLC number identify the Product: none of them becomes the Work's.
+      expect(work.doi).toBe('');
+      expect(work.lccn).toBe('');
+      expect(work.oclc).toBe('');
       expect(work.edition).toBe(edition);
     });
 
@@ -515,8 +517,12 @@ describe('XMLParser', () => {
       const language2 = languages[1];
       const imprint1 = imprints[0];
       const imprint2 = imprints[1];
+      const manifestationOf = (doi: string) => ({
+        RelatedWork: { WorkRelationCode: WorkRelation._01, WorkIdentifier: { WorkIDType: '06', IDValue: doi } },
+      });
       const product1 = {
-        ProductIdentifier: [{ ProductIDType: ProductIdentifierType._06, IDValue: doi1 }],
+        NotificationType: '03',
+        RelatedMaterial: manifestationOf(doi1),
         DescriptiveDetail: {
           ProductForm: ProductForm._BC,
           TitleDetail: { TitleElement: { TitleText: title1 } },
@@ -528,7 +534,8 @@ describe('XMLParser', () => {
         },
       };
       const product2 = {
-        ProductIdentifier: [{ ProductIDType: ProductIdentifierType._06, IDValue: doi2 }],
+        NotificationType: '03',
+        RelatedMaterial: manifestationOf(doi2),
         DescriptiveDetail: {
           ProductForm: ProductForm._BC,
           TitleDetail: { TitleElement: { TitleText: title2 } },
@@ -576,6 +583,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: faker.lorem.sentence() } },
@@ -612,6 +620,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: 'Test Book' } },
@@ -644,7 +653,7 @@ describe('XMLParser', () => {
   });
 
   describe('specific fields', () => {
-    it('should parse DOI with prefix', async () => {
+    it('should parse a Work DOI, stated as a WorkIdentifier, with prefix', async () => {
       const prefix = appConfig.validations.doiPrefix;
       const doi = '10.12345/123';
       const language = languages[0];
@@ -654,7 +663,10 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
-              ProductIdentifier: [{ ProductIDType: ProductIdentifierType._06, IDValue: doi }],
+              NotificationType: '03',
+              RelatedMaterial: {
+                RelatedWork: { WorkRelationCode: WorkRelation._01, WorkIdentifier: { WorkIDType: '06', IDValue: doi } },
+              },
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -693,6 +705,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -723,7 +736,7 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].doi).toEqual('');
     });
 
-    it('should parse lccn', async () => {
+    it('should never read a Product LCCN (ProductIDType 13) as the Work LCCN', async () => {
       const language = languages[0];
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
@@ -732,6 +745,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               ProductIdentifier: [{ ProductIDType: ProductIdentifierType._13, IDValue: lccn }],
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
@@ -760,10 +774,11 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].lccn).toEqual(lccn);
+      expect(result.data.plan.works[0].lccn).toEqual('');
+      expect(result.data.plan.works[0].lccn).not.toEqual(lccn);
     });
 
-    it('should parse oclc', async () => {
+    it('should never read a Product OCLC number (ProductIDType 23) as the Work OCLC number', async () => {
       const language = languages[0];
       const title = faker.lorem.sentence();
       const imprint = imprints[0];
@@ -772,6 +787,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               ProductIdentifier: [{ ProductIDType: ProductIdentifierType._23, IDValue: oclc }],
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
@@ -800,7 +816,8 @@ describe('XMLParser', () => {
       const result = await parser.parse();
 
       expect(result.status).toBe('success');
-      expect(result.data.plan.works[0].oclc).toEqual(oclc);
+      expect(result.data.plan.works[0].oclc).toEqual('');
+      expect(result.data.plan.works[0].oclc).not.toEqual(oclc);
     });
 
     it('should parse title and subtitle', async () => {
@@ -810,6 +827,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title, Subtitle: subtitle } },
@@ -849,6 +867,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -891,6 +910,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 Language: { LanguageCode: language.value },
@@ -942,6 +962,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 Language: { LanguageCode: language.value },
@@ -986,6 +1007,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 Language: { LanguageCode: language.value },
@@ -1029,6 +1051,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 Language: { LanguageCode: language.value },
@@ -1066,6 +1089,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1272,6 +1296,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 Language: { LanguageCode: language.value },
@@ -1309,6 +1334,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 Language: { LanguageCode: language.value },
@@ -1346,6 +1372,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 Language: { LanguageCode: language.value },
@@ -1385,6 +1412,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 Language: { LanguageCode: language.value },
@@ -1414,20 +1442,21 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].bibliographyNote).toEqual('');
     });
 
-    it('should parse edition number', async () => {
+    it('should parse the edition number ONIX states directly in DescriptiveDetail', async () => {
       const language = languages[0];
-      const edition = faker.number.int(10);
+      const edition = faker.number.int({ min: 1, max: 10 });
       const imprint = imprints[0];
       const title = faker.lorem.sentence();
       const xml: ExtendedONIXMessageRoot = {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
                 Language: { LanguageCode: language.value },
-                Edition: { EditionNumber: edition.toString() },
+                EditionNumber: edition.toString(),
               } as ExtendedDescriptiveDetail,
               PublishingDetail: {
                 Imprint: { ImprintName: imprint.label },
@@ -1462,6 +1491,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1501,6 +1531,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1544,6 +1575,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1592,6 +1624,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1631,6 +1664,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1670,6 +1704,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1709,6 +1744,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1748,6 +1784,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1787,6 +1824,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1825,6 +1863,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1863,6 +1902,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1907,6 +1947,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1947,6 +1988,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -1985,6 +2027,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2023,6 +2066,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2069,6 +2113,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2104,6 +2149,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: faker.lorem.sentence() } },
@@ -2272,6 +2318,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2310,6 +2357,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2349,6 +2397,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2391,6 +2440,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2444,6 +2494,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2540,7 +2591,7 @@ describe('XMLParser', () => {
         { MeasureType: MeasureType._08, MeasureUnitCode: MeasureUnit.gr, Measurement: weight },
         { MeasureType: MeasureType._08, MeasureUnitCode: MeasureUnit.oz, Measurement: weightOz },
       ];
-      const isbn = '978-3-033-00960-8';
+      const isbn = '9783033009608';
       const landingPage = faker.internet.url();
       const fullTextUrl = faker.internet.url();
       const locationPlatform = LocationPlatforms.options[0];
@@ -2550,6 +2601,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2630,6 +2682,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2694,6 +2747,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2763,7 +2817,7 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].publications[0].locations[0].locationPlatform).toBe(locationPlatform);
     });
 
-    it('should parse AJ publication', async () => {
+    it('never reads AJ (a downloadable audio file) as MP3: the Publication waits for the format', async () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
@@ -2771,6 +2825,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._AJ,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2799,8 +2854,12 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.plan.works[0].publications).toHaveLength(1);
-      expect(result.data.plan.works[0].publications[0].type).toBe(PublicationType.enum.Mp3);
+      expect(result.data.plan.works[0].publications).toHaveLength(0);
+      // One candidate per audio type the target has, for the publisher to choose between.
+      expect(Object.keys(Object.values(result.data.onix?.groups[0].publications ?? {})[0])).toEqual([
+        PublicationType.enum.Mp3,
+        PublicationType.enum.Wav,
+      ]);
     });
 
     it('should parse BB publication', async () => {
@@ -2811,6 +2870,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BB,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2851,6 +2911,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2883,7 +2944,7 @@ describe('XMLParser', () => {
       expect(result.data.plan.works[0].publications[0].type).toBe(PublicationType.enum.Paperback);
     });
 
-    it('should parse ED publication', async () => {
+    it('never reads ED (a digital download) as PDF: the Publication waits for the file format', async () => {
       const title = faker.lorem.sentence();
       const language = languages[0].value;
       const imprint = imprints[0];
@@ -2891,6 +2952,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._ED,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2919,8 +2981,10 @@ describe('XMLParser', () => {
 
       expect(result.status).toBe('success');
       expect(errorMessages(result)).toHaveLength(0);
-      expect(result.data.plan.works[0].publications).toHaveLength(1);
-      expect(result.data.plan.works[0].publications[0].type).toBe(PublicationType.enum.Pdf);
+      expect(result.data.plan.works[0].publications).toHaveLength(0);
+      expect(Object.keys(Object.values(result.data.onix?.groups[0].publications ?? {})[0])).toContain(
+        PublicationType.enum.Pdf,
+      );
     });
 
     it('should return empty publications if product form is not valid', async () => {
@@ -2931,6 +2995,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: faker.string.sample(),
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -2971,6 +3036,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3022,6 +3088,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3087,6 +3154,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3149,6 +3217,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3197,6 +3266,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3245,6 +3315,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3293,6 +3364,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3341,6 +3413,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3389,6 +3462,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3437,6 +3511,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3485,6 +3560,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3533,6 +3609,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3581,6 +3658,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3629,6 +3707,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3677,6 +3756,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3725,6 +3805,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3784,6 +3865,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3860,6 +3942,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3933,6 +4016,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -3948,6 +4032,7 @@ describe('XMLParser', () => {
                     LevelSequenceNumber: '1',
                     TitleDetail: { TitleElement: { TitleText: chapterTitle } },
                     TextItem: {
+                      TextItemType: '03',
                       TextItemIdentifier: {
                         TextItemIDType: TextItemIdentifierType._06,
                         IDValue: chapterDoi,
@@ -3999,6 +4084,7 @@ describe('XMLParser', () => {
         ONIXMessage: {
           Product: [
             {
+              NotificationType: '03',
               DescriptiveDetail: {
                 ProductForm: ProductForm._BC,
                 TitleDetail: { TitleElement: { TitleText: title } },
@@ -4011,6 +4097,7 @@ describe('XMLParser', () => {
               ContentDetail: {
                 ContentItem: [
                   {
+                    TextItem: { TextItemType: '03' },
                     LevelSequenceNumber: '1',
                     TitleDetail: { TitleElement: { TitleText: chapterTitle } },
                     Contributor: [
@@ -4064,6 +4151,7 @@ describe('XMLParser', () => {
       ONIXMessage: {
         Product: [
           {
+            NotificationType: '03',
             DescriptiveDetail: {
               ProductForm: ProductForm._BC,
               TitleDetail: { TitleElement: { TitleText: 'A work' } },
@@ -4084,6 +4172,7 @@ describe('XMLParser', () => {
       ONIXMessage: {
         Product: [
           {
+            NotificationType: '03',
             DescriptiveDetail: {
               ProductForm: ProductForm._BC,
               TitleDetail: { TitleElement: { TitleText: 'A work' } },
@@ -4096,6 +4185,7 @@ describe('XMLParser', () => {
             ContentDetail: {
               ContentItem: [
                 {
+                  TextItem: { TextItemType: '03' },
                   LevelSequenceNumber: '1',
                   TitleDetail: { TitleElement: { TitleText: 'A chapter' } },
                   Contributor: inputs.map(contributorNode),
@@ -4368,6 +4458,7 @@ describe('XMLParser', () => {
 
     const buildProduct = (descriptiveDetail: Partial<ExtendedDescriptiveDetail>, recordReference?: string) =>
       ({
+        NotificationType: '03',
         ...(recordReference ? { RecordReference: recordReference } : {}),
         DescriptiveDetail: {
           ProductForm: ProductForm._BC,
@@ -4576,14 +4667,14 @@ describe('XMLParser', () => {
         // A lone ProductIdentifier is not an array, so calling `.find` on it used to throw and
         // fail the entire upload with an opaque parsing error.
         const product = {
-          ProductIdentifier: { ProductIDType: ProductIdentifierType._06, IDValue: '10.12345/single' },
+          ProductIdentifier: { ProductIDType: ProductIdentifierType._15, IDValue: '9783033009608' },
           ...buildProduct({ TitleDetail: { TitleElement: { TitleText: 'Single identifier work' } } }),
         } as unknown as ExtendedProduct;
 
         const result = await runParser([product]);
 
         expect(result.status).toBe('success');
-        expect(result.data.plan.works[0].doi).toBe(appConfig.validations.doiPrefix + '10.12345/single');
+        expect(result.data.plan.works[0].publications[0].isbn).toBe('9783033009608');
       });
 
       it('reads a single Measure emitted as an object', async () => {
@@ -4710,6 +4801,7 @@ describe('XMLParser', () => {
 
       const chapteredProduct = (title: string, chapterTitle: string, seriesName?: string) =>
         ({
+          NotificationType: '03',
           ...buildProduct({
             TitleDetail: { TitleElement: { TitleText: title } },
             ...(seriesName ? { Collection: collection(seriesName) } : {}),
@@ -4717,6 +4809,7 @@ describe('XMLParser', () => {
           ContentDetail: {
             ContentItem: [
               {
+                TextItem: { TextItemType: '03' },
                 LevelSequenceNumber: '1',
                 TitleDetail: {
                   TitleType: TitleType._01,
@@ -5669,6 +5762,7 @@ describe('XMLParser', () => {
             ContentDetail: {
               ContentItem: [
                 {
+                  TextItem: { TextItemType: '03' },
                   LevelSequenceNumber: '2',
                   TitleDetail: {
                     TitleType: TitleType._01,
@@ -5680,6 +5774,7 @@ describe('XMLParser', () => {
                   },
                 },
                 {
+                  TextItem: { TextItemType: '03' },
                   LevelSequenceNumber: '1',
                   TitleDetail: {
                     TitleType: TitleType._01,
@@ -5708,6 +5803,7 @@ describe('XMLParser', () => {
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier>
       <ProductIDType>15</ProductIDType>
       <IDValue>9781641891783</IDValue>
@@ -5757,7 +5853,7 @@ describe('XMLParser', () => {
       <PublishingStatus>04</PublishingStatus>
     </PublishingDetail>
     <ContentDetail>
-      <ContentItem>
+      <ContentItem><TextItem><TextItemType>03</TextItemType></TextItem>
         <LevelSequenceNumber>1</LevelSequenceNumber>
         <TitleDetail>
           <TitleType>01</TitleType>
@@ -5841,6 +5937,7 @@ describe('XMLParser', () => {
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <ProductIdentifier><ProductIDType>15</ProductIDType><IDValue>9781641891783</IDValue></ProductIdentifier>
     ${identifiers}
     <DescriptiveDetail>
@@ -6274,19 +6371,27 @@ describe('XMLParser', () => {
       const productIdentifier = (type: string, value: string) =>
         `<ProductIdentifier><ProductIDType>${type}</ProductIDType><IDValue>${value}</IDValue></ProductIdentifier>`;
 
-      const doiOf = (result: Awaited<ReturnType<XMLParser['parse']>>) => result.data.plan.works[0].doi;
+      /** The Work DOI is a WorkIdentifier of the Work a Product manifests (RelatedWork 01), never a Product identifier. */
+      const manifestationOf = (...values: string[]) =>
+        `<RelatedMaterial><RelatedWork><WorkRelationCode>01</WorkRelationCode>${values
+          .map((value) => `<WorkIdentifier><WorkIDType>06</WorkIDType><IDValue>${value}</IDValue></WorkIdentifier>`)
+          .join('')}</RelatedWork></RelatedMaterial>`;
 
-      it('canonicalises a bare DOI', async () => {
-        const result = await runFidelityParser(productXml({ identifiers: productIdentifier('06', '10.1234/abcd') }));
+      const doiOf = (result: Awaited<ReturnType<XMLParser['parse']>>) => result.data.plan.works[0].doi;
+      const doiWarnings = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
+        (result.data.onix?.sourcePlan.warnings ?? []).filter(({ code }) => code === 'onix.identifier.unusable_doi');
+
+      it('canonicalises a bare Work DOI', async () => {
+        const result = await runFidelityParser(productXml({ relatedMaterial: manifestationOf('10.1234/abcd') }));
 
         expect(result.issues).toEqual([]);
         expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
       });
 
-      it('does not prefix a resolver onto a DOI that already has one', async () => {
+      it('does not prefix a resolver onto a Work DOI that already has one', async () => {
         // `doiPrefix + value` made this `https://doi.org/https://doi.org/10.1234/abcd`.
         const result = await runFidelityParser(
-          productXml({ identifiers: productIdentifier('06', 'https://doi.org/10.1234/abcd') }),
+          productXml({ relatedMaterial: manifestationOf('https://doi.org/10.1234/abcd') }),
         );
 
         expect(result.issues).toEqual([]);
@@ -6295,98 +6400,82 @@ describe('XMLParser', () => {
 
       it('accepts an older resolver form', async () => {
         const result = await runFidelityParser(
-          productXml({ identifiers: productIdentifier('06', 'http://dx.doi.org/10.1234/abcd') }),
+          productXml({ relatedMaterial: manifestationOf('http://dx.doi.org/10.1234/abcd') }),
         );
 
         expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
       });
 
-      it('finds a DOI listed behind an unrelated identifier', async () => {
-        // The product's own ISBN is already the first ProductIdentifier, and a `.find()` over an
-        // unnormalised composite saw an array and matched nothing at all.
+      it('never takes a Product DOI (ProductIDType 06) as the Work DOI', async () => {
+        const result = await runFidelityParser(productXml({ identifiers: productIdentifier('06', '10.1234/abcd') }));
+
+        expect(doiOf(result)).toBe('');
+      });
+
+      it('does not report two spellings of one Work DOI as a contradiction', async () => {
         const result = await runFidelityParser(
-          productXml({
-            identifiers: `${productIdentifier('13', '2019012345')}${productIdentifier('06', '10.1234/abcd')}`,
-          }),
+          productXml({ relatedMaterial: manifestationOf('10.1234/abcd', 'https://doi.org/10.1234/abcd') }),
         );
 
+        expect(result.data.onix?.sourcePlan.blockers).toEqual([]);
         expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
       });
 
-      it('does not report two spellings of one DOI as a contradiction', async () => {
+      it('refuses to choose between two genuinely different Work DOIs', async () => {
         const result = await runFidelityParser(
-          productXml({
-            identifiers: `${productIdentifier('06', '10.1234/abcd')}${productIdentifier('06', 'https://doi.org/10.1234/abcd')}`,
-          }),
+          productXml({ relatedMaterial: manifestationOf('10.5678/efgh', '10.1234/abcd') }),
         );
 
-        expect(result.issues).toEqual([]);
-        expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
-      });
-
-      it('refuses to choose between two genuinely different DOIs', async () => {
-        const result = await runFidelityParser(
-          productXml({
-            identifiers: `${productIdentifier('06', '10.5678/efgh')}${productIdentifier('06', '10.1234/abcd')}`,
-          }),
-        );
-
-        // A warning, not an error: a DOI is optional metadata, so the work still imports.
         expect(result.status).toBe('success');
         expect(doiOf(result)).toBe('');
-        expect(result.issues).toEqual([
-          {
-            severity: 'warning',
-            code: 'onix.identifier.unusable_doi',
-            message:
-              'More than one distinct DOI (https://doi.org/10.1234/abcd, https://doi.org/10.5678/efgh) is given for product 1 (9781641891783), so it was imported without a work DOI',
-            source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
-          },
+        expect(result.data.onix?.sourcePlan.blockers).toEqual([
+          expect.objectContaining({
+            code: 'WORK_DOI_CONFLICT',
+            classification: 'TARGET_INPUT_REQUIRED',
+            detail: { dois: ['https://doi.org/10.1234/abcd', 'https://doi.org/10.5678/efgh'] },
+          }),
         ]);
       });
 
-      it('drops a DOI the Thoth API would reject rather than dressing it up', async () => {
-        const result = await runFidelityParser(productXml({ identifiers: productIdentifier('06', 'not-a-doi') }));
+      it('drops a Work DOI the Thoth API would reject rather than dressing it up', async () => {
+        const result = await runFidelityParser(productXml({ relatedMaterial: manifestationOf('not-a-doi') }));
 
         expect(doiOf(result)).toBe('');
         expect(doiOf(result)).not.toBe('https://doi.org/not-a-doi');
-        expect(result.issues).toEqual([
+        expect(doiWarnings(result)).toEqual([
           {
             severity: 'warning',
             code: 'onix.identifier.unusable_doi',
             message:
-              '"not-a-doi" is given as a DOI for product 1 (9781641891783), which Thoth cannot represent as one, so it was not imported',
+              '"not-a-doi" is given as the Work DOI of product 1 (9781641891783), which Thoth cannot read as a DOI, so it was not imported',
             source: { kind: 'onix', productIndex: 1, recordReference: '9781641891783' },
           },
         ]);
       });
 
-      it('keeps a valid DOI beside a malformed one and says which was refused', async () => {
+      it('keeps a valid Work DOI beside a malformed one and says which was refused', async () => {
         const result = await runFidelityParser(
-          productXml({
-            identifiers: `${productIdentifier('06', '10.1234/abcd')}${productIdentifier('06', 'PROD-1234')}`,
-          }),
+          productXml({ relatedMaterial: manifestationOf('10.1234/abcd', 'PROD-1234') }),
         );
 
         expect(doiOf(result)).toBe('https://doi.org/10.1234/abcd');
-        expect(result.issues.map(({ severity, code }) => [severity, code])).toEqual([
-          ['warning', 'onix.identifier.unusable_doi'],
+        expect(doiWarnings(result).map(({ message }) => message)).toEqual([
+          expect.stringContaining('"PROD-1234" is given as the Work DOI'),
         ]);
-        expect(result.issues[0].message).toContain('"PROD-1234" is given as a DOI');
       });
 
-      it('leaves the DOI empty when no identifier claims to be one', async () => {
+      it('leaves the Work DOI empty when no WorkIdentifier claims to be one', async () => {
         const result = await runFidelityParser(productXml({ identifiers: productIdentifier('13', '2019012345') }));
 
         expect(result.issues).toEqual([]);
         expect(doiOf(result)).toBe('');
       });
 
-      it('hands the canonical DOI to the duplicate preflight unchanged', async () => {
+      it('hands the canonical Work DOI to the duplicate preflight unchanged', async () => {
         // Preflight reads `work.doi` straight off the plan, so the corrected value reaches it
         // without any change to preflight itself.
         const result = await runFidelityParser(
-          productXml({ identifiers: productIdentifier('06', 'http://dx.doi.org/10.1234/abcd') }),
+          productXml({ relatedMaterial: manifestationOf('http://dx.doi.org/10.1234/abcd') }),
         );
 
         expect(collectWorkIdentifiers(result.data.plan.works[0])).toContainEqual({
@@ -6406,7 +6495,7 @@ describe('XMLParser', () => {
           <TitleDetail><TitleType>01</TitleType><TitleElement>
             <TitleElementLevel>04</TitleElementLevel><TitleText>A Chapter</TitleText>
           </TitleElement></TitleDetail>
-          <TextItem>${identifiers}</TextItem>
+          <TextItem><TextItemType>03</TextItemType>${identifiers}</TextItem>
         </ContentItem>
       </ContentDetail>`;
 
@@ -6708,7 +6797,7 @@ describe('XMLParser', () => {
         const result = await runFidelityParser(
           productXml({
             publishingDates: publishingDateXml('01', '20240807', '00'),
-            contentDetail: `<ContentDetail><ContentItem>
+            contentDetail: `<ContentDetail><ContentItem><TextItem><TextItemType>03</TextItemType></TextItem>
               <LevelSequenceNumber>1</LevelSequenceNumber>
               <TitleDetail><TitleType>01</TitleType><TitleElement>
                 <TitleElementLevel>04</TitleElementLevel><TitleText>A Chapter</TitleText>
@@ -7982,19 +8071,23 @@ Professor Emerita of English.</BiographicalNote>`),
      */
     const productWith = ({
       productForm,
+      productFormDetail,
       supplier,
       publisherLandingPage,
     }: {
       productForm: ProductForm;
+      productFormDetail?: string;
       supplier?: SupplierUrls;
       publisherLandingPage?: string;
     }): ExtendedONIXMessageRoot => ({
       ONIXMessage: {
         Product: [
           {
+            NotificationType: '03',
             RecordReference: RECORD_REFERENCE,
             DescriptiveDetail: {
               ProductForm: productForm,
+              ...(productFormDetail === undefined ? {} : { ProductFormDetail: productFormDetail }),
               TitleDetail: { TitleElement: { TitleText: 'A frontlist title' } },
               Language: { LanguageCode: languages[0].value },
             } as ExtendedDescriptiveDetail,
@@ -8039,8 +8132,15 @@ Professor Emerita of English.</BiographicalNote>`),
     const locationsOf = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
       result.data.plan.works[0].publications[0].locations;
 
+    /**
+     * The warning travels with the Publication candidate it belongs to: whether that Publication is planned is
+     * the ONIX resolver's decision, and it reports what it plans.
+     */
     const unrepresentableWarnings = (result: Awaited<ReturnType<XMLParser['parse']>>) =>
-      result.issues.filter((issue) => issue.code === 'onix.location.unrepresentable_canonical');
+      (result.data.onix?.groups ?? [])
+        .flatMap(({ publications }) => Object.values(publications).flatMap((byType) => Object.values(byType)))
+        .flatMap((candidate) => candidate?.issues ?? [])
+        .filter((issue) => issue.code === 'onix.location.unrepresentable_canonical');
 
     /** The one canonical Location a representable case should plan, with the platform mapping kept. */
     const canonicalLocation = (landingPage: string, fullTextUrl: string) => [
@@ -8102,11 +8202,11 @@ Professor Emerita of English.</BiographicalNote>`),
     // Digital: a canonical Location needs both URLs. Exactly one of them is therefore
     // unrepresentable — and dropping it silently would lose metadata the publisher did supply.
     describe.each([
-      ['PDF (ED)', ProductForm._ED],
-      ['MP3 (AJ)', ProductForm._AJ],
-    ])('a digital publication, %s', (_label, productForm) => {
+      ['PDF (ED + E107)', ProductForm._ED, 'E107'],
+      ['MP3 (AJ + A103)', ProductForm._AJ, 'A103'],
+    ])('a digital publication, %s', (_label, productForm, productFormDetail) => {
       it('plans no Location, and warns about nothing, when the Supplier carries neither URL', async () => {
-        const result = await run(productWith({ productForm, supplier: {} }));
+        const result = await run(productWith({ productForm, productFormDetail, supplier: {} }));
 
         expect(result.status).toBe('success');
         expect(errorMessages(result)).toHaveLength(0);
@@ -8117,7 +8217,9 @@ Professor Emerita of English.</BiographicalNote>`),
       });
 
       it('omits the Location and warns when only the Supplier landing page is supplied', async () => {
-        const result = await run(productWith({ productForm, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }));
+        const result = await run(
+          productWith({ productForm, productFormDetail, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }),
+        );
 
         expect(result.status).toBe('success');
         expect(locationsOf(result)).toEqual([]);
@@ -8125,7 +8227,9 @@ Professor Emerita of English.</BiographicalNote>`),
       });
 
       it('omits the Location and warns when only the Supplier full text URL is supplied', async () => {
-        const result = await run(productWith({ productForm, supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL } }));
+        const result = await run(
+          productWith({ productForm, productFormDetail, supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL } }),
+        );
 
         expect(result.status).toBe('success');
         expect(locationsOf(result)).toEqual([]);
@@ -8136,6 +8240,7 @@ Professor Emerita of English.</BiographicalNote>`),
         const result = await run(
           productWith({
             productForm,
+            productFormDetail,
             supplier: { landingPage: SUPPLIER_LANDING_PAGE, fullTextUrl: SUPPLIER_FULL_TEXT_URL },
           }),
         );
@@ -8149,7 +8254,11 @@ Professor Emerita of English.</BiographicalNote>`),
     describe('the unrepresentable canonical Location warning', () => {
       it('is one non-blocking product-scoped warning naming the missing full text URL', async () => {
         const result = await run(
-          productWith({ productForm: ProductForm._ED, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }),
+          productWith({
+            productForm: ProductForm._ED,
+            productFormDetail: 'E107',
+            supplier: { landingPage: SUPPLIER_LANDING_PAGE },
+          }),
         );
 
         expect(result.status).toBe('success');
@@ -8166,7 +8275,11 @@ Professor Emerita of English.</BiographicalNote>`),
 
       it('names the missing landing page when only the full text URL was supplied', async () => {
         const result = await run(
-          productWith({ productForm: ProductForm._ED, supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL } }),
+          productWith({
+            productForm: ProductForm._ED,
+            productFormDetail: 'E107',
+            supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL },
+          }),
         );
 
         const [warning] = unrepresentableWarnings(result);
@@ -8178,7 +8291,11 @@ Professor Emerita of English.</BiographicalNote>`),
 
       it('keeps the Work and its Publication in the plan and never says they were dropped', async () => {
         const result = await run(
-          productWith({ productForm: ProductForm._ED, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }),
+          productWith({
+            productForm: ProductForm._ED,
+            productFormDetail: 'E107',
+            supplier: { landingPage: SUPPLIER_LANDING_PAGE },
+          }),
         );
 
         expect(result.status).toBe('success');
@@ -8215,7 +8332,11 @@ Professor Emerita of English.</BiographicalNote>`),
 
       it('plans no Location for a frontlist product carrying no ProductSupply at all', async () => {
         const result = await run(
-          productWith({ productForm: ProductForm._ED, publisherLandingPage: PUBLISHER_LANDING_PAGE }),
+          productWith({
+            productForm: ProductForm._ED,
+            productFormDetail: 'E107',
+            publisherLandingPage: PUBLISHER_LANDING_PAGE,
+          }),
         );
 
         expect(result.status).toBe('success');
@@ -8230,6 +8351,7 @@ Professor Emerita of English.</BiographicalNote>`),
         const result = await run(
           productWith({
             productForm: ProductForm._ED,
+            productFormDetail: 'E107',
             supplier: { fullTextUrl: SUPPLIER_FULL_TEXT_URL },
             publisherLandingPage: PUBLISHER_LANDING_PAGE,
           }),
@@ -8243,7 +8365,11 @@ Professor Emerita of English.</BiographicalNote>`),
       it('never turns an unrepresentable digital candidate into a non-canonical Location', async () => {
         // A first non-canonical Location is itself rejected by the API, so it is no workaround.
         const result = await run(
-          productWith({ productForm: ProductForm._ED, supplier: { landingPage: SUPPLIER_LANDING_PAGE } }),
+          productWith({
+            productForm: ProductForm._ED,
+            productFormDetail: 'E107',
+            supplier: { landingPage: SUPPLIER_LANDING_PAGE },
+          }),
         );
 
         expect(locationsOf(result).some(({ canonical }) => !canonical)).toBe(false);
@@ -8322,6 +8448,7 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
     chapters?: { title: string; contributors: ReturnType<typeof onixContributor>[] }[],
   ): ExtendedProduct =>
     ({
+      NotificationType: '03',
       DescriptiveDetail: {
         ProductForm: ProductForm._BC,
         TitleDetail: { TitleElement: { TitleText: title } },
@@ -8335,6 +8462,7 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
       ContentDetail: chapters
         ? {
             ContentItem: chapters.map((chapter, index) => ({
+              TextItem: { TextItemType: '03' },
               LevelSequenceNumber: `${index + 1}`,
               TitleDetail: { TitleElement: { TitleText: chapter.title } },
               Contributor: chapter.contributors,
@@ -8730,6 +8858,7 @@ describe('ONIX contributor identity by ORCID (issue #135)', () => {
 <ONIXMessage release="3.0">
   <Product>
     <RecordReference>9781641891783</RecordReference>
+    <NotificationType>03</NotificationType>
     <DescriptiveDetail>
       <ProductForm>BC</ProductForm>
       <TitleDetail>
